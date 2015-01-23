@@ -981,9 +981,11 @@ int scsi_device_get(struct scsi_device *sdev)
 	if (sdev->sdev_state == SDEV_DEL || sdev->sdev_state == SDEV_CANCEL)
 		goto fail;
 	if (!get_device(&sdev->sdev_gendev))
-		goto fail;
-	if (!try_module_get(sdev->host->hostt->module))
-		goto fail_put_device;
+		return -ENXIO;
+	/* We can fail try_module_get if we're doing SCSI operations
+	 * from module exit (like cache flush) */
+	__module_get(sdev->host->hostt->module);
+
 	return 0;
 
 fail_put_device:
