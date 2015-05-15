@@ -1,0 +1,4 @@
+config SCSI_HISI_SAS
+	tristate "HiSilicon SAS"
+	help
+		This driver supports HiSilicon's SAS HBA
