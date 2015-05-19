@@ -49,3 +49,6 @@ static __exit void hisi_sas_exit(void)
 
 module_init(hisi_sas_init);
 module_exit(hisi_sas_exit);
+
+MODULE_VERSION("V0.1");
+MODULE_LICENSE("GPL");
