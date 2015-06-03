@@ -486,14 +486,7 @@
 			};
 		};
 
-		hisi_sas: sas@0xc1000000 {
-			compatible = "hisilicon,p660-sas";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0xc1000000 0x10000>;
-			dma-coherent;
-			status = "okay";
-		};
+	
 	};
 
 	pcie@0xb0080000 {
@@ -517,6 +510,33 @@
 				  0x0 0 0 3 &mbigen_pci 3 4
 				  0x0 0 0 4 &mbigen_pci 4 4>;
 */		status = "ok";
+	};
+
+	hisi_sas: sas {
+		compatible = "hisilicon,p660-sas";
+		core-count = <2>;
+		status = "okay";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		core0: sas@0xc1000000 {
+			compatible = "hisilicon,p660-sas-core";
+			core-id = <0>;
+			reg = <0x0 0xc1000000 0x0 0x1000>;
+			dma-coherent;
+			phy-count = <8>;
+			status = "okay";
+		};
+
+		core1: sas@0xb1000000 {
+			compatible = "hisilicon,p660-sas-core";
+			core-id = <1>;
+			reg = <0x0 0xb1000000 0x0 0x10000>;
+			dma-coherent;
+			phy-count = <8>;
+			status = "okay";
+		};
 	};
 
 	pcie@0xb0090000 {
