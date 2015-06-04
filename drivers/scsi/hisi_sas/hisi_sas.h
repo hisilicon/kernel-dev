@@ -29,6 +29,9 @@
 
 #define HISI_SAS_MAX_SG 10
 
+#define HISI_SAS_STATUS_BUF_SZ 1024
+#define HISI_SAS_ITCT_ENTRY_SZ 128
+
 // Temp defines to compile
 #define PORT_DEV_TRGT_MASK (0x7U << 17)
 #define PORT_TYPE_SAS (1U << 1)
@@ -98,7 +101,23 @@ struct hisi_sas_device {
 
 struct hisi_sas_slot_info {
 	struct list_head entry;
-	// To be completed, j00310691
+	union {
+		struct sas_task *task;
+		void	*tdata;
+	};
+	u32	n_elem;
+	u32	tx;
+	int	queue_slot;
+	int	queue;
+
+	void	*buf;
+	dma_addr_t	buf_dma;
+	void	*status_buffer;
+	dma_addr_t	status_buffer_dma;
+	void	*response;
+	struct hisi_sas_port	*port;
+	struct hisi_sas_device	*device;
+	void	*open_frame;
 };
 
 struct hisi_sas_cmd_hdr {
@@ -144,7 +163,6 @@ struct hisi_hba {
 	// To be completed, j00310691
 };
 
-
 struct hisi_hba_priv_info {
 	u8	n_phy;
 	struct hisi_hba *hisi_hba[HISI_SAS_MAX_CORE];
@@ -152,6 +170,20 @@ struct hisi_hba_priv_info {
 	int n_core;
 	u8 scan_finished;
 	// To be completed, j00310691
+};
+
+struct hisi_sas_tmf_task {
+	// To be completed, j00310691
+};
+
+struct hisi_sas_tei {
+	struct sas_task	*task;
+	struct hisi_sas_cmd_hdr	*hdr;
+	struct hisi_sas_port	*port;
+	int	queue;
+	int	queue_slot;
+	int	n_elem;
+	int	tag;
 };
 
 int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
