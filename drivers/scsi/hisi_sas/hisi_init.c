@@ -66,7 +66,7 @@ static int hisi_sas_prep_ha_init(struct Scsi_Host *shost, int n_core)
 	if (!sha->lldd_ha)
 		goto exit_free;
 
-	//((struct mvs_prv_info *)sha->lldd_ha)->n_host = core_nr;
+	((struct hisi_hba_priv_info *)sha->lldd_ha)->n_core = n_core;
 
 	shost->transportt = hisi_sas_stt;
 	shost->max_id = HISI_SAS_MAX_DEVICES;
@@ -262,7 +262,7 @@ static void hisi_sas_post_ha_init(struct Scsi_Host *shost, int n_core)
 	for (j = 0; j < n_core; j++) {
 		hisi_hba = ((struct hisi_hba_priv_info *)sha->lldd_ha)->hisi_hba[j];
 		for (i = 0; i < hisi_hba->n_phy; i++) {
-			pr_info("hisi_sas_post_ha_init hisi_hba=%p j=%d i=%d\n", hisi_hba, j, i);
+
 			sha->sas_phy[n_phy] =
 				&hisi_hba->phy[i].sas_phy;
 			sha->sas_port[n_phy] =

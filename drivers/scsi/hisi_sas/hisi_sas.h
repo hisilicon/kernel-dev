@@ -11,14 +11,13 @@
 #include <scsi/libsas.h>
 
 #define DRV_NAME "hisi_sas"
-#define DRV_VERSION "v0.x"
+#define DRV_VERSION "v0.1"
 
 #define HISI_SAS_MAX_CORE 3
 
 #define HISI_SAS_MAX_PHYS	9
 #define HISI_SAS_QUEUES 32
 #define HISI_SAS_QUEUE_SLOTS 4096
-// j00310691 should be 4096, but reducing as dma alloc fails
 #define HISI_SAS_MAX_ITCT_ENTRIES 4096
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
 #define HISI_SAS_COMMAND_ENTRIES 8192
@@ -29,6 +28,12 @@
 #define HISI_SAS_ITCT_ENTRY_SZ 128
 
 #define HISI_SAS_MAX_SG 10
+
+// Temp defines to compile
+#define PORT_DEV_TRGT_MASK (0x7U << 17)
+#define PORT_TYPE_SAS (1U << 1)
+#define PORT_SSP_TRGT_MASK (0x1U << 19)
+#define PORT_TYPE_SATA (1U << 0)
 
 enum dev_status {
 	HISI_SAS_DEV_NORMAL,
@@ -41,10 +46,28 @@ struct hba_info_page {
 };
 
 struct hisi_sas_phy {
-	u8	port_attached;
-	u64	dev_sas_addr;
+	struct hisi_hba	*hisi_hba;
+	struct hisi_sas_port	*port;
 	struct asd_sas_phy	sas_phy;
+	struct sas_identify	identify;
+	struct scsi_device	*sdev;
+	struct timer_list timer;
 	// To be completed, j00310691
+	u64		dev_sas_addr;
+	u64		att_dev_sas_addr;
+	u32		att_dev_info;
+	u32		dev_info;
+	u32		phy_type;
+	u32		phy_status;
+	u32		irq_status;
+	u32		frame_rcvd_size;
+	u8		frame_rcvd[32];
+	u8		phy_attached;
+	u8		phy_mode;
+	u8		reserved[2];
+	u32		phy_event;
+	enum sas_linkrate	minimum_linkrate;
+	enum sas_linkrate	maximum_linkrate;
 };
 
 struct hisi_sas_port {
@@ -126,6 +149,8 @@ struct hisi_hba_priv_info {
 	u8	n_phy;
 	struct hisi_hba *hisi_hba[HISI_SAS_MAX_CORE];
 	struct tasklet_struct *hisi_sas_tasklet;
+	int n_core;
+	u8 scan_finished;
 	// To be completed, j00310691
 };
 

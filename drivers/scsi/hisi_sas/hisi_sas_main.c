@@ -112,22 +112,92 @@ found_out:
 	return res;
 }
 
-
 void hisi_sas_hw_init(struct hisi_hba *hisi_hba)
 {
 
 }
 
+void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int i)
+{
+	struct hisi_sas_phy *phy = &hisi_hba->phy[i];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	struct sas_ha_struct *sas_ha;
+
+	if (!phy->phy_attached)
+		return;
+
+	if (!(phy->att_dev_info & PORT_DEV_TRGT_MASK)
+		&& phy->phy_type & PORT_TYPE_SAS) {
+		return;
+	}
+
+	sas_ha = hisi_hba->sas;
+	sas_ha->notify_phy_event(sas_phy, PHYE_OOB_DONE);
+
+	if (sas_phy->phy) {
+		struct sas_phy *sphy = sas_phy->phy;
+
+		sphy->negotiated_linkrate = sas_phy->linkrate;
+		sphy->minimum_linkrate = phy->minimum_linkrate;
+		sphy->minimum_linkrate_hw = SAS_LINK_RATE_1_5_GBPS;
+		sphy->maximum_linkrate = phy->maximum_linkrate;
+		//sphy->maximum_linkrate_hw = MVS_CHIP_DISP->phy_max_link_rate();
+	}
+
+	if (phy->phy_type & PORT_TYPE_SAS) {
+		struct sas_identify_frame *id;
+
+		id = (struct sas_identify_frame *)phy->frame_rcvd;
+		id->dev_type = phy->identify.device_type;
+		id->initiator_bits = SAS_PROTOCOL_ALL;
+		id->target_bits = phy->identify.target_port_protocols;
+
+		/* direct attached SAS device */
+		if (phy->att_dev_info & PORT_SSP_TRGT_MASK) {
+			//MVS_CHIP_DISP->write_port_cfg_addr(mvi, i, PHYR_PHY_STAT);
+			//MVS_CHIP_DISP->write_port_cfg_data(mvi, i, 0x00);
+		}
+	} else if (phy->phy_type & PORT_TYPE_SATA) {
+		/*Nothing*/
+	}
+
+	pr_info("core %d phy %d byte dmaded.\n", hisi_hba->id, i);
+
+	sas_phy->frame_rcvd_size = phy->frame_rcvd_size;
+
+	hisi_hba->sas->notify_port_event(sas_phy,
+				   PORTE_BYTES_DMAED);
+}
+
 int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
-	//pr_info("%s shost=%p time=%lu\n", __func__, shost, time);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct hisi_hba_priv_info *hisi_hba_priv = sha->lldd_ha;
 
+	if (hisi_hba_priv->scan_finished == 0)
+		return 0;
+
+	sas_drain_work(sha);
 	return 1;
 }
 
 void hisi_sas_scan_start(struct Scsi_Host *shost)
 {
-	//pr_info("%s shost=%p\n", __func__, shost);
+	int i, j;
+	unsigned short core_nr;
+	struct hisi_hba *hisi_hba;
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct hisi_hba_priv_info *hisi_hba_priv = sha->lldd_ha;
+
+	core_nr = hisi_hba_priv->n_core;
+
+	for (j = 0; j < core_nr; j++) {
+		hisi_hba = ((struct hisi_hba_priv_info *)sha->lldd_ha)->hisi_hba[j];
+		for (i = 0; i < hisi_hba->n_phy; ++i)
+			hisi_sas_bytes_dmaed(hisi_hba, i);
+	}
+
+	hisi_hba_priv->scan_finished = 1;
 }
 
 void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int i)
