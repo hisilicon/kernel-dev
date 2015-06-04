@@ -534,7 +534,7 @@
 			core-id = <1>;
 			reg = <0x0 0xb1000000 0x0 0x10000>;
 			dma-coherent;
-			phy-count = <8>;
+			phy-count = <7>;
 			status = "okay";
 		};
 	};

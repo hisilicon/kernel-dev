@@ -196,9 +196,15 @@ static struct hisi_hba *hisi_sas_platform_dev_alloc(
 		"phy-count",
 		&hisi_hba->n_phy))
 		goto err_out;
+
+	if (of_property_read_u32(np,
+		"core-id",
+		&hisi_hba->id))
+		goto err_out;
+
 	INIT_LIST_HEAD(&hisi_hba->wq_list);
 
-	((struct hisi_hba_priv_info *)sha->lldd_ha)->hisi_hba = hisi_hba;
+	((struct hisi_hba_priv_info *)sha->lldd_ha)->hisi_hba[hisi_hba->id] = hisi_hba;
 	((struct hisi_hba_priv_info *)sha->lldd_ha)->n_phy = hisi_hba->n_phy;
 
 	hisi_hba->sas = sha;
@@ -251,16 +257,17 @@ static void hisi_sas_post_ha_init(struct Scsi_Host *shost, int n_core)
 	int can_queue, i, j;
 	struct hisi_hba *hisi_hba = NULL;
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	int n_phy = 0;
 
-	hisi_hba = ((struct hisi_hba_priv_info *)sha->lldd_ha)->hisi_hba;
 	for (j = 0; j < n_core; j++) {
+		hisi_hba = ((struct hisi_hba_priv_info *)sha->lldd_ha)->hisi_hba[j];
 		for (i = 0; i < hisi_hba->n_phy; i++) {
-			hisi_hba = ((struct hisi_hba_priv_info *)sha->lldd_ha)->hisi_hba;
-
-			sha->sas_phy[j * HISI_SAS_MAX_PHYS  + i] =
+			pr_info("hisi_sas_post_ha_init hisi_hba=%p j=%d i=%d\n", hisi_hba, j, i);
+			sha->sas_phy[n_phy] =
 				&hisi_hba->phy[i].sas_phy;
-			sha->sas_port[j * HISI_SAS_MAX_PHYS + i] =
+			sha->sas_port[n_phy] =
 				&hisi_hba->port[i].sas_port;
+			n_phy++;
 		}
 	}
 
@@ -269,7 +276,7 @@ static void hisi_sas_post_ha_init(struct Scsi_Host *shost, int n_core)
 	sha->lldd_module = THIS_MODULE;
 	sha->sas_addr = &hisi_hba->sas_addr[0];
 
-	sha->num_phys = hisi_hba->n_phy; // fixme j00310691
+	sha->num_phys = n_phy; // fixme j00310691
 
 	can_queue = 1; // fixme j00310691
 

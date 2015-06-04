@@ -13,6 +13,8 @@
 #define DRV_NAME "hisi_sas"
 #define DRV_VERSION "v0.x"
 
+#define HISI_SAS_MAX_CORE 3
+
 #define HISI_SAS_MAX_PHYS	9
 #define HISI_SAS_QUEUES 32
 #define HISI_SAS_QUEUE_SLOTS 4096
@@ -122,7 +124,7 @@ struct hisi_hba {
 
 struct hisi_hba_priv_info {
 	u8	n_phy;
-	struct hisi_hba *hisi_hba;
+	struct hisi_hba *hisi_hba[HISI_SAS_MAX_CORE];
 	struct tasklet_struct *hisi_sas_tasklet;
 	// To be completed, j00310691
 };

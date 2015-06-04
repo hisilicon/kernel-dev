@@ -57,7 +57,7 @@ struct hisi_hba *hisi_sas_find_dev(struct domain_device *dev)
 	}
 
 	hi = j/((struct hisi_hba_priv_info *)sha->lldd_ha)->n_phy;
-	hisi_hba = ((struct hisi_hba_priv_info *)sha->lldd_ha)->hisi_hba;
+	hisi_hba = ((struct hisi_hba_priv_info *)sha->lldd_ha)->hisi_hba[hi];
 
 	return hisi_hba;
 }
