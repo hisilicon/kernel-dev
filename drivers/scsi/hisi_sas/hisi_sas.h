@@ -80,10 +80,6 @@ struct hisi_sas_port {
 	struct list_head	list;
 };
 
-struct hiti_sas_itct {
-	// To be completed, j00310691
-};
-
 struct hisi_sas_device {
 	struct list_head	dev_entry;
 	enum sas_device_type	dev_type;
@@ -118,11 +114,6 @@ struct hisi_sas_slot_info {
 	struct hisi_sas_port	*port;
 	struct hisi_sas_device	*device;
 	void	*open_frame;
-};
-
-struct hisi_sas_cmd_hdr {
-	u32	abort_flag;
-	// To be completed, j00310691
 };
 
 struct hisi_hba {
@@ -184,6 +175,149 @@ struct hisi_sas_tei {
 	int	queue_slot;
 	int	n_elem;
 	int	tag;
+};
+
+/* HW structures */
+struct hisi_sas_cmd_hdr {
+	/* dw0 */
+	u64 abort_flag:2;
+	u64 rsvd0:2;
+	u64 t10_flds_pres:1;
+	u64 resp_report:1;
+	u64 tlr_ctrl:2;
+	u64 phy_id:8;
+	u64 force_phy:1;
+	u64 port:3;
+	u64 sata_reg_set:7;
+	u64 priority:1;
+	u64 mode:1;
+	u64 cmd:3;
+
+	/* dw1 */
+	u64 port_multiplier:4;
+	u64 bist_activate:1;
+	u64 atapi:1;
+	u64 first_part_dma:1;
+	u64 reset:1;
+	u64 pir_pres:1;
+	u64 enable_tlr:1;
+	u64 verify_dtl:1;
+	u64 rsvd1:1;
+	u64 ssp_pass_through:1;
+	u64 ssp_frame_type:3;
+	u64 device_id:16;
+
+	/* dw2 */
+	u64 cmd_frame_len:9;
+	u64 leave_affil_open:1;
+	u64 rsvd2:5;
+	u64 max_resp_frame_len:9;
+	u64 sg_mode:1;
+	u64 first_burst:1;
+	u64 rsvd3:6;
+
+	/* dw3 */
+	u64 iptt:16;
+	u64 tptt:16;
+
+	/* dw4 */
+	u64 data_transfer_len;
+
+	/* dw5 */
+	u64 first_burst_num;
+
+	/* dw6 */
+	u64 dif_sg_len:16;
+	u64 data_sg_len:16;
+
+	/* dw7 */
+	u64 rsvd4:15;
+	u64 double_mode:1;
+	u64 abort_iptt:16;
+
+	/* dw8 */
+	u64 command_frame_addr_lo;
+
+	/* dw9 */
+	u64 command_frame_addr_hi;
+
+	/* dw10 */
+	u64 status_buffer_addr_lo;
+
+	/* dw11 */
+	u64 status_buffer_addr_hi;
+
+	/* dw12 */
+	u64 prd_table_addr_lo;
+
+	/* dw13 */
+	u64 prd_table_addr_hi;
+
+	/* dw14 */
+	u64 dif_prd_table_addr_lo;
+
+	/* dw15 */
+	u64 dif_prd_table_addr_hi;
+};
+
+
+struct hiti_sas_itct {
+	/* dw0 */
+	u64 dev_type:2;
+	u64 valid:1;
+	u64 break_reply_enable:1;
+	u64 awt_control:1;
+	u64 max_conn_rate:4;
+	u64 valid_link_number:4;
+	u64 port_id:3;
+	u64 smp_timeout:16;
+	u64 max_burst_byte:32;
+
+	/* dw1 */
+	u64 sas_addr;
+
+	/* dw2 */
+	u64 IT_nexus_loss_time:16;
+	u64 bus_inactive_time_limit:16;
+	u64 max_conn_time_limit:16;
+	u64 reject_open_time_limit:16;
+
+	/* dw3 */
+	u64 curr_pathway_blk_cnt:8;
+	u64 curr_transmit_dir:2;
+	u64 tx_pri:2;
+	u64 rsvd0:3;
+	u64 awt_cont:1;
+	u64 curr_awt:16;
+	u64 curr_IT_nexus_loss_val:16;
+	u64 tlr_enable:1;
+	u64 catap:4;
+	u64 curr_ncq_tag:5;
+	u64 cpn:4;
+	u64 cb:1;
+	u64 rsvd1:1;
+
+	/* dw4 */
+	u64 sata_active_reg:32;
+	u64 rsvd2:9;
+	u64 ata_status:8;
+	u64 eb:1;
+	u64 rpn:4;
+	u64 rb:1;
+	u64 sata_tx_ata_p:4;
+	u64 tpn:4;
+	u64 tb:1;
+
+	/* dw5-12 */
+	u16 ncq_tag[32];
+
+	/* dw13 */
+	u64 non_ncq_iptt:16;
+	u64 rsvd3:48;
+
+	/* dw14-15 */
+	u64 rsvd4;
+	u64 rsvd5;
 };
 
 int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
