@@ -17,7 +17,7 @@
 
 #define HISI_SAS_MAX_PHYS	9
 #define HISI_SAS_QUEUES 32
-#define HISI_SAS_QUEUE_SLOTS 4096
+#define HISI_SAS_QUEUE_SLOTS 1024
 #define HISI_SAS_MAX_ITCT_ENTRIES 4096
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
 #define HISI_SAS_COMMAND_ENTRIES 8192
@@ -180,84 +180,84 @@ struct hisi_sas_tei {
 /* HW structures */
 struct hisi_sas_cmd_hdr {
 	/* dw0 */
-	u64 abort_flag:2;
-	u64 rsvd0:2;
-	u64 t10_flds_pres:1;
-	u64 resp_report:1;
-	u64 tlr_ctrl:2;
-	u64 phy_id:8;
-	u64 force_phy:1;
-	u64 port:3;
-	u64 sata_reg_set:7;
-	u64 priority:1;
-	u64 mode:1;
-	u64 cmd:3;
+	u32 abort_flag:2;
+	u32 rsvd0:2;
+	u32 t10_flds_pres:1;
+	u32 resp_report:1;
+	u32 tlr_ctrl:2;
+	u32 phy_id:8;
+	u32 force_phy:1;
+	u32 port:3;
+	u32 sata_reg_set:7;
+	u32 priority:1;
+	u32 mode:1;
+	u32 cmd:3;
 
 	/* dw1 */
-	u64 port_multiplier:4;
-	u64 bist_activate:1;
-	u64 atapi:1;
-	u64 first_part_dma:1;
-	u64 reset:1;
-	u64 pir_pres:1;
-	u64 enable_tlr:1;
-	u64 verify_dtl:1;
-	u64 rsvd1:1;
-	u64 ssp_pass_through:1;
-	u64 ssp_frame_type:3;
-	u64 device_id:16;
+	u32 port_multiplier:4;
+	u32 bist_activate:1;
+	u32 atapi:1;
+	u32 first_part_dma:1;
+	u32 reset:1;
+	u32 pir_pres:1;
+	u32 enable_tlr:1;
+	u32 verify_dtl:1;
+	u32 rsvd1:1;
+	u32 ssp_pass_through:1;
+	u32 ssp_frame_type:3;
+	u32 device_id:16;
 
 	/* dw2 */
-	u64 cmd_frame_len:9;
-	u64 leave_affil_open:1;
-	u64 rsvd2:5;
-	u64 max_resp_frame_len:9;
-	u64 sg_mode:1;
-	u64 first_burst:1;
-	u64 rsvd3:6;
+	u32 cmd_frame_len:9;
+	u32 leave_affil_open:1;
+	u32 rsvd2:5;
+	u32 max_resp_frame_len:9;
+	u32 sg_mode:1;
+	u32 first_burst:1;
+	u32 rsvd3:6;
 
 	/* dw3 */
-	u64 iptt:16;
-	u64 tptt:16;
+	u32 iptt:16;
+	u32 tptt:16;
 
 	/* dw4 */
-	u64 data_transfer_len;
+	u32 data_transfer_len;
 
 	/* dw5 */
-	u64 first_burst_num;
+	u32 first_burst_num;
 
 	/* dw6 */
-	u64 dif_sg_len:16;
-	u64 data_sg_len:16;
+	u32 dif_sg_len:16;
+	u32 data_sg_len:16;
 
 	/* dw7 */
-	u64 rsvd4:15;
-	u64 double_mode:1;
-	u64 abort_iptt:16;
+	u32 rsvd4:15;
+	u32 double_mode:1;
+	u32 abort_iptt:16;
 
 	/* dw8 */
-	u64 cmd_frame_addr_lo;
+	u32 cmd_frame_addr_lo;
 
 	/* dw9 */
-	u64 cmd_frame_addr_hi;
+	u32 cmd_frame_addr_hi;
 
 	/* dw10 */
-	u64 sts_buffer_addr_lo;
+	u32 sts_buffer_addr_lo;
 
 	/* dw11 */
-	u64 sts_buffer_addr_hi;
+	u32 sts_buffer_addr_hi;
 
 	/* dw12 */
-	u64 prd_table_addr_lo;
+	u32 prd_table_addr_lo;
 
 	/* dw13 */
-	u64 prd_table_addr_hi;
+	u32 prd_table_addr_hi;
 
 	/* dw14 */
-	u64 dif_prd_table_addr_lo;
+	u32 dif_prd_table_addr_lo;
 
 	/* dw15 */
-	u64 dif_prd_table_addr_hi;
+	u32 dif_prd_table_addr_hi;
 };
 
 
