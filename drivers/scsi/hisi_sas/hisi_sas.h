@@ -58,17 +58,17 @@ struct hisi_sas_phy {
 	// To be completed, j00310691
 	u64		dev_sas_addr;
 	u64		att_dev_sas_addr;
-	u32		att_dev_info;
-	u32		dev_info;
-	u32		phy_type;
-	u32		phy_status;
-	u32		irq_status;
-	u32		frame_rcvd_size;
+	u64		att_dev_info;
+	u64		dev_info;
+	u64		phy_type;
+	u64		phy_status;
+	u64		irq_status;
+	u64		frame_rcvd_size;
 	u8		frame_rcvd[32];
 	u8		phy_attached;
 	u8		phy_mode;
 	u8		reserved[2];
-	u32		phy_event;
+	u64		phy_event;
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate;
 };
@@ -86,13 +86,13 @@ struct hisi_sas_device {
 	struct hisi_hba 	*hisi_hba;
 	struct domain_device	*sas_device;
 	struct timer_list	timer;
-	u32 attached_phy;
-	u32 device_id;
-	u32 running_req;
+	u64 attached_phy;
+	u64 device_id;
+	u64 running_req;
 	struct hisi_sas_itct *itct;
 	u8 taskfileset;
 	u8 dev_status;
-	u16 reserved;
+	u64 reserved;
 };
 
 struct hisi_sas_slot_info {
@@ -101,8 +101,8 @@ struct hisi_sas_slot_info {
 		struct sas_task *task;
 		void	*tdata;
 	};
-	u32	n_elem;
-	u32	tx;
+	u64	n_elem;
+	u64	tx;
 	int	queue_slot;
 	int	queue;
 
@@ -143,7 +143,7 @@ struct hisi_hba {
 	struct hisi_sas_port port[HISI_SAS_MAX_PHYS];
 	struct list_head wq_list;
 
-	u32	id;
+	int	id;
 
 	struct hba_info_page	hba_param;
 	struct hisi_sas_device	devices[HISI_SAS_MAX_DEVICES];
@@ -236,16 +236,16 @@ struct hisi_sas_cmd_hdr {
 	u64 abort_iptt:16;
 
 	/* dw8 */
-	u64 command_frame_addr_lo;
+	u64 cmd_frame_addr_lo;
 
 	/* dw9 */
-	u64 command_frame_addr_hi;
+	u64 cmd_frame_addr_hi;
 
 	/* dw10 */
-	u64 status_buffer_addr_lo;
+	u64 sts_buffer_addr_lo;
 
 	/* dw11 */
-	u64 status_buffer_addr_hi;
+	u64 sts_buffer_addr_hi;
 
 	/* dw12 */
 	u64 prd_table_addr_lo;

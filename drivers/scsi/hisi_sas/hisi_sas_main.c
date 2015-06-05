@@ -6,6 +6,17 @@
 #define DEV_IS_GONE(dev) \
 	((!dev) || (dev->dev_type == SAS_PHY_UNUSED))
 
+
+#define DMA_ADDR_LO(addr) ((u32)(addr&0xffffffff))
+#define DMA_ADDR_HI(addr) ((u32)(addr>>32))
+
+static inline void hisi_sas_write32(struct hisi_hba *hisi_hba, u32 off, u32 val)
+{
+	void __iomem *regs = hisi_hba->regs + off;
+
+	writel(val, regs);
+}
+
 void hisi_sas_tag_clear(struct hisi_hba *hisi_hba, int tag)
 {
 	void *bitmap = hisi_hba->tags;
@@ -44,7 +55,95 @@ static int hisi_sas_get_free_slot(struct hisi_hba *hisi_hba, int *q, int *s)
 static int hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 		struct hisi_sas_tei *tei)
 {
+	struct sas_task *task = tei->task;
+	struct hisi_sas_cmd_hdr *hdr = tei->hdr;
+	struct domain_device *dev = task->dev;
+	struct asd_sas_port *sas_port = dev->port;
+	struct sas_phy *sphy = dev->phy;
+	struct scatterlist *sg_req, *sg_resp;
+	struct hisi_sas_device *hisi_sas_dev = dev->lldd_dev;
+	dma_addr_t req_dma_addr;
+	unsigned int req_len, resp_len;
+	int elem, rc, queue = tei->queue, queue_slot = tei->queue_slot;
+	struct hisi_sas_slot_info *slot = &hisi_hba->slot_info[queue][queue_slot];
+
+	/*
+	* DMA-map SMP request, response buffers
+	*/
+
+	sg_req = &task->smp_task.smp_req; /* this is the request frame - see alloc_smp_req() */
+	elem = dma_map_sg(hisi_hba->dev, sg_req, 1, DMA_TO_DEVICE); /* map to dma address */
+	if (!elem)
+		return -ENOMEM;
+	req_len = sg_dma_len(sg_req);
+	req_dma_addr = sg_dma_address(sg_req);
+	pr_info("%s sq_req=%p elem=%d req_len=%d\n", __func__, sg_req, elem, req_len);
+
+	sg_resp = &task->smp_task.smp_resp; /* this is the response frame - see alloc_smp_resp() */
+	elem = dma_map_sg(hisi_hba->dev, sg_resp, 1, DMA_FROM_DEVICE);
+	if (!elem) {
+		rc = -ENOMEM;
+		goto err_out;
+	}
+	resp_len = sg_dma_len(sg_resp);
+	if ((req_len & 0x3) || (resp_len & 0x3)) {
+		rc = -EINVAL;
+		goto err_out;
+	}
+
+	/* create header */
+	hdr->abort_flag = 0; /* not sure */
+	hdr->t10_flds_pres = 0; /* not sure */
+	/* hdr->resp_report, ->tlr_ctrl for STP */
+	hdr->phy_id = 1 << sphy->number; /* double-checl */
+	hdr->force_phy = 0; /* due not force ordering in phy */
+	hdr->port = sas_port->id; /* double-check */
+	/* hdr->sata_reg_set not applicable to smp */
+	hdr->priority = 0; /* ordinary priority */
+	hdr->mode = 1; /* ini/host mode */
+	hdr->cmd = 2; /* smp */
+
+	/* hdr->port_multiplier, ->bist_active, ->atapi */
+	/* ->first_party_dma, ->reset only applies to stp */
+	/* hdr->pir_pres, ->enable_tlr, ->ssp->pass_through */
+	/* ->spp_frame_type only applicable to ssp */
+
+	hdr->device_id = hisi_sas_dev->device_id; /* map itct entry */
+
+	hdr->cmd_frame_len = req_len/4;
+	/* hdr->leave_affil_open only applicable to stp */
+	hdr->max_resp_frame_len = resp_len/4;
+	/* hdr->sg_mode, ->first_burst not applicable to smp */
+
+	/* hdr->iptt, ->tptt not applicable to smp */
+
+	/* hdr->data_transfer_len not applicable to smp */
+
+	/* hdr->first_burst_num not applicable to smp */
+
+	/* hdr->dif_prd_table_len, ->prd_table_len not applicable to smp */
+
+	/* hdr->double_mode, ->abort_iptt not applicable to smp */
+
+	hdr->cmd_frame_addr_lo  = DMA_ADDR_LO(req_dma_addr);
+	hdr->cmd_frame_addr_hi  = DMA_ADDR_HI(req_dma_addr);
+
+	hdr->sts_buffer_addr_lo  = DMA_ADDR_LO(slot->status_buffer_dma);
+	hdr->sts_buffer_addr_hi  = DMA_ADDR_HI(slot->status_buffer_dma);
+
+	/* hdr->prd_table_addr_lo not applicable to smp */
+
+	/* hdr->prd_table_addr_hi not applicable to smp */
+
+	/* hdr->dif_prd_table_addr_lo not applicable to smp */
+
+	/* hdr->dif_prd_table_addr_hi not applicable to smp */
+
 	return 0;
+
+err_out:
+	/* fix error conditions j00310691 */
+	return rc;
 }
 
 static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
@@ -88,7 +187,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 
 	if (DEV_IS_GONE(hisi_sas_dev)) {
 		if (hisi_sas_dev)
-			pr_info("device %d not ready.\n",
+			pr_info("device %llu not ready.\n",
 				hisi_sas_dev->device_id);
 		else
 			pr_info("device %016llx not ready.\n",
