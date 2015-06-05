@@ -214,10 +214,6 @@ static struct hisi_hba *hisi_sas_platform_dev_alloc(
 	if (!hisi_hba->tags)
 		goto err_out;
 
-	if (of_property_read_u32(np,
-		"core-id",
-		&hisi_hba->id))
-		goto err_out;
 
 	if (hisi_sas_ioremap(hisi_hba))
 		goto err_out;
