@@ -498,7 +498,26 @@ void hisi_sas_scan_start(struct Scsi_Host *shost)
 
 void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int i)
 {
+	struct hisi_sas_phy *phy = &hisi_hba->phy[i];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 
+	phy->hisi_hba = hisi_hba;
+	phy->port = NULL;
+	init_timer(&phy->timer);
+	sas_phy->enabled = (i < hisi_hba->n_phy) ? 1 : 0;
+	sas_phy->class = SAS;
+	sas_phy->iproto = SAS_PROTOCOL_ALL;
+	sas_phy->tproto = 0;
+	sas_phy->type = PHY_TYPE_PHYSICAL;
+	sas_phy->role = PHY_ROLE_INITIATOR;
+	sas_phy->oob_mode = OOB_NOT_CONNECTED;
+	sas_phy->linkrate = SAS_LINK_RATE_UNKNOWN;
+
+	sas_phy->id = i;
+	sas_phy->sas_addr = &hisi_hba->sas_addr[0];
+	sas_phy->frame_rcvd = &phy->frame_rcvd[0];
+	sas_phy->ha = (struct sas_ha_struct *)hisi_hba->shost->hostdata;
+	sas_phy->lldd_phy = phy;
 }
 
 
