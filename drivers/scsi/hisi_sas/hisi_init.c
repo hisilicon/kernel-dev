@@ -125,7 +125,17 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 				HISI_SAS_ITCT_ENTRY_SZ,
 				&hisi_hba->itct_dma,
 				GFP_KERNEL);
+
 	if (!hisi_hba->itct)
+		goto err_out;
+
+	hisi_hba->iost = dma_alloc_coherent(hisi_hba->dev,
+				HISI_SAS_COMMAND_ENTRIES *
+				HISI_SAS_IOST_ENTRY_SZ,
+				&hisi_hba->iost_dma,
+				GFP_KERNEL);
+
+	if (!hisi_hba->iost)
 		goto err_out;
 
 	hisi_hba->tags_num = HISI_SAS_COMMAND_ENTRIES;

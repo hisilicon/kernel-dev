@@ -27,11 +27,9 @@
 
 #define HISI_SAS_STATUS_BUF_SZ 1024
 #define HISI_SAS_ITCT_ENTRY_SZ 128
+#define HISI_SAS_IOST_ENTRY_SZ 32
 
 #define HISI_SAS_MAX_SG 10
-
-#define HISI_SAS_STATUS_BUF_SZ 1024
-#define HISI_SAS_ITCT_ENTRY_SZ 128
 
 // Temp defines to compile
 #define PORT_DEV_TRGT_MASK (0x7U << 17)
@@ -153,6 +151,8 @@ struct hisi_hba {
 	struct dma_pool *status_dma_pool;
 	struct hisi_sas_itct *itct;
 	dma_addr_t itct_dma;
+	struct hisi_sas_iost *iost;
+	dma_addr_t iost_dma;
 	struct hisi_sas_slot_info	slot_info[HISI_SAS_QUEUES][0];
 	// To be completed, j00310691
 };
@@ -265,7 +265,7 @@ struct hisi_sas_cmd_hdr {
 
 
 struct hiti_sas_itct {
-	/* dw0 */
+	/* qw0 */
 	u64 dev_type:2;
 	u64 valid:1;
 	u64 break_reply_enable:1;
@@ -276,16 +276,16 @@ struct hiti_sas_itct {
 	u64 smp_timeout:16;
 	u64 max_burst_byte:32;
 
-	/* dw1 */
+	/* qw1 */
 	u64 sas_addr;
 
-	/* dw2 */
+	/* qw2 */
 	u64 IT_nexus_loss_time:16;
 	u64 bus_inactive_time_limit:16;
 	u64 max_conn_time_limit:16;
 	u64 reject_open_time_limit:16;
 
-	/* dw3 */
+	/* qw3 */
 	u64 curr_pathway_blk_cnt:8;
 	u64 curr_transmit_dir:2;
 	u64 tx_pri:2;
@@ -300,7 +300,7 @@ struct hiti_sas_itct {
 	u64 cb:1;
 	u64 rsvd1:1;
 
-	/* dw4 */
+	/* qw4 */
 	u64 sata_active_reg:32;
 	u64 rsvd2:9;
 	u64 ata_status:8;
@@ -311,16 +311,57 @@ struct hiti_sas_itct {
 	u64 tpn:4;
 	u64 tb:1;
 
-	/* dw5-12 */
+	/* sw5-12 */
 	u16 ncq_tag[32];
 
-	/* dw13 */
+	/* qw13 */
 	u64 non_ncq_iptt:16;
 	u64 rsvd3:48;
 
-	/* dw14-15 */
+	/* qw14-15 */
 	u64 rsvd4;
 	u64 rsvd5;
+};
+struct hisi_sas_iost {
+	/* qw0 */
+	uint64_t io_type:3;
+	uint64_t io_dir:2;
+	uint64_t cmd_tlr:2;
+	uint64_t send_rpt:1;
+	uint64_t phy_id:8;
+	uint64_t target_ict:16;
+	uint64_t force_phy:1;
+	uint64_t tlr_cnt:4;
+	uint64_t io_retry_cnt:6;
+	uint64_t rsvd0:7;
+	uint64_t dir_fmt:1;
+	uint64_t prd_dif_src:1;
+	uint64_t sgl_mode:1;
+	uint64_t pir_present:1;
+	uint64_t first_burst:1;
+	uint64_t spp_pass_through:1;
+	uint64_t io_slot_number:8;
+
+	/* qw1 */
+	uint64_t io_status:8;
+	uint64_t io_ts:1;
+	uint64_t io_rs:1;
+	uint64_t io_ct:1;
+	uint64_t max_resp_frame_len:9;
+	uint64_t rsvd1:11;
+	uint64_t chk_len:1;
+	uint64_t xfer_tptt:16;
+	uint64_t io_rt:1;
+	uint64_t io_rd:1;
+	uint64_t mis_cnt:8;
+	uint64_t rsvd2:6;
+
+	/* qw2 */
+	uint64_t xfer_Offset:32;
+	uint64_t xfer_len:32;
+
+	/* qw3 */
+	uint64_t status_buffer_address;
 };
 
 int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
