@@ -22,17 +22,26 @@
 #define DMA_RX_STATUS_REG	(BASE_REG + 0x2e8)
 #define DMA_RX_STATUS_BUSY_OFF	0
 #define DMA_RX_STATUS_BUSY_MASK	1
+#define AXI_CFG_REG		(0x5100)
 
-static inline void hisi_sas_write32(struct hisi_hba *hisi_hba, int phy, u32 off, u32 val)
+static inline u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
+{
+	void __iomem *regs = hisi_hba->regs + off;
+
+	return readl(regs);
+}
+
+static inline void hisi_sas_phy_write32(struct hisi_hba *hisi_hba, int phy, u32 off, u32 val)
 {
 	void __iomem *regs = hisi_hba->regs + (0x400 * phy) + off;
 
 	writel(val, regs);
 }
 
-static inline u32 hisi_sas_read32(struct hisi_hba *hisi_hba, int phy, u32 off)
+static inline u32 hisi_sas_phy_read32(struct hisi_hba *hisi_hba, int phy, u32 off)
 {
 	void __iomem *regs = hisi_hba->regs + (0x400 * phy) + off;
+
 	return readl(regs);
 }
 
@@ -493,10 +502,10 @@ static int hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
 
 	/* inline Higgs_PrepareResetHw j00310691 */
 	for (i = 0; i < hisi_hba->n_phy; i++) {
-		u32 phy_ctrl = hisi_sas_read32(hisi_hba, i, PHY_CTRL_REG);
+		u32 phy_ctrl = hisi_sas_phy_read32(hisi_hba, i, PHY_CTRL_REG);
 
 		phy_ctrl |= PHY_CFG_REG_RESET_MASK;
-		hisi_sas_write32(hisi_hba, i, PHY_CTRL_REG, phy_ctrl);
+		hisi_sas_phy_write32(hisi_hba, i, PHY_CTRL_REG, phy_ctrl);
 	}
 	udelay(50);
 
@@ -507,9 +516,9 @@ static int hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
 
 		while (1) {
 			dma_tx_status =
-				hisi_sas_read32(hisi_hba, i, DMA_TX_STATUS_REG);
+				hisi_sas_phy_read32(hisi_hba, i, DMA_TX_STATUS_REG);
 			dma_rx_status =
-				hisi_sas_read32(hisi_hba, i, DMA_RX_STATUS_REG);
+				hisi_sas_phy_read32(hisi_hba, i, DMA_RX_STATUS_REG);
 
 			if (!(dma_tx_status & DMA_TX_STATUS_BUSY_MASK) &&
 				!(dma_rx_status & DMA_RX_STATUS_BUSY_MASK))
@@ -519,6 +528,20 @@ static int hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
 			if (time_after(jiffies, end_time))
 				return -EIO;
 		}
+	}
+
+	/* Ensure axi bus idle */
+	end_time = jiffies + msecs_to_jiffies(1000);
+	while (1) {
+		u32 axi_status =
+			hisi_sas_read32(hisi_hba, DMA_TX_STATUS_REG);
+
+		if (axi_status == 0)
+			return 0;
+
+		msleep(1);
+		if (time_after(jiffies, end_time))
+			return -EIO;
 	}
 
 	return 0;
