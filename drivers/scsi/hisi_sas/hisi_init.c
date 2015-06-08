@@ -315,6 +315,7 @@ static int hisi_sas_probe(struct platform_device *pdev)
 		goto err_out_prep_ha;
 	}
 
+	platform_set_drvdata(pdev, SHOST_TO_SAS_HA(shost));
 	for (np = of_find_matching_node(node, sas_core_of_match); np;
 		np = of_find_matching_node(np, sas_core_of_match)) {
 		hisi_hba = hisi_sas_platform_dev_alloc(pdev, shost, np);
@@ -328,7 +329,9 @@ static int hisi_sas_probe(struct platform_device *pdev)
 
 		hisi_sas_init_add(hisi_hba);
 
-		hisi_sas_hw_init(hisi_hba);
+		rc = hisi_sas_hw_init(hisi_hba);
+		if (rc)
+			goto err_out_interrupt_ini;
 
 		rc = hisi_sas_interrupt_ini(hisi_hba); // fixme j00310691
 		if (rc)

@@ -16,6 +16,12 @@
 #define PHY_CFG_REG_RESET_OFF	0
 #define PHY_CFG_REG_RESET_MASK	1
 #define PHY_CTRL_REG		(BASE_REG + 0x14)
+#define DMA_TX_STATUS_REG	(BASE_REG + 0x2d0)
+#define DMA_TX_STATUS_BUSY_OFF	0
+#define DMA_TX_STATUS_BUSY_MASK	1
+#define DMA_RX_STATUS_REG	(BASE_REG + 0x2e8)
+#define DMA_RX_STATUS_BUSY_OFF	0
+#define DMA_RX_STATUS_BUSY_MASK	1
 
 static inline void hisi_sas_write32(struct hisi_hba *hisi_hba, int phy, u32 off, u32 val)
 {
@@ -472,37 +478,80 @@ found_out:
 	return res;
 }
 
-static void hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
+static int hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
 {
 	int i;
+	unsigned long end_time;
 
 	/* inline Higgs_PrepareResetHw j00310691 */
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		u32 phy_ctrl = hisi_sas_read32(hisi_hba, i, PHY_CTRL_REG);
 
-		phy_ctrl |= (PHY_CFG_REG_RESET_MASK << PHY_CFG_REG_RESET_OFF);
+		phy_ctrl |= PHY_CFG_REG_RESET_MASK;
 		hisi_sas_write32(hisi_hba, i, PHY_CTRL_REG, phy_ctrl);
 	}
 	udelay(50);
+
+	/* Ensure DMA tx&rx idle */
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		u32 dma_tx_status, dma_rx_status;
+		end_time = jiffies + msecs_to_jiffies(1000);
+
+		while (1) {
+			dma_tx_status =
+				hisi_sas_read32(hisi_hba, i, DMA_TX_STATUS_REG);
+			dma_rx_status =
+				hisi_sas_read32(hisi_hba, i, DMA_RX_STATUS_REG);
+
+			if (!(dma_tx_status & DMA_TX_STATUS_BUSY_MASK) &&
+				!(dma_rx_status & DMA_RX_STATUS_BUSY_MASK))
+				break;
+
+			msleep(10);
+			if (time_after(jiffies, end_time))
+				return -EIO;
+		}
+	}
+
+	return 0;
 }
 
-static void hisi_sas_init_reg(struct hisi_hba *hisi_hba)
+static int hisi_sas_init_reg(struct hisi_hba *hisi_hba)
 {
-
+	return 0;
 }
 
-static void hisi_sas_init_id_frame(struct hisi_hba *hisi_hba)
+static int hisi_sas_init_id_frame(struct hisi_hba *hisi_hba)
 {
-
+	return 0;
 }
 
 
-void hisi_sas_hw_init(struct hisi_hba *hisi_hba)
+int hisi_sas_hw_init(struct hisi_hba *hisi_hba)
 {
-	hisi_sas_reset_hw(hisi_hba);
-	hisi_sas_init_reg(hisi_hba);
+	int rc;
+
+	rc = hisi_sas_reset_hw(hisi_hba);
+	if (rc) {
+		pr_err("hisi_sas_reset_hw failed, rc=%d", rc);
+		return rc;
+	}
+
+	rc = hisi_sas_init_reg(hisi_hba);
+	if (rc) {
+		pr_err("hisi_sas_init_reg failed, rc=%d", rc);
+		return rc;
+	}
+
 	/* maybe init serdes param j00310691 */
-	hisi_sas_init_id_frame(hisi_hba);
+	rc = hisi_sas_init_id_frame(hisi_hba);
+	if (rc) {
+		pr_err("hisi_sas_init_id_frame failed, rc=%d", rc);
+		return rc;
+	}
+
+
+	return 0;
 }
 
 

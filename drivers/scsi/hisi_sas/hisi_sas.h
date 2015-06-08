@@ -326,7 +326,7 @@ void hisi_sas_scan_start(struct Scsi_Host *shost);
 void hisi_sas_tag_init(struct hisi_hba *hisi_hba);
 void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int i);
 
-void hisi_sas_hw_init(struct hisi_hba *hisi_hba);
+int hisi_sas_hw_init(struct hisi_hba *hisi_hba);
 
 int hisi_sas_dev_found(struct domain_device *dev);
 void hisi_sas_dev_gone(struct domain_device *dev);
