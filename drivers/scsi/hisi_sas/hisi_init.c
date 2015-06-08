@@ -135,6 +135,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 	return 0;
 
 err_out:
+	pr_info("%s error\n", __func__);
 	return 1;
 }
 
@@ -238,8 +239,38 @@ static void hisi_sas_init_add(struct hisi_hba *hisi_hba)
 	memcpy(hisi_hba->sas_addr, &hisi_hba->phy[0].dev_sas_addr, SAS_ADDR_SIZE);
 }
 
-int hisi_sas_interrupt_ini(struct hisi_hba *hisi_hba)
+static irqreturn_t hisi_sas_interrupt_stub(int i, void *p)
 {
+	struct hisi_hba *hisi_hba = p;
+
+	pr_info("%s core=%d i=%d\n", __func__, hisi_hba->id, i);
+
+	return IRQ_HANDLED;
+}
+
+int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
+{
+	int i, irq, rc;
+
+	if (!hisi_hba->np)
+		return -ENOENT;
+
+	for (i = 0; i < HISI_SAS_MAX_INTERRUPTS; i++) {
+		char interrupt_name[32];
+
+		irq = irq_of_parse_and_map(hisi_hba->np, i);
+		if (!irq) {
+			pr_err("%s core %d (np=%p) could not map interrupt %d\n", __func__, hisi_hba->id, hisi_hba->np, i);
+			return -ENOENT;
+		}
+		(void)snprintf(interrupt_name, 32, "hisi_sas %d %d", hisi_hba->id, i);
+		rc = request_irq(irq, hisi_sas_interrupt_stub, 0, interrupt_name, hisi_hba);
+		if (rc) {
+			pr_err("%s core %d could not request interrupt %d, rc=%d\n", __func__, hisi_hba->id, irq, rc);
+			return -ENOENT;
+		}
+	}
+
 	return 0;
 }
 
@@ -333,7 +364,7 @@ static int hisi_sas_probe(struct platform_device *pdev)
 		if (rc)
 			goto err_out_interrupt_ini;
 
-		rc = hisi_sas_interrupt_ini(hisi_hba); // fixme j00310691
+		rc = hisi_sas_interrupt_init(hisi_hba); // fixme j00310691
 		if (rc)
 			goto err_out_interrupt_ini;
 	}

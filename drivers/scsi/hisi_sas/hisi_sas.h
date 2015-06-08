@@ -9,6 +9,7 @@
 #include <linux/platform_device.h>
 #include <scsi/scsi.h>
 #include <scsi/libsas.h>
+#include <linux/of_irq.h>
 
 #define DRV_NAME "hisi_sas"
 #define DRV_VERSION "v0.1"
@@ -37,6 +38,8 @@
 #define PORT_TYPE_SAS (1U << 1)
 #define PORT_SSP_TRGT_MASK (0x1U << 19)
 #define PORT_TYPE_SATA (1U << 0)
+
+#define HISI_SAS_MAX_INTERRUPTS (80 + 32 + 2)
 
 enum dev_status {
 	HISI_SAS_DEV_NORMAL,

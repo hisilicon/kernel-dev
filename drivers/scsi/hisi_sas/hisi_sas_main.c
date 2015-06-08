@@ -550,7 +550,6 @@ int hisi_sas_hw_init(struct hisi_hba *hisi_hba)
 		return rc;
 	}
 
-
 	return 0;
 }
 
