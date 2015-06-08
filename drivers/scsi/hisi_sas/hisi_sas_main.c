@@ -10,11 +10,24 @@
 #define DMA_ADDR_LO(addr) ((u32)(addr&0xffffffff))
 #define DMA_ADDR_HI(addr) ((u32)(addr>>32))
 
-static inline void hisi_sas_write32(struct hisi_hba *hisi_hba, u32 off, u32 val)
+/* registers */
+#define BASE_REG		(0x800)
+#define PHY_CFG_REG		(BASE_REG + 0x0)
+#define PHY_CFG_REG_RESET_OFF	0
+#define PHY_CFG_REG_RESET_MASK	1
+#define PHY_CTRL_REG		(BASE_REG + 0x14)
+
+static inline void hisi_sas_write32(struct hisi_hba *hisi_hba, int phy, u32 off, u32 val)
 {
-	void __iomem *regs = hisi_hba->regs + off;
+	void __iomem *regs = hisi_hba->regs + (0x400 * phy) + off;
 
 	writel(val, regs);
+}
+
+static inline u32 hisi_sas_read32(struct hisi_hba *hisi_hba, int phy, u32 off)
+{
+	void __iomem *regs = hisi_hba->regs + (0x400 * phy) + off;
+	return readl(regs);
 }
 
 void hisi_sas_tag_clear(struct hisi_hba *hisi_hba, int tag)
@@ -459,9 +472,37 @@ found_out:
 	return res;
 }
 
-void hisi_sas_hw_init(struct hisi_hba *hisi_hba)
+static void hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
+{
+	int i;
+
+	/* inline Higgs_PrepareResetHw j00310691 */
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		u32 phy_ctrl = hisi_sas_read32(hisi_hba, i, PHY_CTRL_REG);
+
+		phy_ctrl |= (PHY_CFG_REG_RESET_MASK << PHY_CFG_REG_RESET_OFF);
+		hisi_sas_write32(hisi_hba, i, PHY_CTRL_REG, phy_ctrl);
+	}
+	udelay(50);
+}
+
+static void hisi_sas_init_reg(struct hisi_hba *hisi_hba)
 {
 
+}
+
+static void hisi_sas_init_id_frame(struct hisi_hba *hisi_hba)
+{
+
+}
+
+
+void hisi_sas_hw_init(struct hisi_hba *hisi_hba)
+{
+	hisi_sas_reset_hw(hisi_hba);
+	hisi_sas_init_reg(hisi_hba);
+	/* maybe init serdes param j00310691 */
+	hisi_sas_init_id_frame(hisi_hba);
 }
 
 
