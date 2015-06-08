@@ -139,6 +139,9 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 		goto err_out;
 
 	hisi_hba->tags_num = HISI_SAS_COMMAND_ENTRIES;
+	hisi_hba->tags = kzalloc(hisi_hba->tags_num/sizeof(unsigned long), GFP_KERNEL);
+	if (!hisi_hba->tags)
+		goto err_out;
 
 	hisi_sas_tag_init(hisi_hba);
 
@@ -220,11 +223,6 @@ static struct hisi_hba *hisi_sas_platform_dev_alloc(
 
 	hisi_hba->sas = sha;
 	hisi_hba->shost = shost;
-
-	hisi_hba->tags = kzalloc(HISI_SAS_COMMAND_ENTRIES/sizeof(unsigned long), GFP_KERNEL);
-	if (!hisi_hba->tags)
-		goto err_out;
-
 
 	if (hisi_sas_ioremap(hisi_hba))
 		goto err_out;

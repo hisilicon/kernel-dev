@@ -55,6 +55,14 @@ void hisi_sas_tag_set(struct hisi_hba *hisi_hba, int tag)
 
 int hisi_sas_tag_alloc(struct hisi_hba *hisi_hba, int *tag)
 {
+	unsigned int index;
+	void *bitmap = hisi_hba->tags;
+
+	index = find_first_zero_bit(bitmap, hisi_hba->tags_num);
+	if (index >= hisi_hba->tags_num)
+		return -SAS_QUEUE_FULL;
+	hisi_sas_tag_set(hisi_hba, index);
+	*tag = index;
 	return 0;
 }
 
