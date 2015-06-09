@@ -22,6 +22,8 @@
 #define DMA_RX_STATUS_REG	(BASE_REG + 0x2e8)
 #define DMA_RX_STATUS_BUSY_OFF	0
 #define DMA_RX_STATUS_BUSY_MASK	1
+#define WR_PTR_0_REG		(0x26C)
+#define RD_PTR_0_REG		(0x270)
 #define AXI_CFG_REG		(0x5100)
 
 static inline u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
@@ -85,6 +87,25 @@ void hisi_sas_tag_init(struct hisi_hba *hisi_hba)
 
 static int hisi_sas_get_free_slot(struct hisi_hba *hisi_hba, int *q, int *s)
 {
+	u32 r, w;
+	int queue = smp_processor_id() % hisi_hba->queue_count;
+
+	pr_info("%s queue=%d\n", __func__, queue);
+
+	while (1) {
+		w = hisi_sas_read32(hisi_hba, WR_PTR_0_REG + (queue * 0x10));
+		r = hisi_sas_read32(hisi_hba, RD_PTR_0_REG + (queue * 0x10));
+
+		if (w == r-1) { // may need to check to rollover j00310691
+			queue = (queue + 1) % hisi_hba->queue_count;
+			continue;
+		}
+		break;
+	}
+
+	*q = queue;
+	*s = w;
+
 	return 0;
 }
 

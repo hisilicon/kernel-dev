@@ -212,6 +212,11 @@ static struct hisi_hba *hisi_sas_platform_dev_alloc(
 		goto err_out;
 
 	if (of_property_read_u32(np,
+		"queue-count",
+		&hisi_hba->queue_count))
+		goto err_out;
+
+	if (of_property_read_u32(np,
 		"core-id",
 		&hisi_hba->id))
 		goto err_out;
