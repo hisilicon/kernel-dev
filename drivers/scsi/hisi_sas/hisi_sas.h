@@ -30,7 +30,7 @@
 #define HISI_SAS_IOST_ENTRY_SZ 32
 
 #define HISI_SAS_MAX_SG 10
-
+#define HISI_SAS_MAX_SSP_RESP_SZ 1016
 // Temp defines to compile
 #define PORT_DEV_TRGT_MASK (0x7U << 17)
 #define PORT_TYPE_SAS (1U << 1)
@@ -364,6 +364,29 @@ struct hisi_sas_iost {
 	/* qw3 */
 	uint64_t status_buffer_address;
 };
+
+#define LUN_SIZE 8
+/* from SAS spec 1.1; table 119 */
+struct ssp_command_iu {
+	u8     lun[LUN_SIZE];
+	u8     _r_a;
+	u8     efb_prio_attr;	  /* enable first burst, task prio & attr */
+#define EFB_MASK        0x80
+#define TASK_PRIO_MASK	0x78
+#define TASK_ATTR_MASK  0x07
+
+	u8    _r_b;
+	u8     add_cdb_len;	  /* in dwords, since bit 0,1 are reserved */
+	union {
+		u8     cdb[16];
+		struct {
+			__le64 long_cdb_addr;	  /* bus address, LE */
+			__le32 long_cdb_size;	  /* LE */
+			u8     _r_c[3];
+			u8     eol_ds;		  /* eol:6,6, ds:5,4 */
+		} long_cdb;	  /* sequencer extension */
+	};
+} __attribute__ ((packed));
 
 int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
 void hisi_sas_scan_start(struct Scsi_Host *shost);

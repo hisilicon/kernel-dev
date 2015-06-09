@@ -151,13 +151,13 @@ static int hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 	/* create header */
 	hdr->abort_flag = 0; /* not sure */
 	hdr->t10_flds_pres = 0; /* not sure */
-	/* hdr->resp_report, ->tlr_ctrl for STP */
-	hdr->phy_id = 1 << sphy->number; /* double-checl */
+	/* hdr->resp_report, ->tlr_ctrl for SSP */
+	hdr->phy_id = 1 << sphy->number; /* double-check */
 	hdr->force_phy = 0; /* due not force ordering in phy */
 	hdr->port = sas_port->id; /* double-check */
 	/* hdr->sata_reg_set not applicable to smp */
 	hdr->priority = 0; /* ordinary priority */
-	hdr->mode = 1; /* ini/host mode */
+	hdr->mode = 1; /* ini mode */
 	hdr->cmd = 2; /* smp */
 
 	/* hdr->port_multiplier, ->bist_active, ->atapi */
@@ -203,10 +203,111 @@ err_out:
 	return rc;
 }
 
+static void hisi_sas_prep_prd_sge(struct hisi_sas_cmd_hdr *hdr)
+{
+	hdr->pir_pres = 0;
+	hdr->t10_flds_pres = 0;
+
+	/* j00310691 todo */
+}
+
+/* Refer to Higgs_PrepareBaseSSP */
 static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 		struct hisi_sas_tei *tei, int is_tmf,
 		struct hisi_sas_tmf_task *tmf)
 {
+	struct sas_task *task = tei->task;
+	struct hisi_sas_cmd_hdr *hdr = tei->hdr;
+	struct domain_device *dev = task->dev;
+	struct asd_sas_port *sas_port = dev->port;
+	struct sas_phy *sphy = dev->phy;
+	struct hisi_sas_device *hisi_sas_dev = dev->lldd_dev;
+	struct sas_ssp_task *ssp_task = &task->ssp_task;
+	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
+	bool has_data = false;
+
+	/* create header */
+	/* dw0 */
+	/* hdr->abort_flag set in Higgs_PrepareBaseSSP */
+	/* hdr->t10_flds_pres set in Higgs_PreparePrdSge */
+	hdr->resp_report = 1;
+	hdr->tlr_ctrl = 0x2; /* Do not enable */
+	hdr->phy_id = 1 << sphy->number; /* double-check */
+	hdr->force_phy = 0; /* due not force ordering in phy */
+	hdr->port = sas_port->id; /* double-check */
+	/* hdr->sata_reg_set not applicable to smp */
+	hdr->priority = 0; /* ordinary priority */
+	hdr->mode = 1; /* ini mode */
+	hdr->cmd = 1; /* ssp */
+
+	/* dw1 */
+	/* hdr->port_multiplier, ->bist_active, ->atapi */
+	/* ->first_party_dma, ->reset only applies to stp */
+	/* hdr->pir_pres set in Higgs_PreparePrdSge */
+	/* but see Higgs_PreparePrdSge */
+	hdr->enable_tlr = 0;
+	hdr->verify_dtl = 1;
+	hdr->ssp_pass_through = 0; /* see Higgs_DQGlobalConfig */
+	if (is_tmf) {
+		hdr->ssp_frame_type = 3;
+	} else {
+		switch (scsi_cmnd->sc_data_direction) {
+		case DMA_TO_DEVICE:
+			hdr->ssp_frame_type = 2;
+			has_data = true;
+		case DMA_FROM_DEVICE:
+			hdr->ssp_frame_type = 1;
+			has_data = true;
+		default:
+			hdr->ssp_frame_type = 0;
+		}
+	}
+
+	hdr->device_id = hisi_sas_dev->device_id; /* map itct entry */
+
+	/* dw2 */
+	hdr->cmd_frame_len = (sizeof(struct ssp_command_iu) +
+				sizeof(struct ssp_frame_hdr) +
+				3) / 4;
+	/* hdr->leave_affil_open only applicable to stp */
+	hdr->max_resp_frame_len = HISI_SAS_MAX_SSP_RESP_SZ/4;
+	hdr->sg_mode = 0; /* see Higgs_DQGlobalConfig */
+
+	hdr->first_burst = 0;
+
+	/* dw3 */
+	hdr->iptt = 0; /* fixme j00310691 */
+	hdr->tptt = 0;
+
+	if (has_data) {
+		hisi_sas_prep_prd_sge(hdr);
+	}
+
+	/* dw4 */
+	/* hdr->data_transfer_len set in hisi_sas_prep_prd_sge */
+
+	/* dw5 */
+	/* hdr->first_burst_num not set in Higgs code */
+
+	/* dw6 */
+	/* hdr->data_sg_len set in hisi_sas_prep_prd_sge */
+	/* hdr->dif_sg_len not set in Higgs code */
+
+	/* dw7 */
+	/* hdr->double_mode not set in Higgs code */
+	/* hdr->abort_iptt set in Higgs_PrepareAbort */
+
+	/* dw8,9 */
+	/* hdr->cmd_frame_addr_lo, _hi set in Higgs_SendCommandHw */
+
+	/* dw9,10 */
+	/* hdr->sts_buffer_addr_lo, _hi set in hisi_sas_prep_prd_sge */
+
+	/* dw11,12 */
+	/* hdr->prd_table_addr_lo, _hi set in hisi_sas_prep_prd_sge */
+
+	/* hdr->dif_prd_table_addr_lo, _hi not set in Higgs code */
+
 	return 0;
 }
 
