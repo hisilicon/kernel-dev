@@ -168,7 +168,8 @@ struct hisi_hba_priv_info {
 };
 
 struct hisi_sas_tmf_task {
-	// To be completed, j00310691
+	u8 tmf;
+	u16 tag_of_task_to_be_managed;
 };
 
 struct hisi_sas_tei {

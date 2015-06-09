@@ -224,7 +224,12 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	struct hisi_sas_device *hisi_sas_dev = dev->lldd_dev;
 	struct sas_ssp_task *ssp_task = &task->ssp_task;
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
-	bool has_data = false;
+	int has_data = 0;
+	int queue = tei->queue, queue_slot = tei->queue_slot;
+	struct hisi_sas_slot_info *slot = &hisi_hba->slot_info[queue][queue_slot];
+	struct ssp_frame_hdr *ssp_hdr;
+	void *buf = slot->buf;
+	u8 *buf_cmd, fburst;
 
 	/* create header */
 	/* dw0 */
@@ -254,10 +259,10 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 		switch (scsi_cmnd->sc_data_direction) {
 		case DMA_TO_DEVICE:
 			hdr->ssp_frame_type = 2;
-			has_data = true;
+			has_data = 1;
 		case DMA_FROM_DEVICE:
 			hdr->ssp_frame_type = 1;
-			has_data = true;
+			has_data = 1;
 		default:
 			hdr->ssp_frame_type = 0;
 		}
@@ -307,6 +312,49 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	/* hdr->prd_table_addr_lo, _hi set in hisi_sas_prep_prd_sge */
 
 	/* hdr->dif_prd_table_addr_lo, _hi not set in Higgs code */
+
+	/* fill-in ssp header */
+	ssp_hdr = (struct ssp_frame_hdr *)(buf + sizeof(*hdr));
+
+	if (is_tmf)
+		ssp_hdr->frame_type = SSP_TASK;
+	else
+		ssp_hdr->frame_type = SSP_COMMAND;
+
+	memcpy(ssp_hdr->hashed_dest_addr, dev->hashed_sas_addr,
+	       HASHED_SAS_ADDR_SIZE);
+	memcpy(ssp_hdr->hashed_src_addr,
+	       dev->hashed_sas_addr, HASHED_SAS_ADDR_SIZE);
+	ssp_hdr->tag = cpu_to_be16(0); // j00310691 fixme
+
+	/* fill in IU for TASK and Command Frame */
+	if (task->ssp_task.enable_first_burst) {
+		fburst = (1 << 7);
+		pr_warn("%s fburst enabled: edit hdr?\n", __func__);
+	}
+	buf += sizeof(*ssp_hdr);
+	memcpy(buf, &task->ssp_task.LUN, 8);
+
+	buf_cmd = buf;
+	if (ssp_hdr->frame_type != SSP_TASK) {
+		buf_cmd[9] = fburst | task->ssp_task.task_attr |
+				(task->ssp_task.task_prio << 3);
+		memcpy(buf_cmd + 12, task->ssp_task.cmd->cmnd,
+		       task->ssp_task.cmd->cmd_len);
+	} else {
+		buf_cmd[10] = tmf->tmf;
+		switch (tmf->tmf) {
+		case TMF_ABORT_TASK:
+		case TMF_QUERY_TASK:
+			buf_cmd[12] =
+				(tmf->tag_of_task_to_be_managed >> 8) & 0xff;
+			buf_cmd[13] =
+				tmf->tag_of_task_to_be_managed & 0xff;
+			break;
+		default:
+			break;
+		}
+	}
 
 	return 0;
 }
