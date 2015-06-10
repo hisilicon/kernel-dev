@@ -130,6 +130,8 @@ struct hisi_hba {
 
 	struct hisi_sas_cmd_hdr	*cmd_hdr[HISI_SAS_MAX_QUEUES];
 	dma_addr_t	cmd_dma[HISI_SAS_MAX_QUEUES];
+	struct hisi_sas_cmd_hdr	*complete_hdr[HISI_SAS_MAX_QUEUES];
+	dma_addr_t	complete_dma[HISI_SAS_MAX_QUEUES];
 
 	int	n_phy;
 
@@ -182,6 +184,7 @@ struct hisi_sas_tei {
 };
 
 /* HW structures */
+/* Delivery queue header */
 struct hisi_sas_cmd_hdr {
 	/* dw0 */
 	u32 abort_flag:2;
@@ -264,6 +267,21 @@ struct hisi_sas_cmd_hdr {
 	u32 dif_prd_table_addr_hi;
 };
 
+/* Completion queue header */
+struct hisi_sas_cmd_complete_hdr {
+	u32 iptt:16;
+	u32 rsvd0:1;
+	u32 cmd_complt:1;
+	u32 err_rcrd_xfrd:1;
+	u32 rspns_xfrd:1;
+	u32 attention:1;
+	u32 cmd_rcvd:1;
+	u32 slot_rst_cmplt:1;
+	u32 rspns_good:1;
+	u32 abort_status:3;
+	u32 io_cfg_err:1;
+	u32 rsvd1:4;
+};
 
 struct hiti_sas_itct {
 	/* qw0 */
