@@ -374,6 +374,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	struct hisi_sas_device *hisi_sas_dev = dev->lldd_dev;
 	struct hisi_sas_tei tei;
 	struct hisi_sas_slot_info *slot;
+	struct hisi_sas_cmd_hdr	*cmd_hdr_base;
 	int queue_slot = -1, queue = -1, n_elem = 0, rc = 0, iptt = -1;
 
 	if (!dev->port) {
@@ -447,12 +448,14 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		goto err_out;
 
 	slot = &hisi_hba->slot_info[queue*hisi_hba->queue_count+queue_slot];
+	memset(slot, 0, sizeof(*slot));
 
 	task->lldd_task = NULL;
 	slot->n_elem = n_elem;
 	slot->queue = queue;
 	slot->queue_slot = queue_slot;
-	slot->buf = NULL; //fixme j00310691
+	cmd_hdr_base = hisi_hba->cmd_hdr[queue];
+	slot->buf = &cmd_hdr_base[queue_slot];
 
 	slot->status_buffer = dma_pool_alloc(hisi_hba->status_dma_pool, GFP_ATOMIC,
 				&slot->status_buffer_dma);

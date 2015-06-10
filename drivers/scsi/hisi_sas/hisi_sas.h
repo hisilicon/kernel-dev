@@ -17,6 +17,7 @@
 #define HISI_SAS_MAX_CORE 3
 
 #define HISI_SAS_MAX_PHYS	9
+#define HISI_SAS_MAX_QUEUES	32
 #define HISI_SAS_QUEUE_SLOTS 1024
 #define HISI_SAS_MAX_ITCT_ENTRIES 4096
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
@@ -127,8 +128,8 @@ struct hisi_hba {
 
 	u8 sas_addr[SAS_ADDR_SIZE];
 
-	struct hisi_sas_cmd_hdr	*slot_hdr;
-	dma_addr_t	slot_dma;
+	struct hisi_sas_cmd_hdr	*cmd_hdr[HISI_SAS_MAX_QUEUES];
+	dma_addr_t	cmd_dma[HISI_SAS_MAX_QUEUES];
 
 	int	n_phy;
 

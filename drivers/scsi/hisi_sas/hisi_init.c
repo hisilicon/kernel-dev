@@ -104,12 +104,14 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 		init_timer(&hisi_hba->devices[i].timer);
 	}
 
-	hisi_hba->slot_hdr = dma_alloc_coherent(hisi_hba->dev,
-				sizeof(*hisi_hba->slot_hdr) * queue_slot_nr,
-				&hisi_hba->slot_dma, GFP_KERNEL);
-	if (!hisi_hba->slot_hdr)
-		goto err_out;
-	memset(hisi_hba->slot_hdr, 0, sizeof(*hisi_hba->slot_hdr) * queue_slot_nr);
+	for (i = 0; i < hisi_hba->queue_count; i++) {
+		hisi_hba->cmd_hdr[i] = dma_alloc_coherent(hisi_hba->dev,
+					sizeof(*hisi_hba->cmd_hdr) * HISI_SAS_QUEUE_SLOTS,
+					&hisi_hba->cmd_dma[i], GFP_KERNEL);
+		if (!hisi_hba->cmd_hdr[i])
+			goto err_out;
+		memset(hisi_hba->cmd_hdr[i], 0, sizeof(*hisi_hba->cmd_hdr) * HISI_SAS_QUEUE_SLOTS);
+	}
 
 	sprintf(pool_name, "%s%d", "hisi_sas_status_dma_pool", hisi_hba->id);
 	hisi_hba->status_dma_pool = dma_pool_create(pool_name,
