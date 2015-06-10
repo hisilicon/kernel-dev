@@ -159,6 +159,15 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 	if (!hisi_hba->iptt)
 		goto err_out;
 
+	sprintf(pool_name, "%s%d", "hisi_sas_status_sge_pool", hisi_hba->id);
+	hisi_hba->sge_page_pool = dma_pool_create(pool_name,
+					hisi_hba->dev,
+					sizeof(struct hisi_sas_sge_page),
+					8, 0);
+
+	if (!hisi_hba->sge_page_pool)
+		goto err_out;
+
 	hisi_sas_iptt_init(hisi_hba);
 
 	return 0;

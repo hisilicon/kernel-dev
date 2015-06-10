@@ -138,6 +138,8 @@ struct hisi_hba {
 	int iptt_count;
 	unsigned long *iptt;
 
+	struct dma_pool *sge_page_pool;
+
 	/* SCSI/SAS glue */
 	struct sas_ha_struct *sas;
 	struct Scsi_Host *shost;
@@ -381,6 +383,20 @@ struct hisi_sas_iost {
 
 	/* qw3 */
 	uint64_t status_buffer_address;
+};
+
+struct hisi_sas_sge {
+	u32 addr_lo;
+	u32 addr_hi;
+	u32 page_ctrl_0;
+	u32 page_ctrl_1;
+	u32 data_len;
+	u32 data_off;
+};
+
+#define HISI_SAS_SGE_PAGE_CNT 128 //j00310691 correct?
+struct hisi_sas_sge_page {
+	struct hisi_sas_sge sge[HISI_SAS_SGE_PAGE_CNT];
 };
 
 #define LUN_SIZE 8
