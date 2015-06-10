@@ -87,7 +87,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 	int i = 0, queue_slot_nr;
 	char pool_name[32];
 
-	queue_slot_nr = HISI_SAS_QUEUE_SLOTS * HISI_SAS_QUEUES;
+	queue_slot_nr = HISI_SAS_QUEUE_SLOTS * hisi_hba->queue_count;
 
 	spin_lock_init(&hisi_hba->lock);
 	for (i = 0; i < hisi_hba->n_phy; i++) {
@@ -129,6 +129,11 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 	if (!hisi_hba->itct)
 		goto err_out;
 
+	hisi_hba->slot_info = kzalloc(sizeof(*hisi_hba->slot_info) * queue_slot_nr,
+				GFP_KERNEL);
+	if (!hisi_hba->slot_info)
+		goto err_out;
+
 	hisi_hba->iost = dma_alloc_coherent(hisi_hba->dev,
 				HISI_SAS_COMMAND_ENTRIES *
 				HISI_SAS_IOST_ENTRY_SZ,
@@ -138,12 +143,12 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 	if (!hisi_hba->iost)
 		goto err_out;
 
-	hisi_hba->tags_num = HISI_SAS_COMMAND_ENTRIES;
-	hisi_hba->tags = kzalloc(hisi_hba->tags_num/sizeof(unsigned long), GFP_KERNEL);
-	if (!hisi_hba->tags)
+	hisi_hba->iptt_count = HISI_SAS_COMMAND_ENTRIES;
+	hisi_hba->iptt = kzalloc(hisi_hba->iptt_count/sizeof(unsigned long), GFP_KERNEL);
+	if (!hisi_hba->iptt)
 		goto err_out;
 
-	hisi_sas_tag_init(hisi_hba);
+	hisi_sas_iptt_init(hisi_hba);
 
 	return 0;
 

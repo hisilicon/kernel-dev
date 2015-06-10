@@ -47,42 +47,42 @@ static inline u32 hisi_sas_phy_read32(struct hisi_hba *hisi_hba, int phy, u32 of
 	return readl(regs);
 }
 
-void hisi_sas_tag_clear(struct hisi_hba *hisi_hba, int tag)
+void hisi_sas_iptt_clear(struct hisi_hba *hisi_hba, int iptt)
 {
-	void *bitmap = hisi_hba->tags;
-	clear_bit(tag, bitmap);
+	void *bitmap = hisi_hba->iptt;
+	clear_bit(iptt, bitmap);
 }
 
-void hisi_sas_tag_free(struct hisi_hba *hisi_hba, int tag)
+void hisi_sas_iptt_free(struct hisi_hba *hisi_hba, int iptt)
 {
-	hisi_sas_tag_clear(hisi_hba, tag);
+	hisi_sas_iptt_clear(hisi_hba, iptt);
 }
 
-void hisi_sas_tag_set(struct hisi_hba *hisi_hba, int tag)
+void hisi_sas_iptt_set(struct hisi_hba *hisi_hba, int iptt)
 {
-	void *bitmap = hisi_hba->tags;
-	set_bit(tag, bitmap);
+	void *bitmap = hisi_hba->iptt;
+	set_bit(iptt, bitmap);
 }
 
-int hisi_sas_tag_alloc(struct hisi_hba *hisi_hba, int *tag)
+int hisi_sas_iptt_alloc(struct hisi_hba *hisi_hba, int *iptt)
 {
 	unsigned int index;
-	void *bitmap = hisi_hba->tags;
+	void *bitmap = hisi_hba->iptt;
 
-	index = find_first_zero_bit(bitmap, hisi_hba->tags_num);
-	if (index >= hisi_hba->tags_num)
+	index = find_first_zero_bit(bitmap, hisi_hba->iptt_count);
+	if (index >= hisi_hba->iptt_count)
 		return -SAS_QUEUE_FULL;
-	hisi_sas_tag_set(hisi_hba, index);
-	*tag = index;
+	hisi_sas_iptt_set(hisi_hba, index);
+	*iptt = index;
 	return 0;
 }
 
-void hisi_sas_tag_init(struct hisi_hba *hisi_hba)
+void hisi_sas_iptt_init(struct hisi_hba *hisi_hba)
 {
 	int i;
 
-	for (i = 0; i < hisi_hba->tags_num; ++i)
-		hisi_sas_tag_clear(hisi_hba, i);
+	for (i = 0; i < hisi_hba->iptt_count; ++i)
+		hisi_sas_iptt_clear(hisi_hba, i);
 }
 
 static int hisi_sas_get_free_slot(struct hisi_hba *hisi_hba, int *q, int *s)
@@ -121,8 +121,8 @@ static int hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 	struct hisi_sas_device *hisi_sas_dev = dev->lldd_dev;
 	dma_addr_t req_dma_addr;
 	unsigned int req_len, resp_len;
-	int elem, rc, queue = tei->queue, queue_slot = tei->queue_slot;
-	struct hisi_sas_slot_info *slot = &hisi_hba->slot_info[queue][queue_slot];
+	int elem, rc;
+	struct hisi_sas_slot_info *slot = tei->slot;
 
 	/*
 	* DMA-map SMP request, response buffers
@@ -225,8 +225,7 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	struct sas_ssp_task *ssp_task = &task->ssp_task;
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
 	int has_data = 0;
-	int queue = tei->queue, queue_slot = tei->queue_slot;
-	struct hisi_sas_slot_info *slot = &hisi_hba->slot_info[queue][queue_slot];
+	struct hisi_sas_slot_info *slot = tei->slot;
 	struct ssp_frame_hdr *ssp_hdr;
 	void *buf = slot->buf;
 	u8 *buf_cmd, fburst;
@@ -281,7 +280,7 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	hdr->first_burst = 0;
 
 	/* dw3 */
-	hdr->iptt = 0; /* fixme j00310691 */
+	hdr->iptt = tei->iptt;
 	hdr->tptt = 0;
 
 	if (has_data) {
@@ -325,7 +324,7 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	       HASHED_SAS_ADDR_SIZE);
 	memcpy(ssp_hdr->hashed_src_addr,
 	       dev->hashed_sas_addr, HASHED_SAS_ADDR_SIZE);
-	ssp_hdr->tag = cpu_to_be16(0); // j00310691 fixme
+	ssp_hdr->tag = cpu_to_be16(tei->iptt);
 
 	/* fill in IU for TASK and Command Frame */
 	if (task->ssp_task.enable_first_burst) {
@@ -375,7 +374,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	struct hisi_sas_device *hisi_sas_dev = dev->lldd_dev;
 	struct hisi_sas_tei tei;
 	struct hisi_sas_slot_info *slot;
-	int queue_slot = -1, queue = -1, n_elem = 0, rc = 0, tag = -1;
+	int queue_slot = -1, queue = -1, n_elem = 0, rc = 0, iptt = -1;
 
 	if (!dev->port) {
 		struct task_status_struct *tsm = &task->task_status;
@@ -439,7 +438,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		n_elem = task->num_scatter;
 	}
 
-	rc = hisi_sas_tag_alloc(hisi_hba, &tag);
+	rc = hisi_sas_iptt_alloc(hisi_hba, &iptt);
 	if (rc)
 		goto err_out;
 
@@ -447,12 +446,13 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	if (rc)
 		goto err_out;
 
-	slot = &hisi_hba->slot_info[queue][queue_slot];
+	slot = &hisi_hba->slot_info[queue*hisi_hba->queue_count+queue_slot];
 
 	task->lldd_task = NULL;
 	slot->n_elem = n_elem;
 	slot->queue = queue;
 	slot->queue_slot = queue_slot;
+	slot->buf = NULL; //fixme j00310691
 
 	slot->status_buffer = dma_pool_alloc(hisi_hba->status_dma_pool, GFP_ATOMIC,
 				&slot->status_buffer_dma);
@@ -460,12 +460,11 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		goto err_out;
 	memset(slot->status_buffer, 0, HISI_SAS_STATUS_BUF_SZ);
 
+	tei.hdr = slot->buf;
 	tei.task = task;
-	tei.hdr = &hisi_hba->slot_hdr[queue*HISI_SAS_QUEUES+queue_slot];
-	tei.queue = queue;
-	tei.queue_slot = queue_slot;
 	tei.n_elem = n_elem;
-	tei.tag = tag;
+	tei.iptt = iptt;
+	tei.slot = slot;
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SMP:
 		rc = hisi_sas_task_prep_smp(hisi_hba, &tei);

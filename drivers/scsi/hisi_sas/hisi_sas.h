@@ -17,7 +17,6 @@
 #define HISI_SAS_MAX_CORE 3
 
 #define HISI_SAS_MAX_PHYS	9
-#define HISI_SAS_QUEUES 32
 #define HISI_SAS_QUEUE_SLOTS 1024
 #define HISI_SAS_MAX_ITCT_ENTRIES 4096
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
@@ -133,8 +132,8 @@ struct hisi_hba {
 
 	int	n_phy;
 
-	int tags_num;
-	unsigned long *tags;
+	int iptt_count;
+	unsigned long *iptt;
 
 	/* SCSI/SAS glue */
 	struct sas_ha_struct *sas;
@@ -154,14 +153,14 @@ struct hisi_hba {
 	dma_addr_t itct_dma;
 	struct hisi_sas_iost *iost;
 	dma_addr_t iost_dma;
-	struct hisi_sas_slot_info	slot_info[HISI_SAS_QUEUES][0];
+	struct hisi_sas_slot_info	*slot_info;
 	// To be completed, j00310691
 };
 
 struct hisi_hba_priv_info {
 	u8	n_phy;
-	struct hisi_hba *hisi_hba[HISI_SAS_MAX_CORE];
-	struct tasklet_struct *hisi_sas_tasklet;
+	struct hisi_hba	*hisi_hba[HISI_SAS_MAX_CORE];
+	struct tasklet_struct	*hisi_sas_tasklet;
 	int n_core;
 	u8 scan_finished;
 	// To be completed, j00310691
@@ -176,10 +175,9 @@ struct hisi_sas_tei {
 	struct sas_task	*task;
 	struct hisi_sas_cmd_hdr	*hdr;
 	struct hisi_sas_port	*port;
-	int	queue;
-	int	queue_slot;
+	struct hisi_sas_slot_info	*slot;
 	int	n_elem;
-	int	tag;
+	int	iptt;
 };
 
 /* HW structures */
@@ -392,7 +390,7 @@ struct ssp_command_iu {
 int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
 void hisi_sas_scan_start(struct Scsi_Host *shost);
 
-void hisi_sas_tag_init(struct hisi_hba *hisi_hba);
+void hisi_sas_iptt_init(struct hisi_hba *hisi_hba);
 void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int i);
 
 int hisi_sas_hw_init(struct hisi_hba *hisi_hba);
