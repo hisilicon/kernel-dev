@@ -155,6 +155,7 @@ struct hisi_hba {
 
 	int	id;
 	int	queue_count;
+	struct hisi_sas_slot_info	*slot_prep;
 
 	struct hba_info_page	hba_param;
 	struct hisi_sas_device	devices[HISI_SAS_MAX_DEVICES];

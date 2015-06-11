@@ -33,6 +33,13 @@ static inline u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
 	return readl(regs);
 }
 
+static inline void hisi_sas_write32(struct hisi_hba *hisi_hba, u32 off, u32 val)
+{
+	void __iomem *regs = hisi_hba->regs + off;
+
+	writel(val, regs);
+}
+
 static inline void hisi_sas_phy_write32(struct hisi_hba *hisi_hba, int phy, u32 off, u32 val)
 {
 	void __iomem *regs = hisi_hba->regs + (0x400 * phy) + off;
@@ -214,8 +221,10 @@ static int hisi_sas_prep_prd_sge(struct hisi_hba *hisi_hba,
 	struct scatterlist *sg;
 	int i;
 
-	if (n_elem > HISI_SAS_SGE_PAGE_CNT)
+	if (n_elem > HISI_SAS_SGE_PAGE_CNT) {
+		pr_err("%s n_elem(%d) > HISI_SAS_SGE_PAGE_CNT", __func__, n_elem);
 		return -EINVAL;
+	}
 
 	// j00310691 fixme need to deal with dealloc of sge_page
 	sge_page = dma_pool_alloc(hisi_hba->sge_page_pool, GFP_KERNEL, &dma_addr);
@@ -258,7 +267,6 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	int has_data = 0, rc;
 	struct hisi_sas_slot_info *slot = tei->slot;
 	struct ssp_frame_hdr *ssp_hdr;
-	void *buf = slot->buf;
 	u8 *buf_cmd, fburst;
 
 	/* create header */
@@ -335,10 +343,14 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	/* hdr->abort_iptt set in Higgs_PrepareAbort */
 
 	/* dw8,9 */
-	/* hdr->cmd_table_addr_lo, _hi set in Higgs_SendCommandHw */
+	/* j00310691 reference driver sets in Higgs_SendCommandHw */
+	hdr->cmd_table_addr_lo = DMA_ADDR_LO(slot->command_table_dma);
+	hdr->cmd_table_addr_hi = DMA_ADDR_HI(slot->command_table_dma);
 
 	/* dw9,10 */
-	/* hdr->sts_buffer_addr_lo, _hi set in Higgs_SendCommandHw */
+	/* j00310691 reference driver sets in Higgs_SendCommandHw */
+	hdr->sts_buffer_addr_lo = DMA_ADDR_LO(slot->status_buffer_dma);
+	hdr->sts_buffer_addr_hi = DMA_ADDR_HI(slot->status_buffer_dma);
 
 	/* dw11,12 */
 	/* hdr->prd_table_addr_lo, _hi set in hisi_sas_prep_prd_sge */
@@ -346,7 +358,7 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	/* hdr->dif_prd_table_addr_lo, _hi not set in Higgs code */
 
 	/* fill-in ssp header */
-	ssp_hdr = (struct ssp_frame_hdr *)(buf + sizeof(*hdr));
+	ssp_hdr = (struct ssp_frame_hdr *)slot->command_table;
 
 	if (is_tmf)
 		ssp_hdr->frame_type = SSP_TASK;
@@ -364,10 +376,9 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 		fburst = (1 << 7);
 		pr_warn("%s fburst enabled: edit hdr?\n", __func__);
 	}
-	buf += sizeof(*ssp_hdr);
-	memcpy(buf, &task->ssp_task.LUN, 8);
+	buf_cmd = (u8 *)ssp_hdr + sizeof(*ssp_hdr);
+	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
 
-	buf_cmd = buf;
 	if (ssp_hdr->frame_type != SSP_TASK) {
 		buf_cmd[9] = fburst | task->ssp_task.task_attr |
 				(task->ssp_task.task_prio << 3);
@@ -540,6 +551,8 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	task->task_state_flags |= SAS_TASK_AT_INITIATOR;
 	spin_unlock(&task->task_state_lock);
 
+	hisi_hba->slot_prep = slot;
+
 	hisi_sas_dev->running_req++;
 	++(*pass);
 
@@ -548,6 +561,14 @@ static int hisi_sas_task_prep(struct sas_task *task,
 err_out:
 	// Add proper labels j00310691
 	return rc;
+}
+
+void hisi_sas_start_delivery(struct hisi_hba *hisi_hba)
+{
+	int queue = hisi_hba->slot_prep->queue;
+	u32 w = hisi_sas_read32(hisi_hba, WR_PTR_0_REG + (queue * 0x10));
+
+	hisi_sas_write32(hisi_hba, WR_PTR_0_REG + (queue * 0x10), ++w % HISI_SAS_QUEUE_SLOTS);
 }
 
 static int hisi_sas_task_exec(struct sas_task *task,
@@ -568,9 +589,8 @@ static int hisi_sas_task_exec(struct sas_task *task,
 	if (rc)
 		dev_printk(KERN_ERR, hisi_hba->dev, "hisi_sas exec failed[%d]!\n", rc);
 
-	//if (likely(pass))
-	//		MVS_CHIP_DISP->start_delivery(mvi, (mvi->tx_prod - 1) &
-	//			(MVS_CHIP_SLOT_SZ - 1));
+	if (likely(pass))
+		hisi_sas_start_delivery(hisi_hba);
 	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 
 	return rc;
