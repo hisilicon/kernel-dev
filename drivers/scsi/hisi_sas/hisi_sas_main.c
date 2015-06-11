@@ -116,7 +116,6 @@ static int hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 	struct hisi_sas_cmd_hdr *hdr = tei->hdr;
 	struct domain_device *dev = task->dev;
 	struct asd_sas_port *sas_port = dev->port;
-	struct sas_phy *sphy = dev->phy;
 	struct scatterlist *sg_req, *sg_resp;
 	struct hisi_sas_device *hisi_sas_dev = dev->lldd_dev;
 	dma_addr_t req_dma_addr;
@@ -134,7 +133,7 @@ static int hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 		return -ENOMEM;
 	req_len = sg_dma_len(sg_req);
 	req_dma_addr = sg_dma_address(sg_req);
-	pr_info("%s sq_req=%p elem=%d req_len=%d\n", __func__, sg_req, elem, req_len);
+	pr_info("%s sg_req=%p elem=%d req_len=%d\n", __func__, sg_req, elem, req_len);
 
 	sg_resp = &task->smp_task.smp_resp; /* this is the response frame - see alloc_smp_resp() */
 	elem = dma_map_sg(hisi_hba->dev, sg_resp, 1, DMA_FROM_DEVICE);
@@ -147,32 +146,33 @@ static int hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 		rc = -EINVAL;
 		goto err_out;
 	}
+	pr_info("%s sg_resp=%p elem=%d req_len=%d\n", __func__, sg_resp, elem, resp_len);
 
 	/* create header */
 	hdr->abort_flag = 0; /* not sure */
-	hdr->t10_flds_pres = 0; /* not sure */
+	/* hdr->t10_flds_pres not set in Higgs_PrepareSMP */
 	/* hdr->resp_report, ->tlr_ctrl for SSP */
-	hdr->phy_id = 1 << sphy->number; /* double-check */
+	hdr->phy_id = 1; /* this is what Higgs_PrepareSMP does */
 	hdr->force_phy = 0; /* due not force ordering in phy */
 	hdr->port = sas_port->id; /* double-check */
 	/* hdr->sata_reg_set not applicable to smp */
-	hdr->priority = 0; /* ordinary priority */
+	hdr->priority = 1; /* high priority */
 	hdr->mode = 1; /* ini mode */
 	hdr->cmd = 2; /* smp */
 
 	/* hdr->port_multiplier, ->bist_active, ->atapi */
 	/* ->first_party_dma, ->reset only applies to stp */
-	/* hdr->pir_pres, ->enable_tlr, ->ssp->pass_through */
+	/* hdr->pir_pres, ->enable_tlr, ->ssp_pass_through */
 	/* ->spp_frame_type only applicable to ssp */
 
 	hdr->device_id = hisi_sas_dev->device_id; /* map itct entry */
 
 	hdr->cmd_frame_len = req_len/4;
 	/* hdr->leave_affil_open only applicable to stp */
-	hdr->max_resp_frame_len = resp_len/4;
+	hdr->max_resp_frame_len = HISI_SAS_MAX_SMP_RESP_SZ/4;
 	/* hdr->sg_mode, ->first_burst not applicable to smp */
 
-	/* hdr->iptt, ->tptt not applicable to smp */
+	/* hdr->iptt, ->tptt not applicable to smp */ /* j00310691 check */
 
 	/* hdr->data_transfer_len not applicable to smp */
 
@@ -182,8 +182,9 @@ static int hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 
 	/* hdr->double_mode, ->abort_iptt not applicable to smp */
 
-	hdr->cmd_frame_addr_lo  = DMA_ADDR_LO(req_dma_addr);
-	hdr->cmd_frame_addr_hi  = DMA_ADDR_HI(req_dma_addr);
+	/* j00310691 do not use slot->command_table */
+	hdr->cmd_table_addr_lo  = DMA_ADDR_LO(req_dma_addr);
+	hdr->cmd_table_addr_hi  = DMA_ADDR_HI(req_dma_addr);
 
 	hdr->sts_buffer_addr_lo  = DMA_ADDR_LO(slot->status_buffer_dma);
 	hdr->sts_buffer_addr_hi  = DMA_ADDR_HI(slot->status_buffer_dma);
@@ -334,7 +335,7 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	/* hdr->abort_iptt set in Higgs_PrepareAbort */
 
 	/* dw8,9 */
-	/* hdr->cmd_frame_addr_lo, _hi set in Higgs_SendCommandHw */
+	/* hdr->cmd_table_addr_lo, _hi set in Higgs_SendCommandHw */
 
 	/* dw9,10 */
 	/* hdr->sts_buffer_addr_lo, _hi set in Higgs_SendCommandHw */

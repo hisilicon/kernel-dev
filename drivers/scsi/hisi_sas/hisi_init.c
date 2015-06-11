@@ -134,9 +134,8 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 	sprintf(pool_name, "%s%d", "hisi_sas_command_table_pool", hisi_hba->id);
 	hisi_hba->command_table_pool = dma_pool_create(pool_name,
 					hisi_hba->dev,
-					sizeof(union hisi_sas_command_table),
+					HISI_SAS_COMMAND_TABLE_SZ,
 					8, 0);
-
 	if (!hisi_hba->command_table_pool)
 		goto err_out;
 

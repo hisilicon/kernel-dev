@@ -251,10 +251,10 @@ struct hisi_sas_cmd_hdr {
 	u32 abort_iptt:16;
 
 	/* dw8 */
-	u32 cmd_frame_addr_lo;
+	u32 cmd_table_addr_lo;
 
 	/* dw9 */
-	u32 cmd_frame_addr_hi;
+	u32 cmd_table_addr_hi;
 
 	/* dw10 */
 	u32 sts_buffer_addr_lo;
