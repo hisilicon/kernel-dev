@@ -18,7 +18,7 @@
 
 #define HISI_SAS_MAX_PHYS	9
 #define HISI_SAS_MAX_QUEUES	32
-#define HISI_SAS_QUEUE_SLOTS 1024
+#define HISI_SAS_QUEUE_SLOTS 512
 #define HISI_SAS_MAX_ITCT_ENTRIES 4096
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
 #define HISI_SAS_COMMAND_ENTRIES 8192
@@ -28,9 +28,11 @@
 #define HISI_SAS_STATUS_BUF_SZ 1024
 #define HISI_SAS_ITCT_ENTRY_SZ 128
 #define HISI_SAS_IOST_ENTRY_SZ 32
+#define HISI_SAS_COMMAND_TABLE_SZ (((sizeof(union hisi_sas_command_table)+3)/4)*4)
 
 #define HISI_SAS_MAX_SG 10
-#define HISI_SAS_MAX_SSP_RESP_SZ 1016
+#define HISI_SAS_MAX_SSP_RESP_SZ (sizeof(struct ssp_frame_hdr) + 1024) //j00310691 see table 118
+#define HISI_SAS_MAX_SMP_RESP_SZ 64 // j00310691 64 from table 186, but 1016 is used in HIGGS_MAX_SMP_RESP_SIZE
 // Temp defines to compile
 #define PORT_DEV_TRGT_MASK (0x7U << 17)
 #define PORT_TYPE_SAS (1U << 1)
@@ -106,11 +108,14 @@ struct hisi_sas_slot_info {
 	u64	tx;
 	int	queue_slot;
 	int	queue;
+	int	iptt;
 
 	void	*buf;
 	dma_addr_t	buf_dma;
 	void	*status_buffer;
 	dma_addr_t	status_buffer_dma;
+	void *command_table;
+	dma_addr_t	command_table_dma;
 	void	*response;
 	struct hisi_sas_port	*port;
 	struct hisi_sas_device	*device;
@@ -153,7 +158,8 @@ struct hisi_hba {
 
 	struct hba_info_page	hba_param;
 	struct hisi_sas_device	devices[HISI_SAS_MAX_DEVICES];
-	struct dma_pool *status_dma_pool;
+	struct dma_pool *command_table_pool;
+	struct dma_pool *status_buffer_pool;
 	struct hisi_sas_itct *itct;
 	dma_addr_t itct_dma;
 	struct hisi_sas_iost *iost;
@@ -394,7 +400,34 @@ struct hisi_sas_sge {
 	u32 data_off;
 };
 
-#define HISI_SAS_SGE_PAGE_CNT 128 //j00310691 correct?
+struct hisi_sas_command_table_ssp {
+	struct ssp_frame_hdr hdr;
+	u8 ui[1024];// j00310691 todo struct struct for ui:
+	// Data frame
+	// XFR_RDY frame
+	// Command frame
+	// Response frame
+	// Task frame
+	// See Table 118 of 1.1 spec
+};
+
+// j00310691 Max SMP Request frame size is 44; see table 186
+struct hisi_sas_command_table_smp {
+	u8 bytes[44];
+};
+
+struct hisi_sas_command_table_stp {
+	// j00310691 todo
+};
+
+union hisi_sas_command_table {
+	struct hisi_sas_command_table_ssp ssp;
+	struct hisi_sas_command_table_smp smp;
+	struct hisi_sas_command_table_stp stp;
+};
+
+
+#define HISI_SAS_SGE_PAGE_CNT 124
 struct hisi_sas_sge_page {
 	struct hisi_sas_sge sge[HISI_SAS_SGE_PAGE_CNT];
 };

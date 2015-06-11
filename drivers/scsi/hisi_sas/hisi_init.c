@@ -122,13 +122,22 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 		memset(hisi_hba->complete_hdr[i], 0, sizeof(*hisi_hba->complete_hdr) * HISI_SAS_QUEUE_SLOTS);
 	}
 
-	sprintf(pool_name, "%s%d", "hisi_sas_status_dma_pool", hisi_hba->id);
-	hisi_hba->status_dma_pool = dma_pool_create(pool_name,
+	sprintf(pool_name, "%s%d", "hisi_sas_status_buffer_pool", hisi_hba->id);
+	hisi_hba->status_buffer_pool = dma_pool_create(pool_name,
 					hisi_hba->dev,
 					HISI_SAS_STATUS_BUF_SZ,
 					8, 0);
 
-	if (!hisi_hba->status_dma_pool)
+	if (!hisi_hba->status_buffer_pool)
+		goto err_out;
+
+	sprintf(pool_name, "%s%d", "hisi_sas_command_table_pool", hisi_hba->id);
+	hisi_hba->command_table_pool = dma_pool_create(pool_name,
+					hisi_hba->dev,
+					sizeof(union hisi_sas_command_table),
+					8, 0);
+
+	if (!hisi_hba->command_table_pool)
 		goto err_out;
 
 	hisi_hba->itct = dma_alloc_coherent(hisi_hba->dev,

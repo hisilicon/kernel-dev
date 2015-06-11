@@ -483,17 +483,24 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	memset(slot, 0, sizeof(*slot));
 
 	task->lldd_task = NULL;
+	slot->iptt = iptt;
 	slot->n_elem = n_elem;
 	slot->queue = queue;
 	slot->queue_slot = queue_slot;
 	cmd_hdr_base = hisi_hba->cmd_hdr[queue];
 	slot->buf = &cmd_hdr_base[queue_slot];
 
-	slot->status_buffer = dma_pool_alloc(hisi_hba->status_dma_pool, GFP_ATOMIC,
+	slot->status_buffer = dma_pool_alloc(hisi_hba->status_buffer_pool, GFP_ATOMIC,
 				&slot->status_buffer_dma);
 	if (!slot->status_buffer)
 		goto err_out;
 	memset(slot->status_buffer, 0, HISI_SAS_STATUS_BUF_SZ);
+
+	slot->command_table = dma_pool_alloc(hisi_hba->command_table_pool, GFP_ATOMIC,
+				&slot->command_table_dma);
+	if (!slot->command_table)
+		goto err_out;
+	memset(slot->command_table, 0, sizeof(*slot->command_table));
 
 	tei.hdr = slot->buf;
 	tei.task = task;
