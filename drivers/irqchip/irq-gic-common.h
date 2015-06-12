@@ -20,10 +20,10 @@
 #include <linux/of.h>
 #include <linux/irqdomain.h>
 
-int gic_configure_irq(unsigned int irq, unsigned int type,
-                       void __iomem *base, void (*sync_access)(void));
+int gic_configure_irq(unsigned int irq, unsigned int type, void __iomem *base,
+                       void (*sync_access)(void __iomem *));
 void gic_dist_config(void __iomem *base, int gic_irqs,
-		     void (*sync_access)(void));
-void gic_cpu_config(void __iomem *base, void (*sync_access)(void));
+		     void (*sync_access)(void __iomem *));
+void gic_cpu_config(void __iomem *base, void (*sync_access)(void __iomem *));
 
 #endif /* _IRQ_GIC_COMMON_H */

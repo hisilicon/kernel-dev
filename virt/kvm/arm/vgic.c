@@ -2092,6 +2092,7 @@ static const struct of_device_id vgic_ids[] = {
 	{ .compatible = "arm,cortex-a7-gic",	.data = vgic_v2_probe, },
 	{ .compatible = "arm,gic-400",		.data = vgic_v2_probe, },
 	{ .compatible = "arm,gic-v3",		.data = vgic_v3_probe, },
+	{ .compatible = "hisilicon,gic-v3",	.data = vgic_v3_probe, },
 	{},
 };
 

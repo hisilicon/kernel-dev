@@ -1,0 +1,5172 @@
+/*--------------------------------------------------------------------------------------------------------------------------*/
+/*!!Warning: This is a key information asset of Huawei Tech Co.,Ltd                                                         */
+/*CODEMARK:kOyQZYzjDpyGdBAEC2GaWuVy7vy/wDnq7gJfHBOj2pBXFF9pJtpDLt9sw5WJiMsUkN5d7jr7
+aK5J3kmlnl+vpaISWHqOHbuE99WnZz8Urp0KNb0WWl+qRa4EjbbH6IvvJ8uAZ7aN4Vd0NGho
+uLjlYiRWhPCX+uYNGv9feR+PgmQNYQK7GaKvd4ZrFgH+7G28htvuod4u1/PyYXa3H6iWz+VH
+MsAbVyR+AEFa2mPFrgpwHSGRfaZ3JLcpZdR8VS2HzW0Z8mfutK646XoP7TQGtA==*/
+/*--------------------------------------------------------------------------------------------------------------------------*/
+/******************************************************************************
+
+                  °æÈ¨ËùÓÐ (C), 2011-2021, »ªÎª¼¼ÊõÓÐÏÞ¹«Ë¾
+
+ ******************************************************************************
+  ÎÄ ¼þ Ãû   : sre_crs9.h
+  °æ ±¾ ºÅ   : ³õ¸å
+  ×÷    Õß   : z00176027
+  Éú³ÉÈÕÆÚ   : 2013Äê10ÔÂ17ÈÕ
+  ×î½üÐÞ¸Ä   :
+  ¹¦ÄÜÃèÊö   : p660×ÓÏµÍ³9 ¸´Î»¼°½â¸´Î»Ïà¹ØÍ·ÎÄ¼þ
+  º¯ÊýÁÐ±í   :
+  ÐÞ¸ÄÀúÊ·   :
+  1.ÈÕ    ÆÚ   : 2013Äê10ÔÂ17ÈÕ
+    ×÷    Õß   : z00176027
+    ÐÞ¸ÄÄÚÈÝ   : ´´½¨ÎÄ¼þ
+
+******************************************************************************/
+#ifndef __C_SRE_SUB_ALG_H__
+#define __C_SRE_SUB_ALG_H__
+
+#include "hrdCommon.h"
+#include "hrdOs.h"
+#include "osal_api.h"
+#include "sre_crg_api.h"
+
+#ifdef HRD_OS_LINUX
+#include "iware_comm_kernel_api.h"
+#endif
+
+
+/*----------------------------------------------*
+ * Íâ²¿±äÁ¿ËµÃ÷                                 *
+ *----------------------------------------------*/
+
+/*----------------------------------------------*
+ * Íâ²¿º¯ÊýÔ­ÐÍËµÃ÷                             *
+ *----------------------------------------------*/
+
+/*----------------------------------------------*
+ * ÄÚ²¿º¯ÊýÔ­ÐÍËµÃ÷                             *
+ *----------------------------------------------*/
+
+/*----------------------------------------------*
+ * È«¾Ö±äÁ¿                                     *
+ *----------------------------------------------*/
+
+/*----------------------------------------------*
+ * Ä£¿é¼¶±äÁ¿                                   *
+ *----------------------------------------------*/
+
+/*----------------------------------------------*
+ * ³£Á¿¶¨Òå                                     *
+ *----------------------------------------------*/
+
+/*----------------------------------------------*
+ * ºê¶¨Òå                                       *
+ *----------------------------------------------*/
+
+/* alg_hccs_subctrl Ä£¿é¼Ä´æÆ÷»ùµØÖ· */
+#define ALG_SUB_BASE                              (0xD0000000)
+#define ALG_SUB_BASE_SIZE                         (0x10000)
+
+
+/******************************************************************************/
+/*                      PHOSPHOR ALG_SUB Registers' Definitions                            */
+/******************************************************************************/
+
+#define ALG_SUB_SC_PLLFCTRL0_REG               (ALG_SUB_BASE + 0x0)    /* PLL0¿ØÖÆ¼Ä´æÆ÷0¡£ */
+#define ALG_SUB_SC_PLLFCTRL1_REG               (ALG_SUB_BASE + 0x4)    /* PLL0¿ØÖÆ¼Ä´æÆ÷1¡£ */
+#define ALG_SUB_SC_PLLFCTRL2_REG               (ALG_SUB_BASE + 0x8)    /* PLL1¿ØÖÆ¼Ä´æÆ÷0¡£ */
+#define ALG_SUB_SC_PLLFCTRL3_REG               (ALG_SUB_BASE + 0xC)    /* PLL1¿ØÖÆ¼Ä´æÆ÷1¡£ */
+#define ALG_SUB_SC_PLLFCTRL4_REG               (ALG_SUB_BASE + 0x10)   /* PLL2¿ØÖÆ¼Ä´æÆ÷0¡£ */
+#define ALG_SUB_SC_PLLFCTRL5_REG               (ALG_SUB_BASE + 0x14)   /* PLL2¿ØÖÆ¼Ä´æÆ÷1¡£ */
+#define ALG_SUB_SC_PLLFCTRL6_REG               (ALG_SUB_BASE + 0x18)   /* PLL3¿ØÖÆ¼Ä´æÆ÷0¡£ */
+#define ALG_SUB_SC_PLLFCTRL7_REG               (ALG_SUB_BASE + 0x1C)   /* PLL3¿ØÖÆ¼Ä´æÆ÷1¡£ */
+#define ALG_SUB_SC_PLL_CLK_BYPASS0_REG         (ALG_SUB_BASE + 0x20)   /* PLLÏà¹Ø¹¤×÷Ê±ÖÓÑ¡Ôñ¡£ */
+#define ALG_SUB_SC_PLLFCTRL8_REG               (ALG_SUB_BASE + 0x24)   /* pll4¿ØÖÆ¼Ä´æÆ÷0¡£ */
+#define ALG_SUB_SC_PLLFCTRL9_REG               (ALG_SUB_BASE + 0x28)   /* pll4¿ØÖÆ¼Ä´æÆ÷1¡£ */
+#define ALG_SUB_SC_PLL_CLK_BYPASS1_REG         (ALG_SUB_BASE + 0x2C)   /* PLLÏà¹Ø¹¤×÷Ê±ÖÓÑ¡Ôñ¡£ */
+#define ALG_SUB_SC_GPIO_DB_CTRL_REG            (ALG_SUB_BASE + 0x100)  /* ÅäÖÃgpip dbÊ±ÖÓÑ¡Ôñ */
+#define ALG_SUB_SC_SFC_CLK_CTRL_REG            (ALG_SUB_BASE + 0x104)  /* ÅäÖÃSFCÊ±ÖÓÑ¡Ôñ */
+#define ALG_SUB_SC_ALL_SCAN_CTRL_REG           (ALG_SUB_BASE + 0x150)  /* ALL SCAN¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_SYSRST_CTRL_REG             (ALG_SUB_BASE + 0x200)  /* ÏµÍ³Èí¸´Î»¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_ITS_CLK_EN_REG              (ALG_SUB_BASE + 0x318)  /* ITSÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_ITS_CLK_DIS_REG             (ALG_SUB_BASE + 0x31C)  /* ITSÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+#define ALG_SUB_SC_PA_CLK_EN_REG               (ALG_SUB_BASE + 0x358)  /* PAÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_PA_CLK_DIS_REG              (ALG_SUB_BASE + 0x35C)  /* PAÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HLLC_CLK_EN_REG             (ALG_SUB_BASE + 0x360)  /* HLLCÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HLLC_CLK_DIS_REG            (ALG_SUB_BASE + 0x364)  /* HLLCÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+#define ALG_SUB_SC_REF_CLK_EN_REG              (ALG_SUB_BASE + 0x370)  /* refÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_REF_CLK_DIS_REG             (ALG_SUB_BASE + 0x374)  /* refÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+#define ALG_SUB_SC_GPIO_DB_CLK_EN_REG          (ALG_SUB_BASE + 0x378)  /* gpio_dbÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_GPIO_DB_CLK_DIS_REG         (ALG_SUB_BASE + 0x37C)  /* gpio_dbÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_CLK_EN_REG            (ALG_SUB_BASE + 0x380)  /* djtagÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_CLK_DIS_REG           (ALG_SUB_BASE + 0x384)  /* djtagÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HLLC_RXTX_CLK_EN_REG        (ALG_SUB_BASE + 0x390)  /* hllc rxtxÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HLLC_RXTX_CLK_DIS_REG       (ALG_SUB_BASE + 0x394)  /* hllc rxtxÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RSA_CLK_EN_REG              (ALG_SUB_BASE + 0x3A0)  /* RSAÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RSA_CLK_DIS_REG             (ALG_SUB_BASE + 0x3A4)  /* RSAÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RDE_CLK_EN_REG              (ALG_SUB_BASE + 0x3A8)  /* RDEÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RDE_CLK_DIS_REG             (ALG_SUB_BASE + 0x3AC)  /* RDEÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RNG_CLK_EN_REG              (ALG_SUB_BASE + 0x3B0)  /* RNGÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RNG_CLK_DIS_REG             (ALG_SUB_BASE + 0x3B4)  /* RNGÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+#define ALG_SUB_SC_SEC_CLK_EN_REG              (ALG_SUB_BASE + 0x3B8)  /* SECÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_SEC_CLK_DIS_REG             (ALG_SUB_BASE + 0x3BC)  /* SECÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+#define ALG_SUB_SC_ITS_RESET_REQ_REG           (ALG_SUB_BASE + 0xA18)  /* ITSÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_ITS_RESET_DREQ_REG          (ALG_SUB_BASE + 0xA1C)  /* ITSÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HILINK_PCS_RESET_REQ_REG    (ALG_SUB_BASE + 0xA58)  /* HILINK PCSÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HILINK_PCS_RESET_DREQ_REG   (ALG_SUB_BASE + 0xA5C)  /* HILINK PCSÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HLLC_RXTX_RESET_REQ_REG     (ALG_SUB_BASE + 0xA60)  /* hllc rxtxÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HLLC_RXTX_RESET_DREQ_REG    (ALG_SUB_BASE + 0xA64)  /* hllc rxtxÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_PA_RESET_REQ_REG            (ALG_SUB_BASE + 0xA78)  /* PAÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_PA_RESET_DREQ_REG           (ALG_SUB_BASE + 0xA7C)  /* PAÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HLLC_RESET_REQ_REG          (ALG_SUB_BASE + 0xA80)  /* HLLCÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HLLC_RESET_DREQ_REG         (ALG_SUB_BASE + 0xA84)  /* HLLCÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_RESET_REQ_REG         (ALG_SUB_BASE + 0xA90)  /* DJTAGÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_RESET_DREQ_REG        (ALG_SUB_BASE + 0xA94)  /* DJTAGÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RSA_RESET_REQ_REG           (ALG_SUB_BASE + 0xA98)  /* RSAÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RSA_RESET_DREQ_REG          (ALG_SUB_BASE + 0xA9C)  /* RSAÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RDE_RESET_REQ_REG           (ALG_SUB_BASE + 0xAA0)  /* RDEÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RDE_RESET_DREQ_REG          (ALG_SUB_BASE + 0xAA4)  /* RDEÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_SEC_RESET_REQ_REG           (ALG_SUB_BASE + 0xAA8)  /* SECÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_SEC_RESET_DREQ_REG          (ALG_SUB_BASE + 0xAAC)  /* SECÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RNG_RESET_REQ_REG           (ALG_SUB_BASE + 0xAB0)  /* RNGÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RNG_RESET_DREQ_REG          (ALG_SUB_BASE + 0xAB4)  /* RNGÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_SEC_BUILD_RESET_REQ_REG     (ALG_SUB_BASE + 0xAB8)  /* SEC BUILDÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_SEC_BUILD_RESET_DREQ_REG    (ALG_SUB_BASE + 0xABC)  /* SEC BUILDÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_PCS_LOCAL_RESET_REQ_REG     (ALG_SUB_BASE + 0xAC0)  /* PCS LOCALÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_PCS_LOCAL_RESET_DREQ_REG    (ALG_SUB_BASE + 0xAC4)  /* PCS LOCALÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DISPATCH_DAW_EN_REG         (ALG_SUB_BASE + 0x1000) /* dispatch daw enÅäÖÃ */
+#define ALG_SUB_SC_DISPATCH_DAW_ARRAY0_REG     (ALG_SUB_BASE + 0x1004) /* dispatch dawÅäÖÃÕóÁÐ0 */
+#define ALG_SUB_SC_DISPATCH_DAW_ARRAY1_REG     (ALG_SUB_BASE + 0x1008) /* dispatch dawÅäÖÃÕóÁÐ1 */
+#define ALG_SUB_SC_DISPATCH_DAW_ARRAY2_REG     (ALG_SUB_BASE + 0x100C) /* dispatch dawÅäÖÃÕóÁÐ2 */
+#define ALG_SUB_SC_DISPATCH_DAW_ARRAY3_REG     (ALG_SUB_BASE + 0x1010) /* dispatch dawÅäÖÃÕóÁÐ3 */
+#define ALG_SUB_SC_DISPATCH_DAW_ARRAY4_REG     (ALG_SUB_BASE + 0x1014) /* dispatch dawÅäÖÃÕóÁÐ4 */
+#define ALG_SUB_SC_DISPATCH_DAW_ARRAY5_REG     (ALG_SUB_BASE + 0x1018) /* dispatch dawÅäÖÃÕóÁÐ5 */
+#define ALG_SUB_SC_DISPATCH_DAW_ARRAY6_REG     (ALG_SUB_BASE + 0x101C) /* dispatch dawÅäÖÃÕóÁÐ6 */
+#define ALG_SUB_SC_DISPATCH_DAW_ARRAY7_REG     (ALG_SUB_BASE + 0x1020) /* dispatch dawÅäÖÃÕóÁÐ7 */
+#define ALG_SUB_SC_DISPATCH_RETRY_CONTROL_REG  (ALG_SUB_BASE + 0x1030) /* dispatch retry¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DISPATCH_INTMASK_REG        (ALG_SUB_BASE + 0x1100) /* dispatchµÄÖÐ¶ÏÆÁ±Î¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DISPATCH_RAWINT_REG         (ALG_SUB_BASE + 0x1104) /* dispatchµÄÔ­Ê¼ÖÐ¶Ï×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DISPATCH_INTSTAT_REG        (ALG_SUB_BASE + 0x1108) /* dispatchµÄÆÁ±ÎºóµÄÖÐ¶Ï×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DISPATCH_INTCLR_REG         (ALG_SUB_BASE + 0x110C) /* dispatchµÄÖÐ¶ÏÇå³ý¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DISPATCH_ERRSTAT_REG        (ALG_SUB_BASE + 0x1110) /* dispatchµÄERR×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DISPATCH_REMAP_CTRL_REG     (ALG_SUB_BASE + 0x1200) /* subsysµÄÆô¶¯Remap¼Ä´æÆ÷ */
+#define ALG_SUB_SC_TSENSOR_CTRL0_REG           (ALG_SUB_BASE + 0x20D0) /* TSENSOR¿ØÖÆ¼Ä´æÆ÷0 */
+#define ALG_SUB_SC_TSENSOR_CTRL1_REG           (ALG_SUB_BASE + 0x20D4) /* TSENSOR¿ØÖÆ¼Ä´æÆ÷1 */
+#define ALG_SUB_SC_BOOTROM_CTRL_REG            (ALG_SUB_BASE + 0x20F0) /* BOOTROM¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_FTE_MUX_CTRL_REG            (ALG_SUB_BASE + 0x2200) /* FTE¸´ÓÃÑ¡Ôñ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RSA_ADDR_H_REG              (ALG_SUB_BASE + 0x2E00) /* RSA¸ß20Î»µØÖ·²¹³ä¼Ä´æÆ÷ */
+#define ALG_SUB_SC_SMMU_MEM_CTRL0_REG          (ALG_SUB_BASE + 0x3000) /* smmu mem¿ØÖÆ¼Ä´æÆ÷0 */
+#define ALG_SUB_SC_SMMU_MEM_CTRL1_REG          (ALG_SUB_BASE + 0x3004) /* smmu mem¿ØÖÆ¼Ä´æÆ÷1 */
+#define ALG_SUB_SC_SMMU_MEM_CTRL2_REG          (ALG_SUB_BASE + 0x3008) /* smmu mem¿ØÖÆ¼Ä´æÆ÷2 */
+#define ALG_SUB_SC_RSA_MEM_CTRL_REG            (ALG_SUB_BASE + 0x3030) /* rsa mem¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HLLC_MEM_CTRL_REG           (ALG_SUB_BASE + 0x3040) /* hllc mem¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_PA_MEM_CTRL0_REG            (ALG_SUB_BASE + 0x3050) /* pa mem¿ØÖÆ¼Ä´æÆ÷0 */
+#define ALG_SUB_SC_PA_MEM_CTRL1_REG            (ALG_SUB_BASE + 0x3054) /* pa mem¿ØÖÆ¼Ä´æÆ÷1 */
+#define ALG_SUB_SC_RDE_MEM_CTRL_REG            (ALG_SUB_BASE + 0x3060) /* rde mem¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_SEC_MEM_CTRL_REG            (ALG_SUB_BASE + 0x3070) /* sec mem¿ØÖÆ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_PLL_LOCK_ST_REG             (ALG_SUB_BASE + 0x5000) /* PLLËø¶¨×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_ITS_CLK_ST_REG              (ALG_SUB_BASE + 0x530C) /* ITSÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_PA_CLK_ST_REG               (ALG_SUB_BASE + 0x532C) /* PAÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HLLC_CLK_ST_REG             (ALG_SUB_BASE + 0x5330) /* HLLCÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_REF_CLK_ST_REG              (ALG_SUB_BASE + 0x5338) /* refÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_GPIO_DB_CLK_ST_REG          (ALG_SUB_BASE + 0x533C) /* gpio_dbÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_CLK_ST_REG            (ALG_SUB_BASE + 0x5340) /* djtagÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HLLC_RXTX_CLK_ST_REG        (ALG_SUB_BASE + 0x5348) /* hllc rxtxÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RSA_CLK_ST_REG              (ALG_SUB_BASE + 0x5350) /* RSAÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RDE_CLK_ST_REG              (ALG_SUB_BASE + 0x5354) /* RDEÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RNG_CLK_ST_REG              (ALG_SUB_BASE + 0x5358) /* RNGÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_SEC_CLK_ST_REG              (ALG_SUB_BASE + 0x535C) /* SECÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_ITS_RESET_ST_REG            (ALG_SUB_BASE + 0x5A0C) /* ITS¸´Î»×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HILINK_PCS_RESET_ST_REG     (ALG_SUB_BASE + 0x5A2C) /* HILINK_PCS¸´Î»×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HLLC_RXTX_RESET_ST_REG      (ALG_SUB_BASE + 0x5A30) /* hllc rxtx¸´Î»×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_PA_RESET_ST_REG             (ALG_SUB_BASE + 0x5A3C) /* PA¸´Î»×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_HLLC_RESET_ST_REG           (ALG_SUB_BASE + 0x5A40) /* HLLC¸´Î»×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_RESET_ST_REG          (ALG_SUB_BASE + 0x5A48) /* DJTAG¸´Î»×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RSA_RESET_ST_REG            (ALG_SUB_BASE + 0x5A4C) /* RSA¸´Î»×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RDE_RESET_ST_REG            (ALG_SUB_BASE + 0x5A50) /* RDE¸´Î»×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_SEC_RESET_ST_REG            (ALG_SUB_BASE + 0x5A54) /* SEC¸´Î»×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_RNG_RESET_ST_REG            (ALG_SUB_BASE + 0x5A58) /* RNG¸´Î»×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_SEC_BUILD_RESET_ST_REG      (ALG_SUB_BASE + 0x5A5C) /* SEC BUILD¸´Î»×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_PCS_LOCAL_RESET_ST_REG      (ALG_SUB_BASE + 0x5A60) /* PCS LOCALÈí¸´Î»ÇëÇó×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_TSENSOR_ST_REG              (ALG_SUB_BASE + 0x6040) /* TSENSOR×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_INT_REG               (ALG_SUB_BASE + 0x6600) /* DJTAG MasterÄÚ×´Ì¬»ú³¬Ê±ÖÐ¶ÏÔ´¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DBG_AUTH_CTRL_REG           (ALG_SUB_BASE + 0x6700) /* °²È«µÈ¼¶ÊÚÈ¨¿ØÖÆ¼Ä´æÆ÷¡££¨×¢Òâ£º1£¬´Ë¼Ä´æÆ÷¿Õ¼ä±ØÐëÊÇ°²È«·ÃÎÊ²ÅÄÜ³É¹¦£»2£¬Ä¬ÈÏ¾ùÊÇ´ò¿ªµ÷ÊÔÄ£Ê½£¬ÓÐÂ©¶´£¬ÔÚÕý³£¹¤×÷Ê±Çë³õÊ¼»¯¹Ø±Õµ÷ÊÔ¹¦ÄÜ£© */
+#define ALG_SUB_SC_DJTAG_MSTR_EN_REG           (ALG_SUB_BASE + 0x6800) /* SC_DJTAG_MSTR_ENÎªDJTAG MasterÊ¹ÄÜ¿ØÖÆ */
+#define ALG_SUB_SC_DJTAG_MSTR_START_EN_REG     (ALG_SUB_BASE + 0x6804) /* SC_DJTAG_MSTR_START_ENÎªDJTAG Master·ÃÎÊchainÁ´µÄstartÊ¹ÄÜ */
+#define ALG_SUB_SC_DJTAG_SEC_ACC_EN_REG        (ALG_SUB_BASE + 0x6808) /* DJTAG·ÃÎÊ¸÷Ä£¿éÄÚ°²È«ÊÀ½ç¼Ä´æÆ÷µÄ°²È«·ÃÎÊ¿ØÖÆÊ¹ÄÜ¡££¨×¢Òâ£º1£¬´Ë¼Ä´æÆ÷¿Õ¼ä±ØÐëÊÇ°²È«·ÃÎÊ²ÅÄÜ³É¹¦¡££© */
+#define ALG_SUB_SC_DJTAG_DEBUG_MODULE_SEL_REG  (ALG_SUB_BASE + 0x680C) /* SC_DJTAG_DEBUG_MODULE_SELÎªDJTAG MasterÅäÖÃ·ÃÎÊÄ£¿é¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_MSTR_WR_REG           (ALG_SUB_BASE + 0x6810) /* SC_DJTAG_MSTR_WRÎªDJTAG MasterµÄ¶ÁÐ´¿ØÖÆÐÅºÅ */
+#define ALG_SUB_SC_DJTAG_CHAIN_UNIT_CFG_EN_REG (ALG_SUB_BASE + 0x6814) /* SC_DJTAG_CHAIN_UNIT_CFG_ENÎªDJTAG MasterµÄchainÁ´ÉÏµ¥ÔªµÄ·ÃÎÊÊ¹ÄÜ */
+#define ALG_SUB_SC_DJTAG_MSTR_ADDR_REG         (ALG_SUB_BASE + 0x6818) /* SC_DJTAG_MSTR_ADDRÎªDJTAG MasterÅäÖÃ·ÃÎÊÄ£¿éµÄÆ«ÒÆµØÖ·¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_MSTR_DATA_REG         (ALG_SUB_BASE + 0x681C) /* SC_DJTAG_MSTR_DATAÎªDJTAG MasterµÄÐ´Êý¾Ý */
+#define ALG_SUB_SC_DJTAG_TMOUT_REG             (ALG_SUB_BASE + 0x6820) /* SC_DJTAG_TMOUTÎªIDIEÖÐDJTAG MasterµÄ×´Ì¬»ú³¬Ê±ãÐÖµ */
+#define ALG_SUB_SC_TDRE_OP_ADDR_REG            (ALG_SUB_BASE + 0x6824) /* SC_TDRE_OP_ADDRÎªDJTAG MasterÅäÖÃTDREÄ£¿éµÄÆ«ÒÆµØÖ·¼Ä´æÆ÷ºÍ²Ù×÷ÀàÐÍ¼Ä´æÆ÷ */
+#define ALG_SUB_SC_TDRE_WDATA_REG              (ALG_SUB_BASE + 0x6828) /* SC_TDRE_WDATAÎªDJTAG MasterµÄÐ´TDREÊý¾Ý */
+#define ALG_SUB_SC_TDRE_REPAIR_EN_REG          (ALG_SUB_BASE + 0x682C) /* SC_TDRE_REPAIR_ENÎªDJTAG MasterµÄTDRE REPAIRÊ¹ÄÜ */
+#define ALG_SUB_SC_ECO_RSV0_REG                (ALG_SUB_BASE + 0x8000) /* ECO ¼Ä´æÆ÷0 */
+#define ALG_SUB_SC_ECO_RSV1_REG                (ALG_SUB_BASE + 0x8004) /* ECO ¼Ä´æÆ÷1 */
+#define ALG_SUB_SC_ECO_RSV2_REG                (ALG_SUB_BASE + 0x8008) /* ECO ¼Ä´æÆ÷2 */
+#define ALG_SUB_SC_DJTAG_RD_DATA0_REG          (ALG_SUB_BASE + 0xE800) /* DJTAGÉ¨ÃèÁ´ÉÏµÚÒ»¸öÄ£¿é¶ÁÊý¾Ý¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_RD_DATA1_REG          (ALG_SUB_BASE + 0xE804) /* DJTAGÉ¨ÃèÁ´ÉÏµÚ¶þ¸öÄ£¿é¶ÁÊý¾Ý¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_RD_DATA2_REG          (ALG_SUB_BASE + 0xE808) /* DJTAGÉ¨ÃèÁ´ÉÏµÚÈý¸öÄ£¿é¶ÁÊý¾Ý¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_RD_DATA3_REG          (ALG_SUB_BASE + 0xE80C) /* DJTAGÉ¨ÃèÁ´ÉÏµÚËÄ¸öÄ£¿é¶ÁÊý¾Ý¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_RD_DATA4_REG          (ALG_SUB_BASE + 0xE810) /* DJTAGÉ¨ÃèÁ´ÉÏµÚÎå¸öÄ£¿é¶ÁÊý¾Ý¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_RD_DATA5_REG          (ALG_SUB_BASE + 0xE814) /* DJTAGÉ¨ÃèÁ´ÉÏµÚÁù¸öÄ£¿é¶ÁÊý¾Ý¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_RD_DATA6_REG          (ALG_SUB_BASE + 0xE818) /* DJTAGÉ¨ÃèÁ´ÉÏµÚÆß¸öÄ£¿é¶ÁÊý¾Ý¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_RD_DATA7_REG          (ALG_SUB_BASE + 0xE81C) /* DJTAGÉ¨ÃèÁ´ÉÏµÚ°Ë¸öÄ£¿é¶ÁÊý¾Ý¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_RD_DATA8_REG          (ALG_SUB_BASE + 0xE820) /* DJTAGÉ¨ÃèÁ´ÉÏµÚ¾Å¸öÄ£¿é¶ÁÊý¾Ý¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_RD_DATA9_REG          (ALG_SUB_BASE + 0xE824) /* DJTAGÉ¨ÃèÁ´ÉÏµÚÊ®¸öÄ£¿é¶ÁÊý¾Ý¼Ä´æÆ÷ */
+#define ALG_SUB_SC_DJTAG_OP_ST_REG             (ALG_SUB_BASE + 0xE828) /* DJTAG·ÃÎÊ×´Ì¬¼Ä´æÆ÷ */
+#define ALG_SUB_SC_TDRE_RDATA1_REG             (ALG_SUB_BASE + 0xE82C) /* DJTAG·ÃÎÊTDREÄ£¿éµÄ¶ÁÊý¾Ý¸ß32bit */
+#define ALG_SUB_SC_TDRE_RDATA0_REG             (ALG_SUB_BASE + 0xE830) /* DJTAG·ÃÎÊTDREÄ£¿éµÄ¶ÁÊý¾ÝµÍ32bit */
+
+
+#if(ENDNESS == ENDNESS_BIG)
+/* Define the union U_SC_PLLFCTRL0_U */
+/* PLL0¿ØÖÆ¼Ä´æÆ÷0¡£ */
+/* 0x0 */
+typedef union tagScPllfctrl0
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 1   ; /* [31]  */
+        unsigned int    pll0_foutvcopd        : 1   ; /* [30]  */
+        unsigned int    pll0_foutpostdivpd    : 1   ; /* [29]  */
+        unsigned int    pll0_fout4phasepd     : 1   ; /* [28]  */
+        unsigned int    pll0_dacpd            : 1   ; /* [27]  */
+        unsigned int    pll0_dsmpd            : 1   ; /* [26]  */
+        unsigned int    pll0_pd               : 1   ; /* [25]  */
+        unsigned int    pll0_bypass           : 1   ; /* [24]  */
+        unsigned int    pll0_postdiv2         : 3   ; /* [23..21]  */
+        unsigned int    pll0_postdiv1         : 3   ; /* [20..18]  */
+        unsigned int    pll0_fbdiv            : 12  ; /* [17..6]  */
+        unsigned int    pll0_refdiv           : 6   ; /* [5..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL0_U;
+
+/* Define the union U_SC_PLLFCTRL1_U */
+/* PLL0¿ØÖÆ¼Ä´æÆ÷1¡£ */
+/* 0x4 */
+typedef union tagScPllfctrl1
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 8   ; /* [31..24]  */
+        unsigned int    pll0_frac             : 24  ; /* [23..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL1_U;
+
+/* Define the union U_SC_PLLFCTRL2_U */
+/* PLL1¿ØÖÆ¼Ä´æÆ÷0¡£ */
+/* 0x8 */
+typedef union tagScPllfctrl2
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 1   ; /* [31]  */
+        unsigned int    pll1_foutvcopd        : 1   ; /* [30]  */
+        unsigned int    pll1_foutpostdivpd    : 1   ; /* [29]  */
+        unsigned int    pll1_fout4phasepd     : 1   ; /* [28]  */
+        unsigned int    pll1_dacpd            : 1   ; /* [27]  */
+        unsigned int    pll1_dsmpd            : 1   ; /* [26]  */
+        unsigned int    pll1_pd               : 1   ; /* [25]  */
+        unsigned int    pll1_bypass           : 1   ; /* [24]  */
+        unsigned int    pll1_postdiv2         : 3   ; /* [23..21]  */
+        unsigned int    pll1_postdiv1         : 3   ; /* [20..18]  */
+        unsigned int    pll1_fbdiv            : 12  ; /* [17..6]  */
+        unsigned int    pll1_refdiv           : 6   ; /* [5..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL2_U;
+
+/* Define the union U_SC_PLLFCTRL3_U */
+/* PLL1¿ØÖÆ¼Ä´æÆ÷1¡£ */
+/* 0xC */
+typedef union tagScPllfctrl3
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 8   ; /* [31..24]  */
+        unsigned int    pll1_frac             : 24  ; /* [23..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL3_U;
+
+/* Define the union U_SC_PLLFCTRL4_U */
+/* PLL2¿ØÖÆ¼Ä´æÆ÷0¡£ */
+/* 0x10 */
+typedef union tagScPllfctrl4
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 1   ; /* [31]  */
+        unsigned int    pll2_foutvcopd        : 1   ; /* [30]  */
+        unsigned int    pll2_foutpostdivpd    : 1   ; /* [29]  */
+        unsigned int    pll2_fout4phasepd     : 1   ; /* [28]  */
+        unsigned int    pll2_dacpd            : 1   ; /* [27]  */
+        unsigned int    pll2_dsmpd            : 1   ; /* [26]  */
+        unsigned int    pll2_pd               : 1   ; /* [25]  */
+        unsigned int    pll2_bypass           : 1   ; /* [24]  */
+        unsigned int    pll2_postdiv2         : 3   ; /* [23..21]  */
+        unsigned int    pll2_postdiv1         : 3   ; /* [20..18]  */
+        unsigned int    pll2_fbdiv            : 12  ; /* [17..6]  */
+        unsigned int    pll2_refdiv           : 6   ; /* [5..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL4_U;
+
+/* Define the union U_SC_PLLFCTRL5_U */
+/* PLL2¿ØÖÆ¼Ä´æÆ÷1¡£ */
+/* 0x14 */
+typedef union tagScPllfctrl5
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 8   ; /* [31..24]  */
+        unsigned int    pll2_frac             : 24  ; /* [23..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL5_U;
+
+/* Define the union U_SC_PLLFCTRL6_U */
+/* PLL3¿ØÖÆ¼Ä´æÆ÷0¡£ */
+/* 0x18 */
+typedef union tagScPllfctrl6
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 1   ; /* [31]  */
+        unsigned int    pll3_foutvcopd        : 1   ; /* [30]  */
+        unsigned int    pll3_foutpostdivpd    : 1   ; /* [29]  */
+        unsigned int    pll3_fout4phasepd     : 1   ; /* [28]  */
+        unsigned int    pll3_dacpd            : 1   ; /* [27]  */
+        unsigned int    pll3_dsmpd            : 1   ; /* [26]  */
+        unsigned int    pll3_pd               : 1   ; /* [25]  */
+        unsigned int    pll3_bypass           : 1   ; /* [24]  */
+        unsigned int    pll3_postdiv2         : 3   ; /* [23..21]  */
+        unsigned int    pll3_postdiv1         : 3   ; /* [20..18]  */
+        unsigned int    pll3_fbdiv            : 12  ; /* [17..6]  */
+        unsigned int    pll3_refdiv           : 6   ; /* [5..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL6_U;
+
+/* Define the union U_SC_PLLFCTRL7_U */
+/* PLL3¿ØÖÆ¼Ä´æÆ÷1¡£ */
+/* 0x1C */
+typedef union tagScPllfctrl7
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 8   ; /* [31..24]  */
+        unsigned int    pll3_frac             : 24  ; /* [23..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL7_U;
+
+/* Define the union U_SC_PLL_CLK_BYPASS_U */
+/* PLLÏà¹Ø¹¤×÷Ê±ÖÓÑ¡Ôñ¡£ */
+/* 0x20 */
+typedef union tagScPllClkBypass0
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 11  ; /* [31..21]  */
+        unsigned int    pll4_peri_mode        : 1   ; /* [20]  */
+        unsigned int    pll3_peri_mode        : 1   ; /* [19]  */
+        unsigned int    pll2_peri_mode        : 1   ; /* [18]  */
+        unsigned int    pll1_peri_mode        : 1   ; /* [17]  */
+        unsigned int    pll0_peri_mode        : 1   ; /* [16]  */
+        unsigned int    reserved_1            : 16  ; /* [15..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLL_CLK_BYPASS0_U;
+
+/* Define the union U_SC_PLLFCTRL8_U */
+/* pll4¿ØÖÆ¼Ä´æÆ÷0¡£ */
+/* 0x24 */
+typedef union tagScPllfctrl8
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 1   ; /* [31]  */
+        unsigned int    pll4_foutvcopd        : 1   ; /* [30]  */
+        unsigned int    pll4_foutpostdivpd    : 1   ; /* [29]  */
+        unsigned int    pll4_fout4phasepd     : 1   ; /* [28]  */
+        unsigned int    pll4_dacpd            : 1   ; /* [27]  */
+        unsigned int    pll4_dsmpd            : 1   ; /* [26]  */
+        unsigned int    pll4_pd               : 1   ; /* [25]  */
+        unsigned int    pll4_bypass           : 1   ; /* [24]  */
+        unsigned int    pll4_postdiv2         : 3   ; /* [23..21]  */
+        unsigned int    pll4_postdiv1         : 3   ; /* [20..18]  */
+        unsigned int    pll4_fbdiv            : 12  ; /* [17..6]  */
+        unsigned int    pll4_refdiv           : 6   ; /* [5..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL8_U;
+
+/* Define the union U_SC_PLLFCTRL9_U */
+/* pll4¿ØÖÆ¼Ä´æÆ÷1¡£ */
+/* 0x28 */
+typedef union tagScPllfctrl9
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 8   ; /* [31..24]  */
+        unsigned int    pll4_frac             : 24  ; /* [23..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL9_U;
+
+/* Define the union U_SC_PLL_CLK_BYPASS1_U */
+/* PLLÏà¹Ø¹¤×÷Ê±ÖÓÑ¡Ôñ¡£ */
+/* 0x2C */
+typedef union tagScPllClkBypass1
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 27  ; /* [31..5]  */
+        unsigned int    pll4_bypass_external_n : 1   ; /* [4]  */
+        unsigned int    pll3_bypass_external_n : 1   ; /* [3]  */
+        unsigned int    pll2_bypass_external_n : 1   ; /* [2]  */
+        unsigned int    pll1_bypass_external_n : 1   ; /* [1]  */
+        unsigned int    pll0_bypass_external_n : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLL_CLK_BYPASS1_U;
+
+/* Define the union U_SC_GPIO_DB_CTRL_U */
+/* ÅäÖÃgpip dbÊ±ÖÓÑ¡Ôñ */
+/* 0x100 */
+typedef union tagScGpioDbCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    gpio_db_clk_sel       : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_GPIO_DB_CTRL_U;
+
+/* Define the union U_SC_SFC_CLK_CTRL_U */
+/* ÅäÖÃSFCÊ±ÖÓÑ¡Ôñ */
+/* 0x104 */
+typedef union tagScSfcClkCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    sfc_clk_sel           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SFC_CLK_CTRL_U;
+
+/* Define the union U_SC_ALL_SCAN_CTRL_U */
+/* ALL SCAN¿ØÖÆ¼Ä´æÆ÷ */
+/* 0x150 */
+typedef union tagScAllScanCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    all_scan_sys_int      : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ALL_SCAN_CTRL_U;
+
+/* Define the union U_SC_ITS_CLK_EN_U */
+/* ITSÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x318 */
+typedef union tagScItsClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_its_enb           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ITS_CLK_EN_U;
+
+/* Define the union U_SC_ITS_CLK_DIS_U */
+/* ITSÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x31C */
+typedef union tagScItsClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_its_dsb           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ITS_CLK_DIS_U;
+
+/* Define the union U_SC_PA_CLK_EN_U */
+/* PAÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x358 */
+typedef union tagScPaClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_pa_enb            : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_CLK_EN_U;
+
+/* Define the union U_SC_PA_CLK_DIS_U */
+/* PAÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x35C */
+typedef union tagScPaClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_pa_dsb            : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_CLK_DIS_U;
+
+/* Define the union U_SC_HLLC_CLK_EN_U */
+/* HLLCÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x360 */
+typedef union tagScHllcClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_hllc_enb          : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_CLK_EN_U;
+
+/* Define the union U_SC_HLLC_CLK_DIS_U */
+/* HLLCÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x364 */
+typedef union tagScHllcClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_hllc_dsb          : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_CLK_DIS_U;
+
+/* Define the union U_SC_REF_CLK_EN_U */
+/* refÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x370 */
+typedef union tagScRefClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_ref_enb           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_REF_CLK_EN_U;
+
+/* Define the union U_SC_REF_CLK_DIS_U */
+/* refÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x374 */
+typedef union tagScRefClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_ref_dsb           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_REF_CLK_DIS_U;
+
+/* Define the union U_SC_GPIO_DB_CLK_EN_U */
+/* gpio_dbÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x378 */
+typedef union tagScGpioDbClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_gpio_db_enb       : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_GPIO_DB_CLK_EN_U;
+
+/* Define the union U_SC_GPIO_DB_CLK_DIS_U */
+/* gpio_dbÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x37C */
+typedef union tagScGpioDbClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_gpio_db_dsb       : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_GPIO_DB_CLK_DIS_U;
+
+/* Define the union U_SC_DJTAG_CLK_EN_U */
+/* djtagÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x380 */
+typedef union tagScDjtagClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_djtag_enb         : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_CLK_EN_U;
+
+/* Define the union U_SC_DJTAG_CLK_DIS_U */
+/* djtagÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x384 */
+typedef union tagScDjtagClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_djtag_dsb         : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_CLK_DIS_U;
+
+/* Define the union U_SC_HLLC_RXTX_CLK_EN_U */
+/* hllc rxtxÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x390 */
+typedef union tagScHllcRxtxClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 16  ; /* [31..16]  */
+        unsigned int    clk_hllc_hilink_rx7_enb : 1   ; /* [15]  */
+        unsigned int    clk_hllc_hilink_rx6_enb : 1   ; /* [14]  */
+        unsigned int    clk_hllc_hilink_rx5_enb : 1   ; /* [13]  */
+        unsigned int    clk_hllc_hilink_rx4_enb : 1   ; /* [12]  */
+        unsigned int    clk_hllc_hilink_rx3_enb : 1   ; /* [11]  */
+        unsigned int    clk_hllc_hilink_rx2_enb : 1   ; /* [10]  */
+        unsigned int    clk_hllc_hilink_rx1_enb : 1   ; /* [9]  */
+        unsigned int    clk_hllc_hilink_rx0_enb : 1   ; /* [8]  */
+        unsigned int    clk_hllc_hilink_tx7_enb : 1   ; /* [7]  */
+        unsigned int    clk_hllc_hilink_tx6_enb : 1   ; /* [6]  */
+        unsigned int    clk_hllc_hilink_tx5_enb : 1   ; /* [5]  */
+        unsigned int    clk_hllc_hilink_tx4_enb : 1   ; /* [4]  */
+        unsigned int    clk_hllc_hilink_tx3_enb : 1   ; /* [3]  */
+        unsigned int    clk_hllc_hilink_tx2_enb : 1   ; /* [2]  */
+        unsigned int    clk_hllc_hilink_tx1_enb : 1   ; /* [1]  */
+        unsigned int    clk_hllc_hilink_tx0_enb : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RXTX_CLK_EN_U;
+
+/* Define the union U_SC_HLLC_RXTX_CLK_DIS_U */
+/* hllc rxtxÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x394 */
+typedef union tagScHllcRxtxClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 16  ; /* [31..16]  */
+        unsigned int    clk_hllc_hilink_rx7_dsb : 1   ; /* [15]  */
+        unsigned int    clk_hllc_hilink_rx6_dsb : 1   ; /* [14]  */
+        unsigned int    clk_hllc_hilink_rx5_dsb : 1   ; /* [13]  */
+        unsigned int    clk_hllc_hilink_rx4_dsb : 1   ; /* [12]  */
+        unsigned int    clk_hllc_hilink_rx3_dsb : 1   ; /* [11]  */
+        unsigned int    clk_hllc_hilink_rx2_dsb : 1   ; /* [10]  */
+        unsigned int    clk_hllc_hilink_rx1_dsb : 1   ; /* [9]  */
+        unsigned int    clk_hllc_hilink_rx0_dsb : 1   ; /* [8]  */
+        unsigned int    clk_hllc_hilink_tx7_dsb : 1   ; /* [7]  */
+        unsigned int    clk_hllc_hilink_tx6_dsb : 1   ; /* [6]  */
+        unsigned int    clk_hllc_hilink_tx5_dsb : 1   ; /* [5]  */
+        unsigned int    clk_hllc_hilink_tx4_dsb : 1   ; /* [4]  */
+        unsigned int    clk_hllc_hilink_tx3_dsb : 1   ; /* [3]  */
+        unsigned int    clk_hllc_hilink_tx2_dsb : 1   ; /* [2]  */
+        unsigned int    clk_hllc_hilink_tx1_dsb : 1   ; /* [1]  */
+        unsigned int    clk_hllc_hilink_tx0_dsb : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RXTX_CLK_DIS_U;
+
+/* Define the union U_SC_RSA_CLK_EN_U */
+/* RSAÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x3A0 */
+typedef union tagScRsaClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_rsa_enb           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_CLK_EN_U;
+
+/* Define the union U_SC_RSA_CLK_DIS_U */
+/* RSAÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x3A4 */
+typedef union tagScRsaClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_rsa_dsb           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_CLK_DIS_U;
+
+/* Define the union U_SC_RDE_CLK_EN_U */
+/* RDEÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x3A8 */
+typedef union tagScRdeClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_rde_enb           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RDE_CLK_EN_U;
+
+/* Define the union U_SC_RDE_CLK_DIS_U */
+/* RDEÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x3AC */
+typedef union tagScRdeClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_rde_dsb           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RDE_CLK_DIS_U;
+
+/* Define the union U_SC_RNG_CLK_EN_U */
+/* RNGÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x3B0 */
+typedef union tagScRngClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_rng_enb           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RNG_CLK_EN_U;
+
+/* Define the union U_SC_RNG_CLK_DIS_U */
+/* RNGÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x3B4 */
+typedef union tagScRngClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_rng_dsb           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RNG_CLK_DIS_U;
+
+/* Define the union U_SC_SEC_CLK_EN_U */
+/* SECÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x3B8 */
+typedef union tagScSecClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 29  ; /* [31..3]  */
+        unsigned int    clk_sec_trace_dbg_enb : 1   ; /* [2]  */
+        unsigned int    clk_sec_ahb_enb       : 1   ; /* [1]  */
+        unsigned int    clk_sec_enb           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_CLK_EN_U;
+
+/* Define the union U_SC_SEC_CLK_DIS_U */
+/* SECÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x3BC */
+typedef union tagScSecClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 29  ; /* [31..3]  */
+        unsigned int    clk_sec_trace_dbg_dsb : 1   ; /* [2]  */
+        unsigned int    clk_sec_ahb_dsb       : 1   ; /* [1]  */
+        unsigned int    clk_sec_dsb           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_CLK_DIS_U;
+
+/* Define the union U_SC_ITS_RESET_REQ_U */
+/* ITSÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA18 */
+typedef union tagScItsResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    its_srst_req          : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ITS_RESET_REQ_U;
+
+/* Define the union U_SC_ITS_RESET_DREQ_U */
+/* ITSÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA1C */
+typedef union tagScItsResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    its_srst_dreq         : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ITS_RESET_DREQ_U;
+
+/* Define the union U_SC_HILINK_PCS_RESET_REQ_U */
+/* HILINK PCSÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA58 */
+typedef union tagScHilinkPcsResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+        unsigned int    hllc_hilink_pcs_lane7_srst_req : 1   ; /* [7]  */
+        unsigned int    hllc_hilink_pcs_lane6_srst_req : 1   ; /* [6]  */
+        unsigned int    hllc_hilink_pcs_lane5_srst_req : 1   ; /* [5]  */
+        unsigned int    hllc_hilink_pcs_lane4_srst_req : 1   ; /* [4]  */
+        unsigned int    hllc_hilink_pcs_lane3_srst_req : 1   ; /* [3]  */
+        unsigned int    hllc_hilink_pcs_lane2_srst_req : 1   ; /* [2]  */
+        unsigned int    hllc_hilink_pcs_lane1_srst_req : 1   ; /* [1]  */
+        unsigned int    hllc_hilink_pcs_lane0_srst_req : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HILINK_PCS_RESET_REQ_U;
+
+/* Define the union U_SC_HILINK_PCS_RESET_DREQ_U */
+/* HILINK PCSÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA5C */
+typedef union tagScHilinkPcsResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+        unsigned int    hllc_hilink_pcs_lane7_srst_dreq : 1   ; /* [7]  */
+        unsigned int    hllc_hilink_pcs_lane6_srst_dreq : 1   ; /* [6]  */
+        unsigned int    hllc_hilink_pcs_lane5_srst_dreq : 1   ; /* [5]  */
+        unsigned int    hllc_hilink_pcs_lane4_srst_dreq : 1   ; /* [4]  */
+        unsigned int    hllc_hilink_pcs_lane3_srst_dreq : 1   ; /* [3]  */
+        unsigned int    hllc_hilink_pcs_lane2_srst_dreq : 1   ; /* [2]  */
+        unsigned int    hllc_hilink_pcs_lane1_srst_dreq : 1   ; /* [1]  */
+        unsigned int    hllc_hilink_pcs_lane0_srst_dreq : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HILINK_PCS_RESET_DREQ_U;
+
+/* Define the union U_SC_HLLC_RXTX_RESET_REQ_U */
+/* hllc rxtxÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA60 */
+typedef union tagScHllcRxtxResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 16  ; /* [31..16]  */
+        unsigned int    hllc_tx7_srst_req     : 1   ; /* [15]  */
+        unsigned int    hllc_tx6_srst_req     : 1   ; /* [14]  */
+        unsigned int    hllc_tx5_srst_req     : 1   ; /* [13]  */
+        unsigned int    hllc_tx4_srst_req     : 1   ; /* [12]  */
+        unsigned int    hllc_tx3_srst_req     : 1   ; /* [11]  */
+        unsigned int    hllc_tx2_srst_req     : 1   ; /* [10]  */
+        unsigned int    hllc_tx1_srst_req     : 1   ; /* [9]  */
+        unsigned int    hllc_tx0_srst_req     : 1   ; /* [8]  */
+        unsigned int    hllc_rx7_srst_req     : 1   ; /* [7]  */
+        unsigned int    hllc_rx6_srst_req     : 1   ; /* [6]  */
+        unsigned int    hllc_rx5_srst_req     : 1   ; /* [5]  */
+        unsigned int    hllc_rx4_srst_req     : 1   ; /* [4]  */
+        unsigned int    hllc_rx3_srst_req     : 1   ; /* [3]  */
+        unsigned int    hllc_rx2_srst_req     : 1   ; /* [2]  */
+        unsigned int    hllc_rx1_srst_req     : 1   ; /* [1]  */
+        unsigned int    hllc_rx0_srst_req     : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RXTX_RESET_REQ_U;
+
+/* Define the union U_SC_HLLC_RXTX_RESET_DREQ_U */
+/* hllc rxtxÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA64 */
+typedef union tagScHllcRxtxResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 16  ; /* [31..16]  */
+        unsigned int    hllc_tx7_srst_dreq    : 1   ; /* [15]  */
+        unsigned int    hllc_tx6_srst_dreq    : 1   ; /* [14]  */
+        unsigned int    hllc_tx5_srst_dreq    : 1   ; /* [13]  */
+        unsigned int    hllc_tx4_srst_dreq    : 1   ; /* [12]  */
+        unsigned int    hllc_tx3_srst_dreq    : 1   ; /* [11]  */
+        unsigned int    hllc_tx2_srst_dreq    : 1   ; /* [10]  */
+        unsigned int    hllc_tx1_srst_dreq    : 1   ; /* [9]  */
+        unsigned int    hllc_tx0_srst_dreq    : 1   ; /* [8]  */
+        unsigned int    hllc_rx7_srst_dreq    : 1   ; /* [7]  */
+        unsigned int    hllc_rx6_srst_dreq    : 1   ; /* [6]  */
+        unsigned int    hllc_rx5_srst_dreq    : 1   ; /* [5]  */
+        unsigned int    hllc_rx4_srst_dreq    : 1   ; /* [4]  */
+        unsigned int    hllc_rx3_srst_dreq    : 1   ; /* [3]  */
+        unsigned int    hllc_rx2_srst_dreq    : 1   ; /* [2]  */
+        unsigned int    hllc_rx1_srst_dreq    : 1   ; /* [1]  */
+        unsigned int    hllc_rx0_srst_dreq    : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RXTX_RESET_DREQ_U;
+
+/* Define the union U_SC_PA_RESET_REQ_U */
+/* PAÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA78 */
+typedef union tagScPaResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    pa_srst_req           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_RESET_REQ_U;
+
+/* Define the union U_SC_PA_RESET_DREQ_U */
+/* PAÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA7C */
+typedef union tagScPaResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    pa_srst_dreq          : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_RESET_DREQ_U;
+
+/* Define the union U_SC_HLLC_RESET_REQ_U */
+/* HLLCÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA80 */
+typedef union tagScHllcResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    hllc_srst_req         : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RESET_REQ_U;
+
+/* Define the union U_SC_HLLC_RESET_DREQ_U */
+/* HLLCÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA84 */
+typedef union tagScHllcResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    hllc_srst_dreq        : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RESET_DREQ_U;
+
+/* Define the union U_SC_DJTAG_RESET_REQ_U */
+/* DJTAGÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA90 */
+typedef union tagScDjtagResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    djtag_srst_req        : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_RESET_REQ_U;
+
+/* Define the union U_SC_DJTAG_RESET_DREQ_U */
+/* DJTAGÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA94 */
+typedef union tagScDjtagResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    djtag_srst_dreq       : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_RESET_DREQ_U;
+
+/* Define the union U_SC_RSA_RESET_REQ_U */
+/* RSAÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA98 */
+typedef union tagScRsaResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    rsa_srst_req          : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_RESET_REQ_U;
+
+/* Define the union U_SC_RSA_RESET_DREQ_U */
+/* RSAÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA9C */
+typedef union tagScRsaResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    rsa_srst_dreq         : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_RESET_DREQ_U;
+
+/* Define the union U_SC_RDE_RESET_REQ_U */
+/* RDEÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAA0 */
+typedef union tagScRdeResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    rde_srst_req          : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RDE_RESET_REQ_U;
+
+/* Define the union U_SC_RDE_RESET_DREQ_U */
+/* RDEÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAA4 */
+typedef union tagScRdeResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    rde_srst_dreq         : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RDE_RESET_DREQ_U;
+
+/* Define the union U_SC_SEC_RESET_REQ_U */
+/* SECÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAA8 */
+typedef union tagScSecResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    sec_srst_req          : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_RESET_REQ_U;
+
+/* Define the union U_SC_SEC_RESET_DREQ_U */
+/* SECÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAAC */
+typedef union tagScSecResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    sec_srst_dreq         : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_RESET_DREQ_U;
+
+/* Define the union U_SC_RNG_RESET_REQ_U */
+/* RNGÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAB0 */
+typedef union tagScRngResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    rng_srst_req          : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RNG_RESET_REQ_U;
+
+/* Define the union U_SC_RNG_RESET_DREQ_U */
+/* RNGÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAB4 */
+typedef union tagScRngResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    rng_srst_dreq         : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RNG_RESET_DREQ_U;
+
+/* Define the union U_SC_SEC_BUILD_RESET_REQ_U */
+/* SEC BUILDÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAB8 */
+typedef union tagScSecBuildResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 11  ; /* [31..21]  */
+        unsigned int    sec_ahb_srst_req      : 1   ; /* [20]  */
+        unsigned int    sec_build_ahb_srst_req7 : 1   ; /* [19]  */
+        unsigned int    sec_build_srst_req7   : 1   ; /* [18]  */
+        unsigned int    sec_build_ahb_srst_req6 : 1   ; /* [17]  */
+        unsigned int    sec_build_srst_req6   : 1   ; /* [16]  */
+        unsigned int    sec_build_ahb_srst_req5 : 1   ; /* [15]  */
+        unsigned int    sec_build_srst_req5   : 1   ; /* [14]  */
+        unsigned int    sec_build_ahb_srst_req4 : 1   ; /* [13]  */
+        unsigned int    sec_build_srst_req4   : 1   ; /* [12]  */
+        unsigned int    sec_cluster1_ahb_srst_req : 1   ; /* [11]  */
+        unsigned int    sec_cluster1_srst_req : 1   ; /* [10]  */
+        unsigned int    sec_build_ahb_srst_req3 : 1   ; /* [9]  */
+        unsigned int    sec_build_srst_req3   : 1   ; /* [8]  */
+        unsigned int    sec_build_ahb_srst_req2 : 1   ; /* [7]  */
+        unsigned int    sec_build_srst_req2   : 1   ; /* [6]  */
+        unsigned int    sec_build_ahb_srst_req1 : 1   ; /* [5]  */
+        unsigned int    sec_build_srst_req1   : 1   ; /* [4]  */
+        unsigned int    sec_build_ahb_srst_req0 : 1   ; /* [3]  */
+        unsigned int    sec_build_srst_req0   : 1   ; /* [2]  */
+        unsigned int    sec_cluster0_ahb_srst_req : 1   ; /* [1]  */
+        unsigned int    sec_cluster0_srst_req : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_BUILD_RESET_REQ_U;
+
+/* Define the union U_SC_SEC_BUILD_RESET_DREQ_U */
+/* SEC BUILDÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xABC */
+typedef union tagScSecBuildResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 11  ; /* [31..21]  */
+        unsigned int    sec_ahb_srst_dreq     : 1   ; /* [20]  */
+        unsigned int    sec_build_ahb_srst_dreq7 : 1   ; /* [19]  */
+        unsigned int    sec_build_srst_dreq7  : 1   ; /* [18]  */
+        unsigned int    sec_build_ahb_srst_dreq6 : 1   ; /* [17]  */
+        unsigned int    sec_build_srst_dreq6  : 1   ; /* [16]  */
+        unsigned int    sec_build_ahb_srst_dreq5 : 1   ; /* [15]  */
+        unsigned int    sec_build_srst_dreq5  : 1   ; /* [14]  */
+        unsigned int    sec_build_ahb_srst_dreq4 : 1   ; /* [13]  */
+        unsigned int    sec_build_srst_dreq4  : 1   ; /* [12]  */
+        unsigned int    sec_cluster1_ahb_srst_dreq : 1   ; /* [11]  */
+        unsigned int    sec_cluster1_srst_dreq : 1   ; /* [10]  */
+        unsigned int    sec_build_ahb_srst_dreq3 : 1   ; /* [9]  */
+        unsigned int    sec_build_srst_dreq3  : 1   ; /* [8]  */
+        unsigned int    sec_build_ahb_srst_dreq2 : 1   ; /* [7]  */
+        unsigned int    sec_build_srst_dreq2  : 1   ; /* [6]  */
+        unsigned int    sec_build_ahb_srst_dreq1 : 1   ; /* [5]  */
+        unsigned int    sec_build_srst_dreq1  : 1   ; /* [4]  */
+        unsigned int    sec_build_ahb_srst_dreq0 : 1   ; /* [3]  */
+        unsigned int    sec_build_srst_dreq0  : 1   ; /* [2]  */
+        unsigned int    sec_cluster0_ahb_srst_dreq : 1   ; /* [1]  */
+        unsigned int    sec_cluster0_srst_dreq : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_BUILD_RESET_DREQ_U;
+
+/* Define the union U_SC_PCS_LOCAL_RESET_REQ_U */
+/* PCS LOCALÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAC0 */
+typedef union tagScPcsLocalResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    pcs_local_srst_req    : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PCS_LOCAL_RESET_REQ_U;
+
+/* Define the union U_SC_PCS_LOCAL_RESET_DREQ_U */
+/* PCS LOCALÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAC4 */
+typedef union tagScPcsLocalResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    pcs_local_srst_dreq   : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PCS_LOCAL_RESET_DREQ_U;
+
+/* Define the union U_SC_DISPATCH_DAW_EN_U */
+/* dispatch daw enÅäÖÃ */
+/* 0x1000 */
+typedef union tagScDispatchDawEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+        unsigned int    dispatch_daw_en       : 8   ; /* [7..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_EN_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY0_U */
+/* dispatch dawÅäÖÃÕóÁÐ0 */
+/* 0x1004 */
+typedef union tagScDispatchDawArray0
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array0_addr       : 19  ; /* [31..13]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array0_sync       : 1   ; /* [8]  */
+        unsigned int    daw_array0_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array0_did        : 3   ; /* [2..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY0_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY1_U */
+/* dispatch dawÅäÖÃÕóÁÐ1 */
+/* 0x1008 */
+typedef union tagScDispatchDawArray1
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array1_addr       : 19  ; /* [31..13]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array1_sync       : 1   ; /* [8]  */
+        unsigned int    daw_array1_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array1_did        : 3   ; /* [2..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY1_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY2_U */
+/* dispatch dawÅäÖÃÕóÁÐ2 */
+/* 0x100C */
+typedef union tagScDispatchDawArray2
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array2_addr       : 19  ; /* [31..13]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array2_sync       : 1   ; /* [8]  */
+        unsigned int    daw_array2_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array2_did        : 3   ; /* [2..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY2_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY3_U */
+/* dispatch dawÅäÖÃÕóÁÐ3 */
+/* 0x1010 */
+typedef union tagScDispatchDawArray3
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array3_addr       : 19  ; /* [31..13]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array3_sync       : 1   ; /* [8]  */
+        unsigned int    daw_array3_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array3_did        : 3   ; /* [2..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY3_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY4_U */
+/* dispatch dawÅäÖÃÕóÁÐ4 */
+/* 0x1014 */
+typedef union tagScDispatchDawArray4
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array4_addr       : 19  ; /* [31..13]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array4_sync       : 1   ; /* [8]  */
+        unsigned int    daw_array4_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array4_did        : 3   ; /* [2..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY4_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY5_U */
+/* dispatch dawÅäÖÃÕóÁÐ5 */
+/* 0x1018 */
+typedef union tagScDispatchDawArray5
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array5_addr       : 19  ; /* [31..13]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array5_sync       : 1   ; /* [8]  */
+        unsigned int    daw_array5_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array5_did        : 3   ; /* [2..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY5_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY6_U */
+/* dispatch dawÅäÖÃÕóÁÐ6 */
+/* 0x101C */
+typedef union tagScDispatchDawArray6
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array6_addr       : 19  ; /* [31..13]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array6_sync       : 1   ; /* [8]  */
+        unsigned int    daw_array6_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array6_did        : 3   ; /* [2..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY6_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY7_U */
+/* dispatch dawÅäÖÃÕóÁÐ7 */
+/* 0x1020 */
+typedef union tagScDispatchDawArray7
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array7_addr       : 19  ; /* [31..13]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array7_sync       : 1   ; /* [8]  */
+        unsigned int    daw_array7_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array7_did        : 3   ; /* [2..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY7_U;
+
+/* Define the union U_SC_DISPATCH_RETRY_CONTROL_U */
+/* dispatch retry¿ØÖÆ¼Ä´æÆ÷ */
+/* 0x1030 */
+typedef union tagScDispatchRetryControl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 15  ; /* [31..17]  */
+        unsigned int    retry_en              : 1   ; /* [16]  */
+        unsigned int    retry_num_limit       : 16  ; /* [15..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_RETRY_CONTROL_U;
+
+/* Define the union U_SC_DISPATCH_INTMASK_U */
+/* dispatchµÄÖÐ¶ÏÆÁ±Î¼Ä´æÆ÷ */
+/* 0x1100 */
+typedef union tagScDispatchIntmask
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    intmask               : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_INTMASK_U;
+
+/* Define the union U_SC_DISPATCH_RAWINT_U */
+/* dispatchµÄÔ­Ê¼ÖÐ¶Ï×´Ì¬¼Ä´æÆ÷ */
+/* 0x1104 */
+typedef union tagScDispatchRawint
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    rawint                : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_RAWINT_U;
+
+/* Define the union U_SC_DISPATCH_INTSTAT_U */
+/* dispatchµÄÆÁ±ÎºóµÄÖÐ¶Ï×´Ì¬¼Ä´æÆ÷ */
+/* 0x1108 */
+typedef union tagScDispatchIntstat
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    intsts                : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_INTSTAT_U;
+
+/* Define the union U_SC_DISPATCH_INTCLR_U */
+/* dispatchµÄÖÐ¶ÏÇå³ý¼Ä´æÆ÷ */
+/* 0x110C */
+typedef union tagScDispatchIntclr
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    intclr                : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_INTCLR_U;
+
+/* Define the union U_SC_DISPATCH_ERRSTAT_U */
+/* dispatchµÄERR×´Ì¬¼Ä´æÆ÷ */
+/* 0x1110 */
+typedef union tagScDispatchErrstat
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 10  ; /* [31..22]  */
+        unsigned int    err_addr              : 17  ; /* [21..5]  */
+        unsigned int    err_opcode            : 5   ; /* [4..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_ERRSTAT_U;
+
+/* Define the union U_SC_DISPATCH_REMAP_CTRL_U */
+/* subsysµÄÆô¶¯Remap¼Ä´æÆ÷ */
+/* 0x1200 */
+typedef union tagScDispatchRemapCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    sys_remap_vld         : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_REMAP_CTRL_U;
+
+/* Define the union U_SC_TSENSOR_CTRL0_U */
+/* TSENSOR¿ØÖÆ¼Ä´æÆ÷0 */
+/* 0x20D0 */
+typedef union tagScTsensorCtrl0
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 22  ; /* [31..10]  */
+        unsigned int    tsensor_ct_sel        : 2   ; /* [9..8]  */
+        unsigned int    reserved_1            : 7   ; /* [7..1]  */
+        unsigned int    tsensor_temp_en       : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_TSENSOR_CTRL0_U;
+
+/* Define the union U_SC_TSENSOR_CTRL1_U */
+/* TSENSOR¿ØÖÆ¼Ä´æÆ÷1 */
+/* 0x20D4 */
+typedef union tagScTsensorCtrl1
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+        unsigned int    tsensor_test          : 8   ; /* [7..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_TSENSOR_CTRL1_U;
+
+/* Define the union U_SC_BOOTROM_CTRL_U */
+/* BOOTROM¿ØÖÆ¼Ä´æÆ÷ */
+/* 0x20F0 */
+typedef union tagScBootromCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 26  ; /* [31..6]  */
+        unsigned int    bootrom_trb           : 2   ; /* [5..4]  */
+        unsigned int    bootrom_ptsel         : 2   ; /* [3..2]  */
+        unsigned int    bootrom_rtsel         : 2   ; /* [1..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_BOOTROM_CTRL_U;
+
+/* Define the union U_SC_FTE_MUX_CTRL_U */
+/* FTE¸´ÓÃÑ¡Ôñ¼Ä´æÆ÷ */
+/* 0x2200 */
+typedef union tagScFteMuxCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    mux_sel_fte           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_FTE_MUX_CTRL_U;
+
+/* Define the union U_SC_RSA_ADDR_H_U */
+/* RSA¸ß20Î»µØÖ·²¹³ä¼Ä´æÆ÷ */
+/* 0x2E00 */
+typedef union tagScRsaAddrH
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 12  ; /* [31..20]  */
+        unsigned int    rsa_addr_h            : 20  ; /* [19..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_ADDR_H_U;
+
+/* Define the union U_SC_SMMU_MEM_CTRL0_U */
+/* smmu mem¿ØÖÆ¼Ä´æÆ÷0 */
+/* 0x3000 */
+typedef union tagScSmmuMemCtrl0
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+        unsigned int    ctrl_rfs_smmu         : 8   ; /* [7..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SMMU_MEM_CTRL0_U;
+
+/* Define the union U_SC_SMMU_MEM_CTRL1_U */
+/* smmu mem¿ØÖÆ¼Ä´æÆ÷1 */
+/* 0x3004 */
+typedef union tagScSmmuMemCtrl1
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 29  ; /* [31..3]  */
+        unsigned int    tsel_hc_smmu          : 3   ; /* [2..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SMMU_MEM_CTRL1_U;
+
+/* Define the union U_SC_SMMU_MEM_CTRL2_U */
+/* smmu mem¿ØÖÆ¼Ä´æÆ÷2 */
+/* 0x3008 */
+typedef union tagScSmmuMemCtrl2
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 30  ; /* [31..2]  */
+        unsigned int    test_hc_smmu          : 2   ; /* [1..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SMMU_MEM_CTRL2_U;
+
+/* Define the union U_SC_RSA_MEM_CTRL_U */
+/* rsa mem¿ØÖÆ¼Ä´æÆ÷ */
+/* 0x3030 */
+typedef union tagScRsaMemCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+        unsigned int    ctrl_rfs_rsa          : 8   ; /* [7..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_MEM_CTRL_U;
+
+/* Define the union U_SC_HLLC_MEM_CTRL_U */
+/* hllc mem¿ØÖÆ¼Ä´æÆ÷ */
+/* 0x3040 */
+typedef union tagScHllcMemCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 22  ; /* [31..10]  */
+        unsigned int    ctrl_rft_hllc         : 10  ; /* [9..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_MEM_CTRL_U;
+
+/* Define the union U_SC_PA_MEM_CTRL0_U */
+/* pa mem¿ØÖÆ¼Ä´æÆ÷0 */
+/* 0x3050 */
+typedef union tagScPaMemCtrl0
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+        unsigned int    ctrl_rfs_pa           : 8   ; /* [7..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_MEM_CTRL0_U;
+
+/* Define the union U_SC_PA_MEM_CTRL1_U */
+/* pa mem¿ØÖÆ¼Ä´æÆ÷1 */
+/* 0x3054 */
+typedef union tagScPaMemCtrl1
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 22  ; /* [31..10]  */
+        unsigned int    ctrl_rft_pa           : 10  ; /* [9..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_MEM_CTRL1_U;
+
+/* Define the union U_SC_RDE_MEM_CTRL_U */
+/* rde mem¿ØÖÆ¼Ä´æÆ÷ */
+/* 0x3060 */
+typedef union tagScRdeMemCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+        unsigned int    ctrl_rfs_rde          : 8   ; /* [7..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RDE_MEM_CTRL_U;
+
+/* Define the union U_SC_SEC_MEM_CTRL_U */
+/* sec mem¿ØÖÆ¼Ä´æÆ÷ */
+/* 0x3070 */
+typedef union tagScSecMemCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+        unsigned int    ctrl_rfs_sec          : 8   ; /* [7..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_MEM_CTRL_U;
+
+/* Define the union U_SC_PLL_LOCK_ST_U */
+/* PLLËø¶¨×´Ì¬¼Ä´æÆ÷ */
+/* 0x5000 */
+typedef union tagScPllLockSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 27  ; /* [31..5]  */
+        unsigned int    pll4_lock             : 1   ; /* [4]  */
+        unsigned int    pll3_lock             : 1   ; /* [3]  */
+        unsigned int    pll2_lock             : 1   ; /* [2]  */
+        unsigned int    pll1_lock             : 1   ; /* [1]  */
+        unsigned int    pll0_lock             : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLL_LOCK_ST_U;
+
+/* Define the union U_SC_ITS_CLK_ST_U */
+/* ITSÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x530C */
+typedef union tagScItsClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_its_st            : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ITS_CLK_ST_U;
+
+/* Define the union U_SC_PA_CLK_ST_U */
+/* PAÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x532C */
+typedef union tagScPaClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_pa_st             : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_CLK_ST_U;
+
+/* Define the union U_SC_HLLC_CLK_ST_U */
+/* HLLCÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x5330 */
+typedef union tagScHllcClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_hllc_st           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_CLK_ST_U;
+
+/* Define the union U_SC_REF_CLK_ST_U */
+/* refÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x5338 */
+typedef union tagScRefClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_ref_st            : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_REF_CLK_ST_U;
+
+/* Define the union U_SC_GPIO_DB_CLK_ST_U */
+/* gpio_dbÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x533C */
+typedef union tagScGpioDbClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_gpio_db_st        : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_GPIO_DB_CLK_ST_U;
+
+/* Define the union U_SC_DJTAG_CLK_ST_U */
+/* djtagÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x5340 */
+typedef union tagScDjtagClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_djtag_st          : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_CLK_ST_U;
+
+/* Define the union U_SC_HLLC_RXTX_CLK_ST_U */
+/* hllc rxtxÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x5348 */
+typedef union tagScHllcRxtxClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 16  ; /* [31..16]  */
+        unsigned int    clk_hllc_hilink_rx7_st : 1   ; /* [15]  */
+        unsigned int    clk_hllc_hilink_rx6_st : 1   ; /* [14]  */
+        unsigned int    clk_hllc_hilink_rx5_st : 1   ; /* [13]  */
+        unsigned int    clk_hllc_hilink_rx4_st : 1   ; /* [12]  */
+        unsigned int    clk_hllc_hilink_rx3_st : 1   ; /* [11]  */
+        unsigned int    clk_hllc_hilink_rx2_st : 1   ; /* [10]  */
+        unsigned int    clk_hllc_hilink_rx1_st : 1   ; /* [9]  */
+        unsigned int    clk_hllc_hilink_rx0_st : 1   ; /* [8]  */
+        unsigned int    clk_hllc_hilink_tx7_st : 1   ; /* [7]  */
+        unsigned int    clk_hllc_hilink_tx6_st : 1   ; /* [6]  */
+        unsigned int    clk_hllc_hilink_tx5_st : 1   ; /* [5]  */
+        unsigned int    clk_hllc_hilink_tx4_st : 1   ; /* [4]  */
+        unsigned int    clk_hllc_hilink_tx3_st : 1   ; /* [3]  */
+        unsigned int    clk_hllc_hilink_tx2_st : 1   ; /* [2]  */
+        unsigned int    clk_hllc_hilink_tx1_st : 1   ; /* [1]  */
+        unsigned int    clk_hllc_hilink_tx0_st : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RXTX_CLK_ST_U;
+
+/* Define the union U_SC_RSA_CLK_ST_U */
+/* RSAÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x5350 */
+typedef union tagScRsaClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_rsa_st            : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_CLK_ST_U;
+
+/* Define the union U_SC_RDE_CLK_ST_U */
+/* RDEÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x5354 */
+typedef union tagScRdeClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_rde_st            : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RDE_CLK_ST_U;
+
+/* Define the union U_SC_RNG_CLK_ST_U */
+/* RNGÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x5358 */
+typedef union tagScRngClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    clk_rng_st            : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RNG_CLK_ST_U;
+
+/* Define the union U_SC_SEC_CLK_ST_U */
+/* SECÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x535C */
+typedef union tagScSecClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 29  ; /* [31..3]  */
+        unsigned int    clk_sec_trace_dbg_st  : 1   ; /* [2]  */
+        unsigned int    clk_sec_ahb_st        : 1   ; /* [1]  */
+        unsigned int    clk_sec_st            : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_CLK_ST_U;
+
+/* Define the union U_SC_ITS_RESET_ST_U */
+/* ITS¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A0C */
+typedef union tagScItsResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    its_srst_st           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ITS_RESET_ST_U;
+
+/* Define the union U_SC_HILINK_PCS_RESET_ST_U */
+/* HILINK_PCS¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A2C */
+typedef union tagScHilinkPcsResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+        unsigned int    hllc_hilink_pcs_lane7_srst_st : 1   ; /* [7]  */
+        unsigned int    hllc_hilink_pcs_lane6_srst_st : 1   ; /* [6]  */
+        unsigned int    hllc_hilink_pcs_lane5_srst_st : 1   ; /* [5]  */
+        unsigned int    hllc_hilink_pcs_lane4_srst_st : 1   ; /* [4]  */
+        unsigned int    hllc_hilink_pcs_lane3_srst_st : 1   ; /* [3]  */
+        unsigned int    hllc_hilink_pcs_lane2_srst_st : 1   ; /* [2]  */
+        unsigned int    hllc_hilink_pcs_lane1_srst_st : 1   ; /* [1]  */
+        unsigned int    hllc_hilink_pcs_lane0_srst_st : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HILINK_PCS_RESET_ST_U;
+
+/* Define the union U_SC_HLLC_RXTX_RESET_ST_U */
+/* hllc rxtx¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A30 */
+typedef union tagScHllcRxtxResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 16  ; /* [31..16]  */
+        unsigned int    hllc_tx7_srst_st      : 1   ; /* [15]  */
+        unsigned int    hllc_tx6_srst_st      : 1   ; /* [14]  */
+        unsigned int    hllc_tx5_srst_st      : 1   ; /* [13]  */
+        unsigned int    hllc_tx4_srst_st      : 1   ; /* [12]  */
+        unsigned int    hllc_tx3_srst_st      : 1   ; /* [11]  */
+        unsigned int    hllc_tx2_srst_st      : 1   ; /* [10]  */
+        unsigned int    hllc_tx1_srst_st      : 1   ; /* [9]  */
+        unsigned int    hllc_tx0_srst_st      : 1   ; /* [8]  */
+        unsigned int    hllc_rx7_srst_st      : 1   ; /* [7]  */
+        unsigned int    hllc_rx6_srst_st      : 1   ; /* [6]  */
+        unsigned int    hllc_rx5_srst_st      : 1   ; /* [5]  */
+        unsigned int    hllc_rx4_srst_st      : 1   ; /* [4]  */
+        unsigned int    hllc_rx3_srst_st      : 1   ; /* [3]  */
+        unsigned int    hllc_rx2_srst_st      : 1   ; /* [2]  */
+        unsigned int    hllc_rx1_srst_st      : 1   ; /* [1]  */
+        unsigned int    hllc_rx0_srst_st      : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RXTX_RESET_ST_U;
+
+/* Define the union U_SC_PA_RESET_ST_U */
+/* PA¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A3C */
+typedef union tagScPaResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    pa_srst_st            : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_RESET_ST_U;
+
+/* Define the union U_SC_HLLC_RESET_ST_U */
+/* HLLC¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A40 */
+typedef union tagScHllcResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    hllc_srst_st          : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RESET_ST_U;
+
+/* Define the union U_SC_DJTAG_RESET_ST_U */
+/* DJTAG¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A48 */
+typedef union tagScDjtagResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    djtag_srst_st         : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_RESET_ST_U;
+
+/* Define the union U_SC_RSA_RESET_ST_U */
+/* RSA¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A4C */
+typedef union tagScRsaResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    rsa_srst_st           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_RESET_ST_U;
+
+/* Define the union U_SC_RDE_RESET_ST_U */
+/* RDE¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A50 */
+typedef union tagScRdeResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    rde_srst_st           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RDE_RESET_ST_U;
+
+/* Define the union U_SC_SEC_RESET_ST_U */
+/* SEC¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A54 */
+typedef union tagScSecResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    sec_srst_st           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_RESET_ST_U;
+
+/* Define the union U_SC_RNG_RESET_ST_U */
+/* RNG¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A58 */
+typedef union tagScRngResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    rng_srst_st           : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RNG_RESET_ST_U;
+
+/* Define the union U_SC_SEC_BUILD_RESET_ST_U */
+/* SEC BUILD¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A5C */
+typedef union tagScSecBuildResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 11  ; /* [31..21]  */
+        unsigned int    sec_ahb_srst_st       : 1   ; /* [20]  */
+        unsigned int    sec_build_ahb_srst_st7 : 1   ; /* [19]  */
+        unsigned int    sec_build_srst_st7    : 1   ; /* [18]  */
+        unsigned int    sec_build_ahb_srst_st6 : 1   ; /* [17]  */
+        unsigned int    sec_build_srst_st6    : 1   ; /* [16]  */
+        unsigned int    sec_build_ahb_srst_st5 : 1   ; /* [15]  */
+        unsigned int    sec_build_srst_st5    : 1   ; /* [14]  */
+        unsigned int    sec_build_ahb_srst_st4 : 1   ; /* [13]  */
+        unsigned int    sec_build_srst_st4    : 1   ; /* [12]  */
+        unsigned int    sec_cluster1_ahb_srst_st : 1   ; /* [11]  */
+        unsigned int    sec_cluster1_srst_st  : 1   ; /* [10]  */
+        unsigned int    sec_build_ahb_srst_st3 : 1   ; /* [9]  */
+        unsigned int    sec_build_srst_st3    : 1   ; /* [8]  */
+        unsigned int    sec_build_ahb_srst_st2 : 1   ; /* [7]  */
+        unsigned int    sec_build_srst_st2    : 1   ; /* [6]  */
+        unsigned int    sec_build_ahb_srst_st1 : 1   ; /* [5]  */
+        unsigned int    sec_build_srst_st1    : 1   ; /* [4]  */
+        unsigned int    sec_build_ahb_srst_st0 : 1   ; /* [3]  */
+        unsigned int    sec_build_srst_st0    : 1   ; /* [2]  */
+        unsigned int    sec_cluster0_ahb_srst_st : 1   ; /* [1]  */
+        unsigned int    sec_cluster0_srst_st  : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_BUILD_RESET_ST_U;
+
+/* Define the union U_SC_PCS_LOCAL_RESET_ST_U */
+/* PCS LOCALÈí¸´Î»ÇëÇó×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A60 */
+typedef union tagScPcsLocalResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    pcs_local_srst_st     : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PCS_LOCAL_RESET_ST_U;
+
+/* Define the union U_SC_TSENSOR_ST_U */
+/* TSENSOR×´Ì¬¼Ä´æÆ÷ */
+/* 0x6040 */
+typedef union tagScTsensorSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 19  ; /* [31..13]  */
+        unsigned int    data_ready_tsensor    : 1   ; /* [12]  */
+        unsigned int    reserved_1            : 4   ; /* [11..8]  */
+        unsigned int    temp_out_tsensor      : 8   ; /* [7..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_TSENSOR_ST_U;
+
+/* Define the union U_SC_DJTAG_INT_U */
+/* DJTAG MasterÄÚ×´Ì¬»ú³¬Ê±ÖÐ¶ÏÔ´¼Ä´æÆ÷ */
+/* 0x6600 */
+typedef union tagScDjtagInt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    djtag_sta_timeout     : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_INT_U;
+
+/* Define the union U_SC_DBG_AUTH_CTRL_U */
+/* °²È«µÈ¼¶ÊÚÈ¨¿ØÖÆ¼Ä´æÆ÷¡£
+£¨×¢Òâ£º1£¬´Ë¼Ä´æÆ÷¿Õ¼ä±ØÐëÊÇ°²È«·ÃÎÊ²ÅÄÜ³É¹¦£»2£¬Ä¬ÈÏ¾ùÊÇ´ò¿ªµ÷ÊÔÄ£Ê½£¬ÓÐÂ©¶´£¬ÔÚÕý³£¹¤×÷Ê±Çë³õÊ¼»¯¹Ø±Õµ÷ÊÔ¹¦ÄÜ£© */
+/* 0x6700 */
+typedef union tagScDbgAuthCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 30  ; /* [31..2]  */
+        unsigned int    rsa_secure_cfg        : 1   ; /* [1]  */
+        unsigned int    rsa_djtag_sec_acc_en  : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DBG_AUTH_CTRL_U;
+
+/* Define the union U_SC_DJTAG_MSTR_EN_U */
+/* SC_DJTAG_MSTR_ENÎªDJTAG MasterÊ¹ÄÜ¿ØÖÆ */
+/* 0x6800 */
+typedef union tagScDjtagMstrEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    djtag_mstr_en         : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_MSTR_EN_U;
+
+/* Define the union U_SC_DJTAG_MSTR_START_EN_U */
+/* SC_DJTAG_MSTR_START_ENÎªDJTAG Master·ÃÎÊchainÁ´µÄstartÊ¹ÄÜ */
+/* 0x6804 */
+typedef union tagScDjtagMstrStartEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    djtag_mstr_start_en   : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_MSTR_START_EN_U;
+
+/* Define the union U_SC_DJTAG_SEC_ACC_EN_U */
+/* DJTAG·ÃÎÊ¸÷Ä£¿éÄÚ°²È«ÊÀ½ç¼Ä´æÆ÷µÄ°²È«·ÃÎÊ¿ØÖÆÊ¹ÄÜ¡££¨×¢Òâ£º1£¬´Ë¼Ä´æÆ÷¿Õ¼ä±ØÐëÊÇ°²È«·ÃÎÊ²ÅÄÜ³É¹¦¡££© */
+/* 0x6808 */
+typedef union tagScDjtagSecAccEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    djtag_sec_acc_en      : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_SEC_ACC_EN_U;
+
+/* Define the union U_SC_DJTAG_DEBUG_MODULE_SEL_U */
+/* SC_DJTAG_DEBUG_MODULE_SELÎªDJTAG MasterÅäÖÃ·ÃÎÊÄ£¿é¼Ä´æÆ÷ */
+/* 0x680C */
+typedef union tagScDjtagDebugModuleSel
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 26  ; /* [31..6]  */
+        unsigned int    debug_module_sel      : 6   ; /* [5..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_DEBUG_MODULE_SEL_U;
+
+/* Define the union U_SC_DJTAG_MSTR_WR_U */
+/* SC_DJTAG_MSTR_WRÎªDJTAG MasterµÄ¶ÁÐ´¿ØÖÆÐÅºÅ */
+/* 0x6810 */
+typedef union tagScDjtagMstrWr
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    djtag_mstr_wr         : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_MSTR_WR_U;
+
+/* Define the union U_SC_DJTAG_CHAIN_UNIT_CFG_EN_U */
+/* SC_DJTAG_CHAIN_UNIT_CFG_ENÎªDJTAG MasterµÄchainÁ´ÉÏµ¥ÔªµÄ·ÃÎÊÊ¹ÄÜ */
+/* 0x6814 */
+typedef union tagScDjtagChainUnitCfgEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 16  ; /* [31..16]  */
+        unsigned int    chain_unit_cfg_en     : 16  ; /* [15..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_CHAIN_UNIT_CFG_EN_U;
+
+/* Define the union U_SC_DJTAG_MSTR_ADDR_U */
+/* SC_DJTAG_MSTR_ADDRÎªDJTAG MasterÅäÖÃ·ÃÎÊÄ£¿éµÄÆ«ÒÆµØÖ·¼Ä´æÆ÷ */
+/* 0x6818 */
+typedef union tagScDjtagMstrAddr
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 1   ; /* [31]  */
+        unsigned int    djtag_mstr_addr       : 31  ; /* [30..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_MSTR_ADDR_U;
+
+/* Define the union U_SC_TDRE_OP_ADDR_U */
+/* SC_TDRE_OP_ADDRÎªDJTAG MasterÅäÖÃTDREÄ£¿éµÄÆ«ÒÆµØÖ·¼Ä´æÆ÷ºÍ²Ù×÷ÀàÐÍ¼Ä´æÆ÷ */
+/* 0x6824 */
+typedef union tagScTdreOpAddr
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 14  ; /* [31..18]  */
+        unsigned int    tdre_op_addr          : 18  ; /* [17..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_TDRE_OP_ADDR_U;
+
+/* Define the union U_SC_TDRE_REPAIR_EN_U */
+/* SC_TDRE_REPAIR_ENÎªDJTAG MasterµÄTDRE REPAIRÊ¹ÄÜ */
+/* 0x682C */
+typedef union tagScTdreRepairEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+        unsigned int    tdre_repair_en        : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_TDRE_REPAIR_EN_U;
+
+/* Define the union U_SC_ECO_RSV0_U */
+/* ECO ¼Ä´æÆ÷0 */
+/* 0x8000 */
+typedef union tagScEcoRsv0
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    eco_rsv0              : 31  ; /* [31..1]  */
+        unsigned int    djtag_nor_cfg_en      : 1   ; /* [0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ECO_RSV0_U;
+
+/* Define the union U_SC_DJTAG_OP_ST_U */
+/* DJTAG·ÃÎÊ×´Ì¬¼Ä´æÆ÷ */
+/* 0xE828 */
+typedef union tagScDjtagOpSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_0            : 6   ; /* [31..26]  */
+        unsigned int    rdata_changed         : 10  ; /* [25..16]  */
+        unsigned int    reserved_1            : 6   ; /* [15..10]  */
+        unsigned int    debug_bus_en          : 1   ; /* [9]  */
+        unsigned int    djtag_op_done         : 1   ; /* [8]  */
+        unsigned int    unit_conflict         : 8   ; /* [7..0]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_OP_ST_U;
+
+#else
+/* Define the union U_SC_PLLFCTRL0_U */
+/* PLL0¿ØÖÆ¼Ä´æÆ÷0¡£ */
+/* 0x0 */
+typedef union tagScPllfctrl0
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pll0_refdiv           : 6   ; /* [5..0]  */
+        unsigned int    pll0_fbdiv            : 12  ; /* [17..6]  */
+        unsigned int    pll0_postdiv1         : 3   ; /* [20..18]  */
+        unsigned int    pll0_postdiv2         : 3   ; /* [23..21]  */
+        unsigned int    pll0_bypass           : 1   ; /* [24]  */
+        unsigned int    pll0_pd               : 1   ; /* [25]  */
+        unsigned int    pll0_dsmpd            : 1   ; /* [26]  */
+        unsigned int    pll0_dacpd            : 1   ; /* [27]  */
+        unsigned int    pll0_fout4phasepd     : 1   ; /* [28]  */
+        unsigned int    pll0_foutpostdivpd    : 1   ; /* [29]  */
+        unsigned int    pll0_foutvcopd        : 1   ; /* [30]  */
+        unsigned int    reserved_0            : 1   ; /* [31]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL0_U;
+
+/* Define the union U_SC_PLLFCTRL1_U */
+/* PLL0¿ØÖÆ¼Ä´æÆ÷1¡£ */
+/* 0x4 */
+typedef union tagScPllfctrl1
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pll0_frac             : 24  ; /* [23..0]  */
+        unsigned int    reserved_0            : 8   ; /* [31..24]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL1_U;
+
+/* Define the union U_SC_PLLFCTRL2_U */
+/* PLL1¿ØÖÆ¼Ä´æÆ÷0¡£ */
+/* 0x8 */
+typedef union tagScPllfctrl2
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pll1_refdiv           : 6   ; /* [5..0]  */
+        unsigned int    pll1_fbdiv            : 12  ; /* [17..6]  */
+        unsigned int    pll1_postdiv1         : 3   ; /* [20..18]  */
+        unsigned int    pll1_postdiv2         : 3   ; /* [23..21]  */
+        unsigned int    pll1_bypass           : 1   ; /* [24]  */
+        unsigned int    pll1_pd               : 1   ; /* [25]  */
+        unsigned int    pll1_dsmpd            : 1   ; /* [26]  */
+        unsigned int    pll1_dacpd            : 1   ; /* [27]  */
+        unsigned int    pll1_fout4phasepd     : 1   ; /* [28]  */
+        unsigned int    pll1_foutpostdivpd    : 1   ; /* [29]  */
+        unsigned int    pll1_foutvcopd        : 1   ; /* [30]  */
+        unsigned int    reserved_0            : 1   ; /* [31]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL2_U;
+
+/* Define the union U_SC_PLLFCTRL3_U */
+/* PLL1¿ØÖÆ¼Ä´æÆ÷1¡£ */
+/* 0xC */
+typedef union tagScPllfctrl3
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pll1_frac             : 24  ; /* [23..0]  */
+        unsigned int    reserved_0            : 8   ; /* [31..24]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL3_U;
+
+/* Define the union U_SC_PLLFCTRL4_U */
+/* PLL2¿ØÖÆ¼Ä´æÆ÷0¡£ */
+/* 0x10 */
+typedef union tagScPllfctrl4
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pll2_refdiv           : 6   ; /* [5..0]  */
+        unsigned int    pll2_fbdiv            : 12  ; /* [17..6]  */
+        unsigned int    pll2_postdiv1         : 3   ; /* [20..18]  */
+        unsigned int    pll2_postdiv2         : 3   ; /* [23..21]  */
+        unsigned int    pll2_bypass           : 1   ; /* [24]  */
+        unsigned int    pll2_pd               : 1   ; /* [25]  */
+        unsigned int    pll2_dsmpd            : 1   ; /* [26]  */
+        unsigned int    pll2_dacpd            : 1   ; /* [27]  */
+        unsigned int    pll2_fout4phasepd     : 1   ; /* [28]  */
+        unsigned int    pll2_foutpostdivpd    : 1   ; /* [29]  */
+        unsigned int    pll2_foutvcopd        : 1   ; /* [30]  */
+        unsigned int    reserved_0            : 1   ; /* [31]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL4_U;
+
+/* Define the union U_SC_PLLFCTRL5_U */
+/* PLL2¿ØÖÆ¼Ä´æÆ÷1¡£ */
+/* 0x14 */
+typedef union tagScPllfctrl5
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pll2_frac             : 24  ; /* [23..0]  */
+        unsigned int    reserved_0            : 8   ; /* [31..24]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL5_U;
+
+/* Define the union U_SC_PLLFCTRL6_U */
+/* PLL3¿ØÖÆ¼Ä´æÆ÷0¡£ */
+/* 0x18 */
+typedef union tagScPllfctrl6
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pll3_refdiv           : 6   ; /* [5..0]  */
+        unsigned int    pll3_fbdiv            : 12  ; /* [17..6]  */
+        unsigned int    pll3_postdiv1         : 3   ; /* [20..18]  */
+        unsigned int    pll3_postdiv2         : 3   ; /* [23..21]  */
+        unsigned int    pll3_bypass           : 1   ; /* [24]  */
+        unsigned int    pll3_pd               : 1   ; /* [25]  */
+        unsigned int    pll3_dsmpd            : 1   ; /* [26]  */
+        unsigned int    pll3_dacpd            : 1   ; /* [27]  */
+        unsigned int    pll3_fout4phasepd     : 1   ; /* [28]  */
+        unsigned int    pll3_foutpostdivpd    : 1   ; /* [29]  */
+        unsigned int    pll3_foutvcopd        : 1   ; /* [30]  */
+        unsigned int    reserved_0            : 1   ; /* [31]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL6_U;
+
+/* Define the union U_SC_PLLFCTRL7_U */
+/* PLL3¿ØÖÆ¼Ä´æÆ÷1¡£ */
+/* 0x1C */
+typedef union tagScPllfctrl7
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pll3_frac             : 24  ; /* [23..0]  */
+        unsigned int    reserved_0            : 8   ; /* [31..24]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL7_U;
+
+/* Define the union U_SC_PLL_CLK_BYPASS0_U */
+/* PLLÏà¹Ø¹¤×÷Ê±ÖÓÑ¡Ôñ¡£ */
+/* 0x20 */
+typedef union tagScPllClkBypass0
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    reserved_1            : 16  ; /* [15..0]  */
+        unsigned int    pll0_peri_mode        : 1   ; /* [16]  */
+        unsigned int    pll1_peri_mode        : 1   ; /* [17]  */
+        unsigned int    pll2_peri_mode        : 1   ; /* [18]  */
+        unsigned int    pll3_peri_mode        : 1   ; /* [19]  */
+        unsigned int    pll4_peri_mode        : 1   ; /* [20]  */
+        unsigned int    reserved_0            : 11  ; /* [31..21]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLL_CLK_BYPASS0_U;
+
+/* Define the union U_SC_PLLFCTRL8_U */
+/* pll4¿ØÖÆ¼Ä´æÆ÷0¡£ */
+/* 0x24 */
+typedef union tagScPllfctrl8
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pll4_refdiv           : 6   ; /* [5..0]  */
+        unsigned int    pll4_fbdiv            : 12  ; /* [17..6]  */
+        unsigned int    pll4_postdiv1         : 3   ; /* [20..18]  */
+        unsigned int    pll4_postdiv2         : 3   ; /* [23..21]  */
+        unsigned int    pll4_bypass           : 1   ; /* [24]  */
+        unsigned int    pll4_pd               : 1   ; /* [25]  */
+        unsigned int    pll4_dsmpd            : 1   ; /* [26]  */
+        unsigned int    pll4_dacpd            : 1   ; /* [27]  */
+        unsigned int    pll4_fout4phasepd     : 1   ; /* [28]  */
+        unsigned int    pll4_foutpostdivpd    : 1   ; /* [29]  */
+        unsigned int    pll4_foutvcopd        : 1   ; /* [30]  */
+        unsigned int    reserved_0            : 1   ; /* [31]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL8_U;
+
+/* Define the union U_SC_PLLFCTRL9_U */
+/* pll4¿ØÖÆ¼Ä´æÆ÷1¡£ */
+/* 0x28 */
+typedef union tagScPllfctrl9
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pll4_frac             : 24  ; /* [23..0]  */
+        unsigned int    reserved_0            : 8   ; /* [31..24]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLLFCTRL9_U;
+
+/* Define the union U_SC_PLL_CLK_BYPASS1_U */
+/* PLLÏà¹Ø¹¤×÷Ê±ÖÓÑ¡Ôñ¡£ */
+/* 0x2C */
+typedef union tagScPllClkBypass1
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pll0_bypass_external_n : 1   ; /* [0]  */
+        unsigned int    pll1_bypass_external_n : 1   ; /* [1]  */
+        unsigned int    pll2_bypass_external_n : 1   ; /* [2]  */
+        unsigned int    pll3_bypass_external_n : 1   ; /* [3]  */
+        unsigned int    pll4_bypass_external_n : 1   ; /* [4]  */
+        unsigned int    reserved_0            : 27  ; /* [31..5]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLL_CLK_BYPASS1_U;
+
+/* Define the union U_SC_GPIO_DB_CTRL_U */
+/* ÅäÖÃgpip dbÊ±ÖÓÑ¡Ôñ */
+/* 0x100 */
+typedef union tagScGpioDbCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    gpio_db_clk_sel       : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_GPIO_DB_CTRL_U;
+
+/* Define the union U_SC_SFC_CLK_CTRL_U */
+/* ÅäÖÃSFCÊ±ÖÓÑ¡Ôñ */
+/* 0x104 */
+typedef union tagScSfcClkCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    sfc_clk_sel           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SFC_CLK_CTRL_U;
+
+/* Define the union U_SC_ALL_SCAN_CTRL_U */
+/* ALL SCAN¿ØÖÆ¼Ä´æÆ÷ */
+/* 0x150 */
+typedef union tagScAllScanCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    all_scan_sys_int      : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ALL_SCAN_CTRL_U;
+
+/* Define the union U_SC_ITS_CLK_EN_U */
+/* ITSÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x318 */
+typedef union tagScItsClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_its_enb           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ITS_CLK_EN_U;
+
+/* Define the union U_SC_ITS_CLK_DIS_U */
+/* ITSÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x31C */
+typedef union tagScItsClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_its_dsb           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ITS_CLK_DIS_U;
+
+/* Define the union U_SC_PA_CLK_EN_U */
+/* PAÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x358 */
+typedef union tagScPaClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_pa_enb            : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_CLK_EN_U;
+
+/* Define the union U_SC_PA_CLK_DIS_U */
+/* PAÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x35C */
+typedef union tagScPaClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_pa_dsb            : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_CLK_DIS_U;
+
+/* Define the union U_SC_HLLC_CLK_EN_U */
+/* HLLCÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x360 */
+typedef union tagScHllcClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_hllc_enb          : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_CLK_EN_U;
+
+/* Define the union U_SC_HLLC_CLK_DIS_U */
+/* HLLCÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x364 */
+typedef union tagScHllcClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_hllc_dsb          : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_CLK_DIS_U;
+
+/* Define the union U_SC_REF_CLK_EN_U */
+/* refÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x370 */
+typedef union tagScRefClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_ref_enb           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_REF_CLK_EN_U;
+
+/* Define the union U_SC_REF_CLK_DIS_U */
+/* refÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x374 */
+typedef union tagScRefClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_ref_dsb           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_REF_CLK_DIS_U;
+
+/* Define the union U_SC_GPIO_DB_CLK_EN_U */
+/* gpio_dbÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x378 */
+typedef union tagScGpioDbClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_gpio_db_enb       : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_GPIO_DB_CLK_EN_U;
+
+/* Define the union U_SC_GPIO_DB_CLK_DIS_U */
+/* gpio_dbÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x37C */
+typedef union tagScGpioDbClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_gpio_db_dsb       : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_GPIO_DB_CLK_DIS_U;
+
+/* Define the union U_SC_DJTAG_CLK_EN_U */
+/* djtagÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x380 */
+typedef union tagScDjtagClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_djtag_enb         : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_CLK_EN_U;
+
+/* Define the union U_SC_DJTAG_CLK_DIS_U */
+/* djtagÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x384 */
+typedef union tagScDjtagClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_djtag_dsb         : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_CLK_DIS_U;
+
+/* Define the union U_SC_HLLC_RXTX_CLK_EN_U */
+/* hllc rxtxÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x390 */
+typedef union tagScHllcRxtxClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_hllc_hilink_tx0_enb : 1   ; /* [0]  */
+        unsigned int    clk_hllc_hilink_tx1_enb : 1   ; /* [1]  */
+        unsigned int    clk_hllc_hilink_tx2_enb : 1   ; /* [2]  */
+        unsigned int    clk_hllc_hilink_tx3_enb : 1   ; /* [3]  */
+        unsigned int    clk_hllc_hilink_tx4_enb : 1   ; /* [4]  */
+        unsigned int    clk_hllc_hilink_tx5_enb : 1   ; /* [5]  */
+        unsigned int    clk_hllc_hilink_tx6_enb : 1   ; /* [6]  */
+        unsigned int    clk_hllc_hilink_tx7_enb : 1   ; /* [7]  */
+        unsigned int    clk_hllc_hilink_rx0_enb : 1   ; /* [8]  */
+        unsigned int    clk_hllc_hilink_rx1_enb : 1   ; /* [9]  */
+        unsigned int    clk_hllc_hilink_rx2_enb : 1   ; /* [10]  */
+        unsigned int    clk_hllc_hilink_rx3_enb : 1   ; /* [11]  */
+        unsigned int    clk_hllc_hilink_rx4_enb : 1   ; /* [12]  */
+        unsigned int    clk_hllc_hilink_rx5_enb : 1   ; /* [13]  */
+        unsigned int    clk_hllc_hilink_rx6_enb : 1   ; /* [14]  */
+        unsigned int    clk_hllc_hilink_rx7_enb : 1   ; /* [15]  */
+        unsigned int    reserved_0            : 16  ; /* [31..16]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RXTX_CLK_EN_U;
+
+/* Define the union U_SC_HLLC_RXTX_CLK_DIS_U */
+/* hllc rxtxÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x394 */
+typedef union tagScHllcRxtxClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_hllc_hilink_tx0_dsb : 1   ; /* [0]  */
+        unsigned int    clk_hllc_hilink_tx1_dsb : 1   ; /* [1]  */
+        unsigned int    clk_hllc_hilink_tx2_dsb : 1   ; /* [2]  */
+        unsigned int    clk_hllc_hilink_tx3_dsb : 1   ; /* [3]  */
+        unsigned int    clk_hllc_hilink_tx4_dsb : 1   ; /* [4]  */
+        unsigned int    clk_hllc_hilink_tx5_dsb : 1   ; /* [5]  */
+        unsigned int    clk_hllc_hilink_tx6_dsb : 1   ; /* [6]  */
+        unsigned int    clk_hllc_hilink_tx7_dsb : 1   ; /* [7]  */
+        unsigned int    clk_hllc_hilink_rx0_dsb : 1   ; /* [8]  */
+        unsigned int    clk_hllc_hilink_rx1_dsb : 1   ; /* [9]  */
+        unsigned int    clk_hllc_hilink_rx2_dsb : 1   ; /* [10]  */
+        unsigned int    clk_hllc_hilink_rx3_dsb : 1   ; /* [11]  */
+        unsigned int    clk_hllc_hilink_rx4_dsb : 1   ; /* [12]  */
+        unsigned int    clk_hllc_hilink_rx5_dsb : 1   ; /* [13]  */
+        unsigned int    clk_hllc_hilink_rx6_dsb : 1   ; /* [14]  */
+        unsigned int    clk_hllc_hilink_rx7_dsb : 1   ; /* [15]  */
+        unsigned int    reserved_0            : 16  ; /* [31..16]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RXTX_CLK_DIS_U;
+
+/* Define the union U_SC_RSA_CLK_EN_U */
+/* RSAÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x3A0 */
+typedef union tagScRsaClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_rsa_enb           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_CLK_EN_U;
+
+/* Define the union U_SC_RSA_CLK_DIS_U */
+/* RSAÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x3A4 */
+typedef union tagScRsaClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_rsa_dsb           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_CLK_DIS_U;
+
+/* Define the union U_SC_RDE_CLK_EN_U */
+/* RDEÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x3A8 */
+typedef union tagScRdeClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_rde_enb           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RDE_CLK_EN_U;
+
+/* Define the union U_SC_RDE_CLK_DIS_U */
+/* RDEÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x3AC */
+typedef union tagScRdeClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_rde_dsb           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RDE_CLK_DIS_U;
+
+/* Define the union U_SC_RNG_CLK_EN_U */
+/* RNGÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x3B0 */
+typedef union tagScRngClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_rng_enb           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RNG_CLK_EN_U;
+
+/* Define the union U_SC_RNG_CLK_DIS_U */
+/* RNGÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x3B4 */
+typedef union tagScRngClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_rng_dsb           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RNG_CLK_DIS_U;
+
+/* Define the union U_SC_SEC_CLK_EN_U */
+/* SECÊ±ÖÓÊ¹ÄÜ¼Ä´æÆ÷ */
+/* 0x3B8 */
+typedef union tagScSecClkEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_sec_enb           : 1   ; /* [0]  */
+        unsigned int    clk_sec_ahb_enb       : 1   ; /* [1]  */
+        unsigned int    clk_sec_trace_dbg_enb : 1   ; /* [2]  */
+        unsigned int    reserved_0            : 29  ; /* [31..3]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_CLK_EN_U;
+
+/* Define the union U_SC_SEC_CLK_DIS_U */
+/* SECÊ±ÖÓ½ûÖ¹¼Ä´æÆ÷ */
+/* 0x3BC */
+typedef union tagScSecClkDis
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_sec_dsb           : 1   ; /* [0]  */
+        unsigned int    clk_sec_ahb_dsb       : 1   ; /* [1]  */
+        unsigned int    clk_sec_trace_dbg_dsb : 1   ; /* [2]  */
+        unsigned int    reserved_0            : 29  ; /* [31..3]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_CLK_DIS_U;
+
+/* Define the union U_SC_ITS_RESET_REQ_U */
+/* ITSÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA18 */
+typedef union tagScItsResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    its_srst_req          : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ITS_RESET_REQ_U;
+
+/* Define the union U_SC_ITS_RESET_DREQ_U */
+/* ITSÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA1C */
+typedef union tagScItsResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    its_srst_dreq         : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ITS_RESET_DREQ_U;
+
+/* Define the union U_SC_HILINK_PCS_RESET_REQ_U */
+/* HILINK PCSÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA58 */
+typedef union tagScHilinkPcsResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    hllc_hilink_pcs_lane0_srst_req : 1   ; /* [0]  */
+        unsigned int    hllc_hilink_pcs_lane1_srst_req : 1   ; /* [1]  */
+        unsigned int    hllc_hilink_pcs_lane2_srst_req : 1   ; /* [2]  */
+        unsigned int    hllc_hilink_pcs_lane3_srst_req : 1   ; /* [3]  */
+        unsigned int    hllc_hilink_pcs_lane4_srst_req : 1   ; /* [4]  */
+        unsigned int    hllc_hilink_pcs_lane5_srst_req : 1   ; /* [5]  */
+        unsigned int    hllc_hilink_pcs_lane6_srst_req : 1   ; /* [6]  */
+        unsigned int    hllc_hilink_pcs_lane7_srst_req : 1   ; /* [7]  */
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HILINK_PCS_RESET_REQ_U;
+
+/* Define the union U_SC_HILINK_PCS_RESET_DREQ_U */
+/* HILINK PCSÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA5C */
+typedef union tagScHilinkPcsResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    hllc_hilink_pcs_lane0_srst_dreq : 1   ; /* [0]  */
+        unsigned int    hllc_hilink_pcs_lane1_srst_dreq : 1   ; /* [1]  */
+        unsigned int    hllc_hilink_pcs_lane2_srst_dreq : 1   ; /* [2]  */
+        unsigned int    hllc_hilink_pcs_lane3_srst_dreq : 1   ; /* [3]  */
+        unsigned int    hllc_hilink_pcs_lane4_srst_dreq : 1   ; /* [4]  */
+        unsigned int    hllc_hilink_pcs_lane5_srst_dreq : 1   ; /* [5]  */
+        unsigned int    hllc_hilink_pcs_lane6_srst_dreq : 1   ; /* [6]  */
+        unsigned int    hllc_hilink_pcs_lane7_srst_dreq : 1   ; /* [7]  */
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HILINK_PCS_RESET_DREQ_U;
+
+/* Define the union U_SC_HLLC_RXTX_RESET_REQ_U */
+/* hllc rxtxÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA60 */
+typedef union tagScHllcRxtxResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    hllc_rx0_srst_req     : 1   ; /* [0]  */
+        unsigned int    hllc_rx1_srst_req     : 1   ; /* [1]  */
+        unsigned int    hllc_rx2_srst_req     : 1   ; /* [2]  */
+        unsigned int    hllc_rx3_srst_req     : 1   ; /* [3]  */
+        unsigned int    hllc_rx4_srst_req     : 1   ; /* [4]  */
+        unsigned int    hllc_rx5_srst_req     : 1   ; /* [5]  */
+        unsigned int    hllc_rx6_srst_req     : 1   ; /* [6]  */
+        unsigned int    hllc_rx7_srst_req     : 1   ; /* [7]  */
+        unsigned int    hllc_tx0_srst_req     : 1   ; /* [8]  */
+        unsigned int    hllc_tx1_srst_req     : 1   ; /* [9]  */
+        unsigned int    hllc_tx2_srst_req     : 1   ; /* [10]  */
+        unsigned int    hllc_tx3_srst_req     : 1   ; /* [11]  */
+        unsigned int    hllc_tx4_srst_req     : 1   ; /* [12]  */
+        unsigned int    hllc_tx5_srst_req     : 1   ; /* [13]  */
+        unsigned int    hllc_tx6_srst_req     : 1   ; /* [14]  */
+        unsigned int    hllc_tx7_srst_req     : 1   ; /* [15]  */
+        unsigned int    reserved_0            : 16  ; /* [31..16]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RXTX_RESET_REQ_U;
+
+/* Define the union U_SC_HLLC_RXTX_RESET_DREQ_U */
+/* hllc rxtxÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA64 */
+typedef union tagScHllcRxtxResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    hllc_rx0_srst_dreq    : 1   ; /* [0]  */
+        unsigned int    hllc_rx1_srst_dreq    : 1   ; /* [1]  */
+        unsigned int    hllc_rx2_srst_dreq    : 1   ; /* [2]  */
+        unsigned int    hllc_rx3_srst_dreq    : 1   ; /* [3]  */
+        unsigned int    hllc_rx4_srst_dreq    : 1   ; /* [4]  */
+        unsigned int    hllc_rx5_srst_dreq    : 1   ; /* [5]  */
+        unsigned int    hllc_rx6_srst_dreq    : 1   ; /* [6]  */
+        unsigned int    hllc_rx7_srst_dreq    : 1   ; /* [7]  */
+        unsigned int    hllc_tx0_srst_dreq    : 1   ; /* [8]  */
+        unsigned int    hllc_tx1_srst_dreq    : 1   ; /* [9]  */
+        unsigned int    hllc_tx2_srst_dreq    : 1   ; /* [10]  */
+        unsigned int    hllc_tx3_srst_dreq    : 1   ; /* [11]  */
+        unsigned int    hllc_tx4_srst_dreq    : 1   ; /* [12]  */
+        unsigned int    hllc_tx5_srst_dreq    : 1   ; /* [13]  */
+        unsigned int    hllc_tx6_srst_dreq    : 1   ; /* [14]  */
+        unsigned int    hllc_tx7_srst_dreq    : 1   ; /* [15]  */
+        unsigned int    reserved_0            : 16  ; /* [31..16]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RXTX_RESET_DREQ_U;
+
+/* Define the union U_SC_PA_RESET_REQ_U */
+/* PAÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA78 */
+typedef union tagScPaResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pa_srst_req           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_RESET_REQ_U;
+
+/* Define the union U_SC_PA_RESET_DREQ_U */
+/* PAÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA7C */
+typedef union tagScPaResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pa_srst_dreq          : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_RESET_DREQ_U;
+
+/* Define the union U_SC_HLLC_RESET_REQ_U */
+/* HLLCÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA80 */
+typedef union tagScHllcResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    hllc_srst_req         : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RESET_REQ_U;
+
+/* Define the union U_SC_HLLC_RESET_DREQ_U */
+/* HLLCÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA84 */
+typedef union tagScHllcResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    hllc_srst_dreq        : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RESET_DREQ_U;
+
+/* Define the union U_SC_DJTAG_RESET_REQ_U */
+/* DJTAGÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA90 */
+typedef union tagScDjtagResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    djtag_srst_req        : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_RESET_REQ_U;
+
+/* Define the union U_SC_DJTAG_RESET_DREQ_U */
+/* DJTAGÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA94 */
+typedef union tagScDjtagResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    djtag_srst_dreq       : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_RESET_DREQ_U;
+
+/* Define the union U_SC_RSA_RESET_REQ_U */
+/* RSAÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA98 */
+typedef union tagScRsaResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    rsa_srst_req          : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_RESET_REQ_U;
+
+/* Define the union U_SC_RSA_RESET_DREQ_U */
+/* RSAÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xA9C */
+typedef union tagScRsaResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    rsa_srst_dreq         : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_RESET_DREQ_U;
+
+/* Define the union U_SC_RDE_RESET_REQ_U */
+/* RDEÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAA0 */
+typedef union tagScRdeResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    rde_srst_req          : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RDE_RESET_REQ_U;
+
+/* Define the union U_SC_RDE_RESET_DREQ_U */
+/* RDEÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAA4 */
+typedef union tagScRdeResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    rde_srst_dreq         : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RDE_RESET_DREQ_U;
+
+/* Define the union U_SC_SEC_RESET_REQ_U */
+/* SECÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAA8 */
+typedef union tagScSecResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    sec_srst_req          : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_RESET_REQ_U;
+
+/* Define the union U_SC_SEC_RESET_DREQ_U */
+/* SECÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAAC */
+typedef union tagScSecResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    sec_srst_dreq         : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_RESET_DREQ_U;
+
+/* Define the union U_SC_RNG_RESET_REQ_U */
+/* RNGÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAB0 */
+typedef union tagScRngResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    rng_srst_req          : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RNG_RESET_REQ_U;
+
+/* Define the union U_SC_RNG_RESET_DREQ_U */
+/* RNGÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAB4 */
+typedef union tagScRngResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    rng_srst_dreq         : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RNG_RESET_DREQ_U;
+
+/* Define the union U_SC_SEC_BUILD_RESET_REQ_U */
+/* SEC BUILDÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAB8 */
+typedef union tagScSecBuildResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    sec_cluster0_srst_req : 1   ; /* [0]  */
+        unsigned int    sec_cluster0_ahb_srst_req : 1   ; /* [1]  */
+        unsigned int    sec_build_srst_req0   : 1   ; /* [2]  */
+        unsigned int    sec_build_ahb_srst_req0 : 1   ; /* [3]  */
+        unsigned int    sec_build_srst_req1   : 1   ; /* [4]  */
+        unsigned int    sec_build_ahb_srst_req1 : 1   ; /* [5]  */
+        unsigned int    sec_build_srst_req2   : 1   ; /* [6]  */
+        unsigned int    sec_build_ahb_srst_req2 : 1   ; /* [7]  */
+        unsigned int    sec_build_srst_req3   : 1   ; /* [8]  */
+        unsigned int    sec_build_ahb_srst_req3 : 1   ; /* [9]  */
+        unsigned int    sec_cluster1_srst_req : 1   ; /* [10]  */
+        unsigned int    sec_cluster1_ahb_srst_req : 1   ; /* [11]  */
+        unsigned int    sec_build_srst_req4   : 1   ; /* [12]  */
+        unsigned int    sec_build_ahb_srst_req4 : 1   ; /* [13]  */
+        unsigned int    sec_build_srst_req5   : 1   ; /* [14]  */
+        unsigned int    sec_build_ahb_srst_req5 : 1   ; /* [15]  */
+        unsigned int    sec_build_srst_req6   : 1   ; /* [16]  */
+        unsigned int    sec_build_ahb_srst_req6 : 1   ; /* [17]  */
+        unsigned int    sec_build_srst_req7   : 1   ; /* [18]  */
+        unsigned int    sec_build_ahb_srst_req7 : 1   ; /* [19]  */
+        unsigned int    sec_ahb_srst_req      : 1   ; /* [20]  */
+        unsigned int    reserved_0            : 11  ; /* [31..21]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_BUILD_RESET_REQ_U;
+
+/* Define the union U_SC_SEC_BUILD_RESET_DREQ_U */
+/* SEC BUILDÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xABC */
+typedef union tagScSecBuildResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    sec_cluster0_srst_dreq : 1   ; /* [0]  */
+        unsigned int    sec_cluster0_ahb_srst_dreq : 1   ; /* [1]  */
+        unsigned int    sec_build_srst_dreq0  : 1   ; /* [2]  */
+        unsigned int    sec_build_ahb_srst_dreq0 : 1   ; /* [3]  */
+        unsigned int    sec_build_srst_dreq1  : 1   ; /* [4]  */
+        unsigned int    sec_build_ahb_srst_dreq1 : 1   ; /* [5]  */
+        unsigned int    sec_build_srst_dreq2  : 1   ; /* [6]  */
+        unsigned int    sec_build_ahb_srst_dreq2 : 1   ; /* [7]  */
+        unsigned int    sec_build_srst_dreq3  : 1   ; /* [8]  */
+        unsigned int    sec_build_ahb_srst_dreq3 : 1   ; /* [9]  */
+        unsigned int    sec_cluster1_srst_dreq : 1   ; /* [10]  */
+        unsigned int    sec_cluster1_ahb_srst_dreq : 1   ; /* [11]  */
+        unsigned int    sec_build_srst_dreq4  : 1   ; /* [12]  */
+        unsigned int    sec_build_ahb_srst_dreq4 : 1   ; /* [13]  */
+        unsigned int    sec_build_srst_dreq5  : 1   ; /* [14]  */
+        unsigned int    sec_build_ahb_srst_dreq5 : 1   ; /* [15]  */
+        unsigned int    sec_build_srst_dreq6  : 1   ; /* [16]  */
+        unsigned int    sec_build_ahb_srst_dreq6 : 1   ; /* [17]  */
+        unsigned int    sec_build_srst_dreq7  : 1   ; /* [18]  */
+        unsigned int    sec_build_ahb_srst_dreq7 : 1   ; /* [19]  */
+        unsigned int    sec_ahb_srst_dreq     : 1   ; /* [20]  */
+        unsigned int    reserved_0            : 11  ; /* [31..21]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_BUILD_RESET_DREQ_U;
+
+/* Define the union U_SC_PCS_LOCAL_RESET_REQ_U */
+/* PCS LOCALÈí¸´Î»ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAC0 */
+typedef union tagScPcsLocalResetReq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pcs_local_srst_req    : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PCS_LOCAL_RESET_REQ_U;
+
+/* Define the union U_SC_PCS_LOCAL_RESET_DREQ_U */
+/* PCS LOCALÈí¸´Î»È¥ÇëÇó¿ØÖÆ¼Ä´æÆ÷ */
+/* 0xAC4 */
+typedef union tagScPcsLocalResetDreq
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pcs_local_srst_dreq   : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PCS_LOCAL_RESET_DREQ_U;
+
+/* Define the union U_SC_DISPATCH_DAW_EN_U */
+/* dispatch daw enÅäÖÃ */
+/* 0x1000 */
+typedef union tagScDispatchDawEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    dispatch_daw_en       : 8   ; /* [7..0]  */
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_EN_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY0_U */
+/* dispatch dawÅäÖÃÕóÁÐ0 */
+/* 0x1004 */
+typedef union tagScDispatchDawArray0
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array0_did        : 3   ; /* [2..0]  */
+        unsigned int    daw_array0_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array0_sync       : 1   ; /* [8]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array0_addr       : 19  ; /* [31..13]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY0_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY1_U */
+/* dispatch dawÅäÖÃÕóÁÐ1 */
+/* 0x1008 */
+typedef union tagScDispatchDawArray1
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array1_did        : 3   ; /* [2..0]  */
+        unsigned int    daw_array1_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array1_sync       : 1   ; /* [8]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array1_addr       : 19  ; /* [31..13]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY1_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY2_U */
+/* dispatch dawÅäÖÃÕóÁÐ2 */
+/* 0x100C */
+typedef union tagScDispatchDawArray2
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array2_did        : 3   ; /* [2..0]  */
+        unsigned int    daw_array2_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array2_sync       : 1   ; /* [8]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array2_addr       : 19  ; /* [31..13]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY2_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY3_U */
+/* dispatch dawÅäÖÃÕóÁÐ3 */
+/* 0x1010 */
+typedef union tagScDispatchDawArray3
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array3_did        : 3   ; /* [2..0]  */
+        unsigned int    daw_array3_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array3_sync       : 1   ; /* [8]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array3_addr       : 19  ; /* [31..13]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY3_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY4_U */
+/* dispatch dawÅäÖÃÕóÁÐ4 */
+/* 0x1014 */
+typedef union tagScDispatchDawArray4
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array4_did        : 3   ; /* [2..0]  */
+        unsigned int    daw_array4_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array4_sync       : 1   ; /* [8]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array4_addr       : 19  ; /* [31..13]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY4_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY5_U */
+/* dispatch dawÅäÖÃÕóÁÐ5 */
+/* 0x1018 */
+typedef union tagScDispatchDawArray5
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array5_did        : 3   ; /* [2..0]  */
+        unsigned int    daw_array5_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array5_sync       : 1   ; /* [8]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array5_addr       : 19  ; /* [31..13]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY5_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY6_U */
+/* dispatch dawÅäÖÃÕóÁÐ6 */
+/* 0x101C */
+typedef union tagScDispatchDawArray6
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array6_did        : 3   ; /* [2..0]  */
+        unsigned int    daw_array6_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array6_sync       : 1   ; /* [8]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array6_addr       : 19  ; /* [31..13]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY6_U;
+
+/* Define the union U_SC_DISPATCH_DAW_ARRAY7_U */
+/* dispatch dawÅäÖÃÕóÁÐ7 */
+/* 0x1020 */
+typedef union tagScDispatchDawArray7
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    daw_array7_did        : 3   ; /* [2..0]  */
+        unsigned int    daw_array7_size       : 5   ; /* [7..3]  */
+        unsigned int    daw_array7_sync       : 1   ; /* [8]  */
+        unsigned int    reserved_0            : 4   ; /* [12..9]  */
+        unsigned int    daw_array7_addr       : 19  ; /* [31..13]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_DAW_ARRAY7_U;
+
+/* Define the union U_SC_DISPATCH_RETRY_CONTROL_U */
+/* dispatch retry¿ØÖÆ¼Ä´æÆ÷ */
+/* 0x1030 */
+typedef union tagScDispatchRetryControl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    retry_num_limit       : 16  ; /* [15..0]  */
+        unsigned int    retry_en              : 1   ; /* [16]  */
+        unsigned int    reserved_0            : 15  ; /* [31..17]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_RETRY_CONTROL_U;
+
+/* Define the union U_SC_DISPATCH_INTMASK_U */
+/* dispatchµÄÖÐ¶ÏÆÁ±Î¼Ä´æÆ÷ */
+/* 0x1100 */
+typedef union tagScDispatchIntmask
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    intmask               : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_INTMASK_U;
+
+/* Define the union U_SC_DISPATCH_RAWINT_U */
+/* dispatchµÄÔ­Ê¼ÖÐ¶Ï×´Ì¬¼Ä´æÆ÷ */
+/* 0x1104 */
+typedef union tagScDispatchRawint
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    rawint                : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_RAWINT_U;
+
+/* Define the union U_SC_DISPATCH_INTSTAT_U */
+/* dispatchµÄÆÁ±ÎºóµÄÖÐ¶Ï×´Ì¬¼Ä´æÆ÷ */
+/* 0x1108 */
+typedef union tagScDispatchIntstat
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    intsts                : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_INTSTAT_U;
+
+/* Define the union U_SC_DISPATCH_INTCLR_U */
+/* dispatchµÄÖÐ¶ÏÇå³ý¼Ä´æÆ÷ */
+/* 0x110C */
+typedef union tagScDispatchIntclr
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    intclr                : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_INTCLR_U;
+
+/* Define the union U_SC_DISPATCH_ERRSTAT_U */
+/* dispatchµÄERR×´Ì¬¼Ä´æÆ÷ */
+/* 0x1110 */
+typedef union tagScDispatchErrstat
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    err_opcode            : 5   ; /* [4..0]  */
+        unsigned int    err_addr              : 17  ; /* [21..5]  */
+        unsigned int    reserved_0            : 10  ; /* [31..22]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_ERRSTAT_U;
+
+/* Define the union U_SC_DISPATCH_REMAP_CTRL_U */
+/* subsysµÄÆô¶¯Remap¼Ä´æÆ÷ */
+/* 0x1200 */
+typedef union tagScDispatchRemapCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    sys_remap_vld         : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DISPATCH_REMAP_CTRL_U;
+
+/* Define the union U_SC_TSENSOR_CTRL0_U */
+/* TSENSOR¿ØÖÆ¼Ä´æÆ÷0 */
+/* 0x20D0 */
+typedef union tagScTsensorCtrl0
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    tsensor_temp_en       : 1   ; /* [0]  */
+        unsigned int    reserved_1            : 7   ; /* [7..1]  */
+        unsigned int    tsensor_ct_sel        : 2   ; /* [9..8]  */
+        unsigned int    reserved_0            : 22  ; /* [31..10]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_TSENSOR_CTRL0_U;
+
+/* Define the union U_SC_TSENSOR_CTRL1_U */
+/* TSENSOR¿ØÖÆ¼Ä´æÆ÷1 */
+/* 0x20D4 */
+typedef union tagScTsensorCtrl1
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    tsensor_test          : 8   ; /* [7..0]  */
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_TSENSOR_CTRL1_U;
+
+/* Define the union U_SC_BOOTROM_CTRL_U */
+/* BOOTROM¿ØÖÆ¼Ä´æÆ÷ */
+/* 0x20F0 */
+typedef union tagScBootromCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    bootrom_rtsel         : 2   ; /* [1..0]  */
+        unsigned int    bootrom_ptsel         : 2   ; /* [3..2]  */
+        unsigned int    bootrom_trb           : 2   ; /* [5..4]  */
+        unsigned int    reserved_0            : 26  ; /* [31..6]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_BOOTROM_CTRL_U;
+
+/* Define the union U_SC_FTE_MUX_CTRL_U */
+/* FTE¸´ÓÃÑ¡Ôñ¼Ä´æÆ÷ */
+/* 0x2200 */
+typedef union tagScFteMuxCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    mux_sel_fte           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_FTE_MUX_CTRL_U;
+
+/* Define the union U_SC_RSA_ADDR_H_U */
+/* RSA¸ß20Î»µØÖ·²¹³ä¼Ä´æÆ÷ */
+/* 0x2E00 */
+typedef union tagScRsaAddrH
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    rsa_addr_h            : 20  ; /* [19..0]  */
+        unsigned int    reserved_0            : 12  ; /* [31..20]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_ADDR_H_U;
+
+/* Define the union U_SC_SMMU_MEM_CTRL0_U */
+/* smmu mem¿ØÖÆ¼Ä´æÆ÷0 */
+/* 0x3000 */
+typedef union tagScSmmuMemCtrl0
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    ctrl_rfs_smmu         : 8   ; /* [7..0]  */
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SMMU_MEM_CTRL0_U;
+
+/* Define the union U_SC_SMMU_MEM_CTRL1_U */
+/* smmu mem¿ØÖÆ¼Ä´æÆ÷1 */
+/* 0x3004 */
+typedef union tagScSmmuMemCtrl1
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    tsel_hc_smmu          : 3   ; /* [2..0]  */
+        unsigned int    reserved_0            : 29  ; /* [31..3]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SMMU_MEM_CTRL1_U;
+
+/* Define the union U_SC_SMMU_MEM_CTRL2_U */
+/* smmu mem¿ØÖÆ¼Ä´æÆ÷2 */
+/* 0x3008 */
+typedef union tagScSmmuMemCtrl2
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    test_hc_smmu          : 2   ; /* [1..0]  */
+        unsigned int    reserved_0            : 30  ; /* [31..2]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SMMU_MEM_CTRL2_U;
+
+/* Define the union U_SC_RSA_MEM_CTRL_U */
+/* rsa mem¿ØÖÆ¼Ä´æÆ÷ */
+/* 0x3030 */
+typedef union tagScRsaMemCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    ctrl_rfs_rsa          : 8   ; /* [7..0]  */
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_MEM_CTRL_U;
+
+/* Define the union U_SC_HLLC_MEM_CTRL_U */
+/* hllc mem¿ØÖÆ¼Ä´æÆ÷ */
+/* 0x3040 */
+typedef union tagScHllcMemCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    ctrl_rft_hllc         : 10  ; /* [9..0]  */
+        unsigned int    reserved_0            : 22  ; /* [31..10]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_MEM_CTRL_U;
+
+/* Define the union U_SC_PA_MEM_CTRL0_U */
+/* pa mem¿ØÖÆ¼Ä´æÆ÷0 */
+/* 0x3050 */
+typedef union tagScPaMemCtrl0
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    ctrl_rfs_pa           : 8   ; /* [7..0]  */
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_MEM_CTRL0_U;
+
+/* Define the union U_SC_PA_MEM_CTRL1_U */
+/* pa mem¿ØÖÆ¼Ä´æÆ÷1 */
+/* 0x3054 */
+typedef union tagScPaMemCtrl1
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    ctrl_rft_pa           : 10  ; /* [9..0]  */
+        unsigned int    reserved_0            : 22  ; /* [31..10]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_MEM_CTRL1_U;
+
+/* Define the union U_SC_RDE_MEM_CTRL_U */
+/* rde mem¿ØÖÆ¼Ä´æÆ÷ */
+/* 0x3060 */
+typedef union tagScRdeMemCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    ctrl_rfs_rde          : 8   ; /* [7..0]  */
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RDE_MEM_CTRL_U;
+
+/* Define the union U_SC_SEC_MEM_CTRL_U */
+/* sec mem¿ØÖÆ¼Ä´æÆ÷ */
+/* 0x3070 */
+typedef union tagScSecMemCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    ctrl_rfs_sec          : 8   ; /* [7..0]  */
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_MEM_CTRL_U;
+
+/* Define the union U_SC_PLL_LOCK_ST_U */
+/* PLLËø¶¨×´Ì¬¼Ä´æÆ÷ */
+/* 0x5000 */
+typedef union tagScPllLockSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pll0_lock             : 1   ; /* [0]  */
+        unsigned int    pll1_lock             : 1   ; /* [1]  */
+        unsigned int    pll2_lock             : 1   ; /* [2]  */
+        unsigned int    pll3_lock             : 1   ; /* [3]  */
+        unsigned int    pll4_lock             : 1   ; /* [4]  */
+        unsigned int    reserved_0            : 27  ; /* [31..5]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PLL_LOCK_ST_U;
+
+/* Define the union U_SC_ITS_CLK_ST_U */
+/* ITSÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x530C */
+typedef union tagScItsClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_its_st            : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ITS_CLK_ST_U;
+
+/* Define the union U_SC_PA_CLK_ST_U */
+/* PAÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x532C */
+typedef union tagScPaClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_pa_st             : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_CLK_ST_U;
+
+/* Define the union U_SC_HLLC_CLK_ST_U */
+/* HLLCÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x5330 */
+typedef union tagScHllcClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_hllc_st           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_CLK_ST_U;
+
+/* Define the union U_SC_REF_CLK_ST_U */
+/* refÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x5338 */
+typedef union tagScRefClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_ref_st            : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_REF_CLK_ST_U;
+
+/* Define the union U_SC_GPIO_DB_CLK_ST_U */
+/* gpio_dbÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x533C */
+typedef union tagScGpioDbClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_gpio_db_st        : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_GPIO_DB_CLK_ST_U;
+
+/* Define the union U_SC_DJTAG_CLK_ST_U */
+/* djtagÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x5340 */
+typedef union tagScDjtagClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_djtag_st          : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_CLK_ST_U;
+
+/* Define the union U_SC_HLLC_RXTX_CLK_ST_U */
+/* hllc rxtxÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x5348 */
+typedef union tagScHllcRxtxClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_hllc_hilink_tx0_st : 1   ; /* [0]  */
+        unsigned int    clk_hllc_hilink_tx1_st : 1   ; /* [1]  */
+        unsigned int    clk_hllc_hilink_tx2_st : 1   ; /* [2]  */
+        unsigned int    clk_hllc_hilink_tx3_st : 1   ; /* [3]  */
+        unsigned int    clk_hllc_hilink_tx4_st : 1   ; /* [4]  */
+        unsigned int    clk_hllc_hilink_tx5_st : 1   ; /* [5]  */
+        unsigned int    clk_hllc_hilink_tx6_st : 1   ; /* [6]  */
+        unsigned int    clk_hllc_hilink_tx7_st : 1   ; /* [7]  */
+        unsigned int    clk_hllc_hilink_rx0_st : 1   ; /* [8]  */
+        unsigned int    clk_hllc_hilink_rx1_st : 1   ; /* [9]  */
+        unsigned int    clk_hllc_hilink_rx2_st : 1   ; /* [10]  */
+        unsigned int    clk_hllc_hilink_rx3_st : 1   ; /* [11]  */
+        unsigned int    clk_hllc_hilink_rx4_st : 1   ; /* [12]  */
+        unsigned int    clk_hllc_hilink_rx5_st : 1   ; /* [13]  */
+        unsigned int    clk_hllc_hilink_rx6_st : 1   ; /* [14]  */
+        unsigned int    clk_hllc_hilink_rx7_st : 1   ; /* [15]  */
+        unsigned int    reserved_0            : 16  ; /* [31..16]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RXTX_CLK_ST_U;
+
+/* Define the union U_SC_RSA_CLK_ST_U */
+/* RSAÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x5350 */
+typedef union tagScRsaClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_rsa_st            : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_CLK_ST_U;
+
+/* Define the union U_SC_RDE_CLK_ST_U */
+/* RDEÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x5354 */
+typedef union tagScRdeClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_rde_st            : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RDE_CLK_ST_U;
+
+/* Define the union U_SC_RNG_CLK_ST_U */
+/* RNGÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x5358 */
+typedef union tagScRngClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_rng_st            : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RNG_CLK_ST_U;
+
+/* Define the union U_SC_SEC_CLK_ST_U */
+/* SECÊ±ÖÓ×´Ì¬¼Ä´æÆ÷ */
+/* 0x535C */
+typedef union tagScSecClkSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    clk_sec_st            : 1   ; /* [0]  */
+        unsigned int    clk_sec_ahb_st        : 1   ; /* [1]  */
+        unsigned int    clk_sec_trace_dbg_st  : 1   ; /* [2]  */
+        unsigned int    reserved_0            : 29  ; /* [31..3]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_CLK_ST_U;
+
+/* Define the union U_SC_ITS_RESET_ST_U */
+/* ITS¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A0C */
+typedef union tagScItsResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    its_srst_st           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ITS_RESET_ST_U;
+
+/* Define the union U_SC_HILINK_PCS_RESET_ST_U */
+/* HILINK_PCS¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A2C */
+typedef union tagScHilinkPcsResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    hllc_hilink_pcs_lane0_srst_st : 1   ; /* [0]  */
+        unsigned int    hllc_hilink_pcs_lane1_srst_st : 1   ; /* [1]  */
+        unsigned int    hllc_hilink_pcs_lane2_srst_st : 1   ; /* [2]  */
+        unsigned int    hllc_hilink_pcs_lane3_srst_st : 1   ; /* [3]  */
+        unsigned int    hllc_hilink_pcs_lane4_srst_st : 1   ; /* [4]  */
+        unsigned int    hllc_hilink_pcs_lane5_srst_st : 1   ; /* [5]  */
+        unsigned int    hllc_hilink_pcs_lane6_srst_st : 1   ; /* [6]  */
+        unsigned int    hllc_hilink_pcs_lane7_srst_st : 1   ; /* [7]  */
+        unsigned int    reserved_0            : 24  ; /* [31..8]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HILINK_PCS_RESET_ST_U;
+
+/* Define the union U_SC_HLLC_RXTX_RESET_ST_U */
+/* hllc rxtx¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A30 */
+typedef union tagScHllcRxtxResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    hllc_rx0_srst_st      : 1   ; /* [0]  */
+        unsigned int    hllc_rx1_srst_st      : 1   ; /* [1]  */
+        unsigned int    hllc_rx2_srst_st      : 1   ; /* [2]  */
+        unsigned int    hllc_rx3_srst_st      : 1   ; /* [3]  */
+        unsigned int    hllc_rx4_srst_st      : 1   ; /* [4]  */
+        unsigned int    hllc_rx5_srst_st      : 1   ; /* [5]  */
+        unsigned int    hllc_rx6_srst_st      : 1   ; /* [6]  */
+        unsigned int    hllc_rx7_srst_st      : 1   ; /* [7]  */
+        unsigned int    hllc_tx0_srst_st      : 1   ; /* [8]  */
+        unsigned int    hllc_tx1_srst_st      : 1   ; /* [9]  */
+        unsigned int    hllc_tx2_srst_st      : 1   ; /* [10]  */
+        unsigned int    hllc_tx3_srst_st      : 1   ; /* [11]  */
+        unsigned int    hllc_tx4_srst_st      : 1   ; /* [12]  */
+        unsigned int    hllc_tx5_srst_st      : 1   ; /* [13]  */
+        unsigned int    hllc_tx6_srst_st      : 1   ; /* [14]  */
+        unsigned int    hllc_tx7_srst_st      : 1   ; /* [15]  */
+        unsigned int    reserved_0            : 16  ; /* [31..16]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RXTX_RESET_ST_U;
+
+/* Define the union U_SC_PA_RESET_ST_U */
+/* PA¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A3C */
+typedef union tagScPaResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pa_srst_st            : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PA_RESET_ST_U;
+
+/* Define the union U_SC_HLLC_RESET_ST_U */
+/* HLLC¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A40 */
+typedef union tagScHllcResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    hllc_srst_st          : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_HLLC_RESET_ST_U;
+
+/* Define the union U_SC_DJTAG_RESET_ST_U */
+/* DJTAG¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A48 */
+typedef union tagScDjtagResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    djtag_srst_st         : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_RESET_ST_U;
+
+/* Define the union U_SC_RSA_RESET_ST_U */
+/* RSA¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A4C */
+typedef union tagScRsaResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    rsa_srst_st           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RSA_RESET_ST_U;
+
+/* Define the union U_SC_RDE_RESET_ST_U */
+/* RDE¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A50 */
+typedef union tagScRdeResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    rde_srst_st           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RDE_RESET_ST_U;
+
+/* Define the union U_SC_SEC_RESET_ST_U */
+/* SEC¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A54 */
+typedef union tagScSecResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    sec_srst_st           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_RESET_ST_U;
+
+/* Define the union U_SC_RNG_RESET_ST_U */
+/* RNG¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A58 */
+typedef union tagScRngResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    rng_srst_st           : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_RNG_RESET_ST_U;
+
+/* Define the union U_SC_SEC_BUILD_RESET_ST_U */
+/* SEC BUILD¸´Î»×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A5C */
+typedef union tagScSecBuildResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    sec_cluster0_srst_st  : 1   ; /* [0]  */
+        unsigned int    sec_cluster0_ahb_srst_st : 1   ; /* [1]  */
+        unsigned int    sec_build_srst_st0    : 1   ; /* [2]  */
+        unsigned int    sec_build_ahb_srst_st0 : 1   ; /* [3]  */
+        unsigned int    sec_build_srst_st1    : 1   ; /* [4]  */
+        unsigned int    sec_build_ahb_srst_st1 : 1   ; /* [5]  */
+        unsigned int    sec_build_srst_st2    : 1   ; /* [6]  */
+        unsigned int    sec_build_ahb_srst_st2 : 1   ; /* [7]  */
+        unsigned int    sec_build_srst_st3    : 1   ; /* [8]  */
+        unsigned int    sec_build_ahb_srst_st3 : 1   ; /* [9]  */
+        unsigned int    sec_cluster1_srst_st  : 1   ; /* [10]  */
+        unsigned int    sec_cluster1_ahb_srst_st : 1   ; /* [11]  */
+        unsigned int    sec_build_srst_st4    : 1   ; /* [12]  */
+        unsigned int    sec_build_ahb_srst_st4 : 1   ; /* [13]  */
+        unsigned int    sec_build_srst_st5    : 1   ; /* [14]  */
+        unsigned int    sec_build_ahb_srst_st5 : 1   ; /* [15]  */
+        unsigned int    sec_build_srst_st6    : 1   ; /* [16]  */
+        unsigned int    sec_build_ahb_srst_st6 : 1   ; /* [17]  */
+        unsigned int    sec_build_srst_st7    : 1   ; /* [18]  */
+        unsigned int    sec_build_ahb_srst_st7 : 1   ; /* [19]  */
+        unsigned int    sec_ahb_srst_st       : 1   ; /* [20]  */
+        unsigned int    reserved_0            : 11  ; /* [31..21]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_SEC_BUILD_RESET_ST_U;
+
+/* Define the union U_SC_PCS_LOCAL_RESET_ST_U */
+/* PCS LOCALÈí¸´Î»ÇëÇó×´Ì¬¼Ä´æÆ÷ */
+/* 0x5A60 */
+typedef union tagScPcsLocalResetSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    pcs_local_srst_st     : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_PCS_LOCAL_RESET_ST_U;
+
+/* Define the union U_SC_TSENSOR_ST_U */
+/* TSENSOR×´Ì¬¼Ä´æÆ÷ */
+/* 0x6040 */
+typedef union tagScTsensorSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    temp_out_tsensor      : 8   ; /* [7..0]  */
+        unsigned int    reserved_1            : 4   ; /* [11..8]  */
+        unsigned int    data_ready_tsensor    : 1   ; /* [12]  */
+        unsigned int    reserved_0            : 19  ; /* [31..13]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_TSENSOR_ST_U;
+
+/* Define the union U_SC_DJTAG_INT_U */
+/* DJTAG MasterÄÚ×´Ì¬»ú³¬Ê±ÖÐ¶ÏÔ´¼Ä´æÆ÷ */
+/* 0x6600 */
+typedef union tagScDjtagInt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    djtag_sta_timeout     : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_INT_U;
+
+/* Define the union U_SC_DBG_AUTH_CTRL_U */
+/* °²È«µÈ¼¶ÊÚÈ¨¿ØÖÆ¼Ä´æÆ÷¡£
+£¨×¢Òâ£º1£¬´Ë¼Ä´æÆ÷¿Õ¼ä±ØÐëÊÇ°²È«·ÃÎÊ²ÅÄÜ³É¹¦£»£© */
+/* 0x6700 */
+typedef union tagScDbgAuthCtrl
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    rsa_djtag_sec_acc_en  : 1   ; /* [0]  */
+        unsigned int    rsa_secure_cfg        : 1   ; /* [1]  */
+        unsigned int    reserved_0            : 30  ; /* [31..2]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DBG_AUTH_CTRL_U;
+
+/* Define the union U_SC_DJTAG_MSTR_EN_U */
+/* SC_DJTAG_MSTR_ENÎªDJTAG MasterÊ¹ÄÜ¿ØÖÆ */
+/* 0x6800 */
+typedef union tagScDjtagMstrEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    djtag_mstr_en         : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_MSTR_EN_U;
+
+/* Define the union U_SC_DJTAG_MSTR_START_EN_U */
+/* SC_DJTAG_MSTR_START_ENÎªDJTAG Master·ÃÎÊchainÁ´µÄstartÊ¹ÄÜ */
+/* 0x6804 */
+typedef union tagScDjtagMstrStartEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    djtag_mstr_start_en   : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_MSTR_START_EN_U;
+
+/* Define the union U_SC_DJTAG_SEC_ACC_EN_U */
+/* DJTAG·ÃÎÊ¸÷Ä£¿éÄÚ°²È«ÊÀ½ç¼Ä´æÆ÷µÄ°²È«·ÃÎÊ¿ØÖÆÊ¹ÄÜ¡££¨×¢Òâ£º1£¬´Ë¼Ä´æÆ÷¿Õ¼ä±ØÐëÊÇ°²È«·ÃÎÊ²ÅÄÜ³É¹¦¡££© */
+/* 0x6808 */
+typedef union tagScDjtagSecAccEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    djtag_sec_acc_en      : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_SEC_ACC_EN_U;
+
+/* Define the union U_SC_DJTAG_DEBUG_MODULE_SEL_U */
+/* SC_DJTAG_DEBUG_MODULE_SELÎªDJTAG MasterÅäÖÃ·ÃÎÊÄ£¿é¼Ä´æÆ÷ */
+/* 0x680C */
+typedef union tagScDjtagDebugModuleSel
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    debug_module_sel      : 6   ; /* [5..0]  */
+        unsigned int    reserved_0            : 26  ; /* [31..6]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_DEBUG_MODULE_SEL_U;
+
+/* Define the union U_SC_DJTAG_MSTR_WR_U */
+/* SC_DJTAG_MSTR_WRÎªDJTAG MasterµÄ¶ÁÐ´¿ØÖÆÐÅºÅ */
+/* 0x6810 */
+typedef union tagScDjtagMstrWr
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    djtag_mstr_wr         : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_MSTR_WR_U;
+
+/* Define the union U_SC_DJTAG_CHAIN_UNIT_CFG_EN_U */
+/* SC_DJTAG_CHAIN_UNIT_CFG_ENÎªDJTAG MasterµÄchainÁ´ÉÏµ¥ÔªµÄ·ÃÎÊÊ¹ÄÜ */
+/* 0x6814 */
+typedef union tagScDjtagChainUnitCfgEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    chain_unit_cfg_en     : 16  ; /* [15..0]  */
+        unsigned int    reserved_0            : 16  ; /* [31..16]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_CHAIN_UNIT_CFG_EN_U;
+
+/* Define the union U_SC_DJTAG_MSTR_ADDR_U */
+/* SC_DJTAG_MSTR_ADDRÎªDJTAG MasterÅäÖÃ·ÃÎÊÄ£¿éµÄÆ«ÒÆµØÖ·¼Ä´æÆ÷ */
+/* 0x6818 */
+typedef union tagScDjtagMstrAddr
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    djtag_mstr_addr       : 31  ; /* [30..0]  */
+        unsigned int    reserved_0            : 1   ; /* [31]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_MSTR_ADDR_U;
+
+/* Define the union U_SC_TDRE_OP_ADDR_U */
+/* SC_TDRE_OP_ADDRÎªDJTAG MasterÅäÖÃTDREÄ£¿éµÄÆ«ÒÆµØÖ·¼Ä´æÆ÷ºÍ²Ù×÷ÀàÐÍ¼Ä´æÆ÷ */
+/* 0x6824 */
+typedef union tagScTdreOpAddr
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    tdre_op_addr          : 18  ; /* [17..0]  */
+        unsigned int    reserved_0            : 14  ; /* [31..18]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_TDRE_OP_ADDR_U;
+
+/* Define the union U_SC_TDRE_REPAIR_EN_U */
+/* SC_TDRE_REPAIR_ENÎªDJTAG MasterµÄTDRE REPAIRÊ¹ÄÜ */
+/* 0x682C */
+typedef union tagScTdreRepairEn
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    tdre_repair_en        : 1   ; /* [0]  */
+        unsigned int    reserved_0            : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_TDRE_REPAIR_EN_U;
+
+/* Define the union U_SC_ECO_RSV0_U */
+/* ECO ¼Ä´æÆ÷0 */
+/* 0x8000 */
+typedef union tagScEcoRsv0
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    djtag_nor_cfg_en      : 1   ; /* [0]  */
+        unsigned int    eco_rsv0              : 31  ; /* [31..1]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_ECO_RSV0_U;
+
+/* Define the union U_SC_DJTAG_OP_ST_U */
+/* DJTAG·ÃÎÊ×´Ì¬¼Ä´æÆ÷ */
+/* 0xE828 */
+typedef union tagScDjtagOpSt
+{
+    /* Define the struct bits */
+    struct
+    {
+        unsigned int    unit_conflict         : 8   ; /* [7..0]  */
+        unsigned int    djtag_op_done         : 1   ; /* [8]  */
+        unsigned int    debug_bus_en          : 1   ; /* [9]  */
+        unsigned int    reserved_1            : 6   ; /* [15..10]  */
+        unsigned int    rdata_changed         : 10  ; /* [25..16]  */
+        unsigned int    reserved_0            : 6   ; /* [31..26]  */
+    } bits;
+
+    /* Define an unsigned member */
+    unsigned int    u32;
+
+} SC_DJTAG_OP_ST_U;
+
+
+#endif
+
+#endif // __ALG_SUB_REG_OFFSET_H__

@@ -156,8 +156,6 @@ do {									      \
 
 #include <linux/stddef.h>
 #include <linux/thread_info.h>
-extern int regs_query_register_offset(const char *name);
-extern const char *regs_query_register_name(unsigned int offset);
 #define MAX_REG_OFFSET (offsetof(struct pt_regs, dsisr))
 
 /**
@@ -175,42 +173,6 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
 	if (unlikely(offset > MAX_REG_OFFSET))
 		return 0;
 	return *(unsigned long *)((unsigned long)regs + offset);
-}
-
-/**
- * regs_within_kernel_stack() - check the address in the stack
- * @regs:      pt_regs which contains kernel stack pointer.
- * @addr:      address which is checked.
- *
- * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
- */
-
-static inline bool regs_within_kernel_stack(struct pt_regs *regs,
-						unsigned long addr)
-{
-	return ((addr & ~(THREAD_SIZE - 1))  ==
-		(kernel_stack_pointer(regs) & ~(THREAD_SIZE - 1)));
-}
-
-/**
- * regs_get_kernel_stack_nth() - get Nth entry of the stack
- * @regs:	pt_regs which contains kernel stack pointer.
- * @n:		stack entry number.
- *
- * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
- * is specified by @regs. If the @n th entry is NOT in the kernel stack,
- * this returns 0.
- */
-static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
-						      unsigned int n)
-{
-	unsigned long *addr = (unsigned long *)kernel_stack_pointer(regs);
-	addr += n;
-	if (regs_within_kernel_stack(regs, (unsigned long)addr))
-		return *addr;
-	else
-		return 0;
 }
 
 #endif /* __ASSEMBLY__ */

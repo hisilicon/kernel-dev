@@ -1,0 +1,31 @@
+/**
+ * dts file for Hisilicon PhosphorV660 EVB Board
+ *
+ * Copyright (C) 2014,2015 Hisilicon Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * publishhed by the Free Software Foundation.
+ *
+ */
+
+/dts-v1/;
+
+/memreserve/ 0x00000000 0x00010000;
+/include/ "hisi_p660_evb_32c.dtsi"
+
+/ {
+	model = "Hisilicon PhosphorV660 Development Board";
+	compatible = "hisilicon,hip05-d02", "hisilicon,hisi-pv660";
+
+	memory@00000000 {
+		device_type = "memory";
+		reg = <0x0 0x00000000 0x0 0x3c000000>;
+	};
+
+	chosen {
+		bootargs = "rdinit=/init console=ttyS0,115200 earlycon=uart8250,mmio32,0x60300000";
+		linux,initrd-start = <0x7000000>;
+		linux,initrd-end = <0x20000000>;
+	};
+};

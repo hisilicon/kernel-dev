@@ -1,0 +1,254 @@
+soc0: soc@000000000 {
+           #address-cells = <2>;
+           #size-cells = <2>;
+           device_type = "soc";
+           compatible = "simple-bus";
+           ranges = <0x0 0x0 0x0 0x0 0x1 0x0>;
+           chip-id = <0>;
+   
+           soc0_mdio0: mdio@803c0000 {
+                  #address-cells = <1>;
+                  #size-cells = <0>;
+                  compatible = "hisilicon,mdio";
+                  reg = <0x0 0x803c0000 0x0 0x10000>;
+                  irq-num = <9383>;
+  
+                 soc0_phy5: ethernet-phy@5 {
+                          reg = <0x1>;
+                          device_type = "ethernet-phy";
+                          compatible = "ethernet-phy-ieee802.3-c22";
+                  };
+          };
+  
+          soc0_dsa: dsa@c7000000 {
+                  compatible = "hisilicon,dsa";
+                  reg = <0x0 0xc7000000 0x0 0x40000>;
+                  interrupt-parent = <&mbigen_dsa>;
+                  interrupts = <131 4>, <132 4>,
+                               <133 4>, <134 4>,
+                               <135 4>, <136 4>,
+                               <137 4>, <138 4>,
+                               <139 4>, <140 4>,
+                               <141 4>, <142 4>,
+                               <143 4>, <144 4>,
+                               <145 4>, <146 4>,
+                               <147 4>, <148 4>;
+                  irq-num = <13059>;
+                  dsa-mode = <12>;
+                  cdev-no = <200>;
+                  m3-enable = <0>;
+          };
+  
+	soc0_mac0: ethernet-mac@c7040000 {
+		mac-index = <0>;
+		compatible = "hisilicon,mac-multi";
+		reg = <0x0 0xc7040000 0x0 0x4000
+		       0x0 0xc7020000 0x0 0x4000
+		       0x0 0xC0000000 0x0 0x10000
+		       0x0 0xC2200000 0x0 0x100000
+		       0x0 0x98000036 0x0 0x1>;
+		irq-num = <13077>;
+		phy-connection-type = "xgmii";
+		fixed-link = <16 1 10000 0 1>;
+	};
+	soc0_mac1: ethernet-mac@c7044000 {
+		mac-index = <1>;
+		compatible = "hisilicon,mac-multi";
+		reg = <0x0 0xc7044000 0x0 0x4000
+		       0x0 0xc7024000 0x0 0x4000
+		       0x0 0xC0000000 0x0 0x10000
+		       0x0 0xC2200000 0x0 0x100000
+		       0x0 0x98000038 0x0 0x1>;
+		irq-num = <13078>;
+		phy-connection-type = "xgmii";
+		fixed-link = <17 1 10000 0 1>;
+	};
+          soc0_mac5: ethernet-mac@c7054000 {
+                  mac-index = <5>;
+                  compatible = "hisilicon,mac-multi";
+                  reg = <0x0 0xc7054000 0x0 0x4000
+                          0x0 0xc7034000 0x0 0x4000
+                          0x0 0xC0000000 0x0 0x10000
+                          0x0 0xC2200000 0x0 0x100000>;
+                          irq-num = <13082>;
+                          phy-connection-type = "sgmii";
+                          phy-handle = <&soc0_phy5>;
+          };
+  
+          soc0_ppe0:ppe@c5070000 {
+                  #address-cells = <2>;
+                  #size-cells = <1>;
+                  compatible = "hisilicon,ppe-multi";
+                  ranges = <0x0 0x0 0x0 0x0 0xffffffff>;
+                  reg = <0x0 0xc5070000 0x0 0x10000>;
+                  ppe-common-index = <0>;
+		  soc0_ppe_group0:ppe-group@c5000000 {
+			compatible = "hisilicon,ppe-group";
+			reg = <0x0 0xc5000000 0x10000>;
+			irq-num = <12928>;
+			ppe-num = <1>;
+		  };
+  
+  	        soc0_ppe_group1:ppe-group@c5010000 {
+			compatible = "hisilicon,ppe-group";
+			reg = <0x0 0xc5010000 0x10000>;
+			irq-num = <12929>;
+			ppe-num = <1>;
+		};
+                  soc0_ppe_group5:ppe-group@c5050000 {   
+                            compatible = "hisilicon,ppe-group";
+                          reg = <0x0 0xc5050000 0x10000>;
+                          irq-num = <12933>;
+                          ppe-num = <1>;
+                  };
+          };
+  
+          soc0_rcb0:rcb@c5080000 {
+                  #address-cells = <2>;
+                  #size-cells = <1>;
+                  compatible = "hisilicon,rcb","hisilicon,rcb-multi";
+                  ranges = <0x0 0x0 0x0 0x0 0xffffffff>;
+                  reg = <0x0 0xc5080000 0x0 0x10000>;
+                  irq-num = <12934>;
+	
+	
+	
+	
+	soc0_rcb_group0:rcb-group@c5090000 {
+			compatible = "hisilicon,rcb-group";
+			reg = <0x0 0xc5090000 0x100000>;
+			interrupt-parent = <&mbigen_dsa>;
+			interrupts = <384 1>, <385 1>,
+                        		<386 1>, <387 1>,
+                                       <388 1>, <389 1>,
+                                       <390 1>, <391 1>,
+                                       <392 1>, <393 1>,
+                                       <394 1>, <395 1>,
+                                       <396 1>, <397 1>,
+                                       <398 1>, <399 1>,
+                                       <400 1>, <401 1>,
+                                       <402 1>, <403 1>,
+                                       <404 1>, <405 1>,
+                                       <406 1>, <407 1>,
+                                       <408 1>, <409 1>,
+                                       <410 1>, <411 1>,
+                                       <412 1>, <413 1>,
+                                       <414 1>, <415 1>;
+			irq-num = <13312>;
+			buf-size = <2048>;
+			desc-num = <1024>;
+		};
+		soc0_rcb_group1:rcb-group@c5190000 {
+			compatible = "hisilicon,rcb-group";
+			reg = <0x0 0xc5190000 0x100000>;
+			interrupt-parent = <&mbigen_dsa>;
+			interrupts = <416 1>, <417 1>,
+                        		<418 1>, <419 1>,
+                                       <420 1>, <421 1>,
+                                       <422 1>, <423 1>,
+                                       <424 1>, <425 1>,
+                                       <426 1>, <427 1>,
+                                       <428 1>, <429 1>,
+                                       <430 1>, <431 1>,
+                                       <432 1>, <433 1>,
+                                       <434 1>, <435 1>,
+                                       <436 1>, <437 1>,
+                                       <438 1>, <439 1>,
+                                       <440 1>, <441 1>,
+                                       <442 1>, <443 1>,
+                                       <444 1>, <445 1>,
+                                       <446 1>, <447 1>;
+			irq-num = <13344>;
+			buf-size = <2048>;
+			desc-num = <1024>;
+		};
+                  soc0_rcb_group5:rcb-group@c5590000 {
+                          compatible = "hisilicon,rcb-group";
+                          reg = <0x0 0xc5590000 0x100000>;
+                          interrupt-parent = <&mbigen_dsa>;
+                          interrupts = <544 1>, <545 1>,
+                                       <546 1>, <547 1>,
+                                       <548 1>, <549 1>,
+                                       <550 1>, <551 1>,
+                                       <552 1>, <553 1>,
+                                       <554 1>, <555 1>,
+                                       <556 1>, <557 1>,
+                                       <558 1>, <559 1>,
+                                       <560 1>, <561 1>,
+                                       <562 1>, <563 1>,
+                                       <564 1>, <565 1>,
+                                       <566 1>, <567 1>,
+                                       <568 1>, <569 1>,
+                                       <570 1>, <571 1>,
+                                       <572 1>, <573 1>,
+                                       <574 1>, <575 1>;
+                          irq-num = <13472>;
+                          buf-size = <2048>;
+                          desc-num = <1024>;
+                 };
+         };
+ 
+	soc_nic0:ethernet@0 {
+		compatible = "hisilicon,soc-dsa-nic";
+		mac-handle = <&soc0_mac0>;
+		nic-id = <0>;
+		ppe-group-handle = <&soc0_ppe_group0>;
+		rcb-group-handle = <&soc0_rcb_group0>;
+		local-mac-address = [00 00 00 01 00 5A];
+		dma-coherent;
+	};
+	
+	soc_nic1:ethernet@1 {
+		compatible = "hisilicon,soc-dsa-nic";
+		mac-handle = <&soc0_mac1>;
+		nic-id = <1>;
+		ppe-group-handle = <&soc0_ppe_group1>;
+		rcb-group-handle = <&soc0_rcb_group1>;
+		local-mac-address = [00 00 00 01 00 5B];
+		dma-coherent;
+	};
+        ethernet@5 {
+                 compatible = "hisilicon,soc-dsa-nic";
+                 mac-handle = <&soc0_mac5>;
+                 nic-id = <5>;
+                 ppe-group-handle = <&soc0_ppe_group5>;
+                 rcb-group-handle = <&soc0_rcb_group5>;
+                 local-mac-address = [00 00 00 01 00 5F];
+                         /* bus_id,  chip_addr,  sub_addr*/
+                 iic-ctl-eeprom-addr = <0x00 0x51 0xc1e>;
+                 dma-coherent;
+         };        
+         rocee@0xc4000000 {
+        	compatible = "hisilicon,roce";
+        	reg = <0x0 0xc4000000 0x0 0x100000>;
+        	nic-handle = <&soc_nic0 &soc_nic1>;
+		interrupt-parent = <&mbigen_dsa>;
+	        interrupts = <64 1>, <65 1>,
+	                     <66 1>, <67 1>,
+	                     <68 1>, <69 1>,
+	                     <70 1>, <71 1>,
+	                     <72 1>, <73 1>,
+	                     <74 1>, <75 1>,
+	                     <76 1>, <77 1>,
+	                     <78 1>, <79 1>,
+	                     <80 1>, <81 1>,
+	                     <82 1>, <83 1>,
+	                     <84 1>, <85 1>,
+	                     <86 1>, <87 1>,
+	                     <88 1>, <89 1>,
+	                     <90 1>, <91 1>,
+	                     <92 1>, <93 1>,
+	                     <94 1>, <95 1>,
+	 		     <96 1>;
+	 
+	        irq-num = <12992>;
+	        cmd-mode = <0>;			/* 0: polling; 1: event */
+	        sdb-ext-mode = <1>;		/* 0: polling; 1: event */
+	        sdb-evt-mode = <1>;		/* 0: normal; 1: extend */
+	        odb-ext-mode = <1>;		/* 0: polling; 1: event */
+	        odb-evt-mode = <1>;		/* 0: normal; 1: extend */
+	        lp-indicator = <1>;
+		dma-coherent;
+    	};  
+};
+                                                                

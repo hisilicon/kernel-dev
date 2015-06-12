@@ -21,8 +21,8 @@
 
 #include "irq-gic-common.h"
 
-int gic_configure_irq(unsigned int irq, unsigned int type,
-		       void __iomem *base, void (*sync_access)(void))
+int gic_configure_irq(unsigned int irq, unsigned int type, void __iomem *base,
+		       void (*sync_access)(void __iomem *))
 {
 	u32 enablemask = 1 << (irq % 32);
 	u32 enableoff = (irq / 32) * 4;
@@ -49,7 +49,7 @@ int gic_configure_irq(unsigned int irq, unsigned int type,
 	if (readl_relaxed(base + GIC_DIST_ENABLE_SET + enableoff) & enablemask) {
 		writel_relaxed(enablemask, base + GIC_DIST_ENABLE_CLEAR + enableoff);
 		if (sync_access)
-			sync_access();
+			sync_access(base);
 		enabled = true;
 	}
 
@@ -66,13 +66,13 @@ int gic_configure_irq(unsigned int irq, unsigned int type,
 		writel_relaxed(enablemask, base + GIC_DIST_ENABLE_SET + enableoff);
 
 	if (sync_access)
-		sync_access();
+		sync_access(base);
 
 	return ret;
 }
 
 void __init gic_dist_config(void __iomem *base, int gic_irqs,
-			    void (*sync_access)(void))
+			    void (*sync_access)(void __iomem *))
 {
 	unsigned int i;
 
@@ -98,10 +98,10 @@ void __init gic_dist_config(void __iomem *base, int gic_irqs,
 					base + GIC_DIST_ENABLE_CLEAR + i / 8);
 
 	if (sync_access)
-		sync_access();
+		sync_access(base);
 }
 
-void gic_cpu_config(void __iomem *base, void (*sync_access)(void))
+void gic_cpu_config(void __iomem *base, void (*sync_access)(void __iomem *))
 {
 	int i;
 
@@ -120,5 +120,5 @@ void gic_cpu_config(void __iomem *base, void (*sync_access)(void))
 					base + GIC_DIST_PRI + i * 4 / 4);
 
 	if (sync_access)
-		sync_access();
+		sync_access(base);
 }

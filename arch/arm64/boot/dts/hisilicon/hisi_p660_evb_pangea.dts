@@ -1,0 +1,465 @@
+/**
+ * dts file for Hisilicon PhosphorV660 Board
+ *
+ * Copyright (C) 2014, Hisilicon Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * publishhed by the Free Software Foundation.
+ *
+ */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	model = "Hisilicon PhosphorV660 Development Board @ 2.10GHz";
+	compatible = "hisilicon,hip05-D02", "hisilicon,hisi-pv660";
+	interrupt-parent = <&gic0>;
+
+	psci {
+		compatible = "arm,psci-0.2";
+		method = "smc";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@20000 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20000>;
+			enable-method = "psci";
+		};
+
+		cpu@20001 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20001>;
+			enable-method = "psci";
+		};
+
+		cpu@20002 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20002>;
+			enable-method = "psci";
+		};
+
+		cpu@20003 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20003>;
+			enable-method = "psci";
+		};
+
+		cpu@20100 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20100>;
+			enable-method = "psci";
+		};
+
+		cpu@20101 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20101>;
+			enable-method = "psci";
+		};
+
+		cpu@20102 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20102>;
+			enable-method = "psci";
+		};
+
+		cpu@20103 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20103>;
+			enable-method = "psci";
+		};
+
+		cpu@20200 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20200>;
+			enable-method = "psci";
+		};
+
+		cpu@20201 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20201>;
+			enable-method = "psci";
+		};
+
+		cpu@20202 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20202>;
+			enable-method = "psci";
+		};
+
+		cpu@20203 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20203>;
+			enable-method = "psci";
+		};
+
+		cpu@20300 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20300>;
+			enable-method = "psci";
+		};
+
+		cpu@20301 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20301>;
+			enable-method = "psci";
+		};
+
+		cpu@20302 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20302>;
+			enable-method = "psci";
+		};
+
+		cpu@20303 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20303>;
+			enable-method = "psci";
+		};
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x00000000 0x0 0x80000000>,
+		      <0x10 0x80000000 0x1 0x80000000>;
+	};
+
+	gic0: interrupt-controller@8d000000 {
+		compatible = "hisilicon,gic-v3";
+		#interrupt-cells = <3>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		interrupt-controller;
+		#redistributor-regions = <1>;
+		redistributor-stride = <0x0 0x30000>;
+		reg = <0x0 0x8d000000 0x0 0x10000>,	/* GICD */
+		      <0x0 0x8d100000 0x0 0x300000>,	/* GICR c*/
+		      <0x0 0xfe000000 0x0 0x10000>,	/* GICC */
+		      <0x0 0xfe010000 0x0 0x10000>,     /* GICH */
+		      <0x0 0xfe020000 0x0 0x10000>;     /* GICV */
+		interrupts = <1 9 0xff04>;
+
+		its_pc: interrupt-controller@8c000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0x8c000000 0x0 0x1000000>;
+		};
+
+		its_dsa: interrupt-controller@c6000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0xc6000000 0x0 0x1000000>;
+		};
+
+		algsub: its-alg@d3000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0xd3000000 0x0 0x1000000>;
+		};
+
+		its_m3: interrupt-controller@a3000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0xa3000000 0x0 0x1000000>;
+		};
+
+		its_pcie: interrupt-controller@b7000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0xb7000000 0x0 0x1000000>;
+		};
+	};
+
+	smmu_peri_c {
+		compatible = "hisilicon,smmu-v1";
+		reg = <0x0 0x80040000 0x0 0x1000>;
+		#global-interrupts = <1>;
+		interrupts = <0 316 4>,
+			     <0 316 4>;
+		smmu-cb-memtype = <0 1>;
+		smmu-bypass-vmid = <0xff>;
+	};
+
+	smmu_dsa {
+		compatible = "hisilicon,smmu-v1";
+		interrupt-parent = <&mbigen_m3>;
+		reg = <0x0 0xc0040000 0x0 0x1000>;
+		#global-interrupts = <1>;
+		interrupts = <69 4>,
+			     <69 4>;
+		smmu-cb-memtype = <0 1>;
+		smmu-bypass-vmid = <0xff>;
+	};
+
+	smmu_m3 {
+		compatible = "hisilicon,smmu-v1";
+		interrupt-parent = <&mbigen_m3>;
+		reg = <0x0 0xa0040000 0x0 0x1000>;
+		#global-interrupts = <1>;
+		interrupts = <65 1>,
+			     <65 1>;
+		smmu-cb-memtype = <0 1>;
+		smmu-bypass-vmid = <0xff>;
+	};
+
+	smmu_pcie {
+		compatible = "hisilicon,smmu-v1";
+		interrupt-parent = <&mbigen_m3>;
+		reg = <0x0 0xb0040000 0x0 0x1000>;
+		#global-interrupts = <1>;
+		interrupts = <71 1>,
+			     <71 1>;
+		smmu-cb-memtype = <0 1>,
+				  <1 2>;
+		smmu-bypass-vmid = <0xff>;
+	};
+
+
+	smmu_alg {
+		compatible = "hisilicon,smmu-v1";
+		interrupt-parent = <&mbigen_m3>;
+		reg = <0x0 0xd0040000 0x0 0x1000>;
+		#global-interrupts = <1>;
+		interrupts = <67 1>,
+			     <67 1>;
+		smmu-cb-memtype = <0 1>;
+		smmu-bypass-vmid = <0xff>;
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <1 13 0xff08>,
+			     <1 14 0xff08>,
+			     <1 11 0xff08>,
+			     <1 10 0xff08>;
+		clock-frequency = <50000000>;
+	};
+
+	sas: sas@b1000000 {
+		compatible = "pv660, sas_controller";
+		reg = <0 0xb1000000 0 0x10000>,
+		      <0 0xc1000000 0 0x10000>;
+		dma-coherent;
+	};
+
+	mdio {
+		compatible = "hisilicon, hip05-mdio";
+		reg = <0x0 0x803c0000 0x0 0x1000>;
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+
+		phy0: ethernet-phy@0 {
+			compatile = "ethernet-phy-ieee802.3-c22";
+			reg = <0x0>;
+			max-speed = <100>;
+		};
+
+		phy2: ethernet-phy@2 {
+			compatile = "ethernet-phy-ieee802.3-c22";
+			reg = <0x2>;
+			max-speed = <100>;
+		};
+	};
+
+	ppe0: ppe@c2000000 {
+		compatible = "hisilicon, hip05-ppe", "syscon";
+		reg = <0 0xc2000000 0 0x1000>;
+	};
+
+	ge0: ge@c2001000 {
+		compatible = "hisilicon, hip05-ge", "syscon";
+		reg = <0 0xc2001000 0 0x1000>;
+	};
+
+	ppe1: ppe@c2100000 {
+		compatible = "hisilicon, hip05-ppe", "syscon";
+		reg = <0 0xc2100000 0 0x1000>;
+	};
+
+	ge1: ge@c2101000 {
+		compatible = "hisilicon, hip05-ge", "syscon";
+		reg = <0 0xc2101000 0 0x1000>;
+	};
+
+	gmac0: ethernet@c2000000 {
+		compatible = "hisilicon, hip05-mac";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupt-parent = <&mbigen_dsa>;
+		reg = <0 0xc2080000 0 0x20000>,
+		      <0 0xc0000000 0 0x1000>;
+		interrupts = <15 1>, /* rx irq */
+			     <14 1>; /* tx irq */
+		phy-mode = "sgmii";
+		mac-address = [11 11 11 11 11 11];
+		phy-handle = <&phy0>;
+		ppe-handle = <&ppe0 0>;
+		ge-handle = <&ge0 100 1>;
+		dma-coherent;
+	};
+
+	gmac1: ethernet@c2100000 {
+		compatible = "hisilicon, hip05-mac";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupt-parent = <&mbigen_dsa>;
+		reg = <0 0xc2180000 0 0x30000>,
+		      <0 0xc0000000 0 0x1000>;
+			interrupts = <21 1>, /* rx irq */
+				     <20 1>; /* tx irq */
+		phy-mode = "sgmii";
+		mac-address = [11 11 11 11 11 11];
+		phy-handle = <&phy2>;
+		dma-coherent;
+		ppe-handle = <&ppe1 0>;
+		ge-handle = <&ge1 100 1>;
+	};
+
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <1 7 4>;
+	};
+
+	hipv660-cpufreq {
+		compatible = "hisilicon,hip-cpufreq";
+		reg = <0x0 0x80010000 0x0 0x10000>,
+		      <0x0 0xe0000000 0x0 0x10000>;
+	};
+
+	peripherals {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x00000000 0x0 0xffffffff>;
+
+		refclk100mhz: refclk100mhz {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <200000000>;
+		};
+
+		refclk175mhz: refclk175mhz {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <175000000>;
+		};
+
+		serial0: uart@80300000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x80300000 0x10000>;
+			interrupts = <0 317 4>;
+			clocks = <&refclk100mhz>;
+			clock-names = "apb_pclk";
+			reg-shift = <2>;
+		};
+
+		cpld@98000000 {
+			compatible = "hisilicon,p660-cpld";
+			reg = <0x98000000 0x100>;
+			rb-wp-key-val = /bits/ 8 <0xd 0x8>;
+			reboot-key-val = /bits/ 8 <0xe 0x8>;
+		};
+
+		sata@b1002800 {
+			compatible = "hisilicon,p660-ahci";
+			interrupt-parent = <&mbigen_pcie>;
+			reg = <0xb1002800 0x10000>,
+			      <0xb1000000 0x10000>;
+			interrupts = <382 4>;
+			dma-coherent;
+		};
+
+
+		m3_i2c0: i2c@a00e0000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			interrupt-parent = <&mbigen_m3>;
+			reg = <0xa00e0000 0x10000>;
+			interrupts = <8 1>;
+			clocks = <&refclk175mhz>;
+			clock-frequency = <400000>;
+
+			rtc0: ds3231@68 {
+				compatible = "maxim,ds3231";
+				reg = <0x68>;
+			};
+
+		};
+
+		mbigen_pc: interrupt-controller@6c030000 {
+			compatible = "hisilicon,mbi-gen";
+			msi-parent = <&its_pc>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0x6c030000 0x10000>;
+		};
+
+		mbigen_dsa: interrupt-controller@c6030000 {
+			compatible = "hisilicon,mbi-gen";
+			msi-parent = <&its_dsa>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0xc6030000 0x10000>;
+		};
+		mbigen_m3: interrupt-controller@a3030000 {
+			compatible = "hisilicon,mbi-gen";
+			msi-parent = <&its_m3>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0xa3030000 0x10000>;
+		};
+
+		mbigen_pcie: interrupt-controller@b7030000 {
+			compatible = "hisilicon,mbi-gen";
+			msi-parent = <&its_pcie>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0xb7030000 0x10000>;
+		};
+
+
+
+/*
+		wdt0@801e0000 {
+			compatible = "arm,sp805", "arm,primecell";
+			arm,primecell-periphid = <0x00141805>;
+			reg = <0x801e0000 0x10000>;
+			interrupts = <0 128 4>;
+			clocks = <&refclk100mhz>;
+			clock-names = "apb_pclk";
+		};
+*/
+	};
+
+	chosen {
+		/* bootargs = "console=ttyS0,115200 earlycon=uart8250,mmio32,0x80300000 initrd=0x7000000,0x12c00000 root=/dev/nfs nfsroot=192.168.10.67:/opt/nfsroot/ rw ip=192.168.10.171 "; */
+		bootargs = "rdinit=/init console=ttyS0,115200 earlycon=uart8250,mmio32,0x80300000 pci=pcie_bus_perf";
+		linux,initrd-start = <0x7000000>;
+		linux,initrd-end = <0x20000000>;
+
+	};
+};

@@ -276,7 +276,7 @@ static int dspregs_active(struct task_struct *target,
 }
 #endif
 
-const struct pt_regs_offset regoffset_table[] = {
+const struct pt_regs_offset regs_offset_table[] = {
 	REGS_OFFSET_NAME(0),
 	REGS_OFFSET_NAME(1),
 	REGS_OFFSET_NAME(2),

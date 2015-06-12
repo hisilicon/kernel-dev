@@ -48,6 +48,83 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
 
+#define ARM_pstate	pstate
+#define ARM_pc		pc
+#define ARM_sp		sp
+#define ARM_x30		regs[30]
+#define ARM_x29		regs[29]
+#define ARM_x28		regs[28]
+#define ARM_x27		regs[27]
+#define ARM_x26		regs[26]
+#define ARM_x25		regs[25]
+#define ARM_x24		regs[24]
+#define ARM_x23		regs[23]
+#define ARM_x22		regs[22]
+#define ARM_x21		regs[21]
+#define ARM_x20		regs[20]
+#define ARM_x19		regs[19]
+#define ARM_x18		regs[18]
+#define ARM_x17		regs[17]
+#define ARM_x16		regs[16]
+#define ARM_x15		regs[15]
+#define ARM_x14		regs[14]
+#define ARM_x13		regs[13]
+#define ARM_x12		regs[12]
+#define ARM_x11		regs[11]
+#define ARM_x10		regs[10]
+#define ARM_x9		regs[9]
+#define ARM_x8		regs[8]
+#define ARM_x7		regs[7]
+#define ARM_x6		regs[6]
+#define ARM_x5		regs[5]
+#define ARM_x4		regs[4]
+#define ARM_x3		regs[3]
+#define ARM_x2		regs[2]
+#define ARM_x1		regs[1]
+#define ARM_x0		regs[0]
+
+#define REG_OFFSET_NAME(r) \
+	{.name = #r, .offset = offsetof(struct pt_regs, ARM_##r)}
+#define REG_OFFSET_END {.name = NULL, .offset = 0}
+
+const struct pt_regs_offset regs_offset_table[] = {
+	REG_OFFSET_NAME(x0),
+	REG_OFFSET_NAME(x1),
+	REG_OFFSET_NAME(x2),
+	REG_OFFSET_NAME(x3),
+	REG_OFFSET_NAME(x4),
+	REG_OFFSET_NAME(x5),
+	REG_OFFSET_NAME(x6),
+	REG_OFFSET_NAME(x7),
+	REG_OFFSET_NAME(x8),
+	REG_OFFSET_NAME(x9),
+	REG_OFFSET_NAME(x10),
+	REG_OFFSET_NAME(x11),
+	REG_OFFSET_NAME(x12),
+	REG_OFFSET_NAME(x13),
+	REG_OFFSET_NAME(x14),
+	REG_OFFSET_NAME(x15),
+	REG_OFFSET_NAME(x16),
+	REG_OFFSET_NAME(x17),
+	REG_OFFSET_NAME(x18),
+	REG_OFFSET_NAME(x19),
+	REG_OFFSET_NAME(x20),
+	REG_OFFSET_NAME(x21),
+	REG_OFFSET_NAME(x22),
+	REG_OFFSET_NAME(x23),
+	REG_OFFSET_NAME(x24),
+	REG_OFFSET_NAME(x25),
+	REG_OFFSET_NAME(x26),
+	REG_OFFSET_NAME(x27),
+	REG_OFFSET_NAME(x28),
+	REG_OFFSET_NAME(x29),
+	REG_OFFSET_NAME(x30),
+	REG_OFFSET_NAME(sp),
+	REG_OFFSET_NAME(pc),
+	REG_OFFSET_NAME(pstate),
+	REG_OFFSET_END,
+};
+
 /*
  * TODO: does not yet catch signals sent when the child dies.
  * in exit.c or in signal.c.

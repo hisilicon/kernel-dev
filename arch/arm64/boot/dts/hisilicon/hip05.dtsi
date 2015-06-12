@@ -1,0 +1,489 @@
+/**
+ * dts file for Hisilicon PhosphorV660 Hip05 Soc
+ *
+ * Copyright (C) 2014,2015 Hisilicon Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * publishhed by the Free Software Foundation.
+ *
+ */
+
+/ {
+	compatible = "hisilicon,hip05-d02", "hisilicon,hisi-pv660";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		i2c0	= &m3_i2c0;
+		i2c1	= &m3_i2c1;
+		i2c2	= &m3_i2c2;
+		i2c3	= &pc_i2c0;
+		i2c4	= &pc_i2c1;
+	};
+
+	psci {
+		compatible = "arm,psci-0.2";
+		method = "smc";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@20000 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20000>;
+			enable-method = "psci";
+		};
+
+		cpu@20001 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20001>;
+			enable-method = "psci";
+		};
+
+		cpu@20002 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20002>;
+			enable-method = "psci";
+		};
+
+		cpu@20003 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20003>;
+			enable-method = "psci";
+		};
+
+		cpu@20100 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20100>;
+			enable-method = "psci";
+		};
+
+		cpu@20101 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20101>;
+			enable-method = "psci";
+		};
+
+		cpu@20102 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20102>;
+			enable-method = "psci";
+		};
+
+		cpu@20103 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20103>;
+			enable-method = "psci";
+		};
+
+		cpu@20200 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20200>;
+			enable-method = "psci";
+		};
+
+		cpu@20201 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20201>;
+			enable-method = "psci";
+		};
+
+		cpu@20202 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20202>;
+			enable-method = "psci";
+		};
+
+		cpu@20203 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20203>;
+			enable-method = "psci";
+		};
+
+		cpu@20300 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20300>;
+			enable-method = "psci";
+		};
+
+		cpu@20301 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20301>;
+			enable-method = "psci";
+		};
+
+		cpu@20302 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20302>;
+			enable-method = "psci";
+		};
+
+		cpu@20303 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20303>;
+			enable-method = "psci";
+		};
+	};
+
+	gic: interrupt-controller@8d000000 {
+		compatible = "hisilicon,gic-v3";
+                #interrupt-cells = <3>;
+                #address-cells = <2>;
+                #size-cells = <2>;
+                ranges;
+                interrupt-controller;
+                #redistributor-regions = <1>;
+                redistributor-stride = <0x0 0x30000>;
+		reg = <0x0 0x8d000000 0 0x10000>,	/* GICD */
+		      <0x0 0x8d100000 0 0x300000>,	/* GICR c */
+		      <0x0 0xfe000000 0 0x10000>,	/* GICC */
+		      <0x0 0xfe010000 0 0x10000>,       /* GICH */
+		      <0x0 0xfe020000 0 0x10000>;       /* GICV */
+		interrupts = <1 9 0xff04>;
+
+		its_pc: interrupt-controller@8c000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0x8c000000 0x0 0x1000000>;
+		};
+
+		its_dsa: interrupt-controller@c6000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0xc6000000 0x0 0x1000000>;
+		};
+
+		its_m3: interrupt-controller@a3000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0xa3000000 0x0 0x1000000>;
+		};
+
+		its_pcie: interrupt-controller@b7000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0xb7000000 0x0 0x1000000>;
+		};
+	};
+
+	smmu_pc@80040000 {
+		compatible = "hisilicon,smmu-v1";
+		reg = <0x0 0x80040000 0x0 0x1000>;
+		#global-interrupts = <1>;
+		interrupts = <0 316 4>,
+			     <0 316 4>;
+		smmu-cb-memtype = <0 1>;
+		smmu-bypass-vmid = <0xff>;
+	};
+
+	smmu_dsa@c0040000 {
+		compatible = "hisilicon,smmu-v1";
+		interrupt-parent = <&mbigen_m3>;
+		reg = <0x0 0xc0040000 0x0 0x1000>;
+		#global-interrupts = <1>;
+		interrupts = <69 4>,
+			     <69 4>;
+		smmu-cb-memtype = <0 1>;
+		smmu-bypass-vmid = <0xff>;
+	};
+
+	smmu_m3@a0040000 {
+		compatible = "hisilicon,smmu-v1";
+		interrupt-parent = <&mbigen_m3>;
+		reg = <0x0 0xa0040000 0x0 0x1000>;
+		#global-interrupts = <1>;
+		interrupts = <65 1>,
+			     <65 1>;
+		smmu-cb-memtype = <0 1>;
+		smmu-bypass-vmid = <0xff>;
+	};
+
+	smmu_pcie@b0040000 {
+		compatible = "hisilicon,smmu-v1";
+		interrupt-parent = <&mbigen_m3>;
+		reg = <0x0 0xb0040000 0x0 0x1000>;
+		#global-interrupts = <1>;
+		interrupts = <71 1>,
+			     <71 1>;
+		smmu-cb-memtype = <0 1>, <1 2>;
+		smmu-bypass-vmid = <0xff>;
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <1 13 4>,
+			     <1 14 4>;
+			  /*   <1 11 4>,*/
+			    /* <1 10 4>;*/
+	};
+
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <1 7 4>;
+	};
+
+	peripherals {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x00000000 0x0 0xffffffff>;
+
+		peri_clk: peri_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <200000000>;
+		};
+
+		m3_clk: m3_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <175000000>;
+		};
+
+		mbigen_pc: interrupt-controller@8c030000 {
+			compatible = "hisilicon,mbi-gen";
+			msi-parent = <&its_pc>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0x8c030000 0x10000>;
+		};
+
+		mbigen_dsa: interrupt-controller@c6030000 {
+			compatible = "hisilicon,mbi-gen";
+			msi-parent = <&its_dsa>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0xc6030000 0x10000>;
+		};
+
+		mbigen_m3: interrupt-controller@a3030000 {
+			compatible = "hisilicon,mbi-gen";
+			msi-parent = <&its_m3>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0xa3030000 0x10000>;
+		};
+
+		mbigen_pcie: interrupt-controller@b7030000 {
+			compatible = "hisilicon,mbi-gen";
+			msi-parent = <&its_pcie>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0xb7030000 0x10000>;
+		};
+
+		cpld@98000000 {
+			compatible = "hisilicon,p660-cpld";
+			reg = <0x98000000 0x100>;
+		};
+
+		uart0: uart@80300000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x80300000 0x10000>;
+			interrupts = <0 317 4>;
+			clocks = <&peri_clk>;
+			clock-names = "apb_pclk";
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		uart1: uart@80310000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x80310000 0x10000>;
+			interrupts = <0 318 4>;
+			clocks = <&peri_clk>;
+			clock-names = "apb_pclk";
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		usb0: ehci@a1000000 {
+			compatible = "generic-ehci";
+			interrupt-parent = <&mbigen_m3>;
+			reg = <0xa1000000 0x10000>;
+			interrupts = <20 4>;
+			dma-coherent;
+		};
+
+		usb1: ohci@a1010000 {
+			compatible = "generic-ohci";
+			interrupt-parent = <&mbigen_m3>;
+			reg = <0xa1010000 0x10000>;
+			interrupts = <19 4>;
+			dma-coherent;
+		};
+
+		ahci0: sata@b1002800 {
+			compatible = "hisilicon,p660-ahci";
+			interrupt-parent = <&mbigen_pcie>;
+			reg = <0xb1002800 0x10000>,
+			      <0xb1000000 0x10000>;
+			interrupts = <382 4>;
+			dma-coherent;
+			status = "disabled";
+		};
+
+		dsa_sas: sas@0xc1000000 {
+			compatible = "hisilicon,p660-sas";
+			interrupt-parent = <&mbigen_dsa>;
+			controller-id = <0>;
+			hilink-type = "dsaf";
+			reg = <0xc1000000 0x10000>;
+			interrupts = <256 4>, <257 4>,<258 4>,<259 4>,<260 4>,<261 4>,<262 4>,<263 4>,<264 4>,<265 4>,/* phy irq(0~79) */
+						 <266 4>, <267 4>,<268 4>,<269 4>,<270 4>,<271 4>,<272 4>,<273 4>,<274 4>,<275 4>,/* phy irq(0~79) */
+						 <276 4>, <277 4>,<278 4>,<279 4>,<280 4>,<281 4>,<282 4>,<283 4>,<284 4>,<285 4>,/* phy irq(0~79) */
+						 <286 4>, <287 4>,<288 4>,<289 4>,<290 4>,<291 4>,<292 4>,<293 4>,<294 4>,<295 4>,/* phy irq(0~79) */
+						 <296 4>, <297 4>,<298 4>,<299 4>,<300 4>,<301 4>,<302 4>,<303 4>,<304 4>,<305 4>,/* phy irq(0~79) */
+						 <306 4>, <307 4>,<308 4>,<309 4>,<310 4>,<311 4>,<312 4>,<313 4>,<314 4>,<315 4>,/* phy irq(0~79) */
+						 <316 4>, <317 4>,<318 4>,<319 4>,<320 4>,<321 4>,<322 4>,<323 4>,<324 4>,<325 4>,/* phy irq(0~79) */
+						 <326 4>, <327 4>,<328 4>,<329 4>,<330 4>,<331 4>,<332 4>,<333 4>,<334 4>,<335 4>,/* phy irq(0~79) */
+						<336 1>, <337 1>,<338 1>,<339 1>,<340 1>,<341 1>,<342 1>,<343 1>,/* cq irq (80~111) */
+						<344 1>, <345 1>,<346 1>,<347 1>,<348 1>,<349 1>,<350 1>,<351 1>,/* cq irq (80~111) */
+						<352 1>, <353 1>,<354 1>,<355 1>,<356 1>,<357 1>,<358 1>,<359 1>,/* cq irq (80~111) */
+						<360 1>, <361 1>,<362 1>,<363 1>,<364 1>,<365 1>,<366 1>,<367 1>,/* cq irq (80~111) */
+						<376 4>, /* chip fatal error irq(120) */
+						<381 4>; /* chip fatal error irq(125) */
+			dma-coherent;
+			status = "disabled";
+		};
+
+		pcie_sas: sas@0xb1000000 {
+			compatible = "hisilicon,p660-sas";
+			interrupt-parent = <&mbigen_pcie>;
+			controller-id = <1>;
+			hilink-type = "pcie";
+			reg = <0xb1000000 0x10000>;
+			interrupts = <256 4>, <257 4>,<258 4>,<259 4>,<260 4>,<261 4>,<262 4>,<263 4>,<264 4>,<265 4>,/* phy irq(0~79) */
+						 <266 4>, <267 4>,<268 4>,<269 4>,<270 4>,<271 4>,<272 4>,<273 4>,<274 4>,<275 4>,/* phy irq(0~79) */
+						 <276 4>, <277 4>,<278 4>,<279 4>,<280 4>,<281 4>,<282 4>,<283 4>,<284 4>,<285 4>,/* phy irq(0~79) */
+						 <286 4>, <287 4>,<288 4>,<289 4>,<290 4>,<291 4>,<292 4>,<293 4>,<294 4>,<295 4>,/* phy irq(0~79) */
+						 <296 4>, <297 4>,<298 4>,<299 4>,<300 4>,<301 4>,<302 4>,<303 4>,<304 4>,<305 4>,/* phy irq(0~79) */
+						 <306 4>, <307 4>,<308 4>,<309 4>,<310 4>,<311 4>,<312 4>,<313 4>,<314 4>,<315 4>,/* phy irq(0~79) */
+						 <316 4>, <317 4>,<318 4>,<319 4>,<320 4>,<321 4>,<322 4>,<323 4>,<324 4>,<325 4>,/* phy irq(0~79) */
+						 <326 4>, <327 4>,<328 4>,<329 4>,<330 4>,<331 4>,<332 4>,<333 4>,<334 4>,<335 4>,/* phy irq(0~79) */
+						<336 1>, <337 1>,<338 1>,<339 1>,<340 1>,<341 1>,<342 1>,<343 1>,/* cq irq (80~111) */
+						<344 1>, <345 1>,<346 1>,<347 1>,<348 1>,<349 1>,<350 1>,<351 1>,/* cq irq (80~111) */
+						<352 1>, <353 1>,<354 1>,<355 1>,<356 1>,<357 1>,<358 1>,<359 1>,/* cq irq (80~111) */
+						<360 1>, <361 1>,<362 1>,<363 1>,<364 1>,<365 1>,<366 1>,<367 1>,/* cq irq (80~111) */
+						<376 4>, /* chip fatal error irq(120) */
+						<381 4>; /* chip fatal error irq(125) */
+			dma-coherent;
+			status = "disabled";
+		};
+
+		m3_i2c0: i2c@a00e0000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			interrupt-parent = <&mbigen_m3>;
+			reg = <0xa00e0000 0x10000>;
+			interrupts = <8 1>;
+			clocks = <&m3_clk>;
+			status = "disabled";
+		};
+
+		m3_i2c1: i2c@a00f0000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			interrupt-parent = <&mbigen_m3>;
+			reg = <0xa00f0000 0x10000>;
+			interrupts = <9 1>;
+			clocks = <&m3_clk>;
+			status = "disabled";
+		};
+
+		m3_i2c2: i2c@a0100000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			interrupt-parent = <&mbigen_m3>;
+			reg = <0xa0100000 0x10000>;
+			interrupts = <10 1>;
+			clocks = <&m3_clk>;
+			status = "disabled";
+		};
+
+		pc_i2c0: i2c@80320000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			interrupt-parent = <&mbigen_pc>;
+			reg = <0x80320000 0x10000>;
+			interrupts = <158 1>;
+			clocks = <&peri_clk>;
+			status = "disabled";
+		};
+
+		pc_i2c1: i2c@80330000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			interrupt-parent = <&mbigen_pc>;
+			reg = <0x80330000 0x10000>;
+			interrupts = <159 1>;
+			clocks = <&peri_clk>;
+			status = "disabled";
+		};
+
+		pc_gpio0: gpio@802e0000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x802e0000 0x10000>;
+
+			porta: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <32>;
+				reg = <0>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <0 312 4>;
+			};
+		};
+
+		pc_gpio1: gpio@802f0000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x802f0000 0x10000>;
+
+			portb: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <32>;
+				reg = <0>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <0 313 4>;
+			};
+		};
+	};
+};

@@ -22,6 +22,7 @@
 #include <linux/pci_regs.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <asm/hardirq.h>
 
 #include "pcie-designware.h"
 
@@ -31,6 +32,7 @@
 #define PORT_LINK_MODE_1_LANES		(0x1 << 16)
 #define PORT_LINK_MODE_2_LANES		(0x3 << 16)
 #define PORT_LINK_MODE_4_LANES		(0x7 << 16)
+#define PORT_LINK_MODE_8_LANES		(0xf << 16)
 
 #define PCIE_LINK_WIDTH_SPEED_CONTROL	0x80C
 #define PORT_LOGIC_SPEED_CHANGE		(0x1 << 17)
@@ -38,6 +40,7 @@
 #define PORT_LOGIC_LINK_WIDTH_1_LANES	(0x1 << 8)
 #define PORT_LOGIC_LINK_WIDTH_2_LANES	(0x2 << 8)
 #define PORT_LOGIC_LINK_WIDTH_4_LANES	(0x4 << 8)
+#define PORT_LOGIC_LINK_WIDTH_8_LANES	(0x8 << 8)
 
 #define PCIE_MSI_ADDR_LO		0x820
 #define PCIE_MSI_ADDR_HI		0x824
@@ -68,14 +71,19 @@
 #define PCIE_ATU_UPPER_TARGET		0x91C
 
 static struct hw_pci dw_pci;
+static struct pci_ops dw_pcie_ops;
 
 static unsigned long global_io_offset;
 
-static inline struct pcie_port *sys_to_pcie(struct pci_sys_data *sys)
+static inline struct pcie_port *sys_to_pcie(void *sys)
 {
-	BUG_ON(!sys->private_data);
+#ifdef CONFIG_ARM
+	pci_sys_data *sys_data = (struct pci_sys_data *)sys;
 
-	return sys->private_data;
+	BUG_ON(!sys->private_data);
+	return sys_data->private_data;
+#endif
+	return (struct pcie_port *)sys;
 }
 
 int dw_pcie_cfg_read(void __iomem *addr, int where, int size, u32 *val)
@@ -498,10 +506,41 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	/* program correct class for RC */
 	dw_pcie_wr_own_conf(pp, PCI_CLASS_DEVICE, 2, PCI_CLASS_BRIDGE_PCI);
 
-	dw_pcie_rd_own_conf(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, 4, &val);
-	val |= PORT_LOGIC_SPEED_CHANGE;
-	dw_pcie_wr_own_conf(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, 4, val);
+#ifdef CONFIG_ARM64
+	struct pci_bus *bus;
+	struct msi_controller *msi;
+	LIST_HEAD(res);
 
+	ret = of_pci_get_host_bridge_resources(np, 0, 0xff, &res, &pp->io_base);
+	if (ret)
+		return ret;
+
+	bus = pci_create_root_bus(pp->dev, pp->root_bus_nr, &dw_pcie_ops,
+				  pp, &res);
+	if (!bus)
+		return -ENOMEM;
+
+	/* add msi_controller to root pci_bus */
+	msi = kzalloc(sizeof(*msi), GFP_KERNEL);
+	if (!msi)
+		return -ENOMEM;
+	msi->domain = pp->domain;
+	bus->msi = msi;
+
+	pci_scan_child_bus(bus);
+	pci_assign_unassigned_bus_resources(bus);
+	pci_bus_add_devices(bus);
+
+	/* Configure PCI Express settings */
+	if (!pci_has_flag(PCI_PROBE_ONLY)) {
+		struct pci_bus *child;
+
+		list_for_each_entry(child, &bus->children, node)
+			pcie_bus_configure_settings(child);
+	}
+#endif
+
+#ifdef CONFIG_ARM
 #ifdef CONFIG_PCI_MSI
 	dw_pcie_msi_chip.dev = pp->dev;
 	dw_pci.msi_ctrl = &dw_pcie_msi_chip;
@@ -511,6 +550,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	dw_pci.private_data = (void **)&pp;
 
 	pci_common_init_dev(pp->dev, &dw_pci);
+#endif
 
 	return 0;
 }
@@ -701,6 +741,7 @@ static struct pci_ops dw_pcie_ops = {
 	.write = dw_pcie_wr_conf,
 };
 
+#ifdef CONFIG_ARM
 static int dw_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct pcie_port *pp;
@@ -712,7 +753,7 @@ static int dw_pcie_setup(int nr, struct pci_sys_data *sys)
 		pci_ioremap_io(global_io_offset, pp->io_base);
 		global_io_offset += SZ_64K;
 		pci_add_resource_offset(&sys->resources, &pp->io,
-					sys->io_offset);
+				sys->io_offset);
 	}
 
 	sys->mem_offset = pp->mem.start - pp->mem_bus_addr;
@@ -729,7 +770,7 @@ static struct pci_bus *dw_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 
 	pp->root_bus_nr = sys->busnr;
 	bus = pci_create_root_bus(pp->dev, sys->busnr,
-				  &dw_pcie_ops, sys, &sys->resources);
+			&dw_pcie_ops, sys, &sys->resources);
 	if (!bus)
 		return NULL;
 
@@ -758,6 +799,7 @@ static struct hw_pci dw_pci = {
 	.scan		= dw_pcie_scan_bus,
 	.map_irq	= dw_pcie_map_irq,
 };
+#endif
 
 void dw_pcie_setup_rc(struct pcie_port *pp)
 {
@@ -778,6 +820,9 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 	case 4:
 		val |= PORT_LINK_MODE_4_LANES;
 		break;
+	case 8:
+		val |= PORT_LINK_MODE_8_LANES;
+		break;
 	}
 	dw_pcie_writel_rc(pp, val, PCIE_PORT_LINK_CONTROL);
 
@@ -794,9 +839,17 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 	case 4:
 		val |= PORT_LOGIC_LINK_WIDTH_4_LANES;
 		break;
+	case 8:
+		val |= PORT_LOGIC_LINK_WIDTH_8_LANES;
+		break;
 	}
-	dw_pcie_writel_rc(pp, val, PCIE_LINK_WIDTH_SPEED_CONTROL);
 
+	/* set the Directed Speed Change field of the
+	Link Width and Speed Change Control register */
+	val |= PORT_LOGIC_SPEED_CHANGE;
+
+	dw_pcie_writel_rc(pp, val, PCIE_LINK_WIDTH_SPEED_CONTROL);
+ 
 	/* setup RC BARs */
 	dw_pcie_writel_rc(pp, 0x00000004, PCI_BASE_ADDRESS_0);
 	dw_pcie_writel_rc(pp, 0x00000000, PCI_BASE_ADDRESS_1);

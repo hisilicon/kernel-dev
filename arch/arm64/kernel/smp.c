@@ -36,6 +36,7 @@
 #include <linux/completion.h>
 #include <linux/of.h>
 #include <linux/irq_work.h>
+#include <linux/kexec.h>
 
 #include <asm/alternative.h>
 #include <asm/atomic.h>
@@ -69,6 +70,12 @@ enum ipi_msg_type {
 	IPI_TIMER,
 	IPI_IRQ_WORK,
 };
+
+#ifdef CONFIG_COPYCAT_NUMA
+static u64 boot_cpu_aff2;
+cpumask_t node_to_cpu_mask[MAX_NUMNODES] __cacheline_aligned;
+EXPORT_SYMBOL(node_to_cpu_mask);
+#endif
 
 /*
  * Boot a secondary CPU, and assign it the specified idle task.
@@ -170,6 +177,26 @@ asmlinkage void secondary_start_kernel(void)
 	notify_cpu_starting(cpu);
 
 	smp_store_cpu_info(cpu);
+
+#ifdef CONFIG_COPYCAT_NUMA
+{
+	int nid;
+	int aff2;
+
+	aff2 = 0xff & (read_cpuid_mpidr() >> 16);
+
+	if (aff2 == boot_cpu_aff2)
+		nid = 0;
+	else if ((aff2 >> 2) == (boot_cpu_aff2 >> 2))
+		nid = 1;
+	else
+		nid = 2 + (0x1 & aff2);
+
+	cpumask_set_cpu(cpu, &node_to_cpu_mask[nid]);
+	set_numa_node(nid);
+	set_numa_mem(local_memory_node(nid));
+}
+#endif
 
 	/*
 	 * OK, now it's safe to let the boot CPU continue.  Wait for
@@ -316,6 +343,14 @@ void __init smp_cpus_done(unsigned int max_cpus)
 void __init smp_prepare_boot_cpu(void)
 {
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
+
+#ifdef CONFIG_COPYCAT_NUMA
+	boot_cpu_aff2 = 0xff & (read_cpuid_mpidr() >> 16);
+
+	cpumask_set_cpu(0, &node_to_cpu_mask[0]);
+	set_numa_node(0);
+	set_numa_mem(0);
+#endif
 }
 
 /*
@@ -542,7 +577,7 @@ static DEFINE_RAW_SPINLOCK(stop_lock);
 /*
  * ipi_cpu_stop - handle IPI from smp_send_stop()
  */
-static void ipi_cpu_stop(unsigned int cpu)
+static void ipi_cpu_stop(unsigned int cpu, struct pt_regs *regs)
 {
 	if (system_state == SYSTEM_BOOTING ||
 	    system_state == SYSTEM_RUNNING) {
@@ -555,6 +590,13 @@ static void ipi_cpu_stop(unsigned int cpu)
 	set_cpu_online(cpu, false);
 
 	local_irq_disable();
+
+#ifdef CONFIG_KEXEC
+	if (in_crash_kexec) {
+		crash_save_cpu(regs, cpu);
+		flush_cache_all();
+	}
+#endif /* CONFIG_KEXEC */
 
 	while (1)
 		cpu_relax();
@@ -586,7 +628,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 
 	case IPI_CPU_STOP:
 		irq_enter();
-		ipi_cpu_stop(cpu);
+		ipi_cpu_stop(cpu, regs);
 		irq_exit();
 		break;
 
@@ -641,8 +683,8 @@ void smp_send_stop(void)
 		smp_cross_call(&mask, IPI_CPU_STOP);
 	}
 
-	/* Wait up to one second for other CPUs to stop */
-	timeout = USEC_PER_SEC;
+	/* Wait up to three second for other CPUs to stop */
+	timeout = USEC_PER_SEC * 3;
 	while (num_online_cpus() > 1 && timeout--)
 		udelay(1);
 

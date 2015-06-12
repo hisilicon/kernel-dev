@@ -27,6 +27,7 @@
 #define GICD_CTLR			0x0000
 #define GICD_TYPER			0x0004
 #define GICD_IIDR			0x0008
+#define GICD_SIDR			0x000c
 #define GICD_STATUSR			0x0010
 #define GICD_SETSPI_NSR			0x0040
 #define GICD_CLRSPI_NSR			0x0048
@@ -83,6 +84,13 @@
 #define GIC_PIDR2_ARCH_MASK		0xf0
 #define GIC_PIDR2_ARCH_GICv3		0x30
 #define GIC_PIDR2_ARCH_GICv4		0x40
+#define GIC_SID_MASK			0x7
+
+#ifdef CONFIG_MM_OUTTER_SHAREABLE
+#define GIC_SH_DOMAIN                  1UL     /* outer shareable */
+#else
+#define GIC_SH_DOMAIN                  2UL     /* inner shareable */
+#endif
 
 #define GIC_V3_DIST_SIZE		0x10000
 
@@ -115,8 +123,7 @@
 #define GICR_WAKER_ChildrenAsleep	(1U << 2)
 
 #define GICR_PROPBASER_NonShareable	(0U << 10)
-#define GICR_PROPBASER_InnerShareable	(1U << 10)
-#define GICR_PROPBASER_OuterShareable	(2U << 10)
+#define GICR_PROPBASER_Shareable	(GIC_SH_DOMAIN << 10)
 #define GICR_PROPBASER_SHAREABILITY_MASK (3UL << 10)
 #define GICR_PROPBASER_nCnB		(0U << 7)
 #define GICR_PROPBASER_nC		(1U << 7)
@@ -130,8 +137,7 @@
 #define GICR_PROPBASER_IDBITS_MASK	(0x1f)
 
 #define GICR_PENDBASER_NonShareable	(0U << 10)
-#define GICR_PENDBASER_InnerShareable	(1U << 10)
-#define GICR_PENDBASER_OuterShareable	(2U << 10)
+#define GICR_PENDBASER_Shareable	(GIC_SH_DOMAIN << 10)
 #define GICR_PENDBASER_SHAREABILITY_MASK (3UL << 10)
 #define GICR_PENDBASER_nCnB		(0U << 7)
 #define GICR_PENDBASER_nC		(1U << 7)
@@ -199,8 +205,7 @@
 #define GITS_CBASER_RaWaWb		(7UL << 59)
 #define GITS_CBASER_CACHEABILITY_MASK	(7UL << 59)
 #define GITS_CBASER_NonShareable	(0UL << 10)
-#define GITS_CBASER_InnerShareable	(1UL << 10)
-#define GITS_CBASER_OuterShareable	(2UL << 10)
+#define GITS_CBASER_Shareable		(GIC_SH_DOMAIN << 10)
 #define GITS_CBASER_SHAREABILITY_MASK	(3UL << 10)
 
 #define GITS_BASER_NR_REGS		8
@@ -220,8 +225,7 @@
 #define GITS_BASER_ENTRY_SIZE_SHIFT	(48)
 #define GITS_BASER_ENTRY_SIZE(r)	((((r) >> GITS_BASER_ENTRY_SIZE_SHIFT) & 0xff) + 1)
 #define GITS_BASER_NonShareable		(0UL << 10)
-#define GITS_BASER_InnerShareable	(1UL << 10)
-#define GITS_BASER_OuterShareable	(2UL << 10)
+#define GITS_BASER_Shareable		(GIC_SH_DOMAIN << 10)
 #define GITS_BASER_SHAREABILITY_SHIFT	(10)
 #define GITS_BASER_SHAREABILITY_MASK	(3UL << GITS_BASER_SHAREABILITY_SHIFT)
 #define GITS_BASER_PAGE_SIZE_SHIFT	(8)
@@ -367,6 +371,11 @@
  */
 #define GIC_IRQ_TYPE_LPI		0xa110c8ed
 
+struct redist_region {
+	void __iomem		*redist_base;
+	unsigned long		phys_base;
+};
+
 struct rdists {
 	struct {
 		void __iomem	*rd_base;
@@ -374,6 +383,9 @@ struct rdists {
 		phys_addr_t	phys_base;
 	} __percpu		*rdist;
 	struct page		*prop_page;
+	struct redist_region	*regions;
+	u64			stride;
+	u32			nr_regions;
 	int			id_bits;
 	u64			flags;
 };
@@ -386,8 +398,7 @@ static inline void gic_write_eoir(u64 irq)
 
 struct irq_domain;
 int its_cpu_init(void);
-int its_init(struct device_node *node, struct rdists *rdists,
-	     struct irq_domain *domain);
+int its_init(struct rdists *rdists, struct irq_domain *domain);
 
 #endif
 

@@ -1,0 +1,253 @@
+/*网口主片dts*/
+soc0: soc@000000000 {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	device_type = "soc";
+	compatible = "simple-bus";
+	ranges = <0x0 0x0 0x0 0x0 0x1 0x0>;
+	chip-id = <0>;
+		
+	/* dsa信息定义 */
+	soc0_dsa: dsa@c7000000 {
+		compatible = "hisilicon,dsa";
+		reg = <0x0 0xc7000000 0x0 0x40000>;			
+                  interrupt-parent = <&mbigen_dsa>;
+                  interrupts = <131 4>, <132 4>,
+                               <133 4>, <134 4>,
+                               <135 4>, <136 4>,
+                               <137 4>, <138 4>,
+                               <139 4>, <140 4>,
+                               <141 4>, <142 4>,
+                               <143 4>, <144 4>,
+                               <145 4>, <146 4>,
+                               <147 4>, <148 4>;
+		irq-num = <13059>;
+		dsa-mode = <12>;
+		cdev-no = <200>;
+		m3-enable = <0>;
+	};	
+	
+	/* 业务网口定义 */
+	soc0_mac0: ethernet-mac@c7040000 {
+		mac-index = <0>;		/* 物理上的网口编号，由芯片决定，此编号需要与下面的地址、中断号对应 */
+		compatible = "hisilicon,mac-multi";
+		reg = <0x0 0xc7040000 0x0 0x4000  
+		       0x0 0xc7020000 0x0 0x4000
+		       0x0 0xC0000000 0x0 0x10000
+		       0x0 0xC2200000 0x0 0x100000>;	
+		irq-num = <13077>;       	
+		phy-connection-type = "xgmii";
+	};
+	soc0_mac1: ethernet-mac@c7044000 {
+		mac-index = <1>;		/* 物理上的网口编号，由芯片决定，此编号需要与下面的地址、中断号对应 */
+		compatible = "hisilicon,mac-multi";
+		reg = <0x0 0xc7044000 0x0 0x4000
+		       0x0 0xc7024000 0x0 0x4000
+		       0x0 0xC0000000 0x0 0x10000
+		       0x0 0xC2200000 0x0 0x100000>;
+		       	
+		irq-num = <13078>;       	     
+		phy-connection-type = "xgmii";
+	};
+	soc0_mac2: ethernet-mac@c7048000 {
+		mac-index = <2>;		/* 物理上的网口编号，由芯片决定，此编号需要与下面的地址、中断号对应 */
+		compatible = "hisilicon,mac-multi";
+		reg = <0x0 0xc7048000 0x0 0x4000
+		       0x0 0xc7028000 0x0 0x4000
+		       0x0 0xC0000000 0x0 0x10000
+		       0x0 0xC2200000 0x0 0x100000>;	
+		irq-num = <13079>;       
+		phy-connection-type = "xgmii";
+	};
+	soc0_mac3: ethernet-mac@c704c000 {
+		mac-index = <3>;		/* 物理上的网口编号，由芯片决定，此编号需要与下面的地址、中断号对应 */
+		compatible = "hisilicon,mac-multi";
+		reg = <0x0 0xc704c000 0x0 0x4000
+		       0x0 0xc702c000 0x0 0x4000
+		       0x0 0xC0000000 0x0 0x10000
+		       0x0 0xC2200000 0x0 0x100000>;	
+		irq-num = <13080>;      
+		phy-connection-type = "xgmii";
+	};
+
+	
+	soc0_ppe0:ppe@c5070000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "hisilicon,ppe-multi";
+		ranges = <0x0 0x0 0x0 0x0 0xffffffff>;
+		reg = <0x0 0xc5070000 0x0 0x10000>;  
+		ppe-common-index = <0>;
+		soc0_ppe_group0:ppe-group@c5000000 {
+			compatible = "hisilicon,ppe-group";
+			reg = <0x0 0xc5000000 0x10000>;	
+			irq-num = <12928>;      
+			ppe-num = <1>;  	
+		};
+		soc0_ppe_group1:ppe-group@c5010000 {
+			compatible = "hisilicon,ppe-group";
+			reg = <0x0 0xc5010000 0x10000>;	
+			irq-num = <12929>; 
+			ppe-num = <1>;  
+		};
+		soc0_ppe_group2:ppe-group@c5020000 {
+			compatible = "hisilicon,ppe-group";
+			reg = <0x0 0xc5020000 0x10000>;	
+			irq-num = <12930>;      
+			ppe-num = <1>;  	
+		};
+		soc0_ppe_group3:ppe-group@c5030000 {
+			compatible = "hisilicon,ppe-group";
+			reg = <0x0 0xc5030000 0x10000>;	
+			irq-num = <12931>; 
+			ppe-num = <1>;  
+		};
+
+	};
+	
+	soc0_rcb0:rcb@c5080000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "hisilicon,rcb","hisilicon,rcb-multi";
+		ranges = <0x0 0x0 0x0 0x0 0xffffffff>;
+		reg = <0x0 0xc5080000 0x0 0x10000>;  	
+		irq-num = <12934>;      		 
+		soc0_rcb_group0:rcb-group@c5090000 {
+			compatible = "hisilicon,rcb-group";
+			reg = <0x0 0xc5090000 0x100000>;	
+			interrupt-parent = <&mbigen_dsa>;
+			interrupts = <384 1>, <385 1>,
+                        		<386 1>, <387 1>,
+                                       <388 1>, <389 1>,
+                                       <390 1>, <391 1>,
+                                       <392 1>, <393 1>,
+                                       <394 1>, <395 1>,
+                                       <396 1>, <397 1>,
+                                       <398 1>, <399 1>,
+                                       <400 1>, <401 1>,
+                                       <402 1>, <403 1>,
+                                       <404 1>, <405 1>,
+                                       <406 1>, <407 1>,
+                                       <408 1>, <409 1>,
+                                       <410 1>, <411 1>,
+                                       <412 1>, <413 1>,
+                                       <414 1>, <415 1>;
+			irq-num = <13312>;	
+			buf-size = <4096>;
+			desc-num = <1024>;	
+		};
+		soc0_rcb_group1:rcb-group@c5190000 {
+			compatible = "hisilicon,rcb-group";
+			reg = <0x0 0xc5190000 0x100000>;	
+			interrupt-parent = <&mbigen_dsa>;
+			interrupts = <416 1>, <417 1>,
+                        		<418 1>, <419 1>,
+                                       <420 1>, <421 1>,
+                                       <422 1>, <423 1>,
+                                       <424 1>, <425 1>,
+                                       <426 1>, <427 1>,
+                                       <428 1>, <429 1>,
+                                       <430 1>, <431 1>,
+                                       <432 1>, <433 1>,
+                                       <434 1>, <435 1>,
+                                       <436 1>, <437 1>,
+                                       <438 1>, <439 1>,
+                                       <440 1>, <441 1>,
+                                       <442 1>, <443 1>,
+                                       <444 1>, <445 1>,
+                                       <446 1>, <447 1>;
+			irq-num = <13344>;
+			buf-size = <4096>; 
+			desc-num = <1024>;	
+		};
+		soc0_rcb_group2:rcb-group@c5290000 {
+			compatible = "hisilicon,rcb-group";
+			reg = <0x0 0xc5290000 0x100000>;	
+			interrupt-parent = <&mbigen_dsa>;
+			interrupts = <448 1>, <449 1>,
+                        		<450 1>, <451 1>,
+                                       <452 1>, <453 1>,
+                                       <454 1>, <455 1>,
+                                       <456 1>, <457 1>,
+                                       <458 1>, <459 1>,
+                                       <460 1>, <461 1>,
+                                       <462 1>, <463 1>,
+                                       <464 1>, <465 1>,
+                                       <466 1>, <467 1>,
+                                       <468 1>, <469 1>,
+                                       <470 1>, <471 1>,
+                                       <472 1>, <473 1>,
+                                       <474 1>, <475 1>,
+                                       <476 1>, <477 1>,
+                                       <478 1>, <479 1>;	
+			irq-num = <13376>;	
+			buf-size = <4096>;
+			desc-num = <1024>;	
+		};
+		soc0_rcb_group3:rcb-group@c5390000 {
+			compatible = "hisilicon,rcb-group";
+			reg = <0x0 0xc5390000 0x100000>;	
+			interrupt-parent = <&mbigen_dsa>;
+			interrupts = <480 1>, <481 1>,
+                        		<482 1>, <483 1>,
+                                       <484 1>, <485 1>,
+                                       <486 1>, <487 1>,
+                                       <488 1>, <489 1>,
+                                       <490 1>, <491 1>,
+                                       <492 1>, <493 1>,
+                                       <494 1>, <495 1>,
+                                       <496 1>, <497 1>,
+                                       <498 1>, <499 1>,
+                                       <500 1>, <501 1>,
+                                       <502 1>, <503 1>,
+                                       <504 1>, <505 1>,
+                                       <506 1>, <507 1>,
+                                       <508 1>, <509 1>,
+                                       <510 1>, <511 1>;	
+			irq-num = <13408>;
+			buf-size = <4096>; 
+			desc-num = <1024>;	
+		};
+
+	};      	      	
+		
+	ethernet@0 {
+		compatible = "hisilicon,soc-dsa-nic";
+		mac-handle = <&soc0_mac0>;
+		nic-id = <0>; /* 如果定义了mac-handle，则按照mac-handle定义的ID来编号，否则按照这里定义的ID来编号， */
+		ppe-group-handle = <&soc0_ppe_group0>;
+		rcb-group-handle = <&soc0_rcb_group0>; /* 当设置为0时，直接根据DSA队列生成模式分配队列 */
+		local-mac-address = [00 00 00 01 00 5A];	
+		dma-coherent;				
+	};	
+	ethernet@1 {
+		compatible = "hisilicon,soc-dsa-nic";				
+		mac-handle = <&soc0_mac1>;
+		nic-id = <1>;
+		ppe-group-handle = <&soc0_ppe_group1>;
+		rcb-group-handle = <&soc0_rcb_group1>; /* 当设置为0时，直接根据DSA队列生成模式分配队列 */
+		local-mac-address = [00 00 00 01 00 5B];
+		dma-coherent;					
+	};
+	ethernet@2 {
+		compatible = "hisilicon,soc-dsa-nic";
+		mac-handle = <&soc0_mac2>;
+		nic-id = <2>; /* 如果定义了mac-handle，则按照mac-handle定义的ID来编号，否则按照这里定义的ID来编号， */
+		ppe-group-handle = <&soc0_ppe_group2>;
+		rcb-group-handle = <&soc0_rcb_group2>; /* 当设置为0时，直接根据DSA队列生成模式分配队列 */
+		local-mac-address = [00 00 00 01 00 5C];
+		dma-coherent;					
+	};	
+	ethernet@3 {
+		compatible = "hisilicon,soc-dsa-nic";				
+		mac-handle = <&soc0_mac3>;
+		nic-id = <3>;
+		ppe-group-handle = <&soc0_ppe_group3>;
+		rcb-group-handle = <&soc0_rcb_group3>; /* 当设置为0时，直接根据DSA队列生成模式分配队列 */
+		local-mac-address = [00 00 00 01 00 5D];
+		dma-coherent;					
+	};
+	
+}; /* soc0 */
+		
+			

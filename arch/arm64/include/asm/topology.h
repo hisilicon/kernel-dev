@@ -5,6 +5,10 @@
 
 #include <linux/cpumask.h>
 
+#ifdef CONFIG_COPYCAT_NUMA
+#include <asm/numa.h>
+#endif
+
 struct cpu_topology {
 	int thread_id;
 	int core_id;
@@ -23,6 +27,17 @@ extern struct cpu_topology cpu_topology[NR_CPUS];
 void init_cpu_topology(void);
 void store_cpu_topology(unsigned int cpuid);
 const struct cpumask *cpu_coregroup_mask(int cpu);
+
+#ifdef CONFIG_COPYCAT_NUMA
+#define parent_node(nid) (nid)
+#define pcibus_to_node(bus)	0
+
+#define cpumask_of_node(node) ((node) == -1 ?				\
+			       cpu_all_mask :				\
+			       &node_to_cpu_mask[node])
+
+#define cpumask_of_pcibus(bus)	0
+#endif
 
 #else
 

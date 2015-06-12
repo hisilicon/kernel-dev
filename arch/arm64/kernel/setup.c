@@ -32,7 +32,6 @@
 #include <linux/screen_info.h>
 #include <linux/init.h>
 #include <linux/kexec.h>
-#include <linux/crash_dump.h>
 #include <linux/root_dev.h>
 #include <linux/clk-provider.h>
 #include <linux/cpu.h>
@@ -45,6 +44,7 @@
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/efi.h>
+#include <linux/cpufreq.h>
 #include <linux/personality.h>
 
 #include <asm/acpi.h>
@@ -366,6 +366,12 @@ static void __init request_standard_resources(void)
 		    kernel_data.end <= res->end)
 			request_resource(res, &kernel_data);
 	}
+
+#ifdef CONFIG_KEXEC
+	/* User space tools will detect the region with /proc/iomem */
+	if (crashk_res.end)
+		insert_resource(&iomem_resource, &crashk_res);
+#endif
 }
 
 u64 __cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = INVALID_HWID };
@@ -395,6 +401,7 @@ void __init setup_arch(char **cmdline_p)
 	local_async_enable();
 
 	efi_init();
+
 	arm64_memblock_init();
 
 	/* Parse the ACPI tables for possible boot-time configuration */
@@ -447,6 +454,11 @@ arch_initcall_sync(arm64_device_init);
 static int __init topology_init(void)
 {
 	int i;
+
+#ifdef CONFIG_NUMA
+	for_each_online_node(i)
+		register_one_node(i);
+#endif
 
 	for_each_possible_cpu(i) {
 		struct cpu *cpu = &per_cpu(cpu_data.cpu, i);
@@ -513,6 +525,7 @@ static int c_show(struct seq_file *m, void *v)
 	for_each_online_cpu(i) {
 		struct cpuinfo_arm64 *cpuinfo = &per_cpu(cpu_data, i);
 		u32 midr = cpuinfo->reg_midr;
+		unsigned int cpu_freq = cpufreq_get(i);
 
 		/*
 		 * glibc reads /proc/cpuinfo to determine the number of
@@ -522,6 +535,11 @@ static int c_show(struct seq_file *m, void *v)
 #ifdef CONFIG_SMP
 		seq_printf(m, "processor\t: %d\n", i);
 #endif
+		/* TO FIX */
+		if (cpu_freq)
+			seq_printf(m, "cpu MHz\t\t: %u.%03u\n",
+				   cpu_freq / 1000,
+				   cpu_freq % 1000);
 
 		/*
 		 * Dump out the common processor features in a single line.

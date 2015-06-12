@@ -1,0 +1,40 @@
+#
+# HISILICON device configuration
+#
+
+config HI_NET_VENDOR_NIC
+	tristate "Hisilicon VENDOR NIC"
+	default y
+	---help---
+	  This open the Nic drivers.
+
+if HI_NET_VENDOR_NIC
+config HI_NET_OSAL
+	tristate "Hisilicon OSAL"
+	help
+	  This selects the osal module.
+
+config HI_NET_MDIO
+	tristate "Hisilicon MDIO"
+	select HI_NET_OSAL
+	help
+	  This selects the mdio module.
+
+config HI_NET_DSAF
+	tristate "Hisilicon DSAF"
+	select HI_NET_MDIO
+	help
+	  This selects the dsaf module.
+
+config HI_NET_MAC
+	tristate "Hisilicon MAC"
+	select HI_NET_DSAF
+	help
+	  This selects the mac module.
+
+config HI_NET_NIC
+	tristate "Hisilicon NIC"
+	select HI_NET_MAC
+	help
+	  This selects the nic module.
+endif

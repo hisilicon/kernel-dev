@@ -1,0 +1,69 @@
+/**
+ * dts file for Hisilicon PhosphorV660 2P1S Board
+ *
+ * Copyright (C) 2014,2015 Hisilicon Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * publishhed by the Free Software Foundation.
+ *
+ */
+
+/dts-v1/;
+
+/include/ "hip05-2p1s.dtsi"
+/include/ "hip05-2p1s-pcie.dtsi"
+
+/ {
+	model = "Hisilicon PhosphorV660 2P1S Development Board";
+	compatible = "hisilicon,hip05-2p1s", "hisilicon,hisi-pv660";
+
+	memory-numa@0{
+		reg = <0x0 0x00000000 0x0 0x40000000>,
+		      <0x10 0x40000000 0xf 0xc0000000>,
+		      <0x20 0x00000001 0x10 0x00000000>;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x00000000 0x0 0x40000000>,
+		      <0x10 0x40000000 0xf 0xc0000000>,
+		      <0x20 0x00000000 0x10 0x00000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		P0_L3_Directory {
+			status = "ok";
+			no-map;
+			reg = <0xf 0xfe000000 0x0 0x2000000>,
+			      <0x1f 0xfe000000 0x0 0x2000000>;
+		};
+	};
+
+	/* /include/ "hip05-2p1s-nic.dtsi"*/
+	/include/ "hip05-2p1s-hns.dtsi"
+
+	chosen {
+		bootargs = "rdinit=/init earlycon=uart8250,mmio32,0x60300000 pci=pcie_bus_perf console=ttyS0,115200 initrd=0x7000000,350M";
+		#bootargs = "root=/dev/sda1 rw earlycon=uart8250,mmio32,0x60300000 console=ttyS0,115200 ";
+	};
+
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&m3_i2c1 {
+	clock-frequency = <100000>;
+	status = "okay";
+
+	rtc: ds3231@68 {
+		compatible = "maxim,ds3231";
+		reg = <0x68>;
+	};
+};

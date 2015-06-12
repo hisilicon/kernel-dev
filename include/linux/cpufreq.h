@@ -601,4 +601,6 @@ unsigned int cpufreq_generic_get(unsigned int cpu);
 int cpufreq_generic_init(struct cpufreq_policy *policy,
 		struct cpufreq_frequency_table *table,
 		unsigned int transition_latency);
+extern void hipv660_cpufreq_set_power_off(unsigned int val);
+
 #endif /* _LINUX_CPUFREQ_H */

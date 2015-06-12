@@ -19,10 +19,20 @@ obj-$(CONFIG_OMAP_IRQCHIP)		+= irq-omap-intc.o
 obj-$(CONFIG_ARCH_SUNXI)		+= irq-sun4i.o
 obj-$(CONFIG_ARCH_SUNXI)		+= irq-sunxi-nmi.o
 obj-$(CONFIG_ARCH_SPEAR3XX)		+= spear-shirq.o
+ifndef CONFIG_ARCH_P660
+obj-$(CONFIG_ARM_GIC)			+= irq-gic.o irq-gic-common-hi1382.o
+else
 obj-$(CONFIG_ARM_GIC)			+= irq-gic.o irq-gic-common.o
+endif
 obj-$(CONFIG_ARM_GIC_V2M)		+= irq-gic-v2m.o
+ifndef CONFIG_ARCH_P660
+obj-$(CONFIG_ARM_GIC_V3)		+= irq-gic-v3-hi1382.o irq-gic-common-hi1382.o
+obj-$(CONFIG_ARM_GIC_V3_ITS)		+= irq-gic-v3-its-hi1382.o
+else
 obj-$(CONFIG_ARM_GIC_V3)		+= irq-gic-v3.o irq-gic-common.o
 obj-$(CONFIG_ARM_GIC_V3_ITS)		+= irq-gic-v3-its.o
+endif
+obj-$(CONFIG_HISI_MBIGEN)		+= irq-hisi-mbigen.o irq-mbigen.o
 obj-$(CONFIG_ARM_NVIC)			+= irq-nvic.o
 obj-$(CONFIG_ARM_VIC)			+= irq-vic.o
 obj-$(CONFIG_ATMEL_AIC_IRQ)		+= irq-atmel-aic-common.o irq-atmel-aic.o

@@ -163,10 +163,7 @@ static inline void instruction_pointer_set(struct pt_regs *regs,
 	regs->psw.addr = val | PSW_ADDR_AMODE;
 }
 
-int regs_query_register_offset(const char *name);
-const char *regs_query_register_name(unsigned int offset);
 unsigned long regs_get_register(struct pt_regs *regs, unsigned int offset);
-unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n);
 
 static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
 {

@@ -23,8 +23,7 @@
 #include <asm/assembler.h>
 #include <asm/cpufeature.h>
 #include <asm/alternative-asm.h>
-
-#include "proc-macros.S"
+#include <asm/proc-macros.S>
 
 /*
  *	__flush_dcache_all()

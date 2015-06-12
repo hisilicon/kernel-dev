@@ -265,6 +265,12 @@ config ARM_TEGRA_CPUFREQ
 	help
 	  This adds the CPUFreq driver support for TEGRA SOCs.
 
+config AARCH64_HIPV660_CPUFREQ
+	tristate "PhosphorV660 CPUfreq driver"
+	depends on ARCH_P660
+	help
+	  This add the CPUfreq driver support for PhosphorV660 platforms.
+
 config ARM_PXA2xx_CPUFREQ
 	tristate "Intel PXA2xx CPUfreq driver"
 	depends on PXA27x || PXA25x

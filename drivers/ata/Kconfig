@@ -98,6 +98,15 @@ config SATA_AHCI_PLATFORM
 
 	  If unsure, say N.
 
+config AHCI_P660
+	tristate "Hisilicon PV660 AHCI SATA support"
+	depends on ARCH_P660
+	help
+	  This option enables support for the Hisilicon PV660 SoC's
+	  onboard AHCI SATA.
+
+	  If unsure, say N.
+
 config AHCI_DA850
 	tristate "DaVinci DA850 AHCI SATA support"
 	depends on ARCH_DAVINCI_DA850

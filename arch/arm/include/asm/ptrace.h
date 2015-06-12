@@ -120,12 +120,6 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 #include <linux/types.h>
 #define MAX_REG_OFFSET (offsetof(struct pt_regs, ARM_ORIG_r0))
 
-extern int regs_query_register_offset(const char *name);
-extern const char *regs_query_register_name(unsigned int offset);
-extern bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr);
-extern unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
-					       unsigned int n);
-
 /**
  * regs_get_register() - get register value from its offset
  * @regs:	   pt_regs from which register value is gotten

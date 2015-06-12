@@ -15,6 +15,7 @@
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
 #include <linux/msi.h>
+#include <linux/mbi.h>
 #include <linux/smp.h>
 #include <linux/errno.h>
 #include <linux/io.h>
@@ -28,7 +29,88 @@ int pci_msi_ignore_mask;
 
 #define msix_table_size(flags)	((flags & PCI_MSIX_FLAGS_QSIZE) + 1)
 
-#ifdef CONFIG_PCI_MSI_IRQ_DOMAIN
+#if defined(CONFIG_MBI)
+static void pci_write_mbi_msg(struct mbi_desc *desc, struct mbi_msg *msg, bool enable)
+{
+	struct msi_desc *entry = desc->data;
+
+	__pci_write_msi_msg(entry, (struct msi_msg *) msg);
+}
+
+static void msi_set_mask_bit(struct irq_data *data, u32 flag);
+
+static void pci_mask_mbi_irq(struct mbi_desc *desc)
+{
+	msi_set_mask_bit(irq_get_irq_data(desc->irq), 1);
+}
+
+static void pci_unmask_mbi_irq(struct mbi_desc *desc)
+{
+	msi_set_mask_bit(irq_get_irq_data(desc->irq), 0);
+}
+
+static struct mbi_ops pci_mbi_ops = {
+	.write_msg	= pci_write_mbi_msg,
+	.mask_irq	= pci_mask_mbi_irq,
+	.unmask_irq	= pci_unmask_mbi_irq,
+};
+
+static struct irq_domain *pci_msi_get_domain(struct pci_dev *dev)
+{
+	if (dev->bus->msi)
+		return dev->bus->msi->domain;
+
+	return NULL;
+}
+
+static int pci_msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
+{
+	struct irq_domain *domain = pci_msi_get_domain(pdev);
+	struct device *dev = &pdev->dev;
+	int request_id = PCI_DEVID(pdev->bus->number, pdev->devfn);
+	struct msi_desc *entry;
+	struct mbi_desc *desc;
+	int i, ret, ofst = 0;
+
+	if (!domain)
+		return arch_setup_msi_irqs(pdev, nvec, type);
+
+	list_for_each_entry(entry, &pdev->msi_list, list) {
+		desc = mbi_alloc_desc(dev, &pci_mbi_ops, request_id,
+				      nvec, ofst, entry);
+		if (!desc)
+			return -ENOMEM;
+		ret = irq_domain_alloc_irqs(domain, entry->nvec_used,
+					    dev_to_node(dev), desc);
+		if (ret < 0)
+			return ret;
+		for (i = 0; i < entry->nvec_used; i++)
+			irq_set_msi_desc_off(ret, i, entry);
+		desc = NULL;
+		ofst++;
+	}
+
+	return 0;
+}
+
+static void pci_msi_teardown_msi_irqs(struct pci_dev *pdev)
+{
+	struct irq_domain *domain = pci_msi_get_domain(pdev);
+
+	if (domain) {
+		struct msi_desc *entry;
+		list_for_each_entry(entry, &pdev->msi_list, list) {
+			if (entry->irq) {
+				irq_domain_free_irqs(entry->irq, entry->nvec_used);
+				entry->irq = 0;
+			}
+		}
+	} else {
+		arch_teardown_msi_irqs(pdev);
+	}
+}
+
+#elif defined(CONFIG_PCI_MSI_IRQ_DOMAIN)
 static struct irq_domain *pci_msi_default_domain;
 static DEFINE_MUTEX(pci_msi_domain_lock);
 
@@ -271,6 +353,12 @@ static void msix_mask_irq(struct msi_desc *desc, u32 flag)
 static void msi_set_mask_bit(struct irq_data *data, u32 flag)
 {
 	struct msi_desc *desc = irq_data_get_msi(data);
+
+	/* desc may null, add check */
+	if (desc == NULL) {
+		pr_info("desc is NULL, return\n");
+		return;
+	}
 
 	if (desc->msi_attrib.is_msix) {
 		msix_mask_irq(desc, flag);
@@ -1335,6 +1423,11 @@ void pci_msi_domain_free_irqs(struct irq_domain *domain, struct pci_dev *dev)
 {
 	msi_domain_free_irqs(domain, &dev->dev);
 }
+
+#ifndef pci_msi_default_domain
+static struct irq_domain *pci_msi_default_domain;
+#endif
+static DEFINE_MUTEX(pci_msi_domain_lock);
 
 /**
  * pci_msi_create_default_irq_domain - Create a default MSI interrupt domain

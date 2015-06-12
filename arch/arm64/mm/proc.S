@@ -25,8 +25,8 @@
 #include <asm/hwcap.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
-
-#include "proc-macros.S"
+#include <asm/proc-macros.S>
+#include <asm/virt.h>
 
 #ifdef CONFIG_ARM64_64K_PAGES
 #define TCR_TG_FLAGS	TCR_TG0_64K | TCR_TG1_64K
@@ -59,27 +59,48 @@ ENTRY(cpu_cache_off)
 ENDPROC(cpu_cache_off)
 
 /*
- *	cpu_reset(loc)
+ * cpu_reset(el2_switch, loc) - Helper for cpu_soft_restart.
  *
- *	Perform a soft reset of the system.  Put the CPU into the same state
- *	as it would be if it had been reset, and branch to what would be the
- *	reset vector. It must be executed with the flat identity mapping.
+ * @cpu_reset: Physical address of the cpu_reset routine.
+ * @el2_switch: Flag to indicate a swich to EL2 is needed.
+ * @addr: Location to jump to for soft reset.
  *
- *	- loc   - location to jump to for soft reset
+ * Put the CPU into the same state as it would be if it had been reset, and
+ * branch to what would be the reset vector. It must be executed with the
+ * flat identity mapping.
  */
+
 	.align	5
+
 ENTRY(cpu_reset)
-	mrs	x1, sctlr_el1
-	bic	x1, x1, #1
-	msr	sctlr_el1, x1			// disable the MMU
+	mrs	x2, sctlr_el1
+	bic	x2, x2, #1
+	msr	sctlr_el1, x2			// disable the MMU
 	isb
-	ret	x0
+
+	cbz	x0, 1f				// el2_switch?
+	mov	x0, x1
+	mov	x1, xzr
+	mov	x2, xzr
+	mov	x3, xzr
+	hvc	#HVC_CALL_FUNC			// no return
+
+1:	ret	x1
 ENDPROC(cpu_reset)
 
+/*
+ * cpu_soft_restart(cpu_reset, el2_switch, addr) - Perform a cpu soft reset.
+ *
+ * @cpu_reset: Physical address of the cpu_reset routine.
+ * @el2_switch: Flag to indicate a swich to EL2 is needed, passed to cpu_reset.
+ * @addr: Location to jump to for soft reset, passed to cpu_reset.
+ *
+ */
+
 ENTRY(cpu_soft_restart)
-	/* Save address of cpu_reset() and reset address */
-	mov	x19, x0
-	mov	x20, x1
+	mov	x19, x0				// cpu_reset
+	mov	x20, x1				// el2_switch
+	mov	x21, x2				// addr
 
 	/* Turn D-cache off */
 	bl	cpu_cache_off
@@ -88,6 +109,7 @@ ENTRY(cpu_soft_restart)
 	bl	flush_cache_all
 
 	mov	x0, x20
+	mov	x1, x21
 	ret	x19
 ENDPROC(cpu_soft_restart)
 

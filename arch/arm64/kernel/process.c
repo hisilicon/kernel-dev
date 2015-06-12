@@ -21,7 +21,6 @@
 #include <stdarg.h>
 
 #include <linux/compat.h>
-#include <linux/efi.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -48,9 +47,11 @@
 #include <asm/compat.h>
 #include <asm/cacheflush.h>
 #include <asm/fpsimd.h>
+#include <asm/kexec.h>
 #include <asm/mmu_context.h>
 #include <asm/processor.h>
 #include <asm/stacktrace.h>
+#include <asm/virt.h>
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 #include <linux/stackprotector.h>
@@ -61,7 +62,18 @@ EXPORT_SYMBOL(__stack_chk_guard);
 void soft_restart(unsigned long addr)
 {
 	setup_mm_for_reboot();
-	cpu_soft_restart(virt_to_phys(cpu_reset), addr);
+
+	/* TODO: Remove this conditional when KVM can support CPU restart. */
+	if (IS_ENABLED(CONFIG_KVM))
+		cpu_soft_restart(virt_to_phys(cpu_reset), 0, addr);
+	else
+		cpu_soft_restart(virt_to_phys(cpu_reset),
+#ifdef CONFIG_KEXEC
+			!in_crash_kexec &&
+#endif
+			is_hyp_mode_available(),
+			addr);
+
 	/* Should never get here */
 	BUG();
 }
@@ -150,13 +162,6 @@ void machine_restart(char *cmd)
 	/* Disable interrupts first */
 	local_irq_disable();
 	smp_send_stop();
-
-	/*
-	 * UpdateCapsule() depends on the system being reset via
-	 * ResetSystem().
-	 */
-	if (efi_enabled(EFI_RUNTIME_SERVICES))
-		efi_reboot(reboot_mode, NULL);
 
 	/* Now call the architecture specific reboot code. */
 	if (arm_pm_restart)

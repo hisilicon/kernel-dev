@@ -125,4 +125,9 @@ config PCIE_IPROC_PLATFORM
 	  Say Y here if you want to use the Broadcom iProc PCIe controller
 	  through the generic platform bus interface
 
+config PCI_HISI
+	depends on OF
+	bool "Hisilicon Soc HIP05 PCIe controller"
+	select PCIE_DW
+
 endmenu

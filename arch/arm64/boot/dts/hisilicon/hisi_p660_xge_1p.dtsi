@@ -1,0 +1,150 @@
+soc0: soc@000000000 {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	device_type = "soc";
+	compatible = "simple-bus";
+	ranges = <0x0 0x0 0x0 0x0 0x1 0x0>;
+	chip-id = <0>;
+	soc0_dsa: dsa@c7000000 {
+		compatible = "hisilicon,dsa";
+		reg = <0x0 0xc7000000 0x0 0x40000>;
+		interrupt-parent = <&mbigen_dsa>;
+		interrupts = 	<131 4>, <132 4>,
+				<133 4>, <134 4>,
+				<135 4>, <136 4>,
+				<137 4>, <138 4>,
+				<139 4>, <140 4>,
+				<141 4>, <142 4>,
+				<143 4>, <144 4>,
+				<145 4>, <146 4>,
+				<147 4>, <148 4>;
+		irq-num = <13059>;
+		dsa-mode = <12>;
+		cdev-no = <200>;
+		m3-enable = <0>;
+	};
+
+	soc0_mac0: ethernet-mac@c7040000 {
+		mac-index = <0>;
+		compatible = "hisilicon,mac-multi";
+		reg = <0x0 0xc7040000 0x0 0x4000
+		       0x0 0xc7020000 0x0 0x4000
+		       0x0 0xC0000000 0x0 0x10000
+		       0x0 0xC2200000 0x0 0x100000
+		       0x0 0x98000036 0x0 0x1>;
+		irq-num = <13077>;
+		phy-connection-type = "xgmii";
+		fixed-link = <16 1 10000 0 1>;
+	};
+
+	soc0_mac1: ethernet-mac@c7044000 {
+		mac-index = <1>;
+		compatible = "hisilicon,mac-multi";
+		reg = <0x0 0xc7044000 0x0 0x4000
+		       0x0 0xc7024000 0x0 0x4000
+		       0x0 0xC0000000 0x0 0x10000
+		       0x0 0xC2200000 0x0 0x100000
+		       0x0 0x98000038 0x0 0x1>;
+		irq-num = <13078>;
+		phy-connection-type = "xgmii";
+		fixed-link = <17 1 10000 0 1>;
+	};
+
+	soc0_ppe0:ppe@c5070000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "hisilicon,ppe-multi";
+		ranges = <0x0 0x0 0x0 0x0 0xffffffff>;
+		reg = <0x0 0xc5070000 0x0 0x10000>;
+		ppe-common-index = <0>;
+		soc0_ppe_group0:ppe-group@c5000000 {
+			compatible = "hisilicon,ppe-group";
+			reg = <0x0 0xc5000000 0x10000>;
+			irq-num = <12928>;
+			ppe-num = <1>;
+		};
+
+		soc0_ppe_group1:ppe-group@c5010000 {
+			compatible = "hisilicon,ppe-group";
+			reg = <0x0 0xc5010000 0x10000>;
+			irq-num = <12929>;
+			ppe-num = <1>;
+		};
+	};
+	soc0_rcb0:rcb@c5080000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "hisilicon,rcb","hisilicon,rcb-multi";
+		ranges = <0x0 0x0 0x0 0x0 0xffffffff>;
+		reg = <0x0 0xc5080000 0x0 0x10000>;
+		irq-num = <12934>;
+		soc0_rcb_group0:rcb-group@c5090000 {
+			compatible = "hisilicon,rcb-group";
+			reg = <0x0 0xc5090000 0x100000>;
+			interrupt-parent = <&mbigen_dsa>;
+			interrupts = <384 1>, <385 1>,
+				   <386 1>, <387 1>,
+				   <388 1>, <389 1>,
+				   <390 1>, <391 1>,
+				   <392 1>, <393 1>,
+				   <394 1>, <395 1>,
+				   <396 1>, <397 1>,
+				   <398 1>, <399 1>,
+				   <400 1>, <401 1>,
+				   <402 1>, <403 1>,
+				   <404 1>, <405 1>,
+				   <406 1>, <407 1>,
+				   <408 1>, <409 1>,
+				   <410 1>, <411 1>,
+				   <412 1>, <413 1>,
+				   <414 1>, <415 1>;
+			irq-num = <13312>;
+			buf-size = <2048>;
+			desc-num = <1024>;
+		};
+		soc0_rcb_group1:rcb-group@c5190000 {
+			compatible = "hisilicon,rcb-group";
+			reg = <0x0 0xc5190000 0x100000>;
+			interrupt-parent = <&mbigen_dsa>;
+			interrupts = <416 1>, <417 1>,
+				   <418 1>, <419 1>,
+				   <420 1>, <421 1>,
+				   <422 1>, <423 1>,
+				   <424 1>, <425 1>,
+				   <426 1>, <427 1>,
+				   <428 1>, <429 1>,
+				   <430 1>, <431 1>,
+				   <432 1>, <433 1>,
+				   <434 1>, <435 1>,
+				   <436 1>, <437 1>,
+				   <438 1>, <439 1>,
+				   <440 1>, <441 1>,
+				   <442 1>, <443 1>,
+				   <444 1>, <445 1>,
+				   <446 1>, <447 1>;
+			irq-num = <13344>;
+			buf-size = <2048>;
+			desc-num = <1024>;
+		};
+	};
+
+	soc_nic0:ethernet@0 {
+		 compatible = "hisilicon,soc-dsa-nic";
+		 mac-handle = <&soc0_mac0>;
+		 nic-id = <0>;
+		 ppe-group-handle = <&soc0_ppe_group0>;
+		 rcb-group-handle = <&soc0_rcb_group0>;
+		 local-mac-address = [00 00 00 01 00 5A];
+		 dma-coherent;
+	};
+
+	soc_nic1:ethernet@1 {
+		 compatible = "hisilicon,soc-dsa-nic";
+		 mac-handle = <&soc0_mac1>;
+		 nic-id = <1>;
+		 ppe-group-handle = <&soc0_ppe_group1>;
+		 rcb-group-handle = <&soc0_rcb_group1>;
+		 local-mac-address = [00 00 00 01 00 5B];
+		 dma-coherent;
+	};
+};

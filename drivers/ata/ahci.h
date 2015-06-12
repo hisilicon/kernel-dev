@@ -347,6 +347,8 @@ struct ahci_host_priv {
 	 * be overridden anytime before the host is activated.
 	 */
 	void			(*start_engine)(struct ata_port *ap);
+	/* hisilicon port phy is stupid, restart it when ahci link hardreset*/
+	void			(*restart_port_phy)(struct ata_port *ap);
 };
 
 extern int ahci_ignore_sss;

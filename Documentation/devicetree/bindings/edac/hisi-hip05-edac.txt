@@ -1,0 +1,21 @@
+Hisi hip05 SoC EDAC node
+
+EDAC node is defined to describe on-chip error detection and correction.
+The follow error types are supported:
+
+  memory controller	- Memory controller
+  cache (L1/L2)	- Processor L1/L2 cache
+
+The following section describes the EDAC DT node binding.
+
+Required properties:
+
+ compatible		: Shall be "hisi,hip05-edac-cache".
+  - poll-delay-ms	: ms of delay to poll cache ECC
+
+Example:
+
+edaccache {
+	compatible = "hisi,hip05-edac-cache";
+	poll-delay-ms = <1000>;
+}

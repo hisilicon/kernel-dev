@@ -261,7 +261,7 @@ static void init_default_table_values(struct pm8001_hba_info *pm8001_ha)
 		pm8001_ha->outbnd_q_tbl[i].pi_lower_base_addr	=
 			pm8001_ha->memoryMap.region[PI + i].phys_addr_lo;
 		pm8001_ha->outbnd_q_tbl[i].interrup_vec_cnt_delay	=
-			0 | (10 << 16) | (i << 24);
+			0 | (1 << 16) | (i << 24);
 		pm8001_ha->outbnd_q_tbl[i].pi_virt		=
 			pm8001_ha->memoryMap.region[PI + i].virt_ptr;
 		offsetob = i * 0x24;

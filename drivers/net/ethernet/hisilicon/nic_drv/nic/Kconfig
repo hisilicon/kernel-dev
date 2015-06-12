@@ -1,0 +1,11 @@
+#
+# HISILICON PV660 device configuration
+#
+
+config PV660_XGMAC
+       tristate "Hisilicon PhospherV660 10 Gigabit Ethernet MAC Support"
+       depends on NET_VENDOR_HISILICON 
+       select PHYLIB
+       help
+         This selects the Hisilicon the PhospherV660 XGE network device
+#source "drivers/net/ethernet/hislicon/pv660"                

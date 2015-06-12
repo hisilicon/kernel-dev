@@ -53,15 +53,10 @@ enum x86_regset {
 	REGSET_IOPERM32,
 };
 
-struct pt_regs_offset {
-	const char *name;
-	int offset;
-};
-
 #define REG_OFFSET_NAME(r) {.name = #r, .offset = offsetof(struct pt_regs, r)}
 #define REG_OFFSET_END {.name = NULL, .offset = 0}
 
-static const struct pt_regs_offset regoffset_table[] = {
+const struct pt_regs_offset regs_offset_table[] = {
 #ifdef CONFIG_X86_64
 	REG_OFFSET_NAME(r15),
 	REG_OFFSET_NAME(r14),
@@ -93,38 +88,6 @@ static const struct pt_regs_offset regoffset_table[] = {
 	REG_OFFSET_NAME(ss),
 	REG_OFFSET_END,
 };
-
-/**
- * regs_query_register_offset() - query register offset from its name
- * @name:	the name of a register
- *
- * regs_query_register_offset() returns the offset of a register in struct
- * pt_regs from its name. If the name is invalid, this returns -EINVAL;
- */
-int regs_query_register_offset(const char *name)
-{
-	const struct pt_regs_offset *roff;
-	for (roff = regoffset_table; roff->name != NULL; roff++)
-		if (!strcmp(roff->name, name))
-			return roff->offset;
-	return -EINVAL;
-}
-
-/**
- * regs_query_register_name() - query register name from its offset
- * @offset:	the offset of a register in struct pt_regs.
- *
- * regs_query_register_name() returns the name of a register from its
- * offset in struct pt_regs. If the @offset is invalid, this returns NULL;
- */
-const char *regs_query_register_name(unsigned int offset)
-{
-	const struct pt_regs_offset *roff;
-	for (roff = regoffset_table; roff->name != NULL; roff++)
-		if (roff->offset == offset)
-			return roff->name;
-	return NULL;
-}
 
 static const int arg_offs_table[] = {
 #ifdef CONFIG_X86_32
