@@ -1,4 +1,5 @@
 #include "hisi_sas.h"
+#include <linux/swab.h>
 
 #define DEV_IS_EXPANDER(type) \
 	((type == SAS_EDGE_EXPANDER_DEVICE) || (type == SAS_FANOUT_EXPANDER_DEVICE))
@@ -9,6 +10,8 @@
 
 #define DMA_ADDR_LO(addr) ((u32)(addr&0xffffffff))
 #define DMA_ADDR_HI(addr) ((u32)(addr>>32))
+
+#define MANAGE_PROTOCOL_IN  0x10
 
 /* registers */
 #define BASE_REG		(0x800)
@@ -25,55 +28,14 @@
 #define WR_PTR_0_REG		(0x26C)
 #define RD_PTR_0_REG		(0x270)
 #define AXI_CFG_REG		(0x5100)
-/*global registers need init*/
-#define DLVRY_QUEUE_ENABLE_REG  (0x0)
-#define HGC_TRANS_TASK_CNT_LIMIT_REG    (0x38)
-#define DEVICE_MSG_WORK_MODE_REG        (0x94)
-#define MAX_BURST_BYTES_REG             (0x98)
-#define SMP_TIMEOUT_TIMER_REG           (0x9c)
-#define MAX_CON_TIME_LIMIT_TIME_REG     (0xA4)
-#define HGC_SAS_TXFAIL_RETRY_CTRL_REG   (0x84)
-#define HGC_ERR_STAT_EN_REG             (0x238)
-#define CFG_1US_TIMER_TRSH_REG          (0xCC)
-#define HGC_GET_ITV_TIME_REG            (0x90)
-#define I_T_NEXUS_LOSS_TIME_REG         (0xA0)
-#define BUS_INACTIVE_LIMIT_TIME_REG     (0xA8)
-#define REJECT_TO_OPEN_LIMIT_TIME_REG   (0xAC)
-#define CFG_AGING_TIME_REG              (0xBC)
-#define HGC_DFX_CFG_REG2_REG            (0xC0)
-#define FIS_LIST_BADDR_L_REG            (0xC4)
-#define INT_COAL_EN_REG                 (0x1BC)
-#define OQ_INT_COAL_TIME_REG            (0x1C0)
-#define OQ_INT_COAL_CNT_REG             (0x1C4)
-#define ENT_INT_COAL_TIME_REG           (0x1C8)
-#define ENT_INT_COAL_CNT_REG            (0x1CC)
-#define OQ_INT_SRC_REG                  (0x1D0)
-#define OQ_INT_SRC_MSK_REG              (0x1D4)
-#define ENT_INT_SRC_MSK1_REG            (0x1E0)
-#define ENT_INT_SRC2_REG                (0x1DC)
-#define ENT_INT_SRC_MSK2_REG            (0x1E4)
-#define SAS_ECC_INTR_MSK_REG            (0x1EC)
-#define AXI_AHB_CLK_CFG_REG             (0x3C)
-#define CFG_SAS_CONFIG_REG              (0xD4)
-
-/*phy registers need init*/
-#define PROG_PHY_LINK_RATE_REG          (BASE_REG + 0xC)
-#define PHY_CONFIG2_REG                 (BASE_REG + 0x1A8)
-#define PHY_RATE_NEGO_REG               (BASE_REG + 0x30)
-#define PHY_PCN_REG                     (BASE_REG + 0x44)
-#define SL_TOUT_CFG_REG                 (BASE_REG + 0x8C)
-#define DONE_RECEVIED_TIME_REG          (BASE_REG + 0x12C)
-#define RXOP_CHECK_CFG_H_REG            (BASE_REG + 0xFC)
-#define CON_CFG_DRIVER_REG              (BASE_REG + 0x130)
-#define CHL_INT_COAL_EN_REG             (BASE_REG + 0x1D0)
-/*phy intr registers*/
-#define CHL_INT0_REG                    (BASE_REG + 0x1B0)
-#define CHL_INT1_REG                    (BASE_REG + 0x1B4)
-#define CHL_INT2_REG                    (BASE_REG + 0x1B8)
-/*phy intr_mask registers need unmask*/
-#define CHL_INT0_MSK_REG                (BASE_REG + 0x1BC)
-#define CHL_INT1_MSK_REG                (BASE_REG + 0x1C0)
-#define CHL_INT2_MSK_REG                (BASE_REG + 0x1C4)
+/*identify address frame register*/
+#define TX_ID_DWORD0_REG (BASE_REG + 0X9C)
+#define TX_ID_DWORD1_REG (BASE_REG + 0XA0)
+#define TX_ID_DWORD2_REG (BASE_REG + 0XA4)
+#define TX_ID_DWORD3_REG (BASE_REG + 0XA8)
+#define TX_ID_DWORD4_REG (BASE_REG + 0XAC)
+#define TX_ID_DWORD5_REG (BASE_REG + 0XB0)
+#define TX_ID_DWORD6_REG (BASE_REG + 0XB4)
 
 static inline u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
 {
@@ -865,7 +827,52 @@ static int hisi_sas_init_reg(struct hisi_hba *hisi_hba)
 
 static int hisi_sas_init_id_frame(struct hisi_hba *hisi_hba)
 {
-	return 0;
+    int i;
+    struct sas_identify_frame identify_frame;
+    u32 *identify_buffer;
+    /*ifdef _LITTLE_ENDIAN_BITFIELD,
+     *sas_identify_frame the same as the structure in IT code*/
+    for(i = 0; i < hisi_hba->n_phy; i++) {
+        memcpy(&identify_frame, 0, sizeof(identify_frame));
+        /*dev_type is MANAGE_PROTOCOL_IN according to IT code*/
+        identify_frame.dev_type = MANAGE_PROTOCOL_IN;
+        identify_frame.initiator_bits = SAS_PROTOCOL_ALL;
+        identify_frame.target_bits = SAS_PROTOCOL_NONE;
+        memcpy(identify_frame._un4_11,
+                hisi_hba->sas_addr,
+                SAS_ADDR_SIZE);
+        memcpy(identify_frame.sas_addr,
+                hisi_hba->sas_addr,
+                SAS_ADDR_SIZE);
+        identify_frame.phy_id = i;
+
+        identify_buffer = (u32 *)((void *)&identify_buffer);
+        hisi_sas_phy_write32(hisi_hba,
+            i,
+            TX_ID_DWORD0_REG,
+            __swab32(identify_buffer[0]));
+        hisi_sas_phy_write32(hisi_hba,
+            i,
+            TX_ID_DWORD1_REG,
+            identify_buffer[2]);
+        hisi_sas_phy_write32(hisi_hba,
+            i,
+            TX_ID_DWORD2_REG,
+            identify_buffer[1]);
+        hisi_sas_phy_write32(hisi_hba,
+            i,
+            TX_ID_DWORD3_REG,
+            identify_buffer[4]);
+        hisi_sas_phy_write32(hisi_hba,
+            i,
+            TX_ID_DWORD4_REG,
+            identify_buffer[3]);
+        hisi_sas_phy_write32(hisi_hba,
+            i,
+            TX_ID_DWORD5_REG,
+            __swab32(identify_buffer[5]));
+    }
+    return 0;
 }
 
 
