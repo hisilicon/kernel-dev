@@ -286,8 +286,8 @@ static void hisi_sas_init_add(struct hisi_hba *hisi_hba)
 	u8 i;
 
 	for (i=0; i < hisi_hba->n_phy; i++) {
-		// copied from mvsas, j00310691
-		hisi_hba->phy[i].dev_sas_addr = 0x5005043011ab0000ULL;
+		/* j00310691 use huawei IEEE id (001882) */
+		hisi_hba->phy[i].dev_sas_addr =  0x5001882000000000ULL;
 		hisi_hba->phy[i].dev_sas_addr =
 			cpu_to_be64((u64)(*(u64 *)&hisi_hba->phy[i].dev_sas_addr));
 	}
