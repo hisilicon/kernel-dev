@@ -15,6 +15,12 @@
 
 /* registers */
 #define GLOBAL_BASE_REG		(0x0)
+#define IOST_BASE_ADDR_LO	(GLOBAL_BASE_REG + 0x8)
+#define IOST_BASE_ADDR_HI	(GLOBAL_BASE_REG + 0xc)
+#define ITCT_BASE_ADDR_LO	(GLOBAL_BASE_REG + 0x10)
+#define ITCT_BASE_ADDR_HI	(GLOBAL_BASE_REG + 0x14)
+#define BROKEN_MSG_ADDR_LO	(GLOBAL_BASE_REG + 0x18)
+#define BROKEN_MSG_ADDR_HI	(GLOBAL_BASE_REG + 0x1c)
 #define DLVRY_Q_0_BASE_ADDR_LO	(GLOBAL_BASE_REG + 0x260)
 #define DLVRY_Q_0_BASE_ADDR_HI	(GLOBAL_BASE_REG + 0x264)
 #define DLVRY_Q_0_DEPTH		(GLOBAL_BASE_REG + 0x268)
@@ -965,6 +971,33 @@ static int hisi_sas_init_reg(struct hisi_hba *hisi_hba)
 			COMPL_Q_0_DEPTH + (i * 0x14),
 			HISI_SAS_QUEUE_SLOTS);
 	}
+
+	/* itct */
+	hisi_sas_write32(hisi_hba,
+		ITCT_BASE_ADDR_LO,
+		DMA_ADDR_LO(hisi_hba->itct_dma));
+
+	hisi_sas_write32(hisi_hba,
+		ITCT_BASE_ADDR_HI,
+		DMA_ADDR_HI(hisi_hba->itct_dma));
+
+	/* iost */
+	hisi_sas_write32(hisi_hba,
+		IOST_BASE_ADDR_LO,
+		DMA_ADDR_LO(hisi_hba->iost_dma));
+
+	hisi_sas_write32(hisi_hba,
+		IOST_BASE_ADDR_HI,
+		DMA_ADDR_HI(hisi_hba->iost_dma));
+
+	/* breakpoint */
+	hisi_sas_write32(hisi_hba,
+		BROKEN_MSG_ADDR_LO,
+		DMA_ADDR_LO(hisi_hba->breakpoint_dma));
+
+	hisi_sas_write32(hisi_hba,
+		BROKEN_MSG_ADDR_HI,
+		DMA_ADDR_HI(hisi_hba->breakpoint_dma));
 
 	return 0;
 }

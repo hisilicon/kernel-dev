@@ -162,6 +162,15 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 	if (!hisi_hba->iost)
 		goto err_out;
 
+	hisi_hba->breakpoint = dma_alloc_coherent(hisi_hba->dev,
+				HISI_SAS_COMMAND_ENTRIES * /* j00310691 double-check */
+				HISI_SAS_BREAKPOINT_ENTRY_SZ,
+				&hisi_hba->breakpoint_dma,
+				GFP_KERNEL);
+
+	if (!hisi_hba->breakpoint)
+		goto err_out;
+
 	hisi_hba->iptt_count = HISI_SAS_COMMAND_ENTRIES;
 	hisi_hba->iptt_tags = kzalloc(hisi_hba->iptt_count/sizeof(unsigned long), GFP_KERNEL);
 	if (!hisi_hba->iptt_tags)

@@ -28,6 +28,7 @@
 #define HISI_SAS_STATUS_BUF_SZ (sizeof(struct hisi_sas_err_record) + 1024)
 #define HISI_SAS_ITCT_ENTRY_SZ 128
 #define HISI_SAS_IOST_ENTRY_SZ 32
+#define HISI_SAS_BREAKPOINT_ENTRY_SZ (sizeof(struct hisi_sas_breakpoint))
 #define HISI_SAS_COMMAND_TABLE_SZ (((sizeof(union hisi_sas_command_table)+3)/4)*4)
 
 #define HISI_SAS_MAX_SG 10
@@ -173,6 +174,8 @@ struct hisi_hba {
 	dma_addr_t itct_dma;
 	struct hisi_sas_iost *iost;
 	dma_addr_t iost_dma;
+	struct hisi_sas_breakpoint *breakpoint;
+	dma_addr_t breakpoint_dma;
 	struct hisi_sas_slot	*slot_info;
 	// To be completed, j00310691
     int base_irq_num;
@@ -414,6 +417,10 @@ struct hisi_sas_err_record {
 
 	/* dw3 */
 	u32 rsvd;
+};
+
+struct hisi_sas_breakpoint {
+	u8	data[128];	/*io128 byte*/
 };
 
 struct hisi_sas_sge {
