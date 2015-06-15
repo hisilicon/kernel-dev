@@ -141,7 +141,7 @@ struct hisi_hba {
 	u8 sas_addr[SAS_ADDR_SIZE];
 
 	struct hisi_sas_cmd_hdr	*cmd_hdr[HISI_SAS_MAX_QUEUES];
-	dma_addr_t	cmd_dma[HISI_SAS_MAX_QUEUES];
+	dma_addr_t	cmd_hdr_dma[HISI_SAS_MAX_QUEUES];
 	struct hisi_sas_complete_hdr	*complete_hdr[HISI_SAS_MAX_QUEUES];
 	dma_addr_t	complete_hdr_dma[HISI_SAS_MAX_QUEUES];
 

@@ -14,28 +14,40 @@
 #define MANAGE_PROTOCOL_IN  0x10
 
 /* registers */
-#define BASE_REG		(0x800)
-#define PHY_CFG_REG		(BASE_REG + 0x0)
+#define GLOBAL_BASE_REG		(0x0)
+#define DLVRY_Q_0_BASE_ADDR_LO	(GLOBAL_BASE_REG + 0x260)
+#define DLVRY_Q_0_BASE_ADDR_HI	(GLOBAL_BASE_REG + 0x264)
+#define DLVRY_Q_0_DEPTH		(GLOBAL_BASE_REG + 0x268)
+#define DLVRY_Q_0_WR_PTR	(GLOBAL_BASE_REG + 0x26C)
+#define DLVRY_Q_0_RD_PTR	(GLOBAL_BASE_REG + 0x270)
+#define COMPL_Q_0_BASE_ADDR_LO	(GLOBAL_BASE_REG + 0x4e0)
+#define COMPL_Q_0_BASE_ADDR_HI	(GLOBAL_BASE_REG + 0x4e4)
+#define COMPL_Q_0_DEPTH		(GLOBAL_BASE_REG + 0x4e8)
+#define COMPL_Q_0_WR_PTR	(GLOBAL_BASE_REG + 0x4ec)
+#define COMPL_Q_0_RD_PTR	(GLOBAL_BASE_REG + 0x4f0)
+
+#define PORT_BASE_REG		(0x800)
+#define PHY_CFG_REG		(PORT_BASE_REG + 0x0)
 #define PHY_CFG_REG_RESET_OFF	0
 #define PHY_CFG_REG_RESET_MASK	1
-#define PHY_CTRL_REG		(BASE_REG + 0x14)
-#define DMA_TX_STATUS_REG	(BASE_REG + 0x2d0)
+#define PHY_CTRL_REG		(PORT_BASE_REG + 0x14)
+#define TX_ID_DWORD0_REG	(PORT_BASE_REG + 0x9C)
+#define TX_ID_DWORD1_REG	(PORT_BASE_REG + 0xA0)
+#define TX_ID_DWORD2_REG	(PORT_BASE_REG + 0xA4)
+#define TX_ID_DWORD3_REG	(PORT_BASE_REG + 0xA8)
+#define TX_ID_DWORD4_REG	(PORT_BASE_REG + 0xAC)
+#define TX_ID_DWORD5_REG	(PORT_BASE_REG + 0xB0)
+#define TX_ID_DWORD6_REG	(PORT_BASE_REG + 0xB4)
+#define DMA_TX_STATUS_REG	(PORT_BASE_REG + 0x2d0)
 #define DMA_TX_STATUS_BUSY_OFF	0
 #define DMA_TX_STATUS_BUSY_MASK	1
-#define DMA_RX_STATUS_REG	(BASE_REG + 0x2e8)
+#define DMA_RX_STATUS_REG	(PORT_BASE_REG + 0x2e8)
 #define DMA_RX_STATUS_BUSY_OFF	0
 #define DMA_RX_STATUS_BUSY_MASK	1
 #define WR_PTR_0_REG		(0x26C)
 #define RD_PTR_0_REG		(0x270)
 #define AXI_CFG_REG		(0x5100)
-/*identify address frame register*/
-#define TX_ID_DWORD0_REG (BASE_REG + 0X9C)
-#define TX_ID_DWORD1_REG (BASE_REG + 0XA0)
-#define TX_ID_DWORD2_REG (BASE_REG + 0XA4)
-#define TX_ID_DWORD3_REG (BASE_REG + 0XA8)
-#define TX_ID_DWORD4_REG (BASE_REG + 0XAC)
-#define TX_ID_DWORD5_REG (BASE_REG + 0XB0)
-#define TX_ID_DWORD6_REG (BASE_REG + 0XB4)
+
 
 static inline u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
 {
@@ -924,37 +936,37 @@ static int hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
 
 static int hisi_sas_init_reg(struct hisi_hba *hisi_hba)
 {
-    /*global registers init*/
-    hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE_REG,(1<<hisi_hba->n_phy)-1);
-	hisi_sas_write32(hisi_hba, HGC_TRANS_TASK_CNT_LIMIT_REG,0x11);
-	hisi_sas_write32(hisi_hba, DEVICE_MSG_WORK_MODE_REG,0x1);
-    hisi_sas_write32(hisi_hba, MAX_BURST_BYTES_REG,0);
-    hisi_sas_write32(hisi_hba, SMP_TIMEOUT_TIMER_REG,0);
-    hisi_sas_write32(hisi_hba, MAX_CON_TIME_LIMIT_TIME_REG,0);
-    hisi_sas_write32(hisi_hba, HGC_SAS_TXFAIL_RETRY_CTRL_REG,0x211ff);
-    hisi_sas_write32(hisi_hba, HGC_ERR_STAT_EN_REG,0x401);
-    hisi_sas_write32(hisi_hba, CFG_1US_TIMER_TRSH_REG, 0x64);
-    hisi_sas_write32(hisi_hba, HGC_GET_ITV_TIME_REG,0x1);
-    hisi_sas_write32(hisi_hba, I_T_NEXUS_LOSS_TIME_REG,0x64);
-    hisi_sas_write32(hisi_hba, BUS_INACTIVE_LIMIT_TIME_REG,0x2710);
-    hisi_sas_write32(hisi_hba, REJECT_TO_OPEN_LIMIT_TIME_REG,0x1);
-    hisi_sas_write32(hisi_hba, CFG_AGING_TIME_REG,0x7a12);
-    hisi_sas_write32(hisi_hba, HGC_DFX_CFG_REG2_REG,0x9c40);
-    hisi_sas_write32(hisi_hba, FIS_LIST_BADDR_L_REG,0x2);
-    hisi_sas_write32(hisi_hba, INT_COAL_EN_REG, 0xC);
-    hisi_sas_write32(hisi_hba, OQ_INT_COAL_TIME_REG,0x186A0);
-    hisi_sas_write32(hisi_hba, OQ_INT_COAL_CNT_REG,1);
-    hisi_sas_write32(hisi_hba, ENT_INT_COAL_TIME_REG,0x1);
-    hisi_sas_write32(hisi_hba, ENT_INT_COAL_CNT_REG,0x1);
-    hisi_sas_write32(hisi_hba, OQ_INT_SRC_REG,0xffffffff);
-    hisi_sas_write32(hisi_hba, OQ_INT_SRC_MSK_REG,0);
-    hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1_REG,0);
-    hisi_sas_write32(hisi_hba, ENT_INT_SRC2_REG,0xffffffff);
-    hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK2_REG,0);
-    hisi_sas_write32(hisi_hba, SAS_ECC_INTR_MSK_REG,0);
-    hisi_sas_write32(hisi_hba, AXI_AHB_CLK_CFG_REG,0x2);
-    hisi_sas_write32(hisi_hba, CFG_SAS_CONFIG_REG,0x22000000);
-    return 0;
+	int i;
+
+	for (i = 0; i < hisi_hba->queue_count; i++) {
+		/* Delivery queue */
+		hisi_sas_write32(hisi_hba,
+			DLVRY_Q_0_BASE_ADDR_HI + (i * 0x14),
+			DMA_ADDR_HI(hisi_hba->cmd_hdr_dma[i]));
+
+		hisi_sas_write32(hisi_hba,
+			DLVRY_Q_0_BASE_ADDR_LO + (i * 0x14),
+			DMA_ADDR_LO(hisi_hba->cmd_hdr_dma[i]));
+
+		hisi_sas_write32(hisi_hba,
+			DLVRY_Q_0_DEPTH + (i * 0x14),
+			HISI_SAS_QUEUE_SLOTS);
+
+		/* Completion queue */
+		hisi_sas_write32(hisi_hba,
+			COMPL_Q_0_BASE_ADDR_HI + (i * 0x14),
+			DMA_ADDR_HI(hisi_hba->complete_hdr_dma[i]));
+
+		hisi_sas_write32(hisi_hba,
+			COMPL_Q_0_BASE_ADDR_LO + (i * 0x14),
+			DMA_ADDR_LO(hisi_hba->complete_hdr_dma[i]));
+
+		hisi_sas_write32(hisi_hba,
+			COMPL_Q_0_DEPTH + (i * 0x14),
+			HISI_SAS_QUEUE_SLOTS);
+	}
+
+	return 0;
 }
 
 static int hisi_sas_init_id_frame(struct hisi_hba *hisi_hba)

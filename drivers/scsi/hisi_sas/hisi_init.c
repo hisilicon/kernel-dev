@@ -108,7 +108,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 		/* Delivery queue */
 		hisi_hba->cmd_hdr[i] = dma_alloc_coherent(hisi_hba->dev,
 					sizeof(*hisi_hba->cmd_hdr) * HISI_SAS_QUEUE_SLOTS,
-					&hisi_hba->cmd_dma[i], GFP_KERNEL);
+					&hisi_hba->cmd_hdr_dma[i], GFP_KERNEL);
 		if (!hisi_hba->cmd_hdr[i])
 			goto err_out;
 		memset(hisi_hba->cmd_hdr[i], 0, sizeof(*hisi_hba->cmd_hdr) * HISI_SAS_QUEUE_SLOTS);
