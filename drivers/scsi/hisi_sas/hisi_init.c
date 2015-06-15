@@ -302,18 +302,18 @@ static irqreturn_t hisi_sas_interrupt_stub(int i, void *p)
     u32 phy_int_event;
 
     pr_info("%s core=%d i=%d\n", __func__, hisi_hba->id, i);
-    if ((i - hisi_hba->base_irq_num) / MSI_PHY_COUNT < HISI_SAS_MAX_PHYS - 1){
-        phy_no = (i - hisi_hba->base_irq_num) / MSI_PHY_COUNT;
-        phy_int_event = (i - hisi_hba->base_irq_num) % MSI_PHY_COUNT;
-        pr_info("%s hisi_hba->base_irq_num = %d, phy_no=%d phy_int_event=%d\n", __func__, hisi_hba->base_irq_num, phy_no, phy_int_event);
+    if ((i - hisi_hba->hisi_irq_table[0]) / MSI_PHY_COUNT < HISI_SAS_MAX_PHYS - 1){
+        phy_no = (i - hisi_hba->hisi_irq_table[0]) / MSI_PHY_COUNT;
+        phy_int_event = (i - hisi_hba->hisi_irq_table[0]) % MSI_PHY_COUNT;
+        pr_info("%s hisi_hba->hisi_irq_table[0] = %d, phy_no=%d phy_int_event=%d\n", __func__, hisi_hba->hisi_irq_table[0], phy_no, phy_int_event);
         /* l00293075 should go into int_phy */
         hisi_sas_int_phy(hisi_hba, phy_no, phy_int_event);
     }else{
-        queue_no = (i - hisi_hba->base_irq_num - MSI_PHY_COUNT * (HISI_SAS_MAX_PHYS - 1));
+        queue_no = (i - hisi_hba->hisi_irq_table[0] - MSI_PHY_COUNT * (HISI_SAS_MAX_PHYS - 1));
         if (queue_no < HISI_SAS_MAX_QUEUES){
             /* l00293075 should go into int_cq */
             pr_info("%s queue_no = %d\n", __func__, queue_no);
-            hisi_sas_int_complete_queue(hisi_hba, queue_no);
+            hisi_sas_cq_interrupt(hisi_hba, queue_no);
         }
     }
 
@@ -336,14 +336,15 @@ int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
 			return -ENOENT;
 		}
 		(void)snprintf(interrupt_name, 32, "hisi_sas %d %d", hisi_hba->id, i);
+        /*l00293075 save irq_no in table */
+        hisi_hba->hisi_irq_table[i] = irq;
+
 		rc = request_irq(irq, hisi_sas_interrupt_stub, 0, interrupt_name, hisi_hba);
+        
 		if (rc) {
 			pr_err("%s core %d could not request interrupt %d, rc=%d\n", __func__, hisi_hba->id, irq, rc);
 			return -ENOENT;
 		}
-        /*l00293075 save fir_iqr_num = 313*/
-        if (0 == i)
-            hisi_hba->base_irq_num = irq;
 	}
 
 	return 0;

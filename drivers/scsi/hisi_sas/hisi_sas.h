@@ -178,7 +178,7 @@ struct hisi_hba {
 	dma_addr_t breakpoint_dma;
 	struct hisi_sas_slot	*slot_info;
 	// To be completed, j00310691
-    int base_irq_num;
+    int hisi_irq_table[HISI_SAS_MAX_INTERRUPTS];
 };
 
 struct hisi_hba_priv_info {

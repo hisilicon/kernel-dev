@@ -52,6 +52,56 @@
 #define DMA_RX_STATUS_BUSY_MASK	1
 #define AXI_CFG_REG		(0x5100)
 
+/*global registers need init*/
+#define DLVRY_QUEUE_ENABLE_REG  (GLOBAL_BASE_REG + 0x0)
+#define HGC_TRANS_TASK_CNT_LIMIT_REG    (GLOBAL_BASE_REG + 0x38)
+#define DEVICE_MSG_WORK_MODE_REG        (GLOBAL_BASE_REG + 0x94)
+#define MAX_BURST_BYTES_REG             (GLOBAL_BASE_REG + 0x98)
+#define SMP_TIMEOUT_TIMER_REG           (GLOBAL_BASE_REG + 0x9c)
+#define MAX_CON_TIME_LIMIT_TIME_REG     (GLOBAL_BASE_REG + 0xA4)
+#define HGC_SAS_TXFAIL_RETRY_CTRL_REG   (GLOBAL_BASE_REG + 0x84)
+#define HGC_ERR_STAT_EN_REG             (GLOBAL_BASE_REG + 0x238)
+#define CFG_1US_TIMER_TRSH_REG          (GLOBAL_BASE_REG + 0xCC)
+#define HGC_GET_ITV_TIME_REG            (GLOBAL_BASE_REG + 0x90)
+#define I_T_NEXUS_LOSS_TIME_REG         (GLOBAL_BASE_REG + 0xA0)
+#define BUS_INACTIVE_LIMIT_TIME_REG     (GLOBAL_BASE_REG + 0xA8)
+#define REJECT_TO_OPEN_LIMIT_TIME_REG   (GLOBAL_BASE_REG + 0xAC)
+#define CFG_AGING_TIME_REG              (GLOBAL_BASE_REG + 0xBC)
+#define HGC_DFX_CFG_REG2_REG            (GLOBAL_BASE_REG + 0xC0)
+#define FIS_LIST_BADDR_L_REG            (GLOBAL_BASE_REG + 0xC4)
+#define INT_COAL_EN_REG                 (GLOBAL_BASE_REG + 0x1BC)
+#define OQ_INT_COAL_TIME_REG            (GLOBAL_BASE_REG + 0x1C0)
+#define OQ_INT_COAL_CNT_REG             (GLOBAL_BASE_REG + 0x1C4)
+#define ENT_INT_COAL_TIME_REG           (GLOBAL_BASE_REG + 0x1C8)
+#define ENT_INT_COAL_CNT_REG            (GLOBAL_BASE_REG + 0x1CC)
+#define OQ_INT_SRC_REG                  (GLOBAL_BASE_REG + 0x1D0)
+#define OQ_INT_SRC_MSK_REG              (GLOBAL_BASE_REG + 0x1D4)
+#define ENT_INT_SRC_MSK1_REG            (GLOBAL_BASE_REG + 0x1E0)
+#define ENT_INT_SRC2_REG                (GLOBAL_BASE_REG + 0x1DC)
+#define ENT_INT_SRC_MSK2_REG            (GLOBAL_BASE_REG + 0x1E4)
+#define SAS_ECC_INTR_MSK_REG            (GLOBAL_BASE_REG + 0x1EC)
+#define AXI_AHB_CLK_CFG_REG             (GLOBAL_BASE_REG + 0x3C)
+#define CFG_SAS_CONFIG_REG              (GLOBAL_BASE_REG + 0xD4)
+
+/*phy registers need init*/
+#define PROG_PHY_LINK_RATE_REG          (PORT_BASE_REG + 0xC)
+#define PHY_CONFIG2_REG                 (PORT_BASE_REG + 0x1A8)
+#define PHY_RATE_NEGO_REG               (PORT_BASE_REG + 0x30)
+#define PHY_PCN_REG                     (PORT_BASE_REG + 0x44)
+#define SL_TOUT_CFG_REG                 (PORT_BASE_REG + 0x8C)
+#define DONE_RECEVIED_TIME_REG          (PORT_BASE_REG + 0x12C)
+#define RXOP_CHECK_CFG_H_REG            (PORT_BASE_REG + 0xFC)
+#define CON_CFG_DRIVER_REG              (PORT_BASE_REG + 0x130)
+#define CHL_INT_COAL_EN_REG             (PORT_BASE_REG + 0x1D0)
+/*phy intr registers*/
+#define CHL_INT0_REG                    (PORT_BASE_REG + 0x1B0)
+#define CHL_INT1_REG                    (PORT_BASE_REG + 0x1B4)
+#define CHL_INT2_REG                    (PORT_BASE_REG + 0x1B8)
+/*phy intr_mask registers need unmask*/
+#define CHL_INT0_MSK_REG                (PORT_BASE_REG + 0x1BC)
+#define CHL_INT1_MSK_REG                (PORT_BASE_REG + 0x1C0)
+#define CHL_INT2_MSK_REG                (PORT_BASE_REG + 0x1C4)
+
 
 static inline u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
 {
@@ -1232,6 +1282,191 @@ void hisi_sas_port_formed(struct asd_sas_phy *sas_phy)
 void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy)
 {
 	pr_info("%s\n", __func__);
+}
+
+void hisi_sas_int_phyup(struct hisi_hba *hisi_hba, int phy_no)
+{
+    int irq_value;
+    
+    irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+
+	if (!(irq_value & PHY_ENABLED)) {
+	    pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
+    }
+
+    pr_info("%s phy = %d, irq_value = %x in phy_up\n", __func__, phy_no, irq_value);
+
+    hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHY_ENABLED);
+}
+
+void hisi_sas_int_ctrlrdy(struct hisi_hba *hisi_hba, int phy_no)
+{
+    int irq_value;
+    
+    irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+
+	if (!(irq_value & PHY_CTRLRDY)) {
+	    pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
+    }
+
+    pr_info("%s phy = %d, irq_value = %x in phy_ctrlrdy\n", __func__, phy_no, irq_value);
+
+    hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHY_CTRLRDY);
+}
+
+
+void hisi_sas_int_dmaerr(struct hisi_hba *hisi_hba, int phy_no)
+{
+    int irq_value;
+    
+    irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+
+	if (!(irq_value & DMA_RESP_ERR)) {
+	    pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
+    }
+
+    pr_info("%s phy = %d, irq_value = %x in dma_resp_err\n", __func__, phy_no, irq_value);
+
+    hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, DMA_RESP_ERR);
+}
+
+void hisi_sas_int_hotplug(struct hisi_hba *hisi_hba, int phy_no)
+{
+    int irq_value;
+    
+    irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+
+	if (!(irq_value & PHYCTRL_HOTPLUG_TOUT)) {
+	    pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
+    }
+
+    pr_info("%s phy = %d, irq_value = %x in hotplug_tout\n", __func__, phy_no, irq_value);
+
+    hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHYCTRL_HOTPLUG_TOUT);
+}
+
+void hisi_sas_int_bcast(struct hisi_hba *hisi_hba, int phy_no)
+{
+    int irq_value;
+    
+    irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+
+	if (!(irq_value & SL_RX_BCAST_ACK)) {
+	    pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
+    }
+
+    pr_info("%s phy = %d, irq_value = %x in sl_rx_bcast_ack\n", __func__, phy_no, irq_value);
+
+    hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, SL_RX_BCAST_ACK);
+}
+
+void hisi_sas_int_oobrst(struct hisi_hba *hisi_hba, int phy_no)
+{
+    int irq_value;
+    
+    irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+
+	if (!(irq_value & PHYCTRL_OOB_RESTART_CI)) {
+	    pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
+    }
+
+    pr_info("%s phy = %d, irq_value = %x in phyctrl_oob_restart_ci\n", __func__, phy_no, irq_value);
+
+    hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHYCTRL_OOB_RESTART_CI);
+}
+
+void hisi_sas_int_hardrst(struct hisi_hba *hisi_hba, int phy_no)
+{
+    int irq_value;
+    
+    irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+
+	if (!(irq_value & SL_RX_HARDRST)) {
+	    pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
+    }
+
+    pr_info("%s phy = %d, irq_value = %x in sl_rx_hardrst\n", __func__, phy_no, irq_value);
+
+    hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, SL_RX_HARDRST);
+}
+
+void hisi_sas_int_statuscg(struct hisi_hba *hisi_hba, int phy_no)
+{
+    int irq_value;
+    
+    irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+
+	if (!(irq_value & PHYCTRL_STATUS_CHG)) {
+	    pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
+    }
+
+    pr_info("%s phy = %d, irq_value = %x in phyctrl_status_chg\n", __func__, phy_no, irq_value);
+
+    hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHYCTRL_STATUS_CHG);
+}
+
+void hisi_sas_int_int0(struct hisi_hba *hisi_hba, int phy_no)
+{
+    int irq_value;
+    int irq_mask_save;
+
+    /* mask_int0 */
+    irq_mask_save = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_MSK_REG);
+    hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG, 0x003FFFFF);
+    
+    /* read int0 */
+    irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_REG);
+
+    pr_info("%s phy = %d, irq0_value = %x\n", __func__, phy_no, irq_value);
+
+    /* write to zero */
+    hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_REG, irq_value);
+    /* recovery int0_mask */
+    hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG, irq_mask_save);
+    
+}
+
+void hisi_sas_int_int1(struct hisi_hba *hisi_hba, int phy_no)
+{
+    int irq_value;
+    
+    irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT1_REG);
+
+    pr_info("%s phy = %d, irq1_value = %x\n", __func__, phy_no, irq_value);
+
+    hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT1_REG, irq_value);
+}
+
+void hisi_sas_int_phy(struct hisi_hba *hisi_hba, 
+            int phy_no, 
+            u32 events)
+{
+    struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+    phy->irq_status = events;
+    switch(phy->irq_status){
+        case MSI_PHY_CTRL_RDY : 
+                hisi_sas_int_ctrlrdy(hisi_hba, phy_no);break;
+        case MSI_PHY_DMA_RESP_ERR : 
+                hisi_sas_int_dmaerr(hisi_hba, phy_no);break;
+        case MSI_PHY_HOTPLUG_TOUT : 
+                hisi_sas_int_hotplug(hisi_hba, phy_no);break;
+        case MSI_PHY_BCAST_ACK :    
+                hisi_sas_int_bcast(hisi_hba, phy_no);break;
+        case MSI_PHY_OOB_RESTART :  
+                hisi_sas_int_oobrst(hisi_hba, phy_no);break;
+        case MSI_PHY_RX_HARDRST :   
+                hisi_sas_int_hardrst(hisi_hba, phy_no);break;
+        case MSI_PHY_STATUS_CHG :   
+                hisi_sas_int_statuscg(hisi_hba, phy_no);break;
+        case MSI_PHY_SL_PHY_ENABLED :   
+                hisi_sas_int_phyup(hisi_hba, phy_no);break;
+        case MSI_PHY_INT_REG0 :         
+                hisi_sas_int_int0(hisi_hba, phy_no);break;
+        case MSI_PHY_INT_REG1 :         
+                hisi_sas_int_int1(hisi_hba, phy_no);break;
+        default:         
+                pr_info("%s phy->irq_status = %llx out of range", __func__,phy->irq_status);
+    }
 }
 
 /* Interrupts */
