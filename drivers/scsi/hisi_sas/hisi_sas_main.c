@@ -37,21 +37,19 @@
 #define PHY_CFG_REG_RESET_OFF	0
 #define PHY_CFG_REG_RESET_MASK	1
 #define PHY_CTRL_REG		(PORT_BASE_REG + 0x14)
-#define TX_ID_DWORD0_REG	(PORT_BASE_REG + 0x9C)
-#define TX_ID_DWORD1_REG	(PORT_BASE_REG + 0xA0)
-#define TX_ID_DWORD2_REG	(PORT_BASE_REG + 0xA4)
-#define TX_ID_DWORD3_REG	(PORT_BASE_REG + 0xA8)
-#define TX_ID_DWORD4_REG	(PORT_BASE_REG + 0xAC)
-#define TX_ID_DWORD5_REG	(PORT_BASE_REG + 0xB0)
-#define TX_ID_DWORD6_REG	(PORT_BASE_REG + 0xB4)
+#define TX_ID_DWORD0_REG	(PORT_BASE_REG + 0x9c)
+#define TX_ID_DWORD1_REG	(PORT_BASE_REG + 0xa0)
+#define TX_ID_DWORD2_REG	(PORT_BASE_REG + 0xa4)
+#define TX_ID_DWORD3_REG	(PORT_BASE_REG + 0xa8)
+#define TX_ID_DWORD4_REG	(PORT_BASE_REG + 0xaC)
+#define TX_ID_DWORD5_REG	(PORT_BASE_REG + 0xb0)
+#define TX_ID_DWORD6_REG	(PORT_BASE_REG + 0xb4)
 #define DMA_TX_STATUS_REG	(PORT_BASE_REG + 0x2d0)
 #define DMA_TX_STATUS_BUSY_OFF	0
 #define DMA_TX_STATUS_BUSY_MASK	1
 #define DMA_RX_STATUS_REG	(PORT_BASE_REG + 0x2e8)
 #define DMA_RX_STATUS_BUSY_OFF	0
 #define DMA_RX_STATUS_BUSY_MASK	1
-#define WR_PTR_0_REG		(0x26C)
-#define RD_PTR_0_REG		(0x270)
 #define AXI_CFG_REG		(0x5100)
 
 
@@ -255,8 +253,8 @@ static int hisi_sas_get_free_slot(struct hisi_hba *hisi_hba, int *q, int *s)
 	pr_info("%s queue=%d\n", __func__, queue);
 
 	while (1) {
-		w = hisi_sas_read32(hisi_hba, WR_PTR_0_REG + (queue * 0x10));
-		r = hisi_sas_read32(hisi_hba, RD_PTR_0_REG + (queue * 0x10));
+		w = hisi_sas_read32(hisi_hba, DLVRY_Q_0_WR_PTR + (queue * 0x14));
+		r = hisi_sas_read32(hisi_hba, DLVRY_Q_0_RD_PTR + (queue * 0x14));
 
 		if (r == w+1 % HISI_SAS_QUEUE_SLOTS) {
 			dev_warn(hisi_hba->dev, "%s queue full queue=%d r=%d w=%d\n", __func__, queue, r, w);
@@ -727,9 +725,9 @@ err_out:
 void hisi_sas_start_delivery(struct hisi_hba *hisi_hba)
 {
 	int queue = hisi_hba->slot_prep->queue;
-	u32 w = hisi_sas_read32(hisi_hba, WR_PTR_0_REG + (queue * 0x10));
+	u32 w = hisi_sas_read32(hisi_hba, DLVRY_Q_0_WR_PTR + (queue * 0x14));
 
-	hisi_sas_write32(hisi_hba, WR_PTR_0_REG + (queue * 0x10), ++w % HISI_SAS_QUEUE_SLOTS);
+	hisi_sas_write32(hisi_hba, DLVRY_Q_0_WR_PTR + (queue * 0x14), ++w % HISI_SAS_QUEUE_SLOTS);
 }
 
 static int hisi_sas_task_exec(struct sas_task *task,
