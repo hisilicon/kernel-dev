@@ -116,7 +116,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 		/* Completion queue */
 		hisi_hba->complete_hdr[i] = dma_alloc_coherent(hisi_hba->dev,
 					sizeof(*hisi_hba->complete_hdr) * HISI_SAS_QUEUE_SLOTS,
-					&hisi_hba->complete_dma[i], GFP_KERNEL);
+					&hisi_hba->complete_hdr_dma[i], GFP_KERNEL);
 		if (!hisi_hba->complete_hdr[i])
 			goto err_out;
 		memset(hisi_hba->complete_hdr[i], 0, sizeof(*hisi_hba->complete_hdr) * HISI_SAS_QUEUE_SLOTS);
@@ -163,8 +163,8 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 		goto err_out;
 
 	hisi_hba->iptt_count = HISI_SAS_COMMAND_ENTRIES;
-	hisi_hba->iptt = kzalloc(hisi_hba->iptt_count/sizeof(unsigned long), GFP_KERNEL);
-	if (!hisi_hba->iptt)
+	hisi_hba->iptt_tags = kzalloc(hisi_hba->iptt_count/sizeof(unsigned long), GFP_KERNEL);
+	if (!hisi_hba->iptt_tags)
 		goto err_out;
 
 	sprintf(pool_name, "%s%d", "hisi_sas_status_sge_pool", hisi_hba->id);

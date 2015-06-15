@@ -25,7 +25,7 @@
 
 #define HISI_SAS_ID_NOT_MAPPED 0x7f
 
-#define HISI_SAS_STATUS_BUF_SZ 1024
+#define HISI_SAS_STATUS_BUF_SZ (sizeof(struct hisi_sas_err_record) + 1024)
 #define HISI_SAS_ITCT_ENTRY_SZ 128
 #define HISI_SAS_IOST_ENTRY_SZ 32
 #define HISI_SAS_COMMAND_TABLE_SZ (((sizeof(union hisi_sas_command_table)+3)/4)*4)
@@ -38,6 +38,8 @@
 #define PORT_TYPE_SAS (1U << 1)
 #define PORT_SSP_TRGT_MASK (0x1U << 19)
 #define PORT_TYPE_SATA (1U << 0)
+#define RXQ_GOOD (1U << 23)
+#define RXQ_RSP (1U << 18)
 
 #define HISI_SAS_MAX_INTERRUPTS (80 + 32 + 2)
 
@@ -98,7 +100,13 @@ struct hisi_sas_device {
 	u64 reserved;
 };
 
-struct hisi_sas_slot_info {
+struct hisi_sas_iptt {
+	int queue;
+	int queue_slot;
+	int active;
+};
+
+struct hisi_sas_slot {
 	struct list_head entry;
 	union {
 		struct sas_task *task;
@@ -110,13 +118,12 @@ struct hisi_sas_slot_info {
 	int	queue;
 	int	iptt;
 
-	void	*buf;
-	dma_addr_t	buf_dma;
+	void	*cmd_hdr;
+	dma_addr_t	cmd_hdr_dma;
 	void	*status_buffer;
 	dma_addr_t	status_buffer_dma;
 	void *command_table;
 	dma_addr_t	command_table_dma;
-	void	*response;
 	struct hisi_sas_port	*port;
 	struct hisi_sas_device	*device;
 	void	*open_frame;
@@ -135,13 +142,14 @@ struct hisi_hba {
 
 	struct hisi_sas_cmd_hdr	*cmd_hdr[HISI_SAS_MAX_QUEUES];
 	dma_addr_t	cmd_dma[HISI_SAS_MAX_QUEUES];
-	struct hisi_sas_cmd_hdr	*complete_hdr[HISI_SAS_MAX_QUEUES];
-	dma_addr_t	complete_dma[HISI_SAS_MAX_QUEUES];
+	struct hisi_sas_complete_hdr	*complete_hdr[HISI_SAS_MAX_QUEUES];
+	dma_addr_t	complete_hdr_dma[HISI_SAS_MAX_QUEUES];
 
 	int	n_phy;
 
 	int iptt_count;
-	unsigned long *iptt;
+	unsigned long *iptt_tags;
+	struct hisi_sas_iptt iptt[HISI_SAS_COMMAND_ENTRIES];
 
 	struct dma_pool *sge_page_pool;
 
@@ -155,7 +163,7 @@ struct hisi_hba {
 
 	int	id;
 	int	queue_count;
-	struct hisi_sas_slot_info	*slot_prep;
+	struct hisi_sas_slot	*slot_prep;
 
 	struct hba_info_page	hba_param;
 	struct hisi_sas_device	devices[HISI_SAS_MAX_DEVICES];
@@ -165,7 +173,7 @@ struct hisi_hba {
 	dma_addr_t itct_dma;
 	struct hisi_sas_iost *iost;
 	dma_addr_t iost_dma;
-	struct hisi_sas_slot_info	*slot_info;
+	struct hisi_sas_slot	*slot_info;
 	// To be completed, j00310691
     int base_irq_num;
 };
@@ -188,7 +196,7 @@ struct hisi_sas_tei {
 	struct sas_task	*task;
 	struct hisi_sas_cmd_hdr	*hdr;
 	struct hisi_sas_port	*port;
-	struct hisi_sas_slot_info	*slot;
+	struct hisi_sas_slot	*slot;
 	int	n_elem;
 	int	iptt;
 };
@@ -278,7 +286,7 @@ struct hisi_sas_cmd_hdr {
 };
 
 /* Completion queue header */
-struct hisi_sas_cmd_complete_hdr {
+struct hisi_sas_complete_hdr {
 	u32 iptt:16;
 	u32 rsvd0:1;
 	u32 cmd_complt:1;
@@ -393,6 +401,21 @@ struct hisi_sas_iost {
 	uint64_t status_buffer_address;
 };
 
+struct hisi_sas_err_record {
+	/* dw0 */
+	u32 dma_tx_err_type:16;
+	u32 dma_rx_err_type:16;
+
+	/* dw1 */
+	u32 trans_tx_fail_type;
+
+	/* dw2 */
+	u32 trans_rx_fail_type;
+
+	/* dw3 */
+	u32 rsvd;
+};
+
 struct hisi_sas_sge {
 	u32 addr_lo;
 	u32 addr_hi;
@@ -404,22 +427,22 @@ struct hisi_sas_sge {
 
 struct hisi_sas_command_table_ssp {
 	struct ssp_frame_hdr hdr;
-	u8 ui[1024];// j00310691 todo struct struct for ui:
-	// Data frame
-	// XFR_RDY frame
-	// Command frame
-	// Response frame
-	// Task frame
-	// See Table 118 of 1.1 spec
+	u8 iu[1024];/* j00310691 todo struct struct for iu: */
+/*	Data frame
+	XFR_RDY frame
+	Command frame
+	Response frame
+	Task frame
+	See Table 118 of 1.1 spec */
 };
 
-// j00310691 Max SMP Request frame size is 44; see table 186
+/* j00310691 Max SMP Request frame size is 44; see table 186 */
 struct hisi_sas_command_table_smp {
 	u8 bytes[44];
 };
 
 struct hisi_sas_command_table_stp {
-	// j00310691 todo
+	/* j00310691 todo */
 };
 
 union hisi_sas_command_table {
