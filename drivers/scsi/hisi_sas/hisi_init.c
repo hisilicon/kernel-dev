@@ -120,6 +120,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 		if (!hisi_hba->complete_hdr[i])
 			goto err_out;
 		memset(hisi_hba->complete_hdr[i], 0, sizeof(*hisi_hba->complete_hdr) * HISI_SAS_QUEUE_SLOTS);
+
 	}
 
 	sprintf(pool_name, "%s%d", "hisi_sas_status_buffer_pool", hisi_hba->id);

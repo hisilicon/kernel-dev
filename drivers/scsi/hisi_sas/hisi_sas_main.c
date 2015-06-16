@@ -23,7 +23,7 @@
 #define DLVRY_Q_0_BASE_ADDR_LO	(GLOBAL_BASE_REG + 0x260)
 #define DLVRY_Q_0_BASE_ADDR_HI	(GLOBAL_BASE_REG + 0x264)
 #define DLVRY_Q_0_DEPTH		(GLOBAL_BASE_REG + 0x268)
-#define DLVRY_Q_0_WR_PTR	(GLOBAL_BASE_REG + 0x26C)
+#define DLVRY_Q_0_WR_PTR	(GLOBAL_BASE_REG + 0x26c)
 #define DLVRY_Q_0_RD_PTR	(GLOBAL_BASE_REG + 0x270)
 #define COMPL_Q_0_BASE_ADDR_LO	(GLOBAL_BASE_REG + 0x4e0)
 #define COMPL_Q_0_BASE_ADDR_HI	(GLOBAL_BASE_REG + 0x4e4)
@@ -52,54 +52,60 @@
 #define AXI_CFG_REG		(0x5100)
 
 /*global registers need init*/
-#define DLVRY_QUEUE_ENABLE_REG		(GLOBAL_BASE_REG + 0x0)
-#define HGC_TRANS_TASK_CNT_LIMIT_REG	(GLOBAL_BASE_REG + 0x38)
-#define DEVICE_MSG_WORK_MODE_REG	(GLOBAL_BASE_REG + 0x94)
-#define MAX_BURST_BYTES_REG		(GLOBAL_BASE_REG + 0x98)
-#define SMP_TIMEOUT_TIMER_REG		(GLOBAL_BASE_REG + 0x9c)
-#define MAX_CON_TIME_LIMIT_TIME_REG	(GLOBAL_BASE_REG + 0xa4)
-#define HGC_SAS_TXFAIL_RETRY_CTRL_REG	(GLOBAL_BASE_REG + 0x84)
-#define HGC_ERR_STAT_EN_REG		(GLOBAL_BASE_REG + 0x238)
-#define CFG_1US_TIMER_TRSH_REG		(GLOBAL_BASE_REG + 0xcc)
-#define HGC_GET_ITV_TIME_REG		(GLOBAL_BASE_REG + 0x90)
-#define I_T_NEXUS_LOSS_TIME_REG		(GLOBAL_BASE_REG + 0xa0)
-#define BUS_INACTIVE_LIMIT_TIME_REG	(GLOBAL_BASE_REG + 0xa8)
-#define REJECT_TO_OPEN_LIMIT_TIME_REG	(GLOBAL_BASE_REG + 0xac)
-#define CFG_AGING_TIME_REG		(GLOBAL_BASE_REG + 0xbc)
-#define HGC_DFX_CFG_REG2_REG		(GLOBAL_BASE_REG + 0xc0)
-#define FIS_LIST_BADDR_L_REG		(GLOBAL_BASE_REG + 0xc4)
-#define INT_COAL_EN_REG			(GLOBAL_BASE_REG + 0x1bc)
-#define OQ_INT_COAL_TIME_REG		(GLOBAL_BASE_REG + 0x1c0)
-#define OQ_INT_COAL_CNT_REG		(GLOBAL_BASE_REG + 0x1c4)
-#define ENT_INT_COAL_TIME_REG		(GLOBAL_BASE_REG + 0x1c8)
-#define ENT_INT_COAL_CNT_REG		(GLOBAL_BASE_REG + 0x1cc)
-#define OQ_INT_SRC_REG			(GLOBAL_BASE_REG + 0x1d0)
-#define OQ_INT_SRC_MSK_REG		(GLOBAL_BASE_REG + 0x1d4)
-#define ENT_INT_SRC_MSK1_REG		(GLOBAL_BASE_REG + 0x1e0)
-#define ENT_INT_SRC2_REG		(GLOBAL_BASE_REG + 0x1dc)
-#define ENT_INT_SRC_MSK2_REG		(GLOBAL_BASE_REG + 0x1e4)
-#define SAS_ECC_INTR_MSK_REG		(GLOBAL_BASE_REG + 0x1ec)
-#define AXI_AHB_CLK_CFG_REG		(GLOBAL_BASE_REG + 0x3c)
-#define CFG_SAS_CONFIG_REG		(GLOBAL_BASE_REG + 0xd4)
+#define DLVRY_QUEUE_ENABLE_REG  (GLOBAL_BASE_REG + 0x0)
+#define HGC_TRANS_TASK_CNT_LIMIT_REG    (GLOBAL_BASE_REG + 0x38)
+#define DEVICE_MSG_WORK_MODE_REG        (GLOBAL_BASE_REG + 0x94)
+#define MAX_BURST_BYTES_REG             (GLOBAL_BASE_REG + 0x98)
+#define SMP_TIMEOUT_TIMER_REG           (GLOBAL_BASE_REG + 0x9c)
+#define MAX_CON_TIME_LIMIT_TIME_REG     (GLOBAL_BASE_REG + 0xa4)
+#define HGC_SAS_TXFAIL_RETRY_CTRL_REG   (GLOBAL_BASE_REG + 0x84)
+#define HGC_ERR_STAT_EN_REG             (GLOBAL_BASE_REG + 0x238)
+#define CFG_1US_TIMER_TRSH_REG          (GLOBAL_BASE_REG + 0xcc)
+#define HGC_GET_ITV_TIME_REG            (GLOBAL_BASE_REG + 0x90)
+#define I_T_NEXUS_LOSS_TIME_REG         (GLOBAL_BASE_REG + 0xa0)
+#define BUS_INACTIVE_LIMIT_TIME_REG     (GLOBAL_BASE_REG + 0xa8)
+#define REJECT_TO_OPEN_LIMIT_TIME_REG   (GLOBAL_BASE_REG + 0xac)
+#define CFG_AGING_TIME_REG              (GLOBAL_BASE_REG + 0xbc)
+#define HGC_DFX_CFG_REG2_REG            (GLOBAL_BASE_REG + 0xc0)
+#define FIS_LIST_BADDR_L_REG            (GLOBAL_BASE_REG + 0xc4)
+#define INT_COAL_EN_REG                 (GLOBAL_BASE_REG + 0x1bc)
+#define OQ_INT_COAL_TIME_REG            (GLOBAL_BASE_REG + 0x1c0)
+#define OQ_INT_COAL_CNT_REG             (GLOBAL_BASE_REG + 0x1c4)
+#define ENT_INT_COAL_TIME_REG           (GLOBAL_BASE_REG + 0x1c8)
+#define ENT_INT_COAL_CNT_REG            (GLOBAL_BASE_REG + 0x1cc)
+#define OQ_INT_SRC_REG                  (GLOBAL_BASE_REG + 0x1d0)
+#define OQ_INT_SRC_MSK_REG              (GLOBAL_BASE_REG + 0x1d4)
+#define ENT_INT_SRC_MSK1_REG            (GLOBAL_BASE_REG + 0x1e0)
+#define ENT_INT_SRC2_REG                (GLOBAL_BASE_REG + 0x1dc)
+#define ENT_INT_SRC_MSK2_REG            (GLOBAL_BASE_REG + 0x1e4)
+#define SAS_ECC_INTR_MSK_REG            (GLOBAL_BASE_REG + 0x1ec)
+#define AXI_AHB_CLK_CFG_REG             (GLOBAL_BASE_REG + 0x3c)
+#define CFG_SAS_CONFIG_REG              (GLOBAL_BASE_REG + 0xd4)
 
 /*phy registers need init*/
-#define PROG_PHY_LINK_RATE_REG          (PORT_BASE_REG + 0xC)
-#define PHY_CONFIG2_REG                 (PORT_BASE_REG + 0x1A8)
+#define PROG_PHY_LINK_RATE_REG          (PORT_BASE_REG + 0xc)
+#define PHY_CONFIG2_REG                 (PORT_BASE_REG + 0x1a8)
 #define PHY_RATE_NEGO_REG               (PORT_BASE_REG + 0x30)
 #define PHY_PCN_REG                     (PORT_BASE_REG + 0x44)
-#define SL_TOUT_CFG_REG                 (PORT_BASE_REG + 0x8C)
-#define DONE_RECEVIED_TIME_REG          (PORT_BASE_REG + 0x12C)
-#define RXOP_CHECK_CFG_H_REG            (PORT_BASE_REG + 0xFC)
+#define SL_TOUT_CFG_REG                 (PORT_BASE_REG + 0x8c)
+#define DONE_RECEVIED_TIME_REG          (PORT_BASE_REG + 0x12c)
+#define RXOP_CHECK_CFG_H_REG            (PORT_BASE_REG + 0xfc)
 #define CON_CFG_DRIVER_REG              (PORT_BASE_REG + 0x130)
-#define CHL_INT_COAL_EN_REG             (PORT_BASE_REG + 0x1D0)
+#define CHL_INT_COAL_EN_REG             (PORT_BASE_REG + 0x1d0)
 /*phy intr registers*/
-#define CHL_INT0_REG			(PORT_BASE_REG + 0x1B0)
-#define CHL_INT1_REG			(PORT_BASE_REG + 0x1B4)
-#define CHL_INT2_REG			(PORT_BASE_REG + 0x1B8)
+#define CHL_INT0_REG                    (PORT_BASE_REG + 0x1b0)
+#define CHL_INT1_REG                    (PORT_BASE_REG + 0x1b4)
+#define CHL_INT2_REG                    (PORT_BASE_REG + 0x1b8)
 /*phy intr_mask registers need unmask*/
-#define CHL_INT0_MSK_REG		(PORT_BASE_REG + 0x1bC)
-#define CHL_INT1_MSK_REG		(PORT_BASE_REG + 0x1c0)
-#define CHL_INT2_MSK_REG		(PORT_BASE_REG + 0x1c4)
+#define CHL_INT0_MSK_REG                (PORT_BASE_REG + 0x1bc)
+#define CHL_INT1_MSK_REG                (PORT_BASE_REG + 0x1c0)
+#define CHL_INT2_MSK_REG                (PORT_BASE_REG + 0x1c4)
+
+/* reg & mask used for bus */
+#define RESET_STATUS_MASK	                (0x7ffff)
+#define RESET_STATUS_RESET	                (0x7ffff)
+#define RESET_STATUS_DERESET	            (0x0)
+
 
 static inline u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
 {
@@ -983,6 +989,14 @@ static int hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
 {
 	int i;
 	unsigned long end_time;
+	int reg_value = 0;
+	void __iomem *sub_ctrl_base = 0;
+	u32 sub_ctrl_range = 0;
+	u64 reset_reg_addr = 0;
+	u64 dereset_reg_addr = 0;
+	u32 reset_value = 0;
+	u32 dereset_value = 0;
+	u64 reset_status_reg_addr = 0;
 
 	/* inline Higgs_PrepareResetHw j00310691 */
 	for (i = 0; i < hisi_hba->n_phy; i++) {
@@ -1022,13 +1036,74 @@ static int hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
 			hisi_sas_read32(hisi_hba, DMA_TX_STATUS_REG);
 
 		if (axi_status == 0)
-			return 0;
+			break;
 
 		msleep(20);
 		if (time_after(jiffies, end_time))
 			return -EIO;
 	}
 
+
+/* do you mean i put them here ?*/
+#define DSAF_SUBCTL_BASE                    (0xc0000000ull)
+#define DSAF_SUBCTL_RANGE                   (0xffff)
+#define DSAF_SUB_CTRL_RESET_OFFSET          (0xa60)
+#define DSAF_SUB_CTRL_DERESET_OFFSET        (0xa64)
+#define DSAF_SUB_CTRL_RESET_STATUS_OFFSET   (0x5a30)
+#define DSAF_SUB_CTRL_RESET_VALUE           (0x7ffff)
+#define DSAF_SUB_CTRL_DERESET_VALUE         (0x7ffff)
+
+#define PCIE_SUBCTL_BASE                    (0xb0000000ull)
+#define PCIE_SUBCTL_RANGE                   (0xffff)
+#define PCIE_SUB_CTRL_RESET_OFFSET          (0xa18)
+#define PCIE_SUB_CTRL_DERESET_OFFSET        (0xa1c)
+#define PCIE_SUB_CTRL_RESET_STATUS_OFFSET   (0x5a0c)
+#define PCIE_SUB_CTRL_RESET_VALUE           (0x7ffff)
+#define PCIE_SUB_CTRL_DERESET_VALUE         (0x7ffff)
+
+	if (0 == hisi_hba->id) {
+		sub_ctrl_base = (void __iomem *)DSAF_SUBCTL_BASE;
+		sub_ctrl_range = DSAF_SUBCTL_RANGE;
+		reset_reg_addr = DSAF_SUB_CTRL_RESET_OFFSET;
+		dereset_reg_addr = DSAF_SUB_CTRL_DERESET_OFFSET;
+		reset_status_reg_addr = DSAF_SUB_CTRL_RESET_STATUS_OFFSET;
+		reset_value = DSAF_SUB_CTRL_RESET_VALUE;
+		dereset_value = DSAF_SUB_CTRL_DERESET_VALUE;
+	} else {
+		sub_ctrl_base = (void __iomem *)PCIE_SUBCTL_BASE;
+		sub_ctrl_range = PCIE_SUBCTL_RANGE;
+		reset_reg_addr = PCIE_SUB_CTRL_RESET_OFFSET;
+		dereset_reg_addr = PCIE_SUB_CTRL_DERESET_OFFSET;
+		reset_status_reg_addr = PCIE_SUB_CTRL_RESET_STATUS_OFFSET;
+		reset_value = PCIE_SUB_CTRL_RESET_VALUE;
+		dereset_value = PCIE_SUB_CTRL_DERESET_VALUE;
+	}
+
+	/* reset */
+	sub_ctrl_base = (void __iomem *)ioremap(
+			(unsigned long)sub_ctrl_base,
+			sub_ctrl_range);
+	writel(reset_value, sub_ctrl_base + reset_reg_addr);
+	mdelay(1);
+	reg_value = readl(sub_ctrl_base + reset_status_reg_addr);
+	if (RESET_STATUS_RESET != (reg_value & RESET_STATUS_MASK)) {
+		pr_err("%s card:%d sas reset failed", __func__, hisi_hba->id);
+		return -1;
+	}
+
+	/* dereset */
+	writel(dereset_value, sub_ctrl_base + dereset_reg_addr);
+	mdelay(1);
+	reg_value = readl(sub_ctrl_base + reset_status_reg_addr);
+	if (RESET_STATUS_DERESET != (reg_value & RESET_STATUS_MASK)) {
+		pr_err("%s card:%d sas dereset failed",
+			__func__,
+			hisi_hba->id);
+		return -1; /* sorry i don't konw about the right errcode.. */
+	}
+
+	/* io unmap */
+	iounmap(sub_ctrl_base);
 	return 0;
 }
 
@@ -1066,6 +1141,29 @@ static int hisi_sas_init_reg(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, SAS_ECC_INTR_MSK_REG, 0);
 	hisi_sas_write32(hisi_hba, AXI_AHB_CLK_CFG_REG, 0x2);
 	hisi_sas_write32(hisi_hba, CFG_SAS_CONFIG_REG, 0x22000000);
+
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		/*phy registers init set 12G*/
+		hisi_sas_phy_write32(hisi_hba,
+				i,
+				PROG_PHY_LINK_RATE_REG,
+				0x0000088a);
+		hisi_sas_phy_write32(hisi_hba, i, PHY_CONFIG2_REG, 0x80c7c084);
+		hisi_sas_phy_write32(hisi_hba, i, PHY_RATE_NEGO_REG, 0x415ee00);
+		hisi_sas_phy_write32(hisi_hba, i, PHY_PCN_REG, 0x80aa0001);
+
+		hisi_sas_phy_write32(hisi_hba, i, SL_TOUT_CFG_REG, 0x7d7d7d7d);
+		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 0x0);
+		hisi_sas_phy_write32(hisi_hba, i, RXOP_CHECK_CFG_H_REG, 0x1000);
+		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 0);
+		hisi_sas_phy_write32(hisi_hba, i, CON_CFG_DRIVER_REG, 0x13f0a);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT_COAL_EN_REG, 3);
+		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 8);
+		/*unmask phy intr*/
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0_MSK_REG, 0x003ce3ee);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK_REG, 0x00017fff);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK_REG, 0x0000032a);
+	}
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
 		/* Delivery queue */
@@ -1137,8 +1235,10 @@ static int hisi_sas_init_id_frame(struct hisi_hba *hisi_hba)
 		memset(&identify_frame, 0, sizeof(identify_frame));
 		/*dev_type is [6-4]bit, frame_type is [3-0]bit
 		 *according to IT code, the byte is set to 0x10 */
-		identify_frame.dev_type = 1;
-		identify_frame.frame_type = 0;
+		/* l00293075 I found this one */
+		identify_frame.dev_type = SAS_PHY_UNUSED;
+		/* l00293075 I cant found this one... */
+		identify_frame.frame_type = 1;
 		/*_un1 is the second byte,the byte is set to 0x1 in IT code*/
 		identify_frame._un1 = 1;
 
@@ -1152,7 +1252,7 @@ static int hisi_sas_init_id_frame(struct hisi_hba *hisi_hba)
 			SAS_ADDR_SIZE);
 		identify_frame.phy_id = i;
 
-		identify_buffer = (u32 *)((void *)&identify_buffer);
+		identify_buffer = (u32 *)(&identify_frame);
 		hisi_sas_phy_write32(hisi_hba,
 			i,
 			TX_ID_DWORD0_REG,
@@ -1263,25 +1363,7 @@ void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int i)
 	sas_phy->ha = (struct sas_ha_struct *)hisi_hba->shost->hostdata;
 	sas_phy->lldd_phy = phy;
 
-	/*phy registers init set 12G*/
-	hisi_sas_phy_write32(hisi_hba, i, PROG_PHY_LINK_RATE_REG, 0x0000088a);
-	hisi_sas_phy_write32(hisi_hba, i, PHY_CONFIG2_REG, 0x80c7c084);
-	hisi_sas_phy_write32(hisi_hba, i, PHY_RATE_NEGO_REG, 0x415ee00);
-	hisi_sas_phy_write32(hisi_hba, i, PHY_PCN_REG, 0x80aa0001);
-
-	hisi_sas_phy_write32(hisi_hba, i, SL_TOUT_CFG_REG, 0x7d7d7d7d);
-	hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 0x0);
-	hisi_sas_phy_write32(hisi_hba, i, RXOP_CHECK_CFG_H_REG, 0x1000);
-	hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 0);
-	hisi_sas_phy_write32(hisi_hba, i, CON_CFG_DRIVER_REG, 0x13f0a);
-	hisi_sas_phy_write32(hisi_hba, i, CHL_INT_COAL_EN_REG, 3);
-	hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 8);
-	/*unmask phy intr*/
-	hisi_sas_phy_write32(hisi_hba, i, CHL_INT0_MSK_REG, 0x003ce3ee);
-	hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK_REG, 0x00017fff);
-	hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK_REG, 0x0000032a);
 }
-
 
 int hisi_sas_dev_found(struct domain_device *dev)
 {
@@ -1546,13 +1628,30 @@ irqreturn_t hisi_sas_cq_interrupt(int queue, void *p)
 	struct hisi_hba *hisi_hba = p;
 	struct hisi_sas_slot *slot;
 	struct hisi_sas_complete_hdr *complete_queue = hisi_hba->complete_hdr[queue];
+	u32 irq_value;
+	u32 rd_point, wr_point;
 
-	for (;;) {
+	irq_value = hisi_sas_read32(hisi_hba, OQ_INT_SRC_REG);
+
+	pr_info("%s core = %d oq_int_src_reg = %x queue = %d",
+		__func__,
+		hisi_hba->id,
+		irq_value,
+		queue);
+	hisi_sas_write32(hisi_hba, OQ_INT_SRC_REG, 1 << queue);
+
+	rd_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_RD_PTR + 20 * queue);
+	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR + 20 * queue);
+
+	for (;
+		rd_point != wr_point;
+		rd_point >= HISI_SAS_QUEUE_SLOTS ?
+		rd_point = 0 : (rd_point++)) {
 		/* j00310691 read through read pointer in cq */
 		struct hisi_sas_complete_hdr *complete_hdr;
 		struct hisi_sas_iptt *iptt;
 		int iptt_tag;
-		int queue_slot = 0; /* j00310691 fixme - should be read from hw */
+		int queue_slot = rd_point;
 
 		complete_hdr = &complete_queue[queue_slot];
 		iptt_tag = complete_hdr->iptt;
@@ -1561,9 +1660,10 @@ irqreturn_t hisi_sas_cq_interrupt(int queue, void *p)
 		slot = &hisi_hba->slot_info[iptt->queue*hisi_hba->queue_count+iptt->queue_slot];
 
 		hisi_sas_slot_complete(hisi_hba, slot, 0);
-		/* j00310691 fixme - add escape */
 	}
 
+	/* update rd_point */
+	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + 20 * queue, rd_point);
 	return IRQ_HANDLED;
 }
 
