@@ -32,9 +32,9 @@
 #define HISI_SAS_COMMAND_TABLE_SZ (((sizeof(union hisi_sas_command_table)+3)/4)*4)
 
 #define HISI_SAS_MAX_SG 10
-#define HISI_SAS_MAX_SSP_RESP_SZ (sizeof(struct ssp_frame_hdr) + 1024) //j00310691 see table 118
-#define HISI_SAS_MAX_SMP_RESP_SZ 64 // j00310691 64 from table 186, but 1016 is used in HIGGS_MAX_SMP_RESP_SIZE
-// Temp defines to compile
+#define HISI_SAS_MAX_SSP_RESP_SZ (sizeof(struct ssp_frame_hdr) + 1024) /* j00310691 see table 118 */
+#define HISI_SAS_MAX_SMP_RESP_SZ 64 /* j00310691 64 from table 186, but 1016 is used in HIGGS_MAX_SMP_RESP_SIZE */
+/* Temp defines to compile */
 #define PORT_DEV_TRGT_MASK (0x7U << 17)
 #define PORT_TYPE_SAS (1U << 1)
 #define PORT_SSP_TRGT_MASK (0x1U << 19)
@@ -51,7 +51,7 @@ enum dev_status {
 
 struct hba_info_page {
 	int unused;
-	// To be completed, j00310691
+	/* To be completed, j00310691 */
 };
 
 struct hisi_sas_phy {
@@ -61,7 +61,7 @@ struct hisi_sas_phy {
 	struct sas_identify	identify;
 	struct scsi_device	*sdev;
 	struct timer_list timer;
-	// To be completed, j00310691
+	/* To be completed, j00310691 */
 	u64		dev_sas_addr;
 	u64		att_dev_sas_addr;
 	u64		att_dev_info;
@@ -89,7 +89,7 @@ struct hisi_sas_port {
 struct hisi_sas_device {
 	struct list_head	dev_entry;
 	enum sas_device_type	dev_type;
-	struct hisi_hba 	*hisi_hba;
+	struct hisi_hba		*hisi_hba;
 	struct domain_device	*sas_device;
 	struct timer_list	timer;
 	u64 attached_phy;
@@ -177,8 +177,8 @@ struct hisi_hba {
 	struct hisi_sas_breakpoint *breakpoint;
 	dma_addr_t breakpoint_dma;
 	struct hisi_sas_slot	*slot_info;
-	// To be completed, j00310691
-    int hisi_irq_table[HISI_SAS_MAX_INTERRUPTS];
+	/* To be completed, j00310691 */
+	int hisi_irq_table[HISI_SAS_MAX_INTERRUPTS];
 };
 
 struct hisi_hba_priv_info {
@@ -187,7 +187,7 @@ struct hisi_hba_priv_info {
 	struct tasklet_struct	*hisi_sas_tasklet;
 	int n_core;
 	u8 scan_finished;
-	// To be completed, j00310691
+	/* To be completed, j00310691 */
 };
 
 struct hisi_sas_tmf_task {
@@ -479,16 +479,16 @@ struct ssp_command_iu {
 	union {
 		u8     cdb[16];
 		struct {
-			__le64 long_cdb_addr;	  /* bus address, LE */
-			__le32 long_cdb_size;	  /* LE */
+			__le64 long_cdb_addr;	/* bus address, LE */
+			__le32 long_cdb_size;	/* LE */
 			u8     _r_c[3];
-			u8     eol_ds;		  /* eol:6,6, ds:5,4 */
+			u8     eol_ds;		/* eol:6,6, ds:5,4 */
 		} long_cdb;	  /* sequencer extension */
 	};
-} __attribute__ ((packed));
+} __packed;
 
 
-enum hisi_sas_msi_phy_int{
+enum hisi_sas_msi_phy_int {
 	MSI_PHY_CTRL_RDY = 0,
 	MSI_PHY_DMA_RESP_ERR,
 	MSI_PHY_HOTPLUG_TOUT,
@@ -503,15 +503,15 @@ enum hisi_sas_msi_phy_int{
 };
 
 enum hw_register_bits {
-    /* CHL_INT2_REG */
-    PHY_CTRLRDY         =   (1U << 0),       /* phy_ctrl_up */
-	PHYCTRL_HOTPLUG_TOUT        =   (1U << 1),   /* phyctrl_hotplug_tout */
-	SL_RX_BCAST_ACK     =   (1U << 2),       /* sl_rx_bcast_ack */ 
-	PHYCTRL_OOB_RESTART_CI      =   (1U << 3),   /* phyctrl_oob_restart_ci */
-	SL_RX_HARDRST       =   (1U << 4),       /* sl_rx_hardrst */
-	PHYCTRL_STATUS_CHG  =   (1U << 5),       /* phyctrl_status_chg */
-    PHY_ENABLED         =   (1U << 6),       /* phy_enable */
-	DMA_RESP_ERR        =   (1U << 7)       /* dma_resp_err */
+	/* CHL_INT2_REG */
+	PHY_CTRLRDY		=	(1U << 0),	/* phy_ctrl_up */
+	PHYCTRL_HOTPLUG_TOUT	=	(1U << 1),	/* phyctrl_hotplug_tout */
+	SL_RX_BCAST_ACK		=	(1U << 2),	/* sl_rx_bcast_ack */
+	PHYCTRL_OOB_RESTART_CI	=	(1U << 3),	/* phyctrl_oob_restart_ci */
+	SL_RX_HARDRST		=	(1U << 4),	/* sl_rx_hardrst */
+	PHYCTRL_STATUS_CHG	=	(1U << 5),	/* phyctrl_status_chg */
+	PHY_ENABLED		=	(1U << 6),	/* phy_enable */
+	DMA_RESP_ERR		=	(1U << 7)	/* dma_resp_err */
 };
 
 int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
@@ -537,9 +537,8 @@ int hisi_sas_lu_reset(struct domain_device *dev, u8 *lun);
 int hisi_sas_query_task(struct sas_task *task);
 void hisi_sas_port_formed(struct asd_sas_phy *sas_phy);
 void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy);
-void hisi_sas_int_phy(struct hisi_hba *hisi_hba, 
-            int phy_no, 
-            u32 events);
-void hisi_sas_int_complete_queue(struct hisi_hba *hisi_hba, 
-            int queue_no);
+void hisi_sas_int_phy(struct hisi_hba *hisi_hba,
+		int phy_no,
+		u32 events);
+irqreturn_t hisi_sas_cq_interrupt(struct hisi_hba *hisi_hba, int queue);
 #endif

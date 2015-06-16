@@ -148,10 +148,11 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 	if (!hisi_hba->itct)
 		goto err_out;
 
-	hisi_hba->slot_info = kzalloc(sizeof(*hisi_hba->slot_info) * queue_slot_nr,
+	hisi_hba->slot_info = kcalloc(queue_slot_nr, sizeof(*hisi_hba->slot_info),
 				GFP_KERNEL);
 	if (!hisi_hba->slot_info)
 		goto err_out;
+	memset(hisi_hba->slot_info, 0, queue_slot_nr * sizeof(*hisi_hba->slot_info));
 
 	hisi_hba->iost = dma_alloc_coherent(hisi_hba->dev,
 				HISI_SAS_COMMAND_ENTRIES *
@@ -285,7 +286,7 @@ static void hisi_sas_init_add(struct hisi_hba *hisi_hba)
 {
 	u8 i;
 
-	for (i=0; i < hisi_hba->n_phy; i++) {
+	for (i = 0; i < hisi_hba->n_phy; i++) {
 		/* j00310691 use huawei IEEE id (001882) */
 		hisi_hba->phy[i].dev_sas_addr =  0x5001882000000000ULL;
 		hisi_hba->phy[i].dev_sas_addr =
@@ -298,24 +299,24 @@ static void hisi_sas_init_add(struct hisi_hba *hisi_hba)
 static irqreturn_t hisi_sas_interrupt_stub(int i, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
-    int phy_no, queue_no;
-    u32 phy_int_event;
+	int phy_no, queue_no;
+	u32 phy_int_event;
 
-    pr_info("%s core=%d i=%d\n", __func__, hisi_hba->id, i);
-    if ((i - hisi_hba->hisi_irq_table[0]) / MSI_PHY_COUNT < HISI_SAS_MAX_PHYS - 1){
-        phy_no = (i - hisi_hba->hisi_irq_table[0]) / MSI_PHY_COUNT;
-        phy_int_event = (i - hisi_hba->hisi_irq_table[0]) % MSI_PHY_COUNT;
-        pr_info("%s hisi_hba->hisi_irq_table[0] = %d, phy_no=%d phy_int_event=%d\n", __func__, hisi_hba->hisi_irq_table[0], phy_no, phy_int_event);
-        /* l00293075 should go into int_phy */
-        hisi_sas_int_phy(hisi_hba, phy_no, phy_int_event);
-    }else{
-        queue_no = (i - hisi_hba->hisi_irq_table[0] - MSI_PHY_COUNT * (HISI_SAS_MAX_PHYS - 1));
-        if (queue_no < HISI_SAS_MAX_QUEUES){
-            /* l00293075 should go into int_cq */
-            pr_info("%s queue_no = %d\n", __func__, queue_no);
-            hisi_sas_cq_interrupt(hisi_hba, queue_no);
-        }
-    }
+	pr_info("%s core=%d i=%d\n", __func__, hisi_hba->id, i);
+	if ((i - hisi_hba->hisi_irq_table[0]) / MSI_PHY_COUNT < HISI_SAS_MAX_PHYS - 1){
+		phy_no = (i - hisi_hba->hisi_irq_table[0]) / MSI_PHY_COUNT;
+	phy_int_event = (i - hisi_hba->hisi_irq_table[0]) % MSI_PHY_COUNT;
+		pr_info("%s hisi_hba->hisi_irq_table[0] = %d, phy_no=%d phy_int_event=%d\n", __func__, hisi_hba->hisi_irq_table[0], phy_no, phy_int_event);
+	/* l00293075 should go into int_phy */
+	hisi_sas_int_phy(hisi_hba, phy_no, phy_int_event);
+	} else {
+		queue_no = (i - hisi_hba->hisi_irq_table[0] - MSI_PHY_COUNT * (HISI_SAS_MAX_PHYS - 1));
+		if (queue_no < HISI_SAS_MAX_QUEUES) {
+			/* l00293075 should go into int_cq */
+			pr_info("%s queue_no = %d\n", __func__, queue_no);
+			hisi_sas_cq_interrupt(hisi_hba, queue_no);
+		}
+	}
 
 	return IRQ_HANDLED;
 }
@@ -336,11 +337,11 @@ int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
 			return -ENOENT;
 		}
 		(void)snprintf(interrupt_name, 32, "hisi_sas %d %d", hisi_hba->id, i);
-        /*l00293075 save irq_no in table */
-        hisi_hba->hisi_irq_table[i] = irq;
+		/*l00293075 save irq_no in table */
+		hisi_hba->hisi_irq_table[i] = irq;
 
 		rc = request_irq(irq, hisi_sas_interrupt_stub, 0, interrupt_name, hisi_hba);
-        
+
 		if (rc) {
 			pr_err("%s core %d could not request interrupt %d, rc=%d\n", __func__, hisi_hba->id, irq, rc);
 			return -ENOENT;
@@ -379,13 +380,13 @@ static void hisi_sas_post_ha_init(struct Scsi_Host *shost, int n_core)
 	sha->lldd_module = THIS_MODULE;
 	sha->sas_addr = &hisi_hba->sas_addr[0];
 
-	sha->num_phys = n_phy; // fixme j00310691
+	sha->num_phys = n_phy; /* fixme j00310691 */
 
-	can_queue = 1; // fixme j00310691
+	can_queue = 1; /* fixme j00310691 */
 
 	shost->sg_tablesize = min_t(u16, SG_ALL, HISI_SAS_MAX_SG);
 	shost->can_queue = can_queue;
-	hisi_hba->shost->cmd_per_lun = 1; // fixme j00310691
+	hisi_hba->shost->cmd_per_lun = 1; /* fixme j00310691 */
 	sha->core.shost = hisi_hba->shost;
 }
 
@@ -440,7 +441,7 @@ static int hisi_sas_probe(struct platform_device *pdev)
 		if (rc)
 			goto err_out_interrupt_ini;
 
-		rc = hisi_sas_interrupt_init(hisi_hba); // fixme j00310691
+		rc = hisi_sas_interrupt_init(hisi_hba); /* fixme j00310691 */
 		if (rc)
 			goto err_out_interrupt_ini;
 	}
