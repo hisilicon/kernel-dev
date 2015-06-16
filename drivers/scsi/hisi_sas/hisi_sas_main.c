@@ -894,13 +894,50 @@ struct hisi_hba *hisi_sas_find_dev(struct domain_device *dev)
 
 struct hisi_sas_device *hisi_sas_alloc_dev(struct hisi_hba *hisi_hba)
 {
-	pr_info("%s\n", __func__);
+	int dev_id;
+
+	for (dev_id = 0; dev_id < HISI_SAS_MAX_DEVICES; dev_id++) {
+		if (hisi_hba->devices[dev_id].dev_type == SAS_PHY_UNUSED) {
+			hisi_hba->devices[dev_id].device_id = dev_id;
+			return &hisi_hba->devices[dev_id];
+		}
+	}
+
+	pr_err("%s: max support %d devices - could not alloc\n", __func__, HISI_SAS_MAX_DEVICES);
+
 	return NULL;
 }
 
-void hisi_sas_setup_itct(struct hisi_sas_device *hisi_sas_device)
+void hisi_sas_setup_itct(struct hisi_hba *hisi_hba, struct hisi_sas_device *device)
 {
+	struct domain_device *dev = device->sas_device;
+	u32 device_id = device->device_id;
 
+	device->itct = &hisi_hba->itct[device_id];
+	memset(device->itct, 0, sizeof(*device->itct));
+
+	/* qw0 */
+	if (dev->dev_type == SAS_END_DEVICE)
+		device->itct->dev_type = HISI_SAS_DEV_TYPE_SSP;
+	else
+		pr_warn("%s unsupported dev type\n", __func__);
+	device->itct->valid = 1;
+	device->itct->break_reply_ena = 0;
+	device->itct->awt_control = 1;
+	device->itct->max_conn_rate = dev->max_linkrate; /* j00310691 todo doublecheck, see enum sas_linkrate */
+	device->itct->valid_link_number = 1;
+	device->itct->port_id = dev->port->id;
+	device->itct->smp_timeout = 0;
+	device->itct->max_burst_byte = 0;
+
+	/* qw1 */
+	memcpy(&device->itct->sas_addr, dev->sas_addr, SAS_ADDR_SIZE);
+
+	/* qw2 */
+	device->itct->IT_nexus_loss_time = 500;
+	device->itct->bus_inactive_time_limit = 0xff00;
+	device->itct->max_conn_time_limit = 0xff00;
+	device->itct->reject_open_time_limit = 0xff00;
 }
 
 int hisi_sas_dev_found_notify(struct domain_device *dev, int lock)
@@ -930,7 +967,7 @@ int hisi_sas_dev_found_notify(struct domain_device *dev, int lock)
 	hisi_sas_device->hisi_hba = hisi_hba;
 	hisi_sas_device->sas_device = dev;
 
-	hisi_sas_setup_itct(hisi_sas_device);
+	hisi_sas_setup_itct(hisi_hba, hisi_sas_device);
 
 /*	if (parent_dev && DEV_IS_EXPANDER(parent_dev->dev_type)) {
 

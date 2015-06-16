@@ -49,6 +49,12 @@ enum dev_status {
 	HISI_SAS_DEV_EH
 };
 
+enum hisi_sas_dev_type {
+	HISI_SAS_DEV_TYPE_STP = 0,
+	HISI_SAS_DEV_TYPE_SSP,
+	HISI_SAS_DEV_TYPE_SATA
+};
+
 struct hba_info_page {
 	int unused;
 	/* To be completed, j00310691 */
@@ -304,11 +310,11 @@ struct hisi_sas_complete_hdr {
 	u32 rsvd1:4;
 };
 
-struct hiti_sas_itct {
+struct hisi_sas_itct {
 	/* qw0 */
 	u64 dev_type:2;
 	u64 valid:1;
-	u64 break_reply_enable:1;
+	u64 break_reply_ena:1;
 	u64 awt_control:1;
 	u64 max_conn_rate:4;
 	u64 valid_link_number:4;

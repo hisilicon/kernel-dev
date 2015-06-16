@@ -147,6 +147,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 
 	if (!hisi_hba->itct)
 		goto err_out;
+	memset(hisi_hba->itct, 0, HISI_SAS_MAX_ITCT_ENTRIES * HISI_SAS_ITCT_ENTRY_SZ);
 
 	hisi_hba->slot_info = kcalloc(queue_slot_nr, sizeof(*hisi_hba->slot_info),
 				GFP_KERNEL);
