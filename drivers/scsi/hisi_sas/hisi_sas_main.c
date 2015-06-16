@@ -11,7 +11,6 @@
 #define DMA_ADDR_LO(addr) ((u32)(addr&0xffffffff))
 #define DMA_ADDR_HI(addr) ((u32)(addr>>32))
 
-#define MANAGE_PROTOCOL_IN  0x10
 
 /* registers */
 #define GLOBAL_BASE_REG		(0x0)
@@ -102,12 +101,11 @@
 #define CHL_INT1_MSK_REG                (PORT_BASE_REG + 0x1C0)
 #define CHL_INT2_MSK_REG                (PORT_BASE_REG + 0x1C4)
 
-
 static inline u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
 {
-	void __iomem *regs = hisi_hba->regs + off;
+    void __iomem *regs = hisi_hba->regs + off;
 
-	return readl(regs);
+    return readl(regs);
 }
 
 static inline void hisi_sas_write32(struct hisi_hba *hisi_hba, u32 off, u32 val)
@@ -1058,9 +1056,14 @@ static int hisi_sas_init_id_frame(struct hisi_hba *hisi_hba)
     /*ifdef _LITTLE_ENDIAN_BITFIELD,
      *sas_identify_frame the same as the structure in IT code*/
     for(i = 0; i < hisi_hba->n_phy; i++) {
-        memcpy(&identify_frame, 0, sizeof(identify_frame));
-        /*dev_type is MANAGE_PROTOCOL_IN according to IT code*/
-        identify_frame.dev_type = MANAGE_PROTOCOL_IN;
+        memset(&identify_frame, 0, sizeof(identify_frame));
+        /*dev_type is [6-4]bit, frame_type is [3-0]bit
+         *according to IT code, the byte is set to 0x10 */
+        identify_frame.dev_type = 1;
+        identify_frame.frame_type = 0;
+        /*_un1 is the second byte,the byte is set to 0x1 in IT code*/
+        identify_frame._un1 = 1;
+
         identify_frame.initiator_bits = SAS_PROTOCOL_ALL;
         identify_frame.target_bits = SAS_PROTOCOL_NONE;
         memcpy(identify_frame._un4_11,
