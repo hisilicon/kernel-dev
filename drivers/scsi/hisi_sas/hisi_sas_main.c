@@ -1567,6 +1567,24 @@ irqreturn_t hisi_sas_cq_interrupt(int queue, void *p)
 	return IRQ_HANDLED;
 }
 
+irqreturn_t hisi_sas_fatal_ecc_int(int irq, void *p)
+{
+	struct hisi_hba *hisi_hba = p;
+
+	pr_info("%s core = %d, irq = %d\n", __func__, hisi_hba->id, irq);
+
+	return IRQ_HANDLED;
+}
+
+irqreturn_t hisi_sas_fatal_axi_int(int irq, void *p)
+{
+	struct hisi_hba *hisi_hba = p;
+
+	pr_info("%s core = %d, irq = %d\n", __func__, hisi_hba->id, irq);
+
+	return IRQ_HANDLED;
+}
+
 #define DECLARE_INT_HANDLER(handler, idx)\
 irqreturn_t handler##idx(int irq, void *p)\
 {\
@@ -1610,7 +1628,7 @@ DECLARE_PHY_INT_HANDLER_GROUP(5)
 DECLARE_PHY_INT_HANDLER_GROUP(6)
 DECLARE_PHY_INT_HANDLER_GROUP(7)
 
-static const char phy_int_names[MSI_PHY_INT_COUNT][32] = {
+static const char phy_int_names[MSI_PHY_INT_NR][32] = {
 	{"CTRL Rdy"},
 	{"DMA Err"},
 	{"HotPlug"},
@@ -1624,11 +1642,15 @@ static const char phy_int_names[MSI_PHY_INT_COUNT][32] = {
 };
 
 static const char cq_int_name[32] = "cq";
+static const char fatal_int_name[HISI_SAS_FATAL_INT_NR][32] = {
+	"fatal ecc",
+	"fatal axi"
+};
 
 /* j00310691 We may put this in hisi_hba to not allocate space when core disabled */
-static char int_names[HISI_SAS_MAX_CORE][HISI_SAS_MAX_INTERRUPTS][32];
+static char int_names[HISI_SAS_MAX_CORE][HISI_SAS_INT_NR][32];
 
-irq_handler_t phy_interrupt_handlers[HISI_SAS_MAX_PHYS][MSI_PHY_INT_COUNT] = {
+irq_handler_t phy_interrupt_handlers[HISI_SAS_MAX_PHYS][MSI_PHY_INT_NR] = {
 	{DECLARE_PHY_INT_GROUP_PTR(0)},
 	{DECLARE_PHY_INT_GROUP_PTR(1)},
 	{DECLARE_PHY_INT_GROUP_PTR(2)},
@@ -1707,6 +1729,11 @@ irq_handler_t cq_interrupt_handlers[HISI_SAS_MAX_QUEUES] = {
 	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 31)
 };
 
+irq_handler_t fatal_interrupt_handlers[HISI_SAS_MAX_QUEUES] = {
+	hisi_sas_fatal_ecc_int,
+	hisi_sas_fatal_axi_int
+};
+
 int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
 {
 	int i, j, irq, rc, id = hisi_hba->id;
@@ -1715,15 +1742,15 @@ int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
 		return -ENOENT;
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
-		for (j = 0; j < MSI_PHY_INT_COUNT; j++) {
-			int idx = (i * MSI_PHY_INT_COUNT) + j;
+		for (j = 0; j < MSI_PHY_INT_NR; j++) {
+			int idx = (i * MSI_PHY_INT_NR) + j;
 
 			irq = irq_of_parse_and_map(hisi_hba->np, idx);
 			if (!irq) {
 				pr_err("%s [%d] could not map interrupt %d\n", __func__, hisi_hba->id, idx);
 				return -ENOENT;
 			}
-			(void)snprintf(int_names[id][idx], 32, "hisi sas %s [%d %d]", phy_int_names[j],  id, i);
+			(void)snprintf(int_names[id][idx], 32, DRV_NAME" %s [%d %d]", phy_int_names[j],  id, i);
 			rc = request_irq(irq, phy_interrupt_handlers[i][j], 0, int_names[hisi_hba->id][idx], hisi_hba);
 			if (rc) {
 				pr_err("%s [%d] could not request interrupt %d, rc=%d\n", __func__, hisi_hba->id, irq, rc);
@@ -1733,15 +1760,33 @@ int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
 	}
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
-		int idx = (HISI_SAS_MAX_PHYS * MSI_PHY_INT_COUNT) + i;
+		int idx = HISI_SAS_PHY_INT_NR + i;
 
-		irq = irq_of_parse_and_map(hisi_hba->np, (HISI_SAS_MAX_PHYS * MSI_PHY_INT_COUNT) + i);
+		irq = irq_of_parse_and_map(hisi_hba->np, HISI_SAS_PHY_INT_NR + i);
 		if (!irq) {
 			pr_err("%s [%d] could not map interrupt %d\n", __func__, hisi_hba->id, idx);
 			return -ENOENT;
 		}
-		(void)snprintf(int_names[id][idx], 32, "hisi sas %s [%d %d]", cq_int_name,  id, i);
+		(void)snprintf(int_names[id][idx], 32, DRV_NAME" %s [%d %d]", cq_int_name,  id, i);
 		rc = request_irq(irq, cq_interrupt_handlers[i], 0, int_names[id][idx], hisi_hba);
+		if (rc) {
+			pr_err("%s [%d] could not request interrupt %d, rc=%d\n", __func__, hisi_hba->id, irq, rc);
+			return -ENOENT;
+		}
+		idx++;
+	}
+
+	for (i = 0; i < HISI_SAS_FATAL_INT_NR; i++) {
+		int idx = HISI_SAS_PHY_INT_NR + HISI_SAS_CQ_INT_NR + i;
+
+		irq = irq_of_parse_and_map(hisi_hba->np, idx);
+		if (!irq) {
+			pr_err("%s [%d] could not map interrupt %d\n", __func__, hisi_hba->id, idx);
+			return -ENOENT;
+		}
+		(void)snprintf(int_names[id][idx], 32, DRV_NAME" %s [%d]", fatal_int_name[i], id);
+		pr_info("%s irq=%d name=%s\n", __func__, irq, int_names[id][idx]);
+		rc = request_irq(irq, fatal_interrupt_handlers[i], 0, int_names[id][idx], hisi_hba);
 		if (rc) {
 			pr_err("%s [%d] could not request interrupt %d, rc=%d\n", __func__, hisi_hba->id, irq, rc);
 			return -ENOENT;

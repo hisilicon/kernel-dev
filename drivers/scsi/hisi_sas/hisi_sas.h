@@ -42,7 +42,11 @@
 #define RXQ_GOOD (1U << 23)
 #define RXQ_RSP (1U << 18)
 
-#define HISI_SAS_MAX_INTERRUPTS (80 + 32 + 2)
+#define HISI_SAS_PHY_INT_NR (MSI_PHY_INT_NR * HISI_SAS_MAX_PHYS)
+#define HISI_SAS_CQ_INT_NR (HISI_SAS_MAX_QUEUES)
+#define HISI_SAS_FATAL_INT_NR (2)
+
+#define HISI_SAS_INT_NR (HISI_SAS_PHY_INT_NR + HISI_SAS_CQ_INT_NR + HISI_SAS_FATAL_INT_NR)
 
 enum dev_status {
 	HISI_SAS_DEV_NORMAL,
@@ -503,7 +507,7 @@ enum hisi_sas_msi_phy_int {
 	MSI_PHY_SL_PHY_ENABLED,
 	MSI_PHY_INT_REG0,
 	MSI_PHY_INT_REG1,
-	MSI_PHY_INT_COUNT
+	MSI_PHY_INT_NR
 };
 
 enum hw_register_bits {
