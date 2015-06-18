@@ -1541,8 +1541,9 @@ static irqreturn_t hisi_sas_int_int1(int phy_no, void *p)
 
 /* Interrupts */
 /* j00310691 dummy interrupts */
-irqreturn_t hisi_sas_cq_interrupt(struct hisi_hba *hisi_hba, int queue)
+irqreturn_t hisi_sas_cq_interrupt(int queue, void *p)
 {
+	struct hisi_hba *hisi_hba = p;
 	struct hisi_sas_slot *slot;
 	struct hisi_sas_complete_hdr *complete_queue = hisi_hba->complete_hdr[queue];
 
@@ -1566,14 +1567,14 @@ irqreturn_t hisi_sas_cq_interrupt(struct hisi_hba *hisi_hba, int queue)
 	return IRQ_HANDLED;
 }
 
-#define DECLARE_INT_HANDLER(handler, index)\
-irqreturn_t handler##index(int irq, void *p)\
+#define DECLARE_INT_HANDLER(handler, idx)\
+irqreturn_t handler##idx(int irq, void *p)\
 {\
-	return	handler(index, p);\
+	return	handler(idx, p);\
 }
 
-#define INT_HANDLER_NAME(handler, index)\
-	handler##index
+#define INT_HANDLER_NAME(handler, idx)\
+	handler##idx
 
 #define DECLARE_PHY_INT_HANDLER_GROUP(phy)\
 	DECLARE_INT_HANDLER(hisi_sas_int_ctrlrdy, phy)\
@@ -1622,7 +1623,10 @@ static const char phy_int_names[MSI_PHY_INT_COUNT][32] = {
 	{"Int1"}
 };
 
-static char int_names[HISI_SAS_MAX_INTERRUPTS][32];
+static const char cq_int_name[32] = "cq";
+
+/* j00310691 We may put this in hisi_hba to not allocate space when core disabled */
+static char int_names[HISI_SAS_MAX_CORE][HISI_SAS_MAX_INTERRUPTS][32];
 
 irq_handler_t phy_interrupt_handlers[HISI_SAS_MAX_PHYS][MSI_PHY_INT_COUNT] = {
 	{DECLARE_PHY_INT_GROUP_PTR(0)},
@@ -1635,29 +1639,114 @@ irq_handler_t phy_interrupt_handlers[HISI_SAS_MAX_PHYS][MSI_PHY_INT_COUNT] = {
 	{DECLARE_PHY_INT_GROUP_PTR(7)},
 };
 
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 0)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 1)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 2)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 3)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 4)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 5)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 6)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 7)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 8)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 9)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 10)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 11)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 12)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 13)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 14)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 15)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 16)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 17)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 18)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 19)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 20)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 21)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 22)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 23)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 24)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 25)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 26)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 27)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 28)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 29)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 30)
+DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 31)
+
+irq_handler_t cq_interrupt_handlers[HISI_SAS_MAX_QUEUES] = {
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 0),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 1),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 2),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 3),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 4),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 5),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 6),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 7),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 8),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 9),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 10),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 11),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 12),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 13),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 14),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 15),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 16),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 17),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 18),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 19),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 20),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 21),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 22),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 23),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 24),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 25),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 26),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 27),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 28),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 29),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 30),
+	INT_HANDLER_NAME(hisi_sas_cq_interrupt, 31)
+};
+
 int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
 {
-	int i, j, irq, rc;
+	int i, j, irq, rc, id = hisi_hba->id;
 
 	if (!hisi_hba->np)
 		return -ENOENT;
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		for (j = 0; j < MSI_PHY_INT_COUNT; j++) {
-			irq = irq_of_parse_and_map(hisi_hba->np, j + (i * MSI_PHY_INT_COUNT));
+			int idx = (i * MSI_PHY_INT_COUNT) + j;
+
+			irq = irq_of_parse_and_map(hisi_hba->np, idx);
 			if (!irq) {
-				pr_err("%s core %d (np=%p) could not map interrupt %d\n", __func__, hisi_hba->id, hisi_hba->np, j + (i * MSI_PHY_INT_COUNT));
+				pr_err("%s [%d] could not map interrupt %d\n", __func__, hisi_hba->id, idx);
 				return -ENOENT;
 			}
-			(void)snprintf(int_names[j + (i * MSI_PHY_INT_COUNT)], 32, "hisi sas %s [%d %d]", &phy_int_names[j][0],  hisi_hba->id, i);
-			rc = request_irq(irq, phy_interrupt_handlers[i][j], 0, int_names[j + (i * MSI_PHY_INT_COUNT)], hisi_hba);
+			(void)snprintf(int_names[id][idx], 32, "hisi sas %s [%d %d]", phy_int_names[j],  id, i);
+			rc = request_irq(irq, phy_interrupt_handlers[i][j], 0, int_names[hisi_hba->id][idx], hisi_hba);
 			if (rc) {
-				pr_err("%s core %d could not request interrupt %d, rc=%d\n", __func__, hisi_hba->id, irq, rc);
+				pr_err("%s [%d] could not request interrupt %d, rc=%d\n", __func__, hisi_hba->id, irq, rc);
 				return -ENOENT;
 			}
 		}
+	}
 
+	for (i = 0; i < hisi_hba->queue_count; i++) {
+		int idx = (HISI_SAS_MAX_PHYS * MSI_PHY_INT_COUNT) + i;
 
+		irq = irq_of_parse_and_map(hisi_hba->np, (HISI_SAS_MAX_PHYS * MSI_PHY_INT_COUNT) + i);
+		if (!irq) {
+			pr_err("%s [%d] could not map interrupt %d\n", __func__, hisi_hba->id, idx);
+			return -ENOENT;
+		}
+		(void)snprintf(int_names[id][idx], 32, "hisi sas %s [%d %d]", cq_int_name,  id, i);
+		rc = request_irq(irq, cq_interrupt_handlers[i], 0, int_names[id][idx], hisi_hba);
+		if (rc) {
+			pr_err("%s [%d] could not request interrupt %d, rc=%d\n", __func__, hisi_hba->id, irq, rc);
+			return -ENOENT;
+		}
+		idx++;
 	}
 
 	return 0;

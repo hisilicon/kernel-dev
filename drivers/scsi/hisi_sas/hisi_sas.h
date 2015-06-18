@@ -14,7 +14,7 @@
 #define DRV_NAME "hisi_sas"
 #define DRV_VERSION "v0.1"
 
-#define HISI_SAS_MAX_CORE 3
+#define HISI_SAS_MAX_CORE 2
 
 #define HISI_SAS_MAX_PHYS	8
 #define HISI_SAS_MAX_QUEUES	32
