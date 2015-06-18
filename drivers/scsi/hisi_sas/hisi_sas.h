@@ -16,7 +16,7 @@
 
 #define HISI_SAS_MAX_CORE 3
 
-#define HISI_SAS_MAX_PHYS	9
+#define HISI_SAS_MAX_PHYS	8
 #define HISI_SAS_MAX_QUEUES	32
 #define HISI_SAS_QUEUE_SLOTS 512
 #define HISI_SAS_MAX_ITCT_ENTRIES 4096
@@ -183,8 +183,6 @@ struct hisi_hba {
 	struct hisi_sas_breakpoint *breakpoint;
 	dma_addr_t breakpoint_dma;
 	struct hisi_sas_slot	*slot_info;
-	/* To be completed, j00310691 */
-	int hisi_irq_table[HISI_SAS_MAX_INTERRUPTS];
 };
 
 struct hisi_hba_priv_info {
@@ -505,7 +503,7 @@ enum hisi_sas_msi_phy_int {
 	MSI_PHY_SL_PHY_ENABLED,
 	MSI_PHY_INT_REG0,
 	MSI_PHY_INT_REG1,
-	MSI_PHY_COUNT
+	MSI_PHY_INT_COUNT
 };
 
 enum hw_register_bits {
@@ -527,7 +525,7 @@ void hisi_sas_iptt_init(struct hisi_hba *hisi_hba);
 void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int i);
 
 int hisi_sas_hw_init(struct hisi_hba *hisi_hba);
-
+int  hisi_sas_interrupt_init(struct hisi_hba *hisi_hba);
 int hisi_sas_dev_found(struct domain_device *dev);
 void hisi_sas_dev_gone(struct domain_device *dev);
 int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags);
@@ -543,8 +541,5 @@ int hisi_sas_lu_reset(struct domain_device *dev, u8 *lun);
 int hisi_sas_query_task(struct sas_task *task);
 void hisi_sas_port_formed(struct asd_sas_phy *sas_phy);
 void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy);
-void hisi_sas_int_phy(struct hisi_hba *hisi_hba,
-		int phy_no,
-		u32 events);
-irqreturn_t hisi_sas_cq_interrupt(struct hisi_hba *hisi_hba, int queue);
+
 #endif

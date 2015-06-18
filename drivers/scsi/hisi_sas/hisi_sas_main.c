@@ -1365,9 +1365,10 @@ void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy)
 	pr_info("%s\n", __func__);
 }
 
-void hisi_sas_int_phyup(struct hisi_hba *hisi_hba, int phy_no)
+static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
 {
-	int irq_value;
+	struct hisi_hba *hisi_hba = p;
+	u32 irq_value;
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
@@ -1377,11 +1378,14 @@ void hisi_sas_int_phyup(struct hisi_hba *hisi_hba, int phy_no)
 	pr_info("%s phy = %d, irq_value = %x in phy_up\n", __func__, phy_no, irq_value);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHY_ENABLED);
+
+	return IRQ_HANDLED;
 }
 
-void hisi_sas_int_ctrlrdy(struct hisi_hba *hisi_hba, int phy_no)
+static irqreturn_t hisi_sas_int_ctrlrdy(int phy_no, void *p)
 {
-	int irq_value;
+	struct hisi_hba *hisi_hba = p;
+	u32 irq_value;
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
@@ -1391,12 +1395,15 @@ void hisi_sas_int_ctrlrdy(struct hisi_hba *hisi_hba, int phy_no)
 	pr_info("%s phy = %d, irq_value = %x in phy_ctrlrdy\n", __func__, phy_no, irq_value);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHY_CTRLRDY);
+
+	return IRQ_HANDLED;
 }
 
 
-void hisi_sas_int_dmaerr(struct hisi_hba *hisi_hba, int phy_no)
+static irqreturn_t hisi_sas_int_dmaerr(int phy_no, void *p)
 {
-	int irq_value;
+	struct hisi_hba *hisi_hba = p;
+	u32 irq_value;
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
@@ -1406,11 +1413,14 @@ void hisi_sas_int_dmaerr(struct hisi_hba *hisi_hba, int phy_no)
 	pr_info("%s phy = %d, irq_value = %x in dma_resp_err\n", __func__, phy_no, irq_value);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, DMA_RESP_ERR);
+
+	return IRQ_HANDLED;
 }
 
-void hisi_sas_int_hotplug(struct hisi_hba *hisi_hba, int phy_no)
+static irqreturn_t hisi_sas_int_hotplug(int phy_no, void *p)
 {
-	int irq_value;
+	struct hisi_hba *hisi_hba = p;
+	u32 irq_value;
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
@@ -1420,11 +1430,14 @@ void hisi_sas_int_hotplug(struct hisi_hba *hisi_hba, int phy_no)
 	pr_info("%s phy = %d, irq_value = %x in hotplug_tout\n", __func__, phy_no, irq_value);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHYCTRL_HOTPLUG_TOUT);
+
+	return IRQ_HANDLED;
 }
 
-void hisi_sas_int_bcast(struct hisi_hba *hisi_hba, int phy_no)
+static irqreturn_t hisi_sas_int_bcast(int phy_no, void *p)
 {
-	int irq_value;
+	struct hisi_hba *hisi_hba = p;
+	u32 irq_value;
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
@@ -1434,11 +1447,14 @@ void hisi_sas_int_bcast(struct hisi_hba *hisi_hba, int phy_no)
 	pr_info("%s phy = %d, irq_value = %x in sl_rx_bcast_ack\n", __func__, phy_no, irq_value);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, SL_RX_BCAST_ACK);
+
+	return IRQ_HANDLED;
 }
 
-void hisi_sas_int_oobrst(struct hisi_hba *hisi_hba, int phy_no)
+static irqreturn_t hisi_sas_int_oobrst(int phy_no, void *p)
 {
-	int irq_value;
+	struct hisi_hba *hisi_hba = p;
+	u32 irq_value;
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
@@ -1448,11 +1464,14 @@ void hisi_sas_int_oobrst(struct hisi_hba *hisi_hba, int phy_no)
 	pr_info("%s phy = %d, irq_value = %x in phyctrl_oob_restart_ci\n", __func__, phy_no, irq_value);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHYCTRL_OOB_RESTART_CI);
+
+	return IRQ_HANDLED;
 }
 
-void hisi_sas_int_hardrst(struct hisi_hba *hisi_hba, int phy_no)
+static irqreturn_t hisi_sas_int_hardrst(int phy_no, void *p)
 {
-	int irq_value;
+	struct hisi_hba *hisi_hba = p;
+	u32 irq_value;
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
@@ -1462,11 +1481,14 @@ void hisi_sas_int_hardrst(struct hisi_hba *hisi_hba, int phy_no)
 	pr_info("%s phy = %d, irq_value = %x in sl_rx_hardrst\n", __func__, phy_no, irq_value);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, SL_RX_HARDRST);
+
+	return IRQ_HANDLED;
 }
 
-void hisi_sas_int_statuscg(struct hisi_hba *hisi_hba, int phy_no)
+static irqreturn_t hisi_sas_int_statuscg(int phy_no, void *p)
 {
-	int irq_value;
+	struct hisi_hba *hisi_hba = p;
+	u32 irq_value;
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
@@ -1476,12 +1498,15 @@ void hisi_sas_int_statuscg(struct hisi_hba *hisi_hba, int phy_no)
 	pr_info("%s phy = %d, irq_value = %x in phyctrl_status_chg\n", __func__, phy_no, irq_value);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHYCTRL_STATUS_CHG);
+
+	return IRQ_HANDLED;
 }
 
-void hisi_sas_int_int0(struct hisi_hba *hisi_hba, int phy_no)
+static irqreturn_t hisi_sas_int_int0(int phy_no, void *p)
 {
-	int irq_value;
-	int irq_mask_save;
+	struct hisi_hba *hisi_hba = p;
+	u32 irq_value;
+	u32 irq_mask_save;
 
 	/* mask_int0 */
 	irq_mask_save = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_MSK_REG);
@@ -1496,60 +1521,22 @@ void hisi_sas_int_int0(struct hisi_hba *hisi_hba, int phy_no)
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_REG, irq_value);
 	/* recovery int0_mask */
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG, irq_mask_save);
+
+	return IRQ_HANDLED;
 }
 
-void hisi_sas_int_int1(struct hisi_hba *hisi_hba, int phy_no)
+static irqreturn_t hisi_sas_int_int1(int phy_no, void *p)
 {
-	int irq_value;
+	struct hisi_hba *hisi_hba = p;
+	u32 irq_value;
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT1_REG);
 
 	pr_info("%s phy = %d, irq1_value = %x\n", __func__, phy_no, irq_value);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT1_REG, irq_value);
-}
 
-void hisi_sas_int_phy(struct hisi_hba *hisi_hba,
-		int phy_no,
-		u32 events)
-{
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
-
-	phy->irq_status = events;
-	switch (phy->irq_status) {
-	case MSI_PHY_CTRL_RDY:
-		hisi_sas_int_ctrlrdy(hisi_hba, phy_no);
-		break;
-	case MSI_PHY_DMA_RESP_ERR:
-		hisi_sas_int_dmaerr(hisi_hba, phy_no);
-		break;
-	case MSI_PHY_HOTPLUG_TOUT:
-		hisi_sas_int_hotplug(hisi_hba, phy_no);
-		break;
-	case MSI_PHY_BCAST_ACK:
-		hisi_sas_int_bcast(hisi_hba, phy_no);
-		break;
-	case MSI_PHY_OOB_RESTART:
-		hisi_sas_int_oobrst(hisi_hba, phy_no);
-		break;
-	case MSI_PHY_RX_HARDRST:
-		hisi_sas_int_hardrst(hisi_hba, phy_no);
-		break;
-	case MSI_PHY_STATUS_CHG:
-		hisi_sas_int_statuscg(hisi_hba, phy_no);
-		break;
-	case MSI_PHY_SL_PHY_ENABLED:
-		hisi_sas_int_phyup(hisi_hba, phy_no);
-		break;
-	case MSI_PHY_INT_REG0:
-		hisi_sas_int_int0(hisi_hba, phy_no);
-		break;
-	case MSI_PHY_INT_REG1:
-		hisi_sas_int_int1(hisi_hba, phy_no);
-		break;
-	default:
-		pr_info("%s phy->irq_status = %llx out of range", __func__, phy->irq_status);
-	}
+	return IRQ_HANDLED;
 }
 
 /* Interrupts */
@@ -1577,6 +1564,103 @@ irqreturn_t hisi_sas_cq_interrupt(struct hisi_hba *hisi_hba, int queue)
 	}
 
 	return IRQ_HANDLED;
+}
+
+#define DECLARE_INT_HANDLER(handler, index)\
+irqreturn_t handler##index(int irq, void *p)\
+{\
+	return	handler(index, p);\
+}
+
+#define INT_HANDLER_NAME(handler, index)\
+	handler##index
+
+#define DECLARE_PHY_INT_HANDLER_GROUP(phy)\
+	DECLARE_INT_HANDLER(hisi_sas_int_ctrlrdy, phy)\
+	DECLARE_INT_HANDLER(hisi_sas_int_dmaerr, phy)\
+	DECLARE_INT_HANDLER(hisi_sas_int_hotplug, phy)\
+	DECLARE_INT_HANDLER(hisi_sas_int_bcast, phy)\
+	DECLARE_INT_HANDLER(hisi_sas_int_oobrst, phy)\
+	DECLARE_INT_HANDLER(hisi_sas_int_hardrst, phy)\
+	DECLARE_INT_HANDLER(hisi_sas_int_statuscg, phy)\
+	DECLARE_INT_HANDLER(hisi_sas_int_phyup, phy)\
+	DECLARE_INT_HANDLER(hisi_sas_int_int0, phy)\
+	DECLARE_INT_HANDLER(hisi_sas_int_int1, phy)\
+
+
+#define DECLARE_PHY_INT_GROUP_PTR(phy)\
+	INT_HANDLER_NAME(hisi_sas_int_ctrlrdy, phy),\
+	INT_HANDLER_NAME(hisi_sas_int_dmaerr, phy),\
+	INT_HANDLER_NAME(hisi_sas_int_hotplug, phy),\
+	INT_HANDLER_NAME(hisi_sas_int_bcast, phy),\
+	INT_HANDLER_NAME(hisi_sas_int_oobrst, phy),\
+	INT_HANDLER_NAME(hisi_sas_int_hardrst, phy),\
+	INT_HANDLER_NAME(hisi_sas_int_statuscg, phy),\
+	INT_HANDLER_NAME(hisi_sas_int_phyup, phy),\
+	INT_HANDLER_NAME(hisi_sas_int_int0, phy),\
+	INT_HANDLER_NAME(hisi_sas_int_int1, phy),
+
+DECLARE_PHY_INT_HANDLER_GROUP(0)
+DECLARE_PHY_INT_HANDLER_GROUP(1)
+DECLARE_PHY_INT_HANDLER_GROUP(2)
+DECLARE_PHY_INT_HANDLER_GROUP(3)
+DECLARE_PHY_INT_HANDLER_GROUP(4)
+DECLARE_PHY_INT_HANDLER_GROUP(5)
+DECLARE_PHY_INT_HANDLER_GROUP(6)
+DECLARE_PHY_INT_HANDLER_GROUP(7)
+
+static const char phy_int_names[MSI_PHY_INT_COUNT][32] = {
+	{"CTRL Rdy"},
+	{"DMA Err"},
+	{"HotPlug"},
+	{"Bcast"},
+	{"OOBRst"},
+	{"HardRst"},
+	{"StatusCG"},
+	{"Phy Up"},
+	{"Int0"},
+	{"Int1"}
+};
+
+static char int_names[HISI_SAS_MAX_INTERRUPTS][32];
+
+irq_handler_t phy_interrupt_handlers[HISI_SAS_MAX_PHYS][MSI_PHY_INT_COUNT] = {
+	{DECLARE_PHY_INT_GROUP_PTR(0)},
+	{DECLARE_PHY_INT_GROUP_PTR(1)},
+	{DECLARE_PHY_INT_GROUP_PTR(2)},
+	{DECLARE_PHY_INT_GROUP_PTR(3)},
+	{DECLARE_PHY_INT_GROUP_PTR(4)},
+	{DECLARE_PHY_INT_GROUP_PTR(5)},
+	{DECLARE_PHY_INT_GROUP_PTR(6)},
+	{DECLARE_PHY_INT_GROUP_PTR(7)},
+};
+
+int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
+{
+	int i, j, irq, rc;
+
+	if (!hisi_hba->np)
+		return -ENOENT;
+
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		for (j = 0; j < MSI_PHY_INT_COUNT; j++) {
+			irq = irq_of_parse_and_map(hisi_hba->np, j + (i * MSI_PHY_INT_COUNT));
+			if (!irq) {
+				pr_err("%s core %d (np=%p) could not map interrupt %d\n", __func__, hisi_hba->id, hisi_hba->np, j + (i * MSI_PHY_INT_COUNT));
+				return -ENOENT;
+			}
+			(void)snprintf(int_names[j + (i * MSI_PHY_INT_COUNT)], 32, "hisi sas %s [%d %d]", &phy_int_names[j][0],  hisi_hba->id, i);
+			rc = request_irq(irq, phy_interrupt_handlers[i][j], 0, int_names[j + (i * MSI_PHY_INT_COUNT)], hisi_hba);
+			if (rc) {
+				pr_err("%s core %d could not request interrupt %d, rc=%d\n", __func__, hisi_hba->id, irq, rc);
+				return -ENOENT;
+			}
+		}
+
+
+	}
+
+	return 0;
 }
 
 

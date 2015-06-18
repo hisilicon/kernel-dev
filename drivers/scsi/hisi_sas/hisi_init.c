@@ -297,60 +297,6 @@ static void hisi_sas_init_add(struct hisi_hba *hisi_hba)
 }
 
 
-static irqreturn_t hisi_sas_interrupt_stub(int i, void *p)
-{
-	struct hisi_hba *hisi_hba = p;
-	int phy_no, queue_no;
-	u32 phy_int_event;
-
-	pr_info("%s core=%d i=%d\n", __func__, hisi_hba->id, i);
-	if ((i - hisi_hba->hisi_irq_table[0]) / MSI_PHY_COUNT < HISI_SAS_MAX_PHYS - 1){
-		phy_no = (i - hisi_hba->hisi_irq_table[0]) / MSI_PHY_COUNT;
-	phy_int_event = (i - hisi_hba->hisi_irq_table[0]) % MSI_PHY_COUNT;
-		pr_info("%s hisi_hba->hisi_irq_table[0] = %d, phy_no=%d phy_int_event=%d\n", __func__, hisi_hba->hisi_irq_table[0], phy_no, phy_int_event);
-	/* l00293075 should go into int_phy */
-	hisi_sas_int_phy(hisi_hba, phy_no, phy_int_event);
-	} else {
-		queue_no = (i - hisi_hba->hisi_irq_table[0] - MSI_PHY_COUNT * (HISI_SAS_MAX_PHYS - 1));
-		if (queue_no < HISI_SAS_MAX_QUEUES) {
-			/* l00293075 should go into int_cq */
-			pr_info("%s queue_no = %d\n", __func__, queue_no);
-			hisi_sas_cq_interrupt(hisi_hba, queue_no);
-		}
-	}
-
-	return IRQ_HANDLED;
-}
-
-int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
-{
-	int i, irq, rc;
-
-	if (!hisi_hba->np)
-		return -ENOENT;
-
-	for (i = 0; i < HISI_SAS_MAX_INTERRUPTS; i++) {
-		char interrupt_name[32];
-
-		irq = irq_of_parse_and_map(hisi_hba->np, i);
-		if (!irq) {
-			pr_err("%s core %d (np=%p) could not map interrupt %d\n", __func__, hisi_hba->id, hisi_hba->np, i);
-			return -ENOENT;
-		}
-		(void)snprintf(interrupt_name, 32, "hisi_sas %d %d", hisi_hba->id, i);
-		/*l00293075 save irq_no in table */
-		hisi_hba->hisi_irq_table[i] = irq;
-
-		rc = request_irq(irq, hisi_sas_interrupt_stub, 0, interrupt_name, hisi_hba);
-
-		if (rc) {
-			pr_err("%s core %d could not request interrupt %d, rc=%d\n", __func__, hisi_hba->id, irq, rc);
-			return -ENOENT;
-		}
-	}
-
-	return 0;
-}
 
 void hisi_sas_platform_dev_free(struct hisi_hba *hisi_hba)
 {
