@@ -75,6 +75,7 @@
 #define ENT_INT_COAL_CNT_REG            (GLOBAL_BASE_REG + 0x1cc)
 #define OQ_INT_SRC_REG                  (GLOBAL_BASE_REG + 0x1d0)
 #define OQ_INT_SRC_MSK_REG              (GLOBAL_BASE_REG + 0x1d4)
+#define ENT_INT_SRC1_REG		(GLOBAL_BASE_REG + 0x1d8)
 #define ENT_INT_SRC_MSK1_REG            (GLOBAL_BASE_REG + 0x1e0)
 #define ENT_INT_SRC2_REG                (GLOBAL_BASE_REG + 0x1dc)
 #define ENT_INT_SRC_MSK2_REG            (GLOBAL_BASE_REG + 0x1e4)
@@ -1112,12 +1113,12 @@ static int hisi_sas_init_reg(struct hisi_hba *hisi_hba)
 	int i;
 
 	/* Global registers init*/
-	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE_REG, (1<<hisi_hba->n_phy)-1);
+	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE_REG, 0xffffffff); //fixme j00310691
 	hisi_sas_write32(hisi_hba, HGC_TRANS_TASK_CNT_LIMIT_REG, 0x11);
 	hisi_sas_write32(hisi_hba, DEVICE_MSG_WORK_MODE_REG, 0x1);
-	hisi_sas_write32(hisi_hba, MAX_BURST_BYTES_REG, 0);
-	hisi_sas_write32(hisi_hba, SMP_TIMEOUT_TIMER_REG, 0);
-	hisi_sas_write32(hisi_hba, MAX_CON_TIME_LIMIT_TIME_REG, 0);
+//	hisi_sas_write32(hisi_hba, MAX_BURST_BYTES_REG, 0);
+//	hisi_sas_write32(hisi_hba, SMP_TIMEOUT_TIMER_REG, 0);
+//	hisi_sas_write32(hisi_hba, MAX_CON_TIME_LIMIT_TIME_REG, 0);
 	hisi_sas_write32(hisi_hba, HGC_SAS_TXFAIL_RETRY_CTRL_REG, 0x211ff);
 	hisi_sas_write32(hisi_hba, HGC_ERR_STAT_EN_REG, 0x401);
 	hisi_sas_write32(hisi_hba, CFG_1US_TIMER_TRSH_REG, 0x64);
@@ -1135,6 +1136,7 @@ static int hisi_sas_init_reg(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, ENT_INT_COAL_CNT_REG, 0x1);
 	hisi_sas_write32(hisi_hba, OQ_INT_SRC_REG, 0xffffffff);
 	hisi_sas_write32(hisi_hba, OQ_INT_SRC_MSK_REG, 0);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC1_REG, 0xffffffff);
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1_REG, 0);
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC2_REG, 0xffffffff);
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK2_REG, 0);
@@ -1159,10 +1161,6 @@ static int hisi_sas_init_reg(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, CON_CFG_DRIVER_REG, 0x13f0a);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT_COAL_EN_REG, 3);
 		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 8);
-		/*unmask phy intr*/
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0_MSK_REG, 0x003ce3ee);
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK_REG, 0x00017fff);
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK_REG, 0x0000032a);
 	}
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
@@ -1292,6 +1290,7 @@ int hisi_sas_hw_init(struct hisi_hba *hisi_hba)
 		return rc;
 	}
 
+	msleep(100);
 	rc = hisi_sas_init_reg(hisi_hba);
 	if (rc) {
 		pr_err("hisi_sas_init_reg failed, rc=%d", rc);
@@ -1622,7 +1621,6 @@ static irqreturn_t hisi_sas_int_int1(int phy_no, void *p)
 }
 
 /* Interrupts */
-/* j00310691 dummy interrupts */
 irqreturn_t hisi_sas_cq_interrupt(int queue, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
@@ -1893,4 +1891,39 @@ int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
 	return 0;
 }
 
+int hisi_sas_interrupt_openall(struct hisi_hba *hisi_hba)
+{
+	int i;
+	u32 val;
+
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		/* Clear interrupt status */
+		val = hisi_sas_phy_read32(hisi_hba, i, CHL_INT0_REG);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0_REG, val);
+		val = hisi_sas_phy_read32(hisi_hba, i, CHL_INT1_REG);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_REG, val);
+		val = hisi_sas_phy_read32(hisi_hba, i, CHL_INT2_REG);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_REG, val);
+
+		/* Unmask interrupt */
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0_MSK_REG, 0x003ce3ee);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK_REG, 0x00017fff);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK_REG, 0x0000032a);
+
+		/* bypass chip bug mask adnormal intr */
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0_MSK_REG, 0x003fffff & ~1);
+	}
+
+	return 0;
+}
+
+void hisi_sas_phys_up(struct hisi_hba *hisi_hba)
+{
+	int i;
+
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK_REG, 0x36a);
+		hisi_sas_phy_read32(hisi_hba, i, CHL_INT2_MSK_REG);
+	}
+}
 

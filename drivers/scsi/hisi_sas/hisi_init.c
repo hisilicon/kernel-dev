@@ -389,9 +389,15 @@ static int hisi_sas_probe(struct platform_device *pdev)
 		if (rc)
 			goto err_out_interrupt_ini;
 
-		rc = hisi_sas_interrupt_init(hisi_hba); /* fixme j00310691 */
+		rc = hisi_sas_interrupt_init(hisi_hba);
 		if (rc)
 			goto err_out_interrupt_ini;
+
+		rc = hisi_sas_interrupt_openall(hisi_hba);
+		if (rc)
+			goto err_out_interrupt_ini;
+
+		hisi_sas_phys_up(hisi_hba);
 	}
 
 	hisi_sas_post_ha_init(shost, n_core);
