@@ -48,6 +48,21 @@
 
 #define HISI_SAS_INT_NR (HISI_SAS_PHY_INT_NR + HISI_SAS_CQ_INT_NR + HISI_SAS_FATAL_INT_NR)
 
+
+enum hisi_sas_msi_phy_int {
+	MSI_PHY_CTRL_RDY = 0,
+	MSI_PHY_DMA_RESP_ERR,
+	MSI_PHY_HOTPLUG_TOUT,
+	MSI_PHY_BCAST_ACK,
+	MSI_PHY_OOB_RESTART,
+	MSI_PHY_RX_HARDRST,
+	MSI_PHY_STATUS_CHG,
+	MSI_PHY_SL_PHY_ENABLED,
+	MSI_PHY_INT_REG0,
+	MSI_PHY_INT_REG1,
+	MSI_PHY_INT_NR
+};
+
 enum dev_status {
 	HISI_SAS_DEV_NORMAL,
 	HISI_SAS_DEV_EH
@@ -174,6 +189,7 @@ struct hisi_hba {
 
 	int	id;
 	int	queue_count;
+	char	int_names[HISI_SAS_INT_NR][32];
 	struct hisi_sas_slot	*slot_prep;
 
 	struct hba_info_page	hba_param;
@@ -494,21 +510,6 @@ struct ssp_command_iu {
 		} long_cdb;	  /* sequencer extension */
 	};
 } __packed;
-
-
-enum hisi_sas_msi_phy_int {
-	MSI_PHY_CTRL_RDY = 0,
-	MSI_PHY_DMA_RESP_ERR,
-	MSI_PHY_HOTPLUG_TOUT,
-	MSI_PHY_BCAST_ACK,
-	MSI_PHY_OOB_RESTART,
-	MSI_PHY_RX_HARDRST,
-	MSI_PHY_STATUS_CHG,
-	MSI_PHY_SL_PHY_ENABLED,
-	MSI_PHY_INT_REG0,
-	MSI_PHY_INT_REG1,
-	MSI_PHY_INT_NR
-};
 
 enum hw_register_bits {
 	/* CHL_INT2_REG */
