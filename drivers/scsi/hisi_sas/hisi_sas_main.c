@@ -33,9 +33,11 @@
 
 #define PORT_BASE_REG		(0x800)
 #define PHY_CFG_REG		(PORT_BASE_REG + 0x0)
-#define PHY_CFG_REG_RESET_OFF	0
-#define PHY_CFG_REG_RESET_MASK	1
+#define PHY_CFG_REG_ENA_OFF	0
+#define PHY_CFG_REG_ENA_MASK	1
 #define PHY_CTRL_REG		(PORT_BASE_REG + 0x14)
+#define PHY_CTRL_REG_RESET_OFF	0
+#define PHY_CTRL_REG_RESET_MASK	1
 #define TX_ID_DWORD0_REG	(PORT_BASE_REG + 0x9c)
 #define TX_ID_DWORD1_REG	(PORT_BASE_REG + 0xa0)
 #define TX_ID_DWORD2_REG	(PORT_BASE_REG + 0xa4)
@@ -1003,7 +1005,7 @@ static int hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		u32 phy_ctrl = hisi_sas_phy_read32(hisi_hba, i, PHY_CTRL_REG);
 
-		phy_ctrl |= PHY_CFG_REG_RESET_MASK;
+		phy_ctrl |= PHY_CTRL_REG_RESET_MASK;
 		hisi_sas_phy_write32(hisi_hba, i, PHY_CTRL_REG, phy_ctrl);
 	}
 	udelay(50);
@@ -1221,61 +1223,68 @@ static int hisi_sas_init_reg(struct hisi_hba *hisi_hba)
 	return 0;
 }
 
+
+static void hisi_sas_config_id_frame(struct hisi_hba *hisi_hba, int phy)
+{
+	struct sas_identify_frame identify_frame;
+	u32 *identify_buffer;
+
+	memset(&identify_frame, 0, sizeof(identify_frame));
+	/*dev_type is [6-4]bit, frame_type is [3-0]bit
+	 *according to IT code, the byte is set to 0x10 */
+	/* l00293075 I found this one */
+	identify_frame.dev_type = SAS_END_DEVICE;
+	identify_frame.frame_type = 0;
+	/*_un1 is the second byte,the byte is set to 0x1 in IT code*/
+	identify_frame._un1 = 1;
+
+	identify_frame.initiator_bits = SAS_PROTOCOL_ALL;
+	identify_frame.target_bits = SAS_PROTOCOL_NONE;
+	memcpy(&identify_frame._un4_11[0],
+		hisi_hba->sas_addr,
+		SAS_ADDR_SIZE);
+	memcpy(&identify_frame.sas_addr[0],
+		hisi_hba->sas_addr,
+		SAS_ADDR_SIZE);
+	identify_frame.phy_id = phy;
+
+	identify_buffer = (u32 *)(&identify_frame);
+	hisi_sas_phy_write32(hisi_hba,
+		phy,
+		TX_ID_DWORD0_REG,
+		__swab32(identify_buffer[0]));
+	hisi_sas_phy_write32(hisi_hba,
+		phy,
+		TX_ID_DWORD1_REG,
+		identify_buffer[2]);
+	hisi_sas_phy_write32(hisi_hba,
+		phy,
+		TX_ID_DWORD2_REG,
+		identify_buffer[1]);
+	hisi_sas_phy_write32(hisi_hba,
+		phy,
+		TX_ID_DWORD3_REG,
+		identify_buffer[4]);
+	hisi_sas_phy_write32(hisi_hba,
+		phy,
+		TX_ID_DWORD4_REG,
+		identify_buffer[3]);
+	hisi_sas_phy_write32(hisi_hba,
+		phy,
+		TX_ID_DWORD5_REG,
+		__swab32(identify_buffer[5]));
+}
+
 static int hisi_sas_init_id_frame(struct hisi_hba *hisi_hba)
 {
 	int i;
-	struct sas_identify_frame identify_frame;
-	u32 *identify_buffer;
 
 	/*ifdef _LITTLE_ENDIAN_BITFIELD,
 	*sas_identify_frame the same as the structure in IT code*/
 	for (i = 0; i < hisi_hba->n_phy; i++) {
-		memset(&identify_frame, 0, sizeof(identify_frame));
-		/*dev_type is [6-4]bit, frame_type is [3-0]bit
-		 *according to IT code, the byte is set to 0x10 */
-		/* l00293075 I found this one */
-		identify_frame.dev_type = SAS_PHY_UNUSED;
-		/* l00293075 I cant found this one... */
-		identify_frame.frame_type = 1;
-		/*_un1 is the second byte,the byte is set to 0x1 in IT code*/
-		identify_frame._un1 = 1;
-
-		identify_frame.initiator_bits = SAS_PROTOCOL_ALL;
-		identify_frame.target_bits = SAS_PROTOCOL_NONE;
-		memcpy(identify_frame._un4_11,
-			hisi_hba->sas_addr,
-			SAS_ADDR_SIZE);
-		memcpy(identify_frame.sas_addr,
-			hisi_hba->sas_addr,
-			SAS_ADDR_SIZE);
-		identify_frame.phy_id = i;
-
-		identify_buffer = (u32 *)(&identify_frame);
-		hisi_sas_phy_write32(hisi_hba,
-			i,
-			TX_ID_DWORD0_REG,
-			__swab32(identify_buffer[0]));
-		hisi_sas_phy_write32(hisi_hba,
-			i,
-			TX_ID_DWORD1_REG,
-			identify_buffer[2]);
-		hisi_sas_phy_write32(hisi_hba,
-			i,
-			TX_ID_DWORD2_REG,
-			identify_buffer[1]);
-		hisi_sas_phy_write32(hisi_hba,
-			i,
-			TX_ID_DWORD3_REG,
-			identify_buffer[4]);
-		hisi_sas_phy_write32(hisi_hba,
-			i,
-			TX_ID_DWORD4_REG,
-			identify_buffer[3]);
-		hisi_sas_phy_write32(hisi_hba,
-			i,
-			TX_ID_DWORD5_REG,
-			__swab32(identify_buffer[5]));
+		hisi_sas_config_id_frame(hisi_hba, i);
 	}
+
 	return 0;
 }
 
@@ -1925,5 +1934,52 @@ void hisi_sas_phys_up(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK_REG, 0x36a);
 		hisi_sas_phy_read32(hisi_hba, i, CHL_INT2_MSK_REG);
 	}
+}
+
+static void hisi_sas_enable_phy(struct hisi_hba *hisi_hba, int phy)
+{
+	u32 val = hisi_sas_phy_read32(hisi_hba, phy, PHY_CFG_REG);
+	val |= PHY_CFG_REG_ENA_MASK;
+	hisi_sas_phy_write32(hisi_hba, phy, PHY_CFG_REG, val);
+}
+
+static void hisi_sas_start_phy(struct hisi_hba *hisi_hba, int phy)
+{
+	hisi_sas_config_id_frame(hisi_hba, phy);
+	/* j00310691 todo add code from Higgs_StartPhy */
+
+	hisi_sas_enable_phy(hisi_hba, phy);
+}
+
+static void hisi_sas_start_phys(unsigned long data)
+{
+	struct hisi_hba *hisi_hba = (struct hisi_hba *)data;
+	int i;
+
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK_REG, 0x0000032a);
+		hisi_sas_start_phy(hisi_hba, i);
+	}
+
+}
+
+int hisi_sas_start_phy_layer(struct hisi_hba *hisi_hba)
+{
+	struct timer_list *timer = NULL;
+
+	pr_info("%s hisi_hba=%p\n", __func__, hisi_hba);
+
+	timer = vmalloc(sizeof(*timer));
+	if (!timer)
+		return -ENOMEM;
+
+	init_timer(timer);
+	timer->data = (unsigned long)hisi_hba;
+	timer->expires = jiffies + msecs_to_jiffies(1000);
+	timer->function = hisi_sas_start_phys;
+
+	add_timer(timer);
+
+	return 0;
 }
 

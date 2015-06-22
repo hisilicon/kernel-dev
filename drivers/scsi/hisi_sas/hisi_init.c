@@ -398,6 +398,8 @@ static int hisi_sas_probe(struct platform_device *pdev)
 			goto err_out_interrupt_ini;
 
 		hisi_sas_phys_up(hisi_hba);
+
+		hisi_sas_start_phy_layer(hisi_hba);
 	}
 
 	hisi_sas_post_ha_init(shost, n_core);

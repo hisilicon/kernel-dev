@@ -533,6 +533,7 @@ int hisi_sas_hw_init(struct hisi_hba *hisi_hba);
 int  hisi_sas_interrupt_init(struct hisi_hba *hisi_hba);
 void  hisi_sas_phys_up(struct hisi_hba *hisi_hba);
 int  hisi_sas_interrupt_openall(struct hisi_hba *hisi_hba);
+int hisi_sas_start_phy_layer(struct hisi_hba *hisi_hba);
 int hisi_sas_dev_found(struct domain_device *dev);
 void hisi_sas_dev_gone(struct domain_device *dev);
 int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags);
