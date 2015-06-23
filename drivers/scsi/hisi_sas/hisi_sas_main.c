@@ -34,15 +34,15 @@
 #define PORT_BASE_REG		(0x800)
 #define PHY_CFG_REG		(PORT_BASE_REG + 0x0)
 #define PHY_CFG_REG_ENA_OFF	0
-#define PHY_CFG_REG_ENA_MASK	1
+#define PHY_CFG_REG_ENA_MSK	0x1
 #define PHY_CFG_REG_SATA_OFF	1
-#define PHY_CFG_REG_SATA_MASK	2
+#define PHY_CFG_REG_SATA_MSK	0x2
 #define PHY_CFG_REG_DC_OPT_OFF	2
-#define PHY_CFG_REG_DC_OPT_MASK	4
+#define PHY_CFG_REG_DC_OPT_MSK	0x4
 
 #define PHY_CTRL_REG		(PORT_BASE_REG + 0x14)
 #define PHY_CTRL_REG_RESET_OFF	0
-#define PHY_CTRL_REG_RESET_MASK	1
+#define PHY_CTRL_REG_RESET_MSK	0x1
 #define TX_ID_DWORD0_REG	(PORT_BASE_REG + 0x9c)
 #define TX_ID_DWORD1_REG	(PORT_BASE_REG + 0xa0)
 #define TX_ID_DWORD2_REG	(PORT_BASE_REG + 0xa4)
@@ -52,10 +52,10 @@
 #define TX_ID_DWORD6_REG	(PORT_BASE_REG + 0xb4)
 #define DMA_TX_STATUS_REG	(PORT_BASE_REG + 0x2d0)
 #define DMA_TX_STATUS_BUSY_OFF	0
-#define DMA_TX_STATUS_BUSY_MASK	1
+#define DMA_TX_STATUS_BUSY_MSK	0x1
 #define DMA_RX_STATUS_REG	(PORT_BASE_REG + 0x2e8)
 #define DMA_RX_STATUS_BUSY_OFF	0
-#define DMA_RX_STATUS_BUSY_MASK	1
+#define DMA_RX_STATUS_BUSY_MSK	0x1
 #define AXI_CFG_REG		(0x5100)
 
 /*global registers need init*/
@@ -91,6 +91,13 @@
 #define CFG_SAS_CONFIG_REG              (GLOBAL_BASE_REG + 0xd4)
 
 /*phy registers need init*/
+#define HARD_PHY_LINK_RATE_REG          (PORT_BASE_REG + 0x4)
+#define HARD_PHY_LINK_RATE_REG_MAX_OFF	0
+#define HARD_PHY_LINK_RATE_REG_MAX_MSK	0xf
+#define HARD_PHY_LINK_RATE_REG_MIN_OFF	4
+#define HARD_PHY_LINK_RATE_REG_MIN_MSK	0xf0
+#define HARD_PHY_LINK_RATE_REG_NEG_OFF	8
+#define HARD_PHY_LINK_RATE_REG_NEG_MSK	0xf00
 #define PROG_PHY_LINK_RATE_REG          (PORT_BASE_REG + 0xc)
 #define PROG_PHY_LINK_RATE_REG_MAX_OFF	0
 #define PROG_PHY_LINK_RATE_REG_MAX_MSK	0xf
@@ -100,7 +107,7 @@
 #define PROG_PHY_LINK_RATE_REG_OOB_MSK	0xf00
 #define PHY_CONFIG2_REG                 (PORT_BASE_REG + 0x1a8)
 #define PHY_CONFIG2_REG_RXCLTEPRES_OFF	0
-#define PHY_CONFIG2_REG_RXCLTEPRES_MSK	1
+#define PHY_CONFIG2_REG_RXCLTEPRES_MSK	0xFF
 #define PHY_RATE_NEGO_REG               (PORT_BASE_REG + 0x30)
 #define PHY_PCN_REG                     (PORT_BASE_REG + 0x44)
 #define SL_TOUT_CFG_REG                 (PORT_BASE_REG + 0x8c)
@@ -110,6 +117,8 @@
 #define CHL_INT_COAL_EN_REG             (PORT_BASE_REG + 0x1d0)
 /*phy intr registers*/
 #define CHL_INT0_REG                    (PORT_BASE_REG + 0x1b0)
+#define CHL_INT0_REG_PHYCTRL_NOTRDY_OFF 0
+#define CHL_INT0_REG_PHYCTRL_NOTRDY_MSK 0x1
 #define CHL_INT1_REG                    (PORT_BASE_REG + 0x1b4)
 #define CHL_INT2_REG                    (PORT_BASE_REG + 0x1b8)
 /*phy intr_mask registers need unmask*/
@@ -118,9 +127,9 @@
 #define CHL_INT2_MSK_REG                (PORT_BASE_REG + 0x1c4)
 
 /* reg & mask used for bus */
-#define RESET_STATUS_MASK	                (0x7ffff)
-#define RESET_STATUS_RESET	                (0x7ffff)
-#define RESET_STATUS_DERESET	            (0x0)
+#define RESET_STATUS_MSK		(0x7ffff)
+#define RESET_STATUS_RESET		(0x7ffff)
+#define RESET_STATUS_DERESET		(0x0)
 
 
 static inline u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
@@ -1018,7 +1027,7 @@ static int hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		u32 phy_ctrl = hisi_sas_phy_read32(hisi_hba, i, PHY_CTRL_REG);
 
-		phy_ctrl |= PHY_CTRL_REG_RESET_MASK;
+		phy_ctrl |= PHY_CTRL_REG_RESET_MSK;
 		hisi_sas_phy_write32(hisi_hba, i, PHY_CTRL_REG, phy_ctrl);
 	}
 	udelay(50);
@@ -1035,8 +1044,8 @@ static int hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
 			dma_rx_status =
 				hisi_sas_phy_read32(hisi_hba, i, DMA_RX_STATUS_REG);
 
-			if (!(dma_tx_status & DMA_TX_STATUS_BUSY_MASK) &&
-				!(dma_rx_status & DMA_RX_STATUS_BUSY_MASK))
+			if (!(dma_tx_status & DMA_TX_STATUS_BUSY_MSK) &&
+				!(dma_rx_status & DMA_RX_STATUS_BUSY_MSK))
 				break;
 
 			msleep(20);
@@ -1102,7 +1111,7 @@ static int hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
 	writel(reset_value, sub_ctrl_base + reset_reg_addr);
 	mdelay(1);
 	reg_value = readl(sub_ctrl_base + reset_status_reg_addr);
-	if (RESET_STATUS_RESET != (reg_value & RESET_STATUS_MASK)) {
+	if (RESET_STATUS_RESET != (reg_value & RESET_STATUS_MSK)) {
 		pr_err("%s card:%d sas reset failed", __func__, hisi_hba->id);
 		return -1;
 	}
@@ -1111,7 +1120,7 @@ static int hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
 	writel(dereset_value, sub_ctrl_base + dereset_reg_addr);
 	mdelay(1);
 	reg_value = readl(sub_ctrl_base + reset_status_reg_addr);
-	if (RESET_STATUS_DERESET != (reg_value & RESET_STATUS_MASK)) {
+	if (RESET_STATUS_DERESET != (reg_value & RESET_STATUS_MSK)) {
 		pr_err("%s card:%d sas dereset failed",
 			__func__,
 			hisi_hba->id);
@@ -1486,19 +1495,22 @@ static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t hisi_sas_int_ctrlrdy(int phy_no, void *p)
+static irqreturn_t hisi_sas_int_ctrlrdy(int phy, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
 
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy, CHL_INT2_REG);
 
-	if (!(irq_value & PHY_CTRLRDY))
+	if (!(irq_value & PHY_CTRLRDY)) {
 		pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
+		hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2_REG, PHY_CTRLRDY);
+		return IRQ_NONE;
+	}
 	else
-		pr_info("%s phy = %d, irq_value = %x in phy_ctrlrdy\n", __func__, phy_no, irq_value);
+		pr_info("%s phy = %d, irq_value = %x in phy_ctrlrdy\n", __func__, phy, irq_value);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHY_CTRLRDY);
+	hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2_REG, PHY_CTRLRDY);
 
 	return IRQ_HANDLED;
 }
@@ -1958,7 +1970,7 @@ static void hisi_sas_config_phy_link_param(struct hisi_hba *hisi_hba, int phy, e
 	rate &= ~PROG_PHY_LINK_RATE_REG_MAX_MSK;
 	switch (linkrate) {
 	case SAS_LINK_RATE_12_0_GBPS:
-		rate |= linkrate << PROG_PHY_LINK_RATE_REG_MAX_OFF;
+		rate |= SAS_LINK_RATE_6_0_GBPS << PROG_PHY_LINK_RATE_REG_MAX_OFF;
 		pcn = 0x80aa0001;
 		break;
 
@@ -1967,6 +1979,10 @@ static void hisi_sas_config_phy_link_param(struct hisi_hba *hisi_hba, int phy, e
 		return;
 	}
 
+	rate &= ~PROG_PHY_LINK_RATE_REG_OOB_MSK;
+	rate |= SAS_LINK_RATE_1_5_GBPS << PROG_PHY_LINK_RATE_REG_OOB_OFF;
+	rate &= ~PROG_PHY_LINK_RATE_REG_MIN_MSK;
+	rate |= SAS_LINK_RATE_1_5_GBPS << PROG_PHY_LINK_RATE_REG_MIN_OFF;
 	hisi_sas_phy_write32(hisi_hba, phy, PROG_PHY_LINK_RATE_REG, rate);
 	hisi_sas_phy_write32(hisi_hba, phy, PHY_PCN_REG, pcn);
 }
@@ -1975,7 +1991,7 @@ static void hisi_sas_config_phy_opt_mode(struct hisi_hba *hisi_hba, int phy)
 {
 	/* j00310691 assume not optical cable for now */
 	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy, PHY_CFG_REG);
-	cfg &= ~PHY_CFG_REG_DC_OPT_MASK;
+	cfg &= ~PHY_CFG_REG_DC_OPT_MSK;
 	cfg |= 1 << PHY_CFG_REG_DC_OPT_OFF;
 	hisi_sas_phy_write32(hisi_hba, phy, PHY_CFG_REG, cfg);
 }
@@ -1983,14 +1999,14 @@ static void hisi_sas_config_phy_opt_mode(struct hisi_hba *hisi_hba, int phy)
 static void hisi_sas_config_tx_tfe_autoneg(struct hisi_hba *hisi_hba, int phy)
 {
 	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy, PHY_CONFIG2_REG);
-	cfg |= PHY_CONFIG2_REG_RXCLTEPRES_MSK;
+	cfg &= ~PHY_CONFIG2_REG_RXCLTEPRES_MSK;
 	hisi_sas_phy_write32(hisi_hba, phy, PHY_CONFIG2_REG, cfg);
 }
 
 static void hisi_sas_enable_phy(struct hisi_hba *hisi_hba, int phy)
 {
 	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy, PHY_CFG_REG);
-	cfg |= PHY_CFG_REG_ENA_MASK;
+	cfg |= PHY_CFG_REG_ENA_MSK;
 	hisi_sas_phy_write32(hisi_hba, phy, PHY_CFG_REG, cfg);
 }
 
@@ -2018,8 +2034,6 @@ static void hisi_sas_start_phys(unsigned long data)
 int hisi_sas_start_phy_layer(struct hisi_hba *hisi_hba)
 {
 	struct timer_list *timer = NULL;
-
-	pr_info("%s hisi_hba=%p\n", __func__, hisi_hba);
 
 	timer = vmalloc(sizeof(*timer)); /* j00310691 memory leak? Is this timer even needed? */
 	if (!timer)
