@@ -85,7 +85,8 @@ struct hisi_sas_phy {
 	struct asd_sas_phy	sas_phy;
 	struct sas_identify	identify;
 	struct scsi_device	*sdev;
-	struct timer_list timer;
+	struct timer_list	serdes_timer;
+	struct timer_list	dma_status_timer;
 	/* To be completed, j00310691 */
 	u64		dev_sas_addr;
 	u64		att_dev_sas_addr;

@@ -35,6 +35,11 @@
 #define PHY_CFG_REG		(PORT_BASE_REG + 0x0)
 #define PHY_CFG_REG_ENA_OFF	0
 #define PHY_CFG_REG_ENA_MASK	1
+#define PHY_CFG_REG_SATA_OFF	1
+#define PHY_CFG_REG_SATA_MASK	2
+#define PHY_CFG_REG_DC_OPT_OFF	2
+#define PHY_CFG_REG_DC_OPT_MASK	4
+
 #define PHY_CTRL_REG		(PORT_BASE_REG + 0x14)
 #define PHY_CTRL_REG_RESET_OFF	0
 #define PHY_CTRL_REG_RESET_MASK	1
@@ -87,7 +92,15 @@
 
 /*phy registers need init*/
 #define PROG_PHY_LINK_RATE_REG          (PORT_BASE_REG + 0xc)
+#define PROG_PHY_LINK_RATE_REG_MAX_OFF	0
+#define PROG_PHY_LINK_RATE_REG_MAX_MSK	0xf
+#define PROG_PHY_LINK_RATE_REG_MIN_OFF	4
+#define PROG_PHY_LINK_RATE_REG_MIN_MSK	0xf0
+#define PROG_PHY_LINK_RATE_REG_OOB_OFF	8
+#define PROG_PHY_LINK_RATE_REG_OOB_MSK	0xf00
 #define PHY_CONFIG2_REG                 (PORT_BASE_REG + 0x1a8)
+#define PHY_CONFIG2_REG_RXCLTEPRES_OFF	0
+#define PHY_CONFIG2_REG_RXCLTEPRES_MSK	1
 #define PHY_RATE_NEGO_REG               (PORT_BASE_REG + 0x30)
 #define PHY_PCN_REG                     (PORT_BASE_REG + 0x44)
 #define SL_TOUT_CFG_REG                 (PORT_BASE_REG + 0x8c)
@@ -1147,7 +1160,7 @@ static int hisi_sas_init_reg(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, CFG_SAS_CONFIG_REG, 0x22000000);
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
-		/*phy registers init set 12G*/
+		/*phy registers init set 12G - see g_astPortRegConfig */
 		hisi_sas_phy_write32(hisi_hba,
 				i,
 				PROG_PHY_LINK_RATE_REG,
@@ -1355,7 +1368,8 @@ void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int i)
 
 	phy->hisi_hba = hisi_hba;
 	phy->port = NULL;
-	init_timer(&phy->timer);
+	init_timer(&phy->serdes_timer);
+	init_timer(&phy->dma_status_timer);
 	sas_phy->enabled = (i < hisi_hba->n_phy) ? 1 : 0;
 	sas_phy->class = SAS;
 	sas_phy->iproto = SAS_PROTOCOL_ALL;
@@ -1481,8 +1495,8 @@ static irqreturn_t hisi_sas_int_ctrlrdy(int phy_no, void *p)
 
 	if (!(irq_value & PHY_CTRLRDY))
 		pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
-
-	pr_info("%s phy = %d, irq_value = %x in phy_ctrlrdy\n", __func__, phy_no, irq_value);
+	else
+		pr_info("%s phy = %d, irq_value = %x in phy_ctrlrdy\n", __func__, phy_no, irq_value);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHY_CTRLRDY);
 
@@ -1936,18 +1950,56 @@ void hisi_sas_phys_up(struct hisi_hba *hisi_hba)
 	}
 }
 
+static void hisi_sas_config_phy_link_param(struct hisi_hba *hisi_hba, int phy, enum sas_linkrate linkrate)
+{
+	u32 rate = hisi_sas_phy_read32(hisi_hba, phy, PROG_PHY_LINK_RATE_REG);
+	u32 pcn;
+
+	rate &= ~PROG_PHY_LINK_RATE_REG_MAX_MSK;
+	switch (linkrate) {
+	case SAS_LINK_RATE_12_0_GBPS:
+		rate |= linkrate << PROG_PHY_LINK_RATE_REG_MAX_OFF;
+		pcn = 0x80aa0001;
+		break;
+
+	default:
+		pr_warn("%s unsupported linkrate, %d", __func__, linkrate);
+		return;
+	}
+
+	hisi_sas_phy_write32(hisi_hba, phy, PROG_PHY_LINK_RATE_REG, rate);
+	hisi_sas_phy_write32(hisi_hba, phy, PHY_PCN_REG, pcn);
+}
+
+static void hisi_sas_config_phy_opt_mode(struct hisi_hba *hisi_hba, int phy)
+{
+	/* j00310691 assume not optical cable for now */
+	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy, PHY_CFG_REG);
+	cfg &= ~PHY_CFG_REG_DC_OPT_MASK;
+	cfg |= 1 << PHY_CFG_REG_DC_OPT_OFF;
+	hisi_sas_phy_write32(hisi_hba, phy, PHY_CFG_REG, cfg);
+}
+
+static void hisi_sas_config_tx_tfe_autoneg(struct hisi_hba *hisi_hba, int phy)
+{
+	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy, PHY_CONFIG2_REG);
+	cfg |= PHY_CONFIG2_REG_RXCLTEPRES_MSK;
+	hisi_sas_phy_write32(hisi_hba, phy, PHY_CONFIG2_REG, cfg);
+}
+
 static void hisi_sas_enable_phy(struct hisi_hba *hisi_hba, int phy)
 {
-	u32 val = hisi_sas_phy_read32(hisi_hba, phy, PHY_CFG_REG);
-	val |= PHY_CFG_REG_ENA_MASK;
-	hisi_sas_phy_write32(hisi_hba, phy, PHY_CFG_REG, val);
+	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy, PHY_CFG_REG);
+	cfg |= PHY_CFG_REG_ENA_MASK;
+	hisi_sas_phy_write32(hisi_hba, phy, PHY_CFG_REG, cfg);
 }
 
 static void hisi_sas_start_phy(struct hisi_hba *hisi_hba, int phy)
 {
 	hisi_sas_config_id_frame(hisi_hba, phy);
-	/* j00310691 todo add code from Higgs_StartPhy */
-
+	hisi_sas_config_phy_link_param(hisi_hba, phy, SAS_LINK_RATE_12_0_GBPS);
+	hisi_sas_config_phy_opt_mode(hisi_hba, phy);
+	hisi_sas_config_tx_tfe_autoneg(hisi_hba, phy);
 	hisi_sas_enable_phy(hisi_hba, phy);
 }
 
@@ -1969,7 +2021,7 @@ int hisi_sas_start_phy_layer(struct hisi_hba *hisi_hba)
 
 	pr_info("%s hisi_hba=%p\n", __func__, hisi_hba);
 
-	timer = vmalloc(sizeof(*timer));
+	timer = vmalloc(sizeof(*timer)); /* j00310691 memory leak? Is this timer even needed? */
 	if (!timer)
 		return -ENOMEM;
 
