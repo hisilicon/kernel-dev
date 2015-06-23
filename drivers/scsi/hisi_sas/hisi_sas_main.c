@@ -20,6 +20,7 @@
 #define ITCT_BASE_ADDR_HI	(GLOBAL_BASE_REG + 0x14)
 #define BROKEN_MSG_ADDR_LO	(GLOBAL_BASE_REG + 0x18)
 #define BROKEN_MSG_ADDR_HI	(GLOBAL_BASE_REG + 0x1c)
+#define PHY_PORT_NUM_MA_REG	(GLOBAL_BASE_REG + 0x28)
 #define DLVRY_Q_0_BASE_ADDR_LO	(GLOBAL_BASE_REG + 0x260)
 #define DLVRY_Q_0_BASE_ADDR_HI	(GLOBAL_BASE_REG + 0x264)
 #define DLVRY_Q_0_DEPTH		(GLOBAL_BASE_REG + 0x268)
@@ -111,8 +112,15 @@
 #define PHY_RATE_NEGO_REG               (PORT_BASE_REG + 0x30)
 #define PHY_PCN_REG                     (PORT_BASE_REG + 0x44)
 #define SL_TOUT_CFG_REG                 (PORT_BASE_REG + 0x8c)
-#define DONE_RECEVIED_TIME_REG          (PORT_BASE_REG + 0x12c)
+#define RX_IDAF_DWORD0_REG		(PORT_BASE_REG + 0xc4)
+#define RX_IDAF_DWORD1_REG		(PORT_BASE_REG + 0xc8)
+#define RX_IDAF_DWORD2_REG		(PORT_BASE_REG + 0xcc)
+#define RX_IDAF_DWORD3_REG		(PORT_BASE_REG + 0xd0)
+#define RX_IDAF_DWORD4_REG		(PORT_BASE_REG + 0xd4)
+#define RX_IDAF_DWORD5_REG		(PORT_BASE_REG + 0xd8)
+#define RX_IDAF_DWORD6_REG		(PORT_BASE_REG + 0xdc)
 #define RXOP_CHECK_CFG_H_REG            (PORT_BASE_REG + 0xfc)
+#define DONE_RECEVIED_TIME_REG          (PORT_BASE_REG + 0x12c)
 #define CON_CFG_DRIVER_REG              (PORT_BASE_REG + 0x130)
 #define CHL_INT_COAL_EN_REG             (PORT_BASE_REG + 0x1d0)
 /*phy intr registers*/
@@ -1478,19 +1486,41 @@ void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy)
 	pr_info("%s\n", __func__);
 }
 
-static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
+static irqreturn_t hisi_sas_int_phyup(int phy, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
-	u32 irq_value;
+	u32 irq_value, port_id;
+	struct hisi_sas_port *port;
+	int i;
 
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy, CHL_INT2_REG);
 
-	if (!(irq_value & PHY_ENABLED))
-		pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
+	if (!(irq_value & PHY_ENABLED)) {
+		pr_err("%s irq_value = %x not set enable bit\n", __func__, irq_value);
+		goto end;
+	}
 
-	pr_info("%s phy = %d, irq_value = %x in phy_up\n", __func__, phy_no, irq_value);
+	pr_info("%s phy = %d, irq_value = 0x%x\n", __func__, phy, irq_value);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHY_ENABLED);
+	port_id = (hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA_REG) >> (4 * phy)) & 0xf;
+	if (port_id == 0xf) {
+		pr_err("%s phy = %d, invalid portid\n", __func__, phy);
+		goto end;
+	}
+	pr_info("%s phy = %d portid = 0x%x\n", __func__, phy, port_id);
+
+	/* j00310691 todo stop serdes fw timer */
+
+	port = &hisi_hba->port[port_id];
+	pr_info("%s phy = %d port = %p\n", __func__, phy, port);
+
+	for (i = 0; i < 6; i++) {
+		pr_info("%s id %d 0x%x\n", __func__, i,
+			hisi_sas_phy_read32(hisi_hba, phy, RX_IDAF_DWORD0_REG + (i * 4)));
+	}
+
+end:
+	hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2_REG, PHY_ENABLED);
 
 	return IRQ_HANDLED;
 }
