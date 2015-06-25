@@ -21,6 +21,7 @@
 #define BROKEN_MSG_ADDR_LO	(GLOBAL_BASE_REG + 0x18)
 #define BROKEN_MSG_ADDR_HI	(GLOBAL_BASE_REG + 0x1c)
 #define PHY_PORT_NUM_MA_REG	(GLOBAL_BASE_REG + 0x28)
+#define PHY_CONN_RATE_REG	(GLOBAL_BASE_REG + 0x30)
 #define DLVRY_Q_0_BASE_ADDR_LO	(GLOBAL_BASE_REG + 0x260)
 #define DLVRY_Q_0_BASE_ADDR_HI	(GLOBAL_BASE_REG + 0x264)
 #define DLVRY_Q_0_DEPTH		(GLOBAL_BASE_REG + 0x268)
@@ -109,11 +110,14 @@
 #define PHY_CONFIG2_REG                 (PORT_BASE_REG + 0x1a8)
 #define PHY_CONFIG2_REG_RXCLTEPRES_OFF	0
 #define PHY_CONFIG2_REG_RXCLTEPRES_MSK	0xFF
-#define CFG_TX_TRAIN_COMP_MSK               1
 #define CFG_TX_TRAIN_COMP_OFF           24
+#define CFG_TX_TRAIN_COMP_MSK		0x1
 #define PHY_RATE_NEGO_REG               (PORT_BASE_REG + 0x30)
 #define PHY_PCN_REG                     (PORT_BASE_REG + 0x44)
 #define SL_TOUT_CFG_REG                 (PORT_BASE_REG + 0x8c)
+#define SL_CONTROL_REG			(PORT_BASE_REG + 0x94)
+#define SL_CONTROL_REG_NOTIFY_EN_OFF	0
+#define SL_CONTROL_REG_NOTIFY_EN_MSK	0x1
 #define RX_IDAF_DWORD0_REG		(PORT_BASE_REG + 0xc4)
 #define RX_IDAF_DWORD1_REG		(PORT_BASE_REG + 0xc8)
 #define RX_IDAF_DWORD2_REG		(PORT_BASE_REG + 0xcc)
@@ -240,12 +244,12 @@ static void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *
 	}
 
 	if (hisi_hba->command_table_pool) {
-		dma_pool_free(hisi_hba->command_table_pool, slot->cmd_hdr, slot->cmd_hdr_dma);
-		slot->cmd_hdr = NULL;
+		dma_pool_free(hisi_hba->command_table_pool, slot->command_table, slot->command_table_dma);
+		slot->command_table = NULL;
 	}
 	if (hisi_hba->status_buffer_pool) {
 		dma_pool_free(hisi_hba->status_buffer_pool, slot->status_buffer, slot->status_buffer_dma);
-		slot->cmd_hdr = NULL;
+		slot->status_buffer = NULL;
 	}
 	list_del_init(&slot->entry);
 	task->lldd_task = NULL;
@@ -291,7 +295,15 @@ int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SSP: {
 			/* j00310691 for SMP, IU contains just the SSP IU */
+			u8 *bytes = slot->status_buffer;
 			struct ssp_response_iu *iu = slot->status_buffer + sizeof(struct hisi_sas_err_record);
+
+			for (j=0;j<10;j++){
+				pr_info("%s %d %2x %2x %2x %2x %2x %2x %2x %2x\n", __func__, j,
+					bytes[0], bytes[1], bytes[2], bytes[3],
+					bytes[4], bytes[5], bytes[6], bytes[7]);
+				bytes+=8;
+			}
 
 			sas_ssp_task_response(hisi_hba->dev, task, iu);
 			break;
@@ -1589,9 +1601,9 @@ void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st)
 
 	}
 	pr_info("%s phy %d attach dev info is %llx\n", __func__,
-		i + hisi_hba->id * hisi_hba->n_phy, phy->att_dev_info);
+		phy_no + hisi_hba->id * hisi_hba->n_phy, phy->att_dev_info);
 	pr_info("%s phy %d attach sas addr is %llx\n", __func__,
-		i + hisi_hba->id * hisi_hba->n_phy, phy->att_dev_sas_addr);
+		phy_no + hisi_hba->id * hisi_hba->n_phy, phy->att_dev_sas_addr);
 }
 
 static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
@@ -1651,8 +1663,18 @@ static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
 		id->sas_addr[4], id->sas_addr[5], id->sas_addr[6], id->sas_addr[7]);
 	pr_info("%s phy=%d phy_id=%d\n", __func__, phy_no, id->phy_id);
 
+	if (id->dev_type == SAS_END_DEVICE) {
+		u32 sl_control =  hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL_REG);
+		sl_control |= SL_CONTROL_REG_NOTIFY_EN_MSK;
+		hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL_REG, sl_control);
+		mdelay(1);
+		sl_control =  hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL_REG);
+		sl_control &= ~SL_CONTROL_REG_NOTIFY_EN_MSK;
+		hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL_REG, sl_control);
+	}
+
 	/* Get the linkrate */
-	link_rate = (hisi_sas_phy_read32(hisi_hba, phy_no, PHY_RATE_NEGO_REG) >> (phy_no * 4)) & 0xf;
+	link_rate = (hisi_sas_read32(hisi_hba, PHY_CONN_RATE_REG) >> (phy_no * 4)) & 0xf;
 	pr_info("%s phy=%d link_rate=%d\n", __func__, phy_no, link_rate);
 	sas_phy->linkrate = link_rate;
 
