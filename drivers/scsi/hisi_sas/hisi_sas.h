@@ -103,6 +103,8 @@ struct hisi_sas_phy {
 	u64		phy_event;
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate;
+    /*serdes_timer to use*/
+    int     phy_id;
 };
 
 struct hisi_sas_port {

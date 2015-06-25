@@ -109,6 +109,8 @@
 #define PHY_CONFIG2_REG                 (PORT_BASE_REG + 0x1a8)
 #define PHY_CONFIG2_REG_RXCLTEPRES_OFF	0
 #define PHY_CONFIG2_REG_RXCLTEPRES_MSK	0xFF
+#define CFG_TX_TRAIN_COMP_MSK               1
+#define CFG_TX_TRAIN_COMP_OFF           24
 #define PHY_RATE_NEGO_REG               (PORT_BASE_REG + 0x30)
 #define PHY_PCN_REG                     (PORT_BASE_REG + 0x44)
 #define SL_TOUT_CFG_REG                 (PORT_BASE_REG + 0x8c)
@@ -139,6 +141,8 @@
 #define RESET_STATUS_RESET		(0x7ffff)
 #define RESET_STATUS_DERESET		(0x0)
 
+/*nego query windown*/
+#define NEGO_QUERY_WINDOW_12G       40
 
 static inline u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
 {
@@ -1525,6 +1529,67 @@ end:
 	return IRQ_HANDLED;
 }
 
+void hisi_sas_config_serdes_12G_timer_handler(unsigned long arg)
+{
+    struct hisi_sas_phy *phy = (struct hisi_sas_phy *)arg;
+    struct hisi_hba *hisi_hba = phy->hisi_hba;
+    int phy_id = phy->phy_id;
+
+    u32 val = hisi_sas_phy_read32(hisi_hba, phy_id, PHY_CONFIG2_REG);
+    val |= (CFG_TX_TRAIN_COMP_MSK << CFG_TX_TRAIN_COMP_OFF);
+    hisi_sas_phy_write32(hisi_hba, phy_id, PHY_CONFIG2_REG, val);
+}
+
+int hisi_sas_config_serdes_12G(struct hisi_hba *hisi_hba, int phy_id)
+{
+    u32 link_rate = 0;
+    unsigned long end_time = jiffies +
+        msecs_to_jiffies(NEGO_QUERY_WINDOW_12G);
+    struct hisi_sas_phy *phy = &hisi_hba->phy[phy_id];
+
+    phy->phy_id = phy_id;
+
+    while(!time_after(jiffies, end_time)) {
+        /*check for phy down interrupt*/
+        u32 val = hisi_sas_phy_read32(hisi_hba, phy_id, CHL_INT0_REG);
+
+        if (val & CHL_INT0_REG_PHYCTRL_NOTRDY_MSK) {
+            pr_warn("%s phy come while ctrl rdy for phy %d\n",
+                    __func__, phy_id);
+            hisi_sas_phy_write32(hisi_hba, phy_id,
+                    CHL_INT0_REG,
+                    CHL_INT0_REG_PHYCTRL_NOTRDY_MSK);
+            return 0;
+        }
+
+        link_rate = hisi_sas_phy_read32(hisi_hba, phy_id, HARD_PHY_LINK_RATE_REG);
+        if (link_rate == SAS_LINK_RATE_12_0_GBPS) {
+            mdelay(20);
+            /*i will check whether need Higgs_SerdesEnableCTLEDFE*/
+            break;
+        }
+
+        udelay(100);
+        break;
+    }
+
+    pr_info("end_time = %lu jiffies = %lu\n", end_time, jiffies);
+
+    if (link_rate == SAS_LINK_RATE_12_0_GBPS) {
+        struct timer_list *timer = &phy->serdes_timer;
+        if (!timer_pending(timer)) {
+            init_timer(timer);
+            timer->data = (unsigned long)phy;
+            timer->expires = jiffies + msecs_to_jiffies(300);
+            timer->function = hisi_sas_config_serdes_12G_timer_handler;
+            add_timer(timer);
+        } else {
+            mod_timer(timer, jiffies + msecs_to_jiffies(300));
+        }
+    }
+    return 0;
+}
+
 static irqreturn_t hisi_sas_int_ctrlrdy(int phy, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
@@ -1539,6 +1604,8 @@ static irqreturn_t hisi_sas_int_ctrlrdy(int phy, void *p)
 	}
 	else
 		pr_info("%s phy = %d, irq_value = %x in phy_ctrlrdy\n", __func__, phy, irq_value);
+
+    hisi_sas_config_serdes_12G(hisi_hba, phy);
 
 	hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2_REG, PHY_CTRLRDY);
 
