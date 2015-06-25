@@ -842,31 +842,27 @@ static int hisi_sas_task_exec(struct sas_task *task,
 
 	hisi_hba = ((struct hisi_sas_device *)task->dev->lldd_dev)->hisi_hba;
 
-	spin_lock_irqsave(&hisi_hba->lock, flags);
+	//spin_lock_irqsave(&hisi_hba->lock, flags);
 	rc = hisi_sas_task_prep(task, hisi_hba, is_tmf, tmf, &pass);
 	if (rc)
 		dev_err(hisi_hba->dev, "hisi_sas exec failed[%d]!\n", rc);
 
 	if (likely(pass))
 		hisi_sas_start_delivery(hisi_hba);
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
+	//spin_unlock_irqrestore(&hisi_hba->lock, flags);
 
 	return rc;
 }
 
-static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int i)
+static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[i];
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct sas_ha_struct *sas_ha;
 
 	if (!phy->phy_attached)
 		return;
 
-	if (!(phy->att_dev_info & PORT_DEV_TRGT_MASK)
-		&& phy->phy_type & PORT_TYPE_SAS) {
-		return;
-	}
 
 	sas_ha = hisi_hba->sas;
 	sas_ha->notify_phy_event(sas_phy, PHYE_OOB_DONE);
@@ -898,7 +894,7 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int i)
 		/*Nothing*/
 	}
 
-	pr_info("core %d phy %d byte dmaded.\n", hisi_hba->id, i);
+	pr_info("core %d phy %d byte dmaded.\n", hisi_hba->id, phy_no);
 
 	sas_phy->frame_rcvd_size = phy->frame_rcvd_size;
 
@@ -906,7 +902,7 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int i)
 				   PORTE_BYTES_DMAED);
 }
 
-struct hisi_hba *hisi_sas_find_dev(struct domain_device *dev)
+struct hisi_hba *hisi_sas_find_dev_hba(struct domain_device *dev)
 {
 	unsigned long i = 0, j = 0, hi = 0;
 	struct sas_ha_struct *sha = dev->port->ha;
@@ -988,12 +984,12 @@ int hisi_sas_dev_found_notify(struct domain_device *dev, int lock)
 	unsigned long flags = 0;
 	int res = 0;
 	struct hisi_hba *hisi_hba = NULL;
-	/* struct domain_device  *parent_dev = dev->parent; */
+	struct domain_device  *parent_dev = dev->parent;
 	struct hisi_sas_device *hisi_sas_device;
 
 	pr_info("%s\n", __func__);
 
-	hisi_hba = hisi_sas_find_dev(dev);
+	hisi_hba = hisi_sas_find_dev_hba(dev);
 
 	if (lock)
 		spin_lock_irqsave(&hisi_hba->lock, flags);
@@ -1012,9 +1008,30 @@ int hisi_sas_dev_found_notify(struct domain_device *dev, int lock)
 
 	hisi_sas_setup_itct(hisi_hba, hisi_sas_device);
 
-/*	if (parent_dev && DEV_IS_EXPANDER(parent_dev->dev_type)) {
+	if (parent_dev && DEV_IS_EXPANDER(parent_dev->dev_type)) {
+		int phy_id;
+		u8 phy_num = parent_dev->ex_dev.num_phys;
+		struct ex_phy *phy;
 
-	} */
+		pr_info("%s parent dev is expander\n", __func__);
+		for (phy_id = 0; phy_id < phy_num; phy_id++) {
+			phy = &parent_dev->ex_dev.ex_phy[phy_id];
+			if (SAS_ADDR(phy->attached_sas_addr) ==
+				SAS_ADDR(dev->sas_addr)) {
+				hisi_sas_device->attached_phy = phy_id;
+				break;
+			}
+		}
+
+		if (phy_id == phy_num) {
+			pr_info("%s Error: no attached dev:%016llx"
+				"at ex:%016llx.\n",
+				__func__,
+				SAS_ADDR(dev->sas_addr),
+				SAS_ADDR(parent_dev->sas_addr));
+			res = -1;
+		}
+	}
 
 found_out:
 	if (lock)
@@ -1405,7 +1422,52 @@ void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int i)
 	sas_phy->frame_rcvd = &phy->frame_rcvd[0];
 	sas_phy->ha = (struct sas_ha_struct *)hisi_hba->shost->hostdata;
 	sas_phy->lldd_phy = phy;
+}
 
+static void hisi_sas_update_wideport(struct hisi_hba *hisi_hba, int i)
+{
+	pr_info("%s\n", __func__);
+}
+
+static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy, int lock)
+{
+	struct sas_ha_struct *sas_ha = sas_phy->ha;
+	struct hisi_hba *hisi_hba = NULL; int i = 0, hi;
+	struct hisi_sas_phy *phy = sas_phy->lldd_phy;
+	struct asd_sas_port *sas_port = sas_phy->port;
+	struct hisi_sas_port *port;
+	unsigned long flags = 0;
+	if (!sas_port)
+		return;
+
+	while (sas_ha->sas_phy[i]) {
+		if (sas_ha->sas_phy[i] == sas_phy)
+			break;
+		i++;
+	}
+	hi = i/((struct hisi_hba_priv_info *)sas_ha->lldd_ha)->n_phy;
+	hisi_hba = ((struct hisi_hba_priv_info *)sas_ha->lldd_ha)->hisi_hba[hi];
+	if (i >= hisi_hba->n_phy)
+		port = &hisi_hba->port[i - 8];
+	else
+		port = &hisi_hba->port[i];
+	if (lock)
+		spin_lock_irqsave(&hisi_hba->lock, flags);
+	port->port_attached = 1;
+	phy->port = port;
+	sas_port->lldd_port = port;
+	if (phy->phy_type & PORT_TYPE_SAS) {
+		port->wide_port_phymap = sas_port->phy_mask;
+		hisi_sas_update_wideport(hisi_hba, sas_phy->id);
+
+		/* direct attached SAS device */
+		//if (phy->att_dev_info & PORT_SSP_TRGT_MASK) {
+		//	MVS_CHIP_DISP->write_port_cfg_addr(mvi, i, PHYR_PHY_STAT);
+		//	MVS_CHIP_DISP->write_port_cfg_data(mvi, i, 0x04);
+		//}
+	}
+	if (lock)
+		spin_unlock_irqrestore(&hisi_hba->lock, flags);
 }
 
 int hisi_sas_dev_found(struct domain_device *dev)
@@ -1483,6 +1545,7 @@ int hisi_sas_query_task(struct sas_task *task)
 void hisi_sas_port_formed(struct asd_sas_phy *sas_phy)
 {
 	pr_info("%s\n", __func__);
+	hisi_sas_port_notify_formed(sas_phy, 1);
 }
 
 void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy)
@@ -1490,41 +1553,116 @@ void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy)
 	pr_info("%s\n", __func__);
 }
 
-static irqreturn_t hisi_sas_int_phyup(int phy, void *p)
+void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st)
+{
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct sas_identify_frame *id;
+	id = (struct sas_identify_frame *)phy->frame_rcvd;
+	phy->phy_status = 1; /* j00310691 fixme */
+	if (phy->phy_status) {
+		int oob_done = 0;
+		struct asd_sas_phy *sas_phy = &phy->sas_phy;
+		oob_done = 1;
+
+		/* j00310691 do as fix phy info */
+		phy->att_dev_sas_addr = *(u64 *)id->sas_addr;
+		if (phy->phy_type & PORT_TYPE_SATA) {
+
+		} else if (phy->phy_type & PORT_TYPE_SAS) {
+			phy->phy_attached = 1;
+
+			phy->identify.device_type = SAS_END_DEVICE;
+
+			if (phy->identify.device_type == SAS_END_DEVICE)
+				phy->identify.target_port_protocols =
+							SAS_PROTOCOL_SSP;
+			else if (phy->identify.device_type != SAS_PHY_UNUSED)
+				phy->identify.target_port_protocols =
+							SAS_PROTOCOL_SMP;
+			if (oob_done)
+				sas_phy->oob_mode = SAS_OOB_MODE;
+			phy->frame_rcvd_size =
+			    sizeof(struct sas_identify_frame);
+		}
+		memcpy(sas_phy->attached_sas_addr,
+			&phy->att_dev_sas_addr, SAS_ADDR_SIZE);
+
+	}
+	pr_info("%s phy %d attach dev info is %llx\n", __func__,
+		i + hisi_hba->id * hisi_hba->n_phy, phy->att_dev_info);
+	pr_info("%s phy %d attach sas addr is %llx\n", __func__,
+		i + hisi_hba->id * hisi_hba->n_phy, phy->att_dev_sas_addr);
+}
+
+static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
-	u32 irq_value, port_id;
+	u32 irq_value, port_id, link_rate;
 	struct hisi_sas_port *port;
 	int i;
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	u32 *frame_rcvd = (u32 *)sas_phy->frame_rcvd;
+	struct sas_identify_frame *id = (struct sas_identify_frame *)frame_rcvd;
 
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy, CHL_INT2_REG);
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
 	if (!(irq_value & PHY_ENABLED)) {
 		pr_err("%s irq_value = %x not set enable bit\n", __func__, irq_value);
 		goto end;
 	}
 
-	pr_info("%s phy = %d, irq_value = 0x%x\n", __func__, phy, irq_value);
+	pr_info("%s phy = %d, irq_value = 0x%x\n", __func__, phy_no, irq_value);
 
-	port_id = (hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA_REG) >> (4 * phy)) & 0xf;
+	port_id = (hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA_REG) >> (4 * phy_no)) & 0xf;
 	if (port_id == 0xf) {
-		pr_err("%s phy = %d, invalid portid\n", __func__, phy);
+		pr_err("%s phy = %d, invalid portid\n", __func__, phy_no);
 		goto end;
 	}
-	pr_info("%s phy = %d portid = 0x%x\n", __func__, phy, port_id);
+	pr_info("%s phy = %d portid = 0x%x\n", __func__, phy_no, port_id);
 
 	/* j00310691 todo stop serdes fw timer */
 
 	port = &hisi_hba->port[port_id];
-	pr_info("%s phy = %d port = %p\n", __func__, phy, port);
+	pr_info("%s phy = %d port = %p\n", __func__, phy_no, port);
 
 	for (i = 0; i < 6; i++) {
-		pr_info("%s id %d 0x%x\n", __func__, i,
-			hisi_sas_phy_read32(hisi_hba, phy, RX_IDAF_DWORD0_REG + (i * 4)));
+		u32 tmp = hisi_sas_phy_read32(hisi_hba, phy_no, RX_IDAF_DWORD0_REG + (i * 4));
+		pr_info("%s id %d 0x%x\n", __func__, i, tmp);
+		frame_rcvd[i] = __swab32(tmp);
 	}
 
+	phy->frame_rcvd_size = sizeof(struct sas_identify_frame);
+	phy->phy_attached = 1;
+
+	pr_info("%s phy=%d frame_type=%d\n", __func__, phy_no, id->frame_type);
+	pr_info("%s phy=%d dev_type=%d\n", __func__, phy_no, id->dev_type);
+	pr_info("%s phy=%d _un0=%d\n", __func__, phy_no, id->_un0);
+	pr_info("%s phy=%d _un1=%d\n", __func__, phy_no, id->_un1);
+	pr_info("%s phy=%d smp_iport=%d\n", __func__, phy_no, id->smp_iport);
+	pr_info("%s phy=%d stp_iport=%d\n", __func__, phy_no, id->stp_iport);
+	pr_info("%s phy=%d ssp_iport=%d\n", __func__, phy_no, id->ssp_iport);
+	pr_info("%s phy=%d smp_tport=%d\n", __func__, phy_no, id->smp_tport);
+	pr_info("%s phy=%d stp_tport=%d\n", __func__, phy_no, id->stp_tport);
+	pr_info("%s phy=%d ssp_tport=%d\n", __func__, phy_no, id->ssp_tport);
+	pr_info("%s phy=%d _un4_11=%x %x %x %x\n", __func__, phy_no, id->_un4_11[0], id->_un4_11[1], id->_un4_11[2], id->_un4_11[3]);
+	pr_info("%s phy=%d sas_addr=%x %x %x %x %x %x %x %x\n", __func__, phy_no,
+		id->sas_addr[0], id->sas_addr[1], id->sas_addr[2], id->sas_addr[3],
+		id->sas_addr[4], id->sas_addr[5], id->sas_addr[6], id->sas_addr[7]);
+	pr_info("%s phy=%d phy_id=%d\n", __func__, phy_no, id->phy_id);
+
+	/* Get the linkrate */
+	link_rate = (hisi_sas_phy_read32(hisi_hba, phy_no, PHY_RATE_NEGO_REG) >> (phy_no * 4)) & 0xf;
+	pr_info("%s phy=%d link_rate=%d\n", __func__, phy_no, link_rate);
+	sas_phy->linkrate = link_rate;
+
+	phy->phy_type = PORT_TYPE_SAS;	/* j00310691 fixme -> remove */
+
+	hisi_sas_update_phyinfo(hisi_hba, phy_no, 0);
+	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
+
 end:
-	hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2_REG, PHY_ENABLED);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHY_ENABLED);
 
 	return IRQ_HANDLED;
 }
