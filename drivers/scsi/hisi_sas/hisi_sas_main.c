@@ -295,15 +295,7 @@ int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SSP: {
 			/* j00310691 for SMP, IU contains just the SSP IU */
-			u8 *bytes = slot->status_buffer;
 			struct ssp_response_iu *iu = slot->status_buffer + sizeof(struct hisi_sas_err_record);
-
-			for (j=0;j<10;j++){
-				pr_info("%s %d %2x %2x %2x %2x %2x %2x %2x %2x\n", __func__, j,
-					bytes[0], bytes[1], bytes[2], bytes[3],
-					bytes[4], bytes[5], bytes[6], bytes[7]);
-				bytes+=8;
-			}
 
 			sas_ssp_task_response(hisi_hba->dev, task, iu);
 			break;
@@ -488,7 +480,7 @@ static int hisi_sas_prep_prd_sge(struct hisi_hba *hisi_hba,
 	}
 
 	/* j00310691 fixme need to deal with dealloc of sge_page */
-	sge_page = dma_pool_alloc(hisi_hba->sge_page_pool, GFP_KERNEL, &dma_addr);
+	sge_page = dma_pool_alloc(hisi_hba->sge_page_pool, GFP_ATOMIC, &dma_addr);
 	if (!sge_page)
 		return -ENOMEM;
 
@@ -528,8 +520,7 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
 	int has_data = 0, rc;
 	struct hisi_sas_slot *slot = tei->slot;
-	struct ssp_frame_hdr *ssp_hdr;
-	u8 *buf_cmd, fburst;
+	u8 *buf_cmd, fburst = 0;
 
 	/* create header */
 	/* dw0 */
@@ -620,30 +611,15 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	/* hdr->prd_table_addr_lo, _hi set in hisi_sas_prep_prd_sge */
 
 	/* hdr->dif_prd_table_addr_lo, _hi not set in Higgs code */
-
-	/* fill-in ssp header */
-	ssp_hdr = (struct ssp_frame_hdr *)slot->command_table;
-
-	if (is_tmf)
-		ssp_hdr->frame_type = SSP_TASK;
-	else
-		ssp_hdr->frame_type = SSP_COMMAND;
-
-	memcpy(ssp_hdr->hashed_dest_addr, dev->hashed_sas_addr,
-	       HASHED_SAS_ADDR_SIZE);
-	memcpy(ssp_hdr->hashed_src_addr,
-	       dev->hashed_sas_addr, HASHED_SAS_ADDR_SIZE);
-	ssp_hdr->tag = cpu_to_be16(tei->iptt);
-
+	buf_cmd = (u8 *)slot->command_table + sizeof(struct ssp_frame_hdr);
 	/* fill in IU for TASK and Command Frame */
 	if (task->ssp_task.enable_first_burst) {
 		fburst = (1 << 7);
 		pr_warn("%s fburst enabled: edit hdr?\n", __func__);
 	}
-	buf_cmd = (u8 *)ssp_hdr + sizeof(*ssp_hdr);
-	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
 
-	if (ssp_hdr->frame_type != SSP_TASK) {
+	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
+	if (!is_tmf) {
 		buf_cmd[9] = fburst | task->ssp_task.task_attr |
 				(task->ssp_task.task_prio << 3);
 		memcpy(buf_cmd + 12, task->ssp_task.cmd->cmnd,
