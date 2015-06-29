@@ -115,11 +115,11 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 
 		/* Completion queue */
 		hisi_hba->complete_hdr[i] = dma_alloc_coherent(hisi_hba->dev,
-					sizeof(*hisi_hba->complete_hdr) * HISI_SAS_QUEUE_SLOTS,
+					sizeof(struct hisi_sas_complete_hdr) * HISI_SAS_QUEUE_SLOTS,
 					&hisi_hba->complete_hdr_dma[i], GFP_KERNEL);
 		if (!hisi_hba->complete_hdr[i])
 			goto err_out;
-		memset(hisi_hba->complete_hdr[i], 0, sizeof(*hisi_hba->complete_hdr) * HISI_SAS_QUEUE_SLOTS);
+		memset(hisi_hba->complete_hdr[i], 0x0, sizeof(struct hisi_sas_complete_hdr) * HISI_SAS_QUEUE_SLOTS);
 
 	}
 
