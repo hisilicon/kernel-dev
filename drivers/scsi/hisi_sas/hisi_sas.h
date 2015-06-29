@@ -25,9 +25,9 @@
 
 #define HISI_SAS_ID_NOT_MAPPED 0x7f
 
-#define HISI_SAS_STATUS_BUF_SZ (sizeof(struct hisi_sas_err_record) + 1024)
 #define HISI_SAS_ITCT_ENTRY_SZ 128
 #define HISI_SAS_IOST_ENTRY_SZ 32
+#define HISI_SAS_STATUS_BUF_SZ (sizeof(struct hisi_sas_err_record) + 1024)
 #define HISI_SAS_BREAKPOINT_ENTRY_SZ (sizeof(struct hisi_sas_breakpoint))
 #define HISI_SAS_COMMAND_TABLE_SZ (((sizeof(union hisi_sas_command_table)+3)/4)*4)
 

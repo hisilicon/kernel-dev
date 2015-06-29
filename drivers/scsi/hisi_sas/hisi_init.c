@@ -164,6 +164,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 
 	if (!hisi_hba->iost)
 		goto err_out;
+	memset(hisi_hba->iost, 0x0, HISI_SAS_COMMAND_ENTRIES * HISI_SAS_IOST_ENTRY_SZ);
 
 	hisi_hba->breakpoint = dma_alloc_coherent(hisi_hba->dev,
 				HISI_SAS_COMMAND_ENTRIES * /* j00310691 double-check */

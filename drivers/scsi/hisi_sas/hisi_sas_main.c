@@ -133,6 +133,18 @@
 #define CHL_INT0_REG                    (PORT_BASE_REG + 0x1b0)
 #define CHL_INT0_REG_PHYCTRL_NOTRDY_OFF 0
 #define CHL_INT0_REG_PHYCTRL_NOTRDY_MSK 0x1
+#define CHL_INT0_REG_SN_FAIL_NGR_OFF	2
+#define CHL_INT0_REG_SN_FAIL_NGR_MSK	0x4
+#define CHL_INT0_REG_DWS_LOST_OFF	4
+#define CHL_INT0_REG_DWS_LOST_MSK	0x10
+#define CHL_INT0_REG_SL_IDAF_FAIL_OFF	10
+#define CHL_INT0_REG_SL_IDAF_FAIL_MSK	0x400
+#define CHL_INT0_REG_ID_TIMEOUT_OFF	11
+#define CHL_INT0_REG_ID_TIMEOUT_MSK	0x800
+#define CHL_INT0_REG_SL_OPAF_FAIL_OFF	12
+#define CHL_INT0_REG_SL_OPAF_FAIL_MSK	0x1000
+#define CHL_INT0_REG_SL_PS_FAIL_OFF	21
+#define CHL_INT0_REG_SL_PS_FAIL_MSK	0x200000
 #define CHL_INT1_REG                    (PORT_BASE_REG + 0x1b4)
 #define CHL_INT2_REG                    (PORT_BASE_REG + 0x1b8)
 /*phy intr_mask registers need unmask*/
@@ -734,7 +746,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		goto err_out;
 
 	slot = &hisi_hba->slot_info[queue*hisi_hba->queue_count+queue_slot];
-	memset(slot, 0, sizeof(*slot));
+	memset(slot, 0, sizeof(struct hisi_sas_slot));
 
 	hisi_hba->iptt[iptt].queue = queue;
 	hisi_hba->iptt[iptt].queue_slot = queue_slot;
@@ -758,7 +770,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 				&slot->command_table_dma);
 	if (!slot->command_table)
 		goto err_out;
-	memset(slot->command_table, 0, sizeof(*slot->command_table));
+	memset(slot->command_table, 0, HISI_SAS_COMMAND_TABLE_SZ);
 
 	tei.hdr = slot->cmd_hdr;
 	tei.task = task;
@@ -1660,6 +1672,15 @@ static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
 
 end:
+	if (irq_value & PHY_ENABLED) {
+		u32 val = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_REG);
+		val &= ~1;
+		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_REG, val);
+		pr_info("%s abnormal bug unmask\n", __func__);
+		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG, 0x003ce3ee);
+	}
+
+
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHY_ENABLED);
 
 	return IRQ_HANDLED;
@@ -1741,7 +1762,7 @@ static irqreturn_t hisi_sas_int_ctrlrdy(int phy, void *p)
 	else
 		pr_info("%s phy = %d, irq_value = %x in phy_ctrlrdy\n", __func__, phy, irq_value);
 
-    hisi_sas_config_serdes_12G(hisi_hba, phy);
+	hisi_sas_config_serdes_12G(hisi_hba, phy);
 
 	hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2_REG, PHY_CTRLRDY);
 
@@ -1851,25 +1872,53 @@ static irqreturn_t hisi_sas_int_statuscg(int phy_no, void *p)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t hisi_sas_int_int0(int phy_no, void *p)
+static irqreturn_t hisi_sas_int_abnormal(int phy_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
-	u32 irq_mask_save;
+	u32 irq_mask_old;
 
 	/* mask_int0 */
-	irq_mask_save = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_MSK_REG);
+	irq_mask_old = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_MSK_REG);
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG, 0x003FFFFF);
 
 	/* read int0 */
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_REG);
 
-	pr_info("%s phy = %d, irq0_value = %x\n", __func__, phy_no, irq_value);
+	pr_info("%s phy = %d, irq_value = %x\n", __func__, phy_no, irq_value);
+
+	if (irq_value & CHL_INT0_REG_PHYCTRL_NOTRDY_MSK) {
+		pr_info("%s phy = %d phydown todo\n", __func__, phy_no);
+	} else if (irq_value & CHL_INT0_REG_ID_TIMEOUT_MSK) {
+		pr_info("%s phy = %d identify timeout todo\n", __func__, phy_no);
+	} else {
+		pr_info("%s phy = %d loss dword sync\n", __func__, phy_no);
+		if (irq_value & CHL_INT0_REG_DWS_LOST_MSK) {
+			pr_info("%s phy = %d dws lost\n", __func__, phy_no);
+		}
+
+		if (irq_value & CHL_INT0_REG_SN_FAIL_NGR_MSK) {
+			pr_info("%s phy = %d sn fail ngr\n", __func__, phy_no);
+		}
+
+		if (irq_value & CHL_INT0_REG_SL_IDAF_FAIL_MSK ||
+			irq_value & CHL_INT0_REG_SL_OPAF_FAIL_MSK) {
+			pr_info("%s phy = %d check address frame err\n", __func__, phy_no);
+		}
+
+		if (irq_value & CHL_INT0_REG_SL_PS_FAIL_OFF) {
+			pr_info("%s phy = %d ps req fail\n", __func__, phy_no);
+		}
+	}
 
 	/* write to zero */
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_REG, irq_value);
-	/* recovery int0_mask */
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG, irq_mask_save);
+
+	if (irq_value & CHL_INT0_REG_PHYCTRL_NOTRDY_MSK) {
+		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG, 0x003FFFFF & ~1);
+	} else {
+		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG, irq_mask_old);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -1969,7 +2018,7 @@ irqreturn_t handler##idx(int irq, void *p)\
 	DECLARE_INT_HANDLER(hisi_sas_int_hardrst, phy)\
 	DECLARE_INT_HANDLER(hisi_sas_int_statuscg, phy)\
 	DECLARE_INT_HANDLER(hisi_sas_int_phyup, phy)\
-	DECLARE_INT_HANDLER(hisi_sas_int_int0, phy)\
+	DECLARE_INT_HANDLER(hisi_sas_int_abnormal, phy)\
 	DECLARE_INT_HANDLER(hisi_sas_int_int1, phy)\
 
 
@@ -1982,7 +2031,7 @@ irqreturn_t handler##idx(int irq, void *p)\
 	INT_HANDLER_NAME(hisi_sas_int_hardrst, phy),\
 	INT_HANDLER_NAME(hisi_sas_int_statuscg, phy),\
 	INT_HANDLER_NAME(hisi_sas_int_phyup, phy),\
-	INT_HANDLER_NAME(hisi_sas_int_int0, phy),\
+	INT_HANDLER_NAME(hisi_sas_int_abnormal, phy),\
 	INT_HANDLER_NAME(hisi_sas_int_int1, phy),
 
 DECLARE_PHY_INT_HANDLER_GROUP(0)
@@ -2003,7 +2052,7 @@ static const char phy_int_names[MSI_PHY_INT_NR][32] = {
 	{"HardRst"},
 	{"StatusCG"},
 	{"Phy Up"},
-	{"Int0"},
+	{"Abnormal"},
 	{"Int1"}
 };
 
@@ -2178,7 +2227,7 @@ int hisi_sas_interrupt_openall(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK_REG, 0x00017fff);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK_REG, 0x0000032a);
 
-		/* bypass chip bug mask adnormal intr */
+		/* bypass chip bug mask abnormal intr */
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0_MSK_REG, 0x003fffff & ~1);
 	}
 
