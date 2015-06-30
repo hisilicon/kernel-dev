@@ -1,0 +1,243 @@
+/*
+ * ARM Ltd. Fast Models
+ *
+ * Architecture Envelope Model (AEM) ARMv8-A
+ * ARMAEMv8AMPCT
+ *
+ * RTSM_VE_AEMv8A.lisa
+ */
+
+/dts-v1/;
+
+/memreserve/ 0x80000000 0x00010000;
+
+/ {
+};
+
+/ {
+	model = "FVP Base";
+	compatible = "arm,vfp-base", "arm,vexpress";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	chosen { };
+
+	aliases {
+		serial0 = &v2m_serial0;
+		serial1 = &v2m_serial1;
+		serial2 = &v2m_serial2;
+		serial3 = &v2m_serial3;
+	};
+
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		A57_0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x0>;
+			enable-method = "psci";
+		};
+		A57_1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x1>;
+			enable-method = "psci";
+		};
+		A57_2: cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x2>;
+			enable-method = "psci";
+		};
+		A57_3: cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x3>;
+			enable-method = "psci";
+		};
+		A57_4: cpu@100 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x100>;
+			enable-method = "psci";
+		};
+		A57_5: cpu@101 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x101>;
+			enable-method = "psci";
+		};
+		A57_6: cpu@102 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x102>;
+			enable-method = "psci";
+		};
+		A57_7: cpu@103 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x103>;
+			enable-method = "psci";
+		};
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x00000000 0x80000000 0 0x80000000>,
+		      <0x00000008 0x80000000 0 0x80000000>;
+	};
+
+	gic: interrupt-controller@2f000000 {
+		compatible = "arm,gic-v3";
+		#interrupt-cells = <3>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		interrupt-controller;
+		reg = <0x0 0x2f000000 0 0x10000>,	// GICD
+		      <0x0 0x2f100000 0 0x200000>,	// GICR
+		      <0x0 0x2c000000 0 0x2000>,	// GICC
+		      <0x0 0x2c010000 0 0x2000>,	// GICH
+		      <0x0 0x2c02f000 0 0x2000>;	// GICV
+		interrupts = <1 9 4>;
+
+		its: its@2f020000 {
+			#msi-cells = <1>;
+			compatible = "arm,gic-v3-its";
+			reg = <0x0 0x2f020000 0x0 0x20000>; // GITS
+			msi-controller;
+		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <1 13 4>,
+			     <1 14 4>,
+			     <1 11 4>,
+			     <1 10 4>;
+		clock-frequency = <100000000>;
+	};
+
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <0 60 4>,
+			     <0 61 4>,
+			     <0 62 4>,
+			     <0 63 4>;
+	};
+
+	pci: pci@40000000 {
+		#address-cells = <0x3>;
+		#size-cells = <0x2>;
+		#interrupt-cells = <0x1>;
+		compatible = "pci-host-ecam-generic";
+		device_type = "pci";
+		bus-range = <0x0 0x1>;
+		reg = <0x0 0x40000000 0x0 0x10000000>;
+		ranges = <0x2000000 0x0 0x50000000 0x0 0x50000000 0x0 0x10000000>;
+		interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 0xa8 0x4>,
+				<0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 0xa9 0x4>,
+				<0x0 0x0 0x0 0x3 &gic 0x0 0x0 0x0 0xaa 0x4>,
+				<0x0 0x0 0x0 0x4 &gic 0x0 0x0 0x0 0xab 0x4>;
+		interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+		msi-map = <0 &its 0 0x10000>;
+		iommu-map = <0x0 &smmu 0x0 0x10000>;
+	};
+
+	smmu: smmu@2b400000 {
+		compatible = "arm,smmu-v3";
+		reg = <0x0 0x2b400000 0x0 0x20000>;
+		interrupts = <0 74 1>, <0 75 1>, <0 77 1>, <0 79 1>;
+		interrupt-names = "eventq", "priq", "cmdq-sync", "gerror";
+		dma-coherent;
+		#iommu-cells = <1>;
+		msi-parent = <&its 0x10000>;
+	};
+
+	smb {
+		compatible = "simple-bus";
+
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges = <0 0 0 0x08000000 0x04000000>,
+			 <1 0 0 0x14000000 0x04000000>,
+			 <2 0 0 0x18000000 0x04000000>,
+			 <3 0 0 0x1c000000 0x04000000>,
+			 <4 0 0 0x0c000000 0x04000000>,
+			 <5 0 0 0x10000000 0x04000000>;
+
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 63>;
+		interrupt-map = <0 0  0 &gic 0 0 0  0 4>,
+				<0 0  1 &gic 0 0 0  1 4>,
+				<0 0  2 &gic 0 0 0  2 4>,
+				<0 0  3 &gic 0 0 0  3 4>,
+				<0 0  4 &gic 0 0 0  4 4>,
+				<0 0  5 &gic 0 0 0  5 4>,
+				<0 0  6 &gic 0 0 0  6 4>,
+				<0 0  7 &gic 0 0 0  7 4>,
+				<0 0  8 &gic 0 0 0  8 4>,
+				<0 0  9 &gic 0 0 0  9 4>,
+				<0 0 10 &gic 0 0 0 10 4>,
+				<0 0 11 &gic 0 0 0 11 4>,
+				<0 0 12 &gic 0 0 0 12 4>,
+				<0 0 13 &gic 0 0 0 13 4>,
+				<0 0 14 &gic 0 0 0 14 4>,
+				<0 0 15 &gic 0 0 0 15 4>,
+				<0 0 16 &gic 0 0 0 16 4>,
+				<0 0 17 &gic 0 0 0 17 4>,
+				<0 0 18 &gic 0 0 0 18 4>,
+				<0 0 19 &gic 0 0 0 19 4>,
+				<0 0 20 &gic 0 0 0 20 4>,
+				<0 0 21 &gic 0 0 0 21 4>,
+				<0 0 22 &gic 0 0 0 22 4>,
+				<0 0 23 &gic 0 0 0 23 4>,
+				<0 0 24 &gic 0 0 0 24 4>,
+				<0 0 25 &gic 0 0 0 25 4>,
+				<0 0 26 &gic 0 0 0 26 4>,
+				<0 0 27 &gic 0 0 0 27 4>,
+				<0 0 28 &gic 0 0 0 28 4>,
+				<0 0 29 &gic 0 0 0 29 4>,
+				<0 0 30 &gic 0 0 0 30 4>,
+				<0 0 31 &gic 0 0 0 31 4>,
+				<0 0 32 &gic 0 0 0 32 4>,
+				<0 0 33 &gic 0 0 0 33 4>,
+				<0 0 34 &gic 0 0 0 34 4>,
+				<0 0 35 &gic 0 0 0 35 4>,
+				<0 0 36 &gic 0 0 0 36 4>,
+				<0 0 37 &gic 0 0 0 37 4>,
+				<0 0 38 &gic 0 0 0 38 4>,
+				<0 0 39 &gic 0 0 0 39 4>,
+				<0 0 40 &gic 0 0 0 40 4>,
+				<0 0 41 &gic 0 0 0 41 4>,
+				<0 0 42 &gic 0 0 0 42 4>;
+
+		/include/ "rtsm_ve-motherboard.dtsi"
+	};
+
+	panels {
+		panel@0 {
+			compatible	= "panel";
+			mode		= "XVGA";
+			refresh		= <60>;
+			xres		= <1024>;
+			yres		= <768>;
+			pixclock	= <15748>;
+			left_margin	= <152>;
+			right_margin	= <48>;
+			upper_margin	= <23>;
+			lower_margin	= <3>;
+			hsync_len	= <104>;
+			vsync_len	= <4>;
+			sync		= <0>;
+			vmode		= "FB_VMODE_NONINTERLACED";
+			tim2		= "TIM2_BCD", "TIM2_IPC";
+			cntl		= "CNTL_LCDTFT", "CNTL_BGR", "CNTL_LCDVCOMP(1)";
+			caps		= "CLCD_CAP_5551", "CLCD_CAP_565", "CLCD_CAP_888";
+			bpp		= <16>;
+		};
+	};
+};
