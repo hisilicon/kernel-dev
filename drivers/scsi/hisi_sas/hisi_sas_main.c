@@ -951,32 +951,33 @@ void hisi_sas_setup_itct(struct hisi_hba *hisi_hba, struct hisi_sas_device *devi
 {
 	struct domain_device *dev = device->sas_device;
 	u32 device_id = device->device_id;
+	struct hisi_sas_itct *itct = &hisi_hba->itct[device_id];
 
-	device->itct = &hisi_hba->itct[device_id];
-	memset(device->itct, 0, sizeof(*device->itct));
+	memset(itct, 0, sizeof(*itct));
 
 	/* qw0 */
 	if (dev->dev_type == SAS_END_DEVICE)
-		device->itct->dev_type = HISI_SAS_DEV_TYPE_SSP;
+		itct->dev_type = HISI_SAS_DEV_TYPE_SSP;
 	else
 		pr_warn("%s unsupported dev type\n", __func__);
-	device->itct->valid = 1;
-	device->itct->break_reply_ena = 0;
-	device->itct->awt_control = 1;
-	device->itct->max_conn_rate = dev->max_linkrate; /* j00310691 todo doublecheck, see enum sas_linkrate */
-	device->itct->valid_link_number = 1;
-	device->itct->port_id = dev->port->id;
-	device->itct->smp_timeout = 0;
-	device->itct->max_burst_byte = 0;
+	itct->valid = 1;
+	itct->break_reply_ena = 0;
+	itct->awt_control = 1;
+	itct->max_conn_rate = dev->max_linkrate; /* j00310691 todo doublecheck, see enum sas_linkrate */
+	itct->valid_link_number = 1;
+	itct->port_id = dev->port->id;
+	itct->smp_timeout = 0;
+	itct->max_burst_byte = 0;
 
 	/* qw1 */
-	memcpy(&device->itct->sas_addr, dev->sas_addr, SAS_ADDR_SIZE);
+	memcpy(&itct->sas_addr, dev->sas_addr, SAS_ADDR_SIZE);
+	itct->sas_addr = __swab64(itct->sas_addr);
 
 	/* qw2 */
-	device->itct->IT_nexus_loss_time = 500;
-	device->itct->bus_inactive_time_limit = 0xff00;
-	device->itct->max_conn_time_limit = 0xff00;
-	device->itct->reject_open_time_limit = 0xff00;
+	itct->IT_nexus_loss_time = 500;
+	itct->bus_inactive_time_limit = 0xff00;
+	itct->max_conn_time_limit = 0xff00;
+	itct->reject_open_time_limit = 0xff00;
 }
 
 int hisi_sas_dev_found_notify(struct domain_device *dev, int lock)
@@ -1672,6 +1673,8 @@ static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
 
 end:
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHY_ENABLED);
+
 	if (irq_value & PHY_ENABLED) {
 		u32 val = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_REG);
 		val &= ~1;
@@ -1681,7 +1684,6 @@ end:
 	}
 
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHY_ENABLED);
 
 	return IRQ_HANDLED;
 }
@@ -2255,7 +2257,7 @@ static void hisi_sas_config_phy_link_param(struct hisi_hba *hisi_hba, int phy, e
 	rate &= ~PROG_PHY_LINK_RATE_REG_MAX_MSK;
 	switch (linkrate) {
 	case SAS_LINK_RATE_12_0_GBPS:
-		rate |= SAS_LINK_RATE_12_0_GBPS << PROG_PHY_LINK_RATE_REG_MAX_OFF;
+		rate |= SAS_LINK_RATE_6_0_GBPS << PROG_PHY_LINK_RATE_REG_MAX_OFF;
 		pcn = 0x80aa0001;
 		break;
 

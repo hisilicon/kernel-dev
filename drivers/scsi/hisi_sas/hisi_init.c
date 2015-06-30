@@ -107,11 +107,11 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 	for (i = 0; i < hisi_hba->queue_count; i++) {
 		/* Delivery queue */
 		hisi_hba->cmd_hdr[i] = dma_alloc_coherent(hisi_hba->dev,
-					sizeof(*hisi_hba->cmd_hdr) * HISI_SAS_QUEUE_SLOTS,
+					sizeof(struct hisi_sas_cmd_hdr) * HISI_SAS_QUEUE_SLOTS,
 					&hisi_hba->cmd_hdr_dma[i], GFP_KERNEL);
 		if (!hisi_hba->cmd_hdr[i])
 			goto err_out;
-		memset(hisi_hba->cmd_hdr[i], 0, sizeof(*hisi_hba->cmd_hdr) * HISI_SAS_QUEUE_SLOTS);
+		memset(hisi_hba->cmd_hdr[i], 0, sizeof(struct hisi_sas_cmd_hdr) * HISI_SAS_QUEUE_SLOTS);
 
 		/* Completion queue */
 		hisi_hba->complete_hdr[i] = dma_alloc_coherent(hisi_hba->dev,
@@ -127,7 +127,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 	hisi_hba->status_buffer_pool = dma_pool_create(pool_name,
 					hisi_hba->dev,
 					HISI_SAS_STATUS_BUF_SZ,
-					8, 0);
+					16, 0);
 
 	if (!hisi_hba->status_buffer_pool)
 		goto err_out;
@@ -136,7 +136,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 	hisi_hba->command_table_pool = dma_pool_create(pool_name,
 					hisi_hba->dev,
 					HISI_SAS_COMMAND_TABLE_SZ,
-					8, 0);
+					16, 0);
 	if (!hisi_hba->command_table_pool)
 		goto err_out;
 
@@ -150,11 +150,11 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 		goto err_out;
 	memset(hisi_hba->itct, 0, HISI_SAS_MAX_ITCT_ENTRIES * HISI_SAS_ITCT_ENTRY_SZ);
 
-	hisi_hba->slot_info = kcalloc(queue_slot_nr, sizeof(*hisi_hba->slot_info),
+	hisi_hba->slot_info = kcalloc(queue_slot_nr, sizeof(struct hisi_sas_slot),
 				GFP_KERNEL);
 	if (!hisi_hba->slot_info)
 		goto err_out;
-	memset(hisi_hba->slot_info, 0, queue_slot_nr * sizeof(*hisi_hba->slot_info));
+	memset(hisi_hba->slot_info, 0, queue_slot_nr * sizeof(struct hisi_sas_slot));
 
 	hisi_hba->iost = dma_alloc_coherent(hisi_hba->dev,
 				HISI_SAS_COMMAND_ENTRIES *
@@ -174,6 +174,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 
 	if (!hisi_hba->breakpoint)
 		goto err_out;
+	memset(hisi_hba->breakpoint, 0x0, HISI_SAS_COMMAND_ENTRIES * HISI_SAS_BREAKPOINT_ENTRY_SZ);
 
 	hisi_hba->iptt_count = HISI_SAS_COMMAND_ENTRIES;
 	hisi_hba->iptt_tags = kzalloc(hisi_hba->iptt_count/sizeof(unsigned long), GFP_KERNEL);
@@ -184,7 +185,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 	hisi_hba->sge_page_pool = dma_pool_create(pool_name,
 					hisi_hba->dev,
 					sizeof(struct hisi_sas_sge_page),
-					8, 0);
+					16, 0);
 
 	if (!hisi_hba->sge_page_pool)
 		goto err_out;
@@ -244,7 +245,7 @@ static struct hisi_hba *hisi_sas_platform_dev_alloc(
 	struct hisi_hba *hisi_hba = NULL;
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 
-	hisi_hba = kzalloc(sizeof(*hisi_hba), GFP_KERNEL);
+	hisi_hba = kzalloc(sizeof(struct hisi_hba), GFP_KERNEL);
 	if (!hisi_hba)
 		return NULL;
 
@@ -291,9 +292,9 @@ static void hisi_sas_init_add(struct hisi_hba *hisi_hba)
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		/* j00310691 use huawei IEEE id (001882) */
-		hisi_hba->phy[i].dev_sas_addr =  0x5001882000000000ULL;
-		hisi_hba->phy[i].dev_sas_addr =
-			cpu_to_be64((u64)(*(u64 *)&hisi_hba->phy[i].dev_sas_addr));
+		hisi_hba->phy[i].dev_sas_addr =  0xa202030405060708ULL;
+		//hisi_hba->phy[i].dev_sas_addr =
+		//	cpu_to_be64((u64)(*(u64 *)&hisi_hba->phy[i].dev_sas_addr));
 	}
 	memcpy(hisi_hba->sas_addr, &hisi_hba->phy[0].dev_sas_addr, SAS_ADDR_SIZE);
 }
