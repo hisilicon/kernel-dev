@@ -470,6 +470,7 @@
 		status = "okay";
 		#address-cells = <2>;
 		#size-cells = <2>;
+		dma-coherent;
 		ranges;
 
 		core0: sas@0xc1000000 {
