@@ -278,9 +278,11 @@ int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot
 	struct hisi_sas_device *hisi_sas_dev = NULL;
 	struct task_status_struct *tstat;
 	struct domain_device *dev;
-
 	void *to;
 	enum exec_status sts;
+	struct hisi_sas_complete_hdr *complete_queue = hisi_hba->complete_hdr[slot->queue];
+	struct hisi_sas_complete_hdr *complete_hdr;
+	complete_hdr = &complete_queue[slot->queue_slot];
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return -1;
@@ -301,6 +303,16 @@ int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot
 		if (!hisi_sas_dev)
 			pr_err("%s port has not device.\n", __func__);
 		tstat->stat = SAS_PHY_DOWN;
+		goto out;
+	}
+
+	if (complete_hdr->err_rcrd_xfrd) {
+		pr_info("%s slot %d has error info"
+			"0x%x\n", __func__, slot->queue_slot,
+			 complete_hdr->err_rcrd_xfrd);
+		//tstat->stat = hisi_sas_slot_err(hisi_hba, task, slot);
+		tstat->stat = SAS_DATA_UNDERRUN;
+		tstat->resp = SAS_TASK_COMPLETE;
 		goto out;
 	}
 
@@ -1605,6 +1617,7 @@ static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	u32 *frame_rcvd = (u32 *)sas_phy->frame_rcvd;
 	struct sas_identify_frame *id = (struct sas_identify_frame *)frame_rcvd;
+	irqreturn_t res = IRQ_NONE;
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
@@ -1671,6 +1684,7 @@ static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
 
 	hisi_sas_update_phyinfo(hisi_hba, phy_no, 0);
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
+	res = IRQ_HANDLED;
 
 end:
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHY_ENABLED);
@@ -1684,8 +1698,7 @@ end:
 	}
 
 
-
-	return IRQ_HANDLED;
+	return res;
 }
 
 void hisi_sas_config_serdes_12G_timer_handler(unsigned long arg)
