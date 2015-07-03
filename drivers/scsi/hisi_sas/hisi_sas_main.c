@@ -301,13 +301,13 @@ int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot
 	/* when no device attaching, go ahead and complete by error handling */
 	if (unlikely(!hisi_sas_dev || flags)) {
 		if (!hisi_sas_dev)
-			pr_err("%s port has not device.\n", __func__);
+			pr_debug("%s port has not device.\n", __func__);
 		tstat->stat = SAS_PHY_DOWN;
 		goto out;
 	}
 
 	if (complete_hdr->err_rcrd_xfrd) {
-		pr_info("%s slot %d has error info"
+		pr_debug("%s slot %d has error info"
 			"0x%x\n", __func__, slot->queue_slot,
 			 complete_hdr->err_rcrd_xfrd);
 		//tstat->stat = hisi_sas_slot_err(hisi_hba, task, slot);
@@ -341,7 +341,7 @@ int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot
 	case SAS_PROTOCOL_SATA:
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP: {
-			pr_warn("%s STP not supported", __func__);
+			pr_err("%s STP not supported", __func__);
 			break;
 		}
 
@@ -350,7 +350,7 @@ int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot
 		break;
 	}
 	if (!slot->port->port_attached) {
-		pr_err("%s port %d has removed.\n", __func__, slot->port->sas_port.id);
+		pr_debug("%s port %d has removed.\n", __func__, slot->port->sas_port.id);
 		tstat->stat = SAS_PHY_DOWN;
 	}
 
@@ -371,8 +371,6 @@ static int hisi_sas_get_free_slot(struct hisi_hba *hisi_hba, int *q, int *s)
 {
 	u32 r, w;
 	int queue = smp_processor_id() % hisi_hba->queue_count;
-
-	pr_info("%s queue=%d\n", __func__, queue);
 
 	while (1) {
 		w = hisi_sas_read32(hisi_hba, DLVRY_Q_0_WR_PTR + (queue * 0x14));
@@ -430,7 +428,6 @@ static int hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 		rc = -EINVAL;
 		goto err_out;
 	}
-	pr_info("%s sg_resp=%p elem=%d req_len=%d\n", __func__, sg_resp, elem, resp_len);
 
 	/* create header */
 	hdr->abort_flag = 0; /* not sure */
@@ -810,7 +807,6 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	}
 
 	if (rc) {
-		pr_info("rc is %x\n", rc);
 		goto err_out;
 	}
 	slot->task = task;
@@ -850,7 +846,7 @@ static int hisi_sas_task_exec(struct sas_task *task,
 	struct hisi_hba *hisi_hba = NULL;
 	u32 rc = 0;
 	u32 pass = 0;
-	unsigned long flags = 0;
+	//unsigned long flags = 0;
 
 	hisi_hba = ((struct hisi_sas_device *)task->dev->lldd_dev)->hisi_hba;
 
@@ -906,8 +902,6 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no)
 		/*Nothing*/
 	}
 
-	pr_info("core %d phy %d byte dmaded.\n", hisi_hba->id, phy_no);
-
 	sas_phy->frame_rcvd_size = phy->frame_rcvd_size;
 
 	hisi_hba->sas->notify_port_event(sas_phy,
@@ -920,8 +914,6 @@ struct hisi_hba *hisi_sas_find_dev_hba(struct domain_device *dev)
 	struct sas_ha_struct *sha = dev->port->ha;
 	struct hisi_hba *hisi_hba = NULL;
 	struct asd_sas_phy *phy;
-
-	pr_info("%s\n", __func__);
 
 	while (sha->sas_port[i]) {
 		if (sha->sas_port[i] == dev->port) {
@@ -1000,8 +992,6 @@ int hisi_sas_dev_found_notify(struct domain_device *dev, int lock)
 	struct domain_device  *parent_dev = dev->parent;
 	struct hisi_sas_device *hisi_sas_device;
 
-	pr_info("%s\n", __func__);
-
 	hisi_hba = hisi_sas_find_dev_hba(dev);
 
 	if (lock)
@@ -1026,7 +1016,6 @@ int hisi_sas_dev_found_notify(struct domain_device *dev, int lock)
 		u8 phy_num = parent_dev->ex_dev.num_phys;
 		struct ex_phy *phy;
 
-		pr_info("%s parent dev is expander\n", __func__);
 		for (phy_id = 0; phy_id < phy_num; phy_id++) {
 			phy = &parent_dev->ex_dev.ex_phy[phy_id];
 			if (SAS_ADDR(phy->attached_sas_addr) ==
@@ -1439,7 +1428,7 @@ void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int i)
 
 static void hisi_sas_update_wideport(struct hisi_hba *hisi_hba, int i)
 {
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 }
 
 static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy, int lock)
@@ -1485,23 +1474,16 @@ static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy, int lock)
 
 int hisi_sas_dev_found(struct domain_device *dev)
 {
-	pr_info("%s\n", __func__);
-
 	return hisi_sas_dev_found_notify(dev, 1);
 }
 
 void hisi_sas_dev_gone(struct domain_device *dev)
 {
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 }
 
 int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
-	struct hisi_sas_device *dev = task->dev->lldd_dev;
-	struct sas_ha_struct *sas = dev->hisi_hba->sas;
-
-	pr_info("%s dev=%p sas=%p\n", __func__, dev, sas);
-
 	return hisi_sas_task_exec(task, gfp_flags, NULL, 0, NULL);
 }
 
@@ -1557,13 +1539,12 @@ int hisi_sas_query_task(struct sas_task *task)
 
 void hisi_sas_port_formed(struct asd_sas_phy *sas_phy)
 {
-	pr_info("%s\n", __func__);
 	hisi_sas_port_notify_formed(sas_phy, 1);
 }
 
 void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy)
 {
-	pr_info("%s\n", __func__);
+
 }
 
 void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st)
@@ -1601,9 +1582,9 @@ void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st)
 			&phy->att_dev_sas_addr, SAS_ADDR_SIZE);
 
 	}
-	pr_info("%s phy %d attach dev info is %llx\n", __func__,
+	pr_debug("%s phy %d attach dev info is %llx\n", __func__,
 		phy_no + hisi_hba->id * hisi_hba->n_phy, phy->att_dev_info);
-	pr_info("%s phy %d attach sas addr is %llx\n", __func__,
+	pr_debug("%s phy %d attach sas addr is %llx\n", __func__,
 		phy_no + hisi_hba->id * hisi_hba->n_phy, phy->att_dev_sas_addr);
 }
 
@@ -1622,48 +1603,28 @@ static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
 	if (!(irq_value & PHY_ENABLED)) {
-		pr_err("%s irq_value = %x not set enable bit\n", __func__, irq_value);
+		pr_debug("%s irq_value = %x not set enable bit\n", __func__, irq_value);
 		goto end;
 	}
-
-	pr_info("%s phy = %d, irq_value = 0x%x\n", __func__, phy_no, irq_value);
 
 	port_id = (hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA_REG) >> (4 * phy_no)) & 0xf;
 	if (port_id == 0xf) {
 		pr_err("%s phy = %d, invalid portid\n", __func__, phy_no);
 		goto end;
 	}
-	pr_info("%s phy = %d portid = 0x%x\n", __func__, phy_no, port_id);
 
 	/* j00310691 todo stop serdes fw timer */
 
 	port = &hisi_hba->port[port_id];
-	pr_info("%s phy = %d port = %p\n", __func__, phy_no, port);
 
 	for (i = 0; i < 6; i++) {
 		u32 tmp = hisi_sas_phy_read32(hisi_hba, phy_no, RX_IDAF_DWORD0_REG + (i * 4));
-		pr_info("%s id %d 0x%x\n", __func__, i, tmp);
 		frame_rcvd[i] = __swab32(tmp);
 	}
 
 	phy->frame_rcvd_size = sizeof(struct sas_identify_frame);
 	phy->phy_attached = 1;
 
-	pr_info("%s phy=%d frame_type=%d\n", __func__, phy_no, id->frame_type);
-	pr_info("%s phy=%d dev_type=%d\n", __func__, phy_no, id->dev_type);
-	pr_info("%s phy=%d _un0=%d\n", __func__, phy_no, id->_un0);
-	pr_info("%s phy=%d _un1=%d\n", __func__, phy_no, id->_un1);
-	pr_info("%s phy=%d smp_iport=%d\n", __func__, phy_no, id->smp_iport);
-	pr_info("%s phy=%d stp_iport=%d\n", __func__, phy_no, id->stp_iport);
-	pr_info("%s phy=%d ssp_iport=%d\n", __func__, phy_no, id->ssp_iport);
-	pr_info("%s phy=%d smp_tport=%d\n", __func__, phy_no, id->smp_tport);
-	pr_info("%s phy=%d stp_tport=%d\n", __func__, phy_no, id->stp_tport);
-	pr_info("%s phy=%d ssp_tport=%d\n", __func__, phy_no, id->ssp_tport);
-	pr_info("%s phy=%d _un4_11=%x %x %x %x\n", __func__, phy_no, id->_un4_11[0], id->_un4_11[1], id->_un4_11[2], id->_un4_11[3]);
-	pr_info("%s phy=%d sas_addr=%x %x %x %x %x %x %x %x\n", __func__, phy_no,
-		id->sas_addr[0], id->sas_addr[1], id->sas_addr[2], id->sas_addr[3],
-		id->sas_addr[4], id->sas_addr[5], id->sas_addr[6], id->sas_addr[7]);
-	pr_info("%s phy=%d phy_id=%d\n", __func__, phy_no, id->phy_id);
 
 	if (id->dev_type == SAS_END_DEVICE) {
 		u32 sl_control =  hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL_REG);
@@ -1677,7 +1638,6 @@ static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
 
 	/* Get the linkrate */
 	link_rate = (hisi_sas_read32(hisi_hba, PHY_CONN_RATE_REG) >> (phy_no * 4)) & 0xf;
-	pr_info("%s phy=%d link_rate=%d\n", __func__, phy_no, link_rate);
 	sas_phy->linkrate = link_rate;
 
 	phy->phy_type = PORT_TYPE_SAS;	/* j00310691 fixme -> remove */
@@ -1693,7 +1653,6 @@ end:
 		u32 val = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_REG);
 		val &= ~1;
 		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_REG, val);
-		pr_info("%s abnormal bug unmask\n", __func__);
 		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG, 0x003ce3ee);
 	}
 
@@ -1727,7 +1686,7 @@ int hisi_sas_config_serdes_12G(struct hisi_hba *hisi_hba, int phy_id)
 		u32 val = hisi_sas_phy_read32(hisi_hba, phy_id, CHL_INT0_REG);
 
 		if (val & CHL_INT0_REG_PHYCTRL_NOTRDY_MSK) {
-			pr_warn("%s phy come while ctrl rdy for phy %d\n",
+			pr_debug("%s phy come while ctrl rdy for phy %d\n",
 		            __func__, phy_id);
 			hisi_sas_phy_write32(hisi_hba, phy_id,
 				CHL_INT0_REG,
@@ -1738,7 +1697,7 @@ int hisi_sas_config_serdes_12G(struct hisi_hba *hisi_hba, int phy_id)
 		link_rate = (hisi_sas_phy_read32(hisi_hba, phy_id, HARD_PHY_LINK_RATE_REG) & HARD_PHY_LINK_RATE_REG_NEG_MSK) >> HARD_PHY_LINK_RATE_REG_NEG_OFF;
 
 		if (link_rate == SAS_LINK_RATE_12_0_GBPS) {
-			pr_info("%s a link_rate = %d loop count = %d\n", __func__, link_rate, loop_count);
+			pr_debug("%s a link_rate = %d loop count = %d\n", __func__, link_rate, loop_count);
 			mdelay(20);
 			/*i will check whether need Higgs_SerdesEnableCTLEDFE*/
 			break;
@@ -1746,8 +1705,6 @@ int hisi_sas_config_serdes_12G(struct hisi_hba *hisi_hba, int phy_id)
 		loop_count++;
 		udelay(100);
 	}
-
-	pr_info("%s b link_rate = %d loop count = %d\n", __func__, link_rate, loop_count);
 
 	if (link_rate == SAS_LINK_RATE_12_0_GBPS) {
 		struct timer_list *timer = &phy->serdes_timer;
@@ -1773,12 +1730,12 @@ static irqreturn_t hisi_sas_int_ctrlrdy(int phy, void *p)
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy, CHL_INT2_REG);
 
 	if (!(irq_value & PHY_CTRLRDY)) {
-		pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
+		pr_debug("%s irq_value = %x not set enable bit", __func__, irq_value);
 		hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2_REG, PHY_CTRLRDY);
 		return IRQ_NONE;
 	}
 	else
-		pr_info("%s phy = %d, irq_value = %x in phy_ctrlrdy\n", __func__, phy, irq_value);
+		pr_debug("%s phy = %d, irq_value = %x in phy_ctrlrdy\n", __func__, phy, irq_value);
 
 	hisi_sas_config_serdes_12G(hisi_hba, phy);
 
@@ -1903,8 +1860,6 @@ static irqreturn_t hisi_sas_int_abnormal(int phy_no, void *p)
 	/* read int0 */
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_REG);
 
-	pr_info("%s phy = %d, irq_value = %x\n", __func__, phy_no, irq_value);
-
 	if (irq_value & CHL_INT0_REG_PHYCTRL_NOTRDY_MSK) {
 		pr_info("%s phy = %d phydown todo\n", __func__, phy_no);
 	} else if (irq_value & CHL_INT0_REG_ID_TIMEOUT_MSK) {
@@ -1948,8 +1903,6 @@ static irqreturn_t hisi_sas_int_int1(int phy_no, void *p)
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT1_REG);
 
-	pr_info("%s phy = %d, irq1_value = %x\n", __func__, phy_no, irq_value);
-
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT1_REG, irq_value);
 
 	return IRQ_HANDLED;
@@ -1966,11 +1919,6 @@ irqreturn_t hisi_sas_cq_interrupt(int queue, void *p)
 
 	irq_value = hisi_sas_read32(hisi_hba, OQ_INT_SRC_REG);
 
-	pr_info("%s core = %d oq_int_src_reg = %x queue = %d",
-		__func__,
-		hisi_hba->id,
-		irq_value,
-		queue);
 	hisi_sas_write32(hisi_hba, OQ_INT_SRC_REG, 1 << queue);
 
 	rd_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_RD_PTR + 20 * queue);
