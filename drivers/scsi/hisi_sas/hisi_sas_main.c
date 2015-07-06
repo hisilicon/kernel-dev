@@ -2013,6 +2013,7 @@ DECLARE_PHY_INT_HANDLER_GROUP(4)
 DECLARE_PHY_INT_HANDLER_GROUP(5)
 DECLARE_PHY_INT_HANDLER_GROUP(6)
 DECLARE_PHY_INT_HANDLER_GROUP(7)
+DECLARE_PHY_INT_HANDLER_GROUP(8)
 
 static const char phy_int_names[MSI_PHY_INT_NR][32] = {
 	{"CTRL Rdy"},
@@ -2042,6 +2043,7 @@ irq_handler_t phy_interrupt_handlers[HISI_SAS_MAX_PHYS][MSI_PHY_INT_NR] = {
 	{DECLARE_PHY_INT_GROUP_PTR(5)},
 	{DECLARE_PHY_INT_GROUP_PTR(6)},
 	{DECLARE_PHY_INT_GROUP_PTR(7)},
+	{DECLARE_PHY_INT_GROUP_PTR(8)},
 };
 
 DECLARE_INT_HANDLER(hisi_sas_cq_interrupt, 0)
@@ -2130,7 +2132,7 @@ int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
 
 			irq = irq_of_parse_and_map(hisi_hba->np, idx);
 			if (!irq) {
-				pr_err("%s [%d] could not map interrupt %d\n", __func__, hisi_hba->id, idx);
+				pr_err("%s [%d] could not map phy interrupt %d\n", __func__, hisi_hba->id, idx);
 				return -ENOENT;
 			}
 			(void)snprintf(hisi_hba->int_names[idx], 32, DRV_NAME" %s [%d %d]", phy_int_names[j],  id, i);
@@ -2143,11 +2145,11 @@ int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
 	}
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
-		int idx = HISI_SAS_PHY_INT_NR + i;
+		int idx = (hisi_hba->n_phy * MSI_PHY_INT_NR) + i;
 
-		irq = irq_of_parse_and_map(hisi_hba->np, HISI_SAS_PHY_INT_NR + i);
+		irq = irq_of_parse_and_map(hisi_hba->np, idx);
 		if (!irq) {
-			pr_err("%s [%d] could not map interrupt %d\n", __func__, hisi_hba->id, idx);
+			pr_err("%s [%d] could not map cq interrupt %d\n", __func__, hisi_hba->id, idx);
 			return -ENOENT;
 		}
 		(void)snprintf(hisi_hba->int_names[idx], 32, DRV_NAME" %s [%d %d]", cq_int_name,  id, i);
@@ -2160,11 +2162,11 @@ int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
 	}
 
 	for (i = 0; i < HISI_SAS_FATAL_INT_NR; i++) {
-		int idx = HISI_SAS_PHY_INT_NR + HISI_SAS_CQ_INT_NR + i;
+		int idx = (hisi_hba->n_phy * MSI_PHY_INT_NR) + hisi_hba->queue_count + i;
 
 		irq = irq_of_parse_and_map(hisi_hba->np, idx);
 		if (!irq) {
-			pr_err("%s [%d] could not map interrupt %d\n", __func__, hisi_hba->id, idx);
+			pr_err("%s [%d] could not map fatal interrupt %d\n", __func__, hisi_hba->id, idx);
 			return -ENOENT;
 		}
 		(void)snprintf(hisi_hba->int_names[idx], 32, DRV_NAME" %s [%d]", fatal_int_name[i], id);

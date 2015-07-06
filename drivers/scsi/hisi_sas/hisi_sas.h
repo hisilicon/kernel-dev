@@ -16,7 +16,7 @@
 
 #define HISI_SAS_MAX_CORE 2
 
-#define HISI_SAS_MAX_PHYS	8
+#define HISI_SAS_MAX_PHYS	9
 #define HISI_SAS_MAX_QUEUES	32
 #define HISI_SAS_QUEUE_SLOTS 512
 #define HISI_SAS_MAX_ITCT_ENTRIES 4096
@@ -42,11 +42,11 @@
 #define RXQ_GOOD (1U << 23)
 #define RXQ_RSP (1U << 18)
 
-#define HISI_SAS_PHY_INT_NR (MSI_PHY_INT_NR * HISI_SAS_MAX_PHYS)
-#define HISI_SAS_CQ_INT_NR (HISI_SAS_MAX_QUEUES)
+#define HISI_SAS_PHY_MAX_INT_NR (MSI_PHY_INT_NR * HISI_SAS_MAX_PHYS)
+#define HISI_SAS_CQ_MAX_INT_NR (HISI_SAS_MAX_QUEUES)
 #define HISI_SAS_FATAL_INT_NR (2)
 
-#define HISI_SAS_INT_NR (HISI_SAS_PHY_INT_NR + HISI_SAS_CQ_INT_NR + HISI_SAS_FATAL_INT_NR)
+#define HISI_SAS_MAX_INT_NR (HISI_SAS_PHY_MAX_INT_NR + HISI_SAS_CQ_MAX_INT_NR + HISI_SAS_FATAL_INT_NR)
 
 
 enum hisi_sas_msi_phy_int {
@@ -192,7 +192,7 @@ struct hisi_hba {
 
 	int	id;
 	int	queue_count;
-	char	int_names[HISI_SAS_INT_NR][32];
+	char	int_names[HISI_SAS_MAX_INT_NR][32];
 	struct hisi_sas_slot	*slot_prep;
 
 	struct hba_info_page	hba_param;
