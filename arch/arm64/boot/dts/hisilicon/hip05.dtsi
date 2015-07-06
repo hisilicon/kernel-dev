@@ -477,7 +477,6 @@
 			compatible = "hisilicon,p660-sas-core";
 			core-id = <0>;
 			reg = <0x0 0xc1000000 0x0 0x10000>;
-			dma-coherent;
 			queue-count = <32>;
 			phy-count = <8>;
 			interrupt-parent = <&mbigen_dsa>;
@@ -502,7 +501,6 @@
 			compatible = "hisilicon,p660-sas-core";
 			core-id = <1>;
 			reg = <0x0 0xb1000000 0x0 0x100000>;
-			dma-coherent;
 			queue-count = <32>;
 			phy-count = <8>;
 			interrupt-parent = <&mbigen_pcie>;
