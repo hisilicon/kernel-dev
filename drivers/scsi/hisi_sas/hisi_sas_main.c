@@ -276,14 +276,18 @@ static void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *
 		break;
 	}
 
-	if (hisi_hba->command_table_pool) {
-		dma_pool_free(hisi_hba->command_table_pool, slot->command_table, slot->command_table_dma);
-		slot->command_table = NULL;
-	}
-	if (hisi_hba->status_buffer_pool) {
-		dma_pool_free(hisi_hba->status_buffer_pool, slot->status_buffer, slot->status_buffer_dma);
-		slot->status_buffer = NULL;
-	}
+	if (slot->command_table)
+		dma_pool_free(hisi_hba->command_table_pool, slot->command_table,
+			      slot->command_table_dma);
+
+	if (slot->status_buffer)
+		dma_pool_free(hisi_hba->status_buffer_pool, slot->status_buffer,
+			      slot->status_buffer_dma);
+
+	if (slot->sge_page)
+		dma_pool_free(hisi_hba->sge_page_pool, slot->sge_page,
+			      slot->sge_page_dma);
+
 	list_del_init(&slot->entry);
 	task->lldd_task = NULL;
 	slot->task = NULL;
@@ -507,12 +511,11 @@ err_out:
 }
 
 static int hisi_sas_prep_prd_sge(struct hisi_hba *hisi_hba,
-		struct hisi_sas_cmd_hdr *hdr,
-		struct scatterlist *scatter,
-		int n_elem)
+				 struct hisi_sas_slot *slot,
+				 struct hisi_sas_cmd_hdr *hdr,
+				 struct scatterlist *scatter,
+				 int n_elem)
 {
-	struct hisi_sas_sge_page *sge_page = NULL;
-	dma_addr_t dma_addr;
 	struct scatterlist *sg;
 	int i;
 
@@ -521,16 +524,16 @@ static int hisi_sas_prep_prd_sge(struct hisi_hba *hisi_hba,
 		return -EINVAL;
 	}
 
-	/* j00310691 fixme need to deal with dealloc of sge_page */
-	sge_page = dma_pool_alloc(hisi_hba->sge_page_pool, GFP_ATOMIC, &dma_addr);
-	if (!sge_page)
+	slot->sge_page = dma_pool_alloc(hisi_hba->sge_page_pool, GFP_ATOMIC,
+					&slot->sge_page_dma);
+	if (!slot->sge_page)
 		return -ENOMEM;
 
 	hdr->pir_pres = 0;
 	hdr->t10_flds_pres = 0;
 
 	for_each_sg(scatter, sg, n_elem, i) {
-		struct hisi_sas_sge *entry = &sge_page->sge[i];
+		struct hisi_sas_sge *entry = &slot->sge_page->sge[i];
 
 		entry->addr_lo = DMA_ADDR_LO(sg_dma_address(sg));
 		entry->addr_hi = DMA_ADDR_HI(sg_dma_address(sg));
@@ -539,8 +542,8 @@ static int hisi_sas_prep_prd_sge(struct hisi_hba *hisi_hba,
 		entry->data_off = 0;
 	}
 
-	hdr->prd_table_addr_lo = DMA_ADDR_LO(dma_addr);
-	hdr->prd_table_addr_hi = DMA_ADDR_HI(dma_addr);
+	hdr->prd_table_addr_lo = DMA_ADDR_LO(slot->sge_page_dma);
+	hdr->prd_table_addr_hi = DMA_ADDR_HI(slot->sge_page_dma);
 
 	hdr->data_sg_len = n_elem;
 
@@ -620,7 +623,8 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	hdr->tptt = 0;
 
 	if (has_data) {
-		rc = hisi_sas_prep_prd_sge(hisi_hba, hdr, task->scatter, tei->n_elem);
+		rc = hisi_sas_prep_prd_sge(hisi_hba, slot, hdr, task->scatter,
+					   tei->n_elem);
 		if (rc)
 			return rc;
 	}

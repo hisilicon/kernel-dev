@@ -147,11 +147,13 @@ struct hisi_sas_slot {
 	int	iptt;
 
 	void	*cmd_hdr;
-	dma_addr_t	cmd_hdr_dma;
+	dma_addr_t cmd_hdr_dma;
 	void	*status_buffer;
-	dma_addr_t	status_buffer_dma;
+	dma_addr_t status_buffer_dma;
 	void *command_table;
-	dma_addr_t	command_table_dma;
+	dma_addr_t command_table_dma;
+	struct hisi_sas_sge_page *sge_page;
+	dma_addr_t sge_page_dma;
 	struct hisi_sas_port	*port;
 	struct hisi_sas_device	*device;
 	void	*open_frame;
