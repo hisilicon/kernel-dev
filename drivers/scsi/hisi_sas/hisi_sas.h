@@ -42,26 +42,25 @@
 #define RXQ_GOOD (1U << 23)
 #define RXQ_RSP (1U << 18)
 
-#define HISI_SAS_PHY_MAX_INT_NR (MSI_PHY_INT_NR * HISI_SAS_MAX_PHYS)
+enum {
+	HISI_SAS_PHY_CTRL_RDY = 0,
+	HISI_SAS_PHY_DMA_RESP_ERR,
+	HISI_SAS_PHY_HOTPLUG_TOUT,
+	HISI_SAS_PHY_BCAST_ACK,
+	HISI_SAS_PHY_OOB_RESTART,
+	HISI_SAS_PHY_RX_HARDRST,
+	HISI_SAS_PHY_STATUS_CHG,
+	HISI_SAS_PHY_SL_PHY_ENABLED,
+	HISI_SAS_PHY_INT_REG0,
+	HISI_SAS_PHY_INT_REG1,
+	HISI_SAS_PHY_INT_NR
+};
+
+#define HISI_SAS_PHY_MAX_INT_NR (HISI_SAS_PHY_INT_NR * HISI_SAS_MAX_PHYS)
 #define HISI_SAS_CQ_MAX_INT_NR (HISI_SAS_MAX_QUEUES)
 #define HISI_SAS_FATAL_INT_NR (2)
 
 #define HISI_SAS_MAX_INT_NR (HISI_SAS_PHY_MAX_INT_NR + HISI_SAS_CQ_MAX_INT_NR + HISI_SAS_FATAL_INT_NR)
-
-
-enum hisi_sas_msi_phy_int {
-	MSI_PHY_CTRL_RDY = 0,
-	MSI_PHY_DMA_RESP_ERR,
-	MSI_PHY_HOTPLUG_TOUT,
-	MSI_PHY_BCAST_ACK,
-	MSI_PHY_OOB_RESTART,
-	MSI_PHY_RX_HARDRST,
-	MSI_PHY_STATUS_CHG,
-	MSI_PHY_SL_PHY_ENABLED,
-	MSI_PHY_INT_REG0,
-	MSI_PHY_INT_REG1,
-	MSI_PHY_INT_NR
-};
 
 enum dev_status {
 	HISI_SAS_DEV_NORMAL,
@@ -513,18 +512,6 @@ struct ssp_command_iu {
 		} long_cdb;	  /* sequencer extension */
 	};
 } __packed;
-
-enum hw_register_bits {
-	/* CHL_INT2_REG */
-	PHY_CTRLRDY		=	(1U << 0),	/* phy_ctrl_up */
-	PHYCTRL_HOTPLUG_TOUT	=	(1U << 1),	/* phyctrl_hotplug_tout */
-	SL_RX_BCAST_ACK		=	(1U << 2),	/* sl_rx_bcast_ack */
-	PHYCTRL_OOB_RESTART_CI	=	(1U << 3),	/* phyctrl_oob_restart_ci */
-	SL_RX_HARDRST		=	(1U << 4),	/* sl_rx_hardrst */
-	PHYCTRL_STATUS_CHG	=	(1U << 5),	/* phyctrl_status_chg */
-	PHY_ENABLED		=	(1U << 6),	/* phy_enable */
-	DMA_RESP_ERR		=	(1U << 7)	/* dma_resp_err */
-};
 
 int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
 void hisi_sas_scan_start(struct Scsi_Host *shost);

@@ -152,6 +152,22 @@
 #define CHL_INT0_REG_SL_PS_FAIL_MSK	0x200000
 #define CHL_INT1_REG                    (PORT_BASE_REG + 0x1b4)
 #define CHL_INT2_REG                    (PORT_BASE_REG + 0x1b8)
+#define CHL_INT2_REG_CTRL_PHY_RDY_OFF	0
+#define CHL_INT2_REG_CTRL_PHY_RDY_MSK	0x1
+#define CHL_INT2_REG_PHY_HP_TOUT_OFF	1
+#define CHL_INT2_REG_PHY_HP_TOUT_MSK	0x2
+#define CHL_INT2_REG_SL_RX_BC_ACK_OFF	2
+#define CHL_INT2_REG_SL_RX_BC_ACK_MSK	0x4
+#define CHL_INT2_REG_OOB_RESTART_OFF	3
+#define CHL_INT2_REG_OOB_RESTART_MSK	0x8
+#define CHL_INT2_SL_RX_HARDRST_OFF	4
+#define CHL_INT2_SL_RX_HARDRST_MSK	0x10
+#define CHL_INT2_PHY_STATUS_CHG_OFF	5
+#define CHL_INT2_PHY_STATUS_CHG_MSK	0x20
+#define CHL_INT2_REG_SL_PHY_ENA_OFF	6
+#define CHL_INT2_REG_SL_PHY_ENA_MSK	0x40
+#define CHL_INT2_REG_DMA_RESP_ERR_OFF	7
+#define CHL_INT2_REG_DMA_RESP_ERR_MSK	0x80
 /*phy intr_mask registers need unmask*/
 #define CHL_INT0_MSK_REG                (PORT_BASE_REG + 0x1bc)
 #define CHL_INT1_MSK_REG                (PORT_BASE_REG + 0x1c0)
@@ -1607,7 +1623,7 @@ static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
-	if (!(irq_value & PHY_ENABLED)) {
+	if (!(irq_value & CHL_INT2_REG_SL_PHY_ENA_MSK)) {
 		pr_debug("%s irq_value = %x not set enable bit\n", __func__, irq_value);
 		goto end;
 	}
@@ -1652,9 +1668,9 @@ static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
 	res = IRQ_HANDLED;
 
 end:
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHY_ENABLED);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, CHL_INT2_REG_SL_PHY_ENA_MSK);
 
-	if (irq_value & PHY_ENABLED) {
+	if (irq_value & CHL_INT2_REG_SL_PHY_ENA_MSK) {
 		u32 val = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_REG);
 		val &= ~1;
 		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_REG, val);
@@ -1734,9 +1750,9 @@ static irqreturn_t hisi_sas_int_ctrlrdy(int phy, void *p)
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy, CHL_INT2_REG);
 
-	if (!(irq_value & PHY_CTRLRDY)) {
+	if (!(irq_value & CHL_INT2_REG_CTRL_PHY_RDY_MSK)) {
 		pr_debug("%s irq_value = %x not set enable bit", __func__, irq_value);
-		hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2_REG, PHY_CTRLRDY);
+		hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2_REG, CHL_INT2_REG_CTRL_PHY_RDY_MSK);
 		return IRQ_NONE;
 	}
 	else
@@ -1744,7 +1760,7 @@ static irqreturn_t hisi_sas_int_ctrlrdy(int phy, void *p)
 
 	hisi_sas_config_serdes_12G(hisi_hba, phy);
 
-	hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2_REG, PHY_CTRLRDY);
+	hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2_REG, CHL_INT2_REG_CTRL_PHY_RDY_MSK);
 
 	return IRQ_HANDLED;
 }
@@ -1757,12 +1773,12 @@ static irqreturn_t hisi_sas_int_dmaerr(int phy_no, void *p)
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
-	if (!(irq_value & DMA_RESP_ERR))
+	if (!(irq_value & CHL_INT2_REG_DMA_RESP_ERR_MSK))
 		pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
 
 	pr_info("%s phy = %d, irq_value = %x in dma_resp_err\n", __func__, phy_no, irq_value);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, DMA_RESP_ERR);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, CHL_INT2_REG_DMA_RESP_ERR_MSK);
 
 	return IRQ_HANDLED;
 }
@@ -1774,12 +1790,12 @@ static irqreturn_t hisi_sas_int_hotplug(int phy_no, void *p)
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
-	if (!(irq_value & PHYCTRL_HOTPLUG_TOUT))
+	if (!(irq_value & CHL_INT2_REG_PHY_HP_TOUT_MSK))
 		pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
 
 	pr_info("%s phy = %d, irq_value = %x in hotplug_tout\n", __func__, phy_no, irq_value);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHYCTRL_HOTPLUG_TOUT);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, CHL_INT2_REG_PHY_HP_TOUT_MSK);
 
 	return IRQ_HANDLED;
 }
@@ -1791,12 +1807,12 @@ static irqreturn_t hisi_sas_int_bcast(int phy_no, void *p)
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
-	if (!(irq_value & SL_RX_BCAST_ACK))
+	if (!(irq_value & CHL_INT2_REG_SL_RX_BC_ACK_MSK))
 		pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
 
 	pr_info("%s phy = %d, irq_value = %x in sl_rx_bcast_ack\n", __func__, phy_no, irq_value);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, SL_RX_BCAST_ACK);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, CHL_INT2_REG_SL_RX_BC_ACK_MSK);
 
 	return IRQ_HANDLED;
 }
@@ -1808,12 +1824,12 @@ static irqreturn_t hisi_sas_int_oobrst(int phy_no, void *p)
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
-	if (!(irq_value & PHYCTRL_OOB_RESTART_CI))
+	if (!(irq_value & CHL_INT2_REG_OOB_RESTART_MSK))
 		pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
 
 	pr_info("%s phy = %d, irq_value = %x in phyctrl_oob_restart_ci\n", __func__, phy_no, irq_value);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHYCTRL_OOB_RESTART_CI);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, CHL_INT2_REG_OOB_RESTART_MSK);
 
 	return IRQ_HANDLED;
 }
@@ -1825,12 +1841,12 @@ static irqreturn_t hisi_sas_int_hardrst(int phy_no, void *p)
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
-	if (!(irq_value & SL_RX_HARDRST))
+	if (!(irq_value & CHL_INT2_SL_RX_HARDRST_MSK))
 		pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
 
 	pr_info("%s phy = %d, irq_value = %x in sl_rx_hardrst\n", __func__, phy_no, irq_value);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, SL_RX_HARDRST);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, CHL_INT2_SL_RX_HARDRST_MSK);
 
 	return IRQ_HANDLED;
 }
@@ -1842,12 +1858,12 @@ static irqreturn_t hisi_sas_int_statuscg(int phy_no, void *p)
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
-	if (!(irq_value & PHYCTRL_STATUS_CHG))
+	if (!(irq_value & CHL_INT2_PHY_STATUS_CHG_MSK))
 		pr_err("%s irq_value = %x not set enable bit", __func__, irq_value);
 
 	pr_info("%s phy = %d, irq_value = %x in phyctrl_status_chg\n", __func__, phy_no, irq_value);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, PHYCTRL_STATUS_CHG);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, CHL_INT2_PHY_STATUS_CHG_MSK);
 
 	return IRQ_HANDLED;
 }
@@ -2015,7 +2031,7 @@ DECLARE_PHY_INT_HANDLER_GROUP(6)
 DECLARE_PHY_INT_HANDLER_GROUP(7)
 DECLARE_PHY_INT_HANDLER_GROUP(8)
 
-static const char phy_int_names[MSI_PHY_INT_NR][32] = {
+static const char phy_int_names[HISI_SAS_PHY_INT_NR][32] = {
 	{"CTRL Rdy"},
 	{"DMA Err"},
 	{"HotPlug"},
@@ -2034,7 +2050,7 @@ static const char fatal_int_name[HISI_SAS_FATAL_INT_NR][32] = {
 	"fatal axi"
 };
 
-irq_handler_t phy_interrupt_handlers[HISI_SAS_MAX_PHYS][MSI_PHY_INT_NR] = {
+irq_handler_t phy_interrupt_handlers[HISI_SAS_MAX_PHYS][HISI_SAS_PHY_INT_NR] = {
 	{DECLARE_PHY_INT_GROUP_PTR(0)},
 	{DECLARE_PHY_INT_GROUP_PTR(1)},
 	{DECLARE_PHY_INT_GROUP_PTR(2)},
@@ -2127,8 +2143,8 @@ int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
 		return -ENOENT;
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
-		for (j = 0; j < MSI_PHY_INT_NR; j++) {
-			int idx = (i * MSI_PHY_INT_NR) + j;
+		for (j = 0; j < HISI_SAS_PHY_INT_NR; j++) {
+			int idx = (i * HISI_SAS_PHY_INT_NR) + j;
 
 			irq = irq_of_parse_and_map(hisi_hba->np, idx);
 			if (!irq) {
@@ -2145,7 +2161,7 @@ int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
 	}
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
-		int idx = (hisi_hba->n_phy * MSI_PHY_INT_NR) + i;
+		int idx = (hisi_hba->n_phy * HISI_SAS_PHY_INT_NR) + i;
 
 		irq = irq_of_parse_and_map(hisi_hba->np, idx);
 		if (!irq) {
@@ -2162,7 +2178,7 @@ int hisi_sas_interrupt_init(struct hisi_hba *hisi_hba)
 	}
 
 	for (i = 0; i < HISI_SAS_FATAL_INT_NR; i++) {
-		int idx = (hisi_hba->n_phy * MSI_PHY_INT_NR) + hisi_hba->queue_count + i;
+		int idx = (hisi_hba->n_phy * HISI_SAS_PHY_INT_NR) + hisi_hba->queue_count + i;
 
 		irq = irq_of_parse_and_map(hisi_hba->np, idx);
 		if (!irq) {
