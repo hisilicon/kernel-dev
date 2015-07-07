@@ -84,10 +84,8 @@ exit_free:
 static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 			struct Scsi_Host *shost)
 {
-	int i = 0, queue_slot_nr;
+	int i = 0;
 	char pool_name[32];
-
-	queue_slot_nr = HISI_SAS_QUEUE_SLOTS * hisi_hba->queue_count;
 
 	spin_lock_init(&hisi_hba->lock);
 	for (i = 0; i < hisi_hba->n_phy; i++) {
@@ -150,11 +148,12 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 		goto err_out;
 	memset(hisi_hba->itct, 0, HISI_SAS_MAX_ITCT_ENTRIES * HISI_SAS_ITCT_ENTRY_SZ);
 
-	hisi_hba->slot_info = kcalloc(queue_slot_nr, sizeof(struct hisi_sas_slot),
-				GFP_KERNEL);
+	hisi_hba->slot_info = kcalloc(HISI_SAS_COMMAND_ENTRIES,
+				      sizeof(struct hisi_sas_slot), GFP_KERNEL);
 	if (!hisi_hba->slot_info)
 		goto err_out;
-	memset(hisi_hba->slot_info, 0, queue_slot_nr * sizeof(struct hisi_sas_slot));
+	memset(hisi_hba->slot_info, 0,
+	       HISI_SAS_COMMAND_ENTRIES * sizeof(struct hisi_sas_slot));
 
 	hisi_hba->iost = dma_alloc_coherent(hisi_hba->dev,
 				HISI_SAS_COMMAND_ENTRIES *

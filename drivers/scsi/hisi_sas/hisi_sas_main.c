@@ -293,7 +293,6 @@ static void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *
 	slot->task = NULL;
 	slot->port = NULL;
 	hisi_sas_iptt_free(hisi_hba, slot->iptt);
-	memset(&hisi_hba->iptt[slot->iptt], 0, sizeof(struct hisi_sas_iptt));
 	memset(slot, 0, sizeof(*slot));
 }
 
@@ -779,12 +778,8 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	if (rc)
 		goto err_out;
 
-	slot = &hisi_hba->slot_info[queue*hisi_hba->queue_count+queue_slot];
+	slot = &hisi_hba->slot_info[iptt];
 	memset(slot, 0, sizeof(struct hisi_sas_slot));
-
-	hisi_hba->iptt[iptt].queue = queue;
-	hisi_hba->iptt[iptt].queue_slot = queue_slot;
-	hisi_hba->iptt[iptt].active = 1;
 
 	task->lldd_task = NULL;
 	slot->iptt = iptt;
@@ -1949,23 +1944,19 @@ irqreturn_t hisi_sas_cq_interrupt(int queue, void *p)
 	rd_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_RD_PTR + 20 * queue);
 	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR + 20 * queue);
 
-	for (;
-		rd_point != wr_point;
-		rd_point >= HISI_SAS_QUEUE_SLOTS ?
-		rd_point = 0 : (rd_point++)) {
-		/* j00310691 read through read pointer in cq */
+	while (rd_point != wr_point) {
 		struct hisi_sas_complete_hdr *complete_hdr;
-		struct hisi_sas_iptt *iptt;
-		int iptt_tag;
-		int queue_slot = rd_point;
+		int iptt;
 
-		complete_hdr = &complete_queue[queue_slot];
-		iptt_tag = complete_hdr->iptt;
-		iptt = &hisi_hba->iptt[iptt_tag];
+		complete_hdr = &complete_queue[rd_point];
+		iptt = complete_hdr->iptt;
 
-		slot = &hisi_hba->slot_info[iptt->queue*hisi_hba->queue_count+iptt->queue_slot];
+		slot = &hisi_hba->slot_info[iptt];
 
 		hisi_sas_slot_complete(hisi_hba, slot, 0);
+
+		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
+			rd_point = 0;
 	}
 
 	/* update rd_point */

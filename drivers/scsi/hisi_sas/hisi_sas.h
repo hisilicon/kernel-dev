@@ -128,11 +128,6 @@ struct hisi_sas_device {
 	u64 reserved;
 };
 
-struct hisi_sas_iptt {
-	int queue;
-	int queue_slot;
-	int active;
-};
 
 struct hisi_sas_slot {
 	struct list_head entry;
@@ -179,7 +174,6 @@ struct hisi_hba {
 
 	int iptt_count;
 	unsigned long *iptt_tags;
-	struct hisi_sas_iptt iptt[HISI_SAS_COMMAND_ENTRIES];
 
 	struct dma_pool *sge_page_pool;
 
