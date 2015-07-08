@@ -307,7 +307,7 @@ void hisi_sas_platform_dev_free(struct hisi_hba *hisi_hba)
 
 static void hisi_sas_post_ha_init(struct Scsi_Host *shost, int n_core)
 {
-	int can_queue, i, j;
+	int i, j;
 	struct hisi_hba *hisi_hba = NULL;
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	int n_phy = 0;
@@ -331,11 +331,9 @@ static void hisi_sas_post_ha_init(struct Scsi_Host *shost, int n_core)
 
 	sha->num_phys = n_phy; /* fixme j00310691 */
 
-	can_queue = 1; /* fixme j00310691 */
-
-	shost->sg_tablesize = min_t(u16, SG_ALL, HISI_SAS_MAX_SG);
-	shost->can_queue = can_queue;
-	hisi_hba->shost->cmd_per_lun = 1; /* fixme j00310691 */
+	shost->sg_tablesize = min_t(u16, SG_ALL, HISI_SAS_SGE_PAGE_CNT); // SG_ALL=SCSI_MAX_SG_SEGMENTS=128
+	shost->can_queue = HISI_SAS_COMMAND_ENTRIES;
+	shost->cmd_per_lun = HISI_SAS_COMMAND_ENTRIES;
 	sha->core.shost = hisi_hba->shost;
 }
 

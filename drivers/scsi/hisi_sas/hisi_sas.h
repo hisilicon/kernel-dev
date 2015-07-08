@@ -31,7 +31,6 @@
 #define HISI_SAS_BREAKPOINT_ENTRY_SZ (sizeof(struct hisi_sas_breakpoint))
 #define HISI_SAS_COMMAND_TABLE_SZ (((sizeof(union hisi_sas_command_table)+3)/4)*4)
 
-#define HISI_SAS_MAX_SG 10
 #define HISI_SAS_MAX_SSP_RESP_SZ (sizeof(struct ssp_frame_hdr) + 1024) /* j00310691 see table 118 */
 #define HISI_SAS_MAX_SMP_RESP_SZ 64 /* j00310691 64 from table 186, but 1016 is used in HIGGS_MAX_SMP_RESP_SIZE */
 /* Temp defines to compile */
@@ -481,7 +480,7 @@ union hisi_sas_command_table {
 };
 
 
-#define HISI_SAS_SGE_PAGE_CNT 124
+#define HISI_SAS_SGE_PAGE_CNT SCSI_MAX_SG_SEGMENTS
 struct hisi_sas_sge_page {
 	struct hisi_sas_sge sge[HISI_SAS_SGE_PAGE_CNT];
 };
