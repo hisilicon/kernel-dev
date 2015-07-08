@@ -39,13 +39,6 @@
 #define COMPL_Q_0_RD_PTR	(GLOBAL_BASE_REG + 0x4f0)
 
 #define PORT_BASE_REG		(0x800)
-#define PHY_CFG_REG		(PORT_BASE_REG + 0x0)
-#define PHY_CFG_REG_ENA_OFF	0
-#define PHY_CFG_REG_ENA_MSK	0x1
-#define PHY_CFG_REG_SATA_OFF	1
-#define PHY_CFG_REG_SATA_MSK	0x2
-#define PHY_CFG_REG_DC_OPT_OFF	2
-#define PHY_CFG_REG_DC_OPT_MSK	0x4
 
 #define PHY_CTRL_REG		(PORT_BASE_REG + 0x14)
 #define PHY_CTRL_REG_RESET_OFF	0
@@ -98,6 +91,13 @@
 #define CFG_SAS_CONFIG_REG              (GLOBAL_BASE_REG + 0xd4)
 
 /*phy registers need init*/
+#define PHY_CFG_REG			(PORT_BASE_REG + 0x0)
+#define PHY_CFG_REG_ENA_OFF		0
+#define PHY_CFG_REG_ENA_MSK		0x1
+#define PHY_CFG_REG_SATA_OFF		1
+#define PHY_CFG_REG_SATA_MSK		0x2
+#define PHY_CFG_REG_DC_OPT_OFF		2
+#define PHY_CFG_REG_DC_OPT_MSK		0x4
 #define HARD_PHY_LINK_RATE_REG          (PORT_BASE_REG + 0x4)
 #define HARD_PHY_LINK_RATE_REG_MAX_OFF	0
 #define HARD_PHY_LINK_RATE_REG_MAX_MSK	0xf
@@ -1567,6 +1567,13 @@ void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy)
 
 }
 
+static void hisi_sas_phy_disconnected(struct hisi_sas_phy *phy)
+{
+	phy->phy_attached = 0;
+	phy->att_dev_info = 0;
+	phy->att_dev_sas_addr = 0;
+}
+
 void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st)
 {
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
@@ -1867,11 +1874,34 @@ static irqreturn_t hisi_sas_int_statuscg(int phy_no, void *p)
 	return IRQ_HANDLED;
 }
 
+static void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no)
+{
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	struct hisi_sas_port *port = phy->port;
+	struct sas_ha_struct *sas_ha = hisi_hba->sas;
+	u32 irq_value;
+
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+
+	if (irq_value & CHL_INT2_REG_CTRL_PHY_RDY_MSK) {
+		/* Phy down but ready */
+		pr_info("%s phy %d down and ready todo\n", __func__, phy_no);
+	} else {
+		/* Phy down and not ready */
+		pr_info("%s phy %d down but not ready\n", __func__, phy_no);
+		sas_phy_disconnected(sas_phy);
+		hisi_sas_phy_disconnected(phy);
+		sas_ha->notify_phy_event(sas_phy, PHYE_LOSS_OF_SIGNAL);
+	}
+}
+
 static irqreturn_t hisi_sas_int_abnormal(int phy_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
 	u32 irq_mask_old;
+	static int count = 0;
 
 	/* mask_int0 */
 	irq_mask_old = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_MSK_REG);
@@ -1879,13 +1909,26 @@ static irqreturn_t hisi_sas_int_abnormal(int phy_no, void *p)
 
 	/* read int0 */
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_REG);
-
+	pr_info("%s %d\n", __func__, count);
 	if (irq_value & CHL_INT0_REG_PHYCTRL_NOTRDY_MSK) {
-		pr_info("%s phy = %d phydown todo\n", __func__, phy_no);
+		u32 val = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG_REG);
+
+		if (val & PHY_CFG_REG_ENA_MSK) {
+			struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+			/* Enabled */
+			/* Stop serdes fw timer */
+			/* todo */
+
+			hisi_sas_phy_down(hisi_hba, phy_no);
+		} else {
+			/* Disabled */
+			/* Ignore phydown event if disabled */
+			pr_info("%s phy = %d phydown event and already disabled\n", __func__, phy_no);
+		}
+
 	} else if (irq_value & CHL_INT0_REG_ID_TIMEOUT_MSK) {
 		pr_info("%s phy = %d identify timeout todo\n", __func__, phy_no);
 	} else {
-		pr_info("%s phy = %d loss dword sync\n", __func__, phy_no);
 		if (irq_value & CHL_INT0_REG_DWS_LOST_MSK) {
 			pr_info("%s phy = %d dws lost\n", __func__, phy_no);
 		}
@@ -1900,7 +1943,7 @@ static irqreturn_t hisi_sas_int_abnormal(int phy_no, void *p)
 		}
 
 		if (irq_value & CHL_INT0_REG_SL_PS_FAIL_OFF) {
-			pr_info("%s phy = %d ps req fail\n", __func__, phy_no);
+			pr_debug("%s phy = %d ps req fail\n", __func__, phy_no);
 		}
 	}
 
@@ -1912,7 +1955,7 @@ static irqreturn_t hisi_sas_int_abnormal(int phy_no, void *p)
 	} else {
 		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG, irq_mask_old);
 	}
-
+	count++;
 	return IRQ_HANDLED;
 }
 
