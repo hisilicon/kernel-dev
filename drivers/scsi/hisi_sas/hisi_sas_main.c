@@ -866,18 +866,18 @@ static int hisi_sas_task_exec(struct sas_task *task,
 	struct hisi_hba *hisi_hba = NULL;
 	u32 rc = 0;
 	u32 pass = 0;
-	//unsigned long flags = 0;
+	unsigned long flags = 0;
 
 	hisi_hba = ((struct hisi_sas_device *)task->dev->lldd_dev)->hisi_hba;
 
-	//spin_lock_irqsave(&hisi_hba->lock, flags);
+	spin_lock_irqsave(&hisi_hba->lock, flags);
 	rc = hisi_sas_task_prep(task, hisi_hba, is_tmf, tmf, &pass);
 	if (rc)
 		dev_err(hisi_hba->dev, "hisi_sas exec failed[%d]!\n", rc);
 
 	if (likely(pass))
 		hisi_sas_start_delivery(hisi_hba);
-	//spin_unlock_irqrestore(&hisi_hba->lock, flags);
+	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 
 	return rc;
 }
