@@ -329,7 +329,7 @@ static void hisi_sas_post_ha_init(struct Scsi_Host *shost, int n_core)
 	sha->lldd_module = THIS_MODULE;
 	sha->sas_addr = &hisi_hba->sas_addr[0];
 
-	sha->num_phys = n_phy; /* fixme j00310691 */
+	sha->num_phys = n_phy;
 
 	shost->sg_tablesize = min_t(u16, SG_ALL, HISI_SAS_SGE_PAGE_CNT); // SG_ALL=SCSI_MAX_SG_SEGMENTS=128
 	shost->can_queue = HISI_SAS_COMMAND_ENTRIES;
