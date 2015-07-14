@@ -915,12 +915,6 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no)
 		id->initiator_bits = SAS_PROTOCOL_ALL;
 		id->target_bits = phy->identify.target_port_protocols;
 
-		/* direct attached SAS device */
-		pr_info("%s fixme att_dev_info\n", __func__);
-		if (phy->att_dev_info & PORT_SSP_TRGT_MASK) {
-			/* MVS_CHIP_DISP->write_port_cfg_addr(mvi, i, PHYR_PHY_STAT); */
-			/* MVS_CHIP_DISP->write_port_cfg_data(mvi, i, 0x00); */
-		}
 	} else if (phy->phy_type & PORT_TYPE_SATA) {
 		/*Nothing*/
 	}
@@ -1457,6 +1451,7 @@ static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy, int lock)
 	struct asd_sas_port *sas_port = sas_phy->port;
 	struct hisi_sas_port *port;
 	unsigned long flags = 0;
+
 	if (!sas_port)
 		return;
 
@@ -1477,19 +1472,9 @@ static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy, int lock)
 		spin_lock_irqsave(&hisi_hba->lock, flags);
 	port->port_attached = 1;
 	phy->port = port;
-	pr_info("%s port=%p should be non-null\n", __func__, port);
+
 	sas_port->lldd_port = port;
-	if (phy->phy_type & PORT_TYPE_SAS) {
-		u32 port_state = hisi_sas_read32(hisi_hba, PORT_STATE_REG);
-		u32 phy_port_dis_state = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA_REG);
-		pr_info("%s phy=%d port_state=0x%x phy_port_dis_state=0x%x hisi_hba->id=%d\n",
-			__func__,
-			i,
-			port_state,
-			phy_port_dis_state,
-			hisi_hba->id
-			);
-	}
+
 	if (lock)
 		spin_unlock_irqrestore(&hisi_hba->lock, flags);
 }
@@ -1616,24 +1601,8 @@ static u32 hisi_sas_is_phy_ready(struct hisi_hba *hisi_hba, int phy_no)
 	struct hisi_sas_port *port = phy->port;
 
 	/* j00310691 fimxe (check on phy rdy register) */
-	pr_info("%s1 port=%p hisi_hba=%p\n", __func__, port, hisi_hba);
 	port_state = hisi_sas_read32(hisi_hba, PORT_STATE_REG);
 	phy_port_dis_state = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA_REG);
-
-	if (port!=NULL)
-	{
-		pr_info("%s port_state=0x%x phy_port_dis_state=0x%x hisi_hba->id=%d",
-			__func__,
-			port_state,
-			phy_port_dis_state,
-			hisi_hba->id);
-	} else {
-		pr_info("%s port_state=0x%x phy_port_dis_state=0x%x hisi_hba->id=%d",
-			__func__,
-			port_state,
-			phy_port_dis_state,
-			hisi_hba->id);
-	}
 
 	phy_state = hisi_sas_read32(hisi_hba, PHY_STATE_REG);
 	if (phy_state & (1 << phy_no)) {
@@ -1645,9 +1614,8 @@ static u32 hisi_sas_is_phy_ready(struct hisi_hba *hisi_hba, int phy_no)
 	/* phy is not ready, so update port */
 	if (port) {
 		u32 wide_port_phymap = (hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA_REG) >> (phy_no * 4)) & 0xf;
-		pr_info("%s4\n", __func__);
+
 		if (phy->phy_type & PORT_TYPE_SAS) {
-			pr_info("%s5 wide_port_phymap=0x%x\n", __func__, wide_port_phymap);
 			if (wide_port_phymap == 0xf)
 				port->port_attached = 0;
 		} else if (phy->phy_type & PORT_TYPE_SATA) {

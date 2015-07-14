@@ -35,7 +35,6 @@
 #define HISI_SAS_MAX_SMP_RESP_SZ 64 /* j00310691 64 from table 186, but 1016 is used in HIGGS_MAX_SMP_RESP_SIZE */
 /* Temp defines to compile */
 #define PORT_DEV_TRGT_MASK (0x7U << 17)
-#define PORT_SSP_TRGT_MASK (0x1U << 19)
 enum {
 	PORT_TYPE_SAS = (1U << 1),
 	PORT_TYPE_SATA = (1U << 0)
