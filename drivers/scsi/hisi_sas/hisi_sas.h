@@ -35,9 +35,11 @@
 #define HISI_SAS_MAX_SMP_RESP_SZ 64 /* j00310691 64 from table 186, but 1016 is used in HIGGS_MAX_SMP_RESP_SIZE */
 /* Temp defines to compile */
 #define PORT_DEV_TRGT_MASK (0x7U << 17)
-#define PORT_TYPE_SAS (1U << 1)
 #define PORT_SSP_TRGT_MASK (0x1U << 19)
-#define PORT_TYPE_SATA (1U << 0)
+enum {
+	PORT_TYPE_SAS = (1U << 1),
+	PORT_TYPE_SATA = (1U << 0)
+};
 #define RXQ_GOOD (1U << 23)
 #define RXQ_RSP (1U << 18)
 
@@ -108,7 +110,6 @@ struct hisi_sas_phy {
 struct hisi_sas_port {
 	struct asd_sas_port	sas_port;
 	u8	port_attached;
-	u8	wide_port_phymap;
 	struct list_head	list;
 };
 

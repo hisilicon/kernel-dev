@@ -90,7 +90,6 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba,
 	spin_lock_init(&hisi_hba->lock);
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		hisi_sas_phy_init(hisi_hba, i);
-		hisi_hba->port[i].wide_port_phymap = 0;
 		hisi_hba->port[i].port_attached = 0;
 		INIT_LIST_HEAD(&hisi_hba->port[i].list);
 	}
