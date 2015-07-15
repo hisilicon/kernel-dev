@@ -474,7 +474,7 @@ static int hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 
 	hdr->device_id = hisi_sas_dev->device_id; /* map itct entry */
 
-	hdr->cmd_frame_len = req_len/4;
+	hdr->cmd_frame_len = (req_len - 4) / 4; /* do not include the crc */
 	/* hdr->leave_affil_open only applicable to stp */
 	hdr->max_resp_frame_len = HISI_SAS_MAX_SMP_RESP_SZ/4;
 	/* hdr->sg_mode, ->first_burst not applicable to smp */
@@ -1652,7 +1652,7 @@ void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st)
 		} else if (phy->phy_type & PORT_TYPE_SAS) {
 			phy->phy_attached = 1;
 
-			phy->identify.device_type = SAS_END_DEVICE;
+			phy->identify.device_type = id->dev_type;
 
 			if (phy->identify.device_type == SAS_END_DEVICE)
 				phy->identify.target_port_protocols =

@@ -32,7 +32,7 @@
 #define HISI_SAS_COMMAND_TABLE_SZ (((sizeof(union hisi_sas_command_table)+3)/4)*4)
 
 #define HISI_SAS_MAX_SSP_RESP_SZ (sizeof(struct ssp_frame_hdr) + 1024) /* j00310691 see table 118 */
-#define HISI_SAS_MAX_SMP_RESP_SZ 64 /* j00310691 64 from table 186, but 1016 is used in HIGGS_MAX_SMP_RESP_SIZE */
+#define HISI_SAS_MAX_SMP_RESP_SZ 1028 /* From spec 9.4.3 (1032-4 byte crc) */
 /* Temp defines to compile */
 #define PORT_DEV_TRGT_MASK (0x7U << 17)
 enum {
