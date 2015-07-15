@@ -1,3 +1,14 @@
+/*
+ * Copyright (c) 2015 Linaro Ltd.
+ * Copyright (c) 2015 Hisilicon Limited.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ */
+
 #ifndef _HISI_SAS_H_
 #define _HISI_SAS_H_
 
@@ -102,8 +113,8 @@ struct hisi_sas_phy {
 	u64		phy_event;
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate;
-    /*serdes_timer to use*/
-    int     phy_id;
+	/*serdes_timer to use*/
+	int     phy_id;
 };
 
 struct hisi_sas_port {
@@ -126,7 +137,6 @@ struct hisi_sas_device {
 	u8 dev_status;
 	u64 reserved;
 };
-
 
 struct hisi_sas_slot {
 	struct list_head entry;
@@ -200,13 +210,14 @@ struct hisi_hba {
 	struct hisi_sas_breakpoint *breakpoint;
 	dma_addr_t breakpoint_dma;
 	struct hisi_sas_slot	*slot_info;
+	struct dentry *dbg_dir;
 };
 
-struct hisi_hba_priv_info {
-	u8	n_phy;
+struct hisi_hba_priv {
 	struct hisi_hba	*hisi_hba[HISI_SAS_MAX_CORE];
-	struct tasklet_struct	*hisi_sas_tasklet;
+	struct tasklet_struct *hisi_sas_tasklet;
 	int n_core;
+	u8 n_phy;
 	u8 scan_finished;
 	/* To be completed, j00310691 */
 };
@@ -535,4 +546,5 @@ int hisi_sas_query_task(struct sas_task *task);
 void hisi_sas_port_formed(struct asd_sas_phy *sas_phy);
 void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy);
 int hisi_sas_debugfs_init(struct hisi_hba *hisi_hba);
+void hisi_sas_debugfs_free(struct hisi_hba *hisi_hba);
 #endif
