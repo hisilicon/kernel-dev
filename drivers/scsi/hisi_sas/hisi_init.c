@@ -304,9 +304,12 @@ static void hisi_sas_init_add(struct hisi_hba *hisi_hba)
 {
 	u8 i;
 
-	/* j00310691 use huawei IEEE id (001882) */
-	for (i = 0; i < hisi_hba->n_phy; i++)
-		hisi_hba->phy[i].dev_sas_addr =  0xa202030405060708ULL;
+	/* Huawei IEEE id (001882) */
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		hisi_hba->phy[i].dev_sas_addr = 0x5001882016072015ULL;
+		hisi_hba->phy[i].dev_sas_addr =
+			cpu_to_be64((u64)(*(u64 *)&hisi_hba->phy[i].dev_sas_addr));
+	}
 	memcpy(hisi_hba->sas_addr, &hisi_hba->phy[0].dev_sas_addr, SAS_ADDR_SIZE);
 }
 
