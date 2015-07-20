@@ -1402,8 +1402,8 @@ void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int i)
 static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy, int lock)
 {
 	struct sas_ha_struct *sas_ha = sas_phy->ha;
-	struct hisi_hba *hisi_hba;
-	int i = 0, hi;
+	struct hisi_hba *hisi_hba = NULL;
+	int i = 0, j = 0, hi = 0;
 	struct hisi_sas_phy *phy = sas_phy->lldd_phy;
 	struct asd_sas_port *sas_port = sas_phy->port;
 	struct hisi_sas_port *port;
@@ -1413,17 +1413,24 @@ static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy, int lock)
 		return;
 
 	while (sas_ha->sas_phy[i]) {
-		if (sas_ha->sas_phy[i] == sas_phy)
+		if (sas_ha->sas_phy[i] == sas_phy) {
+			hisi_hba = ((struct hisi_hba_priv *)sas_ha->lldd_ha)
+					->hisi_hba[hi];
+			port = &hisi_hba->port[j];
 			break;
-		i++;
+		}
+		i++; j++;
+		if (j == ((struct hisi_hba_priv *)sas_ha->lldd_ha)
+				->hisi_hba[hi]->n_phy) {
+			j = 0;
+			hi++;
+		}
 	}
-	hi = i / ((struct hisi_hba_priv *)sas_ha->lldd_ha)->n_phy;
-	hisi_hba = ((struct hisi_hba_priv *)sas_ha->lldd_ha)->hisi_hba[hi];
-	if (i >= hisi_hba->n_phy)
-		/* j00310691 fixme for >2 controllers */
-		port = &hisi_hba->port[i - hisi_hba->n_phy];
-	else
-		port = &hisi_hba->port[i];
+
+	if (hisi_hba == NULL) {
+		pr_err("%s could not find hba\n", __func__);
+		return;
+	}
 
 	if (lock)
 		spin_lock_irqsave(&hisi_hba->lock, flags);
