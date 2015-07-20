@@ -1187,7 +1187,9 @@ static void hisi_sas_init_reg(struct hisi_hba *hisi_hba)
 	int i;
 
 	/* Global registers init*/
-	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE_REG, 0xffffffff); //fixme j00310691
+	hisi_sas_write32(hisi_hba,
+		DLVRY_QUEUE_ENABLE_REG,
+		(u32)((1ULL << hisi_hba->queue_count) - 1);
 	hisi_sas_write32(hisi_hba, HGC_TRANS_TASK_CNT_LIMIT_REG, 0x11);
 	hisi_sas_write32(hisi_hba, DEVICE_MSG_WORK_MODE_REG, 0x1);
 //	hisi_sas_write32(hisi_hba, MAX_BURST_BYTES_REG, 0);
