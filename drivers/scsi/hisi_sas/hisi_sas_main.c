@@ -274,10 +274,6 @@ static void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SMP:
-		dma_unmap_sg(hisi_hba->dev, &task->smp_task.smp_resp, 1,
-			     DMA_FROM_DEVICE);
-		dma_unmap_sg(hisi_hba->dev, &task->smp_task.smp_req, 1,
-			     DMA_TO_DEVICE);
 		break;
 
 	case SAS_PROTOCOL_SATA:
@@ -368,6 +364,12 @@ int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot
 
 			tstat->stat = SAM_STAT_GOOD;
 			to = kmap_atomic(sg_page(sg_resp));
+			/*for expander*/
+			dma_unmap_sg(hisi_hba->dev, &task->smp_task.smp_resp, 1,
+			     DMA_FROM_DEVICE);/*fixme*/
+			dma_unmap_sg(hisi_hba->dev, &task->smp_task.smp_req, 1,
+			     DMA_TO_DEVICE);/*fixme*/
+
 			/* j00310691 for SMP, buffer contains the full SMP frame */
 			memcpy(to + sg_resp->offset,
 			       slot->status_buffer + sizeof(struct hisi_sas_err_record),
@@ -1189,7 +1191,7 @@ static void hisi_sas_init_reg(struct hisi_hba *hisi_hba)
 	/* Global registers init*/
 	hisi_sas_write32(hisi_hba,
 		DLVRY_QUEUE_ENABLE_REG,
-		(u32)((1ULL << hisi_hba->queue_count) - 1);
+		(u32)((1ULL << hisi_hba->queue_count) - 1));
 	hisi_sas_write32(hisi_hba, HGC_TRANS_TASK_CNT_LIMIT_REG, 0x11);
 	hisi_sas_write32(hisi_hba, DEVICE_MSG_WORK_MODE_REG, 0x1);
 //	hisi_sas_write32(hisi_hba, MAX_BURST_BYTES_REG, 0);
