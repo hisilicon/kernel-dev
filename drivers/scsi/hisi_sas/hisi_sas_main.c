@@ -34,6 +34,7 @@
 #define ITCT_BASE_ADDR_HI		0x14
 #define BROKEN_MSG_ADDR_LO		0x18
 #define BROKEN_MSG_ADDR_HI		0x1c
+#define PHY_CONTEXT			0x20
 #define PHY_STATE_REG			0x24
 #define PHY_PORT_NUM_MA_REG		0x28
 #define PORT_STATE_REG			0x2c
@@ -1888,7 +1889,12 @@ static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
 	link_rate = (val >> (phy_no * 4)) & 0xf;
 	sas_phy->linkrate = link_rate;
 
-	phy->phy_type |= PORT_TYPE_SAS; /* j00310691 todo check for SATA */
+	phy->phy_type &= ~(PORT_TYPE_SAS | PORT_TYPE_SATA);
+	val = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
+	if (val & 1 << phy_no)
+		phy->phy_type |= PORT_TYPE_SATA;
+	else
+		phy->phy_type |= PORT_TYPE_SAS;
 
 	hisi_sas_update_phyinfo(hisi_hba, phy_no, 1);
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
