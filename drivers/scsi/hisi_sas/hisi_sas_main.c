@@ -262,6 +262,68 @@ void hisi_sas_iptt_init(struct hisi_hba *hisi_hba)
 
 }
 
+
+#define SATA_PROTOCOL_NONDATA		0x1
+#define SATA_PROTOCOL_PIO		0x2
+#define SATA_PROTOCOL_DMA		0x4
+#define SATA_PROTOCOL_FPDMA		0x8
+#define SATA_PROTOCOL_ATAPI		0x10
+
+static u8 get_ata_protocol(u8 cmd, int direction)
+{
+	switch (cmd) {
+	case ATA_CMD_FPDMA_WRITE:
+	case ATA_CMD_FPDMA_READ:
+	return SATA_PROTOCOL_FPDMA;
+
+	case ATA_CMD_ID_ATA:
+	case ATA_CMD_PMP_READ:
+	case ATA_CMD_READ_LOG_EXT:
+	case ATA_CMD_PIO_READ:
+	case ATA_CMD_PIO_READ_EXT:
+	case ATA_CMD_PMP_WRITE:
+	case ATA_CMD_WRITE_LOG_EXT:
+	case ATA_CMD_PIO_WRITE:
+	case ATA_CMD_PIO_WRITE_EXT:
+	return SATA_PROTOCOL_PIO;
+
+	case ATA_CMD_READ:
+	case ATA_CMD_READ_EXT:
+	case /* write dma queued */ 0xc7: /* j00310691 fixme */
+	case /* write dma queued ext */ 0x26: /* j00310691 fixme */
+	case ATA_CMD_READ_LOG_DMA_EXT:
+	case ATA_CMD_WRITE:
+	case ATA_CMD_WRITE_EXT:
+	case /* write dma queued ext */ 0xcc: /* j00310691 fixme */
+	case ATA_CMD_WRITE_QUEUED:
+	case ATA_CMD_WRITE_LOG_DMA_EXT:
+	return SATA_PROTOCOL_DMA;
+
+	case 0x92: /* j00310691 fixme */
+	case ATA_CMD_DEV_RESET:
+	case ATA_CMD_CHK_POWER:
+	case ATA_CMD_FLUSH:
+	case ATA_CMD_FLUSH_EXT:
+	case ATA_CMD_VERIFY:
+	case ATA_CMD_VERIFY_EXT:
+	case ATA_CMD_SET_FEATURES:
+	case ATA_CMD_STANDBY:
+	case ATA_CMD_STANDBYNOW1:
+	return SATA_PROTOCOL_NONDATA;
+
+	default:
+		if (direction == DMA_NONE)
+			return SATA_PROTOCOL_NONDATA;
+		return SATA_PROTOCOL_PIO;
+	}
+
+}
+
+int hisi_sas_get_ncq_tag(struct sas_task *task, u32 *hdr_tag)
+{
+	return 0;
+}
+
 static void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 			  struct hisi_sas_slot *slot)
 {
@@ -476,7 +538,7 @@ static int hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 	/* hdr->t10_flds_pres not set in Higgs_PrepareSMP */
 	/* hdr->resp_report, ->tlr_ctrl for SSP */
 	hdr->phy_id = 1; /* this is what Higgs_PrepareSMP does */
-	hdr->force_phy = 0; /* due not force ordering in phy */
+	hdr->force_phy = 0; /* do not force ordering in phy */
 	hdr->port = sas_port->id; /* double-check */
 	/* hdr->sata_reg_set not applicable to smp */
 	hdr->priority = 1; /* high priority */
@@ -592,7 +654,7 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	hdr->resp_report = 1;
 	hdr->tlr_ctrl = 0x2; /* Do not enable */
 	hdr->phy_id = 1 << sphy->number; /* double-check */
-	hdr->force_phy = 0; /* due not force ordering in phy */
+	hdr->force_phy = 0; /* do not force ordering in phy */
 	hdr->port = sas_port->id; /* double-check */
 	/* hdr->sata_reg_set not applicable to smp */
 	hdr->priority = 0; /* ordinary priority */
@@ -656,7 +718,7 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 	/* hdr->dif_sg_len not set in Higgs code */
 
 	/* dw7 */
-	/* hdr->double_mode not set in Higgs code */
+	/* hdr->double_mode is set only for DIF todo */
 	/* hdr->abort_iptt set in Higgs_PrepareAbort */
 
 	/* dw8,9 */
@@ -707,6 +769,115 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 static int hisi_sas_task_prep_ata(struct hisi_hba *hisi_hba,
 		struct hisi_sas_tei *tei)
 {
+	struct sas_task *task = tei->task;
+	struct domain_device *dev = task->dev;
+	struct hisi_sas_device *hisi_sas_dev = dev->lldd_dev;
+	struct hisi_sas_cmd_hdr *hdr = tei->hdr;
+	struct asd_sas_port *sas_port = dev->port;
+	struct hisi_sas_slot *slot = tei->slot;
+	u8 *buf_cmd;
+	int has_data = 0;
+	int rc = 0;
+
+	/* create header */
+	/* dw0 */
+	/* hdr->abort_flag set in Higgs_PrepareBaseSSP */
+	/* hdr->t10_flds_pres set in Higgs_PreparePrdSge */
+	hdr->resp_report = 0;
+	/* hdr->tlr_ctrl not applicable to STP */
+	hdr->phy_id = 0; /* don't care - see Higgs_PrepareBaseSTP */
+	hdr->force_phy = 0; /* do not force ordering in phy */
+	hdr->port = sas_port->id; /* double-check */
+	/* hdr->sata_reg_set - does not exit for hi1610 j00310691 fixme */
+	/* hdr->priority not set for stp */
+	hdr->mode = 1; /* ini mode - see Higgs_DQGlobalConfig */
+	if (dev->dev_type == SAS_SATA_DEV)
+		hdr->cmd = 4; /* sata - j00310691 unsure*/
+	else
+		hdr->cmd = 3; /* stp */
+
+	/* dw1 */
+	/* hdr->ssp_pass_through not applicable to stp */
+	switch (task->data_dir) {
+	case DMA_TO_DEVICE:
+		/* hdr->dir = 2; */
+		has_data = 1;
+	case DMA_FROM_DEVICE:
+		/* hdr->dir = 1; */
+		has_data = 1;
+	default:
+		pr_warn("%s unhandled direction, task->data_dir=%d\n", __func__, task->data_dir);
+		/* hdr->dir = 0; */
+	}
+
+	/* j00310691 for IT code SOFT RESET MACRO is 0, but I am unsure if this is a valid command */
+	if (0 == task->ata_task.fis.command) {
+		pr_info("%s todo for reset\n", __func__);
+	}
+	/* hdr->enable_tlr, ->pir_pres not applicable to stp */
+	hdr->verify_dtl = 0; /* j00310691 not set in IT code */
+	hdr->ssp_frame_type = get_ata_protocol(task->ata_task.fis.command,
+				task->data_dir);
+
+	hdr->device_id = hisi_sas_dev->device_id; /* map itct entry */
+
+	/* dw2 */
+	hdr->cmd_frame_len = (sizeof(struct hisi_sas_command_table_stp) + 3) / 4;
+	hdr->leave_affil_open = 0; /* j00310691 unset in IT code */
+	/* hdr->ncq_tag todo j00310691 */
+	hdr->max_resp_frame_len = HISI_SAS_MAX_STP_RESP_SZ/4;
+	hdr->sg_mode = 0; /* fixme as it should be 2 (which is sge) for hi1610 */
+	/* hdr->first_burst not applicable to stp */
+
+	/* dw3 */
+	hdr->iptt = tei->iptt;
+	hdr->tptt = 0;
+
+	if (has_data) {
+		rc = hisi_sas_prep_prd_sge(hisi_hba, slot, hdr, task->scatter,
+					   tei->n_elem);
+		if (rc)
+			return rc;
+	}
+
+	/* dw4 */
+	hdr->data_transfer_len = task->total_xfer_len;
+
+	/* dw5 */
+	/* hdr->first_burst_num not set in Higgs code */
+
+	/* dw6 */
+	/* hdr->data_sg_len set in hisi_sas_prep_prd_sge */
+	/* hdr->dif_sg_len not set in Higgs code */
+
+	/* dw7 */
+	/* hdr->double_mode not set in Higgs code */
+	/* hdr->abort_iptt set in Higgs_PrepareAbort */
+
+	/* dw8,9 */
+	/* j00310691 reference driver sets in Higgs_SendCommandHw */
+	hdr->cmd_table_addr_lo = DMA_ADDR_LO(slot->command_table_dma);
+	hdr->cmd_table_addr_hi = DMA_ADDR_HI(slot->command_table_dma);
+
+	/* dw9,10 */
+	/* j00310691 reference driver sets in Higgs_SendCommandHw */
+	hdr->sts_buffer_addr_lo = DMA_ADDR_LO(slot->status_buffer_dma);
+	hdr->sts_buffer_addr_hi = DMA_ADDR_HI(slot->status_buffer_dma);
+
+	/* dw11,12 */
+	/* hdr->prd_table_addr_lo, _hi set in hisi_sas_prep_prd_sge */
+
+	/* hdr->dif_prd_table_addr_lo, _hi not set in Higgs code */
+	buf_cmd = (u8 *)slot->command_table;
+
+	if (likely(!task->ata_task.device_control_reg_update))
+		task->ata_task.fis.flags |= 0x80; /* C=1: update ATA cmd reg */
+	/* fill in command FIS and ATAPI CDB */
+	memcpy(buf_cmd, &task->ata_task.fis, sizeof(struct host_to_dev_fis));
+	if (dev->sata_dev.class == ATA_DEV_ATAPI)
+		memcpy(buf_cmd + 0x20,
+			task->ata_task.atapi_packet, ATAPI_CDB_LEN);
+
 	return 0;
 }
 
@@ -1615,6 +1786,28 @@ void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st)
 		phy->att_dev_sas_addr = *(u64 *)id->sas_addr;
 		if (phy->phy_type & PORT_TYPE_SATA) {
 			pr_info("%s todo for SATA\n", __func__);
+			phy->identify.target_port_protocols = SAS_PROTOCOL_STP;
+			if (1 /* mvs_is_sig_fis_received(phy->irq_status) */) {
+				//mvs_sig_remove_timer(phy);
+				phy->phy_attached = 1;
+				phy->att_dev_sas_addr = 0;
+				//	i + mvi->id * mvi->chip->n_phy;
+				if (oob_done)
+					sas_phy->oob_mode = SATA_OOB_MODE;
+				phy->frame_rcvd_size =
+				    sizeof(struct dev_to_host_fis);
+				//mvs_get_d2h_reg(mvi, i, id);
+			} else {
+				//u32 tmp;
+				//dev_printk(KERN_DEBUG, mvi->dev,
+				//	"Phy%d : No sig fis\n", i);
+				//tmp = MVS_CHIP_DISP->read_port_irq_mask(mvi, i);
+				//MVS_CHIP_DISP->write_port_irq_mask(mvi, i,
+				//		tmp | PHYEV_SIG_FIS);
+				phy->phy_attached = 0;
+				phy->phy_type &= ~PORT_TYPE_SATA;
+				goto out_done;
+			}
 		} else if (phy->phy_type & PORT_TYPE_SAS) {
 			phy->phy_attached = 1;
 
@@ -1635,7 +1828,7 @@ void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st)
 			&phy->att_dev_sas_addr, SAS_ADDR_SIZE);
 
 	}
-
+out_done:
 	dev_dbg(hisi_hba->dev, "%s phy %d attach dev info is %llx\n", __func__,
 		phy_no + hisi_hba->id * hisi_hba->n_phy, phy->att_dev_info);
 	dev_dbg(hisi_hba->dev, "%s phy %d attach sas addr is %llx\n", __func__,

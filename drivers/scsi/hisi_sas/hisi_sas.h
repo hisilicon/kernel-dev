@@ -44,6 +44,8 @@
 
 #define HISI_SAS_MAX_SSP_RESP_SZ (sizeof(struct ssp_frame_hdr) + 1024) /* j00310691 see table 118 */
 #define HISI_SAS_MAX_SMP_RESP_SZ 1028 /* From spec 9.4.3 (1032-4 byte crc) */
+#define HISI_SAS_MAX_STP_RESP_SZ 28 /* DMA setup fis length http://samfreetime.blogspot.co.uk/2012/08/dma-setup-device-to-host-or-host-to.html */
+
 /* Temp defines to compile */
 #define PORT_DEV_TRGT_MASK (0x7U << 17)
 enum {
@@ -394,6 +396,7 @@ struct hisi_sas_itct {
 	u64 rsvd4;
 	u64 rsvd5;
 };
+
 struct hisi_sas_iost {
 	/* qw0 */
 	uint64_t io_type:3;
@@ -481,7 +484,9 @@ struct hisi_sas_command_table_smp {
 };
 
 struct hisi_sas_command_table_stp {
-	/* j00310691 todo */
+	struct	host_to_dev_fis command_fis; //20
+	u8	dummy[12]; //12
+	u8	atapi_cdb[ATAPI_CDB_LEN]; //16
 };
 
 union hisi_sas_command_table {
