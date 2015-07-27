@@ -1755,7 +1755,7 @@ static u32 hisi_sas_is_phy_ready(struct hisi_hba *hisi_hba, int phy_no)
 			if (wide_port_phymap == 0xf)
 				port->port_attached = 0;
 		} else if (phy->phy_type & PORT_TYPE_SATA) {
-			/* j00310691 todo */
+			port->port_attached = 0; /* j00310691 we cannot have a SATA wideport */
 		}
 		phy->port = NULL;
 		phy->phy_attached = 0;
