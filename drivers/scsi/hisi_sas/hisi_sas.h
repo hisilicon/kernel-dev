@@ -46,14 +46,10 @@
 #define HISI_SAS_MAX_SMP_RESP_SZ 1028 /* From spec 9.4.3 (1032-4 byte crc) */
 #define HISI_SAS_MAX_STP_RESP_SZ 28 /* DMA setup fis length http://samfreetime.blogspot.co.uk/2012/08/dma-setup-device-to-host-or-host-to.html */
 
-/* Temp defines to compile */
-#define PORT_DEV_TRGT_MASK (0x7U << 17)
 enum {
 	PORT_TYPE_SAS = (1U << 1),
 	PORT_TYPE_SATA = (1U << 0)
 };
-#define RXQ_GOOD (1U << 23)
-#define RXQ_RSP (1U << 18)
 
 enum {
 	HISI_SAS_PHY_CTRL_RDY = 0,
