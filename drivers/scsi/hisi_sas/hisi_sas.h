@@ -71,6 +71,9 @@ enum {
 
 #define HISI_SAS_MAX_INT_NR (HISI_SAS_PHY_MAX_INT_NR + HISI_SAS_CQ_MAX_INT_NR + HISI_SAS_FATAL_INT_NR)
 
+#define DMA_ADDR_LO(addr) ((u32)(addr & 0xffffffff))
+#define DMA_ADDR_HI(addr) ((u32)(addr >> 32))
+
 enum dev_status {
 	HISI_SAS_DEV_NORMAL,
 	HISI_SAS_DEV_EH
@@ -161,6 +164,27 @@ struct hisi_sas_slot {
 	void	*open_frame;
 };
 
+struct hisi_sas_tmf_task {
+	u8 tmf;
+	u16 tag_of_task_to_be_managed;
+};
+
+struct hisi_sas_tei {
+	struct sas_task	*task;
+	struct hisi_sas_cmd_hdr	*hdr;
+	struct hisi_sas_port	*port;
+	struct hisi_sas_slot	*slot;
+	int	n_elem;
+	int	iptt;
+};
+
+enum chips {
+	P660 = 1,
+	HI1610 = 2
+};
+
+struct hisi_sas_dispatch;
+
 struct hisi_hba {
 	spinlock_t	lock;
 
@@ -178,6 +202,10 @@ struct hisi_hba {
 	dma_addr_t	complete_hdr_dma[HISI_SAS_MAX_QUEUES];
 
 	int	n_phy;
+
+	int	chip_id;
+
+	const struct hisi_sas_dispatch *dispatch;
 
 	int iptt_count;
 	unsigned long *iptt_tags;
@@ -211,6 +239,17 @@ struct hisi_hba {
 	struct dentry *dbg_dir;
 };
 
+struct hisi_sas_dispatch {
+	int (*prep_ssp)(struct hisi_hba *hisi_hba,
+			struct hisi_sas_tei *tei, int is_tmf,
+			struct hisi_sas_tmf_task *tmf);
+	int (*prep_smp)(struct hisi_hba *hisi_hba,
+			struct hisi_sas_tei *tei);
+	int (*prep_stp)(struct hisi_hba *hisi_hba,
+			struct hisi_sas_tei *tei);
+};
+
+
 struct hisi_hba_priv {
 	struct hisi_hba	*hisi_hba[HISI_SAS_MAX_CORE];
 	struct tasklet_struct *hisi_sas_tasklet;
@@ -220,59 +259,21 @@ struct hisi_hba_priv {
 	/* To be completed, j00310691 */
 };
 
-struct hisi_sas_tmf_task {
-	u8 tmf;
-	u16 tag_of_task_to_be_managed;
-};
+#define HISI_SAS_DISP	(hisi_hba->dispatch)
 
-struct hisi_sas_tei {
-	struct sas_task	*task;
-	struct hisi_sas_cmd_hdr	*hdr;
-	struct hisi_sas_port	*port;
-	struct hisi_sas_slot	*slot;
-	int	n_elem;
-	int	iptt;
-};
+extern const struct hisi_sas_dispatch hisi_sas_p660_dispatch;
 
 /* HW structures */
 /* Delivery queue header */
 struct hisi_sas_cmd_hdr {
 	/* dw0 */
-	u32 abort_flag:2;
-	u32 rsvd0:2;
-	u32 t10_flds_pres:1;
-	u32 resp_report:1;
-	u32 tlr_ctrl:2;
-	u32 phy_id:8;
-	u32 force_phy:1;
-	u32 port:3;
-	u32 sata_reg_set:7;
-	u32 priority:1;
-	u32 mode:1;
-	u32 cmd:3;
+	u32 dw0;
 
 	/* dw1 */
-	u32 port_multiplier:4;
-	u32 bist_activate:1;
-	u32 atapi:1;
-	u32 first_part_dma:1;
-	u32 reset:1;
-	u32 pir_pres:1;
-	u32 enable_tlr:1;
-	u32 verify_dtl:1;
-	u32 rsvd1:1;
-	u32 ssp_pass_through:1;
-	u32 ssp_frame_type:3;
-	u32 device_id:16;
+	u32 dw1;
 
 	/* dw2 */
-	u32 cmd_frame_len:9;
-	u32 leave_affil_open:1;
-	u32 rsvd2:5;
-	u32 max_resp_frame_len:9;
-	u32 sg_mode:1;
-	u32 first_burst:1;
-	u32 rsvd3:6;
+	u32 dw2;
 
 	/* dw3 */
 	u32 iptt:16;
@@ -546,6 +547,8 @@ int hisi_sas_lu_reset(struct domain_device *dev, u8 *lun);
 int hisi_sas_query_task(struct sas_task *task);
 void hisi_sas_port_formed(struct asd_sas_phy *sas_phy);
 void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy);
+#ifdef CONFIG_DEBUG_FS
 int hisi_sas_debugfs_init(struct hisi_hba *hisi_hba);
 void hisi_sas_debugfs_free(struct hisi_hba *hisi_hba);
+#endif
 #endif

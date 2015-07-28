@@ -51,6 +51,10 @@ static struct sas_domain_function_template hisi_sas_transport_ops = {
 	.lldd_port_deformed	= hisi_sas_port_deformed,
 };
 
+static const struct hisi_sas_dispatch *hisi_sas_chip_dispatch[] = {
+	[P660] = &hisi_sas_p660_dispatch,
+};
+
 static int hisi_sas_prep_ha_init(struct device *dev, struct Scsi_Host *shost,
 				 int n_core)
 {
@@ -278,6 +282,11 @@ static struct hisi_hba *hisi_sas_platform_dev_alloc(
 	if (of_property_read_u32(np, "core-id", &hisi_hba->id))
 		goto err_out;
 
+	if (of_property_read_u32(np->parent, "chip-id", &hisi_hba->chip_id))
+		goto err_out;
+
+	hisi_hba->dispatch = hisi_sas_chip_dispatch[hisi_hba->chip_id];
+
 	INIT_LIST_HEAD(&hisi_hba->wq_list);
 
 	((struct hisi_hba_priv *)sha->lldd_ha)->hisi_hba[hisi_hba->id] = hisi_hba;
@@ -442,8 +451,9 @@ static int hisi_sas_remove(struct platform_device *pdev)
 
 	for (i = 0; i < n_core; i++) {
 		hisi_hba = ((struct hisi_hba_priv *)sha->lldd_ha)->hisi_hba[i];
-
+#ifdef CONFIG_DEBUG_FS
 		hisi_sas_debugfs_free(hisi_hba);
+#endif
 		hisi_sas_free(hisi_hba);
 	}
 	return 0;

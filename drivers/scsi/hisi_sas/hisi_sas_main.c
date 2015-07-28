@@ -23,9 +23,6 @@
 #define DEV_IS_GONE(dev) \
 	((!dev) || (dev->dev_type == SAS_PHY_UNUSED))
 
-#define DMA_ADDR_LO(addr) ((u32)(addr & 0xffffffff))
-#define DMA_ADDR_HI(addr) ((u32)(addr >> 32))
-
 /*global registers need init*/
 #define DLVRY_QUEUE_ENABLE_REG		0x0
 #define IOST_BASE_ADDR_LO		0x8
@@ -491,137 +488,7 @@ static int hisi_sas_get_free_slot(struct hisi_hba *hisi_hba, int *q, int *s)
 static int hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 				struct hisi_sas_tei *tei)
 {
-	struct sas_task *task = tei->task;
-	struct hisi_sas_cmd_hdr *hdr = tei->hdr;
-	struct domain_device *dev = task->dev;
-	struct asd_sas_port *sas_port = dev->port;
-	struct scatterlist *sg_req, *sg_resp;
-	struct hisi_sas_device *hisi_sas_dev = dev->lldd_dev;
-	dma_addr_t req_dma_addr;
-	unsigned int req_len, resp_len;
-	int elem, rc;
-	struct hisi_sas_slot *slot = tei->slot;
-
-	/*
-	* DMA-map SMP request, response buffers
-	*/
-	/* req */
-	sg_req = &task->smp_task.smp_req; /* this is the request frame - see alloc_smp_req() */
-	elem = dma_map_sg(hisi_hba->dev, sg_req, 1, DMA_TO_DEVICE); /* map to dma address */
-	if (!elem)
-		return -ENOMEM;
-	req_len = sg_dma_len(sg_req);
-	req_dma_addr = sg_dma_address(sg_req);
-	pr_info("%s sg_req=%p elem=%d req_len=%d\n", __func__, sg_req, elem, req_len);
-
-	/* resp */
-	sg_resp = &task->smp_task.smp_resp; /* this is the response frame - see alloc_smp_resp() */
-	elem = dma_map_sg(hisi_hba->dev, sg_resp, 1, DMA_FROM_DEVICE);
-	if (!elem) {
-		rc = -ENOMEM;
-		goto err_out;
-	}
-	resp_len = sg_dma_len(sg_resp);
-	if ((req_len & 0x3) || (resp_len & 0x3)) {
-		rc = -EINVAL;
-		goto err_out;
-	}
-
-	/* create header */
-	hdr->abort_flag = 0; /* not sure */
-	/* hdr->t10_flds_pres not set in Higgs_PrepareSMP */
-	/* hdr->resp_report, ->tlr_ctrl for SSP */
-	hdr->phy_id = 1; /* this is what Higgs_PrepareSMP does */
-	hdr->force_phy = 0; /* do not force ordering in phy */
-	hdr->port = sas_port->id; /* double-check */
-	/* hdr->sata_reg_set not applicable to smp */
-	hdr->priority = 1; /* high priority */
-	hdr->mode = 1; /* ini mode */
-	hdr->cmd = 2; /* smp */
-
-	/* hdr->port_multiplier, ->bist_active, ->atapi */
-	/* ->first_party_dma, ->reset only applies to stp */
-	/* hdr->pir_pres, ->enable_tlr, ->ssp_pass_through */
-	/* ->spp_frame_type only applicable to ssp */
-
-	hdr->device_id = hisi_sas_dev->device_id; /* map itct entry */
-
-	hdr->cmd_frame_len = (req_len - 4) / 4; /* do not include the crc */
-	/* hdr->leave_affil_open only applicable to stp */
-	hdr->max_resp_frame_len = HISI_SAS_MAX_SMP_RESP_SZ/4;
-	/* hdr->sg_mode, ->first_burst not applicable to smp */
-
-	/* hdr->iptt, ->tptt not applicable to smp */
-
-	/* hdr->data_transfer_len not applicable to smp */
-
-	/* hdr->first_burst_num not applicable to smp */
-
-	/* hdr->dif_prd_table_len, ->prd_table_len not applicable to smp */
-
-	/* hdr->double_mode, ->abort_iptt not applicable to smp */
-
-	/* j00310691 do not use slot->command_table */
-	hdr->cmd_table_addr_lo = DMA_ADDR_LO(req_dma_addr);
-	hdr->cmd_table_addr_hi = DMA_ADDR_HI(req_dma_addr);
-
-	hdr->sts_buffer_addr_lo = DMA_ADDR_LO(slot->status_buffer_dma);
-	hdr->sts_buffer_addr_hi = DMA_ADDR_HI(slot->status_buffer_dma);
-
-	/* hdr->prd_table_addr_lo not applicable to smp */
-
-	/* hdr->prd_table_addr_hi not applicable to smp */
-
-	/* hdr->dif_prd_table_addr_lo not applicable to smp */
-
-	/* hdr->dif_prd_table_addr_hi not applicable to smp */
-
-	return 0;
-
-err_out:
-	/* fix error conditions j00310691 */
-	return rc;
-}
-
-static int hisi_sas_prep_prd_sge(struct hisi_hba *hisi_hba,
-				 struct hisi_sas_slot *slot,
-				 struct hisi_sas_cmd_hdr *hdr,
-				 struct scatterlist *scatter,
-				 int n_elem)
-{
-	struct scatterlist *sg;
-	int i;
-
-	if (n_elem > HISI_SAS_SGE_PAGE_CNT) {
-		dev_err(hisi_hba->dev, "%s n_elem(%d) > HISI_SAS_SGE_PAGE_CNT",
-			__func__, n_elem);
-		return -EINVAL;
-	}
-
-	slot->sge_page = dma_pool_alloc(hisi_hba->sge_page_pool, GFP_ATOMIC,
-					&slot->sge_page_dma);
-	if (!slot->sge_page)
-		return -ENOMEM;
-
-	hdr->pir_pres = 0;
-	hdr->t10_flds_pres = 0;
-
-	for_each_sg(scatter, sg, n_elem, i) {
-		struct hisi_sas_sge *entry = &slot->sge_page->sge[i];
-
-		entry->addr_lo = DMA_ADDR_LO(sg_dma_address(sg));
-		entry->addr_hi = DMA_ADDR_HI(sg_dma_address(sg));
-		entry->page_ctrl_0 = entry->page_ctrl_1 = 0;
-		entry->data_len = sg_dma_len(sg);
-		entry->data_off = 0;
-	}
-
-	hdr->prd_table_addr_lo = DMA_ADDR_LO(slot->sge_page_dma);
-	hdr->prd_table_addr_hi = DMA_ADDR_HI(slot->sge_page_dma);
-
-	hdr->data_sg_len = n_elem;
-
-	return 0;
+	return HISI_SAS_DISP->prep_smp(hisi_hba, tei);
 }
 
 /* Refer to Higgs_PrepareBaseSSP */
@@ -629,250 +496,13 @@ static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 		struct hisi_sas_tei *tei, int is_tmf,
 		struct hisi_sas_tmf_task *tmf)
 {
-	struct sas_task *task = tei->task;
-	struct hisi_sas_cmd_hdr *hdr = tei->hdr;
-	struct domain_device *dev = task->dev;
-	struct asd_sas_port *sas_port = dev->port;
-	struct sas_phy *sphy = dev->phy;
-	struct hisi_sas_device *hisi_sas_dev = dev->lldd_dev;
-	struct sas_ssp_task *ssp_task = &task->ssp_task;
-	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
-	int has_data = 0, rc;
-	struct hisi_sas_slot *slot = tei->slot;
-	u8 *buf_cmd, fburst = 0;
-
-	/* create header */
-	/* dw0 */
-	/* hdr->abort_flag set in Higgs_PrepareBaseSSP */
-	/* hdr->t10_flds_pres set in Higgs_PreparePrdSge */
-	hdr->resp_report = 1;
-	hdr->tlr_ctrl = 0x2; /* Do not enable */
-	hdr->phy_id = 1 << sphy->number; /* double-check */
-	hdr->force_phy = 0; /* do not force ordering in phy */
-	hdr->port = sas_port->id; /* double-check */
-	/* hdr->sata_reg_set not applicable to smp */
-	hdr->priority = 0; /* ordinary priority */
-	hdr->mode = 1; /* ini mode */
-	hdr->cmd = 1; /* ssp */
-
-	/* dw1 */
-	/* hdr->port_multiplier, ->bist_active, ->atapi */
-	/* ->first_party_dma, ->reset only applies to stp */
-	/* hdr->pir_pres set in Higgs_PreparePrdSge */
-	/* but see Higgs_PreparePrdSge */
-	hdr->enable_tlr = 0;
-	hdr->verify_dtl = 1;
-	hdr->ssp_pass_through = 0; /* see Higgs_DQGlobalConfig */
-	if (is_tmf) {
-		hdr->ssp_frame_type = 3;
-	} else {
-		switch (scsi_cmnd->sc_data_direction) {
-		case DMA_TO_DEVICE:
-			hdr->ssp_frame_type = 2;
-			has_data = 1;
-			break;
-		case DMA_FROM_DEVICE:
-			hdr->ssp_frame_type = 1;
-			has_data = 1;
-			break;
-		default:
-			hdr->ssp_frame_type = 0;
-		}
-	}
-
-	hdr->device_id = hisi_sas_dev->device_id; /* map itct entry */
-
-	/* dw2 */
-	hdr->cmd_frame_len = (sizeof(struct ssp_command_iu) +
-			sizeof(struct ssp_frame_hdr) + 3) / 4;
-	/* hdr->leave_affil_open only applicable to stp */
-	hdr->max_resp_frame_len = HISI_SAS_MAX_SSP_RESP_SZ/4;
-	hdr->sg_mode = 0; /* see Higgs_DQGlobalConfig */
-	hdr->first_burst = 0;
-
-	/* dw3 */
-	hdr->iptt = tei->iptt;
-	hdr->tptt = 0;
-
-	if (has_data) {
-		rc = hisi_sas_prep_prd_sge(hisi_hba, slot, hdr, task->scatter,
-					tei->n_elem);
-		if (rc)
-			return rc;
-	}
-
-	/* dw4 */
-	hdr->data_transfer_len = scsi_bufflen(scsi_cmnd);
-
-	/* dw5 */
-	/* hdr->first_burst_num not set in Higgs code */
-
-	/* dw6 */
-	/* hdr->data_sg_len set in hisi_sas_prep_prd_sge */
-	/* hdr->dif_sg_len not set in Higgs code */
-
-	/* dw7 */
-	/* hdr->double_mode is set only for DIF todo */
-	/* hdr->abort_iptt set in Higgs_PrepareAbort */
-
-	/* dw8,9 */
-	/* j00310691 reference driver sets in Higgs_SendCommandHw */
-	hdr->cmd_table_addr_lo = DMA_ADDR_LO(slot->command_table_dma);
-	hdr->cmd_table_addr_hi = DMA_ADDR_HI(slot->command_table_dma);
-
-	/* dw9,10 */
-	/* j00310691 reference driver sets in Higgs_SendCommandHw */
-	hdr->sts_buffer_addr_lo = DMA_ADDR_LO(slot->status_buffer_dma);
-	hdr->sts_buffer_addr_hi = DMA_ADDR_HI(slot->status_buffer_dma);
-
-	/* dw11,12 */
-	/* hdr->prd_table_addr_lo, _hi set in hisi_sas_prep_prd_sge */
-
-	/* hdr->dif_prd_table_addr_lo, _hi not set in Higgs code */
-	buf_cmd = (u8 *)slot->command_table + sizeof(struct ssp_frame_hdr);
-	/* fill in IU for TASK and Command Frame */
-	if (task->ssp_task.enable_first_burst) {
-		fburst = (1 << 7);
-		pr_warn("%s fburst enabled: edit hdr?\n", __func__);
-	}
-
-	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
-	if (!is_tmf) {
-		buf_cmd[9] = fburst | task->ssp_task.task_attr |
-				(task->ssp_task.task_prio << 3);
-		memcpy(buf_cmd + 12, task->ssp_task.cmd->cmnd,
-				task->ssp_task.cmd->cmd_len);
-	} else {
-		buf_cmd[10] = tmf->tmf;
-		switch (tmf->tmf) {
-		case TMF_ABORT_TASK:
-		case TMF_QUERY_TASK:
-			buf_cmd[12] =
-				(tmf->tag_of_task_to_be_managed >> 8) & 0xff;
-			buf_cmd[13] =
-				tmf->tag_of_task_to_be_managed & 0xff;
-			break;
-		default:
-			break;
-		}
-	}
-
-	return 0;
+	return HISI_SAS_DISP->prep_ssp(hisi_hba, tei, is_tmf, tmf);
 }
 
 static int hisi_sas_task_prep_ata(struct hisi_hba *hisi_hba,
 		struct hisi_sas_tei *tei)
 {
-	struct sas_task *task = tei->task;
-	struct domain_device *dev = task->dev;
-	struct hisi_sas_device *hisi_sas_dev = dev->lldd_dev;
-	struct hisi_sas_cmd_hdr *hdr = tei->hdr;
-	struct asd_sas_port *sas_port = dev->port;
-	struct hisi_sas_slot *slot = tei->slot;
-	u8 *buf_cmd;
-	int has_data = 0;
-	int rc = 0;
-
-	/* create header */
-	/* dw0 */
-	/* hdr->abort_flag set in Higgs_PrepareBaseSSP */
-	/* hdr->t10_flds_pres set in Higgs_PreparePrdSge */
-	hdr->resp_report = 0;
-	/* hdr->tlr_ctrl not applicable to STP */
-	hdr->phy_id = 0; /* don't care - see Higgs_PrepareBaseSTP */
-	hdr->force_phy = 0; /* do not force ordering in phy */
-	hdr->port = sas_port->id; /* double-check */
-	/* hdr->sata_reg_set - does not exist for hi1610 j00310691 fixme */
-	/* hdr->priority not set for stp */
-	hdr->mode = 1; /* ini mode - see Higgs_DQGlobalConfig */
-	if (dev->dev_type == SAS_SATA_DEV)
-		hdr->cmd = 4; /* sata - j00310691 unsure*/
-	else
-		hdr->cmd = 3; /* stp */
-
-	/* dw1 */
-	/* hdr->ssp_pass_through not applicable to stp */
-	switch (task->data_dir) {
-	case DMA_TO_DEVICE:
-		/* hdr->dir = 2; */
-		has_data = 1;
-	case DMA_FROM_DEVICE:
-		/* hdr->dir = 1; */
-		has_data = 1;
-	default:
-		pr_warn("%s unhandled direction, task->data_dir=%d\n", __func__, task->data_dir);
-		/* hdr->dir = 0; */
-	}
-
-	/* j00310691 for IT code SOFT RESET MACRO is 0, but I am unsure if this is a valid command */
-	if (0 == task->ata_task.fis.command) {
-		pr_info("%s todo for reset\n", __func__);
-	}
-	/* hdr->enable_tlr, ->pir_pres not applicable to stp */
-	hdr->verify_dtl = 0; /* j00310691 not set in IT code */
-	hdr->ssp_frame_type = get_ata_protocol(task->ata_task.fis.command,
-				task->data_dir);
-
-	hdr->device_id = hisi_sas_dev->device_id; /* map itct entry */
-
-	/* dw2 */
-	hdr->cmd_frame_len = (sizeof(struct hisi_sas_command_table_stp) + 3) / 4;
-	hdr->leave_affil_open = 0; /* j00310691 unset in IT code */
-	/* hdr->ncq_tag todo j00310691 */
-	hdr->max_resp_frame_len = HISI_SAS_MAX_STP_RESP_SZ/4;
-	hdr->sg_mode = 0; /* fixme as it should be 2 (which is sge) for hi1610 */
-	/* hdr->first_burst not applicable to stp */
-
-	/* dw3 */
-	hdr->iptt = tei->iptt;
-	hdr->tptt = 0;
-
-	if (has_data) {
-		rc = hisi_sas_prep_prd_sge(hisi_hba, slot, hdr, task->scatter,
-					tei->n_elem);
-		if (rc)
-			return rc;
-	}
-
-	/* dw4 */
-	hdr->data_transfer_len = task->total_xfer_len;
-
-	/* dw5 */
-	/* hdr->first_burst_num not set in Higgs code */
-
-	/* dw6 */
-	/* hdr->data_sg_len set in hisi_sas_prep_prd_sge */
-	/* hdr->dif_sg_len not set in Higgs code */
-
-	/* dw7 */
-	/* hdr->double_mode not set in Higgs code */
-	/* hdr->abort_iptt set in Higgs_PrepareAbort */
-
-	/* dw8,9 */
-	/* j00310691 reference driver sets in Higgs_SendCommandHw */
-	hdr->cmd_table_addr_lo = DMA_ADDR_LO(slot->command_table_dma);
-	hdr->cmd_table_addr_hi = DMA_ADDR_HI(slot->command_table_dma);
-
-	/* dw9,10 */
-	/* j00310691 reference driver sets in Higgs_SendCommandHw */
-	hdr->sts_buffer_addr_lo = DMA_ADDR_LO(slot->status_buffer_dma);
-	hdr->sts_buffer_addr_hi = DMA_ADDR_HI(slot->status_buffer_dma);
-
-	/* dw11,12 */
-	/* hdr->prd_table_addr_lo, _hi set in hisi_sas_prep_prd_sge */
-
-	/* hdr->dif_prd_table_addr_lo, _hi not set in Higgs code */
-	buf_cmd = (u8 *)slot->command_table;
-
-	if (likely(!task->ata_task.device_control_reg_update))
-		task->ata_task.fis.flags |= 0x80; /* C=1: update ATA cmd reg */
-	/* fill in command FIS and ATAPI CDB */
-	memcpy(buf_cmd, &task->ata_task.fis, sizeof(struct host_to_dev_fis));
-	if (dev->sata_dev.class == ATA_DEV_ATAPI)
-		memcpy(buf_cmd + 0x20,
-			task->ata_task.atapi_packet, ATAPI_CDB_LEN);
-
-	return 0;
+	return HISI_SAS_DISP->prep_stp(hisi_hba, tei);
 }
 
 static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
@@ -2631,6 +2261,7 @@ int hisi_sas_start_phy_layer(struct hisi_hba *hisi_hba)
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
 /*****************************************************
 					for debug fs
 *****************************************************/
@@ -3977,3 +3608,5 @@ err:
 	debugfs_remove_recursive(dbg_dir);
 	return -ENOMEM;
 }
+#endif /* CONFIG_DEBUG_FS */
+
