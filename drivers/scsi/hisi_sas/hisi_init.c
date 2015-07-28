@@ -53,6 +53,7 @@ static struct sas_domain_function_template hisi_sas_transport_ops = {
 
 static const struct hisi_sas_dispatch *hisi_sas_chip_dispatch[] = {
 	[P660] = &hisi_sas_p660_dispatch,
+	[HI1610] = &hisi_sas_hi1610_dispatch,
 };
 
 static int hisi_sas_prep_ha_init(struct device *dev, struct Scsi_Host *shost,

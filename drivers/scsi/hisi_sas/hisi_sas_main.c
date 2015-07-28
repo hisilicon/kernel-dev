@@ -250,64 +250,6 @@ void hisi_sas_iptt_init(struct hisi_hba *hisi_hba)
 
 	for (i = 0; i < hisi_hba->iptt_count; ++i)
 		hisi_sas_iptt_clear(hisi_hba, i);
-
-}
-
-
-#define SATA_PROTOCOL_NONDATA		0x1
-#define SATA_PROTOCOL_PIO		0x2
-#define SATA_PROTOCOL_DMA		0x4
-#define SATA_PROTOCOL_FPDMA		0x8
-#define SATA_PROTOCOL_ATAPI		0x10
-
-static u8 get_ata_protocol(u8 cmd, int direction)
-{
-	switch (cmd) {
-	case ATA_CMD_FPDMA_WRITE:
-	case ATA_CMD_FPDMA_READ:
-	return SATA_PROTOCOL_FPDMA;
-
-	case ATA_CMD_ID_ATA:
-	case ATA_CMD_PMP_READ:
-	case ATA_CMD_READ_LOG_EXT:
-	case ATA_CMD_PIO_READ:
-	case ATA_CMD_PIO_READ_EXT:
-	case ATA_CMD_PMP_WRITE:
-	case ATA_CMD_WRITE_LOG_EXT:
-	case ATA_CMD_PIO_WRITE:
-	case ATA_CMD_PIO_WRITE_EXT:
-	return SATA_PROTOCOL_PIO;
-
-	case ATA_CMD_READ:
-	case ATA_CMD_READ_EXT:
-	case /* write dma queued */ 0xc7: /* j00310691 fixme */
-	case /* write dma queued ext */ 0x26: /* j00310691 fixme */
-	case ATA_CMD_READ_LOG_DMA_EXT:
-	case ATA_CMD_WRITE:
-	case ATA_CMD_WRITE_EXT:
-	case /* write dma queued ext */ 0xcc: /* j00310691 fixme */
-	case ATA_CMD_WRITE_QUEUED:
-	case ATA_CMD_WRITE_LOG_DMA_EXT:
-	return SATA_PROTOCOL_DMA;
-
-	case 0x92: /* j00310691 fixme */
-	case ATA_CMD_DEV_RESET:
-	case ATA_CMD_CHK_POWER:
-	case ATA_CMD_FLUSH:
-	case ATA_CMD_FLUSH_EXT:
-	case ATA_CMD_VERIFY:
-	case ATA_CMD_VERIFY_EXT:
-	case ATA_CMD_SET_FEATURES:
-	case ATA_CMD_STANDBY:
-	case ATA_CMD_STANDBYNOW1:
-	return SATA_PROTOCOL_NONDATA;
-
-	default:
-		if (direction == DMA_NONE)
-			return SATA_PROTOCOL_NONDATA;
-		return SATA_PROTOCOL_PIO;
-	}
-
 }
 
 int hisi_sas_get_ncq_tag(struct sas_task *task, u32 *hdr_tag)
