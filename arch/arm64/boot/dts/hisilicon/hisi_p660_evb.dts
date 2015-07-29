@@ -1,0 +1,981 @@
+/dts-v1/;
+
+/memreserve/	0x0000000000000000 0x0000000000010000;
+/ {
+	#address-cells = <0x2>;
+	#size-cells = <0x2>;
+	compatible = "hisilicon,hip05-d02", "hisilicon,hisi-pv660";
+	interrupt-parent = <0x1>;
+	model = "Hisilicon PhosphorV660 Development Board";
+
+	aliases {
+		serial0 = "/peripherals/uart@60300000";
+		i2c0 = "/peripherals/i2c@a00e0000";
+		i2c1 = "/peripherals/i2c@a00f0000";
+		i2c2 = "/peripherals/i2c@a0100000";
+		i2c3 = "/peripherals/i2c@60320000";
+		i2c4 = "/peripherals/i2c@60330000";
+	};
+
+	cpus {
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+
+		cpu@20000 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20000>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20001 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20001>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20002 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20002>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20003 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20003>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20100 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20100>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20101 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20101>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20102 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20102>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20103 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20103>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20200 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20200>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20201 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20201>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20202 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20202>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20203 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20203>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20300 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20300>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20301 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20301>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20302 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20302>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+
+		cpu@20303 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x20303>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+		};
+	};
+
+	interrupt-controller@6d000000 {
+		compatible = "hisilicon,gic-v3";
+		#interrupt-cells = <0x3>;
+		#address-cells = <0x2>;
+		#size-cells = <0x2>;
+		ranges;
+		interrupt-controller;
+		#redistributor-regions = <0x1>;
+		redistributor-stride = <0x0 0x30000>;
+		reg = <0x0 0x6d000000 0x0 0x10000 0x0 0x6d100000 0x0 0x300000 0x0 0xfe000000 0x0 0x10000 0x0 0xfe010000 0x0 0x10000 0x0 0xfe020000 0x0 0x10000>;
+		linux,phandle = <0x1>;
+		phandle = <0x1>;
+		interrupts = <0x1 0x9 0xff04>;
+
+		interrupt-controller@6c000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0x6c000000 0x0 0x1000000>;
+			linux,phandle = <0xe>;
+			phandle = <0xe>;
+		};
+
+		interrupt-controller@c6000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0xc6000000 0x0 0x1000000>;
+			linux,phandle = <0xf>;
+			phandle = <0xf>;
+		};
+
+		interrupt-controller@a3000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0xa3000000 0x0 0x1000000>;
+			linux,phandle = <0x10>;
+			phandle = <0x10>;
+		};
+
+		interrupt-controller@b7000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0xb7000000 0x0 0x1000000>;
+			linux,phandle = <0x11>;
+			phandle = <0x11>;
+		};
+	};
+
+	smmu_pc@60040000 {
+		compatible = "hisilicon,smmu-v1";
+		reg = <0x0 0x60040000 0x0 0x1000>;
+		#global-interrupts = <0x1>;
+		interrupts = <0x0 0x13c 0x4 0x0 0x13c 0x4>;
+		smmu-cb-memtype = <0x0 0x1>;
+		smmu-bypass-vmid = <0xff>;
+	};
+
+	smmu_dsa@c0040000 {
+		compatible = "hisilicon,smmu-v1";
+		interrupt-parent = <0x2>;
+		reg = <0x0 0xc0040000 0x0 0x1000>;
+		#global-interrupts = <0x1>;
+		interrupts = <0x45 0x4 0x45 0x4>;
+		smmu-cb-memtype = <0x0 0x1>;
+		smmu-bypass-vmid = <0xff>;
+	};
+
+	smmu_m3@a0040000 {
+		compatible = "hisilicon,smmu-v1";
+		interrupt-parent = <0x2>;
+		reg = <0x0 0xa0040000 0x0 0x1000>;
+		#global-interrupts = <0x1>;
+		interrupts = <0x41 0x1 0x41 0x1>;
+		smmu-cb-memtype = <0x0 0x1>;
+		smmu-bypass-vmid = <0xff>;
+	};
+
+	smmu_pcie@b0040000 {
+		compatible = "hisilicon,smmu-v1";
+		interrupt-parent = <0x2>;
+		reg = <0x0 0xb0040000 0x0 0x1000>;
+		#global-interrupts = <0x1>;
+		interrupts = <0x47 0x1 0x47 0x1>;
+		smmu-cb-memtype = <0x0 0x1 0x1 0x2>;
+		smmu-bypass-vmid = <0xff>;
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <0x1 0xd 0x4 0x1 0xe 0x4 0x1 0xb 0x4 0x1 0xa 0x4>;
+	};
+
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <0x1 0x7 0x4>;
+	};
+
+	peripherals {
+		compatible = "simple-bus";
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		ranges = <0x0 0x0 0x0 0xffffffff>;
+
+		peri_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0x0>;
+			clock-frequency = <0xbebc200>;
+			linux,phandle = <0x12>;
+			phandle = <0x12>;
+		};
+
+		m3_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0x0>;
+			clock-frequency = <0xa6e49c0>;
+			linux,phandle = <0x1a>;
+			phandle = <0x1a>;
+		};
+
+		interrupt-controller@6c030000 {
+			compatible = "hisilicon,mbi-gen";
+			msi-parent = <0xe>;
+			interrupt-controller;
+			#interrupt-cells = <0x2>;
+			reg = <0x6c030000 0x10000>;
+			linux,phandle = <0x1b>;
+			phandle = <0x1b>;
+		};
+
+		mbigen_dsa: interrupt-controller@c6030000 {
+			compatible = "hisilicon,mbi-gen";
+			msi-parent = <0xf>;
+			interrupt-controller;
+			#interrupt-cells = <0x2>;
+			reg = <0xc6030000 0x10000>;
+			linux,phandle = <0x3>;
+			phandle = <0x3>;
+		};
+
+		interrupt-controller@a3030000 {
+			compatible = "hisilicon,mbi-gen";
+			msi-parent = <0x10>;
+			interrupt-controller;
+			#interrupt-cells = <0x2>;
+			reg = <0xa3030000 0x10000>;
+			linux,phandle = <0x2>;
+			phandle = <0x2>;
+		};
+
+		mbigen_pcie: interrupt-controller@b7030000 {
+			compatible = "hisilicon,mbi-gen";
+			msi-parent = <0x11>;
+			interrupt-controller;
+			#interrupt-cells = <0x2>;
+			reg = <0xb7030000 0x10000>;
+			linux,phandle = <0x19>;
+			phandle = <0x19>;
+		};
+
+		uart@60300000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x60300000 0x10000>;
+			interrupts = <0x0 0x13d 0x4>;
+			clocks = <0x12>;
+			clock-names = "apb_pclk";
+			reg-shift = <0x2>;
+		};
+
+		
+	hisi_sas: sas {
+		compatible = "hisilicon,p660-sas";
+		core-count = <2>;
+		status = "okay";
+		chip-id = <1>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		dma-coherent;
+		ranges;
+
+		core0: sas@0xc1000000 {
+			compatible = "hisilicon,p660-sas-core";
+			core-id = <0>;
+			reg = <0x0 0xc1000000 0x0 0x10000>;
+			queue-count = <32>;
+			phy-count = <8>;
+			interrupt-parent = <&mbigen_dsa>;
+			interrupts = <256 4>, <257 4>,<258 4>,<259 4>,<260 4>,<261 4>,<262 4>,<263 4>,<264 4>,<265 4>,/* phy irq(0~79) */
+					<266 4>, <267 4>,<268 4>,<269 4>,<270 4>,<271 4>,<272 4>,<273 4>,<274 4>,<275 4>,/* phy irq(0~79) */
+					<276 4>, <277 4>,<278 4>,<279 4>,<280 4>,<281 4>,<282 4>,<283 4>,<284 4>,<285 4>,/* phy irq(0~79) */
+					<286 4>, <287 4>,<288 4>,<289 4>,<290 4>,<291 4>,<292 4>,<293 4>,<294 4>,<295 4>,/* phy irq(0~79) */
+					<296 4>, <297 4>,<298 4>,<299 4>,<300 4>,<301 4>,<302 4>,<303 4>,<304 4>,<305 4>,/* phy irq(0~79) */
+					<306 4>, <307 4>,<308 4>,<309 4>,<310 4>,<311 4>,<312 4>,<313 4>,<314 4>,<315 4>,/* phy irq(0~79) */
+					<316 4>, <317 4>,<318 4>,<319 4>,<320 4>,<321 4>,<322 4>,<323 4>,<324 4>,<325 4>,/* phy irq(0~79) */
+					<326 4>, <327 4>,<328 4>,<329 4>,<330 4>,<331 4>,<332 4>,<333 4>,<334 4>,<335 4>,/* phy irq(0~79) */
+					<336 1>, <337 1>,<338 1>,<339 1>,<340 1>,<341 1>,<342 1>,<343 1>,/* cq irq (80~111) */
+					<344 1>, <345 1>,<346 1>,<347 1>,<348 1>,<349 1>,<350 1>,<351 1>,/* cq irq (80~111) */
+					<352 1>, <353 1>,<354 1>,<355 1>,<356 1>,<357 1>,<358 1>,<359 1>,/* cq irq (80~111) */
+					<360 1>, <361 1>,<362 1>,<363 1>,<364 1>,<365 1>,<366 1>,<367 1>,/* cq irq (80~111) */
+					<376 4>, /* chip fatal error irq(120) */
+					<381 4>; /* chip fatal error irq(125) */
+			status = "okay";
+		};
+
+		core1: sas@0xb1000000 {
+			compatible = "hisilicon,p660-sas-core";
+			core-id = <1>;
+			reg = <0x0 0xb1000000 0x0 0x100000>;
+			queue-count = <32>;
+			phy-count = <8>;
+			interrupt-parent = <&mbigen_pcie>;
+			interrupts = <256 4>, <257 4>,<258 4>,<259 4>,<260 4>,<261 4>,<262 4>,<263 4>,<264 4>,<265 4>,/* phy irq(0~79) */
+					<266 4>, <267 4>,<268 4>,<269 4>,<270 4>,<271 4>,<272 4>,<273 4>,<274 4>,<275 4>,/* phy irq(0~79) */
+					<276 4>, <277 4>,<278 4>,<279 4>,<280 4>,<281 4>,<282 4>,<283 4>,<284 4>,<285 4>,/* phy irq(0~79) */
+					<286 4>, <287 4>,<288 4>,<289 4>,<290 4>,<291 4>,<292 4>,<293 4>,<294 4>,<295 4>,/* phy irq(0~79) */
+					<296 4>, <297 4>,<298 4>,<299 4>,<300 4>,<301 4>,<302 4>,<303 4>,<304 4>,<305 4>,/* phy irq(0~79) */
+					<306 4>, <307 4>,<308 4>,<309 4>,<310 4>,<311 4>,<312 4>,<313 4>,<314 4>,<315 4>,/* phy irq(0~79) */
+					<316 4>, <317 4>,<318 4>,<319 4>,<320 4>,<321 4>,<322 4>,<323 4>,<324 4>,<325 4>,/* phy irq(0~79) */
+					<326 4>, <327 4>,<328 4>,<329 4>,<330 4>,<331 4>,<332 4>,<333 4>,<334 4>,<335 4>,/* phy irq(0~79) */
+					<336 1>, <337 1>,<338 1>,<339 1>,<340 1>,<341 1>,<342 1>,<343 1>,/* cq irq (80~111) */
+					<344 1>, <345 1>,<346 1>,<347 1>,<348 1>,<349 1>,<350 1>,<351 1>,/* cq irq (80~111) */
+					<352 1>, <353 1>,<354 1>,<355 1>,<356 1>,<357 1>,<358 1>,<359 1>,/* cq irq (80~111) */
+					<360 1>, <361 1>,<362 1>,<363 1>,<364 1>,<365 1>,<366 1>,<367 1>,/* cq irq (80~111) */
+					<376 4>, /* chip fatal error irq(120) */
+					<381 4>; /* chip fatal error irq(125) */
+			status = "okay";
+		};
+	};
+
+
+		sysctrl {
+			compatible = "hisilicon,sysctrl";
+			reg = <0x78000000 0x100>;
+			reboot-offset = <0x2c>;
+		};
+
+		ehci@a1000000 {
+			compatible = "generic-ehci";
+			interrupt-parent = <0x2>;
+			reg = <0xa1000000 0x10000>;
+			interrupts = <0x14 0x4>;
+			dma-coherent;
+		};
+
+		ohci@a1010000 {
+			compatible = "generic-ohci";
+			interrupt-parent = <0x2>;
+			reg = <0xa1010000 0x10000>;
+			interrupts = <0x13 0x4>;
+			dma-coherent;
+		};
+
+
+		i2c@a00e0000 {
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+			compatible = "snps,designware-i2c";
+			interrupt-parent = <0x2>;
+			reg = <0xa00e0000 0x10000>;
+			interrupts = <0x8 0x1>;
+			clocks = <0x1a>;
+			clock-frequency = <0x61a80>;
+		};
+
+		i2c@a00f0000 {
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+			compatible = "snps,designware-i2c";
+			interrupt-parent = <0x2>;
+			reg = <0xa00f0000 0x10000>;
+			interrupts = <0x9 0x1>;
+			clocks = <0x1a>;
+			clock-frequency = <0x61a80>;
+
+			ds3231@68 {
+				compatible = "maxim,ds3231";
+				reg = <0x68>;
+			};
+
+			at24c128@52 {
+				compatible = "microchip,24c128";
+				reg = <0x52>;
+				pagesize = <0x40>;
+			};
+
+			lm75@48 {
+				compatible = "adi,adt75";
+				reg = <0x48>;
+			};
+		};
+
+		i2c@a0100000 {
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+			compatible = "snps,designware-i2c";
+			interrupt-parent = <0x2>;
+			reg = <0xa0100000 0x10000>;
+			interrupts = <0xa 0x1>;
+			clocks = <0x1a>;
+			clock-frequency = <0x61a80>;
+		};
+
+		i2c@60320000 {
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+			compatible = "snps,designware-i2c";
+			interrupt-parent = <0x1b>;
+			reg = <0x60320000 0x10000>;
+			interrupts = <0x9e 0x1>;
+			clocks = <0x12>;
+			clock-frequency = <0x61a80>;
+		};
+
+		i2c@60330000 {
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+			compatible = "snps,designware-i2c";
+			interrupt-parent = <0x1b>;
+			reg = <0x60330000 0x10000>;
+			interrupts = <0x9f 0x1>;
+			clocks = <0x12>;
+			clock-frequency = <0x61a80>;
+		};
+	};
+
+	pcie@0xb0070000 {
+		compatible = "hisilicon,hip05-pcie", "snps,dw-pcie";
+		reg = <0x0 0xb0000000 0x0 0x10000 0x0 0xb0070000 0x0 0x10000 0x0 0xb00c0000 0x0 0x10000 0x0 0xb3000000 0x0 0x1000>;
+		reg-names = "subctrl", "rc_dbi", "pcs", "config";
+		bus-range = <0x0 0xf>;
+		msi-parent = <0x11>;
+		#address-cells = <0x3>;
+		#size-cells = <0x2>;
+		device_type = "pci";
+		ranges = <0x82000000 0x0 0xb3100000 0x0 0xb3100000 0x0 0xf00000>;
+		num-lanes = <0x4>;
+		port-id = <0x0>;
+		status = "disabled";
+	};
+
+	pcie@0xb0080000 {
+		compatible = "hisilicon,hip05-pcie", "snps,dw-pcie";
+		reg = <0x0 0xb0000000 0x0 0x10000 0x0 0xb0080000 0x0 0x10000 0x0 0xb00d0000 0x0 0x10000 0x0 0xb4000000 0x0 0x1000>;
+		reg-names = "subctrl", "rc_dbi", "pcs", "config";
+		bus-range = <0x0 0xf>;
+		msi-parent = <0x11>;
+		#address-cells = <0x3>;
+		#size-cells = <0x2>;
+		device_type = "pci";
+		dma-coherent;
+		ranges = <0x82000000 0x0 0xb4100000 0x0 0xb4100000 0x0 0xf00000>;
+		num-lanes = <0x4>;
+		port-id = <0x1>;
+		status = "ok";
+	};
+
+	pcie@0xb0090000 {
+		compatible = "hisilicon,hip05-pcie", "snps,dw-pcie";
+		reg = <0x0 0xb0000000 0x0 0x10000 0x0 0xb0090000 0x0 0x10000 0x0 0xb00e0000 0x0 0x10000 0x0 0xb5000000 0x0 0x1000>;
+		reg-names = "subctrl", "rc_dbi", "pcs", "config";
+		bus-range = <0x0 0xf>;
+		msi-parent = <0x11>;
+		#address-cells = <0x3>;
+		#size-cells = <0x2>;
+		device_type = "pci";
+		ranges = <0x82000000 0x0 0xb5100000 0x0 0xb5100000 0x0 0xf00000>;
+		num-lanes = <0x4>;
+		port-id = <0x2>;
+		status = "disabled";
+	};
+
+	pcie@0xb00a0000 {
+		compatible = "hisilicon,hip05-pcie", "snps,dw-pcie";
+		reg = <0x0 0xb0000000 0x0 0x10000 0x0 0xb00a0000 0x0 0x10000 0x0 0xb00f0000 0x0 0x10000 0x0 0xb6000000 0x0 0x1000>;
+		reg-names = "subctrl", "rc_dbi", "pcs", "config";
+		bus-range = <0x0 0xf>;
+		msi-parent = <0x11>;
+		#address-cells = <0x3>;
+		#size-cells = <0x2>;
+		device_type = "pci";
+		ranges = <0x82000000 0x0 0xb6100000 0x0 0xb6100000 0x0 0xf00000>;
+		num-lanes = <0x4>;
+		port-id = <0x3>;
+		status = "disabled";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x3c000000 0x2 0x40000000 0x1 0xc0000000>;
+	};
+
+	soc@000000000 {
+		#address-cells = <0x2>;
+		#size-cells = <0x2>;
+		device_type = "soc";
+		compatible = "simple-bus";
+		ranges = <0x0 0x0 0x0 0x0 0x1 0x0>;
+		chip-id = <0x0>;
+
+		mdio@603c0000 {
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+			compatible = "hisilicon,mdio";
+			reg = <0x0 0x603c0000 0x0 0x10000>;
+			irq-num = <0x24a7>;
+
+			ethernet-phy@0 {
+				reg = <0x0>;
+				device_type = "ethernet-phy";
+				linux,phandle = <0x1e>;
+				phandle = <0x1e>;
+			};
+
+			ethernet-phy@1 {
+				reg = <0x1>;
+				device_type = "ethernet-phy";
+				linux,phandle = <0x22>;
+				phandle = <0x22>;
+			};
+		};
+
+		dsa@c7000000 {
+			compatible = "hisilicon,dsa";
+			reg = <0x0 0xc7000000 0x0 0x40000>;
+			interrupt-parent = <0x3>;
+			interrupts = <0x83 0x4 0x84 0x4 0x85 0x4 0x86 0x4 0x87 0x4 0x88 0x4 0x89 0x4 0x8a 0x4 0x8b 0x4 0x8c 0x4 0x8d 0x4 0x8e 0x4 0x8f 0x4 0x90 0x4 0x91 0x4 0x92 0x4 0x93 0x4 0x94 0x4>;
+			irq-num = <0x3303>;
+			dsa-mode = <0xc>;
+			cdev-no = <0xc8>;
+			m3-enable = <0x0>;
+		};
+
+		ethernet-mac@c7040000 {
+			mac-index = <0x0>;
+			compatible = "hisilicon,mac-multi";
+			reg = <0x0 0xc7040000 0x0 0x4000 0x0 0xc7020000 0x0 0x4000 0x0 0xc0000000 0x0 0x10000 0x0 0xc2200000 0x0 0x100000>;
+			irq-num = <0x3315>;
+			phy-connection-type = "xgmii";
+			fixed-link = <0x10 0x1 0x2710 0x0 0x1>;
+			linux,phandle = <0x4>;
+			phandle = <0x4>;
+		};
+
+		ethernet-mac@c7044000 {
+			mac-index = <0x1>;
+			compatible = "hisilicon,mac-multi";
+			reg = <0x0 0xc7044000 0x0 0x4000 0x0 0xc7024000 0x0 0x4000 0x0 0xc0000000 0x0 0x10000 0x0 0xc2200000 0x0 0x100000>;
+			irq-num = <0x3316>;
+			phy-connection-type = "xgmii";
+			fixed-link = <0x11 0x1 0x2710 0x0 0x1>;
+			linux,phandle = <0x7>;
+			phandle = <0x7>;
+		};
+
+		ethernet-mac@c7048000 {
+			mac-index = <0x2>;
+			compatible = "hisilicon,mac-multi";
+			reg = <0x0 0xc7048000 0x0 0x4000 0x0 0xc7028000 0x0 0x4000 0x0 0xc0000000 0x0 0x10000 0x0 0xc2200000 0x0 0x100000>;
+			irq-num = <0x3317>;
+			phy-connection-type = "xgmii";
+			fixed-link = <0x12 0x1 0x2710 0x0 0x1>;
+			linux,phandle = <0xa>;
+			phandle = <0xa>;
+		};
+
+		ethernet-mac@c704c000 {
+			mac-index = <0x3>;
+			compatible = "hisilicon,mac-multi";
+			reg = <0x0 0xc704c000 0x0 0x4000 0x0 0xc702c000 0x0 0x4000 0x0 0xc0000000 0x0 0x10000 0x0 0xc2200000 0x0 0x100000>;
+			irq-num = <0x3318>;
+			phy-connection-type = "xgmii";
+			fixed-link = <0x13 0x1 0x2710 0x0 0x1>;
+			linux,phandle = <0xd>;
+			phandle = <0xd>;
+		};
+
+		ethernet-mac@c7050000 {
+			mac-index = <0x4>;
+			compatible = "hisilicon,mac-multi";
+			reg = <0x0 0xc7050000 0x0 0x4000 0x0 0xc7030000 0x0 0x4000 0x0 0xc0000000 0x0 0x10000 0x0 0xc2200000 0x0 0x100000>;
+			irq-num = <0x3319>;
+			phy-connection-type = "xgmii";
+			fixed-link = <0x14 0x1 0x2710 0x0 0x1>;
+			linux,phandle = <0x15>;
+			phandle = <0x15>;
+		};
+
+		ethernet-mac@c7054000 {
+			mac-index = <0x5>;
+			compatible = "hisilicon,mac-multi";
+			reg = <0x0 0xc7054000 0x0 0x4000 0x0 0xc7034000 0x0 0x4000 0x0 0xc0000000 0x0 0x10000 0x0 0xc2200000 0x0 0x100000>;
+			irq-num = <0x331a>;
+			phy-connection-type = "xgmii";
+			fixed-link = <0x15 0x1 0x2710 0x0 0x1>;
+			linux,phandle = <0x18>;
+			phandle = <0x18>;
+		};
+
+		ppe@c5070000 {
+			#address-cells = <0x2>;
+			#size-cells = <0x1>;
+			compatible = "hisilicon,ppe-multi";
+			ranges = <0x0 0x0 0x0 0x0 0xffffffff>;
+			reg = <0x0 0xc5070000 0x0 0x10000>;
+			ppe-common-index = <0x0>;
+
+			ppe-group@c5000000 {
+				compatible = "hisilicon,ppe-group";
+				reg = <0x0 0xc5000000 0x10000>;
+				irq-num = <0x3280>;
+				ppe-num = <0x1>;
+				linux,phandle = <0x5>;
+				phandle = <0x5>;
+			};
+
+			ppe-group@c5010000 {
+				compatible = "hisilicon,ppe-group";
+				reg = <0x0 0xc5010000 0x10000>;
+				irq-num = <0x3281>;
+				ppe-num = <0x1>;
+				linux,phandle = <0x8>;
+				phandle = <0x8>;
+			};
+
+			ppe-group@c5020000 {
+				compatible = "hisilicon,ppe-group";
+				reg = <0x0 0xc5020000 0x10000>;
+				irq-num = <0x3282>;
+				ppe-num = <0x1>;
+				linux,phandle = <0xb>;
+				phandle = <0xb>;
+			};
+
+			ppe-group@c5030000 {
+				compatible = "hisilicon,ppe-group";
+				reg = <0x0 0xc5030000 0x10000>;
+				irq-num = <0x3283>;
+				ppe-num = <0x1>;
+				linux,phandle = <0x13>;
+				phandle = <0x13>;
+			};
+
+			ppe-group@c5040000 {
+				compatible = "hisilicon,ppe-group";
+				reg = <0x0 0xc5040000 0x10000>;
+				irq-num = <0x3284>;
+				ppe-num = <0x1>;
+				linux,phandle = <0x16>;
+				phandle = <0x16>;
+			};
+
+			ppe-group@c5050000 {
+				compatible = "hisilicon,ppe-group";
+				reg = <0x0 0xc5050000 0x10000>;
+				irq-num = <0x3285>;
+				ppe-num = <0x1>;
+				linux,phandle = <0x1c>;
+				phandle = <0x1c>;
+			};
+		};
+
+		rcb@c5080000 {
+			#address-cells = <0x2>;
+			#size-cells = <0x1>;
+			compatible = "hisilicon,rcb", "hisilicon,rcb-multi";
+			ranges = <0x0 0x0 0x0 0x0 0xffffffff>;
+			reg = <0x0 0xc5080000 0x0 0x10000>;
+			irq-num = <0x3286>;
+
+			rcb-group@c5090000 {
+				compatible = "hisilicon,rcb-group";
+				reg = <0x0 0xc5090000 0x100000>;
+				interrupt-parent = <0x3>;
+				interrupts = <0x180 0x1 0x181 0x1 0x182 0x1 0x183 0x1 0x184 0x1 0x185 0x1 0x186 0x1 0x187 0x1 0x188 0x1 0x189 0x1 0x18a 0x1 0x18b 0x1 0x18c 0x1 0x18d 0x1 0x18e 0x1 0x18f 0x1 0x190 0x1 0x191 0x1 0x192 0x1 0x193 0x1 0x194 0x1 0x195 0x1 0x196 0x1 0x197 0x1 0x198 0x1 0x199 0x1 0x19a 0x1 0x19b 0x1 0x19c 0x1 0x19d 0x1 0x19e 0x1 0x19f 0x1>;
+				irq-num = <0x3400>;
+				buf-size = <0x800>;
+				desc-num = <0x400>;
+				linux,phandle = <0x6>;
+				phandle = <0x6>;
+			};
+
+			rcb-group@c5190000 {
+				compatible = "hisilicon,rcb-group";
+				reg = <0x0 0xc5190000 0x100000>;
+				interrupt-parent = <0x3>;
+				interrupts = <0x1a0 0x1 0x1a1 0x1 0x1a2 0x1 0x1a3 0x1 0x1a4 0x1 0x1a5 0x1 0x1a6 0x1 0x1a7 0x1 0x1a8 0x1 0x1a9 0x1 0x1aa 0x1 0x1ab 0x1 0x1ac 0x1 0x1ad 0x1 0x1ae 0x1 0x1af 0x1 0x1b0 0x1 0x1b1 0x1 0x1b2 0x1 0x1b3 0x1 0x1b4 0x1 0x1b5 0x1 0x1b6 0x1 0x1b7 0x1 0x1b8 0x1 0x1b9 0x1 0x1ba 0x1 0x1bb 0x1 0x1bc 0x1 0x1bd 0x1 0x1be 0x1 0x1bf 0x1>;
+				irq-num = <0x3420>;
+				buf-size = <0x800>;
+				desc-num = <0x400>;
+				linux,phandle = <0x9>;
+				phandle = <0x9>;
+			};
+
+			rcb-group@c5290000 {
+				compatible = "hisilicon,rcb-group";
+				reg = <0x0 0xc5290000 0x100000>;
+				interrupt-parent = <0x3>;
+				interrupts = <0x1c0 0x1 0x1c1 0x1 0x1c2 0x1 0x1c3 0x1 0x1c4 0x1 0x1c5 0x1 0x1c6 0x1 0x1c7 0x1 0x1c8 0x1 0x1c9 0x1 0x1ca 0x1 0x1cb 0x1 0x1cc 0x1 0x1cd 0x1 0x1ce 0x1 0x1cf 0x1 0x1d0 0x1 0x1d1 0x1 0x1d2 0x1 0x1d3 0x1 0x1d4 0x1 0x1d5 0x1 0x1d6 0x1 0x1d7 0x1 0x1d8 0x1 0x1d9 0x1 0x1da 0x1 0x1db 0x1 0x1dc 0x1 0x1dd 0x1 0x1de 0x1 0x1df 0x1>;
+				irq-num = <0x3440>;
+				buf-size = <0x800>;
+				desc-num = <0x400>;
+				linux,phandle = <0xc>;
+				phandle = <0xc>;
+			};
+
+			rcb-group@c5390000 {
+				compatible = "hisilicon,rcb-group";
+				reg = <0x0 0xc5390000 0x100000>;
+				interrupt-parent = <0x3>;
+				interrupts = <0x1e0 0x1 0x1e1 0x1 0x1e2 0x1 0x1e3 0x1 0x1e4 0x1 0x1e5 0x1 0x1e6 0x1 0x1e7 0x1 0x1e8 0x1 0x1e9 0x1 0x1ea 0x1 0x1eb 0x1 0x1ec 0x1 0x1ed 0x1 0x1ee 0x1 0x1ef 0x1 0x1f0 0x1 0x1f1 0x1 0x1f2 0x1 0x1f3 0x1 0x1f4 0x1 0x1f5 0x1 0x1f6 0x1 0x1f7 0x1 0x1f8 0x1 0x1f9 0x1 0x1fa 0x1 0x1fb 0x1 0x1fc 0x1 0x1fd 0x1 0x1fe 0x1 0x1ff 0x1>;
+				irq-num = <0x3460>;
+				buf-size = <0x800>;
+				desc-num = <0x400>;
+				linux,phandle = <0x14>;
+				phandle = <0x14>;
+			};
+
+			rcb-group@c5490000 {
+				compatible = "hisilicon,rcb-group";
+				reg = <0x0 0xc5490000 0x100000>;
+				interrupt-parent = <0x3>;
+				interrupts = <0x200 0x1 0x201 0x1 0x202 0x1 0x203 0x1 0x204 0x1 0x205 0x1 0x206 0x1 0x207 0x1 0x208 0x1 0x209 0x1 0x20a 0x1 0x20b 0x1 0x20c 0x1 0x20d 0x1 0x20e 0x1 0x20f 0x1 0x210 0x1 0x211 0x1 0x212 0x1 0x213 0x1 0x214 0x1 0x215 0x1 0x216 0x1 0x217 0x1 0x218 0x1 0x219 0x1 0x21a 0x1 0x21b 0x1 0x21c 0x1 0x21d 0x1 0x21e 0x1 0x21f 0x1>;
+				irq-num = <0x3480>;
+				buf-size = <0x800>;
+				desc-num = <0x400>;
+				linux,phandle = <0x17>;
+				phandle = <0x17>;
+			};
+
+			rcb-group@c5590000 {
+				compatible = "hisilicon,rcb-group";
+				reg = <0x0 0xc5590000 0x100000>;
+				interrupt-parent = <0x3>;
+				interrupts = <0x220 0x1 0x221 0x1 0x222 0x1 0x223 0x1 0x224 0x1 0x225 0x1 0x226 0x1 0x227 0x1 0x228 0x1 0x229 0x1 0x22a 0x1 0x22b 0x1 0x22c 0x1 0x22d 0x1 0x22e 0x1 0x22f 0x1 0x230 0x1 0x231 0x1 0x232 0x1 0x233 0x1 0x234 0x1 0x235 0x1 0x236 0x1 0x237 0x1 0x238 0x1 0x239 0x1 0x23a 0x1 0x23b 0x1 0x23c 0x1 0x23d 0x1 0x23e 0x1 0x23f 0x1>;
+				irq-num = <0x34a0>;
+				buf-size = <0x800>;
+				desc-num = <0x400>;
+				linux,phandle = <0x1d>;
+				phandle = <0x1d>;
+			};
+		};
+
+		ethernet@0 {
+			compatible = "hisilicon,soc-dsa-nic";
+			mac-handle = <0x4>;
+			nic-id = <0x0>;
+			ppe-group-handle = <0x5>;
+			rcb-group-handle = <0x6>;
+			local-mac-address = [00 00 00 01 00 5a];
+			dma-coherent;
+		};
+
+		ethernet@1 {
+			compatible = "hisilicon,soc-dsa-nic";
+			mac-handle = <0x7>;
+			nic-id = <0x1>;
+			ppe-group-handle = <0x8>;
+			rcb-group-handle = <0x9>;
+			local-mac-address = [00 00 00 01 00 5b];
+			dma-coherent;
+		};
+
+		ethernet@2 {
+			compatible = "hisilicon,soc-dsa-nic";
+			mac-handle = <0xa>;
+			nic-id = <0x2>;
+			ppe-group-handle = <0xb>;
+			rcb-group-handle = <0xc>;
+			local-mac-address = [00 00 00 01 00 5c];
+			dma-coherent;
+		};
+
+		ethernet@3 {
+			compatible = "hisilicon,soc-dsa-nic";
+			mac-handle = <0xd>;
+			nic-id = <0x3>;
+			ppe-group-handle = <0x13>;
+			rcb-group-handle = <0x14>;
+			local-mac-address = [00 00 00 01 00 5d];
+			dma-coherent;
+		};
+
+		ethernet@4 {
+			compatible = "hisilicon,soc-dsa-nic";
+			mac-handle = <0x15>;
+			nic-id = <0x4>;
+			ppe-group-handle = <0x16>;
+			rcb-group-handle = <0x17>;
+			local-mac-address = [00 00 00 01 00 5e];
+			dma-coherent;
+		};
+
+		ethernet@5 {
+			compatible = "hisilicon,soc-dsa-nic";
+			mac-handle = <0x18>;
+			nic-id = <0x5>;
+			ppe-group-handle = <0x1c>;
+			rcb-group-handle = <0x1d>;
+			local-mac-address = [00 00 00 01 00 5f];
+			dma-coherent;
+		};
+
+		ethernet-mac@c2001000 {
+			mac-index = <0x6>;
+			compatible = "hisilicon,mac-ge";
+			reg = <0x0 0xc2001000 0x0 0x4000 0x0 0xc0000000 0x0 0x10000 0x0 0xc0000000 0x0 0x10000 0x0 0xc2200000 0x0 0x1000000>;
+			irq-num = <0x329a>;
+			phy-connection-type = "sgmii";
+			phy-handle = <0x1e>;
+			linux,phandle = <0x1f>;
+			phandle = <0x1f>;
+		};
+
+		ppe@c2070000 {
+			#address-cells = <0x2>;
+			#size-cells = <0x1>;
+			ppe-common-index = <0x1>;
+			compatible = "hisilicon,ppe-single";
+			ranges = <0x0 0x0 0x0 0x0 0xffffffff>;
+			reg = <0x0 0xc2070000 0x0 0x10000>;
+
+			ppe-group@c2000000 {
+				compatible = "hisilicon,ppe-group";
+				reg = <0x0 0xc2000000 0x1000>;
+				irq-num = <0x328c>;
+				ppe-num = <0x1>;
+				linux,phandle = <0x20>;
+				phandle = <0x20>;
+			};
+		};
+
+		rcb@c2080000 {
+			#address-cells = <0x2>;
+			#size-cells = <0x1>;
+			rcb-common-index = <0x1>;
+			compatible = "hisilicon,rcb", "hisilicon,rcb-single";
+			ranges = <0x0 0x0 0x0 0x0 0xffffffff>;
+			reg = <0x0 0xc2080000 0x0 0x10000>;
+			irq-num = <0x3290>;
+
+			rcb-group@c2090000 {
+				compatible = "hisilicon,rcb-group";
+				reg = <0x0 0xc2090000 0x10000>;
+				interrupt-parent = <0x3>;
+				interrupts = <0xe 0x1 0xf 0x1>;
+				irq-num = <0x328e>;
+				buf-size = <0x1000>;
+				desc-num = <0x80>;
+				linux,phandle = <0x21>;
+				phandle = <0x21>;
+			};
+		};
+
+		ethernet@6 {
+			compatible = "hisilicon,soc-single-nic";
+			mac-handle = <0x1f>;
+			nic-id = <0x6>;
+			ppe-group-handle = <0x20>;
+			rcb-group-handle = <0x21>;
+			local-mac-address = [00 00 00 01 00 60];
+			iic-ctl-eeprom-addr = <0x0 0x51 0xc24>;
+			dma-coherent;
+		};
+
+		ethernet-mac@c2101000 {
+			mac-index = <0x7>;
+			compatible = "hisilicon,mac-ge";
+			reg = <0x0 0xc2101000 0x0 0x4000 0x0 0xc0000000 0x0 0x10000 0x0 0xc0000000 0x0 0x10000 0x0 0xc2200000 0x0 0x100000>;
+			irq-num = <0x329b>;
+			phy-connection-type = "sgmii";
+			phy-handle = <0x22>;
+			linux,phandle = <0x23>;
+			phandle = <0x23>;
+		};
+
+		ppe@c2170000 {
+			#address-cells = <0x2>;
+			#size-cells = <0x1>;
+			ppe-common-index = <0x2>;
+			compatible = "hisilicon,ppe-single";
+			ranges = <0x0 0x0 0x0 0x0 0xffffffff>;
+			reg = <0x0 0xc2170000 0x0 0x10000>;
+
+			ppe-group@c2100000 {
+				compatible = "hisilicon,ppe-group";
+				reg = <0x0 0xc2100000 0x1000>;
+				irq-num = <0x328d>;
+				ppe-num = <0x1>;
+				linux,phandle = <0x24>;
+				phandle = <0x24>;
+			};
+		};
+
+		rcb@c2180000 {
+			#address-cells = <0x2>;
+			#size-cells = <0x1>;
+			rcb-common-index = <0x2>;
+			compatible = "hisilicon,rcb", "hisilicon,rcb-single";
+			ranges = <0x0 0x0 0x0 0x0 0xffffffff>;
+			reg = <0x0 0xc2180000 0x0 0x10000>;
+			irq-num = <0x3296>;
+
+			rcb-group@c2190000 {
+				compatible = "hisilicon,rcb-group";
+				reg = <0x0 0xc2190000 0x10000>;
+				interrupt-parent = <0x3>;
+				interrupts = <0x14 0x1 0x15 0x1>;
+				irq-num = <0x3294>;
+				buf-size = <0x1000>;
+				desc-num = <0x80>;
+				linux,phandle = <0x25>;
+				phandle = <0x25>;
+			};
+		};
+
+		ethernet@7 {
+			compatible = "hisilicon,soc-single-nic";
+			mac-handle = <0x23>;
+			nic-id = <0x7>;
+			ppe-group-handle = <0x24>;
+			rcb-group-handle = <0x25>;
+			local-mac-address = [00 00 00 01 00 61];
+			iic-ctl-eeprom-addr = <0x0 0x51 0xc2a>;
+			dma-coherent;
+		};
+	};
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0x60300000 console=ttyS0,115200 initrd=0x7000000,350M";
+	};
+};
