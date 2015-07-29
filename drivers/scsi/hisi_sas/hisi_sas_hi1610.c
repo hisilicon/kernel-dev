@@ -165,7 +165,6 @@ static int prep_smp(struct hisi_hba *hisi_hba,
 	struct asd_sas_port *sas_port = dev->port;
 	struct scatterlist *sg_req, *sg_resp;
 	struct hisi_sas_device *hisi_sas_dev = dev->lldd_dev;
-	struct sas_phy *sphy = dev->phy;
 	dma_addr_t req_dma_addr;
 	unsigned int req_len, resp_len;
 	int elem, rc;
@@ -205,7 +204,7 @@ static int prep_smp(struct hisi_hba *hisi_hba,
 	/* create header */
 	/* dw0 */
 	/* hdr->resp_report, ->tlr_ctrl for SSP */
-	dw0->phy_id = 1 << sphy->number; /* this is what Higgs_PrepareSMP does */
+	/* dw0->phy_id not set as we do not force phy */
 	dw0->force_phy = 0; /* do not force ordering in phy */
 	dw0->port = sas_port->id; /* double-check */
 	dw0->priority = 1; /* high priority */
@@ -266,7 +265,6 @@ static int prep_ssp(struct hisi_hba *hisi_hba,
 	struct hisi_sas_cmd_hdr *hdr = tei->hdr;
 	struct domain_device *dev = task->dev;
 	struct asd_sas_port *sas_port = dev->port;
-	struct sas_phy *sphy = dev->phy;
 	struct hisi_sas_device *hisi_sas_dev = dev->lldd_dev;
 	struct sas_ssp_task *ssp_task = &task->ssp_task;
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
@@ -286,7 +284,7 @@ static int prep_ssp(struct hisi_hba *hisi_hba,
 	/* hdr->t10_flds_pres set in Higgs_PreparePrdSge */
 	dw0->resp_report = 1;
 	dw0->tlr_ctrl = 0x2; /* Do not enable */
-	dw0->phy_id = 1 << sphy->number; /* double-check */
+	/* dw0->phy_id not set as we do not force phy */
 	dw0->force_phy = 0; /* do not force ordering in phy */
 	dw0->port = sas_port->id; /* double-check */
 	/* hdr->sata_reg_set not applicable to smp */
@@ -421,7 +419,7 @@ static int prep_ata(struct hisi_hba *hisi_hba,
 	/* create header */
 	/* dw0 */
 	/* dw0->resp_report, ->tlr_ctrl not applicable to STP */
-	dw0->phy_id = 0; /* don't care - see Higgs_PrepareBaseSTP */
+	/* dw0->phy_id not set as we do not force phy */
 	dw0->force_phy = 0; /* do not force ordering in phy */
 	dw0->port = sas_port->id; /* double-check */
 	/* hdr->priority not applicable to STP */

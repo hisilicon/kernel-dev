@@ -433,7 +433,6 @@ static int hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 	return HISI_SAS_DISP->prep_smp(hisi_hba, tei);
 }
 
-/* Refer to Higgs_PrepareBaseSSP */
 static int hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
 		struct hisi_sas_tei *tei, int is_tmf,
 		struct hisi_sas_tmf_task *tmf)
