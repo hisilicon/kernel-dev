@@ -1088,7 +1088,6 @@ int hisi_sas_hw_init(struct hisi_hba *hisi_hba)
 	return 0;
 }
 
-
 int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
@@ -1355,10 +1354,10 @@ void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st)
 		/* j00310691 do as fix phy info */
 		phy->att_dev_sas_addr = *(u64 *)id->sas_addr;
 		if (phy->phy_type & PORT_TYPE_SATA) {
-			pr_info("%s todo for SATA\n", __func__);
+			u32 context = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
+
 			phy->identify.target_port_protocols = SAS_PROTOCOL_STP;
-			if (1 /* mvs_is_sig_fis_received(phy->irq_status) */) {
-				//mvs_sig_remove_timer(phy);
+			if (context & 1 << phy_no) {
 				phy->phy_attached = 1;
 				phy->att_dev_sas_addr = 0;
 				//	i + mvi->id * mvi->chip->n_phy;
@@ -1696,14 +1695,10 @@ static void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no)
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct sas_ha_struct *sas_ha = hisi_hba->sas;
-	u32 irq_value;
-
 	/* j00310691 fixme maybe we can't trust this register */
-	u32 phy_state = hisi_sas_read32(hisi_hba, PHY_STATE_REG); //guojian quotes reg@0x30
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
-	pr_info("%s phy%d phy_state=0x%x irq_value=0x%x\n", __func__, phy_no, phy_state, irq_value);
+	u32 phy_state = hisi_sas_read32(hisi_hba, PHY_STATE_REG);
 
-	if (irq_value & CHL_INT2_REG_CTRL_PHY_RDY_MSK) {
+	if (phy_state & 1 << phy_no) {
 		/* Phy down but ready */
 		pr_debug("%s phy %d down and ready\n", __func__, phy_no);
 		hisi_sas_update_phyinfo(hisi_hba, phy_no, 0);

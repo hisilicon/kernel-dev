@@ -19,15 +19,15 @@
 struct hisi_sas_cmd_hdr_dw0 {
 	u32 abort_flag:2;
 	u32 abort_device_type:1;
-	u32 rsvd:2;
+	u32 rsvd0:2;
 	u32 resp_report:1;
 	u32 tlr_ctrl:2;
 	u32 phy_id:9;
 	u32 force_phy:1;
 	u32 port:4;
-	u32 rsvd0:5;
+	u32 rsvd1:5;
 	u32 priority:1;
-	u32 rsvd1:1;
+	u32 rsvd2:1;
 	u32 cmd:3;
 };
 
@@ -50,7 +50,7 @@ struct hisi_sas_cmd_hdr_dw2 {
 	u32 max_resp_frame_len:9;
 	u32 sg_mode:2;
 	u32 first_burst:1;
-	u32 rsvd3:5;
+	u32 rsvd:5;
 };
 
 #define DIR_NO_DATA 0
