@@ -201,6 +201,9 @@ struct hisi_hba {
 	struct hisi_sas_complete_hdr	*complete_hdr[HISI_SAS_MAX_QUEUES];
 	dma_addr_t	complete_hdr_dma[HISI_SAS_MAX_QUEUES];
 
+	struct	dev_to_host_fis	*initial_fis;
+	dma_addr_t	initiai_fis_dma;
+
 	int	n_phy;
 
 	int	chip_id;

@@ -185,6 +185,13 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 	if (!hisi_hba->sge_page_pool)
 		goto err_out;
 
+	s = sizeof(struct dev_to_host_fis) * HISI_SAS_MAX_PHYS;
+	pr_info("%s sizeof(struct dev_to_host_fis) * HISI_SAS_MAX_PHYS=%d\n", __func__, s);
+	hisi_hba->initial_fis = dma_alloc_coherent(dev, s,
+				&hisi_hba->initiai_fis_dma, GFP_KERNEL);
+	if (!hisi_hba->initial_fis)
+		goto err_out;
+
 	hisi_sas_iptt_init(hisi_hba);
 
 	return 0;
