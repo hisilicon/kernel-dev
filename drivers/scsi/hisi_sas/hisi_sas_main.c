@@ -847,7 +847,7 @@ static int hisi_sas_reset_hw(struct hisi_hba *hisi_hba)
 	end_time = jiffies + msecs_to_jiffies(1000);
 	while (1) {
 		u32 axi_status =
-			hisi_sas_read32(hisi_hba, DMA_TX_STATUS_REG);
+			hisi_sas_read32(hisi_hba, AXI_CFG_REG);
 
 		if (axi_status == 0)
 			break;
@@ -1068,7 +1068,6 @@ static void hisi_sas_init_id_frame(struct hisi_hba *hisi_hba)
 		hisi_sas_config_id_frame(hisi_hba, i);
 }
 
-
 int hisi_sas_hw_init(struct hisi_hba *hisi_hba)
 {
 	int rc;
@@ -1224,7 +1223,7 @@ int hisi_sas_dev_found(struct domain_device *dev)
 
 void hisi_sas_dev_gone(struct domain_device *dev)
 {
-	pr_debug("%s\n", __func__);
+	pr_debug("%s fixme\n", __func__);
 }
 
 int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
@@ -1236,19 +1235,22 @@ int hisi_sas_control_phy(struct asd_sas_phy *sas_phy,
 			enum phy_func func,
 			void *funcdata)
 {
-	pr_info("%s\n", __func__);
+	pr_info("%s fixme\n", __func__);
+
 	return 0;
 }
 
 int hisi_sas_abort_task(struct sas_task *task)
 {
-	pr_info("%s\n", __func__);
+	pr_info("%s fixme\n", __func__);
+
 	return 0;
 }
 
 int hisi_sas_abort_task_set(struct domain_device *dev, u8 *lun)
 {
-	pr_info("%s\n", __func__);
+	pr_info("%s fixme\n", __func__);
+
 	return 0;
 }
 
@@ -1260,7 +1262,8 @@ int hisi_sas_clear_aca(struct domain_device *dev, u8 *lun)
 
 int hisi_sas_clear_task_set(struct domain_device *dev, u8 *lun)
 {
-	pr_info("%s\n", __func__);
+	pr_info("%s fixme\n", __func__);
+
 	return 0;
 }
 
@@ -1272,13 +1275,15 @@ int hisi_sas_I_T_nexus_reset(struct domain_device *dev)
 
 int hisi_sas_lu_reset(struct domain_device *dev, u8 *lun)
 {
-	pr_info("%s\n", __func__);
+	pr_info("%s fixme\n", __func__);
+
 	return 0;
 }
 
 int hisi_sas_query_task(struct sas_task *task)
 {
-	pr_info("%s\n", __func__);
+	pr_info("%s fixme\n", __func__);
+
 	return 0;
 }
 
@@ -1458,7 +1463,7 @@ static irqreturn_t hisi_sas_int_phyup(int phy_no, void *p)
 	val = hisi_sas_read32(hisi_hba, PHY_CONN_RATE_REG);
 	link_rate = (val >> (phy_no * 4)) & 0xf;
 	sas_phy->linkrate = link_rate;
-
+	pr_info("%s phy_no=%d hisi_hba->id=%d link_rate=%d\n", __func__, phy_no, hisi_hba->id, link_rate);
 	phy->phy_type &= ~(PORT_TYPE_SAS | PORT_TYPE_SATA);
 	val = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
 	if (val & 1 << phy_no)
@@ -1550,16 +1555,17 @@ static irqreturn_t hisi_sas_int_ctrlrdy(int phy, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
-
+	u32 context = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
+	pr_info("%s phy=%d context=0x%x\n", __func__, phy, context);
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy, CHL_INT2_REG);
 
 	if (!(irq_value & CHL_INT2_REG_CTRL_PHY_RDY_MSK)) {
-		dev_dbg(hisi_hba->dev, "%s irq_value = %x not set enable bit",
+		dev_warn(hisi_hba->dev, "%s irq_value = %x not set enable bit",
 			__func__, irq_value);
 		hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2_REG, CHL_INT2_REG_CTRL_PHY_RDY_MSK);
 		return IRQ_NONE;
 	} else {
-		dev_dbg(hisi_hba->dev, "%s phy=%d, irq_value=%x\n",
+		dev_info(hisi_hba->dev, "%s phy=%d, irq_value=%x\n",
 			__func__, phy, irq_value);
 	}
 
@@ -1576,6 +1582,7 @@ static irqreturn_t hisi_sas_int_dmaerr(int phy_no, void *p)
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
 
+	pr_info("%s\n", __func__);
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
 	if (!(irq_value & CHL_INT2_REG_DMA_RESP_ERR_MSK))
@@ -1596,6 +1603,7 @@ static irqreturn_t hisi_sas_int_hotplug(int phy_no, void *p)
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
 
+	pr_info("%s\n", __func__);
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
 	if (!(irq_value & CHL_INT2_REG_PHY_HP_TOUT_MSK))
@@ -1616,6 +1624,7 @@ static irqreturn_t hisi_sas_int_bcast(int phy_no, void *p)
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
 
+	pr_info("%s\n", __func__);
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
 	if (!(irq_value & CHL_INT2_REG_SL_RX_BC_ACK_MSK))
@@ -1636,6 +1645,7 @@ static irqreturn_t hisi_sas_int_oobrst(int phy_no, void *p)
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
 
+	pr_info("%s\n", __func__);
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
 	if (!(irq_value & CHL_INT2_REG_OOB_RESTART_MSK))
@@ -1656,6 +1666,7 @@ static irqreturn_t hisi_sas_int_hardrst(int phy_no, void *p)
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
 
+	pr_info("%s\n", __func__);
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
 	if (!(irq_value & CHL_INT2_SL_RX_HARDRST_MSK))
@@ -1675,6 +1686,7 @@ static irqreturn_t hisi_sas_int_statuscg(int phy_no, void *p)
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
 
+	pr_info("%s\n", __func__);
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
 
 	if (!(irq_value & CHL_INT2_PHY_STATUS_CHG_MSK))
@@ -1698,6 +1710,8 @@ static void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no)
 	/* j00310691 fixme maybe we can't trust this register */
 	u32 phy_state = hisi_sas_read32(hisi_hba, PHY_STATE_REG);
 
+	pr_info("%s phy%d phy_state=0x%x\n", __func__, phy_no, phy_state);
+
 	if (phy_state & 1 << phy_no) {
 		/* Phy down but ready */
 		pr_debug("%s phy %d down and ready\n", __func__, phy_no);
@@ -1720,6 +1734,7 @@ static irqreturn_t hisi_sas_int_abnormal(int phy_no, void *p)
 	u32 irq_value;
 	u32 irq_mask_old;
 
+	pr_info("%s\n", __func__);
 	/* mask_int0 */
 	irq_mask_old = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_MSK_REG);
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG, 0x003FFFFF);
@@ -1782,6 +1797,7 @@ static irqreturn_t hisi_sas_int_int1(int phy_no, void *p)
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
 
+	pr_info("%s\n", __func__);
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT1_REG);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT1_REG, irq_value);
@@ -2117,7 +2133,7 @@ static void hisi_sas_config_phy_link_param(struct hisi_hba *hisi_hba,
 	rate &= ~PROG_PHY_LINK_RATE_REG_MAX_MSK;
 	switch (linkrate) {
 	case SAS_LINK_RATE_12_0_GBPS:
-		rate |= SAS_LINK_RATE_6_0_GBPS << PROG_PHY_LINK_RATE_REG_MAX_OFF;
+		rate |= SAS_LINK_RATE_12_0_GBPS << PROG_PHY_LINK_RATE_REG_MAX_OFF;
 		pcn = 0x80aa0001;
 		break;
 
