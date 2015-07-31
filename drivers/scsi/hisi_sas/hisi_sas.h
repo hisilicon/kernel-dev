@@ -46,33 +46,15 @@
 #define HISI_SAS_MAX_SMP_RESP_SZ 1028 /* From spec 9.4.3 (1032-4 byte crc) */
 #define HISI_SAS_MAX_STP_RESP_SZ 28 /* DMA setup fis length http://samfreetime.blogspot.co.uk/2012/08/dma-setup-device-to-host-or-host-to.html */
 
+#define HISI_SAS_INT_NAME_LENGTH 32
+
 enum {
 	PORT_TYPE_SAS = (1U << 1),
 	PORT_TYPE_SATA = (1U << 0)
 };
-// todo j00310691 fix for hi1610
-enum {
-	HISI_SAS_PHY_CTRL_RDY = 0,
-	HISI_SAS_PHY_DMA_RESP_ERR,
-	HISI_SAS_PHY_HOTPLUG_TOUT,
-	HISI_SAS_PHY_BCAST_ACK,
-	HISI_SAS_PHY_OOB_RESTART,
-	HISI_SAS_PHY_RX_HARDRST,
-	HISI_SAS_PHY_STATUS_CHG,
-	HISI_SAS_PHY_SL_PHY_ENABLED,
-	HISI_SAS_PHY_INT_REG0,
-	HISI_SAS_PHY_INT_REG1,
-	HISI_SAS_PHY_INT_NR
-};
 
-#define HISI_SAS_PHY_MAX_INT_NR (HISI_SAS_PHY_INT_NR * HISI_SAS_MAX_PHYS)
-#define HISI_SAS_CQ_MAX_INT_NR (HISI_SAS_MAX_QUEUES)
-#define HISI_SAS_FATAL_INT_NR (2)
-
-#define HISI_SAS_MAX_INT_NR (HISI_SAS_PHY_MAX_INT_NR + HISI_SAS_CQ_MAX_INT_NR + HISI_SAS_FATAL_INT_NR)
 #define DMA_ADDR_LO(addr) ((u32)(addr & 0xffffffff))
 #define DMA_ADDR_HI(addr) ((u32)(addr >> 32))
-
 
 #define DECLARE_INT_HANDLER(handler, idx)\
 irqreturn_t handler##idx(int irq, void *p)\
@@ -227,7 +209,7 @@ struct hisi_hba {
 
 	int	id;
 	int	queue_count;
-	char	int_names[HISI_SAS_MAX_INT_NR][32];
+	char	*int_names;
 	struct hisi_sas_slot	*slot_prep;
 
 	struct hba_info_page	hba_param;

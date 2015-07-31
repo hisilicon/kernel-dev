@@ -177,7 +177,26 @@
 
 #define AXI_CFG_REG			(0x5100)
 
+// todo j00310691 fix for hi1610
+enum {
+	HISI_SAS_PHY_CTRL_RDY = 0,
+	HISI_SAS_PHY_DMA_RESP_ERR,
+	HISI_SAS_PHY_HOTPLUG_TOUT,
+	HISI_SAS_PHY_BCAST_ACK,
+	HISI_SAS_PHY_OOB_RESTART,
+	HISI_SAS_PHY_RX_HARDRST,
+	HISI_SAS_PHY_STATUS_CHG,
+	HISI_SAS_PHY_SL_PHY_ENABLED,
+	HISI_SAS_PHY_INT_REG0,
+	HISI_SAS_PHY_INT_REG1,
+	HISI_SAS_PHY_INT_NR
+};
 
+#define HISI_SAS_PHY_MAX_INT_NR (HISI_SAS_PHY_INT_NR * HISI_SAS_MAX_PHYS)
+#define HISI_SAS_CQ_MAX_INT_NR (HISI_SAS_MAX_QUEUES)
+#define HISI_SAS_FATAL_INT_NR (2)
+
+#define HISI_SAS_MAX_INT_NR (HISI_SAS_PHY_MAX_INT_NR + HISI_SAS_CQ_MAX_INT_NR + HISI_SAS_FATAL_INT_NR)
 
 struct hisi_sas_cmd_hdr_dw0 {
 	u32 abort_flag:2;
@@ -218,7 +237,6 @@ struct hisi_sas_cmd_hdr_dw2 {
 	u32 first_burst:1;
 	u32 rsvd3:6;
 };
-
 
 static inline u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
 {
@@ -1578,6 +1596,7 @@ static int interrupt_init(struct hisi_hba *hisi_hba)
 {
 	int i, j, irq, rc, id = hisi_hba->id;
 	struct device *dev = hisi_hba->dev;
+	char *int_names = hisi_hba->int_names;
 
 	if (!hisi_hba->np)
 		return -ENOENT;
@@ -1593,11 +1612,13 @@ static int interrupt_init(struct hisi_hba *hisi_hba)
 				return -ENOENT;
 			}
 
-			(void)snprintf(hisi_hba->int_names[idx], 32,
+			(void)snprintf(&int_names[idx * HISI_SAS_INT_NAME_LENGTH],
+					HISI_SAS_INT_NAME_LENGTH,
 					DRV_NAME" %s [%d %d]", phy_int_names[j],
 					id, i);
 			rc = devm_request_irq(dev, irq, phy_interrupts[i][j], 0,
-					hisi_hba->int_names[idx], hisi_hba);
+					&int_names[idx * HISI_SAS_INT_NAME_LENGTH],
+					hisi_hba);
 			if (rc) {
 				dev_err(dev, "%s [%d] could not request interrupt %d, rc=%d\n",
 					__func__, hisi_hba->id, irq, rc);
@@ -1615,10 +1636,12 @@ static int interrupt_init(struct hisi_hba *hisi_hba)
 				__func__, hisi_hba->id, idx);
 			return -ENOENT;
 		}
-		(void)snprintf(hisi_hba->int_names[idx], 32,
+		(void)snprintf(&int_names[idx * HISI_SAS_INT_NAME_LENGTH],
+				HISI_SAS_INT_NAME_LENGTH,
 				DRV_NAME" %s [%d %d]", cq_int_name, id, i);
 		rc = devm_request_irq(dev, irq, cq_interrupts[i], 0,
-				hisi_hba->int_names[idx], hisi_hba);
+				&int_names[idx * HISI_SAS_INT_NAME_LENGTH],
+				hisi_hba);
 		if (rc) {
 			dev_err(dev, "%s [%d] could not request interrupt %d, rc=%d\n",
 				__func__, hisi_hba->id, irq, rc);
@@ -1637,10 +1660,12 @@ static int interrupt_init(struct hisi_hba *hisi_hba)
 				__func__, hisi_hba->id, idx);
 			return -ENOENT;
 		}
-		(void)snprintf(hisi_hba->int_names[idx], 32,
+		(void)snprintf(&int_names[idx * HISI_SAS_INT_NAME_LENGTH],
+				HISI_SAS_INT_NAME_LENGTH,
 				DRV_NAME" %s [%d]", fatal_int_name[i], id);
 		rc = devm_request_irq(dev, irq, fatal_interrupts[i], 0,
-				hisi_hba->int_names[idx], hisi_hba);
+				&int_names[idx * HISI_SAS_INT_NAME_LENGTH],
+				hisi_hba);
 		if (rc) {
 			dev_err(dev, "%s [%d] could not request interrupt %d, rc=%d\n",
 				__func__, hisi_hba->id, irq, rc);
