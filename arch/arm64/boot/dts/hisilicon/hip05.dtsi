@@ -468,7 +468,6 @@
 		compatible = "hisilicon,p660-sas";
 		core-count = <2>;
 		status = "okay";
-		chip-id = <1>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		dma-coherent;

@@ -51,11 +51,6 @@ static struct sas_domain_function_template hisi_sas_transport_ops = {
 	.lldd_port_deformed	= hisi_sas_port_deformed,
 };
 
-static const struct hisi_sas_dispatch *hisi_sas_chip_dispatch[] = {
-	[P660] = &hisi_sas_p660_dispatch,
-	[HI1610] = &hisi_sas_hi1610_dispatch,
-};
-
 static int hisi_sas_prep_ha_init(struct device *dev, struct Scsi_Host *shost,
 				 int n_core)
 {
@@ -185,8 +180,8 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 	if (!hisi_hba->sge_page_pool)
 		goto err_out;
 
+	// fixme j00310691 the size seems incorrect, total should be 432
 	s = sizeof(struct dev_to_host_fis) * HISI_SAS_MAX_PHYS;
-	pr_info("%s sizeof(struct dev_to_host_fis) * HISI_SAS_MAX_PHYS=%d\n", __func__, s);
 	hisi_hba->initial_fis = dma_alloc_coherent(dev, s,
 				&hisi_hba->initiai_fis_dma, GFP_KERNEL);
 	if (!hisi_hba->initial_fis)
@@ -261,7 +256,8 @@ int hisi_sas_ioremap(struct hisi_hba *hisi_hba)
 }
 
 static const struct of_device_id sas_core_of_match[] = {
-	{ .compatible = "hisilicon,p660-sas-core",},
+	{ .compatible = "hisilicon,p660-sas-core",
+	.data = &hisi_sas_p660_dispatch},
 	{},
 };
 
@@ -272,6 +268,10 @@ static struct hisi_hba *hisi_sas_platform_dev_alloc(
 {
 	struct hisi_hba *hisi_hba;
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	const struct of_device_id *match = of_match_node(sas_core_of_match, np);
+
+	if (!match)
+		goto err_out;
 
 	hisi_hba = devm_kzalloc(&pdev->dev, sizeof(*hisi_hba), GFP_KERNEL);
 	if (!hisi_hba)
@@ -290,10 +290,7 @@ static struct hisi_hba *hisi_sas_platform_dev_alloc(
 	if (of_property_read_u32(np, "core-id", &hisi_hba->id))
 		goto err_out;
 
-	if (of_property_read_u32(np->parent, "chip-id", &hisi_hba->chip_id))
-		goto err_out;
-
-	hisi_hba->dispatch = hisi_sas_chip_dispatch[hisi_hba->chip_id];
+	hisi_hba->dispatch = match->data;
 
 	INIT_LIST_HEAD(&hisi_hba->wq_list);
 
@@ -481,7 +478,6 @@ static struct platform_driver hisi_sas_driver = {
 
 static __init int hisi_sas_init(void)
 {
-
 	pr_info("hisi_sas: driver version %s\n", DRV_VERSION);
 
 	hisi_sas_stt = sas_domain_attach_transport(&hisi_sas_transport_ops);
