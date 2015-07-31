@@ -401,21 +401,19 @@ static int hisi_sas_probe(struct platform_device *pdev)
 
 		hisi_sas_init_add(hisi_hba);
 
-		rc = hisi_sas_hw_init(hisi_hba);
+		rc = HISI_SAS_DISP->hw_init(hisi_hba);
 		if (rc)
 			goto err_out_ha;
 
-		rc = hisi_sas_interrupt_init(hisi_hba);
+		rc = HISI_SAS_DISP->interrupt_init(hisi_hba);
 		if (rc)
 			goto err_out_ha;
 
-		rc = hisi_sas_interrupt_openall(hisi_hba);
+		rc = HISI_SAS_DISP->interrupt_openall(hisi_hba);
 		if (rc)
 			goto err_out_ha;
 
-		hisi_sas_phys_up(hisi_hba);
-
-		hisi_sas_start_phy_layer(hisi_hba);
+		HISI_SAS_DISP->phys_init(hisi_hba);
 
 #ifdef CONFIG_DEBUG_FS
 		rc = hisi_sas_debugfs_init(hisi_hba);

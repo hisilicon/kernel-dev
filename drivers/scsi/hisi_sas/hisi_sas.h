@@ -50,7 +50,7 @@ enum {
 	PORT_TYPE_SAS = (1U << 1),
 	PORT_TYPE_SATA = (1U << 0)
 };
-
+// todo j00310691 fix for hi1610
 enum {
 	HISI_SAS_PHY_CTRL_RDY = 0,
 	HISI_SAS_PHY_DMA_RESP_ERR,
@@ -70,9 +70,18 @@ enum {
 #define HISI_SAS_FATAL_INT_NR (2)
 
 #define HISI_SAS_MAX_INT_NR (HISI_SAS_PHY_MAX_INT_NR + HISI_SAS_CQ_MAX_INT_NR + HISI_SAS_FATAL_INT_NR)
-
 #define DMA_ADDR_LO(addr) ((u32)(addr & 0xffffffff))
 #define DMA_ADDR_HI(addr) ((u32)(addr >> 32))
+
+
+#define DECLARE_INT_HANDLER(handler, idx)\
+irqreturn_t handler##idx(int irq, void *p)\
+{\
+	return	handler(idx, p);\
+}
+
+#define INT_HANDLER_NAME(handler, idx)\
+	handler##idx
 
 enum dev_status {
 	HISI_SAS_DEV_NORMAL,
@@ -178,11 +187,6 @@ struct hisi_sas_tei {
 	int	iptt;
 };
 
-enum chips {
-	P660 = 1,
-	HI1610 = 2
-};
-
 struct hisi_sas_dispatch;
 
 struct hisi_hba {
@@ -205,8 +209,6 @@ struct hisi_hba {
 	dma_addr_t	initiai_fis_dma;
 
 	int	n_phy;
-
-	int	chip_id;
 
 	const struct hisi_sas_dispatch *dispatch;
 
@@ -243,6 +245,12 @@ struct hisi_hba {
 };
 
 struct hisi_sas_dispatch {
+	int (*hw_init)(struct hisi_hba *hisi_hba);
+	int (*phys_init)(struct hisi_hba *hisi_hba);
+	int (*interrupt_init)(struct hisi_hba *hisi_hba);
+	int (*interrupt_openall)(struct hisi_hba *hisi_hba);
+	int (*get_free_slot)(struct hisi_hba *hisi_hba, int *q, int *s);
+	void (*start_delivery)(struct hisi_hba *hisi_hba);
 	int (*prep_ssp)(struct hisi_hba *hisi_hba,
 			struct hisi_sas_tei *tei, int is_tmf,
 			struct hisi_sas_tmf_task *tmf);
@@ -250,6 +258,7 @@ struct hisi_sas_dispatch {
 			struct hisi_sas_tei *tei);
 	int (*prep_stp)(struct hisi_hba *hisi_hba,
 			struct hisi_sas_tei *tei);
+	int (*is_phy_ready)(struct hisi_hba *hisi_hba, int phy_no);
 };
 
 
@@ -530,11 +539,6 @@ void hisi_sas_scan_start(struct Scsi_Host *shost);
 
 void hisi_sas_iptt_init(struct hisi_hba *hisi_hba);
 void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int i);
-
-int hisi_sas_hw_init(struct hisi_hba *hisi_hba);
-int  hisi_sas_interrupt_init(struct hisi_hba *hisi_hba);
-void  hisi_sas_phys_up(struct hisi_hba *hisi_hba);
-int  hisi_sas_interrupt_openall(struct hisi_hba *hisi_hba);
 int hisi_sas_start_phy_layer(struct hisi_hba *hisi_hba);
 int hisi_sas_dev_found(struct domain_device *dev);
 void hisi_sas_dev_gone(struct domain_device *dev);
@@ -551,6 +555,10 @@ int hisi_sas_lu_reset(struct domain_device *dev, u8 *lun);
 int hisi_sas_query_task(struct sas_task *task);
 void hisi_sas_port_formed(struct asd_sas_phy *sas_phy);
 void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy);
+void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no);
+int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot, u32 flags);
+void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no);
+void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st);
 #ifdef CONFIG_DEBUG_FS
 int hisi_sas_debugfs_init(struct hisi_hba *hisi_hba);
 void hisi_sas_debugfs_free(struct hisi_hba *hisi_hba);

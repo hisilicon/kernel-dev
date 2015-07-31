@@ -513,8 +513,10 @@ static int prep_ata(struct hisi_hba *hisi_hba,
 }
 
 const struct hisi_sas_dispatch hisi_sas_hi1610_dispatch = {
-	prep_ssp,
-	prep_smp,
-	prep_ata,
+	.hw_init = NULL,
+	.prep_ssp = prep_ssp,
+	.prep_smp = prep_smp,
+	.prep_stp = prep_ata,
 };
+
 
