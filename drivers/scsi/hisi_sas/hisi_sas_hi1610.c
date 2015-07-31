@@ -16,6 +16,82 @@
 #include <linux/debugfs.h>
 #include <linux/types.h>
 
+/* global registers need init*/
+#define DLVRY_QUEUE_ENABLE_REG		0x0
+#define IOST_BASE_ADDR_LO		0x8
+#define IOST_BASE_ADDR_HI		0xc
+#define ITCT_BASE_ADDR_LO		0x10
+#define ITCT_BASE_ADDR_HI		0x14
+#define BROKEN_MSG_ADDR_LO		0x18
+#define BROKEN_MSG_ADDR_HI		0x1c
+#define HGC_TRANS_TASK_CNT_LIMIT_REG	0x38
+#define AXI_AHB_CLK_CFG_REG		0x3c
+#define HGC_SAS_TXFAIL_RETRY_CTRL_REG	0x84
+#define HGC_GET_ITV_TIME_REG		0x90
+#define DEVICE_MSG_WORK_MODE_REG	0x94
+#define I_T_NEXUS_LOSS_TIME_REG		0xa0
+#define BUS_INACTIVE_LIMIT_TIME_REG	0xa8
+#define REJECT_TO_OPEN_LIMIT_TIME_REG	0xac
+#define CFG_AGING_TIME_REG		0xbc
+#define HGC_DFX_CFG_REG2_REG		0xc0
+#define CFG_1US_TIMER_TRSH_REG		0xcc
+#define INT_COAL_EN_REG			0x19c
+#define OQ_INT_COAL_TIME_REG		0x1a0
+#define OQ_INT_COAL_CNT_REG		0x1a4
+#define ENT_INT_COAL_TIME_REG		0x1a8
+#define ENT_INT_COAL_CNT_REG		0x1ac
+#define OQ_INT_SRC_REG			0x1b0
+#define OQ_INT_SRC_MSK_REG		0x1b4
+#define ENT_INT_SRC1_REG		0x1b8
+#define ENT_INT_SRC2_REG		0x1bc
+#define ENT_INT_SRC3_REG		0x1c0
+#define ENT_INT_SRC_MSK1_REG		0x1c4
+#define ENT_INT_SRC_MSK2_REG		0x1c8
+#define ENT_INT_SRC_MSK3_REG		0x1cc
+#define SAS_ECC_INTR_MSK_REG		0x1ec
+#define HGC_ERR_STAT_EN_REG		0x238
+#define DLVRY_Q_0_BASE_ADDR_LO		0x260
+#define DLVRY_Q_0_BASE_ADDR_HI		0x264
+#define DLVRY_Q_0_DEPTH			0x268
+#define DLVRY_Q_0_WR_PTR		0x26c
+#define DLVRY_Q_0_RD_PTR		0x270
+#define COMPL_Q_0_BASE_ADDR_LO		0x4e0
+#define COMPL_Q_0_BASE_ADDR_HI		0x4e4
+#define COMPL_Q_0_DEPTH			0x4e8
+#define COMPL_Q_0_WR_PTR		0x4ec
+#define COMPL_Q_0_RD_PTR		0x4f0
+
+/* phy registers need init */
+#define PORT_BASE_REG			(0x2000)
+#define PROG_PHY_LINK_RATE_REG		(PORT_BASE_REG + 0xc)
+#define TX_ID_DWORD0_REG		(PORT_BASE_REG + 0x9c)
+#define TX_ID_DWORD1_REG		(PORT_BASE_REG + 0xa0)
+#define TX_ID_DWORD2_REG		(PORT_BASE_REG + 0xa4)
+#define TX_ID_DWORD3_REG		(PORT_BASE_REG + 0xa8)
+#define TX_ID_DWORD4_REG		(PORT_BASE_REG + 0xaC)
+#define TX_ID_DWORD5_REG		(PORT_BASE_REG + 0xb0)
+#define TX_ID_DWORD6_REG		(PORT_BASE_REG + 0xb4)
+
+//fixme
+enum {
+	HISI_SAS_PHY_CTRL_RDY = 0,
+	HISI_SAS_PHY_DMA_RESP_ERR,
+	HISI_SAS_PHY_HOTPLUG_TOUT,
+	HISI_SAS_PHY_BCAST_ACK,
+	HISI_SAS_PHY_OOB_RESTART,
+	HISI_SAS_PHY_RX_HARDRST,
+	HISI_SAS_PHY_STATUS_CHG,
+	HISI_SAS_PHY_SL_PHY_ENABLED,
+	HISI_SAS_PHY_INT_REG0,
+	HISI_SAS_PHY_INT_REG1,
+	HISI_SAS_PHY_INT_NR
+};
+
+#define HISI_SAS_PHY_MAX_INT_NR (HISI_SAS_PHY_INT_NR * HISI_SAS_MAX_PHYS)
+#define HISI_SAS_CQ_MAX_INT_NR (HISI_SAS_MAX_QUEUES)
+#define HISI_SAS_FATAL_INT_NR (2)
+
+#define HISI_SAS_MAX_INT_NR (HISI_SAS_PHY_MAX_INT_NR + HISI_SAS_CQ_MAX_INT_NR + HISI_SAS_FATAL_INT_NR)
 struct hisi_sas_cmd_hdr_dw0 {
 	u32 abort_flag:2;
 	u32 abort_device_type:1;
@@ -63,6 +139,34 @@ struct hisi_sas_cmd_hdr_dw2 {
 #define SATA_PROTOCOL_DMA		0x4
 #define SATA_PROTOCOL_FPDMA		0x8
 #define SATA_PROTOCOL_ATAPI		0x10
+
+static inline u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
+{
+	void __iomem *regs = hisi_hba->regs + off;
+
+	return readl(regs);
+}
+
+static inline void hisi_sas_write32(struct hisi_hba *hisi_hba, u32 off, u32 val)
+{
+	void __iomem *regs = hisi_hba->regs + off;
+
+	writel(val, regs);
+}
+
+static inline void hisi_sas_phy_write32(struct hisi_hba *hisi_hba, int phy, u32 off, u32 val)
+{
+	void __iomem *regs = hisi_hba->regs + (0x400 * phy) + off;
+
+	writel(val, regs);
+}
+
+static inline u32 hisi_sas_phy_read32(struct hisi_hba *hisi_hba, int phy, u32 off)
+{
+	void __iomem *regs = hisi_hba->regs + (0x400 * phy) + off;
+
+	return readl(regs);
+}
 
 static u8 get_ata_protocol(u8 cmd, int direction)
 {
@@ -397,6 +501,159 @@ static int prep_ssp(struct hisi_hba *hisi_hba,
 
 }
 
+static void config_id_frame(struct hisi_hba *hisi_hba, int phy)
+{
+	struct sas_identify_frame identify_frame;
+	u32 *identify_buffer;
+
+	memset(&identify_frame, 0, sizeof(identify_frame));
+	/*dev_type is [6-4]bit, frame_type is [3-0]bit
+	 *according to IT code, the byte is set to 0x10 */
+	/* l00293075 I found this one */
+	identify_frame.dev_type = SAS_END_DEVICE;
+	identify_frame.frame_type = 0;
+	/*_un1 is the second byte,the byte is set to 0x1 in IT code*/
+	identify_frame._un1 = 1;
+	identify_frame.initiator_bits = SAS_PROTOCOL_ALL;
+	identify_frame.target_bits = SAS_PROTOCOL_NONE;
+	memcpy(&identify_frame._un4_11[0], hisi_hba->sas_addr, SAS_ADDR_SIZE);
+	memcpy(&identify_frame.sas_addr[0], hisi_hba->sas_addr,	SAS_ADDR_SIZE);
+	identify_frame.phy_id = phy;
+	identify_buffer = (u32 *)(&identify_frame);
+
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD0_REG,
+			__swab32(identify_buffer[0]));
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD1_REG,
+			identify_buffer[2]);
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD2_REG,
+			identify_buffer[1]);
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD3_REG,
+			identify_buffer[4]);
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD4_REG,
+			identify_buffer[3]);
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD5_REG,
+			__swab32(identify_buffer[5]));
+}
+
+static void init_id_frame(struct hisi_hba *hisi_hba)
+{
+	int i;
+
+	/*ifdef _LITTLE_ENDIAN_BITFIELD,
+	*sas_identify_frame the same as the structure in IT code*/
+	for (i = 0; i < hisi_hba->n_phy; i++)
+		config_id_frame(hisi_hba, i);
+}
+
+static void init_reg(struct hisi_hba *hisi_hba)
+{
+	int i;
+
+	/* Global registers init*/
+	hisi_sas_write32(hisi_hba,
+		DLVRY_QUEUE_ENABLE_REG,
+		(u32)((1ULL << hisi_hba->queue_count) - 1));
+	hisi_sas_write32(hisi_hba, HGC_TRANS_TASK_CNT_LIMIT_REG, 0x11);
+	hisi_sas_write32(hisi_hba, DEVICE_MSG_WORK_MODE_REG, 0x1);
+//	hisi_sas_write32(hisi_hba, MAX_BURST_BYTES_REG, 0);
+//	hisi_sas_write32(hisi_hba, SMP_TIMEOUT_TIMER_REG, 0);
+//	hisi_sas_write32(hisi_hba, MAX_CON_TIME_LIMIT_TIME_REG, 0);
+	hisi_sas_write32(hisi_hba, HGC_SAS_TXFAIL_RETRY_CTRL_REG, 0x211ff);
+	hisi_sas_write32(hisi_hba, HGC_ERR_STAT_EN_REG, 0x401);
+	hisi_sas_write32(hisi_hba, CFG_1US_TIMER_TRSH_REG, 0x64);
+	hisi_sas_write32(hisi_hba, HGC_GET_ITV_TIME_REG, 0x1);
+	hisi_sas_write32(hisi_hba, I_T_NEXUS_LOSS_TIME_REG, 0x64);
+	hisi_sas_write32(hisi_hba, BUS_INACTIVE_LIMIT_TIME_REG, 0x2710);
+	hisi_sas_write32(hisi_hba, REJECT_TO_OPEN_LIMIT_TIME_REG, 0x1);
+	hisi_sas_write32(hisi_hba, CFG_AGING_TIME_REG, 0x7a12);
+	hisi_sas_write32(hisi_hba, HGC_DFX_CFG_REG2_REG, 0x9c40);
+	hisi_sas_write32(hisi_hba, INT_COAL_EN_REG, 0xC);
+	hisi_sas_write32(hisi_hba, OQ_INT_COAL_TIME_REG, 0x186A0);
+	hisi_sas_write32(hisi_hba, OQ_INT_COAL_CNT_REG, 1);
+	hisi_sas_write32(hisi_hba, ENT_INT_COAL_TIME_REG, 0x1);
+	hisi_sas_write32(hisi_hba, ENT_INT_COAL_CNT_REG, 0x1);
+	hisi_sas_write32(hisi_hba, OQ_INT_SRC_REG, 0xffffffff);
+	hisi_sas_write32(hisi_hba, OQ_INT_SRC_MSK_REG, 0);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC1_REG, 0xffffffff);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1_REG, 0);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC2_REG, 0xffffffff);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK2_REG, 0);
+	hisi_sas_write32(hisi_hba, SAS_ECC_INTR_MSK_REG, 0);
+	hisi_sas_write32(hisi_hba, AXI_AHB_CLK_CFG_REG, 0x2);
+
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		/*phy registers init set 12G - see g_astPortRegConfig */
+		hisi_sas_phy_write32(hisi_hba, i, PROG_PHY_LINK_RATE_REG, 0x0000088a);
+		//hisi_sas_phy_write32(hisi_hba, i, PHY_CONFIG2_REG, 0x80c7c084); //fixme
+		//hisi_sas_phy_write32(hisi_hba, i, PHY_RATE_NEGO_REG, 0x415ee00);
+		//hisi_sas_phy_write32(hisi_hba, i, PHY_PCN_REG, 0x80aa0001);
+
+		//hisi_sas_phy_write32(hisi_hba, i, SL_TOUT_CFG_REG, 0x7d7d7d7d);
+		//hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 0x0);
+		//hisi_sas_phy_write32(hisi_hba, i, RXOP_CHECK_CFG_H_REG, 0x1000);
+		//hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 0);
+		//hisi_sas_phy_write32(hisi_hba, i, CON_CFG_DRIVER_REG, 0x13f0a);
+		//hisi_sas_phy_write32(hisi_hba, i, CHL_INT_COAL_EN_REG, 3);
+		//hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 8);
+	}
+
+	for (i = 0; i < hisi_hba->queue_count; i++) {
+		/* Delivery queue */
+		hisi_sas_write32(hisi_hba, DLVRY_Q_0_BASE_ADDR_HI + (i * 0x14),
+				 DMA_ADDR_HI(hisi_hba->cmd_hdr_dma[i]));
+
+		hisi_sas_write32(hisi_hba, DLVRY_Q_0_BASE_ADDR_LO + (i * 0x14),
+				 DMA_ADDR_LO(hisi_hba->cmd_hdr_dma[i]));
+
+		hisi_sas_write32(hisi_hba, DLVRY_Q_0_DEPTH + (i * 0x14),
+				 HISI_SAS_QUEUE_SLOTS);
+
+		/* Completion queue */
+		hisi_sas_write32(hisi_hba, COMPL_Q_0_BASE_ADDR_HI + (i * 0x14),
+				 DMA_ADDR_HI(hisi_hba->complete_hdr_dma[i]));
+
+		hisi_sas_write32(hisi_hba, COMPL_Q_0_BASE_ADDR_LO + (i * 0x14),
+				 DMA_ADDR_LO(hisi_hba->complete_hdr_dma[i]));
+
+		hisi_sas_write32(hisi_hba, COMPL_Q_0_DEPTH + (i * 0x14),
+				 HISI_SAS_QUEUE_SLOTS);
+	}
+
+	/* itct */
+	hisi_sas_write32(hisi_hba, ITCT_BASE_ADDR_LO,
+			 DMA_ADDR_LO(hisi_hba->itct_dma));
+
+	hisi_sas_write32(hisi_hba, ITCT_BASE_ADDR_HI,
+			 DMA_ADDR_HI(hisi_hba->itct_dma));
+
+	/* iost */
+	hisi_sas_write32(hisi_hba, IOST_BASE_ADDR_LO,
+			 DMA_ADDR_LO(hisi_hba->iost_dma));
+
+	hisi_sas_write32(hisi_hba, IOST_BASE_ADDR_HI,
+			 DMA_ADDR_HI(hisi_hba->iost_dma));
+
+	/* breakpoint */
+	hisi_sas_write32(hisi_hba, BROKEN_MSG_ADDR_LO,
+			 DMA_ADDR_LO(hisi_hba->breakpoint_dma));
+
+	hisi_sas_write32(hisi_hba, BROKEN_MSG_ADDR_HI,
+			 DMA_ADDR_HI(hisi_hba->breakpoint_dma));
+}
+
+
+
+static int hw_init(struct hisi_hba *hisi_hba)
+{
+	init_reg(hisi_hba);
+
+	/* maybe init serdes param j00310691 */
+	init_id_frame(hisi_hba);
+
+	return 0;
+}
+
+
 static int prep_ata(struct hisi_hba *hisi_hba,
 		struct hisi_sas_tei *tei)
 {
@@ -513,7 +770,7 @@ static int prep_ata(struct hisi_hba *hisi_hba,
 }
 
 const struct hisi_sas_dispatch hisi_sas_hi1610_dispatch = {
-	.hw_init = NULL,
+	.hw_init = hw_init,
 	.prep_ssp = prep_ssp,
 	.prep_smp = prep_smp,
 	.prep_stp = prep_ata,

@@ -53,8 +53,8 @@
 #define OQ_INT_SRC_REG			0x1d0
 #define OQ_INT_SRC_MSK_REG		0x1d4
 #define ENT_INT_SRC1_REG		0x1d8
-#define ENT_INT_SRC_MSK1_REG		0x1e0
 #define ENT_INT_SRC2_REG		0x1dc
+#define ENT_INT_SRC_MSK1_REG		0x1e0
 #define ENT_INT_SRC_MSK2_REG		0x1e4
 #define SAS_ECC_INTR_MSK_REG		0x1ec
 #define HGC_ERR_STAT_EN_REG		0x238
