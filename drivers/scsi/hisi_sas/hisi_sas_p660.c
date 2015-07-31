@@ -177,7 +177,6 @@
 
 #define AXI_CFG_REG			(0x5100)
 
-// todo j00310691 fix for hi1610
 enum {
 	HISI_SAS_PHY_CTRL_RDY = 0,
 	HISI_SAS_PHY_DMA_RESP_ERR,
@@ -794,7 +793,7 @@ static irqreturn_t int_phyup(int phy_no, void *p)
 	else
 		phy->phy_type |= PORT_TYPE_SAS;
 
-	hisi_sas_update_phyinfo(hisi_hba, phy_no, 1);
+	hisi_sas_update_phyinfo(hisi_hba, phy_no, 1, (val & phy_no << 1) ? 1 : 0);
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
 
 	res = IRQ_HANDLED;
@@ -1337,12 +1336,17 @@ static irqreturn_t int_abnormal(int phy_no, void *p)
 		u32 val = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG_REG);
 
 		if (val & PHY_CFG_REG_ENA_MSK) {
+			u32 phy_state = hisi_sas_read32(hisi_hba, PHY_STATE_REG);
+			u32 context = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
 			/* Enabled */
 			/* Stop serdes fw timer */
 			/* serdes lane reset */
 			/* todo */
 
-			hisi_sas_phy_down(hisi_hba, phy_no);
+			hisi_sas_phy_down(hisi_hba,
+				phy_no,
+				(phy_state & 1 << phy_no) ? 1 : 0,
+				(context & 1 << phy_no) ? 1 : 0);
 		} else {
 			/* Disabled */
 			/* Ignore phydown event if disabled */

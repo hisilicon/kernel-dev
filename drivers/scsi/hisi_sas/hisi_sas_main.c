@@ -824,7 +824,7 @@ static void hisi_sas_phy_disconnected(struct hisi_sas_phy *phy)
 	phy->phy_type = 0;
 }
 
-void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st)
+void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st, int context)
 {
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct sas_identify_frame *id;
@@ -842,10 +842,8 @@ void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st)
 		/* j00310691 do as fix phy info */
 		phy->att_dev_sas_addr = *(u64 *)id->sas_addr;
 		if (phy->phy_type & PORT_TYPE_SATA) {
-			u32 context = 0;//fixmehisi_sas_read32(hisi_hba, PHY_CONTEXT);
-
 			phy->identify.target_port_protocols = SAS_PROTOCOL_STP;
-			if (context & 1 << phy_no) {
+			if (context) {
 				phy->phy_attached = 1;
 				phy->att_dev_sas_addr = 0;
 				//	i + mvi->id * mvi->chip->n_phy;
@@ -891,20 +889,16 @@ out_done:
 		phy_no + hisi_hba->id * hisi_hba->n_phy, phy->att_dev_sas_addr);
 }
 
-void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no)
+void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy, int context)
 {
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct sas_ha_struct *sas_ha = hisi_hba->sas;
-	/* j00310691 fixme maybe we can't trust this register */
-	u32 phy_state = 0;//hisi_sas_read32(hisi_hba, PHY_STATE_REG);
-	//fixme
-	pr_info("%s phy%d phy_state=0x%x\n", __func__, phy_no, phy_state);
 
-	if (phy_state & 1 << phy_no) {
+	if (rdy) {
 		/* Phy down but ready */
 		pr_debug("%s phy %d down and ready\n", __func__, phy_no);
-		hisi_sas_update_phyinfo(hisi_hba, phy_no, 0);
+		hisi_sas_update_phyinfo(hisi_hba, phy_no, 0, context);
 		hisi_sas_bytes_dmaed(hisi_hba, phy_no);
 		hisi_sas_port_notify_formed(sas_phy, 0);
 		pr_info("phy%d Attached Device\n", phy_no);
@@ -916,7 +910,6 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no)
 		sas_ha->notify_phy_event(sas_phy, PHYE_LOSS_OF_SIGNAL);
 	}
 }
-
 
 #ifdef CONFIG_DEBUG_FS
 /*****************************************************
