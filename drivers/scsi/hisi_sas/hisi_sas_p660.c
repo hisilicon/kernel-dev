@@ -17,7 +17,7 @@
 #include <linux/types.h>
 
 /* global registers need init*/
-#define DLVRY_QUEUE_ENABLE_REG		0x0
+#define DLVRY_QUEUE_ENABLE		0x0
 #define IOST_BASE_ADDR_LO		0x8
 #define IOST_BASE_ADDR_HI		0xc
 #define ITCT_BASE_ADDR_LO		0x10
@@ -25,39 +25,39 @@
 #define BROKEN_MSG_ADDR_LO		0x18
 #define BROKEN_MSG_ADDR_HI		0x1c
 #define PHY_CONTEXT			0x20
-#define PHY_STATE_REG			0x24
-#define PHY_PORT_NUM_MA_REG		0x28
-#define PORT_STATE_REG			0x2c
-#define PHY_CONN_RATE_REG		0x30
-#define HGC_TRANS_TASK_CNT_LIMIT_REG	0x38
-#define AXI_AHB_CLK_CFG_REG		0x3c
-#define HGC_SAS_TXFAIL_RETRY_CTRL_REG	0x84
-#define HGC_GET_ITV_TIME_REG		0x90
-#define DEVICE_MSG_WORK_MODE_REG	0x94
-#define MAX_BURST_BYTES_REG		0x98
-#define SMP_TIMEOUT_TIMER_REG		0x9c
-#define I_T_NEXUS_LOSS_TIME_REG		0xa0
-#define MAX_CON_TIME_LIMIT_TIME_REG	0xa4
-#define BUS_INACTIVE_LIMIT_TIME_REG	0xa8
-#define REJECT_TO_OPEN_LIMIT_TIME_REG	0xac
-#define CFG_AGING_TIME_REG		0xbc
-#define HGC_DFX_CFG_REG2_REG		0xc0
-#define FIS_LIST_BADDR_L_REG		0xc4
-#define CFG_1US_TIMER_TRSH_REG		0xcc
-#define CFG_SAS_CONFIG_REG		0xd4
-#define INT_COAL_EN_REG			0x1bc
-#define OQ_INT_COAL_TIME_REG		0x1c0
-#define OQ_INT_COAL_CNT_REG		0x1c4
-#define ENT_INT_COAL_TIME_REG		0x1c8
-#define ENT_INT_COAL_CNT_REG		0x1cc
-#define OQ_INT_SRC_REG			0x1d0
-#define OQ_INT_SRC_MSK_REG		0x1d4
-#define ENT_INT_SRC1_REG		0x1d8
-#define ENT_INT_SRC2_REG		0x1dc
-#define ENT_INT_SRC_MSK1_REG		0x1e0
-#define ENT_INT_SRC_MSK2_REG		0x1e4
-#define SAS_ECC_INTR_MSK_REG		0x1ec
-#define HGC_ERR_STAT_EN_REG		0x238
+#define PHY_STATE			0x24
+#define PHY_PORT_NUM_MA			0x28
+#define PORT_STATE			0x2c
+#define PHY_CONN_RATE			0x30
+#define HGC_TRANS_TASK_CNT_LIMIT	0x38
+#define AXI_AHB_CLK_CFG			0x3c
+#define HGC_SAS_TXFAIL_RETRY_CTRL	0x84
+#define HGC_GET_ITV_TIME		0x90
+#define DEVICE_MSG_WORK_MODE		0x94
+#define MAX_BURST_BYTES			0x98
+#define SMP_TIMEOUT_TIMER		0x9c
+#define I_T_NEXUS_LOSS_TIME		0xa0
+#define MAX_CON_TIME_LIMIT_TIME	0xa4
+#define BUS_INACTIVE_LIMIT_TIME	0xa8
+#define REJECT_TO_OPEN_LIMIT_TIME	0xac
+#define CFG_AGING_TIME			0xbc
+#define HGC_DFX_CFG2			0xc0
+#define FIS_LIST_BADDR_L		0xc4
+#define CFG_1US_TIMER_TRSH		0xcc
+#define CFG_SAS_CONFIG			0xd4
+#define INT_COAL_EN			0x1bc
+#define OQ_INT_COAL_TIME		0x1c0
+#define OQ_INT_COAL_CNT			0x1c4
+#define ENT_INT_COAL_TIME		0x1c8
+#define ENT_INT_COAL_CNT		0x1cc
+#define OQ_INT_SRC			0x1d0
+#define OQ_INT_SRC_MSK			0x1d4
+#define ENT_INT_SRC1			0x1d8
+#define ENT_INT_SRC2			0x1dc
+#define ENT_INT_SRC_MSK1		0x1e0
+#define ENT_INT_SRC_MSK2		0x1e4
+#define SAS_ECC_INTR_MSK		0x1ec
+#define HGC_ERR_STAT_EN			0x238
 #define DLVRY_Q_0_BASE_ADDR_LO		0x260
 #define DLVRY_Q_0_BASE_ADDR_HI		0x264
 #define DLVRY_Q_0_DEPTH			0x268
@@ -70,112 +70,112 @@
 #define COMPL_Q_0_RD_PTR		0x4f0
 
 /* phy registers need init */
-#define PORT_BASE_REG			(0x800)
+#define PORT_BASE			(0x800)
 
-#define PHY_CFG_REG			(PORT_BASE_REG + 0x0)
-#define PHY_CFG_REG_ENA_OFF		0
-#define PHY_CFG_REG_ENA_MSK		0x1
-#define PHY_CFG_REG_SATA_OFF		1
-#define PHY_CFG_REG_SATA_MSK		0x2
-#define PHY_CFG_REG_DC_OPT_OFF		2
-#define PHY_CFG_REG_DC_OPT_MSK		0x4
-#define HARD_PHY_LINK_RATE_REG		(PORT_BASE_REG + 0x4)
-#define HARD_PHY_LINK_RATE_REG_MAX_OFF	0
-#define HARD_PHY_LINK_RATE_REG_MAX_MSK	0xf
-#define HARD_PHY_LINK_RATE_REG_MIN_OFF	4
-#define HARD_PHY_LINK_RATE_REG_MIN_MSK	0xf0
-#define HARD_PHY_LINK_RATE_REG_NEG_OFF	8
-#define HARD_PHY_LINK_RATE_REG_NEG_MSK	0xf00
-#define PROG_PHY_LINK_RATE_REG		(PORT_BASE_REG + 0xc)
-#define PROG_PHY_LINK_RATE_REG_MAX_OFF	0
-#define PROG_PHY_LINK_RATE_REG_MAX_MSK	0xf
-#define PROG_PHY_LINK_RATE_REG_MIN_OFF	4
-#define PROG_PHY_LINK_RATE_REG_MIN_MSK	0xf0
-#define PROG_PHY_LINK_RATE_REG_OOB_OFF	8
-#define PROG_PHY_LINK_RATE_REG_OOB_MSK	0xf00
-#define PHY_CTRL_REG			(PORT_BASE_REG + 0x14)
-#define PHY_CTRL_REG_RESET_OFF		0
-#define PHY_CTRL_REG_RESET_MSK		0x1
-#define PHY_RATE_NEGO_REG		(PORT_BASE_REG + 0x30)
-#define PHY_PCN_REG			(PORT_BASE_REG + 0x44)
-#define SL_TOUT_CFG_REG			(PORT_BASE_REG + 0x8c)
-#define SL_CONTROL_REG			(PORT_BASE_REG + 0x94)
-#define SL_CONTROL_REG_NOTIFY_EN_OFF	0
-#define SL_CONTROL_REG_NOTIFY_EN_MSK	0x1
-#define TX_ID_DWORD0_REG		(PORT_BASE_REG + 0x9c)
-#define TX_ID_DWORD1_REG		(PORT_BASE_REG + 0xa0)
-#define TX_ID_DWORD2_REG		(PORT_BASE_REG + 0xa4)
-#define TX_ID_DWORD3_REG		(PORT_BASE_REG + 0xa8)
-#define TX_ID_DWORD4_REG		(PORT_BASE_REG + 0xaC)
-#define TX_ID_DWORD5_REG		(PORT_BASE_REG + 0xb0)
-#define TX_ID_DWORD6_REG		(PORT_BASE_REG + 0xb4)
-#define RX_IDAF_DWORD0_REG		(PORT_BASE_REG + 0xc4)
-#define RX_IDAF_DWORD1_REG		(PORT_BASE_REG + 0xc8)
-#define RX_IDAF_DWORD2_REG		(PORT_BASE_REG + 0xcc)
-#define RX_IDAF_DWORD3_REG		(PORT_BASE_REG + 0xd0)
-#define RX_IDAF_DWORD4_REG		(PORT_BASE_REG + 0xd4)
-#define RX_IDAF_DWORD5_REG		(PORT_BASE_REG + 0xd8)
-#define RX_IDAF_DWORD6_REG		(PORT_BASE_REG + 0xdc)
-#define RXOP_CHECK_CFG_H_REG		(PORT_BASE_REG + 0xfc)
-#define DONE_RECEVIED_TIME_REG		(PORT_BASE_REG + 0x12c)
-#define CON_CFG_DRIVER_REG		(PORT_BASE_REG + 0x130)
-#define PHY_CONFIG2_REG			(PORT_BASE_REG + 0x1a8)
-#define PHY_CONFIG2_REG_RXCLTEPRES_OFF	0
-#define PHY_CONFIG2_REG_RXCLTEPRES_MSK	0xFF
+#define PHY_CFG				(PORT_BASE + 0x0)
+#define PHY_CFG_ENA_OFF			0
+#define PHY_CFG_ENA_MSK			0x1
+#define PHY_CFG_SATA_OFF		1
+#define PHY_CFG_SATA_MSK		0x2
+#define PHY_CFG_DC_OPT_OFF		2
+#define PHY_CFG_DC_OPT_MSK		0x4
+#define HARD_PHY_LINK_RATE		(PORT_BASE + 0x4)
+#define HARD_PHY_LINK_RATE_MAX_OFF	0
+#define HARD_PHY_LINK_RATE_MAX_MSK	0xf
+#define HARD_PHY_LINK_RATE_MIN_OFF	4
+#define HARD_PHY_LINK_RATE_MIN_MSK	0xf0
+#define HARD_PHY_LINK_RATE_NEG_OFF	8
+#define HARD_PHY_LINK_RATE_NEG_MSK	0xf00
+#define PROG_PHY_LINK_RATE		(PORT_BASE + 0xc)
+#define PROG_PHY_LINK_RATE_MAX_OFF	0
+#define PROG_PHY_LINK_RATE_MAX_MSK	0xf
+#define PROG_PHY_LINK_RATE_MIN_OFF	4
+#define PROG_PHY_LINK_RATE_MIN_MSK	0xf0
+#define PROG_PHY_LINK_RATE_OOB_OFF	8
+#define PROG_PHY_LINK_RATE_OOB_MSK	0xf00
+#define PHY_CTRL			(PORT_BASE + 0x14)
+#define PHY_CTRL_RESET_OFF		0
+#define PHY_CTRL_RESET_MSK		0x1
+#define PHY_RATE_NEGO			(PORT_BASE + 0x30)
+#define PHY_PCN				(PORT_BASE + 0x44)
+#define SL_TOUT_CFG			(PORT_BASE + 0x8c)
+#define SL_CONTROL			(PORT_BASE + 0x94)
+#define SL_CONTROL_NOTIFY_EN_OFF	0
+#define SL_CONTROL_NOTIFY_EN_MSK	0x1
+#define TX_ID_DWORD0			(PORT_BASE + 0x9c)
+#define TX_ID_DWORD1			(PORT_BASE + 0xa0)
+#define TX_ID_DWORD2			(PORT_BASE + 0xa4)
+#define TX_ID_DWORD3			(PORT_BASE + 0xa8)
+#define TX_ID_DWORD4			(PORT_BASE + 0xaC)
+#define TX_ID_DWORD5			(PORT_BASE + 0xb0)
+#define TX_ID_DWORD6			(PORT_BASE + 0xb4)
+#define RX_IDAF_DWORD0			(PORT_BASE + 0xc4)
+#define RX_IDAF_DWORD1			(PORT_BASE + 0xc8)
+#define RX_IDAF_DWORD2			(PORT_BASE + 0xcc)
+#define RX_IDAF_DWORD3			(PORT_BASE + 0xd0)
+#define RX_IDAF_DWORD4			(PORT_BASE + 0xd4)
+#define RX_IDAF_DWORD5			(PORT_BASE + 0xd8)
+#define RX_IDAF_DWORD6			(PORT_BASE + 0xdc)
+#define RXOP_CHECK_CFG_H		(PORT_BASE + 0xfc)
+#define DONE_RECEVIED_TIME		(PORT_BASE + 0x12c)
+#define CON_CFG_DRIVER			(PORT_BASE + 0x130)
+#define PHY_CONFIG2			(PORT_BASE + 0x1a8)
+#define PHY_CONFIG2_RXCLTEPRES_OFF	0
+#define PHY_CONFIG2_RXCLTEPRES_MSK	0xFF
 #define CFG_TX_TRAIN_COMP_OFF		24
 #define CFG_TX_TRAIN_COMP_MSK		0x1
-#define CHL_INT_COAL_EN_REG		(PORT_BASE_REG + 0x1d0)
-#define DMA_TX_STATUS_REG		(PORT_BASE_REG + 0x2d0)
+#define CHL_INT_COAL_EN			(PORT_BASE + 0x1d0)
+#define DMA_TX_STATUS			(PORT_BASE + 0x2d0)
 #define DMA_TX_STATUS_BUSY_OFF		0
 #define DMA_TX_STATUS_BUSY_MSK		0x1
-#define DMA_RX_STATUS_REG		(PORT_BASE_REG + 0x2e8)
+#define DMA_RX_STATUS			(PORT_BASE + 0x2e8)
 #define DMA_RX_STATUS_BUSY_OFF		0
 #define DMA_RX_STATUS_BUSY_MSK		0x1
 
 /* phy intr registers */
-#define CHL_INT0_REG			(PORT_BASE_REG + 0x1b0)
-#define CHL_INT0_REG_PHYCTRL_NOTRDY_OFF 0
-#define CHL_INT0_REG_PHYCTRL_NOTRDY_MSK 0x1
-#define CHL_INT0_REG_SN_FAIL_NGR_OFF	2
-#define CHL_INT0_REG_SN_FAIL_NGR_MSK	0x4
-#define CHL_INT0_REG_DWS_LOST_OFF	4
-#define CHL_INT0_REG_DWS_LOST_MSK	0x10
-#define CHL_INT0_REG_SL_IDAF_FAIL_OFF	10
-#define CHL_INT0_REG_SL_IDAF_FAIL_MSK	0x400
-#define CHL_INT0_REG_ID_TIMEOUT_OFF	11
-#define CHL_INT0_REG_ID_TIMEOUT_MSK	0x800
-#define CHL_INT0_REG_SL_OPAF_FAIL_OFF	12
-#define CHL_INT0_REG_SL_OPAF_FAIL_MSK	0x1000
-#define CHL_INT0_REG_SL_PS_FAIL_OFF	21
-#define CHL_INT0_REG_SL_PS_FAIL_MSK	0x200000
-#define CHL_INT1_REG			(PORT_BASE_REG + 0x1b4)
-#define CHL_INT2_REG			(PORT_BASE_REG + 0x1b8)
-#define CHL_INT2_REG_CTRL_PHY_RDY_OFF	0
-#define CHL_INT2_REG_CTRL_PHY_RDY_MSK	0x1
-#define CHL_INT2_REG_PHY_HP_TOUT_OFF	1
-#define CHL_INT2_REG_PHY_HP_TOUT_MSK	0x2
-#define CHL_INT2_REG_SL_RX_BC_ACK_OFF	2
-#define CHL_INT2_REG_SL_RX_BC_ACK_MSK	0x4
-#define CHL_INT2_REG_OOB_RESTART_OFF	3
-#define CHL_INT2_REG_OOB_RESTART_MSK	0x8
+#define CHL_INT0			(PORT_BASE + 0x1b0)
+#define CHL_INT0_PHYCTRL_NOTRDY_OFF 	0
+#define CHL_INT0_PHYCTRL_NOTRDY_MSK 	0x1
+#define CHL_INT0_SN_FAIL_NGR_OFF	2
+#define CHL_INT0_SN_FAIL_NGR_MSK	0x4
+#define CHL_INT0_DWS_LOST_OFF		4
+#define CHL_INT0_DWS_LOST_MSK		0x10
+#define CHL_INT0_SL_IDAF_FAIL_OFF	10
+#define CHL_INT0_SL_IDAF_FAIL_MSK	0x400
+#define CHL_INT0_ID_TIMEOUT_OFF	11
+#define CHL_INT0_ID_TIMEOUT_MSK	0x800
+#define CHL_INT0_SL_OPAF_FAIL_OFF	12
+#define CHL_INT0_SL_OPAF_FAIL_MSK	0x1000
+#define CHL_INT0_SL_PS_FAIL_OFF		21
+#define CHL_INT0_SL_PS_FAIL_MSK		0x200000
+#define CHL_INT1			(PORT_BASE + 0x1b4)
+#define CHL_INT2			(PORT_BASE + 0x1b8)
+#define CHL_INT2_CTRL_PHY_RDY_OFF	0
+#define CHL_INT2_CTRL_PHY_RDY_MSK	0x1
+#define CHL_INT2_PHY_HP_TOUT_OFF	1
+#define CHL_INT2_PHY_HP_TOUT_MSK	0x2
+#define CHL_INT2_SL_RX_BC_ACK_OFF	2
+#define CHL_INT2_SL_RX_BC_ACK_MSK	0x4
+#define CHL_INT2_OOB_RESTART_OFF	3
+#define CHL_INT2_OOB_RESTART_MSK	0x8
 #define CHL_INT2_SL_RX_HARDRST_OFF	4
 #define CHL_INT2_SL_RX_HARDRST_MSK	0x10
 #define CHL_INT2_PHY_STATUS_CHG_OFF	5
 #define CHL_INT2_PHY_STATUS_CHG_MSK	0x20
-#define CHL_INT2_REG_SL_PHY_ENA_OFF	6
-#define CHL_INT2_REG_SL_PHY_ENA_MSK	0x40
-#define CHL_INT2_REG_DMA_RESP_ERR_OFF	7
-#define CHL_INT2_REG_DMA_RESP_ERR_MSK	0x80
+#define CHL_INT2_SL_PHY_ENA_OFF	6
+#define CHL_INT2_SL_PHY_ENA_MSK	0x40
+#define CHL_INT2_DMA_RESP_ERR_OFF	7
+#define CHL_INT2_DMA_RESP_ERR_MSK	0x80
 
 /* phy intr_mask registers need unmask */
-#define CHL_INT0_MSK_REG		(PORT_BASE_REG + 0x1bc)
-#define CHL_INT1_MSK_REG		(PORT_BASE_REG + 0x1c0)
-#define CHL_INT2_MSK_REG		(PORT_BASE_REG + 0x1c4)
+#define CHL_INT0_MSK			(PORT_BASE + 0x1bc)
+#define CHL_INT1_MSK			(PORT_BASE + 0x1c0)
+#define CHL_INT2_MSK			(PORT_BASE + 0x1c4)
 
 /* nego query windown */
 #define NEGO_QUERY_WINDOW_12G		40
 
-#define AXI_CFG_REG			(0x5100)
+#define AXI_CFG				(0x5100)
 
 enum {
 	HISI_SAS_PHY_CTRL_RDY = 0,
@@ -265,18 +265,17 @@ static inline u32 hisi_sas_phy_read32(struct hisi_hba *hisi_hba, int phy, u32 of
 	return readl(regs);
 }
 
-
 static void config_phy_link_param(struct hisi_hba *hisi_hba,
 					int phy,
 					enum sas_linkrate linkrate)
 {
-	u32 rate = hisi_sas_phy_read32(hisi_hba, phy, PROG_PHY_LINK_RATE_REG);
+	u32 rate = hisi_sas_phy_read32(hisi_hba, phy, PROG_PHY_LINK_RATE);
 	u32 pcn;
 
-	rate &= ~PROG_PHY_LINK_RATE_REG_MAX_MSK;
+	rate &= ~PROG_PHY_LINK_RATE_MAX_MSK;
 	switch (linkrate) {
 	case SAS_LINK_RATE_12_0_GBPS:
-		rate |= SAS_LINK_RATE_12_0_GBPS << PROG_PHY_LINK_RATE_REG_MAX_OFF;
+		rate |= SAS_LINK_RATE_12_0_GBPS << PROG_PHY_LINK_RATE_MAX_OFF;
 		pcn = 0x80aa0001;
 		break;
 
@@ -286,28 +285,28 @@ static void config_phy_link_param(struct hisi_hba *hisi_hba,
 		return;
 	}
 
-	rate &= ~PROG_PHY_LINK_RATE_REG_OOB_MSK;
-	rate |= SAS_LINK_RATE_1_5_GBPS << PROG_PHY_LINK_RATE_REG_OOB_OFF;
-	rate &= ~PROG_PHY_LINK_RATE_REG_MIN_MSK;
-	rate |= SAS_LINK_RATE_1_5_GBPS << PROG_PHY_LINK_RATE_REG_MIN_OFF;
-	hisi_sas_phy_write32(hisi_hba, phy, PROG_PHY_LINK_RATE_REG, rate);
-	hisi_sas_phy_write32(hisi_hba, phy, PHY_PCN_REG, pcn);
+	rate &= ~PROG_PHY_LINK_RATE_OOB_MSK;
+	rate |= SAS_LINK_RATE_1_5_GBPS << PROG_PHY_LINK_RATE_OOB_OFF;
+	rate &= ~PROG_PHY_LINK_RATE_MIN_MSK;
+	rate |= SAS_LINK_RATE_1_5_GBPS << PROG_PHY_LINK_RATE_MIN_OFF;
+	hisi_sas_phy_write32(hisi_hba, phy, PROG_PHY_LINK_RATE, rate);
+	hisi_sas_phy_write32(hisi_hba, phy, PHY_PCN, pcn);
 }
 
 static void config_phy_opt_mode(struct hisi_hba *hisi_hba, int phy)
 {
 	/* j00310691 assume not optical cable for now */
-	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy, PHY_CFG_REG);
-	cfg &= ~PHY_CFG_REG_DC_OPT_MSK;
-	cfg |= 1 << PHY_CFG_REG_DC_OPT_OFF;
-	hisi_sas_phy_write32(hisi_hba, phy, PHY_CFG_REG, cfg);
+	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy, PHY_CFG);
+	cfg &= ~PHY_CFG_DC_OPT_MSK;
+	cfg |= 1 << PHY_CFG_DC_OPT_OFF;
+	hisi_sas_phy_write32(hisi_hba, phy, PHY_CFG, cfg);
 }
 
 static void config_tx_tfe_autoneg(struct hisi_hba *hisi_hba, int phy)
 {
-	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy, PHY_CONFIG2_REG);
-	cfg &= ~PHY_CONFIG2_REG_RXCLTEPRES_MSK;
-	hisi_sas_phy_write32(hisi_hba, phy, PHY_CONFIG2_REG, cfg);
+	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy, PHY_CONFIG2);
+	cfg &= ~PHY_CONFIG2_RXCLTEPRES_MSK;
+	hisi_sas_phy_write32(hisi_hba, phy, PHY_CONFIG2, cfg);
 }
 
 static void config_id_frame(struct hisi_hba *hisi_hba, int phy)
@@ -330,17 +329,17 @@ static void config_id_frame(struct hisi_hba *hisi_hba, int phy)
 	identify_frame.phy_id = phy;
 	identify_buffer = (u32 *)(&identify_frame);
 
-	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD0_REG,
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD0,
 			__swab32(identify_buffer[0]));
-	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD1_REG,
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD1,
 			identify_buffer[2]);
-	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD2_REG,
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD2,
 			identify_buffer[1]);
-	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD3_REG,
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD3,
 			identify_buffer[4]);
-	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD4_REG,
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD4,
 			identify_buffer[3]);
-	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD5_REG,
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD5,
 			__swab32(identify_buffer[5]));
 }
 
@@ -368,10 +367,10 @@ static int reset_hw(struct hisi_hba *hisi_hba)
 	u64 reset_status_reg_addr;
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
-		u32 phy_ctrl = hisi_sas_phy_read32(hisi_hba, i, PHY_CTRL_REG);
+		u32 phy_ctrl = hisi_sas_phy_read32(hisi_hba, i, PHY_CTRL);
 
-		phy_ctrl |= PHY_CTRL_REG_RESET_MSK;
-		hisi_sas_phy_write32(hisi_hba, i, PHY_CTRL_REG, phy_ctrl);
+		phy_ctrl |= PHY_CTRL_RESET_MSK;
+		hisi_sas_phy_write32(hisi_hba, i, PHY_CTRL, phy_ctrl);
 	}
 	udelay(50);
 
@@ -383,9 +382,9 @@ static int reset_hw(struct hisi_hba *hisi_hba)
 
 		while (1) {
 			dma_tx_status =
-				hisi_sas_phy_read32(hisi_hba, i, DMA_TX_STATUS_REG);
+				hisi_sas_phy_read32(hisi_hba, i, DMA_TX_STATUS);
 			dma_rx_status =
-				hisi_sas_phy_read32(hisi_hba, i, DMA_RX_STATUS_REG);
+				hisi_sas_phy_read32(hisi_hba, i, DMA_RX_STATUS);
 
 			if (!(dma_tx_status & DMA_TX_STATUS_BUSY_MSK) &&
 				!(dma_rx_status & DMA_RX_STATUS_BUSY_MSK))
@@ -401,7 +400,7 @@ static int reset_hw(struct hisi_hba *hisi_hba)
 	end_time = jiffies + msecs_to_jiffies(1000);
 	while (1) {
 		u32 axi_status =
-			hisi_sas_read32(hisi_hba, AXI_CFG_REG);
+			hisi_sas_read32(hisi_hba, AXI_CFG);
 
 		if (axi_status == 0)
 			break;
@@ -485,52 +484,52 @@ static void init_reg(struct hisi_hba *hisi_hba)
 
 	/* Global registers init*/
 	hisi_sas_write32(hisi_hba,
-		DLVRY_QUEUE_ENABLE_REG,
+		DLVRY_QUEUE_ENABLE,
 		(u32)((1ULL << hisi_hba->queue_count) - 1));
-	hisi_sas_write32(hisi_hba, HGC_TRANS_TASK_CNT_LIMIT_REG, 0x11);
-	hisi_sas_write32(hisi_hba, DEVICE_MSG_WORK_MODE_REG, 0x1);
-//	hisi_sas_write32(hisi_hba, MAX_BURST_BYTES_REG, 0);
-//	hisi_sas_write32(hisi_hba, SMP_TIMEOUT_TIMER_REG, 0);
-//	hisi_sas_write32(hisi_hba, MAX_CON_TIME_LIMIT_TIME_REG, 0);
-	hisi_sas_write32(hisi_hba, HGC_SAS_TXFAIL_RETRY_CTRL_REG, 0x211ff);
-	hisi_sas_write32(hisi_hba, HGC_ERR_STAT_EN_REG, 0x401);
-	hisi_sas_write32(hisi_hba, CFG_1US_TIMER_TRSH_REG, 0x64);
-	hisi_sas_write32(hisi_hba, HGC_GET_ITV_TIME_REG, 0x1);
-	hisi_sas_write32(hisi_hba, I_T_NEXUS_LOSS_TIME_REG, 0x64);
-	hisi_sas_write32(hisi_hba, BUS_INACTIVE_LIMIT_TIME_REG, 0x2710);
-	hisi_sas_write32(hisi_hba, REJECT_TO_OPEN_LIMIT_TIME_REG, 0x1);
-	hisi_sas_write32(hisi_hba, CFG_AGING_TIME_REG, 0x7a12);
-	hisi_sas_write32(hisi_hba, HGC_DFX_CFG_REG2_REG, 0x9c40);
-	hisi_sas_write32(hisi_hba, FIS_LIST_BADDR_L_REG, 0x2);
-	hisi_sas_write32(hisi_hba, INT_COAL_EN_REG, 0xC);
-	hisi_sas_write32(hisi_hba, OQ_INT_COAL_TIME_REG, 0x186A0);
-	hisi_sas_write32(hisi_hba, OQ_INT_COAL_CNT_REG, 1);
-	hisi_sas_write32(hisi_hba, ENT_INT_COAL_TIME_REG, 0x1);
-	hisi_sas_write32(hisi_hba, ENT_INT_COAL_CNT_REG, 0x1);
-	hisi_sas_write32(hisi_hba, OQ_INT_SRC_REG, 0xffffffff);
-	hisi_sas_write32(hisi_hba, OQ_INT_SRC_MSK_REG, 0);
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC1_REG, 0xffffffff);
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1_REG, 0);
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC2_REG, 0xffffffff);
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK2_REG, 0);
-	hisi_sas_write32(hisi_hba, SAS_ECC_INTR_MSK_REG, 0);
-	hisi_sas_write32(hisi_hba, AXI_AHB_CLK_CFG_REG, 0x2);
-	hisi_sas_write32(hisi_hba, CFG_SAS_CONFIG_REG, 0x22000000);
+	hisi_sas_write32(hisi_hba, HGC_TRANS_TASK_CNT_LIMIT, 0x11);
+	hisi_sas_write32(hisi_hba, DEVICE_MSG_WORK_MODE, 0x1);
+//	hisi_sas_write32(hisi_hba, MAX_BURST_BYTES, 0);
+//	hisi_sas_write32(hisi_hba, SMP_TIMEOUT_TIMER, 0);
+//	hisi_sas_write32(hisi_hba, MAX_CON_TIME_LIMIT_TIME, 0);
+	hisi_sas_write32(hisi_hba, HGC_SAS_TXFAIL_RETRY_CTRL, 0x211ff);
+	hisi_sas_write32(hisi_hba, HGC_ERR_STAT_EN, 0x401);
+	hisi_sas_write32(hisi_hba, CFG_1US_TIMER_TRSH, 0x64);
+	hisi_sas_write32(hisi_hba, HGC_GET_ITV_TIME, 0x1);
+	hisi_sas_write32(hisi_hba, I_T_NEXUS_LOSS_TIME, 0x64);
+	hisi_sas_write32(hisi_hba, BUS_INACTIVE_LIMIT_TIME, 0x2710);
+	hisi_sas_write32(hisi_hba, REJECT_TO_OPEN_LIMIT_TIME, 0x1);
+	hisi_sas_write32(hisi_hba, CFG_AGING_TIME, 0x7a12);
+	hisi_sas_write32(hisi_hba, HGC_DFX_CFG2, 0x9c40);
+	hisi_sas_write32(hisi_hba, FIS_LIST_BADDR_L, 0x2);
+	hisi_sas_write32(hisi_hba, INT_COAL_EN, 0xC);
+	hisi_sas_write32(hisi_hba, OQ_INT_COAL_TIME, 0x186A0);
+	hisi_sas_write32(hisi_hba, OQ_INT_COAL_CNT, 1);
+	hisi_sas_write32(hisi_hba, ENT_INT_COAL_TIME, 0x1);
+	hisi_sas_write32(hisi_hba, ENT_INT_COAL_CNT, 0x1);
+	hisi_sas_write32(hisi_hba, OQ_INT_SRC, 0xffffffff);
+	hisi_sas_write32(hisi_hba, OQ_INT_SRC_MSK, 0);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC1, 0xffffffff);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, 0);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC2, 0xffffffff);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK2, 0);
+	hisi_sas_write32(hisi_hba, SAS_ECC_INTR_MSK, 0);
+	hisi_sas_write32(hisi_hba, AXI_AHB_CLK_CFG, 0x2);
+	hisi_sas_write32(hisi_hba, CFG_SAS_CONFIG, 0x22000000);
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		/*phy registers init set 12G - see g_astPortRegConfig */
-		hisi_sas_phy_write32(hisi_hba, i, PROG_PHY_LINK_RATE_REG, 0x0000088a);
-		hisi_sas_phy_write32(hisi_hba, i, PHY_CONFIG2_REG, 0x80c7c084);
-		hisi_sas_phy_write32(hisi_hba, i, PHY_RATE_NEGO_REG, 0x415ee00);
-		hisi_sas_phy_write32(hisi_hba, i, PHY_PCN_REG, 0x80aa0001);
+		hisi_sas_phy_write32(hisi_hba, i, PROG_PHY_LINK_RATE, 0x0000088a);
+		hisi_sas_phy_write32(hisi_hba, i, PHY_CONFIG2, 0x80c7c084);
+		hisi_sas_phy_write32(hisi_hba, i, PHY_RATE_NEGO, 0x415ee00);
+		hisi_sas_phy_write32(hisi_hba, i, PHY_PCN, 0x80aa0001);
 
-		hisi_sas_phy_write32(hisi_hba, i, SL_TOUT_CFG_REG, 0x7d7d7d7d);
-		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 0x0);
-		hisi_sas_phy_write32(hisi_hba, i, RXOP_CHECK_CFG_H_REG, 0x1000);
-		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 0);
-		hisi_sas_phy_write32(hisi_hba, i, CON_CFG_DRIVER_REG, 0x13f0a);
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT_COAL_EN_REG, 3);
-		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 8);
+		hisi_sas_phy_write32(hisi_hba, i, SL_TOUT_CFG, 0x7d7d7d7d);
+		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME, 0x0);
+		hisi_sas_phy_write32(hisi_hba, i, RXOP_CHECK_CFG_H, 0x1000);
+		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME, 0);
+		hisi_sas_phy_write32(hisi_hba, i, CON_CFG_DRIVER, 0x13f0a);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT_COAL_EN, 3);
+		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME, 8);
 	}
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
@@ -598,9 +597,9 @@ static int hw_init(struct hisi_hba *hisi_hba)
 
 static void enable_phy(struct hisi_hba *hisi_hba, int phy)
 {
-	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy, PHY_CFG_REG);
-	cfg |= PHY_CFG_REG_ENA_MSK;
-	hisi_sas_phy_write32(hisi_hba, phy, PHY_CFG_REG, cfg);
+	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy, PHY_CFG);
+	cfg |= PHY_CFG_ENA_MSK;
+	hisi_sas_phy_write32(hisi_hba, phy, PHY_CFG, cfg);
 }
 
 static void start_phy(struct hisi_hba *hisi_hba, int phy)
@@ -618,7 +617,7 @@ static void start_phys(unsigned long data)
 	int i;
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK_REG, 0x0000032a);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0x0000032a);
 		start_phy(hisi_hba, i);
 	}
 
@@ -629,8 +628,8 @@ static void phys_up(struct hisi_hba *hisi_hba)
 	int i;
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK_REG, 0x36a);
-		hisi_sas_phy_read32(hisi_hba, i, CHL_INT2_MSK_REG);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0x36a);
+		hisi_sas_phy_read32(hisi_hba, i, CHL_INT2_MSK);
 	}
 }
 
@@ -659,7 +658,6 @@ static int phys_init(struct hisi_hba *hisi_hba)
 
 	return 0;
 }
-
 
 static int get_free_slot(struct hisi_hba *hisi_hba, int *q, int *s)
 {
@@ -702,10 +700,10 @@ static int is_phy_ready(struct hisi_hba *hisi_hba, int phy_no)
 	struct hisi_sas_port *port = phy->port;
 
 	/* j00310691 fimxe (check on phy rdy register) */
-	port_state = hisi_sas_read32(hisi_hba, PORT_STATE_REG);
-	phy_port_dis_state = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA_REG);
+	port_state = hisi_sas_read32(hisi_hba, PORT_STATE);
+	phy_port_dis_state = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA);
 
-	phy_state = hisi_sas_read32(hisi_hba, PHY_STATE_REG);
+	phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
 	if (phy_state & (1 << phy_no)) {
 		if (!port)
 			phy->phy_attached = 1;
@@ -714,7 +712,7 @@ static int is_phy_ready(struct hisi_hba *hisi_hba, int phy_no)
 
 	/* phy is not ready, so update port */
 	if (port) {
-		u32 wide_port_phymap = (hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA_REG) >> (phy_no * 4)) & 0xf;
+		u32 wide_port_phymap = (hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA) >> (phy_no * 4)) & 0xf;
 
 		if (phy->phy_type & PORT_TYPE_SAS) {
 			if (wide_port_phymap == 0xf)
@@ -742,16 +740,16 @@ static irqreturn_t int_phyup(int phy_no, void *p)
 	struct sas_identify_frame *id = (struct sas_identify_frame *)frame_rcvd;
 	irqreturn_t res;
 
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
 
-	if (!(irq_value & CHL_INT2_REG_SL_PHY_ENA_MSK)) {
+	if (!(irq_value & CHL_INT2_SL_PHY_ENA_MSK)) {
 		dev_dbg(hisi_hba->dev, "%s irq_value = %x not set enable bit\n",
 			__func__, irq_value);
 		res = IRQ_NONE;
 		goto end;
 	}
 
-	val = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA_REG);
+	val = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA);
 	port_id = (val >> (4 * phy_no)) & 0xf;
 	if (port_id == 0xf) {
 		pr_err("%s phy = %d, invalid portid\n", __func__, phy_no);
@@ -764,7 +762,7 @@ static irqreturn_t int_phyup(int phy_no, void *p)
 	port = &hisi_hba->port[port_id];
 	for (i = 0; i < 6; i++) {
 		val = hisi_sas_phy_read32(hisi_hba, phy_no,
-					RX_IDAF_DWORD0_REG + (i * 4));
+					RX_IDAF_DWORD0 + (i * 4));
 		frame_rcvd[i] = __swab32(val);
 	}
 
@@ -772,17 +770,17 @@ static irqreturn_t int_phyup(int phy_no, void *p)
 	phy->phy_attached = 1;
 
 	if (id->dev_type == SAS_END_DEVICE) {
-		val = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL_REG);
-		val |= SL_CONTROL_REG_NOTIFY_EN_MSK;
-		hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL_REG, val);
+		val = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
+		val |= SL_CONTROL_NOTIFY_EN_MSK;
+		hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, val);
 		mdelay(1);
-		val = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL_REG);
-		val &= ~SL_CONTROL_REG_NOTIFY_EN_MSK;
-		hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL_REG, val);
+		val = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
+		val &= ~SL_CONTROL_NOTIFY_EN_MSK;
+		hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, val);
 	}
 
 	/* Get the linkrate */
-	val = hisi_sas_read32(hisi_hba, PHY_CONN_RATE_REG);
+	val = hisi_sas_read32(hisi_hba, PHY_CONN_RATE);
 	link_rate = (val >> (phy_no * 4)) & 0xf;
 	sas_phy->linkrate = link_rate;
 	pr_info("%s phy_no=%d hisi_hba->id=%d link_rate=%d\n", __func__, phy_no, hisi_hba->id, link_rate);
@@ -798,14 +796,14 @@ static irqreturn_t int_phyup(int phy_no, void *p)
 
 	res = IRQ_HANDLED;
 end:
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG,
-			CHL_INT2_REG_SL_PHY_ENA_MSK);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,
+			CHL_INT2_SL_PHY_ENA_MSK);
 
-	if (irq_value & CHL_INT2_REG_SL_PHY_ENA_MSK) {
-		val = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_REG);
+	if (irq_value & CHL_INT2_SL_PHY_ENA_MSK) {
+		val = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0);
 		val &= ~1;
-		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_REG, val);
-		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG, 0x003ce3ee);
+		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, val);
+		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK, 0x003ce3ee);
 	}
 
 	return res;
@@ -1109,9 +1107,9 @@ void config_serdes_12G_timer_handler(unsigned long arg)
 	struct hisi_hba *hisi_hba = phy->hisi_hba;
 	int phy_id = phy->phy_id;
 
-	u32 val = hisi_sas_phy_read32(hisi_hba, phy_id, PHY_CONFIG2_REG);
+	u32 val = hisi_sas_phy_read32(hisi_hba, phy_id, PHY_CONFIG2);
 	val |= (CFG_TX_TRAIN_COMP_MSK << CFG_TX_TRAIN_COMP_OFF);
-	hisi_sas_phy_write32(hisi_hba, phy_id, PHY_CONFIG2_REG, val);
+	hisi_sas_phy_write32(hisi_hba, phy_id, PHY_CONFIG2, val);
 }
 
 static int config_serdes_12G(struct hisi_hba *hisi_hba, int phy_id)
@@ -1126,18 +1124,18 @@ static int config_serdes_12G(struct hisi_hba *hisi_hba, int phy_id)
 
 	while(!time_after(jiffies, end_time)) {
 		/*check for phy down interrupt*/
-		val = hisi_sas_phy_read32(hisi_hba, phy_id, CHL_INT0_REG);
-		if (val & CHL_INT0_REG_PHYCTRL_NOTRDY_MSK) {
+		val = hisi_sas_phy_read32(hisi_hba, phy_id, CHL_INT0);
+		if (val & CHL_INT0_PHYCTRL_NOTRDY_MSK) {
 			dev_dbg(hisi_hba->dev, "%s phy come while ctrl rdy for phy %d\n",
 				__func__, phy_id);
-			hisi_sas_phy_write32(hisi_hba, phy_id, CHL_INT0_REG,
-					CHL_INT0_REG_PHYCTRL_NOTRDY_MSK);
+			hisi_sas_phy_write32(hisi_hba, phy_id, CHL_INT0,
+					CHL_INT0_PHYCTRL_NOTRDY_MSK);
 			return 0;
 		}
 
-		val = hisi_sas_phy_read32(hisi_hba, phy_id, HARD_PHY_LINK_RATE_REG);
-		link_rate = (val & HARD_PHY_LINK_RATE_REG_NEG_MSK) >>
-				HARD_PHY_LINK_RATE_REG_NEG_OFF;
+		val = hisi_sas_phy_read32(hisi_hba, phy_id, HARD_PHY_LINK_RATE);
+		link_rate = (val & HARD_PHY_LINK_RATE_NEG_MSK) >>
+				HARD_PHY_LINK_RATE_NEG_OFF;
 
 		if (link_rate == SAS_LINK_RATE_12_0_GBPS) {
 			dev_dbg(hisi_hba->dev, "%s a link_rate = %d loop count = %d\n",
@@ -1171,12 +1169,12 @@ static irqreturn_t int_ctrlrdy(int phy, void *p)
 	u32 irq_value;
 	u32 context = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
 	pr_info("%s phy=%d context=0x%x\n", __func__, phy, context);
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy, CHL_INT2_REG);
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy, CHL_INT2);
 
-	if (!(irq_value & CHL_INT2_REG_CTRL_PHY_RDY_MSK)) {
+	if (!(irq_value & CHL_INT2_CTRL_PHY_RDY_MSK)) {
 		dev_warn(hisi_hba->dev, "%s irq_value = %x not set enable bit",
 			__func__, irq_value);
-		hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2_REG, CHL_INT2_REG_CTRL_PHY_RDY_MSK);
+		hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2, CHL_INT2_CTRL_PHY_RDY_MSK);
 		return IRQ_NONE;
 	} else {
 		dev_info(hisi_hba->dev, "%s phy=%d, irq_value=%x\n",
@@ -1184,14 +1182,11 @@ static irqreturn_t int_ctrlrdy(int phy, void *p)
 	}
 
 	config_serdes_12G(hisi_hba, phy);
-	hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2_REG,
-			CHL_INT2_REG_CTRL_PHY_RDY_MSK);
+	hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2,
+			CHL_INT2_CTRL_PHY_RDY_MSK);
 
 	return IRQ_HANDLED;
 }
-
-
-
 
 static irqreturn_t int_dmaerr(int phy_no, void *p)
 {
@@ -1199,17 +1194,17 @@ static irqreturn_t int_dmaerr(int phy_no, void *p)
 	u32 irq_value;
 
 	pr_info("%s\n", __func__);
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
 
-	if (!(irq_value & CHL_INT2_REG_DMA_RESP_ERR_MSK))
+	if (!(irq_value & CHL_INT2_DMA_RESP_ERR_MSK))
 		dev_err(hisi_hba->dev, "%s irq_value = %x not set enable bit",
 			__func__, irq_value);
 
 	dev_info(hisi_hba->dev, "%s phy = %d, irq_value = %x\n",
 		 __func__, phy_no, irq_value);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG,
-			CHL_INT2_REG_DMA_RESP_ERR_MSK);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,
+			CHL_INT2_DMA_RESP_ERR_MSK);
 
 	return IRQ_HANDLED;
 }
@@ -1220,17 +1215,17 @@ static irqreturn_t int_hotplug(int phy_no, void *p)
 	u32 irq_value;
 
 	pr_info("%s\n", __func__);
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
 
-	if (!(irq_value & CHL_INT2_REG_PHY_HP_TOUT_MSK))
+	if (!(irq_value & CHL_INT2_PHY_HP_TOUT_MSK))
 		dev_err(hisi_hba->dev, "%s irq_value = %x not set enable bit",
 			__func__, irq_value);
 
 	dev_info(hisi_hba->dev, "%s phy = %d, irq_value = %x\n",
 		 __func__, phy_no, irq_value);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG,
-			CHL_INT2_REG_PHY_HP_TOUT_MSK);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,
+			CHL_INT2_PHY_HP_TOUT_MSK);
 
 	return IRQ_HANDLED;
 }
@@ -1241,17 +1236,17 @@ static irqreturn_t int_bcast(int phy_no, void *p)
 	u32 irq_value;
 
 	pr_info("%s\n", __func__);
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
 
-	if (!(irq_value & CHL_INT2_REG_SL_RX_BC_ACK_MSK))
+	if (!(irq_value & CHL_INT2_SL_RX_BC_ACK_MSK))
 		dev_err(hisi_hba->dev, "%s irq_value = %x not set enable bit",
 			__func__, irq_value);
 
 	dev_info(hisi_hba->dev, "%s phy = %d, irq_value = %x\n",
 		 __func__, phy_no, irq_value);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG,
-			CHL_INT2_REG_SL_RX_BC_ACK_MSK);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,
+			CHL_INT2_SL_RX_BC_ACK_MSK);
 
 	return IRQ_HANDLED;
 }
@@ -1262,17 +1257,17 @@ static irqreturn_t int_oobrst(int phy_no, void *p)
 	u32 irq_value;
 
 	pr_info("%s\n", __func__);
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
 
-	if (!(irq_value & CHL_INT2_REG_OOB_RESTART_MSK))
+	if (!(irq_value & CHL_INT2_OOB_RESTART_MSK))
 		dev_err(hisi_hba->dev, "%s irq_value = %x not set enable bit",
 			__func__, irq_value);
 
 	dev_info(hisi_hba->dev, "%s phy = %d, irq_value = %x\n",
 		 __func__, phy_no, irq_value);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG,
-			CHL_INT2_REG_OOB_RESTART_MSK);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,
+			CHL_INT2_OOB_RESTART_MSK);
 
 	return IRQ_HANDLED;
 }
@@ -1283,7 +1278,7 @@ static irqreturn_t int_hardrst(int phy_no, void *p)
 	u32 irq_value;
 
 	pr_info("%s\n", __func__);
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
 
 	if (!(irq_value & CHL_INT2_SL_RX_HARDRST_MSK))
 		dev_err(hisi_hba->dev, "%s irq_value = %x not set enable bit",
@@ -1292,7 +1287,7 @@ static irqreturn_t int_hardrst(int phy_no, void *p)
 	dev_info(hisi_hba->dev, "%s phy = %d, irq_value = %x\n",
 		 __func__, phy_no, irq_value);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG, CHL_INT2_SL_RX_HARDRST_MSK);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2, CHL_INT2_SL_RX_HARDRST_MSK);
 
 	return IRQ_HANDLED;
 }
@@ -1303,7 +1298,7 @@ static irqreturn_t int_statuscg(int phy_no, void *p)
 	u32 irq_value;
 
 	pr_info("%s\n", __func__);
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_REG);
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
 
 	if (!(irq_value & CHL_INT2_PHY_STATUS_CHG_MSK))
 		dev_err(hisi_hba->dev, "%s irq_value = %x not set enable bit",
@@ -1312,7 +1307,7 @@ static irqreturn_t int_statuscg(int phy_no, void *p)
 	dev_info(hisi_hba->dev, "%s phy = %d, irq_value = %x\n",
 		 __func__, phy_no, irq_value);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_REG,
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,
 			CHL_INT2_PHY_STATUS_CHG_MSK);
 
 	return IRQ_HANDLED;
@@ -1326,17 +1321,17 @@ static irqreturn_t int_abnormal(int phy_no, void *p)
 
 	pr_info("%s\n", __func__);
 	/* mask_int0 */
-	irq_mask_old = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_MSK_REG);
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG, 0x003FFFFF);
+	irq_mask_old = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_MSK);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK, 0x003FFFFF);
 
 	/* read int0 */
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_REG);
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0);
 
-	if (irq_value & CHL_INT0_REG_PHYCTRL_NOTRDY_MSK) {
-		u32 val = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG_REG);
+	if (irq_value & CHL_INT0_PHYCTRL_NOTRDY_MSK) {
+		u32 val = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG);
 
-		if (val & PHY_CFG_REG_ENA_MSK) {
-			u32 phy_state = hisi_sas_read32(hisi_hba, PHY_STATE_REG);
+		if (val & PHY_CFG_ENA_MSK) {
+			u32 phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
 			u32 context = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
 			/* Enabled */
 			/* Stop serdes fw timer */
@@ -1353,35 +1348,35 @@ static irqreturn_t int_abnormal(int phy_no, void *p)
 			pr_warn("%s phy = %d phydown event and already disabled\n", __func__, phy_no);
 		}
 
-	} else if (irq_value & CHL_INT0_REG_ID_TIMEOUT_MSK) {
+	} else if (irq_value & CHL_INT0_ID_TIMEOUT_MSK) {
 		pr_info("%s phy = %d identify timeout todo\n", __func__, phy_no);
 	} else {
-		if (irq_value & CHL_INT0_REG_DWS_LOST_MSK) {
+		if (irq_value & CHL_INT0_DWS_LOST_MSK) {
 			pr_info("%s phy = %d dws lost\n", __func__, phy_no);
 		}
 
-		if (irq_value & CHL_INT0_REG_SN_FAIL_NGR_MSK) {
+		if (irq_value & CHL_INT0_SN_FAIL_NGR_MSK) {
 			pr_info("%s phy = %d sn fail ngr\n", __func__, phy_no);
 		}
 
-		if (irq_value & CHL_INT0_REG_SL_IDAF_FAIL_MSK ||
-			irq_value & CHL_INT0_REG_SL_OPAF_FAIL_MSK) {
+		if (irq_value & CHL_INT0_SL_IDAF_FAIL_MSK ||
+			irq_value & CHL_INT0_SL_OPAF_FAIL_MSK) {
 			pr_info("%s phy = %d check address frame err\n", __func__, phy_no);
 		}
 
-		if (irq_value & CHL_INT0_REG_SL_PS_FAIL_OFF) {
+		if (irq_value & CHL_INT0_SL_PS_FAIL_OFF) {
 			pr_debug("%s phy = %d ps req fail\n", __func__, phy_no);
 		}
 	}
 
 	/* write to zero */
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_REG, irq_value);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, irq_value);
 
-	if (irq_value & CHL_INT0_REG_PHYCTRL_NOTRDY_MSK)
-		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG,
+	if (irq_value & CHL_INT0_PHYCTRL_NOTRDY_MSK)
+		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK,
 				0x003FFFFF & ~1);
 	else
-		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK_REG,
+		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK,
 				irq_mask_old);
 
 	return IRQ_HANDLED;
@@ -1393,9 +1388,9 @@ static irqreturn_t int_int1(int phy_no, void *p)
 	u32 irq_value;
 
 	pr_info("%s\n", __func__);
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT1_REG);
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT1);
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT1_REG, irq_value);
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT1, irq_value);
 
 	return IRQ_HANDLED;
 }
@@ -1409,9 +1404,9 @@ irqreturn_t cq_interrupt(int queue, void *p)
 	u32 irq_value;
 	u32 rd_point, wr_point;
 
-	irq_value = hisi_sas_read32(hisi_hba, OQ_INT_SRC_REG);
+	irq_value = hisi_sas_read32(hisi_hba, OQ_INT_SRC);
 
-	hisi_sas_write32(hisi_hba, OQ_INT_SRC_REG, 1 << queue);
+	hisi_sas_write32(hisi_hba, OQ_INT_SRC, 1 << queue);
 
 	rd_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_RD_PTR + 20 * queue);
 	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR + 20 * queue);
@@ -1688,20 +1683,20 @@ static int interrupt_openall(struct hisi_hba *hisi_hba)
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		/* Clear interrupt status */
-		val = hisi_sas_phy_read32(hisi_hba, i, CHL_INT0_REG);
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0_REG, val);
-		val = hisi_sas_phy_read32(hisi_hba, i, CHL_INT1_REG);
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_REG, val);
-		val = hisi_sas_phy_read32(hisi_hba, i, CHL_INT2_REG);
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_REG, val);
+		val = hisi_sas_phy_read32(hisi_hba, i, CHL_INT0);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0, val);
+		val = hisi_sas_phy_read32(hisi_hba, i, CHL_INT1);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1, val);
+		val = hisi_sas_phy_read32(hisi_hba, i, CHL_INT2);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2, val);
 
 		/* Unmask interrupt */
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0_MSK_REG, 0x003ce3ee);
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK_REG, 0x00017fff);
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK_REG, 0x0000032a);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0_MSK, 0x003ce3ee);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK, 0x00017fff);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0x0000032a);
 
 		/* bypass chip bug mask abnormal intr */
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0_MSK_REG, 0x003fffff & ~1);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0_MSK, 0x003fffff & ~1);
 	}
 
 	return 0;
