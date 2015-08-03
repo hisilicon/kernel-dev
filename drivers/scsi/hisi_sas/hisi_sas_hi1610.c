@@ -17,39 +17,40 @@
 #include <linux/types.h>
 
 /* global registers need init*/
-#define DLVRY_QUEUE_ENABLE_REG		0x0
+#define DLVRY_QUEUE_ENABLE		0x0
 #define IOST_BASE_ADDR_LO		0x8
 #define IOST_BASE_ADDR_HI		0xc
 #define ITCT_BASE_ADDR_LO		0x10
 #define ITCT_BASE_ADDR_HI		0x14
 #define BROKEN_MSG_ADDR_LO		0x18
 #define BROKEN_MSG_ADDR_HI		0x1c
-#define HGC_TRANS_TASK_CNT_LIMIT_REG	0x38
-#define AXI_AHB_CLK_CFG_REG		0x3c
-#define HGC_SAS_TXFAIL_RETRY_CTRL_REG	0x84
-#define HGC_GET_ITV_TIME_REG		0x90
-#define DEVICE_MSG_WORK_MODE_REG	0x94
-#define I_T_NEXUS_LOSS_TIME_REG		0xa0
-#define BUS_INACTIVE_LIMIT_TIME_REG	0xa8
-#define REJECT_TO_OPEN_LIMIT_TIME_REG	0xac
-#define CFG_AGING_TIME_REG		0xbc
-#define HGC_DFX_CFG_REG2_REG		0xc0
-#define CFG_1US_TIMER_TRSH_REG		0xcc
-#define INT_COAL_EN_REG			0x19c
-#define OQ_INT_COAL_TIME_REG		0x1a0
-#define OQ_INT_COAL_CNT_REG		0x1a4
-#define ENT_INT_COAL_TIME_REG		0x1a8
-#define ENT_INT_COAL_CNT_REG		0x1ac
-#define OQ_INT_SRC_REG			0x1b0
-#define OQ_INT_SRC_MSK_REG		0x1b4
-#define ENT_INT_SRC1_REG		0x1b8
-#define ENT_INT_SRC2_REG		0x1bc
-#define ENT_INT_SRC3_REG		0x1c0
-#define ENT_INT_SRC_MSK1_REG		0x1c4
-#define ENT_INT_SRC_MSK2_REG		0x1c8
-#define ENT_INT_SRC_MSK3_REG		0x1cc
-#define SAS_ECC_INTR_MSK_REG		0x1ec
-#define HGC_ERR_STAT_EN_REG		0x238
+#define HGC_TRANS_TASK_CNT_LIMIT	0x38
+#define AXI_AHB_CLK_CFG			0x3c
+#define HGC_SAS_TXFAIL_RETRY_CTRL	0x84
+#define HGC_GET_ITV_TIME		0x90
+#define DEVICE_MSG_WORK_MODE		0x94
+#define I_T_NEXUS_LOSS_TIME		0xa0
+#define BUS_INACTIVE_LIMIT_TIME		0xa8
+#define REJECT_TO_OPEN_LIMIT_TIME	0xac
+#define CFG_AGING_TIME			0xbc
+#define HGC_DFX_CFG2			0xc0
+#define CFG_1US_TIMER_TRSH		0xcc
+#define INT_COAL_EN			0x19c
+#define OQ_INT_COAL_TIME		0x1a0
+#define OQ_INT_COAL_CNT			0x1a4
+#define ENT_INT_COAL_TIME		0x1a8
+#define ENT_INT_COAL_CNT		0x1ac
+#define OQ_INT_SRC			0x1b0
+#define OQ_INT_SRC_MSK			0x1b4
+#define ENT_INT_SRC1			0x1b8
+#define ENT_INT_SRC2			0x1bc
+#define ENT_INT_SRC3			0x1c0
+#define ENT_INT_SRC_MSK1		0x1c4
+#define ENT_INT_SRC_MSK2		0x1c8
+#define ENT_INT_SRC_MSK3		0x1cc
+#define INT_COAL_EN			0x1d0
+#define SAS_ECC_INTR_MSK		0x1ec
+#define HGC_ERR_STAT_EN			0x238
 #define DLVRY_Q_0_BASE_ADDR_LO		0x260
 #define DLVRY_Q_0_BASE_ADDR_HI		0x264
 #define DLVRY_Q_0_DEPTH			0x268
@@ -62,15 +63,22 @@
 #define COMPL_Q_0_RD_PTR		0x4f0
 
 /* phy registers need init */
-#define PORT_BASE_REG			(0x2000)
-#define PROG_PHY_LINK_RATE_REG		(PORT_BASE_REG + 0xc)
-#define TX_ID_DWORD0_REG		(PORT_BASE_REG + 0x9c)
-#define TX_ID_DWORD1_REG		(PORT_BASE_REG + 0xa0)
-#define TX_ID_DWORD2_REG		(PORT_BASE_REG + 0xa4)
-#define TX_ID_DWORD3_REG		(PORT_BASE_REG + 0xa8)
-#define TX_ID_DWORD4_REG		(PORT_BASE_REG + 0xaC)
-#define TX_ID_DWORD5_REG		(PORT_BASE_REG + 0xb0)
-#define TX_ID_DWORD6_REG		(PORT_BASE_REG + 0xb4)
+#define PORT_BASE			(0x2000)
+#define PROG_PHY_LINK_RATE		(PORT_BASE + 0x8)
+#define SL_CFG				(PORT_BASE + 0x84)
+#define SL_TOUT_CFG			(PORT_BASE + 0x8c)
+#define TX_ID_DWORD0			(PORT_BASE + 0x9c)
+#define TX_ID_DWORD1			(PORT_BASE + 0xa0)
+#define TX_ID_DWORD2			(PORT_BASE + 0xa4)
+#define TX_ID_DWORD3			(PORT_BASE + 0xa8)
+#define TX_ID_DWORD4			(PORT_BASE + 0xaC)
+#define TX_ID_DWORD5			(PORT_BASE + 0xb0)
+#define TX_ID_DWORD6			(PORT_BASE + 0xb4)
+#define RXOP_CHECK_CFG_H		(PORT_BASE + 0xfc)
+#define DONE_RECEIVED_TIME		(PORT_BASE + 0x11c)
+#define CHL_INT0_MSK			(PORT_BASE + 0x1c0)
+#define CHL_INT1_MSK			(PORT_BASE + 0x1c4)
+#define CHL_INT2_MSK			(PORT_BASE + 0x1c8)
 
 //fixme
 enum {
@@ -521,17 +529,17 @@ static void config_id_frame(struct hisi_hba *hisi_hba, int phy)
 	identify_frame.phy_id = phy;
 	identify_buffer = (u32 *)(&identify_frame);
 
-	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD0_REG,
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD0,
 			__swab32(identify_buffer[0]));
-	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD1_REG,
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD1,
 			identify_buffer[2]);
-	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD2_REG,
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD2,
 			identify_buffer[1]);
-	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD3_REG,
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD3,
 			identify_buffer[4]);
-	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD4_REG,
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD4,
 			identify_buffer[3]);
-	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD5_REG,
+	hisi_sas_phy_write32(hisi_hba, phy, TX_ID_DWORD5,
 			__swab32(identify_buffer[5]));
 }
 
@@ -551,50 +559,47 @@ static void init_reg(struct hisi_hba *hisi_hba)
 
 	/* Global registers init*/
 	hisi_sas_write32(hisi_hba,
-		DLVRY_QUEUE_ENABLE_REG,
+		DLVRY_QUEUE_ENABLE,
 		(u32)((1ULL << hisi_hba->queue_count) - 1));
-	hisi_sas_write32(hisi_hba, HGC_TRANS_TASK_CNT_LIMIT_REG, 0x11);
-	hisi_sas_write32(hisi_hba, DEVICE_MSG_WORK_MODE_REG, 0x1);
-//	hisi_sas_write32(hisi_hba, MAX_BURST_BYTES_REG, 0);
-//	hisi_sas_write32(hisi_hba, SMP_TIMEOUT_TIMER_REG, 0);
-//	hisi_sas_write32(hisi_hba, MAX_CON_TIME_LIMIT_TIME_REG, 0);
-	hisi_sas_write32(hisi_hba, HGC_SAS_TXFAIL_RETRY_CTRL_REG, 0x211ff);
-	hisi_sas_write32(hisi_hba, HGC_ERR_STAT_EN_REG, 0x401);
-	hisi_sas_write32(hisi_hba, CFG_1US_TIMER_TRSH_REG, 0x64);
-	hisi_sas_write32(hisi_hba, HGC_GET_ITV_TIME_REG, 0x1);
-	hisi_sas_write32(hisi_hba, I_T_NEXUS_LOSS_TIME_REG, 0x64);
-	hisi_sas_write32(hisi_hba, BUS_INACTIVE_LIMIT_TIME_REG, 0x2710);
-	hisi_sas_write32(hisi_hba, REJECT_TO_OPEN_LIMIT_TIME_REG, 0x1);
-	hisi_sas_write32(hisi_hba, CFG_AGING_TIME_REG, 0x7a12);
-	hisi_sas_write32(hisi_hba, HGC_DFX_CFG_REG2_REG, 0x9c40);
-	hisi_sas_write32(hisi_hba, INT_COAL_EN_REG, 0xC);
-	hisi_sas_write32(hisi_hba, OQ_INT_COAL_TIME_REG, 0x186A0);
-	hisi_sas_write32(hisi_hba, OQ_INT_COAL_CNT_REG, 1);
-	hisi_sas_write32(hisi_hba, ENT_INT_COAL_TIME_REG, 0x1);
-	hisi_sas_write32(hisi_hba, ENT_INT_COAL_CNT_REG, 0x1);
-	hisi_sas_write32(hisi_hba, OQ_INT_SRC_REG, 0xffffffff);
-	hisi_sas_write32(hisi_hba, OQ_INT_SRC_MSK_REG, 0);
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC1_REG, 0xffffffff);
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1_REG, 0);
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC2_REG, 0xffffffff);
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK2_REG, 0);
-	hisi_sas_write32(hisi_hba, SAS_ECC_INTR_MSK_REG, 0);
-	hisi_sas_write32(hisi_hba, AXI_AHB_CLK_CFG_REG, 0x2);
+	hisi_sas_write32(hisi_hba, HGC_TRANS_TASK_CNT_LIMIT, 0x11);
+	hisi_sas_write32(hisi_hba, DEVICE_MSG_WORK_MODE, 0x1);
+//	hisi_sas_write32(hisi_hba, MAX_BURST_BYTES, 0);
+//	hisi_sas_write32(hisi_hba, SMP_TIMEOUT_TIMER, 0);
+//	hisi_sas_write32(hisi_hba, MAX_CON_TIME_LIMIT_TIME, 0);
+	hisi_sas_write32(hisi_hba, HGC_SAS_TXFAIL_RETRY_CTRL, 0x211ff);
+	hisi_sas_write32(hisi_hba, HGC_ERR_STAT_EN, 0x401);
+	hisi_sas_write32(hisi_hba, CFG_1US_TIMER_TRSH, 0x64);
+	hisi_sas_write32(hisi_hba, HGC_GET_ITV_TIME, 0x1);
+	hisi_sas_write32(hisi_hba, I_T_NEXUS_LOSS_TIME, 0x64);
+	hisi_sas_write32(hisi_hba, BUS_INACTIVE_LIMIT_TIME, 0x2710);
+	hisi_sas_write32(hisi_hba, REJECT_TO_OPEN_LIMIT_TIME, 0x1);
+	hisi_sas_write32(hisi_hba, CFG_AGING_TIME, 0x7a12);
+	hisi_sas_write32(hisi_hba, HGC_DFX_CFG2, 0x9c40);
+	hisi_sas_write32(hisi_hba, INT_COAL_EN, 0xC);
+	hisi_sas_write32(hisi_hba, OQ_INT_COAL_TIME, 0x186A0);
+	hisi_sas_write32(hisi_hba, OQ_INT_COAL_CNT, 1);
+	hisi_sas_write32(hisi_hba, ENT_INT_COAL_TIME, 0x1);
+	hisi_sas_write32(hisi_hba, ENT_INT_COAL_CNT, 0x1);
+	hisi_sas_write32(hisi_hba, OQ_INT_SRC, 0xffffffff);
+	hisi_sas_write32(hisi_hba, OQ_INT_SRC_MSK, 0);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC1, 0xffffffff);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, 0);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC2, 0xffffffff);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK2, 0);
+	hisi_sas_write32(hisi_hba, SAS_ECC_INTR_MSK, 0);
+	hisi_sas_write32(hisi_hba, AXI_AHB_CLK_CFG, 0x2);
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		/*phy registers init set 12G - see g_astPortRegConfig */
-		hisi_sas_phy_write32(hisi_hba, i, PROG_PHY_LINK_RATE_REG, 0x0000088a);
-		//hisi_sas_phy_write32(hisi_hba, i, PHY_CONFIG2_REG, 0x80c7c084); //fixme
-		//hisi_sas_phy_write32(hisi_hba, i, PHY_RATE_NEGO_REG, 0x415ee00);
-		//hisi_sas_phy_write32(hisi_hba, i, PHY_PCN_REG, 0x80aa0001);
-
-		//hisi_sas_phy_write32(hisi_hba, i, SL_TOUT_CFG_REG, 0x7d7d7d7d);
-		//hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 0x0);
-		//hisi_sas_phy_write32(hisi_hba, i, RXOP_CHECK_CFG_H_REG, 0x1000);
-		//hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 0);
-		//hisi_sas_phy_write32(hisi_hba, i, CON_CFG_DRIVER_REG, 0x13f0a);
-		//hisi_sas_phy_write32(hisi_hba, i, CHL_INT_COAL_EN_REG, 3);
-		//hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME_REG, 8);
+		hisi_sas_phy_write32(hisi_hba, i, PROG_PHY_LINK_RATE, 0x00000801);
+		hisi_sas_phy_write32(hisi_hba, i, SL_TOUT_CFG, 0x7d7d7d7d);
+		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEIVED_TIME, 0x10);
+		hisi_sas_phy_write32(hisi_hba, i, RXOP_CHECK_CFG_H, 0x1000);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0_MSK, 0xffffffc0);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK, 0xfff87fff);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0xffffffd6);
+		hisi_sas_phy_write32(hisi_hba, i, SL_CFG, 0x23f801fc);
+		hisi_sas_phy_write32(hisi_hba, i, INT_COAL_EN, 0x0);
 	}
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
