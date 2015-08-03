@@ -22,10 +22,14 @@
 #define IOST_BASE_ADDR_HI		0xc
 #define ITCT_BASE_ADDR_LO		0x10
 #define ITCT_BASE_ADDR_HI		0x14
-#define BROKEN_MSG_ADDR_LO		0x18
-#define BROKEN_MSG_ADDR_HI		0x1c
+#define IO_BROKEN_MSG_ADDR_LO		0x18
+#define IO_BROKEN_MSG_ADDR_HI		0x1c
 #define HGC_TRANS_TASK_CNT_LIMIT	0x38
 #define AXI_AHB_CLK_CFG			0x3c
+#define IO_SATA_BROKEN_MSG_ADDR_LO	0x58
+#define IO_SATA_BROKEN_MSG_ADDR_HI	0x5c
+#define SATA_INITI_D2H_STORE_ADDR_LO	0x60
+#define SATA_INITI_D2H_STORE_ADDR_HI	0x64
 #define HGC_SAS_TXFAIL_RETRY_CTRL	0x84
 #define HGC_GET_ITV_TIME		0x90
 #define DEVICE_MSG_WORK_MODE		0x94
@@ -48,7 +52,6 @@
 #define ENT_INT_SRC_MSK1		0x1c4
 #define ENT_INT_SRC_MSK2		0x1c8
 #define ENT_INT_SRC_MSK3		0x1cc
-#define INT_COAL_EN			0x1d0
 #define SAS_ECC_INTR_MSK		0x1ec
 #define HGC_ERR_STAT_EN			0x238
 #define DLVRY_Q_0_BASE_ADDR_LO		0x260
@@ -639,11 +642,25 @@ static void init_reg(struct hisi_hba *hisi_hba)
 			 DMA_ADDR_HI(hisi_hba->iost_dma));
 
 	/* breakpoint */
-	hisi_sas_write32(hisi_hba, BROKEN_MSG_ADDR_LO,
+	hisi_sas_write32(hisi_hba, IO_BROKEN_MSG_ADDR_LO,
 			 DMA_ADDR_LO(hisi_hba->breakpoint_dma));
 
-	hisi_sas_write32(hisi_hba, BROKEN_MSG_ADDR_HI,
+	hisi_sas_write32(hisi_hba, IO_BROKEN_MSG_ADDR_HI,
 			 DMA_ADDR_HI(hisi_hba->breakpoint_dma));
+
+	/* SATA broken msg */
+	hisi_sas_write32(hisi_hba, IO_SATA_BROKEN_MSG_ADDR_LO,
+			 DMA_ADDR_LO(hisi_hba->sata_breakpoint_dma));
+
+	hisi_sas_write32(hisi_hba, IO_SATA_BROKEN_MSG_ADDR_HI,
+			 DMA_ADDR_HI(hisi_hba->sata_breakpoint_dma));
+
+	/* SATA initial fis */
+	hisi_sas_write32(hisi_hba, SATA_INITI_D2H_STORE_ADDR_LO,
+			 DMA_ADDR_LO(hisi_hba->initial_fis_dma));
+
+	hisi_sas_write32(hisi_hba, SATA_INITI_D2H_STORE_ADDR_HI,
+			 DMA_ADDR_HI(hisi_hba->initial_fis_dma));
 }
 
 

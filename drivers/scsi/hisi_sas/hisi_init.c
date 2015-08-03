@@ -180,12 +180,19 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 	if (!hisi_hba->sge_page_pool)
 		goto err_out;
 
-	// fixme j00310691 the size seems incorrect, total should be 432
-	s = sizeof(struct dev_to_host_fis) * HISI_SAS_MAX_PHYS;
+	s = sizeof(struct hisi_sas_initial_fis) * HISI_SAS_MAX_PHYS;
 	hisi_hba->initial_fis = dma_alloc_coherent(dev, s,
-				&hisi_hba->initiai_fis_dma, GFP_KERNEL);
+				&hisi_hba->initial_fis_dma, GFP_KERNEL);
 	if (!hisi_hba->initial_fis)
 		goto err_out;
+	memset(hisi_hba->initial_fis, 0, s);
+
+	s = HISI_SAS_COMMAND_ENTRIES * HISI_SAS_BREAKPOINT_ENTRY_SZ * 2;
+	hisi_hba->sata_breakpoint = dma_alloc_coherent(dev, s,
+				&hisi_hba->sata_breakpoint_dma, GFP_KERNEL);
+	if (!hisi_hba->sata_breakpoint)
+		goto err_out;
+	memset(hisi_hba->sata_breakpoint, 0, s);
 
 	hisi_sas_iptt_init(hisi_hba);
 
