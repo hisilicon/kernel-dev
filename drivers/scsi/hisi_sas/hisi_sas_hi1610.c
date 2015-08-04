@@ -44,6 +44,8 @@
 #define HGC_DFX_CFG2			0xc0
 #define CFG_1US_TIMER_TRSH		0xcc
 #define HGC_INVLD_DQE_INFO		0x148
+#define HGC_INVLD_DQE_INFO_FB_CH0_OFF 	9
+#define HGC_INVLD_DQE_INFO_FB_CH0_MSK 	0x200
 #define INT_COAL_EN			0x19c
 #define OQ_INT_COAL_TIME		0x1a0
 #define OQ_INT_COAL_CNT			0x1a4
@@ -1024,30 +1026,42 @@ end:
 static irqreturn_t int_phy_updown(int phy_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
-	u32 val;
-	int phy_id = 0, res = 0;
+	u32 val, irq_mask;
+	int phy_id = 0;
+	irqreturn_t res = IRQ_HANDLED;
 
 	pr_info("%s id=%d phy_no=%d", __func__, hisi_hba->id, phy_no);
 	val = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_MSK);
 	val |= CHL_INT2_MSK_RX_INVLD_MSK;
 	hisi_sas_phy_write32(hisi_hba, phy_no, ENT_INT_SRC_MSK2, val);
 
-	phy_id = (hisi_sas_read32(hisi_hba, HGC_INVLD_DQE_INFO) >> 9) & 0x1FF; //fixme for proper names
-	while (val) {
-		if (val & 1 << phy_id) {
+	irq_mask = (hisi_sas_read32(hisi_hba, HGC_INVLD_DQE_INFO) >> HGC_INVLD_DQE_INFO_FB_CH0_OFF) &
+		0x1ff;
+
+	while (irq_mask) {
+		if (irq_mask  & 1 << phy_id) {
 			u32 irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0);
 
 			if (irq_value & CHL_INT0_SL_ENA_MSK)
 				/* phy up */
-				phy_up(phy_no, hisi_hba);
+				if (phy_up(phy_no, hisi_hba)) {
+					res = IRQ_NONE;
+					goto end;
+				}
 
 			if (irq_value & CHL_INT0_NOT_RDY_MSK)
 				/* phy down */
-				phy_down(phy_no, hisi_hba);
+				if (phy_down(phy_no, hisi_hba)) {
+					res = IRQ_NONE;
+					goto end;
+				}
 		}
-
+		irq_mask &= ~(1 << phy_id);
 		phy_id++;
 	}
+
+end:
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK2, 0x7fffffff);
 
 	return res;
 }
