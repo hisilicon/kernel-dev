@@ -117,7 +117,7 @@
 #define RX_IDAF_DWORD5			(PORT_BASE + 0xd8)
 #define RX_IDAF_DWORD6			(PORT_BASE + 0xdc)
 #define RXOP_CHECK_CFG_H		(PORT_BASE + 0xfc)
-#define DONE_RECEVIED_TIME		(PORT_BASE + 0x12c)
+#define DONE_RECEIVED_TIME		(PORT_BASE + 0x12c)
 #define CON_CFG_DRIVER			(PORT_BASE + 0x130)
 #define PHY_CONFIG2			(PORT_BASE + 0x1a8)
 #define PHY_CONFIG2_RXCLTEPRES_OFF	0
@@ -522,12 +522,12 @@ static void init_reg(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, PHY_PCN, 0x80aa0001);
 
 		hisi_sas_phy_write32(hisi_hba, i, SL_TOUT_CFG, 0x7d7d7d7d);
-		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME, 0x0);
+		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEIVED_TIME, 0x0);
 		hisi_sas_phy_write32(hisi_hba, i, RXOP_CHECK_CFG_H, 0x1000);
-		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME, 0);
+		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEIVED_TIME, 0);
 		hisi_sas_phy_write32(hisi_hba, i, CON_CFG_DRIVER, 0x13f0a);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT_COAL_EN, 3);
-		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME, 8);
+		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEIVED_TIME, 8);
 	}
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
@@ -1158,7 +1158,7 @@ static irqreturn_t int_phyup(int phy_no, void *p)
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	u32 *frame_rcvd = (u32 *)sas_phy->frame_rcvd;
 	struct sas_identify_frame *id = (struct sas_identify_frame *)frame_rcvd;
-	irqreturn_t res;
+	irqreturn_t res = IRQ_HANDLED;
 
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
 
@@ -1214,7 +1214,6 @@ static irqreturn_t int_phyup(int phy_no, void *p)
 	hisi_sas_update_phyinfo(hisi_hba, phy_no, 1, (val & phy_no << 1) ? 1 : 0);
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
 
-	res = IRQ_HANDLED;
 end:
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,
 			CHL_INT2_SL_PHY_ENA_MSK);
@@ -1233,21 +1232,28 @@ static irqreturn_t int_bcast(int phy_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
+	irqreturn_t res = IRQ_HANDLED;
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	struct sas_ha_struct *sas_ha = hisi_hba->sas;
 
 	pr_info("%s\n", __func__);
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
 
-	if (!(irq_value & CHL_INT2_SL_RX_BC_ACK_MSK))
+	if (!(irq_value & CHL_INT2_SL_RX_BC_ACK_MSK)) {
 		dev_err(hisi_hba->dev, "%s irq_value = %x not set enable bit",
 			__func__, irq_value);
+		res = IRQ_NONE;
+		goto end;
+	}
 
-	dev_info(hisi_hba->dev, "%s phy = %d, irq_value = %x\n",
-		 __func__, phy_no, irq_value);
+	sas_ha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
 
+end:
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,
 			CHL_INT2_SL_RX_BC_ACK_MSK);
 
-	return IRQ_HANDLED;
+	return res;
 }
 
 static irqreturn_t int_oobrst(int phy_no, void *p)

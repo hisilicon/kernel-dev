@@ -59,6 +59,8 @@
 #define ENT_INT_SRC_MSK1		0x1c4
 #define ENT_INT_SRC_MSK2		0x1c8
 #define ENT_INT_SRC_MSK3		0x1cc
+#define ENT_INT_SRC_MSK3_ENT95_MSK_OFF	31
+#define ENT_INT_SRC_MSK3_ENT95_MSK_MSK	0x80000000
 #define SAS_ECC_INTR_MSK		0x1ec
 #define HGC_ERR_STAT_EN			0x238
 #define DLVRY_Q_0_BASE_ADDR_LO		0x260
@@ -123,6 +125,7 @@
 #define PHYCTRL_PHY_ENA_MSK		(PORT_BASE + 0x2bc)
 #define CHL_INT2_MSK_RX_INVLD_OFF	30
 #define CHL_INT2_MSK_RX_INVLD_MSK	0x8000000
+#define SL_RX_BCAST_CHK_MSK		(PORT_BASE + 0x2c0)
 
 enum {
 	HISI_SAS_PHY_HOTPLUG_TOUT,
@@ -1026,20 +1029,20 @@ end:
 static irqreturn_t int_phy_updown(int phy_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
-	u32 val, irq_mask;
+	u32 chn_msk, irq_msk;
 	int phy_id = 0;
 	irqreturn_t res = IRQ_HANDLED;
 
 	pr_info("%s id=%d phy_no=%d", __func__, hisi_hba->id, phy_no);
-	val = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_MSK);
-	val |= CHL_INT2_MSK_RX_INVLD_MSK;
-	hisi_sas_phy_write32(hisi_hba, phy_no, ENT_INT_SRC_MSK2, val);
+	chn_msk = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_MSK);
+	chn_msk |= CHL_INT2_MSK_RX_INVLD_MSK;
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2_MSK, chn_msk);
 
-	irq_mask = (hisi_sas_read32(hisi_hba, HGC_INVLD_DQE_INFO) >> HGC_INVLD_DQE_INFO_FB_CH0_OFF) &
+	irq_msk = (hisi_sas_read32(hisi_hba, HGC_INVLD_DQE_INFO) >> HGC_INVLD_DQE_INFO_FB_CH0_OFF) &
 		0x1ff;
 
-	while (irq_mask) {
-		if (irq_mask  & 1 << phy_id) {
+	while (irq_msk) {
+		if (irq_msk  & 1 << phy_id) {
 			u32 irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0);
 
 			if (irq_value & CHL_INT0_SL_ENA_MSK)
@@ -1056,7 +1059,7 @@ static irqreturn_t int_phy_updown(int phy_no, void *p)
 					goto end;
 				}
 		}
-		irq_mask &= ~(1 << phy_id);
+		irq_msk &= ~(1 << phy_id);
 		phy_id++;
 	}
 
@@ -1072,9 +1075,66 @@ static irqreturn_t int_hotplug(int phy_no, void *p)
 	return 0;
 }
 
+static int phy_bcast(int phy_no, struct hisi_hba *hisi_hba)
+{
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	struct sas_ha_struct *sas_ha = hisi_hba->sas;
+
+	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 1);
+
+	sas_ha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
+
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, CHL_INT0_SL_RX_BCST_ACK_MSK);
+	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 0);
+
+	return 0;
+}
+
 static irqreturn_t int_chnl_int(int phy_no, void *p)
 {
-	return 0;
+	struct hisi_hba *hisi_hba = p;
+	u32 ent_msk, irq_msk;
+	int phy_id = 0;
+	irqreturn_t res = IRQ_HANDLED;
+
+	ent_msk = hisi_sas_read32(hisi_hba, ENT_INT_SRC_MSK3);
+	ent_msk |= ENT_INT_SRC_MSK3_ENT95_MSK_MSK;
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, ent_msk);
+
+	irq_msk = (hisi_sas_read32(hisi_hba, HGC_INVLD_DQE_INFO) >> HGC_INVLD_DQE_INFO_FB_CH0_OFF) &
+			0x1ff;
+
+	while (irq_msk) {
+		if (irq_msk  & 1 << phy_id) {
+			u32 irq_value0 = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0);
+			u32 irq_value1 = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT1);
+			u32 irq_value2 = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
+
+			if (irq_value1) {
+				hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT1, 1);
+			}
+
+			if (irq_value2) {
+				hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2, 1);
+			}
+
+			if (irq_value0 & CHL_INT0_SL_RX_BCST_ACK_MSK) {
+				if (phy_bcast(phy_no, hisi_hba)) {
+					res = IRQ_NONE;
+					goto end;
+				}
+			}
+
+		}
+		irq_msk &= ~(1 << phy_id);
+		phy_id++;
+	}
+
+end:
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, 1);
+
+	return res;
 }
 
 /* Interrupts */
