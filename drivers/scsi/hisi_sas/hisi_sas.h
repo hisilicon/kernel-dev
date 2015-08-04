@@ -57,7 +57,7 @@ enum {
 #define DMA_ADDR_HI(addr) ((u32)(addr >> 32))
 
 #define DECLARE_INT_HANDLER(handler, idx)\
-irqreturn_t handler##idx(int irq, void *p)\
+static irqreturn_t handler##idx(int irq, void *p)\
 {\
 	return	handler(idx, p);\
 }

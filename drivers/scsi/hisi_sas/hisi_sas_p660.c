@@ -166,8 +166,6 @@
 #define CHL_INT2_SL_PHY_ENA_MSK	0x40
 #define CHL_INT2_DMA_RESP_ERR_OFF	7
 #define CHL_INT2_DMA_RESP_ERR_MSK	0x80
-
-/* phy intr_mask registers need unmask */
 #define CHL_INT0_MSK			(PORT_BASE + 0x1bc)
 #define CHL_INT1_MSK			(PORT_BASE + 0x1c0)
 #define CHL_INT2_MSK			(PORT_BASE + 0x1c4)
@@ -728,86 +726,6 @@ static int is_phy_ready(struct hisi_hba *hisi_hba, int phy_no)
 	return 0;
 }
 
-static irqreturn_t int_phyup(int phy_no, void *p)
-{
-	struct hisi_hba *hisi_hba = p;
-	u32 irq_value, port_id, link_rate, val;
-	struct hisi_sas_port *port;
-	int i;
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
-	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	u32 *frame_rcvd = (u32 *)sas_phy->frame_rcvd;
-	struct sas_identify_frame *id = (struct sas_identify_frame *)frame_rcvd;
-	irqreturn_t res;
-
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
-
-	if (!(irq_value & CHL_INT2_SL_PHY_ENA_MSK)) {
-		dev_dbg(hisi_hba->dev, "%s irq_value = %x not set enable bit\n",
-			__func__, irq_value);
-		res = IRQ_NONE;
-		goto end;
-	}
-
-	val = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA);
-	port_id = (val >> (4 * phy_no)) & 0xf;
-	if (port_id == 0xf) {
-		pr_err("%s phy = %d, invalid portid\n", __func__, phy_no);
-		res = IRQ_NONE;
-		goto end;
-	}
-
-	/* j00310691 todo stop serdes fw timer */
-
-	port = &hisi_hba->port[port_id];
-	for (i = 0; i < 6; i++) {
-		val = hisi_sas_phy_read32(hisi_hba, phy_no,
-					RX_IDAF_DWORD0 + (i * 4));
-		frame_rcvd[i] = __swab32(val);
-	}
-
-	phy->frame_rcvd_size = sizeof(struct sas_identify_frame);
-	phy->phy_attached = 1;
-
-	if (id->dev_type == SAS_END_DEVICE) {
-		val = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
-		val |= SL_CONTROL_NOTIFY_EN_MSK;
-		hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, val);
-		mdelay(1);
-		val = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
-		val &= ~SL_CONTROL_NOTIFY_EN_MSK;
-		hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, val);
-	}
-
-	/* Get the linkrate */
-	val = hisi_sas_read32(hisi_hba, PHY_CONN_RATE);
-	link_rate = (val >> (phy_no * 4)) & 0xf;
-	sas_phy->linkrate = link_rate;
-	pr_info("%s phy_no=%d hisi_hba->id=%d link_rate=%d\n", __func__, phy_no, hisi_hba->id, link_rate);
-	phy->phy_type &= ~(PORT_TYPE_SAS | PORT_TYPE_SATA);
-	val = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
-	if (val & 1 << phy_no)
-		phy->phy_type |= PORT_TYPE_SATA;
-	else
-		phy->phy_type |= PORT_TYPE_SAS;
-
-	hisi_sas_update_phyinfo(hisi_hba, phy_no, 1, (val & phy_no << 1) ? 1 : 0);
-	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
-
-	res = IRQ_HANDLED;
-end:
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,
-			CHL_INT2_SL_PHY_ENA_MSK);
-
-	if (irq_value & CHL_INT2_SL_PHY_ENA_MSK) {
-		val = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0);
-		val &= ~1;
-		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, val);
-		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK, 0x003ce3ee);
-	}
-
-	return res;
-}
 
 
 static int hisi_sas_prep_prd_sge(struct hisi_hba *hisi_hba,
@@ -1230,6 +1148,87 @@ static irqreturn_t int_hotplug(int phy_no, void *p)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t int_phyup(int phy_no, void *p)
+{
+	struct hisi_hba *hisi_hba = p;
+	u32 irq_value, port_id, link_rate, val;
+	struct hisi_sas_port *port;
+	int i;
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	u32 *frame_rcvd = (u32 *)sas_phy->frame_rcvd;
+	struct sas_identify_frame *id = (struct sas_identify_frame *)frame_rcvd;
+	irqreturn_t res;
+
+	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
+
+	if (!(irq_value & CHL_INT2_SL_PHY_ENA_MSK)) {
+		dev_dbg(hisi_hba->dev, "%s irq_value = %x not set enable bit\n",
+			__func__, irq_value);
+		res = IRQ_NONE;
+		goto end;
+	}
+
+	val = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA);
+	port_id = (val >> (4 * phy_no)) & 0xf;
+	if (port_id == 0xf) {
+		pr_err("%s phy = %d, invalid portid\n", __func__, phy_no);
+		res = IRQ_NONE;
+		goto end;
+	}
+
+	/* j00310691 todo stop serdes fw timer */
+
+	port = &hisi_hba->port[port_id];
+	for (i = 0; i < 6; i++) {
+		val = hisi_sas_phy_read32(hisi_hba, phy_no,
+					RX_IDAF_DWORD0 + (i * 4));
+		frame_rcvd[i] = __swab32(val);
+	}
+
+	phy->frame_rcvd_size = sizeof(struct sas_identify_frame);
+	phy->phy_attached = 1;
+
+	if (id->dev_type == SAS_END_DEVICE) {
+		val = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
+		val |= SL_CONTROL_NOTIFY_EN_MSK;
+		hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, val);
+		mdelay(1);
+		val = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
+		val &= ~SL_CONTROL_NOTIFY_EN_MSK;
+		hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, val);
+	}
+
+	/* Get the linkrate */
+	val = hisi_sas_read32(hisi_hba, PHY_CONN_RATE);
+	link_rate = (val >> (phy_no * 4)) & 0xf;
+	sas_phy->linkrate = link_rate;
+	pr_info("%s phy_no=%d hisi_hba->id=%d link_rate=%d\n", __func__, phy_no, hisi_hba->id, link_rate);
+	phy->phy_type &= ~(PORT_TYPE_SAS | PORT_TYPE_SATA);
+	val = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
+	if (val & 1 << phy_no)
+		phy->phy_type |= PORT_TYPE_SATA;
+	else
+		phy->phy_type |= PORT_TYPE_SAS;
+
+	hisi_sas_update_phyinfo(hisi_hba, phy_no, 1, (val & phy_no << 1) ? 1 : 0);
+	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
+
+	res = IRQ_HANDLED;
+end:
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,
+			CHL_INT2_SL_PHY_ENA_MSK);
+
+	if (irq_value & CHL_INT2_SL_PHY_ENA_MSK) {
+		val = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0);
+		val &= ~1;
+		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, val);
+		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK, 0x003ce3ee);
+	}
+
+	return res;
+}
+
 static irqreturn_t int_bcast(int phy_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
@@ -1396,7 +1395,7 @@ static irqreturn_t int_int1(int phy_no, void *p)
 }
 
 /* Interrupts */
-irqreturn_t cq_interrupt(int queue, void *p)
+static irqreturn_t cq_interrupt(int queue, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 	struct hisi_sas_slot *slot;
@@ -1431,7 +1430,7 @@ irqreturn_t cq_interrupt(int queue, void *p)
 	return IRQ_HANDLED;
 }
 
-irqreturn_t fatal_ecc_int(int irq, void *p)
+static irqreturn_t fatal_ecc_int(int irq, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 
@@ -1441,7 +1440,7 @@ irqreturn_t fatal_ecc_int(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-irqreturn_t fatal_axi_int(int irq, void *p)
+static irqreturn_t fatal_axi_int(int irq, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 
@@ -1505,7 +1504,7 @@ static const char fatal_int_name[HISI_SAS_FATAL_INT_NR][32] = {
 	"fatal axi"
 };
 
-irq_handler_t phy_interrupts[HISI_SAS_MAX_PHYS][HISI_SAS_PHY_INT_NR] = {
+static irq_handler_t phy_interrupts[HISI_SAS_MAX_PHYS][HISI_SAS_PHY_INT_NR] = {
 	{DECLARE_PHY_INT_GROUP_PTR(0)},
 	{DECLARE_PHY_INT_GROUP_PTR(1)},
 	{DECLARE_PHY_INT_GROUP_PTR(2)},
@@ -1550,7 +1549,7 @@ DECLARE_INT_HANDLER(cq_interrupt, 29)
 DECLARE_INT_HANDLER(cq_interrupt, 30)
 DECLARE_INT_HANDLER(cq_interrupt, 31)
 
-irq_handler_t cq_interrupts[HISI_SAS_MAX_QUEUES] = {
+static irq_handler_t cq_interrupts[HISI_SAS_MAX_QUEUES] = {
 	INT_HANDLER_NAME(cq_interrupt, 0),
 	INT_HANDLER_NAME(cq_interrupt, 1),
 	INT_HANDLER_NAME(cq_interrupt, 2),
@@ -1585,11 +1584,10 @@ irq_handler_t cq_interrupts[HISI_SAS_MAX_QUEUES] = {
 	INT_HANDLER_NAME(cq_interrupt, 31)
 };
 
-irq_handler_t fatal_interrupts[HISI_SAS_MAX_QUEUES] = {
+static irq_handler_t fatal_interrupts[HISI_SAS_MAX_QUEUES] = {
 	fatal_ecc_int,
 	fatal_axi_int
 };
-
 
 static int interrupt_init(struct hisi_hba *hisi_hba)
 {
