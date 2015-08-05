@@ -17,6 +17,7 @@
 
 #include <asm/cputype.h>
 #include <asm/smp_plat.h>
+#include <asm/tlbflush.h>
 
 /* Macros for consistency checks of the GICC subtable of MADT */
 #define ACPI_MADT_GICC_LENGTH	\
@@ -110,7 +111,19 @@ static inline const char *acpi_get_enable_method(int cpu)
 }
 
 #ifdef	CONFIG_ACPI_APEI
+#define acpi_disable_cmcff 1
 pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr);
-#endif
 
+/*
+ * This inline function is used in IRQ context (by GHES driver now),
+ * see ghes_iounmap_irq and ghes_iounmap_nmi in drivers/acpi/apei/ghes.c.
+ * The page mapped is reserved for firmware in kernel. This invalidate TLB
+ * maintenance should be broadcasted safely to make sure that all the cores
+ * will do TLB invalidation, then get the right pages.
+ */
+static inline void arch_apei_flush_tlb_one(unsigned long addr)
+{
+	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
+}
+#endif /* CONFIG_ACPI_APEI */
 #endif /*_ASM_ACPI_H*/
