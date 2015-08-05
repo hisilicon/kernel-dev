@@ -837,7 +837,7 @@ void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st, 
 	if (phy->phy_status) {
 		int oob_done = 0;
 		struct asd_sas_phy *sas_phy = &phy->sas_phy;
-		oob_done = 1;
+		oob_done = 1; /* j00310691 fixme */
 
 		/* j00310691 do as fix phy info */
 		phy->att_dev_sas_addr = *(u64 *)id->sas_addr;
@@ -849,15 +849,7 @@ void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st, 
 				//	i + mvi->id * mvi->chip->n_phy;
 				if (oob_done)
 					sas_phy->oob_mode = SATA_OOB_MODE;
-				phy->frame_rcvd_size = sizeof(struct dev_to_host_fis);
-				//mvs_get_d2h_reg(mvi, i, id);
 			} else {
-				//u32 tmp;
-				//dev_printk(KERN_DEBUG, mvi->dev,
-				//	"Phy%d : No sig fis\n", i);
-				//tmp = MVS_CHIP_DISP->read_port_irq_mask(mvi, i);
-				//MVS_CHIP_DISP->write_port_irq_mask(mvi, i,
-				//		tmp | PHYEV_SIG_FIS);
 				phy->phy_attached = 0;
 				phy->phy_type &= ~PORT_TYPE_SATA;
 				goto out_done;

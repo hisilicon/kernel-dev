@@ -515,7 +515,7 @@ static void init_reg(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, CFG_SAS_CONFIG, 0x22000000);
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
-		/*phy registers init set 12G - see g_astPortRegConfig */
+		/* phy registers init set 12G - see g_astPortRegConfig */
 		hisi_sas_phy_write32(hisi_hba, i, PROG_PHY_LINK_RATE, 0x0000088a);
 		hisi_sas_phy_write32(hisi_hba, i, PHY_CONFIG2, 0x80c7c084);
 		hisi_sas_phy_write32(hisi_hba, i, PHY_RATE_NEGO, 0x415ee00);
@@ -1090,13 +1090,10 @@ static irqreturn_t int_ctrlrdy(int phy, void *p)
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy, CHL_INT2);
 
 	if (!(irq_value & CHL_INT2_CTRL_PHY_RDY_MSK)) {
-		dev_warn(hisi_hba->dev, "%s irq_value = %x not set enable bit",
+		dev_dbg(hisi_hba->dev, "%s irq_value = %x not set enable bit",
 			__func__, irq_value);
 		hisi_sas_phy_write32(hisi_hba, phy, CHL_INT2, CHL_INT2_CTRL_PHY_RDY_MSK);
 		return IRQ_NONE;
-	} else {
-		dev_info(hisi_hba->dev, "%s phy=%d, irq_value=%x\n",
-			__func__, phy, irq_value);
 	}
 
 	config_serdes_12G(hisi_hba, phy);
@@ -1151,8 +1148,7 @@ static irqreturn_t int_hotplug(int phy_no, void *p)
 static irqreturn_t int_phyup(int phy_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
-	u32 irq_value, port_id, link_rate, val;
-	struct hisi_sas_port *port;
+	u32 irq_value, context, port_id, link_rate, idaf;
 	int i;
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
@@ -1169,8 +1165,13 @@ static irqreturn_t int_phyup(int phy_no, void *p)
 		goto end;
 	}
 
-	val = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA);
-	port_id = (val >> (4 * phy_no)) & 0xf;
+	context = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
+	if (context & 1 << phy_no) {
+		dev_info(hisi_hba->dev, "%s SATA attached equipment\n", __func__);
+		goto end;
+	}
+
+	port_id = (hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA) >> (4 * phy_no)) & 0xf;
 	if (port_id == 0xf) {
 		pr_err("%s phy = %d, invalid portid\n", __func__, phy_no);
 		res = IRQ_NONE;
@@ -1178,40 +1179,36 @@ static irqreturn_t int_phyup(int phy_no, void *p)
 	}
 
 	/* j00310691 todo stop serdes fw timer */
-
-	port = &hisi_hba->port[port_id];
 	for (i = 0; i < 6; i++) {
-		val = hisi_sas_phy_read32(hisi_hba, phy_no,
+		idaf = hisi_sas_phy_read32(hisi_hba, phy_no,
 					RX_IDAF_DWORD0 + (i * 4));
-		frame_rcvd[i] = __swab32(val);
+		frame_rcvd[i] = __swab32(idaf);
 	}
 
 	phy->frame_rcvd_size = sizeof(struct sas_identify_frame);
 	phy->phy_attached = 1;
 
 	if (id->dev_type == SAS_END_DEVICE) {
-		val = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
-		val |= SL_CONTROL_NOTIFY_EN_MSK;
-		hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, val);
+		u32 sl_control;
+
+		sl_control = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
+		sl_control |= SL_CONTROL_NOTIFY_EN_MSK;
+		hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, sl_control);
 		mdelay(1);
-		val = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
-		val &= ~SL_CONTROL_NOTIFY_EN_MSK;
-		hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, val);
+		sl_control = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
+		sl_control &= ~SL_CONTROL_NOTIFY_EN_MSK;
+		hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, sl_control);
 	}
 
 	/* Get the linkrate */
-	val = hisi_sas_read32(hisi_hba, PHY_CONN_RATE);
-	link_rate = (val >> (phy_no * 4)) & 0xf;
+	link_rate = hisi_sas_read32(hisi_hba, PHY_CONN_RATE);
+	link_rate = (link_rate >> (phy_no * 4)) & 0xf;
 	sas_phy->linkrate = link_rate;
 	pr_info("%s phy_no=%d hisi_hba->id=%d link_rate=%d\n", __func__, phy_no, hisi_hba->id, link_rate);
 	phy->phy_type &= ~(PORT_TYPE_SAS | PORT_TYPE_SATA);
-	val = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
-	if (val & 1 << phy_no)
-		phy->phy_type |= PORT_TYPE_SATA;
-	else
-		phy->phy_type |= PORT_TYPE_SAS;
+	phy->phy_type |= PORT_TYPE_SAS;
 
-	hisi_sas_update_phyinfo(hisi_hba, phy_no, 1, (val & phy_no << 1) ? 1 : 0);
+	hisi_sas_update_phyinfo(hisi_hba, phy_no, 1, 0);
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
 
 end:
@@ -1219,9 +1216,10 @@ end:
 			CHL_INT2_SL_PHY_ENA_MSK);
 
 	if (irq_value & CHL_INT2_SL_PHY_ENA_MSK) {
-		val = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0);
-		val &= ~1;
-		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, val);
+		/* Higgs_BypassChipBugUnmaskAbnormalIntr */
+		u32 chl_int0 = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0);
+		chl_int0 &= ~CHL_INT0_PHYCTRL_NOTRDY_MSK;
+		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, chl_int0);
 		hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK, 0x003ce3ee);
 	}
 

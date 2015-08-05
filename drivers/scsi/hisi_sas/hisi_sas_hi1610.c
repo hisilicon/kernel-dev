@@ -54,6 +54,10 @@
 #define OQ_INT_SRC			0x1b0
 #define OQ_INT_SRC_MSK			0x1b4
 #define ENT_INT_SRC1			0x1b8
+#define ENT_INT_SRC1_D2H_FIS_CH0_OFF	0
+#define ENT_INT_SRC1_D2H_FIS_CH0_MSK	0x1
+#define ENT_INT_SRC1_D2H_FIS_CH1_OFF	8
+#define ENT_INT_SRC1_D2H_FIS_CH1_MSK	0x100
 #define ENT_INT_SRC2			0x1bc
 #define ENT_INT_SRC3			0x1c0
 #define ENT_INT_SRC_MSK1		0x1c4
@@ -943,13 +947,15 @@ static int phy_up(int phy_no, struct hisi_hba *hisi_hba)
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_PHY_ENA_MSK, 1);
 
 	context = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
-	if (context & 1 << phy_no)
+	if (context & 1 << phy_no) {
+		dev_warn(hisi_hba->dev, "%s SATA attached equipment\n", __func__);
 		goto end;
+	}
 
 	port_id = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA);
 	port_id = (port_id >> (4 * phy_no)) & 0xf;
 	if (port_id == 0xf) {
-		pr_err("%s phy = %d, invalid portid\n", __func__, phy_no);
+		dev_err(hisi_hba->dev, "%s phy = %d, invalid portid\n", __func__, phy_no);
 		res = -1;
 		goto end;
 	}
@@ -982,12 +988,9 @@ static int phy_up(int phy_no, struct hisi_hba *hisi_hba)
 	sas_phy->linkrate = link_rate;
 	pr_info("%s phy_no=%d hisi_hba->id=%d link_rate=%d\n", __func__, phy_no, hisi_hba->id, link_rate);
 	phy->phy_type &= ~(PORT_TYPE_SAS | PORT_TYPE_SATA);
-				if (context & 1 << phy_no)
-		phy->phy_type |= PORT_TYPE_SATA;
-	else
-		phy->phy_type |= PORT_TYPE_SAS;
+	phy->phy_type |= PORT_TYPE_SAS;
 
-	hisi_sas_update_phyinfo(hisi_hba, phy_no, 1, (context & phy_no << 1) ? 1 : 0);
+	hisi_sas_update_phyinfo(hisi_hba, phy_no, 1, 0);
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
 
 end:
@@ -1138,7 +1141,7 @@ end:
 }
 
 /* Interrupts */
-irqreturn_t cq_interrupt(int queue, void *p)
+static irqreturn_t cq_interrupt(int queue, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 	struct hisi_sas_slot *slot;
@@ -1173,7 +1176,7 @@ irqreturn_t cq_interrupt(int queue, void *p)
 	return IRQ_HANDLED;
 }
 
-irqreturn_t fatal_ecc_int(int irq, void *p)
+static irqreturn_t fatal_ecc_int(int irq, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 
@@ -1183,7 +1186,7 @@ irqreturn_t fatal_ecc_int(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-irqreturn_t fatal_axi_int(int irq, void *p)
+static irqreturn_t fatal_axi_int(int irq, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 
@@ -1193,14 +1196,72 @@ irqreturn_t fatal_axi_int(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-irqreturn_t sata_int(int irq, void *p)
+static irqreturn_t sata_int(int phy_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
+	u32 ent_msk, ent_int, port_id, context, link_rate;
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	irqreturn_t res = IRQ_HANDLED;
+	struct	hisi_sas_initial_fis *initial_fis =
+		&hisi_hba->initial_fis[phy_no];
+	struct dev_to_host_fis *fis = &initial_fis->fis;
+	int i;
 
-	dev_info(hisi_hba->dev, "%s core = %d, irq = %d\n",
-		 __func__, hisi_hba->id, irq);
+	dev_info(hisi_hba->dev, "%s core = %d, phy_no = %d\n",
+		 __func__, hisi_hba->id, phy_no);
 
-	return IRQ_HANDLED;
+	ent_msk = hisi_sas_read32(hisi_hba, ENT_INT_SRC_MSK1);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, ent_msk | 1 << phy_no);
+
+	ent_int = hisi_sas_read32(hisi_hba, ENT_INT_SRC1 + (4 * phy_no));
+	ent_int >>= ENT_INT_SRC1_D2H_FIS_CH1_OFF * (phy_no % 4);
+	if ((ent_int & ENT_INT_SRC1_D2H_FIS_CH0_MSK) == 0) {
+		dev_warn(hisi_hba->dev, "%s phy%d did not receive FIS\n", __func__, phy_no);
+		res = IRQ_NONE;
+		goto end;
+	}
+
+	/* j00310691 we can probably remove this, as we check for FIS above */
+	context = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
+	if ((context & 1 << phy_no) == 0) {
+		dev_warn(hisi_hba->dev, "%s phy%d SAS attached equipment\n", __func__, phy_no);
+		res = IRQ_NONE;
+		goto end;
+	}
+
+	port_id = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA);
+	port_id = (port_id >> (4 * phy_no)) & 0xf;
+	if (port_id == 0xf) {
+		dev_err(hisi_hba->dev, "%s phy = %d, invalid portid\n", __func__, phy_no);
+		res = IRQ_NONE;
+		goto end;
+	}
+
+	for (i = 0; i < 6; i++) {
+		u32 *ptr = (u32 *)fis;
+		pr_info("%s %d: 0x%x\n", __func__, i, *(ptr + i));
+	}
+
+	memcpy(sas_phy->frame_rcvd, fis, sizeof(struct dev_to_host_fis));
+	phy->frame_rcvd_size = sizeof(struct dev_to_host_fis);
+
+	/* Get the linkrate */
+	link_rate = hisi_sas_read32(hisi_hba, PHY_CONN_RATE);
+	link_rate = (link_rate >> (phy_no * 4)) & 0xf;
+	sas_phy->linkrate = link_rate;
+	pr_info("%s phy_no=%d hisi_hba->id=%d link_rate=%d\n", __func__, phy_no, hisi_hba->id, link_rate);
+	phy->phy_type &= ~(PORT_TYPE_SAS | PORT_TYPE_SATA);
+	phy->phy_type |= PORT_TYPE_SATA;
+
+	hisi_sas_update_phyinfo(hisi_hba, phy_no, 1, 1);
+	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
+
+end:
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC1, ent_int);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, ent_msk);
+
+	return res;
 }
 
 #define DECLARE_PHY_INT_HANDLER_GROUP(phy)\

@@ -187,7 +187,7 @@ struct hisi_hba {
 	struct hisi_sas_complete_hdr	*complete_hdr[HISI_SAS_MAX_QUEUES];
 	dma_addr_t	complete_hdr_dma[HISI_SAS_MAX_QUEUES];
 
-	struct	dev_to_host_fis	*initial_fis;
+	struct hisi_sas_initial_fis *initial_fis;
 	dma_addr_t	initial_fis_dma;
 
 	int	n_phy;
