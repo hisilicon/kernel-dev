@@ -545,10 +545,9 @@ int hisi_sas_lu_reset(struct domain_device *dev, u8 *lun);
 int hisi_sas_query_task(struct sas_task *task);
 void hisi_sas_port_formed(struct asd_sas_phy *sas_phy);
 void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy);
-void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy, int context);
+void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy);
 int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot, u32 flags);
 void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no);
-void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st, int context);
 void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy, int lock);
 #ifdef CONFIG_DEBUG_FS
 int hisi_sas_debugfs_init(struct hisi_hba *hisi_hba);

@@ -967,9 +967,6 @@ static int phy_up(int phy_no, struct hisi_hba *hisi_hba)
 		frame_rcvd[i] = __swab32(idaf);
 	}
 
-	phy->frame_rcvd_size = sizeof(struct sas_identify_frame);
-	phy->phy_attached = 1;
-
 	if (id->dev_type == SAS_END_DEVICE) {
 		u32 sl_control;
 
@@ -986,11 +983,22 @@ static int phy_up(int phy_no, struct hisi_hba *hisi_hba)
 	link_rate = hisi_sas_read32(hisi_hba, PHY_CONN_RATE);
 	link_rate = (link_rate >> (phy_no * 4)) & 0xf;
 	sas_phy->linkrate = link_rate;
+	sas_phy->oob_mode = SAS_OOB_MODE;
+	memcpy(sas_phy->attached_sas_addr,
+		&id->sas_addr, SAS_ADDR_SIZE);
 	pr_info("%s phy_no=%d hisi_hba->id=%d link_rate=%d\n", __func__, phy_no, hisi_hba->id, link_rate);
 	phy->phy_type &= ~(PORT_TYPE_SAS | PORT_TYPE_SATA);
 	phy->phy_type |= PORT_TYPE_SAS;
+	phy->phy_attached = 1;
+	phy->identify.device_type = id->dev_type;
+	phy->frame_rcvd_size =	sizeof(struct sas_identify_frame);
+	if (phy->identify.device_type == SAS_END_DEVICE)
+		phy->identify.target_port_protocols =
+			SAS_PROTOCOL_SSP;
+	else if (phy->identify.device_type != SAS_PHY_UNUSED)
+		phy->identify.target_port_protocols =
+			SAS_PROTOCOL_SMP;
 
-	hisi_sas_update_phyinfo(hisi_hba, phy_no, 1, 0);
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
 
 end:
@@ -1019,8 +1027,7 @@ static int phy_down(int phy_no, struct hisi_hba *hisi_hba)
 
 	hisi_sas_phy_down(hisi_hba,
 		phy_no,
-		(phy_state & 1 << phy_no) ? 1 : 0,
-		(context & 1 << phy_no) ? 1 : 0);
+		(phy_state & 1 << phy_no) ? 1 : 0);
 
 end:
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, CHL_INT0_NOT_RDY_MSK);
@@ -1243,18 +1250,20 @@ static irqreturn_t sata_int(int phy_no, void *p)
 		pr_info("%s %d: 0x%x\n", __func__, i, *(ptr + i));
 	}
 
-	memcpy(sas_phy->frame_rcvd, fis, sizeof(struct dev_to_host_fis));
-	phy->frame_rcvd_size = sizeof(struct dev_to_host_fis);
-
 	/* Get the linkrate */
 	link_rate = hisi_sas_read32(hisi_hba, PHY_CONN_RATE);
 	link_rate = (link_rate >> (phy_no * 4)) & 0xf;
 	sas_phy->linkrate = link_rate;
+	sas_phy->oob_mode = SATA_OOB_MODE;
+	memcpy(sas_phy->frame_rcvd, fis, sizeof(struct dev_to_host_fis));
 	pr_info("%s phy_no=%d hisi_hba->id=%d link_rate=%d\n", __func__, phy_no, hisi_hba->id, link_rate);
 	phy->phy_type &= ~(PORT_TYPE_SAS | PORT_TYPE_SATA);
 	phy->phy_type |= PORT_TYPE_SATA;
+	phy->phy_attached = 1;
+	phy->identify.device_type = SAS_SATA_DEV;
+	phy->frame_rcvd_size = sizeof(struct dev_to_host_fis);
+	phy->identify.target_port_protocols = SAS_PROTOCOL_SATA;
 
-	hisi_sas_update_phyinfo(hisi_hba, phy_no, 1, 1);
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
 
 end:

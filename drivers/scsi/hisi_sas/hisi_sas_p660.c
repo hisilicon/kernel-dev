@@ -1148,7 +1148,7 @@ static irqreturn_t int_hotplug(int phy_no, void *p)
 static irqreturn_t int_phyup(int phy_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
-	u32 irq_value, context, port_id, link_rate, idaf;
+	u32 irq_value, context, port_id, link_rate;
 	int i;
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
@@ -1180,13 +1180,10 @@ static irqreturn_t int_phyup(int phy_no, void *p)
 
 	/* j00310691 todo stop serdes fw timer */
 	for (i = 0; i < 6; i++) {
-		idaf = hisi_sas_phy_read32(hisi_hba, phy_no,
+		u32 idaf = hisi_sas_phy_read32(hisi_hba, phy_no,
 					RX_IDAF_DWORD0 + (i * 4));
 		frame_rcvd[i] = __swab32(idaf);
 	}
-
-	phy->frame_rcvd_size = sizeof(struct sas_identify_frame);
-	phy->phy_attached = 1;
 
 	if (id->dev_type == SAS_END_DEVICE) {
 		u32 sl_control;
@@ -1204,11 +1201,22 @@ static irqreturn_t int_phyup(int phy_no, void *p)
 	link_rate = hisi_sas_read32(hisi_hba, PHY_CONN_RATE);
 	link_rate = (link_rate >> (phy_no * 4)) & 0xf;
 	sas_phy->linkrate = link_rate;
+	sas_phy->oob_mode = SAS_OOB_MODE;
+	memcpy(sas_phy->attached_sas_addr,
+		&id->sas_addr, SAS_ADDR_SIZE);
 	pr_info("%s phy_no=%d hisi_hba->id=%d link_rate=%d\n", __func__, phy_no, hisi_hba->id, link_rate);
 	phy->phy_type &= ~(PORT_TYPE_SAS | PORT_TYPE_SATA);
 	phy->phy_type |= PORT_TYPE_SAS;
+	phy->phy_attached = 1;
+	phy->identify.device_type = id->dev_type;
+	phy->frame_rcvd_size =	sizeof(struct sas_identify_frame);
+	if (phy->identify.device_type == SAS_END_DEVICE)
+		phy->identify.target_port_protocols =
+			SAS_PROTOCOL_SSP;
+	else if (phy->identify.device_type != SAS_PHY_UNUSED)
+		phy->identify.target_port_protocols =
+			SAS_PROTOCOL_SMP;
 
-	hisi_sas_update_phyinfo(hisi_hba, phy_no, 1, 0);
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
 
 end:
@@ -1335,7 +1343,7 @@ static irqreturn_t int_abnormal(int phy_no, void *p)
 
 		if (val & PHY_CFG_ENA_MSK) {
 			u32 phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
-			u32 context = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
+
 			/* Enabled */
 			/* Stop serdes fw timer */
 			/* serdes lane reset */
@@ -1343,8 +1351,7 @@ static irqreturn_t int_abnormal(int phy_no, void *p)
 
 			hisi_sas_phy_down(hisi_hba,
 				phy_no,
-				(phy_state & 1 << phy_no) ? 1 : 0,
-				(context & 1 << phy_no) ? 1 : 0);
+				(phy_state & 1 << phy_no) ? 1 : 0);
 		} else {
 			/* Disabled */
 			/* Ignore phydown event if disabled */

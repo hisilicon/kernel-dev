@@ -824,64 +824,7 @@ static void hisi_sas_phy_disconnected(struct hisi_sas_phy *phy)
 	phy->phy_type = 0;
 }
 
-void hisi_sas_update_phyinfo(struct hisi_hba *hisi_hba, int phy_no, int get_st, int context)
-{
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
-	struct sas_identify_frame *id;
-	id = (struct sas_identify_frame *)phy->frame_rcvd;
-
-	if (get_st) {
-		phy->phy_status = HISI_SAS_DISP->is_phy_ready(hisi_hba, phy_no);
-	}
-
-	if (phy->phy_status) {
-		int oob_done = 0;
-		struct asd_sas_phy *sas_phy = &phy->sas_phy;
-		oob_done = 1; /* j00310691 fixme */
-
-		/* j00310691 do as fix phy info */
-		phy->att_dev_sas_addr = *(u64 *)id->sas_addr;
-		if (phy->phy_type & PORT_TYPE_SATA) {
-			phy->identify.target_port_protocols = SAS_PROTOCOL_STP;
-			if (context) {
-				phy->phy_attached = 1;
-				phy->att_dev_sas_addr = 0;
-				//	i + mvi->id * mvi->chip->n_phy;
-				if (oob_done)
-					sas_phy->oob_mode = SATA_OOB_MODE;
-			} else {
-				phy->phy_attached = 0;
-				phy->phy_type &= ~PORT_TYPE_SATA;
-				goto out_done;
-			}
-		} else if (phy->phy_type & PORT_TYPE_SAS) {
-			phy->phy_attached = 1;
-
-			phy->identify.device_type = id->dev_type;
-
-			if (phy->identify.device_type == SAS_END_DEVICE)
-				phy->identify.target_port_protocols =
-							SAS_PROTOCOL_SSP;
-			else if (phy->identify.device_type != SAS_PHY_UNUSED)
-				phy->identify.target_port_protocols =
-							SAS_PROTOCOL_SMP;
-			if (oob_done)
-				sas_phy->oob_mode = SAS_OOB_MODE;
-			phy->frame_rcvd_size =
-				sizeof(struct sas_identify_frame);
-		}
-		memcpy(sas_phy->attached_sas_addr,
-			&phy->att_dev_sas_addr, SAS_ADDR_SIZE);
-
-	}
-out_done:
-	dev_dbg(hisi_hba->dev, "%s phy %d attach dev info is %llx\n", __func__,
-		phy_no + hisi_hba->id * hisi_hba->n_phy, phy->att_dev_info);
-	dev_dbg(hisi_hba->dev, "%s phy %d attach sas addr is %llx\n", __func__,
-		phy_no + hisi_hba->id * hisi_hba->n_phy, phy->att_dev_sas_addr);
-}
-
-void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy, int context)
+void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy)
 {
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
@@ -889,14 +832,14 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy, int conte
 
 	if (rdy) {
 		/* Phy down but ready */
-		pr_debug("%s phy %d down and ready\n", __func__, phy_no);
-		hisi_sas_update_phyinfo(hisi_hba, phy_no, 0, context);
+		pr_debug("phy%d down and ready\n", phy_no);
 		hisi_sas_bytes_dmaed(hisi_hba, phy_no);
 		hisi_sas_port_notify_formed(sas_phy, 0);
 		pr_info("phy%d Attached Device\n", phy_no);
 	} else {
 		/* Phy down and not ready */
 		pr_info("phy%d Removed Device\n", phy_no);
+		phy->phy_attached = 0;
 		sas_phy_disconnected(sas_phy);
 		hisi_sas_phy_disconnected(phy);
 		sas_ha->notify_phy_event(sas_phy, PHYE_LOSS_OF_SIGNAL);
