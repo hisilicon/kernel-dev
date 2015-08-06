@@ -45,6 +45,17 @@
 #define FIS_LIST_BADDR_L		0xc4
 #define CFG_1US_TIMER_TRSH		0xcc
 #define CFG_SAS_CONFIG			0xd4
+#define HGC_IOST_ECC_ADDR		0x140
+#define HGC_IOST_ECC_ADDR_BAD_OFF	16
+#define HGC_IOST_ECC_ADDR_BAD_MSK	0x3ff0000
+#define HGC_DQ_ECC_ADDR			0x144
+#define HGC_DQ_ECC_ADDR_BAD_OFF		16
+#define HGC_DQ_ECC_ADDR_BAD_MSK		0xfff0000
+#define HGC_ITCT_ECC_ADDR		0x150
+#define HGC_ITCT_ECC_ADDR_1B_OFF	0
+#define HGC_ITCT_ECC_ADDR_1B_MSK	0x3ff
+#define HGC_ITCT_ECC_ADDR_BAD_OFF	16
+#define HGC_ITCT_ECC_ADDR_BAD_MSK	0x3ff0000
 #define INT_COAL_EN			0x1bc
 #define OQ_INT_COAL_TIME		0x1c0
 #define OQ_INT_COAL_CNT			0x1c4
@@ -56,6 +67,19 @@
 #define ENT_INT_SRC2			0x1dc
 #define ENT_INT_SRC_MSK1		0x1e0
 #define ENT_INT_SRC_MSK2		0x1e4
+#define SAS_ECC_INTR			0x1e8
+#define SAS_ECC_INTR_DQ_ECC1B_OFF	0
+#define SAS_ECC_INTR_DQ_ECC1B_MSK	0x1
+#define SAS_ECC_INTR_DQ_ECCBAD_OFF	1
+#define SAS_ECC_INTR_DQ_ECCBAD_MSK	0x2
+#define SAS_ECC_INTR_IOST_ECC1B_OFF	2
+#define SAS_ECC_INTR_IOST_ECC1B_MSK	0x4
+#define SAS_ECC_INTR_IOST_ECCBAD_OFF	3
+#define SAS_ECC_INTR_IOST_ECCBAD_MSK	0x8
+#define SAS_ECC_INTR_ITCT_ECC1B_OFF	4
+#define SAS_ECC_INTR_ITCT_ECC1B_MSK	0x10
+#define SAS_ECC_INTR_ITCT_ECCBAD_OFF	5
+#define SAS_ECC_INTR_ITCT_ECCBAD_MSK	0x20
 #define SAS_ECC_INTR_MSK		0x1ec
 #define HGC_ERR_STAT_EN			0x238
 #define DLVRY_Q_0_BASE_ADDR_LO		0x260
@@ -68,6 +92,7 @@
 #define COMPL_Q_0_DEPTH			0x4e8
 #define COMPL_Q_0_WR_PTR		0x4ec
 #define COMPL_Q_0_RD_PTR		0x4f0
+#define HGC_ECC_ERR			0x7d0
 
 /* phy registers need init */
 #define PORT_BASE			(0x800)
@@ -1418,8 +1443,8 @@ static irqreturn_t cq_interrupt(int queue, void *p)
 
 	hisi_sas_write32(hisi_hba, OQ_INT_SRC, 1 << queue);
 
-	rd_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_RD_PTR + 20 * queue);
-	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR + 20 * queue);
+	rd_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue));
+	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR + (0x14 * queue));
 
 	while (rd_point != wr_point) {
 		struct hisi_sas_complete_hdr *complete_hdr;
@@ -1437,16 +1462,70 @@ static irqreturn_t cq_interrupt(int queue, void *p)
 	}
 
 	/* update rd_point */
-	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + 20 * queue, rd_point);
+	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t fatal_ecc_int(int irq, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
+	u32 ecc_int = hisi_sas_read32(hisi_hba, SAS_ECC_INTR);
 
-	dev_info(hisi_hba->dev, "%s core = %d, irq = %d\n",
-		 __func__, hisi_hba->id, irq);
+	if (ecc_int & SAS_ECC_INTR_DQ_ECC1B_MSK) {
+		u32 ecc_err = hisi_sas_read32(hisi_hba, HGC_ECC_ERR);
+
+		hisi_hba->fatal_stat.dq_1b_ecc_err_cnt = ecc_err;
+		dev_err(hisi_hba->dev, "fatal DQ 1b ECC interrupt on core %d (0x%x)\n",
+			hisi_hba->id, ecc_err);
+	}
+
+	if (ecc_int & SAS_ECC_INTR_DQ_ECCBAD_MSK) {
+		u32 addr = (hisi_sas_read32(hisi_hba, HGC_DQ_ECC_ADDR) &
+				HGC_DQ_ECC_ADDR_BAD_MSK) >>
+				HGC_DQ_ECC_ADDR_BAD_OFF;
+
+		hisi_hba->fatal_stat.dq_multib_ecc_err_cnt++;
+		dev_err(hisi_hba->dev, "fatal DQ RAM ECC interrupt on core %d @ 0x%08x\n",
+			hisi_hba->id, addr);
+	}
+
+	if (ecc_int & SAS_ECC_INTR_IOST_ECC1B_MSK) {
+		u32 ecc_err = hisi_sas_read32(hisi_hba, HGC_ECC_ERR);
+
+		hisi_hba->fatal_stat.iost_1b_ecc_err_cnt = ecc_err;
+		dev_err(hisi_hba->dev, "fatal IOST 1b ECC interrupt on core %d (0x%x)\n",
+			hisi_hba->id, ecc_err);
+	}
+
+	if (ecc_int & SAS_ECC_INTR_IOST_ECCBAD_MSK) {
+		u32 addr = (hisi_sas_read32(hisi_hba, HGC_IOST_ECC_ADDR) &
+				HGC_IOST_ECC_ADDR_BAD_MSK) >>
+				HGC_IOST_ECC_ADDR_BAD_OFF;
+
+		hisi_hba->fatal_stat.iost_multib_ecc_err_cnt++;
+		dev_err(hisi_hba->dev, "fatal IOST RAM ECC interrupt on core %d @ 0x%08x\n",
+			hisi_hba->id, addr);
+	}
+
+	if (ecc_int & SAS_ECC_INTR_ITCT_ECCBAD_MSK) {
+		u32 addr = (hisi_sas_read32(hisi_hba, HGC_ITCT_ECC_ADDR) &
+				HGC_ITCT_ECC_ADDR_BAD_MSK) >>
+				HGC_ITCT_ECC_ADDR_BAD_OFF;
+
+		hisi_hba->fatal_stat.itct_multib_ecc_err_cnt++;
+		dev_err(hisi_hba->dev, "fatal TCT RAM ECC interrupt on core %d @ 0x%08x\n",
+			hisi_hba->id, addr);
+	}
+
+	if (ecc_int & SAS_ECC_INTR_ITCT_ECC1B_MSK) {
+		u32 ecc_err = hisi_sas_read32(hisi_hba, HGC_ECC_ERR);
+
+		hisi_hba->fatal_stat.itct_1b_ecc_err_cnt++;
+		dev_err(hisi_hba->dev, "fatal ITCT 1b ECC interrupt on core %d (0x%x)\n",
+			hisi_hba->id, ecc_err);
+	}
+
+	hisi_sas_write32(hisi_hba, SAS_ECC_INTR, ecc_int | 0x3f);
 
 	return IRQ_HANDLED;
 }
