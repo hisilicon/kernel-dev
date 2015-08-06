@@ -743,6 +743,7 @@ int hisi_sas_dev_found(struct domain_device *dev)
 void hisi_sas_dev_gone(struct domain_device *dev)
 {
 	pr_debug("%s fixme\n", __func__);
+	BUG();
 }
 
 int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
@@ -755,6 +756,7 @@ int hisi_sas_control_phy(struct asd_sas_phy *sas_phy,
 			void *funcdata)
 {
 	pr_info("%s fixme\n", __func__);
+	BUG();
 
 	return 0;
 }
@@ -762,6 +764,7 @@ int hisi_sas_control_phy(struct asd_sas_phy *sas_phy,
 int hisi_sas_abort_task(struct sas_task *task)
 {
 	pr_info("%s fixme\n", __func__);
+	BUG();
 
 	return 0;
 }
@@ -769,6 +772,7 @@ int hisi_sas_abort_task(struct sas_task *task)
 int hisi_sas_abort_task_set(struct domain_device *dev, u8 *lun)
 {
 	pr_info("%s fixme\n", __func__);
+	BUG();
 
 	return 0;
 }
@@ -776,6 +780,8 @@ int hisi_sas_abort_task_set(struct domain_device *dev, u8 *lun)
 int hisi_sas_clear_aca(struct domain_device *dev, u8 *lun)
 {
 	pr_info("%s\n", __func__);
+	BUG();
+
 	return 0;
 }
 
@@ -789,12 +795,14 @@ int hisi_sas_clear_task_set(struct domain_device *dev, u8 *lun)
 int hisi_sas_I_T_nexus_reset(struct domain_device *dev)
 {
 	pr_info("%s\n", __func__);
+	BUG();
 	return 0;
 }
 
 int hisi_sas_lu_reset(struct domain_device *dev, u8 *lun)
 {
 	pr_info("%s fixme\n", __func__);
+	BUG();
 
 	return 0;
 }
