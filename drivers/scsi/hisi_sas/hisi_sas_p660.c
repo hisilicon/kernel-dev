@@ -56,6 +56,7 @@
 #define HGC_ITCT_ECC_ADDR_1B_MSK	0x3ff
 #define HGC_ITCT_ECC_ADDR_BAD_OFF	16
 #define HGC_ITCT_ECC_ADDR_BAD_MSK	0x3ff0000
+#define HGC_AXI_FIFO_ERR_INFO		0x154
 #define INT_COAL_EN			0x1bc
 #define OQ_INT_COAL_TIME		0x1c0
 #define OQ_INT_COAL_CNT			0x1c4
@@ -65,6 +66,10 @@
 #define OQ_INT_SRC_MSK			0x1d4
 #define ENT_INT_SRC1			0x1d8
 #define ENT_INT_SRC2			0x1dc
+#define ENT_INT_SRC2_AXI_WRONG_INT_OFF	28
+#define ENT_INT_SRC2_AXI_WRONG_INT_MSK	0x10000000
+#define ENT_INT_SRC2_AXI_OVERLF_INT_OFF	29
+#define ENT_INT_SRC2_AXI_OVERLF_INT_MSK	0x20000000
 #define ENT_INT_SRC_MSK1		0x1e0
 #define ENT_INT_SRC_MSK2		0x1e4
 #define SAS_ECC_INTR			0x1e8
@@ -1533,9 +1538,21 @@ static irqreturn_t fatal_ecc_int(int irq, void *p)
 static irqreturn_t fatal_axi_int(int irq, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
+	u32 axi_int = hisi_sas_read32(hisi_hba, ENT_INT_SRC2);
+	u32 axi_info = hisi_sas_read32(hisi_hba, HGC_AXI_FIFO_ERR_INFO);
 
-	dev_info(hisi_hba->dev, "%s core = %d, irq = %d\n",
-		 __func__, hisi_hba->id, irq);
+	if (axi_int & ENT_INT_SRC2_AXI_WRONG_INT_MSK)
+		dev_err(hisi_hba->dev, "fatal AXI incorrect interrupt on core %d (0x%x)\n",
+			hisi_hba->id, axi_info);
+
+	if (axi_int & ENT_INT_SRC2_AXI_OVERLF_INT_MSK) {
+		hisi_hba->fatal_stat.overfl_axi_err_cnt++;
+		dev_err(hisi_hba->dev, "fatal AXI incorrect interrupt on core %d (0x%x)\n",
+			hisi_hba->id, axi_info);
+
+	}
+
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC2, axi_int | 0x30000000);
 
 	return IRQ_HANDLED;
 }

@@ -172,12 +172,16 @@ struct hisi_sas_tei {
 struct hisi_sas_dispatch;
 
 struct hisi_fatal_stat {
+	/* ecc */
 	u32	dq_1b_ecc_err_cnt;
 	u32	dq_multib_ecc_err_cnt;
 	u32	iost_1b_ecc_err_cnt;
 	u32	iost_multib_ecc_err_cnt;
 	u32	itct_1b_ecc_err_cnt;
 	u32	itct_multib_ecc_err_cnt;
+
+	/* axi */
+	u32	overfl_axi_err_cnt;
 };
 
 struct hisi_hba {
