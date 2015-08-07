@@ -51,6 +51,23 @@
 #define HGC_DQ_ECC_ADDR			0x144
 #define HGC_DQ_ECC_ADDR_BAD_OFF		16
 #define HGC_DQ_ECC_ADDR_BAD_MSK		0xfff0000
+#define HGC_INVLD_DQE_INFO		0x148
+#define HGC_INVLD_DQE_INFO_DQ_OFF	0
+#define HGC_INVLD_DQE_INFO_DQ_MSK	0xffff
+#define HGC_INVLD_DQE_INFO_TYPE_OFF	16
+#define HGC_INVLD_DQE_INFO_TYPE_MSK	0x10000
+#define HGC_INVLD_DQE_INFO_FORCE_OFF	17
+#define HGC_INVLD_DQE_INFO_FORCE_MSK	0x20000
+#define HGC_INVLD_DQE_INFO_PHY_OFF	18
+#define HGC_INVLD_DQE_INFO_PHY_MSK	0x40000
+#define HGC_INVLD_DQE_INFO_ABORT_OFF	19
+#define HGC_INVLD_DQE_INFO_ABORT_MSK	0x80000
+#define HGC_INVLD_DQE_INFO_IPTT_OF_OFF	20
+#define HGC_INVLD_DQE_INFO_IPTT_OF_MSK	0x100000
+#define HGC_INVLD_DQE_INFO_SSP_ERR_OFF	21
+#define HGC_INVLD_DQE_INFO_SSP_ERR_MSK	0x200000
+#define HGC_INVLD_DQE_INFO_OFL_OFF	22
+#define HGC_INVLD_DQE_INFO_OFL_MSK	0x400000
 #define HGC_ITCT_ECC_ADDR		0x150
 #define HGC_ITCT_ECC_ADDR_1B_OFF	0
 #define HGC_ITCT_ECC_ADDR_1B_MSK	0x3ff
@@ -217,6 +234,103 @@ enum {
 	HISI_SAS_PHY_INT_REG0,
 	HISI_SAS_PHY_INT_REG1,
 	HISI_SAS_PHY_INT_NR
+};
+
+enum {
+	DMA_TX_ERR_BASE = 0x0,
+	DMA_RX_ERR_BASE = 0x100,
+	TRANS_TX_FAIL_BASE = 0x200,
+	TRANS_RX_FAIL_BASE = 0x300,
+
+	/* dma tx */
+	DMA_TX_DIF_CRC_ERR = DMA_TX_ERR_BASE,
+	DMA_TX_DIF_APP_ERR,
+	DMA_TX_DIF_RPP_ERR,
+	DMA_TX_AXI_BUS_ERR,
+	DMA_TX_DATA_SGL_OVERFLOW_ERR,
+	DMA_TX_DIF_SGL_OVERFLOW_ERR,
+	DMA_TX_UNEXP_XFER_RDY_ERR,
+	DMA_TX_XFER_RDY_OFFSET_ERR,
+	DMA_TX_DATA_UNDERFLOW_ERR,
+	DMA_TX_XFER_RDY_LENGTH_OVERFLOW_ERR,
+
+	/* dma rx */
+	DMA_RX_BUFFER_ECC_ERR = DMA_RX_ERR_BASE,
+	DMA_RX_DIF_CRC_ERR,
+	DMA_RX_DIF_APP_ERR,
+	DMA_RX_DIF_RPP_ERR,
+	DMA_RX_RESP_BUFFER_OVERFLOW_ERR,
+	DMA_RX_AXI_BUS_ERR,
+	DMA_RX_DATA_SGL_OVERFLOW_ERR,
+	DMA_RX_DIF_SGL_OVERFLOW_ERR,
+	DMA_RX_DATA_OFFSET_ERR,
+	DMA_RX_UNEXP_RX_DATA_ERR,
+	DMA_RX_DATA_OVERFLOW_ERR,
+	DMA_RX_DATA_UNDERFLOW_ERR,
+	DMA_RX_UNEXP_RETRANS_RESP_ERR,
+
+	/* trans tx */
+	TRANS_TX_RSVD0_ERR = TRANS_TX_FAIL_BASE,
+	TRANS_TX_PHY_NOT_ENABLE_ERR,
+	TRANS_TX_OPEN_REJCT_WRONG_DEST_ERR,
+	TRANS_TX_OPEN_REJCT_ZONE_VIOLATION_ERR,
+	TRANS_TX_OPEN_REJCT_BY_OTHER_ERR,
+	TRANS_TX_RSVD1_ERR,
+	TRANS_TX_OPEN_REJCT_AIP_TIMEOUT_ERR,
+	TRANS_TX_OPEN_REJCT_STP_BUSY_ERR,
+	TRANS_TX_OPEN_REJCT_PROTOCOL_NOT_SUPPORT_ERR,
+	TRANS_TX_OPEN_REJCT_RATE_NOT_SUPPORT_ERR,
+	TRANS_TX_OPEN_REJCT_BAD_DEST_ERR,
+	TRANS_TX_OPEN_BREAK_RECEIVE_ERR,
+	TRANS_TX_LOW_PHY_POWER_ERR,
+	TRANS_TX_OPEN_REJCT_PATHWAY_BLOCKED_ERR,
+	TRANS_TX_OPEN_TIMEOUT_ERR,
+	TRANS_TX_OPEN_REJCT_NO_DEST_ERR,
+	TRANS_TX_OPEN_RETRY_ERR,
+	TRANS_TX_RSVD2_ERR,
+	TRANS_TX_BREAK_TIMEOUT_ERR,
+	TRANS_TX_BREAK_REQUEST_ERR,
+	TRANS_TX_BREAK_RECEIVE_ERR,
+	TRANS_TX_CLOSE_TIMEOUT_ERR,
+	TRANS_TX_CLOSE_NORMAL_ERR,
+	TRANS_TX_CLOSE_PHYRESET_ERR,
+	TRANS_TX_WITH_CLOSE_DWS_TIMEOUT_ERR,
+	TRANS_TX_WITH_CLOSE_COMINIT_ERR,
+	TRANS_TX_NAK_RECEIVE_ERR,
+	TRANS_TX_ACK_NAK_TIMEOUT_ERR,
+	TRANS_TX_CREDIT_TIMEOUT_ERR,
+	TRANS_TX_IPTT_CONFLICT_ERR,
+	TRANS_TX_TXFRM_TYPE_ERR,
+	TRANS_TX_TXSMP_LENGTH_ERR,
+
+	/* trans rx */
+	TRANS_RX_FRAME_CRC_ERR = TRANS_RX_FAIL_BASE,
+	TRANS_RX_FRAME_DONE_ERR,
+	TRANS_RX_FRAME_ERRPRM_ERR,
+	TRANS_RX_FRAME_NO_CREDIT_ERR,
+	TRANS_RX_RSVD0_ERR,
+	TRANS_RX_FRAME_OVERRUN_ERR,
+	TRANS_RX_FRAME_NO_EOF_ERR,
+	TRANS_RX_LINK_BUF_OVERRUN_ERR,
+	TRANS_RX_BREAK_TIMEOUT_ERR,
+	TRANS_RX_BREAK_REQUEST_ERR,
+	TRANS_RX_BREAK_RECEIVE_ERR,
+	TRANS_RX_CLOSE_TIMEOUT_ERR,
+	TRANS_RX_CLOSE_NORMAL_ERR,
+	TRANS_RX_CLOSE_PHYRESET_ERR,
+	TRANS_RX_WITH_CLOSE_DWS_TIMEOUT_ERR,
+	TRANS_RX_WITH_CLOSE_COMINIT_ERR,
+	TRANS_RX_DATA_LENGTH0_ERR,
+	TRANS_RX_BAD_HASH_ERR,
+	TRANS_RX_XRDY_ZERO_ERR,
+	TRANS_RX_SSP_FRAME_LEN_ERR,
+	TRANS_RX_TRANS_RX_RSVD1_ERR,
+	TRANS_RX_NO_BALANCE_ERR,
+	TRANS_RX_TRANS_RX_RSVD2_ERR,
+	TRANS_RX_TRANS_RX_RSVD3_ERR,
+	TRANS_RX_BAD_FRAME_TYPE_ERR,
+	TRANS_RX_SMP_FRAME_LEN_ERR,
+	TRANS_RX_SMP_RESP_TIMEOUT_ERR
 };
 
 #define HISI_SAS_PHY_MAX_INT_NR (HISI_SAS_PHY_INT_NR * HISI_SAS_MAX_PHYS)
@@ -711,7 +825,6 @@ static int get_free_slot(struct hisi_hba *hisi_hba, int *q, int *s)
 	return 0;
 }
 
-
 void start_delivery(struct hisi_hba *hisi_hba)
 {
 	int queue = hisi_hba->slot_prep->queue;
@@ -719,7 +832,6 @@ void start_delivery(struct hisi_hba *hisi_hba)
 
 	hisi_sas_write32(hisi_hba, DLVRY_Q_0_WR_PTR + (queue * 0x14), ++w % HISI_SAS_QUEUE_SLOTS);
 }
-
 
 static int is_phy_ready(struct hisi_hba *hisi_hba, int phy_no)
 {
@@ -755,8 +867,6 @@ static int is_phy_ready(struct hisi_hba *hisi_hba, int phy_no)
 
 	return 0;
 }
-
-
 
 static int hisi_sas_prep_prd_sge(struct hisi_hba *hisi_hba,
 				 struct hisi_sas_slot *slot,
@@ -1111,6 +1221,293 @@ static int config_serdes_12G(struct hisi_hba *hisi_hba, int phy_id)
 	return 0;
 }
 
+static int hisi_sas_slot_err(struct hisi_hba *hisi_hba,
+		struct sas_task *task, struct hisi_sas_slot *slot)
+{
+	int stat = SAM_STAT_CHECK_CONDITION;
+	struct hisi_sas_err_record *err_record = slot->status_buffer;
+
+	dev_dbg(hisi_hba->dev, "%s slot %d has dq type error task->task_proto=%d, dma_tx=0x%x dma_rx=0x%x trans_tx=0x%x trans_rx=0x%x",
+		__func__,
+		slot->queue_slot,
+		task->task_proto,
+		err_record->dma_tx_err_type,
+		err_record->dma_rx_err_type,
+		err_record->trans_tx_fail_type,
+		err_record->trans_rx_fail_type);
+
+	switch (task->task_proto) {
+	case SAS_PROTOCOL_SSP:
+	{
+		int error = -1;
+
+		stat = SAS_ABORTED_TASK;
+
+		/* dma tx err */
+		if (err_record->dma_tx_err_type)
+			error = ffs(err_record->dma_tx_err_type) + DMA_TX_ERR_BASE;
+		/* dma rx err */
+		if (err_record->dma_rx_err_type)
+			error = ffs(err_record->dma_rx_err_type) + DMA_RX_ERR_BASE;
+		/* trans tx err */
+		if (err_record->trans_tx_fail_type)
+			error = ffs(err_record->trans_tx_fail_type) + TRANS_TX_FAIL_BASE;
+		/* trans rx err */
+		if (err_record->trans_rx_fail_type)
+			error = ffs(err_record->trans_rx_fail_type) + TRANS_RX_FAIL_BASE;
+
+		switch (error) {
+		case DMA_TX_DATA_UNDERFLOW_ERR:
+		case DMA_RX_DATA_UNDERFLOW_ERR:
+		{
+			stat = SAS_DATA_UNDERRUN;
+			break;
+		}
+		case DMA_TX_DATA_SGL_OVERFLOW_ERR:
+		case DMA_TX_DIF_SGL_OVERFLOW_ERR:
+		case DMA_TX_XFER_RDY_LENGTH_OVERFLOW_ERR:
+		case DMA_RX_DATA_OVERFLOW_ERR:
+		case TRANS_RX_FRAME_OVERRUN_ERR:
+		case TRANS_RX_LINK_BUF_OVERRUN_ERR:
+		{
+			stat = SAS_DATA_OVERRUN;
+			break;
+		}
+		case TRANS_TX_PHY_NOT_ENABLE_ERR:
+		{
+			stat = SAS_PHY_DOWN;
+			break;
+		}
+		case TRANS_TX_OPEN_REJCT_WRONG_DEST_ERR:
+		case TRANS_TX_OPEN_REJCT_ZONE_VIOLATION_ERR:
+		case TRANS_TX_OPEN_REJCT_BY_OTHER_ERR:
+		case TRANS_TX_OPEN_REJCT_AIP_TIMEOUT_ERR:
+		case TRANS_TX_OPEN_REJCT_STP_BUSY_ERR:
+		case TRANS_TX_OPEN_REJCT_PROTOCOL_NOT_SUPPORT_ERR:
+		case TRANS_TX_OPEN_REJCT_RATE_NOT_SUPPORT_ERR:
+		case TRANS_TX_OPEN_REJCT_BAD_DEST_ERR:
+		case TRANS_TX_OPEN_BREAK_RECEIVE_ERR:
+		case TRANS_TX_OPEN_REJCT_PATHWAY_BLOCKED_ERR:
+		case TRANS_TX_OPEN_REJCT_NO_DEST_ERR:
+		case TRANS_TX_OPEN_RETRY_ERR:
+		{
+			stat = SAS_OPEN_REJECT;
+			break;
+		}
+		case TRANS_TX_OPEN_TIMEOUT_ERR:
+		{
+			stat = SAS_OPEN_TO;
+			break;
+		}
+		case TRANS_TX_NAK_RECEIVE_ERR:
+		case TRANS_TX_ACK_NAK_TIMEOUT_ERR:
+		{
+			stat = SAS_NAK_R_ERR;
+			break;
+		}
+		case DMA_TX_DIF_CRC_ERR:
+		case DMA_TX_DIF_APP_ERR:
+		case DMA_TX_DIF_RPP_ERR:
+		case DMA_TX_UNEXP_XFER_RDY_ERR:
+		case DMA_TX_XFER_RDY_OFFSET_ERR:
+		case DMA_RX_DIF_CRC_ERR:
+		case DMA_RX_DIF_APP_ERR:
+		case DMA_RX_DIF_RPP_ERR:
+		case DMA_RX_DATA_OFFSET_ERR:
+		case DMA_RX_UNEXP_RX_DATA_ERR:
+		case TRANS_TX_BREAK_TIMEOUT_ERR:
+		case TRANS_TX_BREAK_REQUEST_ERR:
+		case TRANS_TX_BREAK_RECEIVE_ERR:
+		case TRANS_TX_CLOSE_NORMAL_ERR:
+		case TRANS_TX_CLOSE_PHYRESET_ERR:
+		case TRANS_TX_WITH_CLOSE_DWS_TIMEOUT_ERR:
+		case TRANS_TX_WITH_CLOSE_COMINIT_ERR:
+		case TRANS_TX_CREDIT_TIMEOUT_ERR:
+		case TRANS_RX_FRAME_CRC_ERR:
+		case TRANS_RX_FRAME_DONE_ERR:
+		case TRANS_RX_FRAME_ERRPRM_ERR:
+		case TRANS_RX_FRAME_NO_CREDIT_ERR:
+		case TRANS_RX_FRAME_NO_EOF_ERR:
+		case TRANS_RX_BREAK_TIMEOUT_ERR:
+		case TRANS_RX_BREAK_REQUEST_ERR:
+		case TRANS_RX_BREAK_RECEIVE_ERR:
+		case TRANS_RX_CLOSE_NORMAL_ERR:
+		case TRANS_RX_CLOSE_PHYRESET_ERR:
+		case TRANS_RX_XRDY_ZERO_ERR:
+		case TRANS_RX_SSP_FRAME_LEN_ERR:
+		case TRANS_RX_NO_BALANCE_ERR:
+		case TRANS_RX_WITH_CLOSE_DWS_TIMEOUT_ERR:
+		case TRANS_RX_WITH_CLOSE_COMINIT_ERR:
+		default:
+		{
+			stat = SAM_STAT_CHECK_CONDITION;
+			break;
+		}
+		}
+		return stat;
+
+	}
+	case SAS_PROTOCOL_SMP:
+		stat = SAM_STAT_CHECK_CONDITION;
+		break;
+
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
+	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
+	{
+		task->ata_task.use_ncq = 0;
+		stat = SAS_PROTO_RESPONSE;
+		/* j00310691 fixme mvs_sata_done(mvi, task, slot_idx, err_dw0); */
+	}
+		break;
+	default:
+		break;
+	}
+
+	return stat;
+}
+
+static int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot, u32 flags)
+{
+	struct sas_task *task = slot->task;
+	struct hisi_sas_device *hisi_sas_dev;
+	struct task_status_struct *tstat;
+	struct domain_device *dev;
+	void *to;
+	enum exec_status sts;
+	struct hisi_sas_complete_hdr *complete_queue = hisi_hba->complete_hdr[slot->queue];
+	struct hisi_sas_complete_hdr *complete_hdr;
+	complete_hdr = &complete_queue[slot->queue_slot];
+
+	if (unlikely(!task || !task->lldd_task || !task->dev))
+		return -1;
+
+	tstat = &task->task_status;
+	dev = task->dev;
+	hisi_sas_dev = dev->lldd_dev;
+
+	task->task_state_flags &=
+		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
+	task->task_state_flags |= SAS_TASK_STATE_DONE;
+
+	memset(tstat, 0, sizeof(*tstat));
+	tstat->resp = SAS_TASK_COMPLETE;
+
+	/* when no device attaching, go ahead and complete by error handling */
+	if (unlikely(!hisi_sas_dev || flags)) {
+		if (!hisi_sas_dev)
+			dev_dbg(hisi_hba->dev, "%s port has not device.\n",
+				__func__);
+		tstat->stat = SAS_PHY_DOWN;
+		goto out;
+	}
+
+	if (complete_hdr->io_cfg_err) {
+		u32 info_reg = hisi_sas_read32(hisi_hba, HGC_INVLD_DQE_INFO);
+
+		if (info_reg & HGC_INVLD_DQE_INFO_DQ_MSK)
+			dev_err(hisi_hba->dev, "%s slot %d has dq IPTT error",
+				__func__, slot->queue_slot);
+
+		if (info_reg & HGC_INVLD_DQE_INFO_TYPE_MSK)
+			dev_err(hisi_hba->dev, "%s slot %d has dq type error",
+				__func__, slot->queue_slot);
+
+		if (info_reg & HGC_INVLD_DQE_INFO_FORCE_MSK)
+			dev_err(hisi_hba->dev, "%s slot %d has dq force phy error",
+				__func__, slot->queue_slot);
+
+		if (info_reg & HGC_INVLD_DQE_INFO_PHY_MSK)
+			dev_err(hisi_hba->dev, "%s slot %d has dq phy id error",
+				__func__, slot->queue_slot);
+
+		if (info_reg & HGC_INVLD_DQE_INFO_ABORT_MSK)
+			dev_err(hisi_hba->dev, "%s slot %d has dq abort flag error",
+				__func__, slot->queue_slot);
+
+		if (info_reg & HGC_INVLD_DQE_INFO_IPTT_OF_MSK)
+			dev_err(hisi_hba->dev, "%s slot %d has dq IPTT or ICT error",
+				__func__, slot->queue_slot);
+
+		if (info_reg & HGC_INVLD_DQE_INFO_SSP_ERR_MSK)
+			dev_err(hisi_hba->dev, "%s slot %d has dq SSP frame type error",
+				__func__, slot->queue_slot);
+
+
+		if (info_reg & HGC_INVLD_DQE_INFO_OFL_MSK)
+			dev_err(hisi_hba->dev, "%s slot %d has dq order frame length error",
+				__func__, slot->queue_slot);
+
+		tstat->resp = SAS_TASK_UNDELIVERED;
+		tstat->stat = SAS_OPEN_REJECT;
+		goto out;
+	}
+
+	if (complete_hdr->err_rcrd_xfrd) {
+		dev_dbg(hisi_hba->dev, "%s slot %d has error info 0x%x\n",
+			__func__, slot->queue_slot,
+			complete_hdr->err_rcrd_xfrd);
+		tstat->stat = hisi_sas_slot_err(hisi_hba, task, slot);
+		tstat->resp = SAS_TASK_COMPLETE;
+		goto out;
+	}
+
+	switch (task->task_proto) {
+	case SAS_PROTOCOL_SSP:
+	{
+		/* j00310691 for SMP, IU contains just the SSP IU */
+		struct ssp_response_iu *iu = slot->status_buffer +
+			sizeof(struct hisi_sas_err_record);
+		sas_ssp_task_response(hisi_hba->dev, task, iu);
+		break;
+	}
+	case SAS_PROTOCOL_SMP:
+	{
+		struct scatterlist *sg_resp = &task->smp_task.smp_resp;
+			tstat->stat = SAM_STAT_GOOD;
+		to = kmap_atomic(sg_page(sg_resp));
+		/*for expander*/
+		dma_unmap_sg(hisi_hba->dev, &task->smp_task.smp_resp, 1,
+			DMA_FROM_DEVICE);/*fixme*/
+		dma_unmap_sg(hisi_hba->dev, &task->smp_task.smp_req, 1,
+			DMA_TO_DEVICE);/*fixme*/
+			/* j00310691 for SMP, buffer contains the full SMP frame */
+		memcpy(to + sg_resp->offset,
+			slot->status_buffer + sizeof(struct hisi_sas_err_record),
+			sg_dma_len(sg_resp));
+		kunmap_atomic(to);
+		break;
+	}
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
+	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
+		dev_err(hisi_hba->dev, "%s STP not supported", __func__);
+		break;
+
+	default:
+		tstat->stat = SAM_STAT_CHECK_CONDITION;
+		break;
+	}
+
+	if (!slot->port->port_attached) {
+		dev_err(hisi_hba->dev, "%s port %d has removed\n",
+			__func__, slot->port->sas_port.id);
+		tstat->stat = SAS_PHY_DOWN;
+	}
+
+out:
+	if (hisi_sas_dev && hisi_sas_dev->running_req)
+		hisi_sas_dev->running_req--;
+
+	hisi_sas_slot_task_free(hisi_hba, task, slot);
+	sts = tstat->stat;
+
+	if (task->task_done)
+		task->task_done(task);
+
+	return sts;
+}
+
 static irqreturn_t int_ctrlrdy(int phy, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
@@ -1203,7 +1600,7 @@ static irqreturn_t int_phyup(int phy_no, void *p)
 
 	port_id = (hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA) >> (4 * phy_no)) & 0xf;
 	if (port_id == 0xf) {
-		pr_err("%s phy = %d, invalid portid\n", __func__, phy_no);
+		dev_err(hisi_hba->dev, "%s phy = %d, invalid portid\n", __func__, phy_no);
 		res = IRQ_NONE;
 		goto end;
 	}
@@ -1234,7 +1631,7 @@ static irqreturn_t int_phyup(int phy_no, void *p)
 	sas_phy->oob_mode = SAS_OOB_MODE;
 	memcpy(sas_phy->attached_sas_addr,
 		&id->sas_addr, SAS_ADDR_SIZE);
-	pr_info("%s phy_no=%d hisi_hba->id=%d link_rate=%d\n", __func__, phy_no, hisi_hba->id, link_rate);
+	dev_info(hisi_hba->dev, "%s phy_no=%d hisi_hba->id=%d link_rate=%d\n", __func__, phy_no, hisi_hba->id, link_rate);
 	phy->phy_type &= ~(PORT_TYPE_SAS | PORT_TYPE_SATA);
 	phy->phy_type |= PORT_TYPE_SAS;
 	phy->phy_attached = 1;
@@ -1273,7 +1670,7 @@ static irqreturn_t int_bcast(int phy_no, void *p)
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct sas_ha_struct *sas_ha = hisi_hba->sas;
 
-	pr_info("%s\n", __func__);
+	dev_err(hisi_hba->dev, "%s\n", __func__);
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
 
 	if (!(irq_value & CHL_INT2_SL_RX_BC_ACK_MSK)) {
@@ -1297,15 +1694,12 @@ static irqreturn_t int_oobrst(int phy_no, void *p)
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
 
-	pr_info("%s\n", __func__);
+	dev_err(hisi_hba->dev, "%s\n", __func__);
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
 
 	if (!(irq_value & CHL_INT2_OOB_RESTART_MSK))
 		dev_err(hisi_hba->dev, "%s irq_value = %x not set enable bit",
 			__func__, irq_value);
-
-	dev_info(hisi_hba->dev, "%s phy = %d, irq_value = %x\n",
-		 __func__, phy_no, irq_value);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,
 			CHL_INT2_OOB_RESTART_MSK);
@@ -1318,15 +1712,12 @@ static irqreturn_t int_hardrst(int phy_no, void *p)
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
 
-	pr_info("%s\n", __func__);
+	dev_err(hisi_hba->dev, "%s\n", __func__);
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
 
 	if (!(irq_value & CHL_INT2_SL_RX_HARDRST_MSK))
 		dev_err(hisi_hba->dev, "%s irq_value = %x not set enable bit",
 			__func__, irq_value);
-
-	dev_info(hisi_hba->dev, "%s phy = %d, irq_value = %x\n",
-		 __func__, phy_no, irq_value);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2, CHL_INT2_SL_RX_HARDRST_MSK);
 
@@ -1338,7 +1729,7 @@ static irqreturn_t int_statuscg(int phy_no, void *p)
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
 
-	pr_info("%s\n", __func__);
+	dev_err(hisi_hba->dev, "%s\n", __func__);
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
 
 	if (!(irq_value & CHL_INT2_PHY_STATUS_CHG_MSK))
@@ -1360,7 +1751,7 @@ static irqreturn_t int_abnormal(int phy_no, void *p)
 	u32 irq_value;
 	u32 irq_mask_old;
 
-	pr_info("%s\n", __func__);
+	dev_err(hisi_hba->dev, "%s\n", __func__);
 	/* mask_int0 */
 	irq_mask_old = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT0_MSK);
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0_MSK, 0x003FFFFF);
@@ -1427,7 +1818,7 @@ static irqreturn_t int_int1(int phy_no, void *p)
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value;
 
-	pr_info("%s\n", __func__);
+	dev_err(hisi_hba->dev, "%s\n", __func__);
 	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT1);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT1, irq_value);

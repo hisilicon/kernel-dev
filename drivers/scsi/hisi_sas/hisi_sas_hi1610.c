@@ -771,6 +771,110 @@ static int prep_ssp(struct hisi_hba *hisi_hba,
 
 }
 
+static int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot, u32 flags)
+{
+	struct sas_task *task = slot->task;
+	struct hisi_sas_device *hisi_sas_dev;
+	struct task_status_struct *tstat;
+	struct domain_device *dev;
+	void *to;
+	enum exec_status sts;
+	struct hisi_sas_complete_hdr *complete_queue = hisi_hba->complete_hdr[slot->queue];
+	struct hisi_sas_complete_hdr *complete_hdr;
+	complete_hdr = &complete_queue[slot->queue_slot];
+
+	if (unlikely(!task || !task->lldd_task || !task->dev))
+		return -1;
+
+	tstat = &task->task_status;
+	dev = task->dev;
+	hisi_sas_dev = dev->lldd_dev;
+
+	task->task_state_flags &=
+		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
+	task->task_state_flags |= SAS_TASK_STATE_DONE;
+
+	memset(tstat, 0, sizeof(*tstat));
+	tstat->resp = SAS_TASK_COMPLETE;
+
+	/* when no device attaching, go ahead and complete by error handling */
+	if (unlikely(!hisi_sas_dev || flags)) {
+		if (!hisi_sas_dev)
+			dev_dbg(hisi_hba->dev, "%s port has not device.\n",
+				__func__);
+		tstat->stat = SAS_PHY_DOWN;
+		goto out;
+	}
+
+	if (complete_hdr->io_cfg_err) {
+		/* fixme j00310691 */
+		goto out;
+	}
+
+	if (complete_hdr->err_rcrd_xfrd) {
+		dev_dbg(hisi_hba->dev, "%s slot %d has error info 0x%x\n",
+			__func__, slot->queue_slot,
+			complete_hdr->err_rcrd_xfrd);
+		/* tstat->stat = hisi_sas_slot_err(hisi_hba, task, slot);  fixme j00310691 */
+		tstat->resp = SAS_TASK_COMPLETE;
+		goto out;
+	}
+
+	switch (task->task_proto) {
+	case SAS_PROTOCOL_SSP:
+	{
+		/* j00310691 for SMP, IU contains just the SSP IU */
+		struct ssp_response_iu *iu = slot->status_buffer +
+			sizeof(struct hisi_sas_err_record);
+		sas_ssp_task_response(hisi_hba->dev, task, iu);
+		break;
+	}
+	case SAS_PROTOCOL_SMP:
+	{
+		struct scatterlist *sg_resp = &task->smp_task.smp_resp;
+			tstat->stat = SAM_STAT_GOOD;
+		to = kmap_atomic(sg_page(sg_resp));
+		/*for expander*/
+		dma_unmap_sg(hisi_hba->dev, &task->smp_task.smp_resp, 1,
+			DMA_FROM_DEVICE);/*fixme*/
+		dma_unmap_sg(hisi_hba->dev, &task->smp_task.smp_req, 1,
+			DMA_TO_DEVICE);/*fixme*/
+			/* j00310691 for SMP, buffer contains the full SMP frame */
+		memcpy(to + sg_resp->offset,
+			slot->status_buffer + sizeof(struct hisi_sas_err_record),
+			sg_dma_len(sg_resp));
+		kunmap_atomic(to);
+		break;
+	}
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
+	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
+		dev_err(hisi_hba->dev, "%s STP not supported", __func__);
+		break;
+
+	default:
+		tstat->stat = SAM_STAT_CHECK_CONDITION;
+		break;
+	}
+
+	if (!slot->port->port_attached) {
+		dev_err(hisi_hba->dev, "%s port %d has removed\n",
+			__func__, slot->port->sas_port.id);
+		tstat->stat = SAS_PHY_DOWN;
+	}
+
+out:
+	if (hisi_sas_dev && hisi_sas_dev->running_req)
+		hisi_sas_dev->running_req--;
+
+	hisi_sas_slot_task_free(hisi_hba, task, slot);
+	sts = tstat->stat;
+
+	if (task->task_done)
+		task->task_done(task);
+
+	return sts;
+}
 static u8 get_ata_protocol(u8 cmd, int direction)
 {
 	switch (cmd) {
