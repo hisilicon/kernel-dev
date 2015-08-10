@@ -440,7 +440,7 @@ struct hisi_sas_iost {
 	uint64_t rsvd2:6;
 
 	/* qw2 */
-	uint64_t xfer_Offset:32;
+	uint64_t xfer_offset:32;
 	uint64_t xfer_len:32;
 
 	/* qw3 */

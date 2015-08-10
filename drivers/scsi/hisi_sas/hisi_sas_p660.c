@@ -1227,21 +1227,10 @@ static int hisi_sas_slot_err(struct hisi_hba *hisi_hba,
 	int stat = SAM_STAT_CHECK_CONDITION;
 	struct hisi_sas_err_record *err_record = slot->status_buffer;
 
-	dev_dbg(hisi_hba->dev, "%s slot %d has dq type error task->task_proto=%d, dma_tx=0x%x dma_rx=0x%x trans_tx=0x%x trans_rx=0x%x",
-		__func__,
-		slot->queue_slot,
-		task->task_proto,
-		err_record->dma_tx_err_type,
-		err_record->dma_rx_err_type,
-		err_record->trans_tx_fail_type,
-		err_record->trans_rx_fail_type);
-
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SSP:
 	{
 		int error = -1;
-
-		stat = SAS_ABORTED_TASK;
 
 		/* dma tx err */
 		if (err_record->dma_tx_err_type)
@@ -1305,42 +1294,9 @@ static int hisi_sas_slot_err(struct hisi_hba *hisi_hba,
 			stat = SAS_NAK_R_ERR;
 			break;
 		}
-		case DMA_TX_DIF_CRC_ERR:
-		case DMA_TX_DIF_APP_ERR:
-		case DMA_TX_DIF_RPP_ERR:
-		case DMA_TX_UNEXP_XFER_RDY_ERR:
-		case DMA_TX_XFER_RDY_OFFSET_ERR:
-		case DMA_RX_DIF_CRC_ERR:
-		case DMA_RX_DIF_APP_ERR:
-		case DMA_RX_DIF_RPP_ERR:
-		case DMA_RX_DATA_OFFSET_ERR:
-		case DMA_RX_UNEXP_RX_DATA_ERR:
-		case TRANS_TX_BREAK_TIMEOUT_ERR:
-		case TRANS_TX_BREAK_REQUEST_ERR:
-		case TRANS_TX_BREAK_RECEIVE_ERR:
-		case TRANS_TX_CLOSE_NORMAL_ERR:
-		case TRANS_TX_CLOSE_PHYRESET_ERR:
-		case TRANS_TX_WITH_CLOSE_DWS_TIMEOUT_ERR:
-		case TRANS_TX_WITH_CLOSE_COMINIT_ERR:
-		case TRANS_TX_CREDIT_TIMEOUT_ERR:
-		case TRANS_RX_FRAME_CRC_ERR:
-		case TRANS_RX_FRAME_DONE_ERR:
-		case TRANS_RX_FRAME_ERRPRM_ERR:
-		case TRANS_RX_FRAME_NO_CREDIT_ERR:
-		case TRANS_RX_FRAME_NO_EOF_ERR:
-		case TRANS_RX_BREAK_TIMEOUT_ERR:
-		case TRANS_RX_BREAK_REQUEST_ERR:
-		case TRANS_RX_BREAK_RECEIVE_ERR:
-		case TRANS_RX_CLOSE_NORMAL_ERR:
-		case TRANS_RX_CLOSE_PHYRESET_ERR:
-		case TRANS_RX_XRDY_ZERO_ERR:
-		case TRANS_RX_SSP_FRAME_LEN_ERR:
-		case TRANS_RX_NO_BALANCE_ERR:
-		case TRANS_RX_WITH_CLOSE_DWS_TIMEOUT_ERR:
-		case TRANS_RX_WITH_CLOSE_COMINIT_ERR:
 		default:
 		{
-			stat = SAM_STAT_CHECK_CONDITION;
+			stat = SAS_DATA_UNDERRUN;
 			break;
 		}
 		}
@@ -1444,10 +1400,7 @@ static int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slo
 	}
 
 	if (complete_hdr->err_rcrd_xfrd) {
-		dev_dbg(hisi_hba->dev, "%s slot %d has error info 0x%x\n",
-			__func__, slot->queue_slot,
-			complete_hdr->err_rcrd_xfrd);
-		tstat->stat = hisi_sas_slot_err(hisi_hba, task, slot);
+		tstat->stat = SAS_DATA_UNDERRUN;
 		tstat->resp = SAS_TASK_COMPLETE;
 		goto out;
 	}
