@@ -1323,7 +1323,7 @@ static int hisi_sas_slot_err(struct hisi_hba *hisi_hba,
 	return stat;
 }
 
-static int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot, u32 flags)
+static int slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot, u32 abort)
 {
 	struct sas_task *task = slot->task;
 	struct hisi_sas_device *hisi_sas_dev;
@@ -1350,7 +1350,7 @@ static int hisi_sas_slot_complete(struct hisi_hba *hisi_hba, struct hisi_sas_slo
 	tstat->resp = SAS_TASK_COMPLETE;
 
 	/* when no device attaching, go ahead and complete by error handling */
-	if (unlikely(!hisi_sas_dev || flags)) {
+	if (unlikely(!hisi_sas_dev || abort)) {
 		if (!hisi_sas_dev)
 			dev_dbg(hisi_hba->dev, "%s port has not device.\n",
 				__func__);
@@ -1557,6 +1557,8 @@ static irqreturn_t int_phyup(int phy_no, void *p)
 		res = IRQ_NONE;
 		goto end;
 	}
+
+	dev_err(hisi_hba->dev, "%s phy = %d portid=0x%x\n", __func__, phy_no, port_id);
 
 	/* j00310691 todo stop serdes fw timer */
 	for (i = 0; i < 6; i++) {
@@ -1804,7 +1806,7 @@ static irqreturn_t cq_interrupt(int queue, void *p)
 
 		slot = &hisi_hba->slot_info[iptt];
 
-		hisi_sas_slot_complete(hisi_hba, slot, 0);
+		slot_complete(hisi_hba, slot, 0);
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
@@ -2162,5 +2164,6 @@ const struct hisi_sas_dispatch hisi_sas_p660_dispatch = {
 	.prep_ssp = prep_ssp,
 	.prep_smp = prep_smp,
 	.is_phy_ready = is_phy_ready,
+	.slot_complete = slot_complete,
 	/* p660 does not support STP */
 };

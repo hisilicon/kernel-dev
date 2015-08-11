@@ -605,13 +605,25 @@ void hisi_sas_do_release_task(struct hisi_hba *hisi_hba,
 {
 	struct hisi_sas_phy *phy;
 	struct hisi_sas_port *port;
+	struct hisi_sas_slot *slot, *slot2;
 
 	phy = &hisi_hba->phy[phy_no];
 	port = phy->port;
 	if (!port)
 		return;
 
-	/* j00310691 todo release active slots */
+	list_for_each_entry_safe(slot, slot2, &port->list, entry) {
+		struct sas_task *task;
+
+		task = slot->task;
+		if (dev && task->dev != dev)
+			continue;
+
+		dev_info(hisi_hba->dev, "Release slot [%x:%x], task [%p]:\n",
+			slot->queue, slot->queue_slot, task);
+
+		HISI_SAS_DISP->slot_complete(hisi_hba, slot, 1);
+	}
 }
 
 static void hisi_sas_port_notify_deformed(struct asd_sas_phy *sas_phy, int lock)
@@ -624,7 +636,8 @@ static void hisi_sas_port_notify_deformed(struct asd_sas_phy *sas_phy, int lock)
 
 	while (phy != &hisi_hba->phy[phy_no]) {
 		phy_no++;
-		if (phy_no >= HISI_SAS_MAX_PHYS)
+
+		if (phy_no >= hisi_hba->n_phy)
 			return;
 	}
 	list_for_each_entry(dev, &port->dev_list, dev_list_node)
@@ -636,10 +649,81 @@ int hisi_sas_dev_found(struct domain_device *dev)
 	return hisi_sas_dev_found_notify(dev, 1);
 }
 
+int hisi_sas_find_dev_phyno(struct domain_device *dev, int *phyno)
+{
+	int i = 0, j = 0, num = 0, n = 0;
+	struct hisi_sas_device *hisi_sas_dev = (struct hisi_sas_device *)dev->lldd_dev;
+	struct hisi_hba *hisi_hba = hisi_sas_dev->hisi_hba;
+	struct sas_ha_struct *sha = dev->port->ha;
+
+	while (sha->sas_port[i]) {
+		if (sha->sas_port[i] == dev->port) {
+			struct asd_sas_phy *phy;
+
+			list_for_each_entry(phy,
+				&sha->sas_port[i]->phy_list, port_phy_el) {
+				j = 0;
+
+				while (sha->sas_phy[j]) {
+					if (sha->sas_phy[j] == phy)
+						break;
+					j++;
+				}
+
+				BUG(); /* j00310691 fixme as I cannot generate this path */
+				num++;
+				n++;
+			}
+			break;
+		}
+		i++;
+	}
+	return num;
+}
+
+static void hisi_sas_release_task(struct hisi_hba *hisi_hba,
+			struct domain_device *dev)
+{
+	int i, phyno[4], num;
+
+	num = hisi_sas_find_dev_phyno(dev, phyno);
+	for (i = 0; i < num; i++)
+		hisi_sas_do_release_task(hisi_hba, phyno[i], dev);
+}
+
+void hisi_sas_free_dev(struct hisi_sas_device *dev)
+{
+	u32 id = dev->device_id;
+
+	memset(dev, 0, sizeof(*dev));
+	dev->device_id = id;
+	dev->dev_type = SAS_PHY_UNUSED;
+}
+
+static void hisi_sas_dev_gone_notify(struct domain_device *dev)
+{
+	struct hisi_sas_device *hisi_sas_dev = dev->lldd_dev;
+	struct hisi_hba *hisi_hba;
+
+	if (!hisi_sas_dev) {
+		pr_info("found dev has gone.\n");
+		return;
+	}
+
+	hisi_hba = hisi_sas_dev->hisi_hba;
+
+	dev_info(hisi_hba->dev, "found dev[%lld:%x] is gone.\n",
+		hisi_sas_dev->device_id, hisi_sas_dev->dev_type);
+	hisi_sas_release_task(hisi_hba, dev);
+	hisi_sas_free_dev(hisi_sas_dev);
+
+	dev->lldd_dev = NULL;
+	hisi_sas_dev->sas_device = NULL;
+}
+
 void hisi_sas_dev_gone(struct domain_device *dev)
 {
-	pr_debug("%s fixme\n", __func__);
-	BUG();
+	hisi_sas_dev_gone_notify(dev);
 }
 
 int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
