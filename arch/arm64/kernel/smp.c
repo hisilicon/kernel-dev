@@ -71,12 +71,6 @@ enum ipi_msg_type {
 	IPI_IRQ_WORK,
 };
 
-#ifdef CONFIG_COPYCAT_NUMA
-static u64 boot_cpu_aff2;
-cpumask_t node_to_cpu_mask[MAX_NUMNODES] __cacheline_aligned;
-EXPORT_SYMBOL(node_to_cpu_mask);
-#endif
-
 /*
  * Boot a secondary CPU, and assign it the specified idle task.
  * This also gives us the initial stack to use for this CPU.
@@ -177,26 +171,6 @@ asmlinkage void secondary_start_kernel(void)
 	notify_cpu_starting(cpu);
 
 	smp_store_cpu_info(cpu);
-
-#ifdef CONFIG_COPYCAT_NUMA
-{
-	int nid;
-	int aff2;
-
-	aff2 = 0xff & (read_cpuid_mpidr() >> 16);
-
-	if (aff2 == boot_cpu_aff2)
-		nid = 0;
-	else if ((aff2 >> 2) == (boot_cpu_aff2 >> 2))
-		nid = 1;
-	else
-		nid = 2 + (0x1 & aff2);
-
-	cpumask_set_cpu(cpu, &node_to_cpu_mask[nid]);
-	set_numa_node(nid);
-	set_numa_mem(local_memory_node(nid));
-}
-#endif
 
 	/*
 	 * OK, now it's safe to let the boot CPU continue.  Wait for
@@ -343,14 +317,6 @@ void __init smp_cpus_done(unsigned int max_cpus)
 void __init smp_prepare_boot_cpu(void)
 {
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
-
-#ifdef CONFIG_COPYCAT_NUMA
-	boot_cpu_aff2 = 0xff & (read_cpuid_mpidr() >> 16);
-
-	cpumask_set_cpu(0, &node_to_cpu_mask[0]);
-	set_numa_node(0);
-	set_numa_mem(0);
-#endif
 }
 
 /*

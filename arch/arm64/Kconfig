@@ -87,7 +87,6 @@ config ARM64
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
 	select HAVE_CONTEXT_TRACKING
-	select HAVE_NMI_WATCHDOG if HISI_AARCH64_NMI || HISI_NMI_DEMO
 	help
 	  ARM 64-bit (AArch64) Linux support.
 
@@ -227,66 +226,6 @@ config ARCH_P660
 	help
 	  This enables support for Hisilicon P660 SoC
 
-config COPYCAT_NUMA
-	bool "Temporary P660 2P NUMA support"
-	select HAVE_MEMBLOCK_NODE_MAP
-	help
-	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
-	  Access).  This option is for configuring high-end multiprocessor
-	  server systems.  If in doubt, say N.
-
-config NUMA
-	def_bool COPYCAT_NUMA
-
-config NODES_SHIFT
-	int "Max num nodes shift(1-10)"
-	range 1 10
-	default "1"
-	depends on NEED_MULTIPLE_NODES
-	help
-	  This option specifies the maximum number of nodes in your SSI system.
-	  MAX_NUMNODES will be 2^(This value).
-	  If in doubt, use the default.
-
-config USE_PERCPU_NUMA_NODE_ID
-	def_bool y
-	depends on NUMA
-
-config HAVE_MEMORYLESS_NODES
-	def_bool NUMA
-
-config 2P
-	bool "Support P660 and Hi1610 2P board"
-	depends on ARCH_P660 || ARCH_Hi1610
-	#select P660_2P if ARCH_P660
-	select MM_OUTTER_SHAREABLE
-	help
-	  This add some special handling to support 2P board.
-
-config P660_2P
-	bool "Fix SGI Bugs for ARCH P660"
-	depends on 2P
-
-config MM_OUTTER_SHAREABLE
-	bool "Enable Outter Shareable For Memory"
-	depends on 2P
-	help
-	  Enable outter shareable for memory.
-
-config ARCH_Hi1610
-	def_bool ARCH_HISI
-	bool "Hisilicon Hi1610 SoC"
-	select ARM_SMMU_V3
-	select HISI_MBIGEN
-	help
-	  This enables support for Hisilicon Hi1610 SoC
-
-config ARCH_Hi1382
-	def_bool ARCH_HISI
-	select HISI_MBIGEN
-	bool "Hisilicon Hi1382 SoC"
-	help
-	  This enables support for Hisilicon Hi1382 SoC
 endmenu
 
 endif
@@ -771,12 +710,6 @@ config SETEND_EMULATION
 
 	  If unsure, say Y
 endif
-
-config HISI_AARCH64_NMI
-	bool "Enable NMI Feature on HISI PV660"
-	default n
-	help
-	  Enable the NMI Feature on HISI PV660 chip after cpu dead-locking
 
 endmenu
 

@@ -73,9 +73,6 @@
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
 #include <asm/io.h>
-#ifdef CONFIG_COPYCAT_NUMA
-#include <asm/smp_plat.h>
-#endif
 
 #define PCPU_SLOT_BASE_SHIFT		5	/* 1-31 shares the same slot */
 #define PCPU_DFL_MAP_ALLOC		16	/* start a map with 16 ents */
@@ -2182,42 +2179,6 @@ out_free_ar:
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(__per_cpu_offset);
 
-#ifdef CONFIG_COPYCAT_NUMA
-static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
-{
-#ifdef CONFIG_NEED_MULTIPLE_NODES
-	if (((0x7 << 16) & cpu_logical_map(from)) == ((0x7 << 16) & cpu_logical_map(to)))
-		return LOCAL_DISTANCE;
-	else
-		return REMOTE_DISTANCE;
-#else
-	return LOCAL_DISTANCE;
-#endif
-}
-
-static void * __init pcpu_dfl_fc_alloc(unsigned int cpu, size_t size,
-				       size_t align)
-{
-	int boot_aff2 = 0xff & (read_cpuid_mpidr() >> 16);
-	int aff2 = 0xff & (cpu_logical_map(cpu) >> 16);
-	int nid;
-
-	if (aff2 == boot_aff2)
-		nid = 0;
-	else if ((aff2 >> 2) == (boot_aff2 >> 2))
-		nid = 1;
-	else
-		nid = 2 + (0x1 & aff2);
-
-	return  __alloc_bootmem_node_nopanic(NODE_DATA(nid),
-			size, align, __pa(MAX_DMA_ADDRESS));
-}
-
-static void __init pcpu_dfl_fc_free(void *ptr, size_t size)
-{
-	memblock_free_early(__pa(ptr), size);
-}
-#else
 static void * __init pcpu_dfl_fc_alloc(unsigned int cpu, size_t size,
 				       size_t align)
 {
@@ -2229,7 +2190,6 @@ static void __init pcpu_dfl_fc_free(void *ptr, size_t size)
 {
 	memblock_free_early(__pa(ptr), size);
 }
-#endif
 
 void __init setup_per_cpu_areas(void)
 {
@@ -2241,15 +2201,9 @@ void __init setup_per_cpu_areas(void)
 	 * Always reserve area for module percpu variables.  That's
 	 * what the legacy allocator did.
 	 */
-	#ifdef CONFIG_COPYCAT_NUMA
-	rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
-				    PERCPU_DYNAMIC_RESERVE, PAGE_SIZE, pcpu_cpu_distance,
-				    pcpu_dfl_fc_alloc, pcpu_dfl_fc_free);
-	#else
 	rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
 				    PERCPU_DYNAMIC_RESERVE, PAGE_SIZE, NULL,
 				    pcpu_dfl_fc_alloc, pcpu_dfl_fc_free);
-	#endif
 	if (rc < 0)
 		panic("Failed to initialize percpu areas.");
 

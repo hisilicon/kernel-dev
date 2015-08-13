@@ -47,20 +47,6 @@
 
 #include "mm.h"
 
-#ifdef CONFIG_COPYCAT_NUMA
-#include <linux/mm.h>
-
-pg_data_t pgdat_list[MAX_NUMNODES];
-EXPORT_SYMBOL(pgdat_list);
-
-/* use the per-pgdat data instead for discontigmem - mbligh */
-unsigned long max_mapnr;
-EXPORT_SYMBOL(max_mapnr);
-
-struct page *mem_map;
-EXPORT_SYMBOL(mem_map);
-#endif
-
 phys_addr_t memstart_addr __read_mostly = 0;
 phys_addr_t arm64_dma_phys_limit __read_mostly;
 
@@ -168,7 +154,6 @@ static phys_addr_t max_zone_dma_phys(void)
 	return min(offset + (1ULL << 32), memblock_end_of_DRAM());
 }
 
-#ifndef CONFIG_COPYCAT_NUMA
 static void __init zone_sizes_init(unsigned long min, unsigned long max)
 {
 	struct memblock_region *reg;
@@ -207,7 +192,6 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
 
 	free_area_init_node(0, zone_size, min, zhole_size);
 }
-#endif
 
 #ifdef CONFIG_HAVE_ARCH_PFN_VALID
 int pfn_valid(unsigned long pfn)
@@ -217,7 +201,6 @@ int pfn_valid(unsigned long pfn)
 EXPORT_SYMBOL(pfn_valid);
 #endif
 
-#ifndef CONFIG_COPYCAT_NUMA
 #ifndef CONFIG_SPARSEMEM
 static void arm64_memory_present(void)
 {
@@ -231,7 +214,6 @@ static void arm64_memory_present(void)
 		memory_present(0, memblock_region_memory_base_pfn(reg),
 			       memblock_region_memory_end_pfn(reg));
 }
-#endif
 #endif
 
 static phys_addr_t memory_limit = (phys_addr_t)ULLONG_MAX;
@@ -298,31 +280,10 @@ void __init bootmem_init(void)
 	 * Sparsemem tries to allocate bootmem in memory_present(), so must be
 	 * done after the fixed reservations.
 	 */
-#ifdef CONFIG_COPYCAT_NUMA
-	sparse_memory_present_with_active_regions(MAX_NUMNODES);
-#else
 	arm64_memory_present();
-#endif
 
 	sparse_init();
-
-#ifdef CONFIG_COPYCAT_NUMA
-{
-	unsigned long max_dma;
-	unsigned long max_zone_pfns[MAX_NR_ZONES];
-
-	max_dma = virt_to_phys((void *)(PAGE_OFFSET + (1UL << 32))) >> PAGE_SHIFT;
-
-	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-#ifdef CONFIG_ZONE_DMA
-	max_zone_pfns[ZONE_DMA] = max_dma;
-#endif
-	max_zone_pfns[ZONE_NORMAL] = max;
-	free_area_init_nodes(max_zone_pfns);
-}
-#else
 	zone_sizes_init(min, max);
-#endif
 
 	high_memory = __va((max << PAGE_SHIFT) - 1) + 1;
 	max_pfn = max_low_pfn = max;
