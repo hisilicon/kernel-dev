@@ -67,8 +67,6 @@ config HNS_ENET
 	select HNS
 	---help---
 	  This selects the general ethernet driver for HNS.  This module make
-	  use of any HNS AE driver, such as HNS_DSAF
-
-source "drivers/net/ethernet/hisilicon/nic_drv/Kconfig"
+	  use of any HNS AE driver, such as HNS_DSAF 
 
 endif # NET_VENDOR_HISILICON
