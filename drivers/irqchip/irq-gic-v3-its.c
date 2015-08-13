@@ -732,7 +732,7 @@ static void its_lpi_free(unsigned long *bitmap, int base, int nr_ids)
 static int __init its_alloc_lpi_tables(void)
 {
 	phys_addr_t paddr;
-#if defined(CONFIG_ARCH_P660) || defined(CONFIG_ARCH_Hi1610)
+#if defined(CONFIG_ARCH_P660)
 	int i;
 	u8 *prop;
 #endif
@@ -747,7 +747,7 @@ static int __init its_alloc_lpi_tables(void)
 	paddr = page_to_phys(gic_rdists->prop_page);
 	pr_info("GIC: using LPI property table @%pa\n", &paddr);
 
-#if defined(CONFIG_ARCH_P660) || defined(CONFIG_ARCH_Hi1610)
+#if defined(CONFIG_ARCH_P660)
 	/*
 	 * Avoid a hardware bug that if eight consecutive LPIs have
 	 * same prioritys, some LPIs maybe blocked.
