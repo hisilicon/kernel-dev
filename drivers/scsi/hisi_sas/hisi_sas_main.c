@@ -423,10 +423,15 @@ void hisi_sas_setup_itct(struct hisi_hba *hisi_hba, struct hisi_sas_device *devi
 	memset(itct, 0, sizeof(*itct));
 
 	/* qw0 */
-	if (dev->dev_type == SAS_END_DEVICE)
+	switch (dev->dev_type) {
+	case SAS_END_DEVICE:
+	case SAS_EDGE_EXPANDER_DEVICE:
+	case SAS_FANOUT_EXPANDER_DEVICE:
 		itct->dev_type = HISI_SAS_DEV_TYPE_SSP;
-	else
-		dev_warn(hisi_hba->dev, "%s unsupported dev type\n", __func__);
+		break;
+	default:
+		dev_warn(hisi_hba->dev, "%s unsupported dev type (%d)\n", __func__, dev->dev_type);
+	}
 
 	itct->valid = 1;
 	itct->break_reply_ena = 0;
