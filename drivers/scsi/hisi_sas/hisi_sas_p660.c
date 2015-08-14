@@ -222,7 +222,6 @@
 
 enum {
 	HISI_SAS_PHY_CTRL_RDY = 0,
-	HISI_SAS_PHY_HOTPLUG_TOUT,
 	HISI_SAS_PHY_BCAST_ACK,
 	HISI_SAS_PHY_OOB_RESTART,
 	HISI_SAS_PHY_RX_HARDRST,
@@ -1480,27 +1479,6 @@ static irqreturn_t int_ctrlrdy(int phy, void *p)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t int_hotplug(int phy_no, void *p)
-{
-	struct hisi_hba *hisi_hba = p;
-	u32 irq_value;
-
-	pr_info("%s\n", __func__);
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
-
-	if (!(irq_value & CHL_INT2_PHY_HP_TOUT_MSK))
-		dev_err(hisi_hba->dev, "%s irq_value = %x not set enable bit",
-			__func__, irq_value);
-
-	dev_info(hisi_hba->dev, "%s phy = %d, irq_value = %x\n",
-		 __func__, phy_no, irq_value);
-
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,
-			CHL_INT2_PHY_HP_TOUT_MSK);
-
-	return IRQ_HANDLED;
-}
-
 static irqreturn_t int_phyup(int phy_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
@@ -1881,7 +1859,6 @@ static irqreturn_t fatal_axi_int(int irq, void *p)
 
 #define DECLARE_PHY_INT_HANDLER_GROUP(phy)\
 	DECLARE_INT_HANDLER(int_ctrlrdy, phy)\
-	DECLARE_INT_HANDLER(int_hotplug, phy)\
 	DECLARE_INT_HANDLER(int_bcast, phy)\
 	DECLARE_INT_HANDLER(int_oobrst, phy)\
 	DECLARE_INT_HANDLER(int_hardrst, phy)\
@@ -1893,7 +1870,6 @@ static irqreturn_t fatal_axi_int(int irq, void *p)
 
 #define DECLARE_PHY_INT_GROUP_PTR(phy)\
 	INT_HANDLER_NAME(int_ctrlrdy, phy),\
-	INT_HANDLER_NAME(int_hotplug, phy),\
 	INT_HANDLER_NAME(int_bcast, phy),\
 	INT_HANDLER_NAME(int_oobrst, phy),\
 	INT_HANDLER_NAME(int_hardrst, phy),\
@@ -1914,7 +1890,6 @@ DECLARE_PHY_INT_HANDLER_GROUP(8)
 
 static const char phy_int_names[HISI_SAS_PHY_INT_NR][32] = {
 	{"CTRL Rdy"},
-	{"HotPlug"},
 	{"Bcast"},
 	{"OOBRst"},
 	{"HardRst"},
