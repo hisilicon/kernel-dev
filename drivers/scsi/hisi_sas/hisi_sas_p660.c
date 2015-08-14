@@ -223,8 +223,7 @@ enum {
 	HISI_SAS_PHY_BCAST_ACK,
 	HISI_SAS_PHY_STATUS_CHG,
 	HISI_SAS_PHY_SL_PHY_ENABLED,
-	HISI_SAS_PHY_INT_REG0,
-	HISI_SAS_PHY_INT_REG1,
+	HISI_SAS_PHY_INT_ABNORMAL,
 	HISI_SAS_PHY_INT_NR
 };
 
@@ -1683,19 +1682,6 @@ static irqreturn_t int_abnormal(int phy_no, void *p)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t int_int1(int phy_no, void *p)
-{
-	struct hisi_hba *hisi_hba = p;
-	u32 irq_value;
-
-	dev_err(hisi_hba->dev, "%s\n", __func__);
-	irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT1);
-
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT1, irq_value);
-
-	return IRQ_HANDLED;
-}
-
 /* Interrupts */
 static irqreturn_t cq_interrupt(int queue, void *p)
 {
@@ -1824,7 +1810,6 @@ static irqreturn_t fatal_axi_int(int irq, void *p)
 	DECLARE_INT_HANDLER(int_statuscg, phy)\
 	DECLARE_INT_HANDLER(int_phyup, phy)\
 	DECLARE_INT_HANDLER(int_abnormal, phy)\
-	DECLARE_INT_HANDLER(int_int1, phy)\
 
 
 #define DECLARE_PHY_INT_GROUP_PTR(phy)\
@@ -1833,7 +1818,6 @@ static irqreturn_t fatal_axi_int(int irq, void *p)
 	INT_HANDLER_NAME(int_statuscg, phy),\
 	INT_HANDLER_NAME(int_phyup, phy),\
 	INT_HANDLER_NAME(int_abnormal, phy),\
-	INT_HANDLER_NAME(int_int1, phy),
 
 DECLARE_PHY_INT_HANDLER_GROUP(0)
 DECLARE_PHY_INT_HANDLER_GROUP(1)
@@ -1851,7 +1835,6 @@ static const char phy_int_names[HISI_SAS_PHY_INT_NR][32] = {
 	{"StatusCG"},
 	{"Phy Up"},
 	{"Abnormal"},
-	{"Int1"}
 };
 
 static const char cq_int_name[32] = "cq";
