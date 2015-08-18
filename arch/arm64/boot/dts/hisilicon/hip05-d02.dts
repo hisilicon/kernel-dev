@@ -12,7 +12,6 @@
 /dts-v1/;
 
 /include/ "hip05.dtsi"
-/include/ "hisi_p660_pcie_d02.dtsi"
 
 / {
 	model = "Hisilicon PhosphorV660 D02 Development Board";
@@ -23,7 +22,6 @@
 		reg = <0x0 0x00000000 0x0 0x80000000>;
 	};
 
-	/include/ "hip05_hns_d02.dtsi"
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0x80300000 console=ttyS0,115200 initrd=0x7000000,350M";
 	};
@@ -104,5 +102,21 @@
 
 &pc_i2c1 {
 	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&eth0 {
+	status = "okay";
+};
+
+&eth1 {
+	status = "okay";
+};
+
+&eth4 {
+	status = "okay";
+};
+
+&eth5 {
 	status = "okay";
 };
