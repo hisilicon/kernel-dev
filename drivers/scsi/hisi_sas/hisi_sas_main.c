@@ -839,7 +839,7 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DEBUG_SAS
 /*****************************************************
 					for debug fs
 *****************************************************/
@@ -2186,5 +2186,5 @@ err:
 	debugfs_remove_recursive(dbg_dir);
 	return -ENOMEM;
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DEBUG_SAS */
 

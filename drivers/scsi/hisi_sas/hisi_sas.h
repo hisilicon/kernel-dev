@@ -565,7 +565,7 @@ void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no);
 void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy, int lock);
 void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 			struct hisi_sas_slot *slot);
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DEBUG_SAS
 int hisi_sas_debugfs_init(struct hisi_hba *hisi_hba);
 void hisi_sas_debugfs_free(struct hisi_hba *hisi_hba);
 #endif

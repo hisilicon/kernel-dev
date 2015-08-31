@@ -430,7 +430,7 @@ static int hisi_sas_probe(struct platform_device *pdev)
 
 		HISI_SAS_DISP->phys_init(hisi_hba);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DEBUG_SAS
 		rc = hisi_sas_debugfs_init(hisi_hba);
 		if (rc)
 			goto err_out_ha;
@@ -472,7 +472,7 @@ static int hisi_sas_remove(struct platform_device *pdev)
 
 	for (i = 0; i < n_core; i++) {
 		hisi_hba = ((struct hisi_hba_priv *)sha->lldd_ha)->hisi_hba[i];
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DEBUG_SAS
 		hisi_sas_debugfs_free(hisi_hba);
 #endif
 		hisi_sas_free(hisi_hba);
