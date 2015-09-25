@@ -445,3 +445,19 @@ struct fwnode_handle *platform_msi_get_fwnode(struct device *dev)
 
 	return NULL;
 }
+
+int acpi_configure_msi_domain(struct device *dev)
+{
+	struct irq_domain *d = NULL;
+	struct fwnode_handle *fwnode = platform_msi_get_fwnode(dev);
+
+	if (fwnode)
+		d = irq_find_matching_fwnode(fwnode, DOMAIN_BUS_PLATFORM_MSI);
+
+	if (d) {
+		dev_set_msi_domain(dev, d);
+		return 0;
+	}
+
+	return -EINVAL;
+}

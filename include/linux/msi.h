@@ -326,6 +326,7 @@ int pci_msi_domain_check_cap(struct irq_domain *domain,
 
 void platform_msi_register_fwnode_provider(struct fwnode_handle *(*fn)(struct device *));
 struct fwnode_handle *platform_msi_get_fwnode(struct device *dev);
+int acpi_configure_msi_domain(struct device *dev);
 
 u32 pci_msi_domain_get_msi_rid(struct irq_domain *domain, struct pci_dev *pdev);
 struct irq_domain *pci_msi_get_device_domain(struct pci_dev *pdev);
@@ -333,6 +334,11 @@ struct irq_domain *pci_msi_get_device_domain(struct pci_dev *pdev);
 static inline struct irq_domain *pci_msi_get_device_domain(struct pci_dev *pdev)
 {
 	return NULL;
+}
+
+static inline int acpi_configure_msi_domain(struct device *dev)
+{
+	return -EINVAL;
 }
 #endif /* CONFIG_PCI_MSI_IRQ_DOMAIN */
 
