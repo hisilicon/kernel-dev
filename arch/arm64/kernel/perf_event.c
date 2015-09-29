@@ -570,11 +570,23 @@ hw_perf_event_destroy(struct perf_event *event)
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	atomic_t *active_events	 = &armpmu->active_events;
 	struct mutex *pmu_reserve_mutex = &armpmu->reserve_mutex;
+#ifdef CONFIG_HISI_PERFCTR
+	struct hisi_hwc_data_info *phisi_hwc_data;
+	struct hw_perf_event *hwc = &event->hw;
+#endif
 
 	if (atomic_dec_and_mutex_lock(active_events, pmu_reserve_mutex)) {
 		armpmu_release_hardware(armpmu);
 		mutex_unlock(pmu_reserve_mutex);
 	}
+#ifdef CONFIG_HISI_PERFCTR
+	phisi_hwc_data = hwc->perf_event_data;
+	if (NULL != phisi_hwc_data) {
+		if (NULL != phisi_hwc_data->hwc_prev_counters)
+			kfree(phisi_hwc_data->hwc_prev_counters);
+		kfree(phisi_hwc_data);
+	}
+#endif
 }
 
 static int
