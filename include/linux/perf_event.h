@@ -143,6 +143,9 @@ struct hw_perf_event {
 	struct task_struct		*target;
 	int				state;
 	local64_t			prev_count;
+#ifdef CONFIG_HISI_PERFCTR
+	void				*perf_event_data;
+#endif
 	u64				sample_period;
 	u64				last_period;
 	local64_t			period_left;

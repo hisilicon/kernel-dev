@@ -577,6 +577,14 @@ config HW_PERF_EVENTS
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
 
+config HISI_PERFCTR
+	bool "Enable hardware event counter support for HiSilicon SoC"
+	depends on HW_PERF_EVENTS
+	default n
+	help
+	 Enable hardware event counter support for Hisilicon SoC LLC,
+	 Bus, DDR events.
+
 config SYS_SUPPORTS_HUGETLBFS
 	def_bool y
 
