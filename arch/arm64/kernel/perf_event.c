@@ -161,11 +161,11 @@ armpmu_event_set_period(struct perf_event *event,
 	int ret = 0;
 #ifdef CONFIG_HISI_PERFCTR
 	struct hisi_hwc_data_info *phisi_hwc_data = hwc->perf_event_data;
-	u32 num_banks = phisi_hwc_data->num_banks;
+	u32 num_banks;
 	u32 num_llc_modules = hisi_soc_hwc_info_table.num_llc;
 	u32 llc_die_idx;
 	u32 llc_mod_idx;
-	int i, j = 0;
+	int i, j, k = 0;
 #endif
 	if (unlikely(left <= -period)) {
 		left = period;
@@ -204,8 +204,8 @@ armpmu_event_set_period(struct perf_event *event,
 			num_banks =
 			hisi_die_info_table[llc_die_idx].hw_mod_info[llc_mod_idx].num_banks;
 
-			for (; j < num_banks; j++)
-				local64_set(&phisi_hwc_data->hwc_prev_counters[j].prev_count,
+			for (j = 0; j < num_banks; j++, k++)
+				local64_set(&phisi_hwc_data->hwc_prev_counters[k].prev_count,
 										 (u64)-left);
 		}
 	}
@@ -674,7 +674,6 @@ __hw_perf_event_init(struct perf_event *event)
 		if (err)
 			return err;
 		phisi_hwc_data = hwc->perf_event_data;
-		pr_info("Num of LLC banks = %d\n", phisi_hwc_data->num_banks);
 	}
 	/* If event type is for MN */
 	else if (evtype >= ARMV8_HISI_PERFCTR_MN_EO_BARR_REQ &&
