@@ -825,7 +825,10 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, SL_RX_BCAST_CHK_MSK, 0x0);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT_COAL_EN, 0x0);
 		hisi_sas_phy_write32(hisi_hba, i, PHYCTRL_OOB_RESTART_MSK, 0x0);
-		hisi_sas_phy_write32(hisi_hba, i, PHY_CTRL, 0x199B694);
+		if (arch_timer_get_cntfrq()/1000000 == 50)
+			hisi_sas_phy_write32(hisi_hba, i, PHY_CTRL, 0x199B5f4);
+		else
+			hisi_sas_phy_write32(hisi_hba, i, PHY_CTRL, 0x199B694);
 	}
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
