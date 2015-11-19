@@ -416,3 +416,32 @@ int platform_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 
 	return err;
 }
+
+static struct fwnode_handle *(*platform_msi_get_fwnode_cb)(struct device *dev);
+
+/**
+ * platform_msi_register_fwnode_provider - Register MSI irq domain token callback
+ * @fn:      The interrupt domain to retrieve
+ *
+ * This should be called by irqchip driver, which is the parent of
+ * the MSI domain to provide callback interface to query MSI domain fwnode.
+ */
+void platform_msi_register_fwnode_provider(struct fwnode_handle *(*fn)(struct device *))
+{
+	platform_msi_get_fwnode_cb = fn;
+}
+
+/**
+ * platform_msi_get_fwnode - Query MSI domain token for @dev
+ * @dev:     The device that we try to query MSI domain token for
+ *
+ * This is used to query MSI domain token when setting up MSI domain
+ * for a device. Returns fwnode_handle * if token found / NULL if not found
+ */
+struct fwnode_handle *platform_msi_get_fwnode(struct device *dev)
+{
+	if (platform_msi_get_fwnode_cb)
+		return platform_msi_get_fwnode_cb(dev);
+
+	return NULL;
+}
