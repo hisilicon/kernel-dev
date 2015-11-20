@@ -15,7 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/acpi.h>
 #include <linux/device.h>
+#include <linux/iort.h>
 #include <linux/msi.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -47,6 +49,9 @@ static int its_pmsi_prepare(struct irq_domain *domain, struct device *dev,
 			break;
 		}
 	} while (!ret);
+
+	if (ret)
+		ret = iort_find_platform_dev_id(dev, &dev_id);
 
 	if (ret)
 		return ret;
@@ -94,6 +99,38 @@ static int __init its_pmsi_init_one(struct fwnode_handle *fwnode)
 	return 0;
 }
 
+#ifdef CONFIG_ACPI
+static int __init
+its_pmsi_parse_madt(struct acpi_subtable_header *header,
+			const unsigned long end)
+{
+	struct acpi_madt_generic_translator *its_entry;
+	struct fwnode_handle *domain_handle;
+
+	its_entry = (struct acpi_madt_generic_translator *)header;
+	domain_handle = iort_find_its_domain_token(its_entry->translation_id);
+	if (!domain_handle) {
+		pr_err("ITS@0x%lx: Unable to locate ITS domain handle\n",
+			(long)its_entry->base_address);
+		return 0;
+	}
+
+	if (its_pmsi_init_one(domain_handle))
+		return 0;
+
+	platform_msi_register_fwnode_provider(&iort_find_platform_dev_domain_token);
+	return 0;
+}
+
+static void __init its_acpi_pmsi_init(void)
+{
+	acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_TRANSLATOR,
+				its_pmsi_parse_madt, 0);
+}
+#else
+static inline void its_acpi_pmsi_init(void) { }
+#endif
+
 static int __init its_pmsi_init(void)
 {
 	struct device_node *np;
@@ -106,6 +143,8 @@ static int __init its_pmsi_init(void)
 		if (its_pmsi_init_one(of_node_to_fwnode(np)))
 			continue;
 	}
+
+	its_acpi_pmsi_init();
 	return 0;
 }
 early_initcall(its_pmsi_init);
