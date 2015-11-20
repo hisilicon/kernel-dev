@@ -140,6 +140,27 @@ iort_scan_node(enum acpi_iort_node_type type,
 	return NULL;
 }
 
+static struct acpi_iort_node *iort_find_parent_node(struct acpi_iort_node *node)
+{
+	struct acpi_iort_id_mapping *id;
+
+	if (!node || !node->mapping_offset || !node->mapping_count)
+		return NULL;
+
+	id = ACPI_ADD_PTR(struct acpi_iort_id_mapping, node,
+			      node->mapping_offset);
+	/* Firmware bug! */
+	if (!id->output_reference) {
+		pr_err(FW_BUG "[node %p type %d] ID map has NULL parent reference\n",
+		       node, node->type);
+		return NULL;
+	}
+
+	node = ACPI_ADD_PTR(struct acpi_iort_node, iort_table,
+			    id->output_reference);
+	return node;
+}
+
 static acpi_status
 iort_find_dev_callback(struct acpi_iort_node *node, void *context)
 {
@@ -242,11 +263,70 @@ struct fwnode_handle *iort_find_dev_domain_token(struct device *dev, int node_ty
 	return iort_find_its_domain_token(its_id);
 }
 
+
+static int
+iort_translate_dev_to_devid(struct acpi_iort_node *node, u32 input_id,
+			    u32 *dev_id)
+{
+	u32 curr_id = input_id;
+
+	if (!node)
+		return -EINVAL;
+
+	/* Go upstream */
+	while (node->type != ACPI_IORT_NODE_ITS_GROUP) {
+		struct acpi_iort_id_mapping *id;
+		int i, found = 0;
+
+		/* Exit when no mapping array */
+		if (!node->mapping_offset || !node->mapping_count)
+			return -EINVAL;
+
+		id = ACPI_ADD_PTR(struct acpi_iort_id_mapping, node,
+				  node->mapping_offset);
+
+		for (i = 0, found = 0; i < node->mapping_count; i++, id++) {
+			/*
+			 * Single mapping is not translation rule,
+			 * lets move on for this case
+			 */
+			if (id->flags & ACPI_IORT_ID_SINGLE_MAPPING) {
+				if (node->type != ACPI_IORT_NODE_NAMED_COMPONENT)
+					continue;
+
+				/* get the output number directly */
+				curr_id = id->output_base;
+				found  = 1;
+				break;
+			}
+
+			if (curr_id < id->input_base ||
+			    (curr_id > id->input_base + id->id_count))
+				continue;
+
+			curr_id = id->output_base + (curr_id - id->input_base);
+			found = 1;
+			break;
+		}
+
+		if (!found)
+			return -ENXIO;
+
+		node = iort_find_parent_node(node);
+		if (!node)
+			return -ENXIO;
+	}
+
+	*dev_id = curr_id;
+	return 0;
+}
+
+
+
 static struct acpi_iort_node *
 iort_dev_map_rid(struct acpi_iort_node *node, u32 rid_in,
 			    u32 *rid_out)
 {
-
 	if (!node)
 		goto out;
 
@@ -399,6 +479,28 @@ iort_pci_get_domain(struct pci_dev *pdev, u32 req_id)
 		return NULL;
 
 	return irq_find_matching_fwnode(handle, DOMAIN_BUS_PCI_MSI);
+}
+
+/**
+ * iort_find_platform_dev_id() - find platform dev id in DSDT
+ * @dev: device
+ * @dev_id: device ID returned
+ *
+ * Returns: 0 on success, appropriate error value otherwise
+ */
+int iort_find_platform_dev_id(struct device *dev, u32 *dev_id)
+{
+	struct acpi_iort_node *node;
+
+	node = iort_scan_node(ACPI_IORT_NODE_NAMED_COMPONENT,
+			      iort_find_dev_callback, dev);
+	if (!node) {
+		pr_err("can't find node related to %s device\n",
+		       dev_name(dev));
+		return -ENXIO;
+	}
+
+	return iort_translate_dev_to_devid(node, 0, dev_id);
 }
 
 static int __init iort_table_detect(void)
