@@ -16,7 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/acpi.h>
 #include <linux/interrupt.h>
+#include <linux/iort.h>
 #include <linux/irqchip.h>
 #include <linux/module.h>
 #include <linux/msi.h>
@@ -190,7 +192,7 @@ static int mbigen_domain_translate(struct irq_domain *d,
 				    unsigned long *hwirq,
 				    unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_node(fwspec->fwnode) || is_acpi_device_node(fwspec->fwnode)) {
 		if (fwspec->param_count != 2)
 			return -EINVAL;
 
@@ -254,46 +256,52 @@ static int mbigen_device_probe(struct platform_device *pdev)
 {
 	struct mbigen_device *mgn_chip;
 	struct resource *res;
+	struct device *dev = &pdev->dev;
 	struct irq_domain *domain;
 	u32 num_pins, dev_id;
 	int err = 0;
 
-	mgn_chip = devm_kzalloc(&pdev->dev, sizeof(*mgn_chip), GFP_KERNEL);
+	mgn_chip = devm_kzalloc(dev, sizeof(*mgn_chip), GFP_KERNEL);
 	if (!mgn_chip)
 		return -ENOMEM;
 
 	mgn_chip->pdev = pdev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mgn_chip->base = devm_ioremap_resource(&pdev->dev, res);
+	mgn_chip->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(mgn_chip->base))
 		return PTR_ERR(mgn_chip->base);
 
-	if (of_property_read_u32(pdev->dev.of_node, "num-pins", &num_pins) < 0) {
-		dev_err(&pdev->dev, "No num-pins property\n");
+	if (device_property_read_u32(dev, "num-pins", &num_pins) < 0) {
+		dev_err(dev, "No num-pins property\n");
 		return -EINVAL;
 	}
 
-	if (pdev->dev.of_node)
-		err = of_property_read_u32_index(pdev->dev.of_node, "msi-parent",
-						 1, &dev_id);
+	if (dev->of_node)
+		err = of_property_read_u32_index(dev->of_node, "msi-parent",
+					 1, &dev_id);
+	else if (has_acpi_companion(dev))
+		/*
+		 * Get dev_id from IORT table which represent the
+		 * mapping of MBI-GEN to ITS
+		 */
+		err = iort_find_platform_dev_id(dev, &dev_id);
+	else
+		err = -EINVAL;
 
 	if (err)
 		return err;
 
 	mgn_chip->dev_id = dev_id;
-	domain = platform_msi_create_device_domain(&pdev->dev, num_pins,
-							mbigen_write_msg,
-							&mbigen_domain_ops,
-							mgn_chip);
-
+	domain = platform_msi_create_device_domain(dev, num_pins,
+						   mbigen_write_msg,
+						   &mbigen_domain_ops,
+						   mgn_chip);
 	if (!domain)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, mgn_chip);
-
-	dev_info(&pdev->dev, "Allocated %d MSIs\n", num_pins);
-
+	dev_info(dev, "Allocated %d MSIs\n", num_pins);
 	return 0;
 }
 
@@ -303,11 +311,18 @@ static const struct of_device_id mbigen_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mbigen_of_match);
 
+static const struct acpi_device_id mbigen_acpi_match[] = {
+        { "HISI0151", 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, mbigen_acpi_match);
+
 static struct platform_driver mbigen_platform_driver = {
 	.driver = {
 		.name		= "Hisilicon MBIGEN-V1",
 		.owner		= THIS_MODULE,
 		.of_match_table	= mbigen_of_match,
+		.acpi_match_table = ACPI_PTR(mbigen_acpi_match),
 	},
 	.probe			= mbigen_device_probe,
 };
