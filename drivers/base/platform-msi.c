@@ -338,16 +338,17 @@ platform_msi_create_device_domain(struct device *dev,
 {
 	struct platform_msi_priv_data *data;
 	struct irq_domain *domain;
+	struct fwnode_handle *fwnode;
 	int err;
 
 	data = platform_msi_alloc_priv_data(dev, nvec, write_msi_msg);
 	if (IS_ERR(data))
 		return NULL;
 
+	fwnode = dev->of_node ? &dev->of_node->fwnode : dev->fwnode;
 	data->host_data = host_data;
 	domain = irq_domain_create_hierarchy(dev->msi_domain, 0, nvec,
-					     of_node_to_fwnode(dev->of_node),
-					     ops, data);
+					     fwnode, ops, data);
 	if (!domain)
 		goto free_priv;
 
