@@ -158,20 +158,10 @@ static struct irq_chip mbigen_irq_chip = {
 
 static void mbigen_write_msg(struct msi_desc *desc, struct msi_msg *msg)
 {
-	struct irq_data *d = irq_get_irq_data(desc->irq);
-	void __iomem *base = d->chip_data;
-	u32 val;
 
-	base += get_mbigen_vec_reg(d->hwirq);
-	val = readl_relaxed(base);
-
-	val &= ~IRQ_EVENT_ID_MASK;
-	val |= msg->data;
-
-	/* The address of doorbell is encoded in mbigen register by default
-	 * So,we don't need to program the doorbell address at here
+	/* Because the event ID is programmed in vector register
+	 * We do nothing at here.
 	 */
-	writel_relaxed(val, base);
 }
 
 static int mbigen_domain_translate(struct irq_domain *d,
@@ -215,15 +205,20 @@ static int mbigen_irq_domain_alloc(struct irq_domain *domain,
 	if (err)
 		return err;
 
-	err = platform_msi_domain_alloc(domain, virq, nr_irqs);
-	if (err)
-		return err;
 
 	mgn_chip = platform_msi_get_host_data(domain);
 
+	/* In order to carry hwirq information into parent
+	* domain alloc function, we set hwirq and chip info
+	* before platform_msi_domain_alloc is called
+	*/
 	for (i = 0; i < nr_irqs; i++)
 		irq_domain_set_hwirq_and_chip(domain, virq + i, hwirq + i,
 				      &mbigen_irq_chip, mgn_chip->base);
+
+	err = platform_msi_domain_alloc(domain, virq, nr_irqs);
+	if (err)
+		return err;
 
 	return 0;
 }

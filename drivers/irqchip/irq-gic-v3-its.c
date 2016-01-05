@@ -39,6 +39,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
 #include <asm/exception.h>
+#include <dt-bindings/interrupt-controller/mbigen-v1.h>
 
 #include "irq-gic-common.h"
 
@@ -1268,14 +1269,18 @@ static void its_free_device(struct its_device *its_dev)
 	kfree(its_dev);
 }
 
-static int its_alloc_device_irq(struct its_device *dev, irq_hw_number_t *hwirq)
+static int its_alloc_device_irq(struct its_device *dev, irq_hw_number_t *hwirq,
+				int *hint)
 {
-	int idx;
+	int idx = *hint;
 
-	idx = find_first_zero_bit(dev->event_map.lpi_map,
-				  dev->event_map.nr_lpis);
-	if (idx == dev->event_map.nr_lpis)
-		return -ENOSPC;
+	if (idx < 0) {
+		idx = find_first_zero_bit(dev->event_map.lpi_map,
+					  dev->event_map.nr_lpis);
+		if (idx == dev->event_map.nr_lpis)
+			return -ENOSPC;
+		*hint = idx;
+	}
 
 	*hwirq = dev->event_map.lpi_base + idx;
 	set_bit(idx, dev->event_map.lpi_map);
@@ -1351,6 +1356,23 @@ static int its_irq_gic_domain_alloc(struct irq_domain *domain,
 	return irq_domain_alloc_irqs_parent(domain, virq, 1, &fwspec);
 }
 
+static int get_irq_event_hint(unsigned int irq, struct its_device *its_dev)
+{
+	struct irq_data *data;
+	int hint;
+
+
+	data = irq_get_irq_data(irq);
+
+	/* for pv660 the hwirq number > 2048 */
+	if(its_dev->device_id == MBIGEN_V1_DEVID)
+		hint = data->hwirq;
+	else
+		hint = -1;
+
+	return hint;
+}
+
 static int its_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 				unsigned int nr_irqs, void *args)
 {
@@ -1359,9 +1381,11 @@ static int its_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	irq_hw_number_t hwirq;
 	int err;
 	int i;
+	int hint;
 
+	hint = get_irq_event_hint(virq, its_dev);
 	for (i = 0; i < nr_irqs; i++) {
-		err = its_alloc_device_irq(its_dev, &hwirq);
+		err = its_alloc_device_irq(its_dev, &hwirq, &hint);
 		if (err)
 			return err;
 
