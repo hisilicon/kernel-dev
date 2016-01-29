@@ -49,6 +49,7 @@ struct redist_region {
 
 struct gic_chip_data {
 	struct fwnode_handle	*fwnode;
+	unsigned int		sid;
 	void __iomem		*dist_base;
 	struct redist_region	*redist_regions;
 	struct rdists		rdists;
@@ -1131,6 +1132,7 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 	struct redist_region *rdist_regs;
 	u64 redist_stride;
 	u32 nr_redist_regions;
+	u32 reg;
 	int err, i;
 
 	dist_base = of_iomap(node, 0);
@@ -1178,12 +1180,18 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 
 	if (of_property_read_u64(node, "redistributor-stride", &redist_stride))
 		redist_stride = 0;
+
 	/*
 	 * For Hisilicon SOC(p660, Hi1610 etc.), the default irq number
 	 * is 128.
+	 * To find the gic in system with multi-gic, record the sid
+	 * information.(only hisilicon soc has this register)
 	 */
-	if (of_device_is_compatible(node, "hisilicon,gic-v3"))
+	if (of_device_is_compatible(node, "hisilicon,gic-v3")) {
+		reg = readl_relaxed(dist_base + GICD_SIDR);
+		gic_data.sid = reg & GIC_SID_MASK;
 		gic_data.irq_nr = 0x80;
+	}
 
 	err = gic_init_bases(dist_base, rdist_regs, nr_redist_regions,
 			     redist_stride, &node->fwnode);
