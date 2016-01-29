@@ -938,7 +938,9 @@ static int __init gic_init_bases(void __iomem *dist_base,
 	gic_irqs = GICD_TYPER_IRQS(typer);
 	if (gic_irqs > 1020)
 		gic_irqs = 1020;
-	gic_data.irq_nr = gic_irqs;
+
+	if ((gic_data.irq_nr == 0) || (gic_irqs < gic_data.irq_nr))
+		gic_data.irq_nr = gic_irqs;
 
 	gic_data.domain = irq_domain_create_tree(handle, &gic_irq_domain_ops,
 						 &gic_data);
@@ -1163,6 +1165,12 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 
 	if (of_property_read_u64(node, "redistributor-stride", &redist_stride))
 		redist_stride = 0;
+	/*
+	 * For Hisilicon SOC(p660, Hi1610 etc.), the default irq number
+	 * is 128.
+	 */
+	if (of_device_is_compatible(node, "hisilicon,gic-v3"))
+		gic_data.irq_nr = 0x80;
 
 	err = gic_init_bases(dist_base, rdist_regs, nr_redist_regions,
 			     redist_stride, &node->fwnode);
@@ -1184,6 +1192,7 @@ out_unmap_dist:
 }
 
 IRQCHIP_DECLARE(gic_v3, "arm,gic-v3", gic_of_init);
+IRQCHIP_DECLARE(hic_v3, "hisilicon,gic-v3", gic_of_init);
 
 #ifdef CONFIG_ACPI
 static struct
@@ -1452,8 +1461,14 @@ gic_acpi_init(struct acpi_subtable_header *header, const unsigned long end)
 		goto out_redist_unmap;
 	}
 
+	/*
+	 * initial the irq number as 0,then update
+	 * this value after reading typer register
+	 */
+	gic_data.irq_nr = 0x0;
+
 	err = gic_init_bases(acpi_data.dist_base, acpi_data.redist_regs,
-			     acpi_data.nr_redist_regions, 0, domain_handle);
+			     acpi_data.nr_redist_regions, stride, domain_handle);
 	if (err)
 		goto out_fwhandle_free;
 
