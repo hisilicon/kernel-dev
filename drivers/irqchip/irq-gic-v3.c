@@ -1136,8 +1136,58 @@ static void __init gic_populate_ppi_partitions(struct device_node *gic_node)
 	}
 }
 
+/* just a copy of gic_dist_init() */
+static void __init auxiliary_gic_dist_init(void __iomem *base)
+{
+	unsigned int i;
+	u64 affinity;
+
+	/* Disable the distributor */
+	writel_relaxed(0, base + GICD_CTLR);
+	gic_dist_wait_for_rwp(base);
+
+	gic_dist_config(base, gic_data.irq_nr, gic_dist_wait_for_rwp);
+
+	/* Enable distributor with ARE, Group1 */
+	writel_relaxed(GICD_CTLR_ARE_NS | GICD_CTLR_ENABLE_G1A | GICD_CTLR_ENABLE_G1,
+		       base + GICD_CTLR);
+
+	/*
+	 * Set all global interrupts to the boot CPU only. ARE must be
+	 * enabled.
+	 */
+	affinity = gic_mpidr_to_affinity(cpu_logical_map(smp_processor_id()));
+	for (i = 32; i < gic_data.irq_nr; i++)
+		gic_write_irouter(affinity, base + GICD_IROUTER + i * 8);
+}
+
 static int auxiliary_gic_init(void __iomem *dist_base)
 {
+	struct gic_chip_data *gic_data_aux;
+	u32 reg;
+
+	gic_data_aux = kzalloc(sizeof(*gic_data_aux), GFP_KERNEL);
+	if (!gic_data_aux)
+		return -ENOMEM;
+
+	reg = readl_relaxed(dist_base + GICD_SIDR);
+	gic_data_aux->sid = reg & GIC_SID_MASK;
+
+	/* assume the aux-gic has same interrupt number as main gic */
+	gic_data_aux->irq_nr_per_gic = gic_data.irq_nr_per_gic;
+	
+	/* calculate the total irq_nr of all gic nodes */
+	gic_data.irq_nr += gic_data_aux->irq_nr_per_gic;
+
+	/* go to initial dist */
+	auxiliary_gic_dist_init(dist_base);
+
+	spin_lock(&gic_lock);
+	list_add(&gic_data_aux->entry, &gic_nodes);
+	spin_unlock(&gic_lock);
+
+	gic_num ++;
+
 	return 0;
 }
 
