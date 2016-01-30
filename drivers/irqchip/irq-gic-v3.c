@@ -57,7 +57,8 @@ struct gic_chip_data {
 	struct irq_domain	*domain;
 	u64			redist_stride;
 	u32			nr_redist_regions;
-	unsigned int		irq_nr;
+	unsigned int		irq_nr;/* holds the total interrupts number of all GICs */
+	unsigned int		irq_nr_per_gic;/* holds the irq_nr of current gic node */
 	struct partition_desc	*ppi_descs[16];
 };
 
@@ -949,6 +950,11 @@ static int __init gic_init_bases(void __iomem *dist_base,
 
 	if ((gic_data.irq_nr == 0) || (gic_irqs < gic_data.irq_nr))
 		gic_data.irq_nr = gic_irqs;
+
+	/* only main gic node can reach here.
+	 * so the irq_nr_per_gic == irq_nr
+	*/
+	gic_data.irq_nr_per_gic = gic_data.irq_nr;
 
 	gic_data.domain = irq_domain_create_tree(handle, &gic_irq_domain_ops,
 						 &gic_data);
