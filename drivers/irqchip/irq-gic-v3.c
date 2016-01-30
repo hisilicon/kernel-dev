@@ -49,6 +49,7 @@ struct redist_region {
 
 struct gic_chip_data {
 	struct fwnode_handle	*fwnode;
+	struct list_head	entry;
 	unsigned int		sid;
 	void __iomem		*dist_base;
 	struct redist_region	*redist_regions;
@@ -60,7 +61,10 @@ struct gic_chip_data {
 	struct partition_desc	*ppi_descs[16];
 };
 
+static LIST_HEAD(gic_nodes);
+static DEFINE_SPINLOCK(gic_lock);
 static bool main_gic_init = false;
+static unsigned int gic_num = 0;
 
 /* presents the main gic node */
 static struct gic_chip_data gic_data __read_mostly;
@@ -1200,6 +1204,14 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 
 	gic_populate_ppi_partitions(node);
 	gic_of_setup_kvm_info(node);
+	if (gic_num) {
+		pr_err("gic_num should be 0 not %d\n", gic_num);
+		goto out_unmap_rdist;
+	}
+	gic_num++;
+	spin_lock(&gic_lock);
+	list_add(&gic_data.entry, &gic_nodes);
+	spin_unlock(&gic_lock);
 	main_gic_init = true;
 	return 0;
 
@@ -1496,6 +1508,8 @@ gic_acpi_init(struct acpi_subtable_header *header, const unsigned long end)
 
 	acpi_set_irq_model(ACPI_IRQ_MODEL_GIC, domain_handle);
 	gic_acpi_setup_kvm_info();
+
+	gic_num++;
 
 	return 0;
 
