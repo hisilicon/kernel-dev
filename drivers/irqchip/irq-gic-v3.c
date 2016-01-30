@@ -90,13 +90,42 @@ static inline int gic_irq_in_rdist(struct irq_data *d)
 	return gic_irq(d) < 32;
 }
 
+struct gic_chip_data *gic_from_hwirq(struct irq_data *d)
+{
+	struct gic_chip_data *gic = NULL, *tmp;
+
+	/* if only one gic in system, just return the main gic*/
+	if(gic_num == 1)
+		return &gic_data;
+
+	spin_lock(&gic_lock);
+
+	list_for_each_entry(tmp, &gic_nodes, entry) {
+		if (tmp->sid == d->hwirq / tmp->irq_nr_per_gic) {
+			gic = tmp;
+			break;
+		}
+	}
+
+	spin_unlock(&gic_lock);
+
+	return gic;
+}
+
+static inline void __iomem *get_dist_base(struct irq_data *d)
+{
+	struct gic_chip_data *gic = gic_from_hwirq(d);
+
+	return WARN_ON(!gic) ? NULL : gic->dist_base;
+}
+
 static inline void __iomem *gic_dist_base(struct irq_data *d)
 {
 	if (gic_irq_in_rdist(d))	/* SGI+PPI -> SGI_base for this CPU */
 		return gic_data_rdist_sgi_base();
 
 	if (d->hwirq <= 1023)		/* SPI -> dist_base */
-		return gic_data.dist_base;
+		return get_dist_base(d);
 
 	return NULL;
 }
@@ -117,13 +146,13 @@ static void gic_do_wait_for_rwp(void __iomem *base)
 }
 
 /* Wait for completion of a distributor change */
-static void gic_dist_wait_for_rwp(void)
+static void gic_dist_wait_for_rwp(void __iomem *base)
 {
-	gic_do_wait_for_rwp(gic_data.dist_base);
+	gic_do_wait_for_rwp(base);
 }
 
 /* Wait for completion of a redistributor change */
-static void gic_redist_wait_for_rwp(void)
+static void gic_redist_wait_for_rwp(void __iomem *base)
 {
 	gic_do_wait_for_rwp(gic_data_rdist_rd_base());
 }
@@ -185,7 +214,7 @@ static int gic_peek_irq(struct irq_data *d, u32 offset)
 	if (gic_irq_in_rdist(d))
 		base = gic_data_rdist_sgi_base();
 	else
-		base = gic_data.dist_base;
+		base = get_dist_base(d);
 
 	return !!(readl_relaxed(base + offset + (gic_irq(d) / 32) * 4) & mask);
 }
@@ -193,19 +222,19 @@ static int gic_peek_irq(struct irq_data *d, u32 offset)
 static void gic_poke_irq(struct irq_data *d, u32 offset)
 {
 	u32 mask = 1 << (gic_irq(d) % 32);
-	void (*rwp_wait)(void);
+	void (*rwp_wait)(void __iomem *base);
 	void __iomem *base;
 
 	if (gic_irq_in_rdist(d)) {
 		base = gic_data_rdist_sgi_base();
 		rwp_wait = gic_redist_wait_for_rwp;
 	} else {
-		base = gic_data.dist_base;
+		base = get_dist_base(d);
 		rwp_wait = gic_dist_wait_for_rwp;
 	}
 
 	writel_relaxed(mask, base + offset + (gic_irq(d) / 32) * 4);
-	rwp_wait();
+	rwp_wait(base);
 }
 
 static void gic_mask_irq(struct irq_data *d)
@@ -307,7 +336,7 @@ static void gic_eoimode1_eoi_irq(struct irq_data *d)
 static int gic_set_type(struct irq_data *d, unsigned int type)
 {
 	unsigned int irq = gic_irq(d);
-	void (*rwp_wait)(void);
+	void (*rwp_wait)(void __iomem *base);
 	void __iomem *base;
 
 	/* Interrupt configuration for SGIs can't be changed */
@@ -323,7 +352,7 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 		base = gic_data_rdist_sgi_base();
 		rwp_wait = gic_redist_wait_for_rwp;
 	} else {
-		base = gic_data.dist_base;
+		base = get_dist_base(d);
 		rwp_wait = gic_dist_wait_for_rwp;
 	}
 
@@ -405,7 +434,7 @@ static void __init gic_dist_init(void)
 
 	/* Disable the distributor */
 	writel_relaxed(0, base + GICD_CTLR);
-	gic_dist_wait_for_rwp();
+	gic_dist_wait_for_rwp(base);
 
 	/*
 	 * Configure SPIs as non-secure Group-1. This will only matter
@@ -650,7 +679,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 			    bool force)
 {
 	unsigned int cpu = cpumask_any_and(mask_val, cpu_online_mask);
-	void __iomem *reg;
+	void __iomem *reg, *base = get_dist_base(d);
 	int enabled;
 	u64 val;
 
@@ -674,7 +703,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	if (enabled)
 		gic_unmask_irq(d);
 	else
-		gic_dist_wait_for_rwp();
+		gic_dist_wait_for_rwp(base);
 
 	return IRQ_SET_MASK_OK_DONE;
 }
