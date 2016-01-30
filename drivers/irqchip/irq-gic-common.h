@@ -29,10 +29,10 @@ struct gic_quirk {
 };
 
 int gic_configure_irq(unsigned int irq, unsigned int type,
-                       void __iomem *base, void (*sync_access)(void));
+                       void __iomem *base, void (*sync_access)(void __iomem *));
 void gic_dist_config(void __iomem *base, int gic_irqs,
-		     void (*sync_access)(void));
-void gic_cpu_config(void __iomem *base, void (*sync_access)(void));
+		     void (*sync_access)(void __iomem *));
+void gic_cpu_config(void __iomem *base, void (*sync_access)(void __iomem *));
 void gic_enable_quirks(u32 iidr, const struct gic_quirk *quirks,
 		void *data);
 
