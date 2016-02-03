@@ -327,7 +327,11 @@ static struct platform_driver mbigen_platform_driver = {
 	.probe			= mbigen_device_probe,
 };
 
-module_platform_driver(mbigen_platform_driver);
+static int __init mbigen_device_init(void)
+{
+	return platform_driver_register(&mbigen_platform_driver);
+}
+arch_initcall(mbigen_device_init)
 
 MODULE_AUTHOR("Jun Ma <majun258@huawei.com>");
 MODULE_AUTHOR("Yun Wu <wuyun.wu@huawei.com>");
