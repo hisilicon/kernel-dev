@@ -976,14 +976,7 @@ static int __init gic_init_bases(void __iomem *dist_base,
 	gic_irqs = GICD_TYPER_IRQS(typer);
 	if (gic_irqs > 1020)
 		gic_irqs = 1020;
-
-	if ((gic_data.irq_nr == 0) || (gic_irqs < gic_data.irq_nr))
-		gic_data.irq_nr = gic_irqs;
-
-	/* only main gic node can reach here.
-	 * so the irq_nr_per_gic == irq_nr
-	*/
-	gic_data.irq_nr_per_gic = gic_data.irq_nr;
+	gic_data.irq_nr = gic_irqs;
 
 	gic_data.domain = irq_domain_create_tree(handle, &gic_irq_domain_ops,
 						 &gic_data);
@@ -1176,9 +1169,6 @@ static int auxiliary_gic_init(void __iomem *dist_base)
 	/* assume the aux-gic has same interrupt number as main gic */
 	gic_data_aux->irq_nr_per_gic = gic_data.irq_nr_per_gic;
 	
-	/* calculate the total irq_nr of all gic nodes */
-	gic_data.irq_nr += gic_data_aux->irq_nr_per_gic;
-
 	/* go to initial dist */
 	auxiliary_gic_dist_init(dist_base);
 
@@ -1279,7 +1269,7 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 	if (of_device_is_compatible(node, "hisilicon,gic-v3")) {
 		reg = readl_relaxed(dist_base + GICD_SIDR);
 		gic_data.sid = reg & GIC_SID_MASK;
-		gic_data.irq_nr = 0x80;
+		gic_data.irq_nr_per_gic = 0x80;
 	}
 
 	err = gic_init_bases(dist_base, rdist_regs, nr_redist_regions,
@@ -1580,14 +1570,8 @@ gic_acpi_init(struct acpi_subtable_header *header, const unsigned long end)
 		goto out_redist_unmap;
 	}
 
-	/*
-	 * initial the irq number as 0,then update
-	 * this value after reading typer register
-	 */
-	gic_data.irq_nr = 0x0;
-
 	err = gic_init_bases(acpi_data.dist_base, acpi_data.redist_regs,
-			     acpi_data.nr_redist_regions, stride, domain_handle);
+			     acpi_data.nr_redist_regions, 0, domain_handle);
 	if (err)
 		goto out_fwhandle_free;
 
