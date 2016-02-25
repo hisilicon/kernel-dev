@@ -42,11 +42,13 @@ static int its_pmsi_prepare(struct irq_domain *domain, struct device *dev,
 		ret = of_parse_phandle_with_args(dev->of_node,
 						 "msi-parent", "#msi-cells",
 						 index, &args);
-		if (args.np == irq_domain_get_of_node(domain)) {
-			if (WARN_ON(args.args_count != 1))
-				return -EINVAL;
-			dev_id = args.args[0];
-			break;
+		if (!ret) {
+			if (args.np == irq_domain_get_of_node(domain)) {
+				if (WARN_ON(args.args_count != 1))
+					return -EINVAL;
+				dev_id = args.args[0];
+				break;
+			}
 		}
 	} while (!ret);
 
