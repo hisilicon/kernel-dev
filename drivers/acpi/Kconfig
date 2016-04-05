@@ -533,6 +533,7 @@ endif
 config ACPI_GTDT
 	bool "ACPI GTDT Support"
 	depends on ARM64
+	default y
 	help
 	  GTDT (Generic Timer Description Table) provides information
 	  for per-processor timers and Platform (memory-mapped) timers
