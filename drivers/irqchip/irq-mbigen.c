@@ -236,15 +236,43 @@ static struct irq_domain_ops mbigen_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
+static void mbigen_create_domain(struct mbigen_device *mgn_dev, struct device_node *np)
+{
+	struct device *parent = platform_bus_type.dev_root;
+	struct device *dev = &mgn_dev->pdev->dev;
+	struct platform_device *child;
+	struct irq_domain *domain;
+	u32 num_pins;
+
+	if (!of_property_read_bool(np, "interrupt-controller"))
+		goto err;
+
+	if (of_property_read_u32(np, "num-pins", &num_pins))
+		goto err;
+
+	child = of_platform_device_create(np, NULL, parent);
+	if (IS_ERR(child))
+		goto err;
+
+	domain = platform_msi_create_device_domain(&child->dev, num_pins,
+						   mbigen_write_msg,
+						   &mbigen_domain_ops,
+						   mgn_dev);
+	if (!domain)
+		goto err;
+
+	dev_info(dev, "%s domain created\n", np->full_name);
+
+	return;
+err:
+	dev_err(dev, "unable to create %s domain\n", np->full_name);
+}
+
 static int mbigen_device_probe(struct platform_device *pdev)
 {
 	struct mbigen_device *mgn_chip;
-	struct platform_device *child;
-	struct irq_domain *domain;
 	struct device_node *np;
-	struct device *parent;
 	struct resource *res;
-	u32 num_pins;
 
 	mgn_chip = devm_kzalloc(&pdev->dev, sizeof(*mgn_chip), GFP_KERNEL);
 	if (!mgn_chip)
@@ -257,28 +285,8 @@ static int mbigen_device_probe(struct platform_device *pdev)
 	if (IS_ERR(mgn_chip->base))
 		return PTR_ERR(mgn_chip->base);
 
-	for_each_child_of_node(pdev->dev.of_node, np) {
-		if (!of_property_read_bool(np, "interrupt-controller"))
-			continue;
-
-		parent = platform_bus_type.dev_root;
-		child = of_platform_device_create(np, NULL, parent);
-		if (!child)
-			return -ENOMEM;
-
-		if (of_property_read_u32(child->dev.of_node, "num-pins",
-					 &num_pins) < 0) {
-			dev_err(&pdev->dev, "No num-pins property\n");
-			return -EINVAL;
-		}
-
-		domain = platform_msi_create_device_domain(&child->dev, num_pins,
-							   mbigen_write_msg,
-							   &mbigen_domain_ops,
-							   mgn_chip);
-		if (!domain)
-			return -ENOMEM;
-	}
+	for_each_child_of_node(pdev->dev.of_node, np)
+		mbigen_create_domain(mgn_chip, np);
 
 	platform_set_drvdata(pdev, mgn_chip);
 	return 0;
@@ -293,7 +301,6 @@ MODULE_DEVICE_TABLE(of, mbigen_of_match);
 static struct platform_driver mbigen_platform_driver = {
 	.driver = {
 		.name		= "Hisilicon MBIGEN-V2",
-		.owner		= THIS_MODULE,
 		.of_match_table	= mbigen_of_match,
 	},
 	.probe			= mbigen_device_probe,
