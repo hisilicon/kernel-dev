@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/acpi.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip.h>
 #include <linux/module.h>
@@ -180,7 +181,7 @@ static int mbigen_domain_translate(struct irq_domain *d,
 				    unsigned long *hwirq,
 				    unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_node(fwspec->fwnode) || is_acpi_device_node(fwspec->fwnode)) {
 		if (fwspec->param_count != 2)
 			return -EINVAL;
 
@@ -271,7 +272,6 @@ err:
 static int mbigen_device_probe(struct platform_device *pdev)
 {
 	struct mbigen_device *mgn_chip;
-	struct device_node *np;
 	struct resource *res;
 
 	mgn_chip = devm_kzalloc(&pdev->dev, sizeof(*mgn_chip), GFP_KERNEL);
@@ -285,8 +285,25 @@ static int mbigen_device_probe(struct platform_device *pdev)
 	if (IS_ERR(mgn_chip->base))
 		return PTR_ERR(mgn_chip->base);
 
-	for_each_child_of_node(pdev->dev.of_node, np)
-		mbigen_create_domain(mgn_chip, np);
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+		struct device_node *np;
+		for_each_child_of_node(pdev->dev.of_node, np)
+			mbigen_create_domain(mgn_chip, np);
+	} else if (ACPI_COMPANION(&pdev->dev)) {
+		struct irq_domain *domain;
+		u32 num_pins;
+
+		if (device_property_read_u32(&pdev->dev, "num-pins", &num_pins) < 0)
+			return -EINVAL;
+
+		domain = platform_msi_create_device_domain(&pdev->dev, num_pins,
+							   mbigen_write_msg,
+							   &mbigen_domain_ops,
+							   mgn_chip);
+		if (!domain)
+			return -ENOMEM;
+		dev_info(&pdev->dev, "domain created, Allocated %d MSIs\n", num_pins);
+	}
 
 	platform_set_drvdata(pdev, mgn_chip);
 	return 0;
@@ -298,10 +315,17 @@ static const struct of_device_id mbigen_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mbigen_of_match);
 
+static const struct acpi_device_id mbigen_acpi_match[] = {
+        { "HISI0152", 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, mbigen_acpi_match);
+
 static struct platform_driver mbigen_platform_driver = {
 	.driver = {
 		.name		= "Hisilicon MBIGEN-V2",
 		.of_match_table	= mbigen_of_match,
+		.acpi_match_table = ACPI_PTR(mbigen_acpi_match),
 	},
 	.probe			= mbigen_device_probe,
 };
