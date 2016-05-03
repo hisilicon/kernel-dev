@@ -682,7 +682,7 @@ out_bnum_err:
 	}
 
 	/* filter out multicast pkt with the same src mac as this port */
-	eh = eth_hdr(skb);
+	eh = (struct ethhdr *)skb->data;
 	if (unlikely(is_multicast_ether_addr(eh->h_dest) &&
 		     ether_addr_equal(ndev->dev_addr, eh->h_source))) {
 		dev_kfree_skb_any(skb);
