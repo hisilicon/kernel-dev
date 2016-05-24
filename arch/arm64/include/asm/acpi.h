@@ -126,4 +126,13 @@ static inline void arch_apei_flush_tlb_one(unsigned long addr)
 	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
 }
 #endif /* CONFIG_ACPI_APEI */
+
+#ifdef CONFIG_ACPI_NUMA
+int arm64_acpi_numa_init(void);
+int acpi_numa_get_nid(unsigned int cpu, u64 hwid);
+#else
+static inline int arm64_acpi_numa_init(void) { return -ENOSYS; }
+static inline int acpi_numa_get_nid(unsigned int cpu, u64 hwid) { return NUMA_NO_NODE; }
+#endif /* CONFIG_ACPI_NUMA */
+
 #endif /*_ASM_ACPI_H*/
