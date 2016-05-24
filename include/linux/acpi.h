@@ -532,6 +532,12 @@ void acpi_walk_dep_device_list(acpi_handle handle);
 struct platform_device *acpi_create_platform_device(struct acpi_device *);
 #define ACPI_PTR(_ptr)	(_ptr)
 
+#ifdef CONFIG_ACPI_GTDT
+int __init gtdt_arch_timer_init(struct acpi_table_header *table, int *ppi,
+				bool *c3stop, u32 *timer_count);
+int __init gtdt_arch_timer_mem_init(struct gt_block_data *data);
+#endif
+
 #else	/* !CONFIG_ACPI */
 
 #define acpi_disabled 1
