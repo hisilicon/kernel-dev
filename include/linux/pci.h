@@ -1390,6 +1390,7 @@ static inline int pci_domain_nr(struct pci_bus *bus)
 {
 	return bus->domain_nr;
 }
+static inline int acpi_pci_bus_domain_nr(struct pci_bus *bus) { return -1; }
 void pci_bus_assign_domain_nr(struct pci_bus *bus, struct device *parent);
 #else
 static inline void pci_bus_assign_domain_nr(struct pci_bus *bus,
