@@ -1390,7 +1390,12 @@ static inline int pci_domain_nr(struct pci_bus *bus)
 {
 	return bus->domain_nr;
 }
+/* Arch specific ACPI hook to set-up domain number */
+#ifdef CONFIG_ACPI
+int acpi_pci_bus_domain_nr(struct pci_bus *bus);
+#else
 static inline int acpi_pci_bus_domain_nr(struct pci_bus *bus) { return -1; }
+#endif
 void pci_bus_assign_domain_nr(struct pci_bus *bus, struct device *parent);
 #else
 static inline void pci_bus_assign_domain_nr(struct pci_bus *bus,
