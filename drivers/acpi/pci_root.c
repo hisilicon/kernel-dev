@@ -719,6 +719,40 @@ next:
 	}
 }
 
+#ifdef PCI_IOBASE
+static void acpi_pci_root_remap_iospace(struct resource_entry *entry)
+{
+	struct resource *res = entry->res;
+	resource_size_t cpu_addr = res->start;
+	resource_size_t pci_addr = cpu_addr - entry->offset;
+	resource_size_t length = resource_size(res);
+	unsigned long port;
+
+	if (pci_register_io_range(cpu_addr, length))
+		goto err;
+
+	port = pci_address_to_pio(cpu_addr);
+	if (port == (unsigned long)-1)
+		goto err;
+
+	res->start = port;
+	res->end = port + length - 1;
+	entry->offset = port - pci_addr;
+
+	if (pci_remap_iospace(res, cpu_addr) < 0)
+		goto err;
+
+	pr_info("Remapped I/O %pa to %pR\n", &cpu_addr, res);
+	return;
+err:
+	res->flags |= IORESOURCE_DISABLED;
+}
+#else
+static void acpi_pci_root_remap_iospace(struct resource_entry *entry)
+{
+}
+#endif
+
 int acpi_pci_probe_root_resources(struct acpi_pci_root_info *info)
 {
 	int ret;
@@ -739,6 +773,9 @@ int acpi_pci_probe_root_resources(struct acpi_pci_root_info *info)
 			"no IO and memory resources present in _CRS\n");
 	else {
 		resource_list_for_each_entry_safe(entry, tmp, list) {
+			if (entry->res->flags & IORESOURCE_IO)
+				acpi_pci_root_remap_iospace(entry);
+
 			if (entry->res->flags & IORESOURCE_DISABLED)
 				resource_list_destroy_entry(entry);
 			else
@@ -810,6 +847,8 @@ static void acpi_pci_root_release_info(struct pci_host_bridge *bridge)
 
 	resource_list_for_each_entry(entry, &bridge->windows) {
 		res = entry->res;
+		if (res->flags & IORESOURCE_IO)
+			pci_unmap_iospace(res);
 		if (res->parent &&
 		    (res->flags & (IORESOURCE_MEM | IORESOURCE_IO)))
 			release_resource(res);
