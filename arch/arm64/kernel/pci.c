@@ -17,6 +17,7 @@
 #include <linux/mm.h>
 #include <linux/of_pci.h>
 #include <linux/of_platform.h>
+#include <linux/pci-acpi.h>
 #include <linux/slab.h>
 
 /*
@@ -96,4 +97,15 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	/* TODO: Should be revisited when implementing PCI on ACPI */
 	return NULL;
 }
+
+void pcibios_add_bus(struct pci_bus *bus)
+{
+	acpi_pci_add_bus(bus);
+}
+
+void pcibios_remove_bus(struct pci_bus *bus)
+{
+	acpi_pci_remove_bus(bus);
+}
+
 #endif
