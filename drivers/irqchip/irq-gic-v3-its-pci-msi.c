@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/iort.h>
 #include <linux/msi.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -144,10 +145,49 @@ static int __init its_pci_of_msi_init(void)
 	return 0;
 }
 
-static int __init its_pci_msi_init(void)
+#ifdef CONFIG_ACPI
+
+static int __init
+its_pci_msi_parse_madt(struct acpi_subtable_header *header,
+		       const unsigned long end)
 {
-	its_pci_of_msi_init();
+	struct acpi_madt_generic_translator *its_entry;
+	struct fwnode_handle *dom_handle;
+	char node_name[6 + 16 + 1]; // ITS identification name
+
+	its_entry = (struct acpi_madt_generic_translator *)header;
+	snprintf(node_name, 23, "ITS@0x%lx", (long)its_entry->base_address);
+	dom_handle = iort_its_find_domain_token(its_entry->translation_id);
+	if (!dom_handle) {
+		pr_err("%s: Unable to locate ITS domain handle\n", node_name);
+		return 0;
+	}
+
+	if (its_pci_msi_init_one(dom_handle, node_name))
+		return 0;
+
+	pr_info("PCI/MSI: %s domain created\n", node_name);
 	return 0;
 }
 
+static int __init its_pci_acpi_msi_init(void)
+{
+	acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_TRANSLATOR,
+			      its_pci_msi_parse_madt, 0);
+	return 0;
+}
+#else
+inline static int __init its_pci_acpi_msi_init(void)
+{
+	return 0;
+}
+#endif
+
+static int __init its_pci_msi_init(void)
+{
+	its_pci_of_msi_init();
+	its_pci_acpi_msi_init();
+
+	return 0;
+}
 early_initcall(its_pci_msi_init);
