@@ -22,10 +22,42 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
+#include <linux/pci-ecam.h>
 
 /* Root pointer to the mapped MCFG table */
 static struct acpi_table_mcfg *mcfg_table;
 static int mcfg_entries;
+
+extern struct pci_cfg_fixup __start_acpi_mcfg_fixups[];
+extern struct pci_cfg_fixup __end_acpi_mcfg_fixups[];
+
+struct pci_ecam_ops *pci_mcfg_get_ops(struct acpi_pci_root *root)
+{
+	int bus_num = root->secondary.start;
+	int domain = root->segment;
+	struct pci_cfg_fixup *f;
+
+	if (!mcfg_table)
+		return &pci_generic_ecam_ops;
+
+	/*
+	 * Match against platform specific quirks and return corresponding
+	 * CAM ops.
+	 *
+	 * First match against PCI topology <domain:bus> then use OEM ID and
+	 * OEM revision from MCFG table standard header.
+	 */
+	for (f = __start_acpi_mcfg_fixups; f < __end_acpi_mcfg_fixups; f++) {
+		if ((f->domain == domain || f->domain == PCI_MCFG_DOMAIN_ANY) &&
+		    (f->bus_num == bus_num || f->bus_num == PCI_MCFG_BUS_ANY) &&
+		    (!strncmp(f->oem_id, mcfg_table->header.oem_id,
+			      ACPI_OEM_ID_SIZE)) &&
+		    (f->oem_revision == mcfg_table->header.oem_revision))
+			return f->ops;
+	}
+	/* No quirks, use ECAM */
+	return &pci_generic_ecam_ops;
+}
 
 int pci_mcfg_lookup(struct acpi_pci_root *root)
 {
