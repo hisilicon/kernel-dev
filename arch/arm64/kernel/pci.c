@@ -140,6 +140,7 @@ static int pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root,
 	struct resource cfgres;
 	unsigned int bsz;
 	int err;
+	struct pci_ecam_ops *ops;
 
 	err = pci_mcfg_lookup(root);
 	if (err) {
@@ -147,12 +148,12 @@ static int pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root,
 		return err;
 	}
 
-	bsz = 1 << pci_generic_ecam_ops.bus_shift;
+	ops = pci_mcfg_get_ops(root);
+	bsz = 1 << ops->bus_shift;
 	cfgres.start = root->mcfg_addr + bus_res->start * bsz;
 	cfgres.end = cfgres.start + resource_size(bus_res) * bsz - 1;
 	cfgres.flags = IORESOURCE_MEM;
-	cfg = pci_ecam_create(&root->device->dev, &cfgres, bus_res,
-			      &pci_generic_ecam_ops);
+	cfg = pci_ecam_create(&root->device->dev, &cfgres, bus_res, ops);
 	if (IS_ERR(cfg)) {
 		pr_err("%04x:%pR error %ld mapping CAM\n", seg, bus_res,
 		       PTR_ERR(cfg));
