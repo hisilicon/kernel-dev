@@ -1582,7 +1582,7 @@ static int __init its_probe_one(struct resource *res,
 	its->base = its_base;
 	its->phys_base = res->start;
 	its->ite_size = ((readl_relaxed(its_base + GITS_TYPER) >> 4) & 0xf) + 1;
-	its->numa_node = of_node_to_nid(node);
+	its->numa_node = of_node_to_nid(to_of_node(handle));
 
 	its->cmd_base = kzalloc(ITS_CMD_QUEUE_SZ, GFP_KERNEL);
 	if (!its->cmd_base) {
