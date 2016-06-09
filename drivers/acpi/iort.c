@@ -82,7 +82,7 @@ void iort_deregister_domain_token(int trans_id)
 }
 
 /**
- * iort_find_its_domain_token() - find domain token based on given ITS ID.
+ * iort_its_find_domain_token() - find domain token based on given ITS ID.
  * @translation_id: ITS ID
  *
  * Returns: domain token when find on the list, NULL otherwise.
@@ -260,7 +260,7 @@ struct fwnode_handle *iort_find_dev_domain_token(struct device *dev, int node_ty
 	if (iort_dev_find_its_id(dev, node_type, 0, &its_id))
 		return NULL;
 
-	return iort_find_its_domain_token(its_id);
+	return iort_its_find_domain_token(its_id);
 }
 
 
