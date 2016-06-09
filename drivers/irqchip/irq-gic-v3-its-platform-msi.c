@@ -110,7 +110,7 @@ its_pmsi_parse_madt(struct acpi_subtable_header *header,
 	struct fwnode_handle *domain_handle;
 
 	its_entry = (struct acpi_madt_generic_translator *)header;
-	domain_handle = iort_find_its_domain_token(its_entry->translation_id);
+	domain_handle = iort_its_find_domain_token(its_entry->translation_id);
 	if (!domain_handle) {
 		pr_err("ITS@0x%lx: Unable to locate ITS domain handle\n",
 			(long)its_entry->base_address);
