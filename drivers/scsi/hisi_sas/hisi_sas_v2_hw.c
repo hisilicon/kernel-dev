@@ -194,6 +194,8 @@
 #define CMD_HDR_DIR_MSK			(0x3 << CMD_HDR_DIR_OFF)
 #define CMD_HDR_RESET_OFF		7
 #define CMD_HDR_RESET_MSK		(0x1 << CMD_HDR_RESET_OFF)
+#define CMD_HDR_PIR_OFF		8
+#define CMD_HDR_PIR_MSK		(0x1 << CMD_HDR_PIR_OFF)
 #define CMD_HDR_VDTL_OFF		10
 #define CMD_HDR_VDTL_MSK		(0x1 << CMD_HDR_VDTL_OFF)
 #define CMD_HDR_FRAME_TYPE_OFF		11
@@ -219,6 +221,11 @@
 #define CMD_HDR_DIF_SGL_LEN_MSK		(0xffff << CMD_HDR_DIF_SGL_LEN_OFF)
 #define CMD_HDR_DATA_SGL_LEN_OFF	16
 #define CMD_HDR_DATA_SGL_LEN_MSK	(0xffff << CMD_HDR_DATA_SGL_LEN_OFF)
+/* dw7 */
+#define CMD_HDR_ADDR_MODE_SEL_OFF		15
+#define CMD_HDR_ADDR_MODE_SEL_MSK		(1 << CMD_HDR_ADDR_MODE_SEL_OFF)
+#define CMD_HDR_ABORT_IPTT_OFF		16
+#define CMD_HDR_ABORT_IPTT_MSK		(0xffff << CMD_HDR_ABORT_IPTT_OFF)
 
 /* Completion header */
 /* dw0 */
@@ -253,6 +260,21 @@
 #define ITCT_HDR_MCTLT_MSK		(0xffffULL << ITCT_HDR_MCTLT_OFF)
 #define ITCT_HDR_RTOLT_OFF		48
 #define ITCT_HDR_RTOLT_MSK		(0xffffULL << ITCT_HDR_RTOLT_OFF)
+
+#ifdef SAS_DIF
+#define PIRF_UDBS_OFF	30
+#define PIRF_T10_CHK_EN_OFF	26
+#define PIRF_INCR_LBAT_OFF	23
+#define PIRF_T10_CHK_MSK_OFF	15
+#define PIRF_LBAT_CHK_VAL_OFF	0
+
+struct protect_iu_v2_hw {
+	u32 dw0;
+	u32 lbrtcv;
+	u32 dw2;
+	u32 _r_b;
+};
+#endif
 
 struct hisi_sas_complete_v2_hdr {
 	__le32 dw0;
@@ -1087,6 +1109,47 @@ static int prep_prd_sge_v2_hw(struct hisi_hba *hisi_hba,
 	return 0;
 }
 
+#ifdef SAS_DIF
+static int prep_prd_sge_dif_v2_hw(struct hisi_hba *hisi_hba,
+				 struct hisi_sas_slot *slot,
+				 struct hisi_sas_cmd_hdr *hdr,
+				 struct scatterlist *scatter,
+				 int n_elem)
+{
+	struct device *dev = &hisi_hba->pdev->dev;
+	struct scatterlist *sg;
+	int i;
+
+	if (n_elem > HISI_SAS_SGE_PAGE_CNT) {
+		dev_err(dev, "%s n_elem(%d) > HISI_SAS_SGE_PAGE_CNT",
+			__func__, n_elem);
+		return -EINVAL;
+	}
+
+	slot->sge_dif_page = dma_pool_alloc(hisi_hba->sge_dif_page_pool,
+			GFP_ATOMIC,
+			&slot->sge_dif_page_dma);
+	if (!slot->sge_dif_page)
+		return -ENOMEM;
+
+	hdr->dw7 |= 1 << CMD_HDR_ADDR_MODE_SEL_OFF;
+
+	for_each_sg(scatter, sg, n_elem, i) {
+		struct hisi_sas_sge *entry = &slot->sge_dif_page->sge[i];
+
+		entry->addr = cpu_to_le64(sg_dma_address(sg));
+		entry->page_ctrl_0 = entry->page_ctrl_1 = 0;
+		entry->data_len = sg_dma_len(sg);
+		entry->data_off = 0;
+	}
+
+	hdr->dif_prd_table_addr = cpu_to_le64(slot->sge_dif_page_dma);
+	hdr->sg_len |= n_elem;
+
+	return 0;
+}
+#endif
+
 static int prep_smp_v2_hw(struct hisi_hba *hisi_hba,
 			  struct hisi_sas_slot *slot)
 {
@@ -1171,6 +1234,52 @@ static int prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 	int has_data = 0, rc, priority = is_tmf;
 	u8 *buf_cmd;
 	u32 dw1 = 0, dw2 = 0;
+
+#ifdef SAS_DIF
+	if (!is_tmf) {
+		u8 prot_type = scsi_get_prot_type(scsi_cmnd);
+		u8 prot_op = scsi_get_prot_op(scsi_cmnd);
+		u32 lbat_chk_val = (u32)(0xffffffff & scsi_get_lba(scsi_cmnd));
+		struct device *dev = &hisi_hba->pdev->dev;
+		union hisi_sas_command_table *cmd =
+			(union hisi_sas_command_table *) slot->command_table;
+		struct protect_iu_v2_hw *prot =
+			(struct protect_iu_v2_hw *)&cmd->ssp.u.prot;
+
+		if (prot_type != SCSI_PROT_DIF_TYPE0) {
+			dw1 |= 1 << CMD_HDR_PIR_OFF;
+
+			prot->dw0 |= (1 << PIRF_INCR_LBAT_OFF) |
+				((scsi_prot_interval(scsi_cmnd) / 4)
+				 << PIRF_UDBS_OFF);
+
+			if (prot_op == SCSI_PROT_WRITE_PASS) {
+				prot->dw0 |= (1 << PIRF_T10_CHK_EN_OFF);
+				prot->lbrtcv |= lbat_chk_val;
+			} else if (prot_op == SCSI_PROT_READ_PASS) {
+				prot->dw0 |= (1 << PIRF_T10_CHK_EN_OFF) |
+					(0xfc << PIRF_T10_CHK_MSK_OFF);
+			}
+
+			if (scsi_prot_sg_count(scsi_cmnd)) {
+				int n_elem = dma_map_sg(dev,
+						scsi_prot_sglist(scsi_cmnd),
+						scsi_prot_sg_count(scsi_cmnd),
+						task->data_dir);
+				if (!n_elem) {
+					rc = -ENOMEM;
+					return rc;
+				}
+
+				rc = prep_prd_sge_dif_v2_hw(hisi_hba, slot, hdr,
+						scsi_prot_sglist(scsi_cmnd),
+						n_elem);
+				if (rc)
+					return rc;
+			}
+		}
+	}
+#endif
 
 	hdr->dw0 = cpu_to_le32((1 << CMD_HDR_RESP_REPORT_OFF) |
 			       (2 << CMD_HDR_TLR_CTRL_OFF) |
@@ -2258,6 +2367,14 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.phy_hard_reset = phy_hard_reset_v2_hw,
 	.max_command_entries = HISI_SAS_COMMAND_ENTRIES_V2_HW,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v2_hdr),
+#ifdef SAS_DIF
+	.prot_cap = SHOST_DIF_TYPE1_PROTECTION |
+		SHOST_DIF_TYPE2_PROTECTION |
+		SHOST_DIF_TYPE3_PROTECTION |
+		SHOST_DIX_TYPE1_PROTECTION |
+		SHOST_DIX_TYPE2_PROTECTION |
+		SHOST_DIX_TYPE3_PROTECTION,
+#endif
 };
 
 static int hisi_sas_v2_probe(struct platform_device *pdev)
