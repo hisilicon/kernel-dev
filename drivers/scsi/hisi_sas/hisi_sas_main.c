@@ -865,22 +865,14 @@ static int hisi_sas_abort_task(struct sas_task *task)
 	} else if (task->task_proto & SAS_PROTOCOL_SATA ||
 		task->task_proto & SAS_PROTOCOL_STP) {
 		if (task->dev->dev_type == SAS_SATA_DEV) {
-			struct hisi_sas_slot *slot = task->lldd_task;
-			u32 tag = slot->idx;
-
-			dev_notice(dev, "abort task: hba=%p task=%p slot=%p\n",
-				   hisi_hba, task, slot);
-
-			rc = hisi_sas_internal_task_abort(hisi_hba, device,
-							  0, tag);
+			/* Fixme, add ATA soft reset */
+			hisi_sas_internal_task_abort(hisi_hba, device, 1, 0);
 		}
+		rc = TMF_RESP_FUNC_COMPLETE; /* Always flag as complete */
 	} else if (task->task_proto & SAS_PROTOCOL_SMP) {
 		/* SMP */
 		struct hisi_sas_slot *slot = task->lldd_task;
 		u32 tag = slot->idx;
-
-		dev_notice(dev, "abort task: hba=%p task=%p slot=%p\n",
-				   hisi_hba, task, slot);
 
 		rc = hisi_sas_internal_task_abort(hisi_hba, device, 0, tag);
 	}

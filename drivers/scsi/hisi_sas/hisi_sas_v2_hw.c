@@ -1690,9 +1690,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot,
 		goto out;
 	}
 
-	/* Use SAS+TMF status codes: the TMF codes will
-	   only be used for internal abort task, i.e.
-	   internally in the LL driver.
+	/* Use SAS+TMF status codes
 	*/
 	switch ((complete_hdr->dw0 & CMPLT_HDR_ABORT_STAT_MSK)
 			>> CMPLT_HDR_ABORT_STAT_OFF) {
@@ -1710,7 +1708,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot,
 	case STAT_IO_NOT_VALID:
 		/* abort single io,
 		 * controller don't find the io need to abort*/
-		ts->stat = TMF_RESP_FUNC_COMPLETE;
+		ts->stat = TMF_RESP_FUNC_FAILED;
 		goto out;
 	default:
 		break;
