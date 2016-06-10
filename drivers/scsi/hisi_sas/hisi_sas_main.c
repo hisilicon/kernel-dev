@@ -1055,30 +1055,12 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, u64 device_id,
 	slot->port = port;
 	task->lldd_task = slot;
 
-	slot->status_buffer = dma_pool_alloc(hisi_hba->status_buffer_pool,
-						GFP_ATOMIC,
-						&slot->status_buffer_dma);
-
-	if (!slot->status_buffer) {
-		rc = -ENOMEM;
-		goto err_out_slot_buf;
-	}
-	memset(slot->status_buffer, 0, HISI_SAS_STATUS_BUF_SZ);
-
-	slot->command_table = dma_pool_alloc(hisi_hba->command_table_pool,
-						GFP_ATOMIC,
-						&slot->command_table_dma);
-	if (!slot->command_table) {
-		rc = -ENOMEM;
-		goto err_out_status_buf;
-	}
-	memset(slot->command_table, 0, HISI_SAS_COMMAND_TABLE_SZ);
 	memset(slot->cmd_hdr, 0, sizeof(struct hisi_sas_cmd_hdr));
 
 	rc = hisi_sas_task_prep_abort(hisi_hba, slot, device_id,
 				      abort_flag, task_tag);
 	if (rc)
-		goto err_out_command_table;
+		goto err_out_slot_buf;
 
 	/* port structure is static for the HBA, so
 	   even if the port is deformed it is ok
@@ -1095,14 +1077,8 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, u64 device_id,
 	/* send abort command to our chip */
 	hisi_hba->hw->start_delivery(hisi_hba);
 
-	return rc;
+	return 0;
 
-err_out_command_table:
-	dma_pool_free(hisi_hba->command_table_pool, slot->command_table,
-		slot->command_table_dma);
-err_out_status_buf:
-	dma_pool_free(hisi_hba->status_buffer_pool, slot->status_buffer,
-		slot->status_buffer_dma);
 err_out_slot_buf:
 	/* Nothing to be done */
 err_out_tag:
