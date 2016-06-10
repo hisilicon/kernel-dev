@@ -76,6 +76,15 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 			dma_unmap_sg(dev, task->scatter, slot->n_elem,
 				     task->data_dir);
 
+#ifdef SAS_DIF
+	if (task->ssp_task.cmd)
+		if (scsi_prot_sg_count(task->ssp_task.cmd))
+			dma_unmap_sg(dev,
+					scsi_prot_sglist(task->ssp_task.cmd),
+					scsi_prot_sg_count(task->ssp_task.cmd),
+					task->data_dir);
+#endif
+
 	if (slot->command_table)
 		dma_pool_free(hisi_hba->command_table_pool,
 			      slot->command_table, slot->command_table_dma);
@@ -87,6 +96,12 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 	if (slot->sge_page)
 		dma_pool_free(hisi_hba->sge_page_pool, slot->sge_page,
 			      slot->sge_page_dma);
+
+#ifdef SAS_DIF
+	if (slot->sge_dif_page)
+		dma_pool_free(hisi_hba->sge_dif_page_pool, slot->sge_dif_page,
+			      slot->sge_dif_page_dma);
+#endif
 
 	list_del_init(&slot->entry);
 	task->lldd_task = NULL;
@@ -1143,6 +1158,13 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 	if (!hisi_hba->sge_page_pool)
 		goto err_out;
 
+#ifdef SAS_DIF
+	hisi_hba->sge_dif_page_pool = dma_pool_create("status_sge", dev,
+				sizeof(struct hisi_sas_sge_page), 16, 0);
+	if (!hisi_hba->sge_dif_page_pool)
+		goto err_out;
+#endif
+
 	s = sizeof(struct hisi_sas_initial_fis) * HISI_SAS_MAX_PHYS;
 	hisi_hba->initial_fis = dma_alloc_coherent(dev, s,
 				&hisi_hba->initial_fis_dma, GFP_KERNEL);
@@ -1192,6 +1214,9 @@ static void hisi_sas_free(struct hisi_hba *hisi_hba)
 	dma_pool_destroy(hisi_hba->status_buffer_pool);
 	dma_pool_destroy(hisi_hba->command_table_pool);
 	dma_pool_destroy(hisi_hba->sge_page_pool);
+#ifdef SAS_DIF
+	dma_pool_destroy(hisi_hba->sge_dif_page_pool);
+#endif
 
 	s = HISI_SAS_MAX_ITCT_ENTRIES * sizeof(struct hisi_sas_itct);
 	if (hisi_hba->itct)
@@ -1281,6 +1306,11 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	hisi_hba->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(hisi_hba->regs))
 		goto err_out;
+
+#ifdef SAS_DIF
+	scsi_host_set_prot(hisi_hba->shost, hisi_hba->hw->prot_cap);
+	scsi_host_set_guard(hisi_hba->shost, SHOST_DIX_GUARD_CRC);
+#endif
 
 	if (hisi_sas_alloc(hisi_hba, shost)) {
 		hisi_sas_free(hisi_hba);
