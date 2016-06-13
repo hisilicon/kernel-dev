@@ -43,6 +43,18 @@ struct pcie_soc_ops {
 	int (*hisi_pcie_link_up)(struct hisi_pcie *pcie);
 };
 
+static inline int hisi_rd_ecam_conf(struct pcie_port *pp, struct pci_bus *bus,
+		unsigned int devfn, int where, int size, u32 *value)
+{
+	return pci_generic_config_read(bus, devfn, where, size, value);
+}
+
+static inline int hisi_wr_ecam_conf(struct pcie_port *pp, struct pci_bus *bus,
+		unsigned int devfn, int where, int size, u32 value)
+{
+	return pci_generic_config_write(bus, devfn, where, size, value);
+}
+
 static inline int hisi_pcie_cfg_read(struct pcie_port *pp, int where,
 		int size, u32 *val)
 {
@@ -71,6 +83,20 @@ static struct pcie_host_ops hisi_pcie_host_ops = {
 	.wr_own_conf = hisi_pcie_cfg_write,
 	.link_up = hisi_pcie_link_up,
 };
+
+static void __iomem *hisi_pci_map_cfg_bus_cam(struct pci_bus *bus,
+					      unsigned int devfn,
+					      int where)
+{
+	void __iomem *addr;
+	struct pcie_port *pp = bus->sysdata;
+
+	addr = pp->va_cfg1_base - (pp->busn->start << 20) +
+			((bus->number << 20) | (devfn << 12)) +
+			where;
+
+	return addr;
+}
 
 static int hisi_add_pcie_port(struct pcie_port *pp,
 				     struct platform_device *pdev)
@@ -135,6 +161,23 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 	}
 
 	hisi_pcie->pp.dbi_base = hisi_pcie->reg_base;
+
+	reg = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ecam-cfg");
+	if (reg) {
+		/* ECAM driver version */
+		hisi_pcie->pp.va_cfg0_base =
+				devm_ioremap_resource(&pdev->dev, reg);
+		if (IS_ERR(hisi_pcie->pp.va_cfg0_base)) {
+			dev_err(pp->dev, "cannot get ecam-cfg\n");
+			return PTR_ERR(hisi_pcie->pp.va_cfg0_base);
+		}
+		hisi_pcie->pp.va_cfg1_base = hisi_pcie->pp.va_cfg0_base;
+
+		dw_pcie_ops.map_bus = hisi_pci_map_cfg_bus_cam;
+
+		hisi_pcie_host_ops.rd_other_conf = hisi_rd_ecam_conf;
+		hisi_pcie_host_ops.wr_other_conf = hisi_wr_ecam_conf;
+	}
 
 	ret = hisi_add_pcie_port(pp, pdev);
 	if (ret)
