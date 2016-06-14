@@ -36,6 +36,14 @@
 #include <linux/dma-mapping.h>
 
 enum {
+	/* TPT commands */
+	HNS_ROCE_CMD_SW2HW_MPT		= 0xd,
+	HNS_ROCE_CMD_HW2SW_MPT		= 0xf,
+
+	/* CQ commands */
+	HNS_ROCE_CMD_SW2HW_CQ		= 0x16,
+	HNS_ROCE_CMD_HW2SW_CQ		= 0x17,
+
 	/* QP/EE commands */
 	HNS_ROCE_CMD_RST2INIT_QP	= 0x19,
 	HNS_ROCE_CMD_INIT2RTR_QP	= 0x1a,
@@ -51,6 +59,7 @@ enum {
 
 enum {
 	HNS_ROCE_CMD_TIME_CLASS_A	= 10000,
+	HNS_ROCE_CMD_TIME_CLASS_B	= 10000,
 	HNS_ROCE_CMD_TIME_CLASS_C	= 10000,
 };
 

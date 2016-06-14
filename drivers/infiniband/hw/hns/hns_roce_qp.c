@@ -37,6 +37,7 @@
 #include <rdma/ib_pack.h>
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
+#include "hns_roce_cmd.h"
 #include "hns_roce_icm.h"
 #include "hns_roce_user.h"
 

@@ -56,6 +56,7 @@ enum {
 
 enum {
 	 HNS_ROCE_ICM_PAGE_SHIFT = 12,
+	 HNS_ROCE_ICM_PAGE_SIZE  = 1 << HNS_ROCE_ICM_PAGE_SHIFT,
 };
 
 struct hns_roce_icm_chunk {
