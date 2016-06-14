@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/scatterlist.h>
 #include "hns_roce_device.h"
+#include "hns_roce_cmd.h"
 #include "hns_roce_icm.h"
 #include "hns_roce_common.h"
 
@@ -424,6 +425,50 @@ void hns_roce_table_put(struct hns_roce_dev *hr_dev,
 	mutex_unlock(&table->mutex);
 }
 
+void *hns_roce_table_find(struct hns_roce_icm_table *table, unsigned long obj,
+			  dma_addr_t *dma_handle)
+{
+	struct hns_roce_icm_chunk *chunk;
+	unsigned long idx;
+	int i;
+	int offset, dma_offset;
+	struct hns_roce_icm *icm;
+	struct page *page = NULL;
+
+	if (!table->lowmem)
+		return NULL;
+
+	mutex_lock(&table->mutex);
+	idx = (obj & (table->num_obj - 1)) * table->obj_size;
+	icm = table->icm[idx / HNS_ROCE_TABLE_CHUNK_SIZE];
+	dma_offset = offset = idx % HNS_ROCE_TABLE_CHUNK_SIZE;
+
+	if (!icm)
+		goto out;
+
+	list_for_each_entry(chunk, &icm->chunk_list, list) {
+		for (i = 0; i < chunk->npages; ++i) {
+			if (dma_handle && dma_offset >= 0) {
+				if (sg_dma_len(&chunk->mem[i]) >
+				    (u32)dma_offset)
+					*dma_handle = sg_dma_address(
+						&chunk->mem[i]) + dma_offset;
+				dma_offset -= sg_dma_len(&chunk->mem[i]);
+			}
+
+			if (chunk->mem[i].length > (u32)offset) {
+				page = sg_page(&chunk->mem[i]);
+				goto out;
+			}
+			offset -= chunk->mem[i].length;
+		}
+	}
+
+out:
+	mutex_unlock(&table->mutex);
+	return page ? lowmem_page_address(page) + offset : NULL;
+}
+
 int hns_roce_table_get_range(struct hns_roce_dev *hr_dev,
 			     struct hns_roce_icm_table *table,
 			     unsigned long start, unsigned long end)
@@ -447,6 +492,17 @@ fail:
 		hns_roce_table_put(hr_dev, table, i);
 	}
 	return ret;
+}
+
+void hns_roce_table_put_range(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_icm_table *table,
+			      unsigned long start, unsigned long end)
+{
+	unsigned long i;
+
+	for (i = start; i <= end;
+		i += HNS_ROCE_TABLE_CHUNK_SIZE / table->obj_size)
+		hns_roce_table_put(hr_dev, table, i);
 }
 
 int hns_roce_init_icm_table(struct hns_roce_dev *hr_dev,

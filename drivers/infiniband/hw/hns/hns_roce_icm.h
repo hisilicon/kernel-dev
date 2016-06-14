@@ -54,6 +54,10 @@ enum {
 	 ((256 - sizeof(struct list_head) - 2 * sizeof(int)) /	 \
 	 (sizeof(struct scatterlist)))
 
+enum {
+	 HNS_ROCE_ICM_PAGE_SHIFT = 12,
+};
+
 struct hns_roce_icm_chunk {
 	struct list_head	 list;
 	int			 npages;
@@ -78,9 +82,14 @@ int hns_roce_table_get(struct hns_roce_dev *hr_dev,
 		       struct hns_roce_icm_table *table, unsigned long obj);
 void hns_roce_table_put(struct hns_roce_dev *hr_dev,
 			struct hns_roce_icm_table *table, unsigned long obj);
+void *hns_roce_table_find(struct hns_roce_icm_table *table, unsigned long obj,
+			  dma_addr_t *dma_handle);
 int hns_roce_table_get_range(struct hns_roce_dev *hr_dev,
 			     struct hns_roce_icm_table *table,
 			     unsigned long start, unsigned long end);
+void hns_roce_table_put_range(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_icm_table *table,
+			      unsigned long start, unsigned long end);
 int hns_roce_init_icm_table(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_icm_table *table, u32 type,
 			    unsigned long obj_size, unsigned long nobj,
