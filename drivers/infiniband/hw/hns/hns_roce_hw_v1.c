@@ -30,51 +30,43 @@
  * SOFTWARE.
  */
 
-#ifndef _HNS_ROCE_DEVICE_H
-#define _HNS_ROCE_DEVICE_H
-
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#include <linux/radix-tree.h>
-#include <linux/semaphore.h>
-#include <rdma/ib_addr.h>
-#include <rdma/ib_smi.h>
-#include <rdma/ib_umem.h>
-#include <rdma/ib_user_verbs.h>
-#include <rdma/ib_verbs.h>
+#include "hns_roce_device.h"
+#include "hns_roce_hw_v1.h"
 
-#define DRV_NAME "hns_roce"
+/**
+ * hns_roce_v1_reset - reset roce
+ * @hr_dev: roce device struct pointer
+ * @enable: true -- drop reset, false -- reset
+ * return 0 - success , negative --fail
+ */
+int hns_roce_v1_reset(struct hns_roce_dev *hr_dev, bool enable)
+{
+	struct device_node *dsaf_node;
+	struct device *dev = &hr_dev->pdev->dev;
+	struct device_node *np = dev->of_node;
+	int ret;
 
-#define HNS_ROCE_MAX_IRQ_NUM			34
-#define HNS_ROCE_MAX_PORTS			6
+	dsaf_node = of_parse_phandle(np, "dsaf-handle", 0);
 
-struct hns_roce_ib_iboe {
-	struct net_device      *netdevs[HNS_ROCE_MAX_PORTS];
-	u8			phy_port[HNS_ROCE_MAX_PORTS];
+	if (!enable) {
+		ret = hns_dsaf_roce_reset(&dsaf_node->fwnode, false);
+	} else {
+		ret = hns_dsaf_roce_reset(&dsaf_node->fwnode, false);
+		if (ret)
+			return ret;
+
+		msleep(SLEEP_TIME_INTERVAL);
+		ret = hns_dsaf_roce_reset(&dsaf_node->fwnode, true);
+	}
+
+		return ret;
+}
+
+struct hns_roce_hw hns_roce_hw_v1 = {
+	.reset = hns_roce_v1_reset,
 };
-
-struct hns_roce_caps {
-	u8			num_ports;
-};
-
-struct hns_roce_hw {
-	int (*reset)(struct hns_roce_dev *hr_dev, bool enable);
-};
-
-struct hns_roce_dev {
-	struct ib_device	ib_dev;
-	struct platform_device  *pdev;
-	const char		*irq_names;
-	struct hns_roce_ib_iboe iboe;
-
-	int			irq[HNS_ROCE_MAX_IRQ_NUM];
-	u8 __iomem		*reg_base;
-	struct hns_roce_caps	caps;
-
-	int			cmd_mod;
-	int			loop_idc;
-	struct hns_roce_hw	*hw;
-};
-
-extern struct hns_roce_hw hns_roce_hw_v1;
-
-#endif /* _HNS_ROCE_DEVICE_H */
