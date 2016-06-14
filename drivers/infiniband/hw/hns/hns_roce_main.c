@@ -124,6 +124,11 @@ int hns_roce_engine_reset(struct hns_roce_dev *hr_dev, bool enable)
 	return hr_dev->hw->reset(hr_dev, enable);
 }
 
+void hns_roce_profile_init(struct hns_roce_dev *hr_dev)
+{
+	hr_dev->hw->hw_profile(hr_dev);
+}
+
 /**
 * hns_roce_probe - RoCE driver entrance
 * @pdev: pointer to platform device
@@ -167,6 +172,8 @@ static int hns_roce_probe(struct platform_device *pdev)
 		dev_err(dev, "Reset roce engine failed!\n");
 		goto error_failed_get_cfg;
 	}
+
+	hns_roce_profile_init(hr_dev);
 
 error_failed_get_cfg:
 	ib_dealloc_device(&hr_dev->ib_dev);
