@@ -202,6 +202,16 @@ err_unmap_mtt:
 	return ret;
 }
 
+int hns_roce_engine_init(struct hns_roce_dev  *hr_dev)
+{
+	return hr_dev->hw->hw_init(hr_dev);
+}
+
+void hns_roce_engine_exit(struct hns_roce_dev *hr_dev)
+{
+	hr_dev->hw->hw_exit(hr_dev);
+}
+
 /**
 * hns_roce_setup_hca - setup host channel adapter
 * @hr_dev: pointer to hns roce device
@@ -349,6 +359,15 @@ static int hns_roce_probe(struct platform_device *pdev)
 		goto error_failed_setup_hca;
 	}
 
+	ret = hns_roce_engine_init(hr_dev);
+	if (ret) {
+		dev_err(dev, "hw_init failed!\n");
+		goto error_failed_engine_init;
+	}
+
+error_failed_engine_init:
+	hns_roce_cleanup_bitmap(hr_dev);
+
 error_failed_setup_hca:
 	hns_roce_cleanup_icm(hr_dev);
 
@@ -381,6 +400,7 @@ static int hns_roce_remove(struct platform_device *pdev)
 {
 	struct hns_roce_dev *hr_dev = platform_get_drvdata(pdev);
 
+	hns_roce_engine_exit(hr_dev);
 	hns_roce_cleanup_bitmap(hr_dev);
 	hns_roce_cleanup_icm(hr_dev);
 
