@@ -134,6 +134,11 @@ struct hns_roce_ucontext {
 	struct hns_roce_uar	uar;
 };
 
+struct hns_roce_pd {
+	struct ib_pd		ibpd;
+	unsigned long		pdn;
+};
+
 struct hns_roce_bitmap {
 	/* Bitmap Traversal last a bit which is 1 */
 	unsigned long		last;
@@ -399,6 +404,11 @@ static inline struct hns_roce_ucontext
 	return container_of(ibucontext, struct hns_roce_ucontext, ibucontext);
 }
 
+static inline struct hns_roce_pd *to_hr_pd(struct ib_pd *ibpd)
+{
+	return container_of(ibpd, struct hns_roce_pd, ibpd);
+}
+
 static inline void hns_roce_write64_k(__be32 val[2], void __iomem *dest)
 {
 	__raw_writeq(*(u64 *) val, dest);
@@ -445,6 +455,13 @@ int hns_roce_bitmap_alloc_range(struct hns_roce_bitmap *bitmap, int cnt,
 				int align, unsigned long *obj);
 void hns_roce_bitmap_free_range(struct hns_roce_bitmap *bitmap,
 				unsigned long obj, int cnt);
+
+struct ib_pd *hns_roce_alloc_pd(struct ib_device *ib_dev,
+				struct ib_ucontext *context,
+				struct ib_udata *udata);
+int hns_roce_pd_alloc(struct hns_roce_dev *hr_dev, unsigned long *pdn);
+void hns_roce_pd_free(struct hns_roce_dev *hr_dev, unsigned long pdn);
+int hns_roce_dealloc_pd(struct ib_pd *pd);
 
 void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn);
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type);
