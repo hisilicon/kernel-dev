@@ -606,6 +606,9 @@ int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		(1ULL << IB_USER_VERBS_CMD_QUERY_PORT) |
 		(1ULL << IB_USER_VERBS_CMD_ALLOC_PD) |
 		(1ULL << IB_USER_VERBS_CMD_DEALLOC_PD) |
+		(1ULL << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL) |
+		(1ULL << IB_USER_VERBS_CMD_CREATE_CQ) |
+		(1ULL << IB_USER_VERBS_CMD_DESTROY_CQ) |
 		(1ULL << IB_USER_VERBS_CMD_CREATE_QP) |
 		(1ULL << IB_USER_VERBS_CMD_MODIFY_QP) |
 		(1ULL << IB_USER_VERBS_CMD_QUERY_QP) |
@@ -639,6 +642,12 @@ int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->destroy_qp		= hr_dev->hw->destroy_qp;
 	ib_dev->post_send		= hr_dev->hw->post_send;
 	ib_dev->post_recv		= hr_dev->hw->post_recv;
+
+	/* CQ */
+	ib_dev->create_cq		= hns_roce_ib_create_cq;
+	ib_dev->destroy_cq		= hns_roce_ib_destroy_cq;
+	ib_dev->req_notify_cq		= hr_dev->hw->req_notify_cq;
+	ib_dev->poll_cq			= hr_dev->hw->poll_cq;
 
 	ret = ib_register_device(ib_dev, NULL);
 	if (ret) {
