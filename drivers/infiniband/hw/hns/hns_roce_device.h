@@ -111,6 +111,26 @@ enum {
 	HNS_ROCE_CMD_SUCCESS			= 1,
 };
 
+struct hns_roce_icm_table {
+	/* ICM type: 0 = qpc 1 = mtt 2 = cqc 3 = srq 4 = other */
+	u32		type;
+	/* ICM array elment num */
+	unsigned long	num_icm;
+	/* ICM entry record obj total num */
+	unsigned long	num_obj;
+	/*Single obj size */
+	unsigned long	obj_size;
+	int		lowmem;
+	int		coherent;
+	struct mutex	mutex;
+	struct hns_roce_icm **icm;
+};
+
+struct hns_roce_mr_table {
+	struct hns_roce_icm_table	mtt_table;
+	struct hns_roce_icm_table	mtpt_table;
+};
+
 struct hns_roce_buf_list {
 	void		*buf;
 	dma_addr_t	map;
@@ -126,11 +146,14 @@ struct hns_roce_cq {
 
 struct hns_roce_qp_table {
 	spinlock_t			lock;
+	struct hns_roce_icm_table	qp_table;
+	struct hns_roce_icm_table	irrl_table;
 };
 
 struct hns_roce_cq_table {
 	spinlock_t			lock;
 	struct radix_tree_root		tree;
+	struct hns_roce_icm_table	table;
 };
 
 struct hns_roce_cmd_context {
@@ -259,6 +282,7 @@ struct hns_roce_dev {
 	struct ib_device	ib_dev;
 	struct platform_device  *pdev;
 	const char		*irq_names;
+	spinlock_t		bt_cmd_lock;
 	struct hns_roce_ib_iboe iboe;
 
 	int			irq[HNS_ROCE_MAX_IRQ_NUM];
@@ -273,6 +297,7 @@ struct hns_roce_dev {
 	u32                     hw_rev;
 
 	struct hns_roce_cmdq	cmd;
+	struct hns_roce_mr_table  mr_table;
 	struct hns_roce_cq_table  cq_table;
 	struct hns_roce_qp_table  qp_table;
 	struct hns_roce_eq_table  eq_table;
@@ -281,6 +306,11 @@ struct hns_roce_dev {
 	int			loop_idc;
 	struct hns_roce_hw	*hw;
 };
+
+static inline void hns_roce_write64_k(__be32 val[2], void __iomem *dest)
+{
+	__raw_writeq(*(u64 *) val, dest);
+}
 
 static inline struct hns_roce_qp
 	*__hns_roce_qp_lookup(struct hns_roce_dev *hr_dev, u32 qpn)
