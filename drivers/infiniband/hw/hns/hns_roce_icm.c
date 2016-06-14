@@ -361,6 +361,94 @@ int hns_roce_unmap_icm(struct hns_roce_dev *hr_dev,
 	return ret;
 }
 
+int hns_roce_table_get(struct hns_roce_dev *hr_dev,
+		       struct hns_roce_icm_table *table, unsigned long obj)
+{
+	struct device *dev = &hr_dev->pdev->dev;
+	int ret = 0;
+	unsigned long i;
+
+	i = (obj & (table->num_obj - 1)) / (HNS_ROCE_TABLE_CHUNK_SIZE /
+	     table->obj_size);
+
+	mutex_lock(&table->mutex);
+
+	if (table->icm[i]) {
+		++table->icm[i]->refcount;
+		goto out;
+	}
+
+	table->icm[i] = hns_roce_alloc_icm(hr_dev,
+				  HNS_ROCE_TABLE_CHUNK_SIZE >> PAGE_SHIFT,
+				  (table->lowmem ? GFP_KERNEL :
+						   GFP_HIGHUSER) | __GFP_NOWARN,
+				  table->coherent);
+	if (!table->icm[i]) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* Inform icm entry mem pa(128K/page, pa starting address)for hw */
+	if (hns_roce_map_icm(hr_dev, table, obj)) {
+		ret = -ENODEV;
+		dev_err(dev, "map icm table failed.\n");
+		goto out;
+	}
+
+	++table->icm[i]->refcount;
+out:
+	mutex_unlock(&table->mutex);
+	return ret;
+}
+
+void hns_roce_table_put(struct hns_roce_dev *hr_dev,
+			struct hns_roce_icm_table *table, unsigned long obj)
+{
+	struct device *dev = &hr_dev->pdev->dev;
+	unsigned long i;
+
+	i = (obj & (table->num_obj - 1)) /
+	    (HNS_ROCE_TABLE_CHUNK_SIZE / table->obj_size);
+
+	mutex_lock(&table->mutex);
+
+	if (--table->icm[i]->refcount == 0) {
+		/* Clear base address table */
+		if (hns_roce_unmap_icm(hr_dev, table, obj))
+			dev_warn(dev, "unmap icm table failed.\n");
+
+		hns_roce_free_icm(hr_dev, table->icm[i], table->coherent);
+		table->icm[i] = NULL;
+	}
+
+	mutex_unlock(&table->mutex);
+}
+
+int hns_roce_table_get_range(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_icm_table *table,
+			     unsigned long start, unsigned long end)
+{
+	unsigned long inc = HNS_ROCE_TABLE_CHUNK_SIZE / table->obj_size;
+	unsigned long i = 0;
+	int ret = 0;
+
+	/* Allocate MTT entry memory according to chunk(128K) */
+	for (i = start; i <= end; i += inc) {
+		ret = hns_roce_table_get(hr_dev, table, i);
+		if (ret)
+			goto fail;
+	}
+
+	return 0;
+
+fail:
+	while (i > start) {
+		i -= inc;
+		hns_roce_table_put(hr_dev, table, i);
+	}
+	return ret;
+}
+
 int hns_roce_init_icm_table(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_icm_table *table, u32 type,
 			    unsigned long obj_size, unsigned long nobj,

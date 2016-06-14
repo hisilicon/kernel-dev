@@ -74,6 +74,13 @@ struct hns_roce_icm_iter {
 
 void hns_roce_free_icm(struct hns_roce_dev *hr_dev,
 		       struct hns_roce_icm *icm, int coherent);
+int hns_roce_table_get(struct hns_roce_dev *hr_dev,
+		       struct hns_roce_icm_table *table, unsigned long obj);
+void hns_roce_table_put(struct hns_roce_dev *hr_dev,
+			struct hns_roce_icm_table *table, unsigned long obj);
+int hns_roce_table_get_range(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_icm_table *table,
+			     unsigned long start, unsigned long end);
 int hns_roce_init_icm_table(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_icm_table *table, u32 type,
 			    unsigned long obj_size, unsigned long nobj,
