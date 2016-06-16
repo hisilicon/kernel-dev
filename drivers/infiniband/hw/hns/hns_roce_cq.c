@@ -437,16 +437,13 @@ void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type)
 int hns_roce_init_cq_table(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_cq_table *cq_table = &hr_dev->cq_table;
-	int ret;
 
 	spin_lock_init(&cq_table->lock);
 	INIT_RADIX_TREE(&cq_table->tree, GFP_ATOMIC);
 
-	ret = hns_roce_bitmap_init(&cq_table->bitmap, hr_dev->caps.num_cqs,
-				   hr_dev->caps.num_cqs - 1,
-				   hr_dev->caps.reserved_cqs, 0);
-
-	return ret;
+	return hns_roce_bitmap_init(&cq_table->bitmap, hr_dev->caps.num_cqs,
+				    hr_dev->caps.num_cqs - 1,
+				    hr_dev->caps.reserved_cqs, 0);
 }
 
 void hns_roce_cleanup_cq_table(struct hns_roce_dev *hr_dev)
