@@ -721,6 +721,7 @@ err_create_eq_fail:
 
 		hns_roce_free_eq(hr_dev, &eq_table->eq[i]);
 	}
+	kfree(eq_table->eqc_base);
 
 err_eqc_base_alloc_fail:
 	kfree(eq_table->eq);
