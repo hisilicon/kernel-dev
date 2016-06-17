@@ -400,8 +400,8 @@ out:
 	return ret;
 }
 
-void hns_roce_set_db_event_mode(struct hns_roce_dev *hr_dev, int sdb_mode,
-				int odb_mode)
+static void hns_roce_set_db_event_mode(struct hns_roce_dev *hr_dev,
+				       int sdb_mode, int odb_mode)
 {
 	u32 val;
 
@@ -411,8 +411,8 @@ void hns_roce_set_db_event_mode(struct hns_roce_dev *hr_dev, int sdb_mode,
 	roce_write(hr_dev, ROCEE_GLB_CFG_REG, val);
 }
 
-void hns_roce_set_db_ext_mode(struct hns_roce_dev *hr_dev,
-			      u32 sdb_mode, u32 odb_mode)
+static void hns_roce_set_db_ext_mode(struct hns_roce_dev *hr_dev, u32 sdb_mode,
+				     u32 odb_mode)
 {
 	u32 val;
 
@@ -423,7 +423,8 @@ void hns_roce_set_db_ext_mode(struct hns_roce_dev *hr_dev,
 	roce_write(hr_dev, ROCEE_GLB_CFG_REG, val);
 }
 
-void hns_roce_set_sdb(struct hns_roce_dev *hr_dev, u32 sdb_alept, u32 sdb_alful)
+static void hns_roce_set_sdb(struct hns_roce_dev *hr_dev, u32 sdb_alept,
+			     u32 sdb_alful)
 {
 	u32 val;
 
@@ -436,7 +437,8 @@ void hns_roce_set_sdb(struct hns_roce_dev *hr_dev, u32 sdb_alept, u32 sdb_alful)
 	roce_write(hr_dev, ROCEE_DB_SQ_WL_REG, val);
 }
 
-void hns_roce_set_odb(struct hns_roce_dev *hr_dev, u32 odb_alept, u32 odb_alful)
+static void hns_roce_set_odb(struct hns_roce_dev *hr_dev, u32 odb_alept,
+			     u32 odb_alful)
 {
 	u32 val;
 
@@ -449,8 +451,8 @@ void hns_roce_set_odb(struct hns_roce_dev *hr_dev, u32 odb_alept, u32 odb_alful)
 	roce_write(hr_dev, ROCEE_DB_OTHERS_WL_REG, val);
 }
 
-void hns_roce_set_sdb_ext(struct hns_roce_dev *hr_dev, u32 ext_sdb_alept,
-			  u32 ext_sdb_alful)
+static void hns_roce_set_sdb_ext(struct hns_roce_dev *hr_dev, u32 ext_sdb_alept,
+				 u32 ext_sdb_alful)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	struct hns_roce_v1_priv *priv;
@@ -488,8 +490,8 @@ void hns_roce_set_sdb_ext(struct hns_roce_dev *hr_dev, u32 ext_sdb_alept,
 		ext_sdb_alept, ext_sdb_alful);
 }
 
-void hns_roce_set_odb_ext(struct hns_roce_dev *hr_dev, u32 ext_odb_alept,
-			  u32 ext_odb_alful)
+static void hns_roce_set_odb_ext(struct hns_roce_dev *hr_dev, u32 ext_odb_alept,
+				 u32 ext_odb_alful)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	struct hns_roce_v1_priv *priv;
@@ -523,8 +525,8 @@ void hns_roce_set_odb_ext(struct hns_roce_dev *hr_dev, u32 ext_odb_alept,
 		ext_odb_alept, ext_odb_alful);
 }
 
-int hns_roce_db_ext_init(struct hns_roce_dev *hr_dev, u32 sdb_ext_mod,
-			 u32 odb_ext_mod)
+static int hns_roce_db_ext_init(struct hns_roce_dev *hr_dev, u32 sdb_ext_mod,
+				u32 odb_ext_mod)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	struct hns_roce_v1_priv *priv;
@@ -611,7 +613,7 @@ ext_sdb_buf_fail_out:
 	return ret;
 }
 
-int hns_roce_db_init(struct hns_roce_dev *hr_dev)
+static int hns_roce_db_init(struct hns_roce_dev *hr_dev)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	struct hns_roce_v1_priv *priv;
@@ -648,7 +650,7 @@ int hns_roce_db_init(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
-void hns_roce_db_free(struct hns_roce_dev *hr_dev)
+static void hns_roce_db_free(struct hns_roce_dev *hr_dev)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	struct hns_roce_v1_priv *priv;
@@ -674,7 +676,7 @@ void hns_roce_db_free(struct hns_roce_dev *hr_dev)
 	kfree(db->ext_db);
 }
 
-int hns_roce_raq_init(struct hns_roce_dev *hr_dev)
+static int hns_roce_raq_init(struct hns_roce_dev *hr_dev)
 {
 	int ret;
 	int raq_shift = 0;
@@ -755,7 +757,7 @@ err_dma_alloc_raq:
 	return ret;
 }
 
-void hns_roce_raq_free(struct hns_roce_dev *hr_dev)
+static void hns_roce_raq_free(struct hns_roce_dev *hr_dev)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	struct hns_roce_v1_priv *priv;
@@ -769,7 +771,7 @@ void hns_roce_raq_free(struct hns_roce_dev *hr_dev)
 	kfree(raq->e_raq_buf);
 }
 
-void hns_roce_port_enable(struct hns_roce_dev *hr_dev, int enable_flag)
+static void hns_roce_port_enable(struct hns_roce_dev *hr_dev, int enable_flag)
 {
 	u32 val;
 

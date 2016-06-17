@@ -599,7 +599,7 @@ static void hns_roce_free_eq(struct hns_roce_dev *hr_dev,
 	kfree(eq->buf_list);
 }
 
-void hns_roce_int_mask_en(struct hns_roce_dev *hr_dev)
+static void hns_roce_int_mask_en(struct hns_roce_dev *hr_dev)
 {
 	int i = 0;
 	u32 aemask_val;
@@ -620,7 +620,7 @@ void hns_roce_int_mask_en(struct hns_roce_dev *hr_dev)
 	}
 }
 
-void hns_roce_ce_int_default_cfg(struct hns_roce_dev *hr_dev)
+static void hns_roce_ce_int_default_cfg(struct hns_roce_dev *hr_dev)
 {
 	/* Configure ce int interval */
 	roce_write(hr_dev, ROCEE_CAEP_CE_INTERVAL_CFG_REG,

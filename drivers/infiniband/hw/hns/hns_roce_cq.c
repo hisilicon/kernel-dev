@@ -178,7 +178,8 @@ static int hns_roce_hw2sw_cq(struct hns_roce_dev *dev,
 				 HNS_ROCE_CMD_TIME_CLASS_A);
 }
 
-void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
+static void hns_roce_free_cq(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_cq *hr_cq)
 {
 	struct hns_roce_cq_table *cq_table = &hr_dev->cq_table;
 	struct device *dev = &hr_dev->pdev->dev;

@@ -232,8 +232,9 @@ void hns_roce_mtt_cleanup(struct hns_roce_dev *hr_dev, struct hns_roce_mtt *mtt)
 				 mtt->first_seg + (1 << mtt->order) - 1);
 }
 
-int hns_roce_mr_alloc(struct hns_roce_dev *hr_dev, u32 pd, u64 iova, u64 size,
-		      u32 access, int npages, struct hns_roce_mr *mr)
+static int hns_roce_mr_alloc(struct hns_roce_dev *hr_dev, u32 pd, u64 iova,
+			     u64 size, u32 access, int npages,
+			     struct hns_roce_mr *mr)
 {
 	unsigned long index = 0;
 	int ret = 0;
@@ -267,7 +268,8 @@ int hns_roce_mr_alloc(struct hns_roce_dev *hr_dev, u32 pd, u64 iova, u64 size,
 	return 0;
 }
 
-void hns_roce_mr_free(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
+static void hns_roce_mr_free(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_mr *mr)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	int ret;
@@ -283,7 +285,8 @@ void hns_roce_mr_free(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
 			     key_to_hw_index(mr->key));
 }
 
-int hns_roce_mr_enable(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr)
+static int hns_roce_mr_enable(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_mr *mr)
 {
 	int ret;
 	unsigned long mtpt_idx = key_to_hw_index(mr->key);
@@ -359,8 +362,9 @@ static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
-int hns_roce_write_mtt(struct hns_roce_dev *hr_dev, struct hns_roce_mtt *mtt,
-		       u32 start_index, u32 npages, u64 *page_list)
+static int hns_roce_write_mtt(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_mtt *mtt, u32 start_index,
+			      u32 npages, u64 *page_list)
 {
 	int chunk;
 	int ret;

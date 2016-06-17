@@ -112,8 +112,8 @@ static void hns_roce_ib_qp_event(struct hns_roce_qp *hr_qp,
 	}
 }
 
-int hns_roce_reserve_range_qp(struct hns_roce_dev *hr_dev, int cnt, int align,
-			      unsigned long *base)
+static int hns_roce_reserve_range_qp(struct hns_roce_dev *hr_dev, int cnt,
+				     int align, unsigned long *base)
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
 	int ret = 0;
@@ -148,8 +148,8 @@ enum hns_roce_qp_state to_hns_roce_state(enum ib_qp_state state)
 	}
 }
 
-int hns_roce_gsi_qp_alloc(struct hns_roce_dev *hr_dev, unsigned long qpn,
-			  struct hns_roce_qp *hr_qp)
+static int hns_roce_gsi_qp_alloc(struct hns_roce_dev *hr_dev, unsigned long qpn,
+				 struct hns_roce_qp *hr_qp)
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
 	int ret;
@@ -178,8 +178,8 @@ err_put_irrl:
 	return ret;
 }
 
-int hns_roce_qp_alloc(struct hns_roce_dev *hr_dev, unsigned long qpn,
-		      struct hns_roce_qp *hr_qp)
+static int hns_roce_qp_alloc(struct hns_roce_dev *hr_dev, unsigned long qpn,
+			     struct hns_roce_qp *hr_qp)
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
 	struct device *dev = &hr_dev->pdev->dev;
@@ -264,8 +264,9 @@ void hns_roce_release_range_qp(struct hns_roce_dev *hr_dev, int base_qpn,
 	hns_roce_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt);
 }
 
-int hns_roce_set_rq_size(struct hns_roce_dev *hr_dev, struct ib_qp_cap *cap,
-			 int is_user, int has_srq, struct hns_roce_qp *hr_qp)
+static int hns_roce_set_rq_size(struct hns_roce_dev *hr_dev,
+				struct ib_qp_cap *cap, int is_user, int has_srq,
+				struct hns_roce_qp *hr_qp)
 {
 	u32 max_cnt;
 	struct device *dev = &hr_dev->pdev->dev;
@@ -314,9 +315,9 @@ int hns_roce_set_rq_size(struct hns_roce_dev *hr_dev, struct ib_qp_cap *cap,
 	return 0;
 }
 
-int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
-			      struct hns_roce_qp *hr_qp,
-			      struct hns_roce_ib_create_qp *ucmd)
+static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
+				     struct hns_roce_qp *hr_qp,
+				     struct hns_roce_ib_create_qp *ucmd)
 {
 	u32 roundup_sq_stride = roundup_pow_of_two(hr_dev->caps.max_sq_desc_sz);
 	u8 max_sq_stride = ilog2(roundup_sq_stride);
@@ -345,9 +346,10 @@ int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
-int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
-				struct ib_qp_cap *cap, enum ib_qp_type type,
-				struct hns_roce_qp *hr_qp)
+static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
+				       struct ib_qp_cap *cap,
+				       enum ib_qp_type type,
+				       struct hns_roce_qp *hr_qp)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	u32 max_cnt;

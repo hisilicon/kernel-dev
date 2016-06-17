@@ -207,8 +207,8 @@ void hns_roce_free_icm(struct hns_roce_dev *hr_dev, struct hns_roce_icm *icm,
 	kfree(icm);
 }
 
-int hns_roce_map_icm(struct hns_roce_dev *hr_dev,
-		     struct hns_roce_icm_table *table, unsigned long obj)
+static int hns_roce_map_icm(struct hns_roce_dev *hr_dev,
+			    struct hns_roce_icm_table *table, unsigned long obj)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	spinlock_t *lock = &hr_dev->bt_cmd_lock;
@@ -292,8 +292,9 @@ int hns_roce_map_icm(struct hns_roce_dev *hr_dev,
 	return ret;
 }
 
-int hns_roce_unmap_icm(struct hns_roce_dev *hr_dev,
-		       struct hns_roce_icm_table *table, unsigned long obj)
+static int hns_roce_unmap_icm(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_icm_table *table,
+			      unsigned long obj)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	unsigned long end = 0;

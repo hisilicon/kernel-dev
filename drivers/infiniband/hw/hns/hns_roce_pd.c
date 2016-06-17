@@ -40,7 +40,7 @@
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
 
-int hns_roce_pd_alloc(struct hns_roce_dev *hr_dev, unsigned long *pdn)
+static int hns_roce_pd_alloc(struct hns_roce_dev *hr_dev, unsigned long *pdn)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	unsigned long pd_number;
@@ -57,7 +57,7 @@ int hns_roce_pd_alloc(struct hns_roce_dev *hr_dev, unsigned long *pdn)
 	return 0;
 }
 
-void hns_roce_pd_free(struct hns_roce_dev *hr_dev, unsigned long pdn)
+static void hns_roce_pd_free(struct hns_roce_dev *hr_dev, unsigned long pdn)
 {
 	hns_roce_bitmap_free(&hr_dev->pd_bitmap, pdn);
 }

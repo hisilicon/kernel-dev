@@ -94,7 +94,7 @@ static void hns_roce_addrconf_ifid_eui48(u8 *eui, u16 vlan_id,
 	eui[0] ^= 2;
 }
 
-void hns_roce_make_default_gid(struct net_device *dev, union ib_gid *gid)
+static void hns_roce_make_default_gid(struct net_device *dev, union ib_gid *gid)
 {
 	memset(gid, 0, sizeof(*gid));
 	gid->raw[0] = 0xFE;
@@ -118,7 +118,7 @@ int hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index)
 	return gid_index * hr_dev->caps.num_ports + port;
 }
 
-int hns_roce_set_gid(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
+static int hns_roce_set_gid(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
 		     union ib_gid *gid)
 {
 	struct device *dev = &hr_dev->pdev->dev;
@@ -142,7 +142,7 @@ int hns_roce_set_gid(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
 	return 0;
 }
 
-void hns_roce_set_mac(struct hns_roce_dev *hr_dev, u8 port, u8 *addr)
+static void hns_roce_set_mac(struct hns_roce_dev *hr_dev, u8 port, u8 *addr)
 {
 	u8 phy_port;
 	u32 i = 0;
@@ -157,7 +157,7 @@ void hns_roce_set_mac(struct hns_roce_dev *hr_dev, u8 port, u8 *addr)
 	hr_dev->hw->set_mac(hr_dev, phy_port, addr);
 }
 
-void hns_roce_set_mtu(struct hns_roce_dev *hr_dev, u8 port, int mtu)
+static void hns_roce_set_mtu(struct hns_roce_dev *hr_dev, u8 port, int mtu)
 {
 	u8 phy_port = hr_dev->iboe.phy_port[port];
 	enum ib_mtu tmp;
@@ -169,7 +169,7 @@ void hns_roce_set_mtu(struct hns_roce_dev *hr_dev, u8 port, int mtu)
 	hr_dev->hw->set_mtu(hr_dev, phy_port, tmp);
 }
 
-void hns_roce_update_gids(struct hns_roce_dev *hr_dev, int port)
+static void hns_roce_update_gids(struct hns_roce_dev *hr_dev, int port)
 {
 	struct ib_event event;
 
@@ -326,7 +326,7 @@ static int hns_roce_inet_event(struct notifier_block *self, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-int hns_roce_setup_mtu_gids(struct hns_roce_dev  *hr_dev)
+static int hns_roce_setup_mtu_gids(struct hns_roce_dev *hr_dev)
 {
 	struct in_ifaddr *ifa_list = NULL;
 	union ib_gid gid = {{0} };
@@ -599,7 +599,7 @@ static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
 	ib_unregister_device(&hr_dev->ib_dev);
 }
 
-int hns_roce_register_device(struct hns_roce_dev *hr_dev)
+static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 {
 	int ret;
 	struct hns_roce_ib_iboe *iboe = NULL;
@@ -717,7 +717,7 @@ error_failed_setup_mtu_gids:
 	return ret;
 }
 
-int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
+static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 {
 	int i;
 	u8 phy_port;
@@ -777,17 +777,17 @@ int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
-int hns_roce_engine_reset(struct hns_roce_dev *hr_dev, bool enable)
+static int hns_roce_engine_reset(struct hns_roce_dev *hr_dev, bool enable)
 {
 	return hr_dev->hw->reset(hr_dev, enable);
 }
 
-void hns_roce_profile_init(struct hns_roce_dev *hr_dev)
+static void hns_roce_profile_init(struct hns_roce_dev *hr_dev)
 {
 	hr_dev->hw->hw_profile(hr_dev);
 }
 
-int hns_roce_init_icm(struct hns_roce_dev *hr_dev)
+static int hns_roce_init_icm(struct hns_roce_dev *hr_dev)
 {
 	int ret;
 	struct device *dev = &hr_dev->pdev->dev;
@@ -858,12 +858,12 @@ err_unmap_mtt:
 	return ret;
 }
 
-int hns_roce_engine_init(struct hns_roce_dev  *hr_dev)
+static int hns_roce_engine_init(struct hns_roce_dev *hr_dev)
 {
 	return hr_dev->hw->hw_init(hr_dev);
 }
 
-void hns_roce_engine_exit(struct hns_roce_dev *hr_dev)
+static void hns_roce_engine_exit(struct hns_roce_dev *hr_dev)
 {
 	hr_dev->hw->hw_exit(hr_dev);
 }
@@ -873,7 +873,7 @@ void hns_roce_engine_exit(struct hns_roce_dev *hr_dev)
 * @hr_dev: pointer to hns roce device
 * Return : int
 */
-int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
+static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 {
 	int ret;
 	struct device *dev = &hr_dev->pdev->dev;

@@ -692,8 +692,6 @@ int hns_roce_destroy_ah(struct ib_ah *ah);
 struct ib_pd *hns_roce_alloc_pd(struct ib_device *ib_dev,
 				struct ib_ucontext *context,
 				struct ib_udata *udata);
-int hns_roce_pd_alloc(struct hns_roce_dev *hr_dev, unsigned long *pdn);
-void hns_roce_pd_free(struct hns_roce_dev *hr_dev, unsigned long pdn);
 int hns_roce_dealloc_pd(struct ib_pd *pd);
 
 struct ib_mr *hns_roce_get_dma_mr(struct ib_pd *pd, int acc);
