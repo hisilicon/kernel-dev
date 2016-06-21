@@ -411,6 +411,55 @@ static void hisi_free_l3c_data(struct hisi_hwmod_unit *punit)
 	kfree(punit->hwmod_data);
 }
 
+static struct attribute *hisi_l3c_format_attr[] = {
+	HISI_PMU_FORMAT_ATTR(event, "config:0-11"),
+	HISI_PMU_FORMAT_ATTR(bank, "config:12-15"),
+	HISI_PMU_FORMAT_ATTR(cpu_cluster, "config:16-19"),
+	HISI_PMU_FORMAT_ATTR(cpu_die, "config:20-23"),
+	NULL,
+};
+
+static struct attribute_group hisi_l3c_format_group = {
+	.name = "format",
+	.attrs = hisi_l3c_format_attr,
+};
+
+static struct attribute *hisi_l3c_events_attr[] = {
+	HISI_PMU_EVENT_ATTR_STR(read_allocate,
+			"event=0x301,bank=?,cpu_die=?"),
+	HISI_PMU_EVENT_ATTR_STR(write_allocate,
+			"event=0x302,bank=?,cpu_die=?"),
+	HISI_PMU_EVENT_ATTR_STR(read_noallocate,
+			"event=0x303,bank=?,cpu_die=?"),
+	HISI_PMU_EVENT_ATTR_STR(write_noallocate,
+			"event=0x304,bank=?,cpu_die=?"),
+	HISI_PMU_EVENT_ATTR_STR(read_hit,
+			"event=0x305,bank=?,cpu_die=?"),
+	HISI_PMU_EVENT_ATTR_STR(write_hit,
+			"event=0x306,bank=?,cpu_die=?"),
+	NULL,
+};
+
+static struct attribute_group hisi_l3c_events_group = {
+	.name = "events",
+	.attrs = hisi_l3c_events_attr,
+};
+
+static struct attribute *hisi_l3c_attrs[] = {
+	NULL,
+};
+
+struct attribute_group hisi_l3c_attr_group = {
+	.attrs = hisi_l3c_attrs,
+};
+
+static const struct attribute_group *hisi_l3c_pmu_attr_groups[] = {
+	&hisi_l3c_attr_group,
+	&hisi_l3c_format_group,
+	&hisi_l3c_events_group,
+	NULL
+};
+
 void hisi_l3c_pmu_init(struct platform_device *pdev,
 					struct hisi_pmu *pl3c_pmu)
 {
@@ -458,6 +507,7 @@ static int hisi_pmu_l3c_dev_probe(struct platform_device *pdev)
 				.start = hisi_uncore_pmu_start,
 				.stop = hisi_uncore_pmu_stop,
 				.read = hisi_uncore_pmu_read,
+				.attr_groups = hisi_l3c_pmu_attr_groups,
 		};
 
 		ret = hisi_uncore_pmu_setup(pl3c_pmu, pdev, "hip05_l3c");
