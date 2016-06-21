@@ -23,4 +23,12 @@ config ARM_PMU_ACPI
 	def_bool y
 	depends on ARM_PMU && ACPI
 
+config HISI_PMU
+	bool "HiSilicon SoC PMU"
+	depends on PERF_EVENTS && ARM64
+	help
+	  Enable hardware event counter support for hardware event counters
+	  in Hisilicon HiP05/06/07 SoC. The hardware modules like L3C and MN
+	  have hardware events and counters.
+
 endmenu
