@@ -12,4 +12,13 @@ config ARM_PMU
 	  Say y if you want to use CPU performance monitors on ARM-based
 	  systems.
 
+config HISI_PERFCTR
+	bool "Enable hardware event counter support for HiSilicon SoC"
+	depends on HW_PERF_EVENTS && ARM64
+	select HISI_DJTAG
+	default y
+	help
+	  Enable hardware event counter support for hardware event counters
+	  in Hisilicon hip05/06/07 SoC. The hardware modules like L3C, MN1 and
+	  DDRC have hardware events and counters.
 endmenu
