@@ -533,7 +533,7 @@ static struct ib_ucontext *hns_roce_alloc_ucontext(struct ib_device *ib_dev,
 	return &context->ibucontext;
 
 error_fail_copy_to_udata:
-hns_roce_uar_free(hr_dev, &context->uar);
+	hns_roce_uar_free(hr_dev, &context->uar);
 
 error_fail_uar_alloc:
 	kfree(context);
@@ -770,8 +770,9 @@ static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 			return -EINVAL;
 		}
 
-		of_property_read_string_index(np, "interrupt-names", i,
-					      &hr_dev->irq_names);
+		if (of_property_read_string_index(np, "interrupt-names", i,
+						  &hr_dev->irq_names))
+			return -EINVAL;
 	}
 
 	return 0;
