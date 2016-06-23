@@ -423,8 +423,6 @@ int hns_roce_buf_write_mtt(struct hns_roce_dev *hr_dev,
 int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_mr_table *mr_table = &hr_dev->mr_table;
-	struct device *dev = &hr_dev->pdev->dev;
-	unsigned long first_seg;
 	int ret = 0;
 
 	ret = hns_roce_bitmap_init(&mr_table->mtpt_bitmap,
@@ -439,21 +437,7 @@ int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev)
 	if (ret)
 		goto err_buddy;
 
-	if (hr_dev->caps.reserved_mtts) {
-		if (hns_roce_alloc_mtt_range(hr_dev,
-			fls(hr_dev->caps.reserved_mtts - 1),
-			&first_seg) == -1) {
-			dev_err(dev, "MTT table of order %d is too small.\n",
-				mr_table->mtt_buddy.max_order);
-			ret = -ENOMEM;
-			goto err_reserve_mtts;
-		}
-	}
-
 	return 0;
-
-err_reserve_mtts:
-	hns_roce_buddy_cleanup(&mr_table->mtt_buddy);
 
 err_buddy:
 	hns_roce_bitmap_cleanup(&mr_table->mtpt_bitmap);

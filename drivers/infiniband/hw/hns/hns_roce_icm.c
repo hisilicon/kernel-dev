@@ -268,8 +268,7 @@ static int hns_roce_map_icm(struct hns_roce_dev *hr_dev,
 				if (!(time_before(jiffies, end))) {
 					dev_err(dev, "Write bt_cmd err,hw_sync is not zero.\n");
 					spin_unlock_irqrestore(lock, flags);
-					ret = -EBUSY;
-					return ret;
+					return -EBUSY;
 				}
 			} else {
 				break;

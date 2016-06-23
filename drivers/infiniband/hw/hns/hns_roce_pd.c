@@ -118,6 +118,7 @@ int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 {
 	struct resource *res;
 	int ret = 0;
+
 	/* Using bitmap to manager UAR index */
 	ret = hns_roce_bitmap_alloc(&hr_dev->uar_table.bitmap, &uar->index);
 	if (ret == -1)

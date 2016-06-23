@@ -867,7 +867,6 @@ void hns_roce_v1_profile(struct hns_roce_dev *hr_dev)
 	caps->reserved_lkey	= 0;
 	caps->reserved_pds	= 0;
 	caps->reserved_mrws	= 1;
-	caps->reserved_mtts	= 0;
 	caps->reserved_uars	= 0;
 	caps->reserved_cqs	= 0;
 

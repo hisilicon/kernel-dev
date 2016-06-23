@@ -490,7 +490,6 @@ struct hns_roce_caps {
 	int		num_other_vectors;
 	int		num_mtpts;
 	u32		num_mtt_segs;
-	int		reserved_mtts;
 	int		reserved_mrws;
 	int		reserved_uars;
 	int		num_pds;
