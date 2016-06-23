@@ -272,6 +272,7 @@ static void hns_roce_mr_free(struct hns_roce_dev *hr_dev,
 			     struct hns_roce_mr *mr)
 {
 	struct device *dev = &hr_dev->pdev->dev;
+	int npages = 0;
 	int ret;
 
 	if (mr->enabled) {
@@ -279,6 +280,12 @@ static void hns_roce_mr_free(struct hns_roce_dev *hr_dev,
 					 & (hr_dev->caps.num_mtpts - 1));
 		if (ret)
 			dev_warn(dev, "HW2SW_MPT failed (%d)\n", ret);
+	}
+
+	if (mr->size != ~0ULL) {
+		npages = ib_umem_page_count(mr->umem);
+		dma_free_coherent(dev, (unsigned int)(npages * 8), mr->pbl_buf,
+				  mr->pbl_dma_addr);
 	}
 
 	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap,
