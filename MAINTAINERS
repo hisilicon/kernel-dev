@@ -5413,6 +5413,15 @@ S:	Maintained
 F:	drivers/infiniband/hw/hns/
 F:	Documentation/devicetree/bindings/infiniband/hisilicon-hns-roce.txt
 
+HISILICON NETWORK SUBSYSTEM DRIVER
+M:	Yisen Zhuang <yisen.zhuang@huawei.com>
+M:	Salil Mehta <salil.mehta@huawei.com>
+L:	netdev@vger.kernel.org
+W:	http://www.hisilicon.com
+S:	Maintained
+F:	drivers/net/ethernet/hisilicon/*
+F:	Documentation/devicetree/bindings/net/hisilicon*.txt
+
 HISILICON SAS Controller
 M:	John Garry <john.garry@huawei.com>
 W:	http://www.hisilicon.com
