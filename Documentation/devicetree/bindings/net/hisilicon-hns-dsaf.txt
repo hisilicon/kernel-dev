@@ -45,6 +45,13 @@ Required properties:
   depends on the hardware user manual.
 - port-mode-offset: is offset of port mode field for each port in dsaf. Its
   value depends on the hardware user manual.
+- media-type: the media type of this port. The default value will be unknow. The
+  configuration depands on the board, and its configuration should be one of the
+  signature below:
+	"coper"
+	"fiber"
+	"backplane"
+	"unknown"
 
 [1] Documentation/devicetree/bindings/net/phy.txt
 
@@ -74,10 +81,12 @@ dsaf0: dsa@c7000000 {
 		reg = 0;
 		phy-handle = <&phy0>;
 		serdes-syscon = <&serdes>;
+		media-type = "coper";
 	};
 
 	port@1 {
                 reg = 1;
                 serdes-syscon = <&serdes>;
+		media-type = "fiber";
         };
 };
