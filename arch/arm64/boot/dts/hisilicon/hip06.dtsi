@@ -576,7 +576,7 @@
 		mdio {
 			compatible = "hisilicon,hns-mdio";
 			reg = <0x0 0x603c0000 0x0 0x1000>;
-			subctrl-vbase = <&peri_c_subctrl>;
+			subctrl-vbase = <&peri_c_subctrl 0x338 0xa38 0x531c 0x5a1c>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
