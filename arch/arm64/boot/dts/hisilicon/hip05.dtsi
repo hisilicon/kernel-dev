@@ -617,6 +617,7 @@
 				serdes-syscon = <&serdes_ctrl1>;
 				port-rst-offset = <0>;
 				port-mode-offset = <0>;
+				media-type = "fiber";
 			};
 
 			port@1 {
@@ -624,6 +625,7 @@
 				serdes-syscon = <&serdes_ctrl1>;
 				port-rst-offset = <1>;
 				port-mode-offset = <0>;
+				media-type = "fiber";
 			};
 
 			port@4 {
@@ -632,6 +634,7 @@
 				serdes-syscon = <&serdes_ctrl0>;
 				port-rst-offset = <4>;
 				port-mode-offset = <0>;
+				media-type = "copper";
 			};
 
 			port@5 {
@@ -640,6 +643,7 @@
 				serdes-syscon = <&serdes_ctrl0>;
 				port-rst-offset = <5>;
 				port-mode-offset = <0>;
+				media-type = "copper";
 			};
 		};
 

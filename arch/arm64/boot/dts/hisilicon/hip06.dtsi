@@ -698,6 +698,7 @@
 				cpld-ctrl-reg = <0>;
 				port-rst-offset = <0>;
 				port-mode-offset = <0>;
+				media-type = "fiber";
 			};
 
 			port@1 {
@@ -707,6 +708,7 @@
 				cpld-ctrl-reg = <0>;
 				port-rst-offset = <1>;
 				port-mode-offset = <1>;
+				media-type = "fiber";
 			};
 
 			port@4 {
@@ -717,6 +719,7 @@
 				cpld-ctrl-reg = <0>;
 				port-rst-offset = <4>;
 				port-mode-offset = <2>;
+				media-type = "copper";
 			};
 
 			port@5 {
@@ -727,6 +730,7 @@
 				cpld-ctrl-reg = <0>;
 				port-rst-offset = <5>;
 				port-mode-offset = <3>;
+				media-type = "copper";
 			};
 		};
 
