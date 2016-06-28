@@ -196,7 +196,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 		return NULL;
 	}
 
-	acpi_pci_root_ops.pci_ops = &ri->cfg->ops->pci_ops;
+	acpi_pci_root_ops.pci_ops = &ri->cfg->ops.pci_ops;
 	bus = acpi_pci_root_create(root, &acpi_pci_root_ops, &ri->common,
 				   ri->cfg);
 	if (!bus)
