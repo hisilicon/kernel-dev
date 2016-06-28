@@ -16,5 +16,9 @@
 #define __MCFG_QUIRKS_H__
 
 /* MCFG quirks initialize call list */
+#ifdef CONFIG_PCI_HOST_THUNDER_PEM
+struct pci_config_window *
+thunder_pem_cfg_init(struct acpi_pci_root *root, struct pci_ops *ops);
+#endif
 
 #endif /* __MCFG_QUIRKS_H__ */
