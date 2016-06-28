@@ -127,44 +127,6 @@ int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 	return 0;
 }
 
-/*
- * Lookup the bus range for the domain in MCFG, and set up config space
- * mapping.
- */
-static struct pci_config_window *
-pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root)
-{
-	struct resource *bus_res = &root->secondary;
-	u16 seg = root->segment;
-	struct pci_config_window *cfg;
-	struct resource cfgres;
-	unsigned int bsz;
-
-	/* Use address from _CBA if present, otherwise lookup MCFG */
-	if (!root->mcfg_addr)
-		root->mcfg_addr = pci_mcfg_lookup(seg, bus_res);
-
-	if (!root->mcfg_addr) {
-		dev_err(&root->device->dev, "%04x:%pR ECAM region not found\n",
-			seg, bus_res);
-		return NULL;
-	}
-
-	bsz = 1 << pci_generic_ecam_ops.bus_shift;
-	cfgres.start = root->mcfg_addr + bus_res->start * bsz;
-	cfgres.end = cfgres.start + resource_size(bus_res) * bsz - 1;
-	cfgres.flags = IORESOURCE_MEM;
-	cfg = pci_ecam_create(&root->device->dev, &cfgres, bus_res,
-			      &pci_generic_ecam_ops);
-	if (IS_ERR(cfg)) {
-		dev_err(&root->device->dev, "%04x:%pR error %ld mapping ECAM\n",
-			seg, bus_res, PTR_ERR(cfg));
-		return NULL;
-	}
-
-	return cfg;
-}
-
 /* release_info: free resources allocated by init_info */
 static void pci_acpi_generic_release_info(struct acpi_pci_root_info *ci)
 {
@@ -190,7 +152,8 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	if (!ri)
 		return NULL;
 
-	ri->cfg = pci_acpi_setup_ecam_mapping(root);
+	ri->cfg = pci_acpi_setup_ecam_mapping(root,
+					      &pci_generic_ecam_ops.pci_ops);
 	if (!ri->cfg) {
 		kfree(ri);
 		return NULL;
