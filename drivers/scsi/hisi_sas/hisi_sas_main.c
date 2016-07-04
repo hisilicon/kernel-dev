@@ -21,6 +21,8 @@ static int
 hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			     struct domain_device *device,
 			     int abort_flag, int tag);
+static int hisi_sas_softreset_ata_disk(struct domain_device *device);
+static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device);
 
 static struct hisi_hba *dev_to_hisi_hba(struct domain_device *device)
 {
@@ -715,7 +717,12 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		task->dev = device;
 		task->task_proto = device->tproto;
 
-		memcpy(&task->ssp_task, parameter, para_len);
+		if (dev_is_sata(device)) {
+			task->ata_task.device_control_reg_update = 1;
+			memcpy(&task->ata_task.fis, parameter, para_len);
+		} else {
+			memcpy(&task->ssp_task, parameter, para_len);
+		}
 		task->task_done = hisi_sas_task_done;
 
 		task->slow_task->timer.data = (unsigned long) task;
@@ -797,6 +804,55 @@ ex_err:
 	return res;
 }
 
+static void hisi_sas_fill_ata_reset_cmd(struct ata_device *dev,
+		bool reset, int pmp, u8 *fis)
+{
+	struct ata_taskfile tf;
+
+	ata_tf_init(dev, &tf);
+	if (reset)
+		tf.ctl |= ATA_SRST;
+	else
+		tf.ctl &= ~ATA_SRST;
+	ata_tf_to_fis(&tf, pmp, 0, fis);
+}
+
+static int hisi_sas_softreset_ata_disk(struct domain_device *device)
+{
+	u8 fis[20] = {0};
+	struct ata_port *ap = device->sata_dev.ap;
+	struct ata_link *link;
+	int rc = TMF_RESP_FUNC_FAILED;
+	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
+	struct device *dev = &hisi_hba->pdev->dev;
+
+	ata_for_each_link(link, ap, EDGE) {
+		int pmp = sata_srst_pmp(link);
+
+		hisi_sas_fill_ata_reset_cmd(link->device, 1, pmp, fis);
+		rc = hisi_sas_exec_internal_tmf_task(device,
+			fis, sizeof(struct host_to_dev_fis), NULL);
+		if (rc != TMF_RESP_FUNC_COMPLETE)
+			break;
+	}
+
+	if (rc == TMF_RESP_FUNC_COMPLETE) {
+		ata_for_each_link(link, ap, EDGE) {
+			int pmp = sata_srst_pmp(link);
+
+			hisi_sas_fill_ata_reset_cmd(link->device, 0, pmp, fis);
+			rc = hisi_sas_exec_internal_tmf_task(device,
+				fis, sizeof(struct host_to_dev_fis), NULL);
+			if (rc != TMF_RESP_FUNC_COMPLETE)
+				dev_err(dev, "ata disk de-reset failed\n");
+		}
+	} else {
+		dev_err(dev, "ata disk reset failed\n");
+	}
+
+	return rc;
+}
+
 static int hisi_sas_debug_issue_ssp_tmf(struct domain_device *device,
 				u8 *lun, struct hisi_sas_tmf_task *tmf)
 {
@@ -865,8 +921,11 @@ static int hisi_sas_abort_task(struct sas_task *task)
 	} else if (task->task_proto & SAS_PROTOCOL_SATA ||
 		task->task_proto & SAS_PROTOCOL_STP) {
 		if (task->dev->dev_type == SAS_SATA_DEV) {
-			/* Fixme, add ATA soft reset */
 			hisi_sas_internal_task_abort(hisi_hba, device, 1, 0);
+			rc = hisi_sas_softreset_ata_disk(device);
+			/* Softreset failed, linkrset*/
+			if (rc != TMF_RESP_FUNC_COMPLETE)
+				hisi_sas_debug_I_T_nexus_reset(device);
 		}
 		rc = TMF_RESP_FUNC_COMPLETE; /* Always flag as complete */
 	} else if (task->task_proto & SAS_PROTOCOL_SMP) {
