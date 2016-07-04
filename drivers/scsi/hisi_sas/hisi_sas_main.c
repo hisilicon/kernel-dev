@@ -563,6 +563,42 @@ static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
 	return sas_dev;
 }
 
+#define HISI_SAS_SRST_ATA_DISK_CNT 3
+static int hisi_sas_init_disk(struct domain_device *device)
+{
+	int rc = TMF_RESP_FUNC_FAILED;
+	struct scsi_lun lun;
+	struct hisi_sas_tmf_task tmf_task;
+	int retry = HISI_SAS_SRST_ATA_DISK_CNT;
+
+	switch (device->dev_type) {
+	case SAS_END_DEVICE:
+		int_to_scsilun(0, &lun);
+
+		tmf_task.tmf = TMF_CLEAR_TASK_SET;
+		rc = hisi_sas_debug_issue_ssp_tmf(device, lun.scsi_lun,
+			&tmf_task);
+		break;
+	case SAS_SATA_DEV:
+	case SAS_SATA_PM:
+	case SAS_SATA_PM_PORT:
+	case SAS_SATA_PENDING:
+		while (retry > 0) {
+			rc = hisi_sas_softreset_ata_disk(device);
+			if (!rc)
+				break;
+				retry--;
+			}
+		break;
+	case SAS_EDGE_EXPANDER_DEVICE:
+	case SAS_FANOUT_EXPANDER_DEVICE:
+	default:
+		break;
+	}
+
+	return rc;
+}
+
 static int hisi_sas_dev_found(struct domain_device *device)
 {
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
@@ -609,6 +645,7 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	dev_info(dev, "dev[%d:%x] found\n",
 		sas_dev->device_id, sas_dev->dev_type);
 
+	hisi_sas_init_disk(device);
 	return 0;
 }
 
