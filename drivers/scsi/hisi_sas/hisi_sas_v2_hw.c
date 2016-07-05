@@ -1468,11 +1468,6 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 			ts->stat = SAS_DEV_NO_RESPONSE;
 			break;
 		}
-		case TRANS_RX_ERR_WITH_CLOSE_PHY_DISABLE:
-		{
-			ts->stat = SAS_PHY_DOWN;
-			break;
-		}
 		case TRANS_TX_OPEN_CNX_ERR_OPEN_TIMEOUT:
 		{
 			ts->stat = SAS_OPEN_TO;
@@ -1492,6 +1487,7 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 			break;
 		}
 		case TRANS_TX_ERR_FRAME_TXED:
+		case TRANS_RX_ERR_WITH_CLOSE_PHY_DISABLE:
 		{
 			/* This will request a retry */
 			ts->stat = SAS_QUEUE_FULL;
@@ -1607,7 +1603,6 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		case TRANS_RX_ERR_WITH_RXFRAME_LENGTH_OVERRUN:
 		case TRANS_RX_ERR_WITH_RXFIS_RX_SYNCP:
 		case TRANS_RX_ERR_WITH_CLOSE_NORMAL:
-		case TRANS_RX_ERR_WITH_CLOSE_PHY_DISABLE:
 		case TRANS_RX_ERR_WITH_CLOSE_DWS_TIMEOUT:
 		case TRANS_RX_ERR_WITH_CLOSE_COMINIT:
 		case TRANS_RX_ERR_WITH_DATA_LEN0:
@@ -1636,6 +1631,12 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		case DMA_RX_UNKNOWN_FRM_ERR:
 		{
 			ts->stat = SAS_OPEN_REJECT;
+			break;
+		}
+		case TRANS_RX_ERR_WITH_CLOSE_PHY_DISABLE:
+		{
+			slot->abort = 1;
+			ts->stat = SAS_PHY_DOWN;
 			break;
 		}
 		default:
