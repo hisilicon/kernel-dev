@@ -1193,6 +1193,9 @@ static void __init gic_of_setup_kvm_info(struct device_node *node)
 	gic_v3_kvm_info.maint_irq = irq_of_parse_and_map(node, 0);
 	if (!gic_v3_kvm_info.maint_irq)
 		return;
+	/* HiSilicon GIC quirk: if GIC doesn't support virt timer irq map */
+	gic_v3_kvm_info.timer_irqmap_disabled = of_property_read_bool(node,
+							"timer-irqmap-disabled");
 
 	if (of_property_read_u32(node, "#redistributor-regions",
 				 &gicv_idx))
@@ -1500,10 +1503,34 @@ static bool __init gic_acpi_collect_virt_info(void)
 #define ACPI_GICV2_VCTRL_MEM_SIZE	(SZ_4K)
 #define ACPI_GICV2_VCPU_MEM_SIZE	(SZ_8K)
 
+static void __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+{
+    /*
+     * workaround for D02 and D03, disable virt timer interrupt mapping
+     * because GIC on D02 and D03 don't support that
+     */
+	if (!strncmp(oem_id, "HISI", 4)
+	  && (!strncmp(oem_table_id, "HISI-D02", 8)
+	  || !strncmp(oem_table_id, "HISI-D03", 8)))
+		gic_v3_kvm_info.timer_irqmap_disabled = true;
+}
+
+static int __init acpi_parse_madt(struct acpi_table_header *table)
+{
+	struct acpi_table_madt *acpi_madt;
+
+	acpi_madt = (struct acpi_table_madt *)table;
+	acpi_madt_oem_check(acpi_madt->header.oem_id,
+	acpi_madt->header.oem_table_id);
+
+	return 0;
+}
+
 static void __init gic_acpi_setup_kvm_info(void)
 {
 	int irq;
 
+	acpi_table_parse(ACPI_SIG_MADT, acpi_parse_madt);
 	if (!gic_acpi_collect_virt_info()) {
 		pr_warn("Unable to get hardware information used for virtualization\n");
 		return;

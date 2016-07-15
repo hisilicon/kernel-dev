@@ -318,6 +318,11 @@ int kvm_vgic_inject_mapped_irq(struct kvm *kvm, int cpuid, unsigned int intid,
 	return vgic_update_irq_pending(kvm, cpuid, intid, level, true);
 }
 
+bool kvm_vgic_support_timer_irqmap(void)
+{
+	return (kvm_vgic_global_state.timer_irqmap_disabled) ? false : true;
+}
+
 int kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu, u32 virt_irq, u32 phys_irq)
 {
 	struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, virt_irq);

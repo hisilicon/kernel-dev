@@ -303,6 +303,8 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	 */
 	kvm_vgic_global_state.nr_lr = (ich_vtr_el2 & 0xf) + 1;
 	kvm_vgic_global_state.can_emulate_gicv2 = false;
+	kvm_vgic_global_state.timer_irqmap_disabled =
+					info->timer_irqmap_disabled;
 
 	if (!info->vcpu.start) {
 		kvm_info("GICv3: no GICV resource entry\n");

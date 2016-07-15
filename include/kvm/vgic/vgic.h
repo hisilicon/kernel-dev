@@ -61,6 +61,9 @@ struct vgic_global {
 
 	/* Only needed for the legacy KVM_CREATE_IRQCHIP */
 	bool			can_emulate_gicv2;
+
+	/*HiSilicon GIC quirk: support timer irq map or not */
+	bool            timer_irqmap_disabled;
 };
 
 extern struct vgic_global kvm_vgic_global_state;
@@ -208,6 +211,7 @@ int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int intid,
 			bool level);
 int kvm_vgic_inject_mapped_irq(struct kvm *kvm, int cpuid, unsigned int intid,
 			       bool level);
+bool kvm_vgic_support_timer_irqmap(void);
 int kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu, u32 virt_irq, u32 phys_irq);
 int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, unsigned int virt_irq);
 bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, unsigned int virt_irq);
