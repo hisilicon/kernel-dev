@@ -323,6 +323,42 @@ hns_ppe_srst_by_port_acpi(struct dsaf_device *dsaf_dev, u32 port, bool dereset)
 				   HNS_PPE_RESET_FUNC, port, dereset);
 }
 
+/**
+ * hns_dsaf_srst_chns - reset dsaf channels
+ * @dsaf_dev: dsaf device struct pointer
+ * @msk: xbar channels mask value:
+ * bit0-5 for xge0-5
+ * bit6-11 for ppe0-5
+ * bit12-17 for roce0-5
+ * bit18-19 for com/dfx
+ * @enable: false - request reset , true - drop reset
+ */
+void hns_dsaf_srst_chns(struct dsaf_device *dsaf_dev, u32 msk, bool enable)
+{
+       u32 reg_addr;
+
+       if (!enable)
+               reg_addr = DSAF_SUB_SC_DSAF_RESET_REQ_REG;
+       else
+               reg_addr = DSAF_SUB_SC_DSAF_RESET_DREQ_REG;
+
+       dsaf_write_sub(dsaf_dev, reg_addr, msk);
+}
+
+void hns_dsaf_roce_srst(struct dsaf_device *dsaf_dev, bool enable)
+{
+       if (!enable) {
+               dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_ROCEE_RESET_REQ_REG, 1);
+       } else {
+               dsaf_write_sub(dsaf_dev,
+                              DSAF_SUB_SC_ROCEE_CLK_DIS_REG, 1);
+               dsaf_write_sub(dsaf_dev,
+                              DSAF_SUB_SC_ROCEE_RESET_DREQ_REG, 1);
+               msleep(20);
+               dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_ROCEE_CLK_EN_REG, 1);
+       }
+}
+
 static void hns_ppe_com_srst(struct dsaf_device *dsaf_dev, bool dereset)
 {
 	u32 reg_val;
