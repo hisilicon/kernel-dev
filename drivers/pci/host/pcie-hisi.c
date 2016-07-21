@@ -76,10 +76,19 @@ static int hisi_pcie_link_up(struct pcie_port *pp)
 	return hisi_pcie->soc_ops->hisi_pcie_link_up(hisi_pcie);
 }
 
+static void hisi_pcie_host_init(struct pcie_port *pp)
+{
+	dw_pcie_setup_rc(pp);
+
+	/* wait for link to be stable */
+	dw_pcie_wait_for_link(pp);
+}
+
 static struct pcie_host_ops hisi_pcie_host_ops = {
 	.rd_own_conf = hisi_pcie_cfg_read,
 	.wr_own_conf = hisi_pcie_cfg_write,
 	.link_up = hisi_pcie_link_up,
+	.host_init = hisi_pcie_host_init,
 };
 
 static void __iomem *hisi_pci_map_cfg_bus_cam(struct pci_bus *bus,
