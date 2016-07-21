@@ -25,7 +25,6 @@ static inline acpi_status pci_acpi_remove_pm_notifier(struct acpi_device *dev)
 extern phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle);
 
 extern phys_addr_t pci_mcfg_lookup(u16 domain, struct resource *bus_res);
-extern struct pci_ecam_ops *pci_mcfg_get_ops(struct acpi_pci_root *root);
 
 static inline acpi_handle acpi_find_root_bridge_handle(struct pci_dev *pdev)
 {
@@ -72,25 +71,6 @@ struct acpi_pci_root_ops {
 	void (*release_info)(struct acpi_pci_root_info *info);
 	int (*prepare_resources)(struct acpi_pci_root_info *info);
 };
-
-struct pci_cfg_fixup {
-	struct pci_ecam_ops *ops;
-	char *oem_id;
-	char *oem_table_id;
-	int domain;
-	int bus_num;
-};
-
-#define PCI_MCFG_DOMAIN_ANY	-1
-#define PCI_MCFG_BUS_ANY	-1
-
-/* Designate a routine to fix up buggy MCFG */
-#define DECLARE_ACPI_MCFG_FIXUP(ops, oem_id, oem_table_id, dom, bus)	\
-	static const struct pci_cfg_fixup				\
-	__mcfg_fixup_##oem_id##oem_table_id##dom##bus			\
-	__used	__attribute__((__section__(".acpi_fixup_mcfg"),		\
-				aligned((sizeof(void *))))) =		\
-	{ ops, oem_id, oem_table_id, dom, bus };
 
 extern int acpi_pci_probe_root_resources(struct acpi_pci_root_info *info);
 extern struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
