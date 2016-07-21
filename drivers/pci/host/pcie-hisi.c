@@ -23,6 +23,8 @@
 #include "pcie-designware.h"
 #include "pcie-hisi.h"
 
+#define PCIE_LTSSM_LINKUP_STATE				0x11
+#define PCIE_LTSSM_STATE_MASK				0x3F
 #define PCIE_SUBCTRL_SYS_STATE4_REG			0x6818
 #define PCIE_SYS_STATE4						0x31c
 #define PCIE_HIP06_CTRL_OFF					0x1000

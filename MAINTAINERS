@@ -8841,7 +8841,6 @@ F:	Documentation/devicetree/bindings/pci/hisilicon-pcie.txt
 F:	drivers/pci/host/pcie-hisi.h
 F:	drivers/pci/host/pcie-hisi.c
 F:	drivers/pci/host/pcie-hisi-common.c
-F:	drivers/pci/host/pcie-hisi-acpi.c
 
 PCIE DRIVER FOR QUALCOMM MSM
 M:     Stanimir Varbanov <svarbanov@mm-sol.com>
