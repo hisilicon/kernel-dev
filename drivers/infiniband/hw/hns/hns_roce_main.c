@@ -548,6 +548,25 @@ static int hns_roce_mmap(struct ib_ucontext *context,
 	return 0;
 }
 
+static int hns_roce_port_immutable(struct ib_device *ib_dev, u8 port_num,
+				   struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int ret;
+
+	ret = hns_roce_query_port(ib_dev, port_num, &attr);
+	if (ret)
+		return ret;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+
+	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
+	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+
+	return 0;
+}
+
 static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_ib_iboe *iboe = &hr_dev->iboe;
@@ -632,6 +651,9 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->get_dma_mr		= hns_roce_get_dma_mr;
 	ib_dev->reg_user_mr		= hns_roce_reg_user_mr;
 	ib_dev->dereg_mr		= hns_roce_dereg_mr;
+
+	/* OTHERS */
+	ib_dev->get_port_immutable	= hns_roce_port_immutable;
 
 	ret = ib_register_device(ib_dev, NULL);
 	if (ret) {
