@@ -30,22 +30,9 @@
  * SOFTWARE.
  */
 
-#ifndef _HNS_ROCE_COMMON_H
-#define _HNS_ROCE_COMMON_H
+#ifndef _HNS_ROCE_CMD_H
+#define _HNS_ROCE_CMD_H
 
-#define roce_read(dev, reg)		readl((dev)->reg_base + (reg))
+#define HNS_ROCE_MAILBOX_SIZE		4096
 
-/*************ROCEE_REG DEFINITION****************/
-#define ROCEE_VENDOR_ID_REG			0x0
-#define ROCEE_VENDOR_PART_ID_REG		0x4
-
-#define ROCEE_HW_VERSION_REG			0x8
-
-#define ROCEE_SYS_IMAGE_GUID_L_REG		0xC
-#define ROCEE_SYS_IMAGE_GUID_H_REG		0x10
-
-#define ROCEE_ACK_DELAY_REG			0x14
-
-#define ROCEE_MB1_REG				0x210
-
-#endif /* _HNS_ROCE_COMMON_H */
+#endif /* _HNS_ROCE_CMD_H */

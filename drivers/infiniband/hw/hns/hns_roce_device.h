@@ -46,6 +46,40 @@
 
 #define HNS_ROCE_MAX_PORTS			6
 
+struct hns_roce_cmd_context {
+	int			next;
+	u16			token;
+};
+
+struct hns_roce_cmdq {
+	struct dma_pool		*pool;
+	u8 __iomem		*hcr;
+	struct mutex		hcr_mutex;
+	struct semaphore	poll_sem;
+	/*
+	* Event mode: cmd register mutex protection,
+	* ensure to not exceed max_cmds and user use limit region
+	*/
+	struct semaphore	event_sem;
+	int			max_cmds;
+	spinlock_t		context_lock;
+	int			free_head;
+	struct hns_roce_cmd_context *context;
+	/*
+	* Result of get integer part
+	* which max_comds compute according a power of 2
+	*/
+	u16			token_mask;
+	/*
+	* Process whether use event mode, init default non-zero
+	* After the event queue of cmd event ready,
+	* can switch into event mode
+	* close device, switch into poll mode(non event mode)
+	*/
+	u8			use_events;
+	u8			toggle;
+};
+
 struct hns_roce_ib_iboe {
 	struct net_device      *netdevs[HNS_ROCE_MAX_PORTS];
 	u8			phy_port[HNS_ROCE_MAX_PORTS];
@@ -113,10 +147,17 @@ struct hns_roce_dev {
 	u32                     vendor_part_id;
 	u32                     hw_rev;
 
+	struct hns_roce_cmdq	cmd;
+
 	int			cmd_mod;
 	int			loop_idc;
 	struct hns_roce_hw	*hw;
 };
+
+int hns_roce_cmd_init(struct hns_roce_dev *hr_dev);
+void hns_roce_cmd_cleanup(struct hns_roce_dev *hr_dev);
+int hns_roce_cmd_use_events(struct hns_roce_dev *hr_dev);
+void hns_roce_cmd_use_polling(struct hns_roce_dev *hr_dev);
 
 extern struct hns_roce_hw hns_roce_hw_v1;
 
