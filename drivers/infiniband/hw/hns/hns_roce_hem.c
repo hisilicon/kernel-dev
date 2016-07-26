@@ -281,6 +281,93 @@ static int hns_roce_clear_hem(struct hns_roce_dev *hr_dev,
 	return ret;
 }
 
+int hns_roce_table_get(struct hns_roce_dev *hr_dev,
+		       struct hns_roce_hem_table *table, unsigned long obj)
+{
+	struct device *dev = &hr_dev->pdev->dev;
+	int ret = 0;
+	unsigned long i;
+
+	i = (obj & (table->num_obj - 1)) / (HNS_ROCE_TABLE_CHUNK_SIZE /
+	     table->obj_size);
+
+	mutex_lock(&table->mutex);
+
+	if (table->hem[i]) {
+		++table->hem[i]->refcount;
+		goto out;
+	}
+
+	table->hem[i] = hns_roce_alloc_hem(hr_dev,
+				       HNS_ROCE_TABLE_CHUNK_SIZE >> PAGE_SHIFT,
+				       (table->lowmem ? GFP_KERNEL :
+					GFP_HIGHUSER) | __GFP_NOWARN);
+	if (!table->hem[i]) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* Set HEM base address(128K/page, pa) to Hardware */
+	if (hns_roce_set_hem(hr_dev, table, obj)) {
+		ret = -ENODEV;
+		dev_err(dev, "set HEM base address to HW failed.\n");
+		goto out;
+	}
+
+	++table->hem[i]->refcount;
+out:
+	mutex_unlock(&table->mutex);
+	return ret;
+}
+
+void hns_roce_table_put(struct hns_roce_dev *hr_dev,
+			struct hns_roce_hem_table *table, unsigned long obj)
+{
+	struct device *dev = &hr_dev->pdev->dev;
+	unsigned long i;
+
+	i = (obj & (table->num_obj - 1)) /
+	    (HNS_ROCE_TABLE_CHUNK_SIZE / table->obj_size);
+
+	mutex_lock(&table->mutex);
+
+	if (--table->hem[i]->refcount == 0) {
+		/* Clear HEM base address */
+		if (hns_roce_clear_hem(hr_dev, table, obj))
+			dev_warn(dev, "Clear HEM base address failed.\n");
+
+		hns_roce_free_hem(hr_dev, table->hem[i]);
+		table->hem[i] = NULL;
+	}
+
+	mutex_unlock(&table->mutex);
+}
+
+int hns_roce_table_get_range(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_hem_table *table,
+			     unsigned long start, unsigned long end)
+{
+	unsigned long inc = HNS_ROCE_TABLE_CHUNK_SIZE / table->obj_size;
+	unsigned long i = 0;
+	int ret = 0;
+
+	/* Allocate MTT entry memory according to chunk(128K) */
+	for (i = start; i <= end; i += inc) {
+		ret = hns_roce_table_get(hr_dev, table, i);
+		if (ret)
+			goto fail;
+	}
+
+	return 0;
+
+fail:
+	while (i > start) {
+		i -= inc;
+		hns_roce_table_put(hr_dev, table, i);
+	}
+	return ret;
+}
+
 int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_hem_table *table, u32 type,
 			    unsigned long obj_size, unsigned long nobj,

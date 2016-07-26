@@ -69,6 +69,13 @@ struct hns_roce_hem_iter {
 };
 
 void hns_roce_free_hem(struct hns_roce_dev *hr_dev, struct hns_roce_hem *hem);
+int hns_roce_table_get(struct hns_roce_dev *hr_dev,
+		       struct hns_roce_hem_table *table, unsigned long obj);
+void hns_roce_table_put(struct hns_roce_dev *hr_dev,
+			struct hns_roce_hem_table *table, unsigned long obj);
+int hns_roce_table_get_range(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_hem_table *table,
+			     unsigned long start, unsigned long end);
 int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_hem_table *table, u32 type,
 			    unsigned long obj_size, unsigned long nobj,

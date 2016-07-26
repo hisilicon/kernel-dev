@@ -170,6 +170,75 @@ err_unmap_mtt:
 }
 
 /**
+* hns_roce_setup_hca - setup host channel adapter
+* @hr_dev: pointer to hns roce device
+* Return : int
+*/
+static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
+{
+	int ret;
+	struct device *dev = &hr_dev->pdev->dev;
+
+	spin_lock_init(&hr_dev->sm_lock);
+	spin_lock_init(&hr_dev->cq_db_lock);
+	spin_lock_init(&hr_dev->bt_cmd_lock);
+
+	ret = hns_roce_init_uar_table(hr_dev);
+	if (ret) {
+		dev_err(dev, "Failed to initialize uar table. aborting\n");
+		return ret;
+	}
+
+	ret = hns_roce_uar_alloc(hr_dev, &hr_dev->priv_uar);
+	if (ret) {
+		dev_err(dev, "Failed to allocate priv_uar.\n");
+		goto err_uar_table_free;
+	}
+
+	ret = hns_roce_init_pd_table(hr_dev);
+	if (ret) {
+		dev_err(dev, "Failed to init protected domain table.\n");
+		goto err_uar_alloc_free;
+	}
+
+	ret = hns_roce_init_mr_table(hr_dev);
+	if (ret) {
+		dev_err(dev, "Failed to init memory region table.\n");
+		goto err_pd_table_free;
+	}
+
+	ret = hns_roce_init_cq_table(hr_dev);
+	if (ret) {
+		dev_err(dev, "Failed to init completion queue table.\n");
+		goto err_mr_table_free;
+	}
+
+	ret = hns_roce_init_qp_table(hr_dev);
+	if (ret) {
+		dev_err(dev, "Failed to init queue pair table.\n");
+		goto err_cq_table_free;
+	}
+
+	return 0;
+
+err_cq_table_free:
+	hns_roce_cleanup_cq_table(hr_dev);
+
+err_mr_table_free:
+	hns_roce_cleanup_mr_table(hr_dev);
+
+err_pd_table_free:
+	hns_roce_cleanup_pd_table(hr_dev);
+
+err_uar_alloc_free:
+	hns_roce_uar_free(hr_dev, &hr_dev->priv_uar);
+
+err_uar_table_free:
+	hns_roce_cleanup_uar_table(hr_dev);
+	return ret;
+}
+
+/**
 * hns_roce_probe - RoCE driver entrance
 * @pdev: pointer to platform device
 * Return : int
@@ -238,6 +307,15 @@ static int hns_roce_probe(struct platform_device *pdev)
 		goto error_failed_init_hem;
 	}
 
+	ret = hns_roce_setup_hca(hr_dev);
+	if (ret) {
+		dev_err(dev, "setup hca failed!\n");
+		goto error_failed_setup_hca;
+	}
+
+error_failed_setup_hca:
+	hns_roce_cleanup_hem(hr_dev);
+
 error_failed_init_hem:
 	if (hr_dev->cmd_mod)
 		hns_roce_cmd_use_polling(hr_dev);
@@ -267,6 +345,7 @@ static int hns_roce_remove(struct platform_device *pdev)
 {
 	struct hns_roce_dev *hr_dev = platform_get_drvdata(pdev);
 
+	hns_roce_cleanup_bitmap(hr_dev);
 	hns_roce_cleanup_hem(hr_dev);
 
 	if (hr_dev->cmd_mod)
