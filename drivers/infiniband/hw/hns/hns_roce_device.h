@@ -49,6 +49,11 @@
 #define HNS_ROCE_AEQE_VEC_NUM			1
 #define HNS_ROCE_AEQE_OF_VEC_NUM		1
 
+/* 4G/4K = 1M */
+#define HNS_ROCE_SL_SHIFT			29
+#define HNS_ROCE_TCLASS_SHIFT			20
+#define HNS_ROCE_FLOW_LABLE_MASK		0xfffff
+
 #define HNS_ROCE_MAX_PORTS			6
 #define HNS_ROCE_MAX_GID_NUM			16
 #define HNS_ROCE_GID_SIZE			16
@@ -213,6 +218,22 @@ struct hns_roce_cq_table {
 
 struct hns_roce_raq_table {
 	struct hns_roce_buf_list	*e_raq_buf;
+};
+
+struct hns_roce_av {
+	__le32      port_pd;
+	u8          gid_index;
+	u8          stat_rate;
+	u8          hop_limit;
+	__le32      sl_tclass_flowlabel;
+	u8          dgid[HNS_ROCE_GID_SIZE];
+	u8          mac[6];
+	__le16      vlan;
+};
+
+struct hns_roce_ah {
+	struct ib_ah		ibah;
+	struct hns_roce_av	av;
 };
 
 struct hns_roce_cmd_context {
@@ -397,6 +418,11 @@ static inline struct hns_roce_pd *to_hr_pd(struct ib_pd *ibpd)
 	return container_of(ibpd, struct hns_roce_pd, ibpd);
 }
 
+static inline struct hns_roce_ah *to_hr_ah(struct ib_ah *ibah)
+{
+	return container_of(ibah, struct hns_roce_ah, ibah);
+}
+
 static inline void hns_roce_write64_k(__be32 val[2], void __iomem *dest)
 {
 	__raw_writeq(*(u64 *) val, dest);
@@ -443,6 +469,10 @@ int hns_roce_bitmap_alloc_range(struct hns_roce_bitmap *bitmap, int cnt,
 				int align, unsigned long *obj);
 void hns_roce_bitmap_free_range(struct hns_roce_bitmap *bitmap,
 				unsigned long obj, int cnt);
+
+struct ib_ah *hns_roce_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr);
+int hns_roce_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr);
+int hns_roce_destroy_ah(struct ib_ah *ah);
 
 struct ib_pd *hns_roce_alloc_pd(struct ib_device *ib_dev,
 				struct ib_ucontext *context,
