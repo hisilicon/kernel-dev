@@ -153,6 +153,26 @@ static int hns_roce_probe(struct platform_device *pdev)
 		goto error_failed_cmd_init;
 	}
 
+	ret = hns_roce_init_eq_table(hr_dev);
+	if (ret) {
+		dev_err(dev, "eq init failed!\n");
+		goto error_failed_eq_table;
+	}
+
+	if (hr_dev->cmd_mod) {
+		ret = hns_roce_cmd_use_events(hr_dev);
+		if (ret) {
+			dev_err(dev, "Switch to event-driven cmd failed!\n");
+			goto error_failed_use_event;
+		}
+	}
+
+error_failed_use_event:
+	hns_roce_cleanup_eq_table(hr_dev);
+
+error_failed_eq_table:
+	hns_roce_cmd_cleanup(hr_dev);
+
 error_failed_cmd_init:
 	ret = hr_dev->hw->reset(hr_dev, false);
 	if (ret)
@@ -172,6 +192,10 @@ static int hns_roce_remove(struct platform_device *pdev)
 {
 	struct hns_roce_dev *hr_dev = platform_get_drvdata(pdev);
 
+	if (hr_dev->cmd_mod)
+		hns_roce_cmd_use_polling(hr_dev);
+
+	hns_roce_cleanup_eq_table(hr_dev);
 	hns_roce_cmd_cleanup(hr_dev);
 	hr_dev->hw->reset(hr_dev, false);
 
