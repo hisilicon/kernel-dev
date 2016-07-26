@@ -580,7 +580,9 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->uverbs_cmd_mask		=
 		(1ULL << IB_USER_VERBS_CMD_GET_CONTEXT) |
 		(1ULL << IB_USER_VERBS_CMD_QUERY_DEVICE) |
-		(1ULL << IB_USER_VERBS_CMD_QUERY_PORT);
+		(1ULL << IB_USER_VERBS_CMD_QUERY_PORT) |
+		(1ULL << IB_USER_VERBS_CMD_ALLOC_PD) |
+		(1ULL << IB_USER_VERBS_CMD_DEALLOC_PD);
 
 	/* HCA||device||port */
 	ib_dev->modify_device		= hns_roce_modify_device;
@@ -593,6 +595,10 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->alloc_ucontext		= hns_roce_alloc_ucontext;
 	ib_dev->dealloc_ucontext	= hns_roce_dealloc_ucontext;
 	ib_dev->mmap			= hns_roce_mmap;
+
+	/* PD */
+	ib_dev->alloc_pd		= hns_roce_alloc_pd;
+	ib_dev->dealloc_pd		= hns_roce_dealloc_pd;
 
 	ret = ib_register_device(ib_dev, NULL);
 	if (ret) {
