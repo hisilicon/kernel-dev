@@ -47,6 +47,7 @@
 #define HNS_ROCE_BA_SIZE			(32 * 4096)
 
 /* Hardware specification only for v1 engine */
+#define HNS_ROCE_MIN_CQE_NUM			0x40
 #define HNS_ROCE_MIN_WQE_NUM			0x20
 
 #define HNS_ROCE_MAX_IRQ_NUM			34
@@ -131,6 +132,12 @@ enum {
 	HNS_ROCE_DB_SUBTYPE_ODB_ALM_OVF		= 4,
 	HNS_ROCE_DB_SUBTYPE_SDB_ALM_EMP		= 5,
 	HNS_ROCE_DB_SUBTYPE_ODB_ALM_EMP		= 6,
+};
+
+enum {
+	/* RQ&SRQ related operations */
+	HNS_ROCE_OPCODE_SEND_DATA_RECEIVE	= 0x06,
+	HNS_ROCE_OPCODE_RDMA_WITH_IMM_RECEIVE	= 0x07,
 };
 
 #define HNS_ROCE_CMD_SUCCESS			1
@@ -240,20 +247,33 @@ struct hns_roce_buf {
 
 struct hns_roce_cq_buf {
 	struct hns_roce_buf hr_buf;
+	struct hns_roce_mtt hr_mtt;
+};
+
+struct hns_roce_cq_resize {
+	struct hns_roce_cq_buf	hr_buf;
+	int			cqe;
 };
 
 struct hns_roce_cq {
 	struct ib_cq			ib_cq;
 	struct hns_roce_cq_buf		hr_buf;
 	/* pointer to store information after resize*/
+	struct hns_roce_cq_resize	*hr_resize_buf;
 	spinlock_t			lock;
+	struct mutex			resize_mutex;
+	struct ib_umem			*umem;
+	struct ib_umem			*resize_umem;
 	void (*comp)(struct hns_roce_cq *);
 	void (*event)(struct hns_roce_cq *, enum hns_roce_event);
 
+	struct hns_roce_uar		*uar;
 	u32				cq_depth;
 	u32				cons_index;
 	void __iomem			*cq_db_l;
+	void __iomem			*tptr_addr;
 	unsigned long			cqn;
+	u32				vector;
 	atomic_t			refcount;
 	struct completion		free;
 };
@@ -455,6 +475,9 @@ struct hns_roce_hw {
 	void (*set_mac)(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr);
 	void (*set_mtu)(struct hns_roce_dev *hr_dev, u8 phy_port,
 			enum ib_mtu mtu);
+	void (*write_cqc)(struct hns_roce_dev *hr_dev,
+			  struct hns_roce_cq *hr_cq, void *mb_buf, u64 *mtts,
+			  dma_addr_t dma_handle, int nent, u32 vector);
 	int (*query_qp)(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 			int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr);
 	int (*modify_qp)(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
@@ -465,6 +488,8 @@ struct hns_roce_hw {
 			 struct ib_send_wr **bad_wr);
 	int (*post_recv)(struct ib_qp *qp, struct ib_recv_wr *recv_wr,
 			 struct ib_recv_wr **bad_recv_wr);
+	int (*req_notify_cq)(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
+	int (*poll_cq)(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 	void	*priv;
 };
 
@@ -488,6 +513,7 @@ struct hns_roce_dev {
 	u32                     vendor_id;
 	u32                     vendor_part_id;
 	u32                     hw_rev;
+	void __iomem            *priv_addr;
 
 	struct hns_roce_cmdq	cmd;
 	struct hns_roce_bitmap    pd_bitmap;
@@ -645,6 +671,13 @@ void hns_roce_release_range_qp(struct hns_roce_dev *hr_dev, int base_qpn,
 			       int cnt);
 __be32 send_ieth(struct ib_send_wr *wr);
 int to_hr_qp_type(int qp_type);
+
+struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
+				    const struct ib_cq_init_attr *attr,
+				    struct ib_ucontext *context,
+				    struct ib_udata *udata);
+
+int hns_roce_ib_destroy_cq(struct ib_cq *ib_cq);
 
 void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn);
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type);
