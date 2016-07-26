@@ -30,44 +30,42 @@
  * SOFTWARE.
  */
 
-#ifndef _HNS_ROCE_DEVICE_H
-#define _HNS_ROCE_DEVICE_H
+#include <linux/platform_device.h>
+#include <rdma/ib_umem.h>
+#include "hns_roce_device.h"
+#include "hns_roce_hw_v1.h"
 
-#include <rdma/ib_verbs.h>
+/**
+ * hns_roce_v1_reset - reset RoCE
+ * @hr_dev: RoCE device struct pointer
+ * @enable: true -- drop reset, false -- reset
+ * return 0 - success , negative --fail
+ */
+int hns_roce_v1_reset(struct hns_roce_dev *hr_dev, bool enable)
+{
+	struct device_node *dsaf_node;
+	struct device *dev = &hr_dev->pdev->dev;
+	struct device_node *np = dev->of_node;
+	int ret;
 
-#define DRV_NAME "hns_roce"
+	dsaf_node = of_parse_phandle(np, "dsaf-handle", 0);
+	if (!dsaf_node) {
+		dev_err(dev, "Unable to get dsaf node by dsaf-handle!\n");
+		return -EINVAL;
+	}
 
-#define HNS_ROCE_MAX_IRQ_NUM			34
-#define HNS_ROCE_MAX_PORTS			6
+	ret = hns_dsaf_roce_reset(&dsaf_node->fwnode, false);
+	if (ret)
+		return ret;
 
-struct hns_roce_ib_iboe {
-	struct net_device      *netdevs[HNS_ROCE_MAX_PORTS];
-	u8			phy_port[HNS_ROCE_MAX_PORTS];
+	if (enable) {
+		msleep(SLEEP_TIME_INTERVAL);
+		return hns_dsaf_roce_reset(&dsaf_node->fwnode, true);
+	}
+
+	return 0;
+}
+
+struct hns_roce_hw hns_roce_hw_v1 = {
+	.reset = hns_roce_v1_reset,
 };
-
-struct hns_roce_caps {
-	u8		num_ports;
-};
-
-struct hns_roce_hw {
-	int (*reset)(struct hns_roce_dev *hr_dev, bool enable);
-};
-
-struct hns_roce_dev {
-	struct ib_device	ib_dev;
-	struct platform_device  *pdev;
-	const char		*irq_names;
-	struct hns_roce_ib_iboe iboe;
-
-	int			irq[HNS_ROCE_MAX_IRQ_NUM];
-	u8 __iomem		*reg_base;
-	struct hns_roce_caps	caps;
-
-	int			cmd_mod;
-	int			loop_idc;
-	struct hns_roce_hw	*hw;
-};
-
-extern struct hns_roce_hw hns_roce_hw_v1;
-
-#endif /* _HNS_ROCE_DEVICE_H */

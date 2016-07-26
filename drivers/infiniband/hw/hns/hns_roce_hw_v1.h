@@ -30,44 +30,11 @@
  * SOFTWARE.
  */
 
-#ifndef _HNS_ROCE_DEVICE_H
-#define _HNS_ROCE_DEVICE_H
+#ifndef _HNS_ROCE_HW_V1_H
+#define _HNS_ROCE_HW_V1_H
 
-#include <rdma/ib_verbs.h>
+#define SLEEP_TIME_INTERVAL				20
 
-#define DRV_NAME "hns_roce"
+int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool enable);
 
-#define HNS_ROCE_MAX_IRQ_NUM			34
-#define HNS_ROCE_MAX_PORTS			6
-
-struct hns_roce_ib_iboe {
-	struct net_device      *netdevs[HNS_ROCE_MAX_PORTS];
-	u8			phy_port[HNS_ROCE_MAX_PORTS];
-};
-
-struct hns_roce_caps {
-	u8		num_ports;
-};
-
-struct hns_roce_hw {
-	int (*reset)(struct hns_roce_dev *hr_dev, bool enable);
-};
-
-struct hns_roce_dev {
-	struct ib_device	ib_dev;
-	struct platform_device  *pdev;
-	const char		*irq_names;
-	struct hns_roce_ib_iboe iboe;
-
-	int			irq[HNS_ROCE_MAX_IRQ_NUM];
-	u8 __iomem		*reg_base;
-	struct hns_roce_caps	caps;
-
-	int			cmd_mod;
-	int			loop_idc;
-	struct hns_roce_hw	*hw;
-};
-
-extern struct hns_roce_hw hns_roce_hw_v1;
-
-#endif /* _HNS_ROCE_DEVICE_H */
+#endif
