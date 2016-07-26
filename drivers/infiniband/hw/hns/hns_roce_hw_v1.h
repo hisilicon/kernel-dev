@@ -69,7 +69,65 @@
 #define HNS_ROCE_V1_CQE_ENTRY_SIZE			32
 #define HNS_ROCE_V1_PAGE_SIZE_SUPPORT			0xFFFFF000
 
+#define HNS_ROCE_V1_EXT_RAQ_WF				8
+#define HNS_ROCE_V1_RAQ_ENTRY				64
+#define HNS_ROCE_V1_RAQ_DEPTH				32768
+#define HNS_ROCE_V1_RAQ_SIZE	(HNS_ROCE_V1_RAQ_ENTRY * HNS_ROCE_V1_RAQ_DEPTH)
+
+#define HNS_ROCE_V1_SDB_DEPTH				0x400
+#define HNS_ROCE_V1_ODB_DEPTH				0x400
+
+#define HNS_ROCE_V1_DB_RSVD				0x80
+
+#define HNS_ROCE_V1_SDB_ALEPT				HNS_ROCE_V1_DB_RSVD
+#define HNS_ROCE_V1_SDB_ALFUL	(HNS_ROCE_V1_SDB_DEPTH - HNS_ROCE_V1_DB_RSVD)
+#define HNS_ROCE_V1_ODB_ALEPT				HNS_ROCE_V1_DB_RSVD
+#define HNS_ROCE_V1_ODB_ALFUL	(HNS_ROCE_V1_ODB_DEPTH - HNS_ROCE_V1_DB_RSVD)
+
+#define HNS_ROCE_V1_EXT_SDB_DEPTH			0x4000
+#define HNS_ROCE_V1_EXT_ODB_DEPTH			0x4000
+#define HNS_ROCE_V1_EXT_SDB_ENTRY			16
+#define HNS_ROCE_V1_EXT_ODB_ENTRY			16
+#define HNS_ROCE_V1_EXT_SDB_SIZE  \
+	(HNS_ROCE_V1_EXT_SDB_DEPTH * HNS_ROCE_V1_EXT_SDB_ENTRY)
+#define HNS_ROCE_V1_EXT_ODB_SIZE  \
+	(HNS_ROCE_V1_EXT_ODB_DEPTH * HNS_ROCE_V1_EXT_ODB_ENTRY)
+
+#define HNS_ROCE_V1_EXT_SDB_ALEPT			HNS_ROCE_V1_DB_RSVD
+#define HNS_ROCE_V1_EXT_SDB_ALFUL  \
+	(HNS_ROCE_V1_EXT_SDB_DEPTH - HNS_ROCE_V1_DB_RSVD)
+#define HNS_ROCE_V1_EXT_ODB_ALEPT			HNS_ROCE_V1_DB_RSVD
+#define HNS_ROCE_V1_EXT_ODB_ALFUL	\
+	(HNS_ROCE_V1_EXT_ODB_DEPTH - HNS_ROCE_V1_DB_RSVD)
+
+#define HNS_ROCE_ODB_POLL_MODE				0
+
+#define HNS_ROCE_SDB_NORMAL_MODE			0
+#define HNS_ROCE_SDB_EXTEND_MODE			1
+
+#define HNS_ROCE_ODB_EXTEND_MODE			1
+
+#define ALL_PORT_VAL_OPEN				0x3f
+#define POL_TIME_INTERVAL_VAL				0x80
 #define SLEEP_TIME_INTERVAL				20
+
+struct hns_roce_ext_db {
+	int esdb_dep;
+	int eodb_dep;
+	struct hns_roce_buf_list *sdb_buf_list;
+	struct hns_roce_buf_list *odb_buf_list;
+};
+
+struct hns_roce_db_table {
+	int  sdb_ext_mod;
+	int  odb_ext_mod;
+	struct hns_roce_ext_db *ext_db;
+};
+
+struct hns_roce_v1_priv {
+	struct hns_roce_db_table  db_table;
+	struct hns_roce_raq_table raq_table;
+};
 
 int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool enable);
 
