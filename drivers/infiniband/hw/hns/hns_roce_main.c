@@ -582,7 +582,11 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		(1ULL << IB_USER_VERBS_CMD_QUERY_DEVICE) |
 		(1ULL << IB_USER_VERBS_CMD_QUERY_PORT) |
 		(1ULL << IB_USER_VERBS_CMD_ALLOC_PD) |
-		(1ULL << IB_USER_VERBS_CMD_DEALLOC_PD);
+		(1ULL << IB_USER_VERBS_CMD_DEALLOC_PD) |
+		(1ULL << IB_USER_VERBS_CMD_CREATE_QP) |
+		(1ULL << IB_USER_VERBS_CMD_MODIFY_QP) |
+		(1ULL << IB_USER_VERBS_CMD_QUERY_QP) |
+		(1ULL << IB_USER_VERBS_CMD_DESTROY_QP);
 
 	/* HCA||device||port */
 	ib_dev->modify_device		= hns_roce_modify_device;
@@ -604,6 +608,14 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->create_ah		= hns_roce_create_ah;
 	ib_dev->query_ah		= hns_roce_query_ah;
 	ib_dev->destroy_ah		= hns_roce_destroy_ah;
+
+	/* QP */
+	ib_dev->create_qp		= hns_roce_create_qp;
+	ib_dev->modify_qp		= hns_roce_modify_qp;
+	ib_dev->query_qp		= hr_dev->hw->query_qp;
+	ib_dev->destroy_qp		= hr_dev->hw->destroy_qp;
+	ib_dev->post_send		= hr_dev->hw->post_send;
+	ib_dev->post_recv		= hr_dev->hw->post_recv;
 
 	ret = ib_register_device(ib_dev, NULL);
 	if (ret) {
