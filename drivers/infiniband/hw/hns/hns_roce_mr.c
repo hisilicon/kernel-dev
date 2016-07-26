@@ -34,7 +34,36 @@
 #include <linux/platform_device.h>
 #include <rdma/ib_umem.h>
 #include "hns_roce_device.h"
+#include "hns_roce_cmd.h"
 #include "hns_roce_hem.h"
+
+static u32 hw_index_to_key(unsigned long ind)
+{
+	return (u32)(ind >> 24) | (ind << 8);
+}
+
+static unsigned long key_to_hw_index(u32 key)
+{
+	return (key << 24) | (key >> 8);
+}
+
+static int hns_roce_sw2hw_mpt(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_cmd_mailbox *mailbox,
+			      unsigned long mpt_index)
+{
+	return hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, mpt_index, 0,
+				 HNS_ROCE_CMD_SW2HW_MPT,
+				 HNS_ROCE_CMD_TIME_CLASS_B);
+}
+
+static int hns_roce_hw2sw_mpt(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_cmd_mailbox *mailbox,
+			      unsigned long mpt_index)
+{
+	return hns_roce_cmd_mbox(hr_dev, 0, mailbox ? mailbox->dma : 0,
+				 mpt_index, !mailbox, HNS_ROCE_CMD_HW2SW_MPT,
+				 HNS_ROCE_CMD_TIME_CLASS_B);
+}
 
 static int hns_roce_buddy_alloc(struct hns_roce_buddy *buddy, int order,
 				unsigned long *seg)
@@ -201,6 +230,113 @@ void hns_roce_mtt_cleanup(struct hns_roce_dev *hr_dev, struct hns_roce_mtt *mtt)
 				 mtt->first_seg + (1 << mtt->order) - 1);
 }
 
+static int hns_roce_mr_alloc(struct hns_roce_dev *hr_dev, u32 pd, u64 iova,
+			     u64 size, u32 access, int npages,
+			     struct hns_roce_mr *mr)
+{
+	unsigned long index = 0;
+	int ret = 0;
+	struct device *dev = &hr_dev->pdev->dev;
+
+	/* Allocate a key for mr from mr_table */
+	ret = hns_roce_bitmap_alloc(&hr_dev->mr_table.mtpt_bitmap, &index);
+	if (ret == -1)
+		return -ENOMEM;
+
+	mr->iova = iova;			/* MR va starting addr */
+	mr->size = size;			/* MR addr range */
+	mr->pd = pd;				/* MR num */
+	mr->access = access;			/* MR access permit */
+	mr->enabled = 0;			/* MR active status */
+	mr->key = hw_index_to_key(index);	/* MR key */
+
+	if (size == ~0ull) {
+		mr->type = MR_TYPE_DMA;
+		mr->pbl_buf = NULL;
+		mr->pbl_dma_addr = 0;
+	} else {
+		mr->type = MR_TYPE_MR;
+		mr->pbl_buf = dma_alloc_coherent(dev, npages * 8,
+						 &(mr->pbl_dma_addr),
+						 GFP_KERNEL);
+		if (!mr->pbl_buf)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void hns_roce_mr_free(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_mr *mr)
+{
+	struct device *dev = &hr_dev->pdev->dev;
+	int npages = 0;
+	int ret;
+
+	if (mr->enabled) {
+		ret = hns_roce_hw2sw_mpt(hr_dev, NULL, key_to_hw_index(mr->key)
+					 & (hr_dev->caps.num_mtpts - 1));
+		if (ret)
+			dev_warn(dev, "HW2SW_MPT failed (%d)\n", ret);
+	}
+
+	if (mr->size != ~0ULL) {
+		npages = ib_umem_page_count(mr->umem);
+		dma_free_coherent(dev, (unsigned int)(npages * 8), mr->pbl_buf,
+				  mr->pbl_dma_addr);
+	}
+
+	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap,
+			     key_to_hw_index(mr->key));
+}
+
+static int hns_roce_mr_enable(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_mr *mr)
+{
+	int ret;
+	unsigned long mtpt_idx = key_to_hw_index(mr->key);
+	struct device *dev = &hr_dev->pdev->dev;
+	struct hns_roce_cmd_mailbox *mailbox;
+	struct hns_roce_mr_table *mr_table = &hr_dev->mr_table;
+
+	/* Prepare HEM entry memory */
+	ret = hns_roce_table_get(hr_dev, &mr_table->mtpt_table, mtpt_idx);
+	if (ret)
+		return ret;
+
+	/* Allocate mailbox memory */
+	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
+	if (IS_ERR(mailbox)) {
+		ret = PTR_ERR(mailbox);
+		goto err_table;
+	}
+
+	ret = hr_dev->hw->write_mtpt(mailbox->buf, mr, mtpt_idx);
+	if (ret) {
+		dev_err(dev, "Write mtpt fail!\n");
+		goto err_page;
+	}
+
+	ret = hns_roce_sw2hw_mpt(hr_dev, mailbox,
+				 mtpt_idx & (hr_dev->caps.num_mtpts - 1));
+	if (ret) {
+		dev_err(dev, "SW2HW_MPT failed (%d)\n", ret);
+		goto err_page;
+	}
+
+	mr->enabled = 1;
+	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
+
+	return 0;
+
+err_page:
+	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
+
+err_table:
+	hns_roce_table_put(hr_dev, &mr_table->mtpt_table, mtpt_idx);
+	return ret;
+}
+
 static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
 				    struct hns_roce_mtt *mtt, u32 start_index,
 				    u32 npages, u64 *page_list)
@@ -314,6 +450,38 @@ void hns_roce_cleanup_mr_table(struct hns_roce_dev *hr_dev)
 	hns_roce_bitmap_cleanup(&mr_table->mtpt_bitmap);
 }
 
+struct ib_mr *hns_roce_get_dma_mr(struct ib_pd *pd, int acc)
+{
+	int ret = 0;
+	struct hns_roce_mr *mr = NULL;
+
+	mr = kmalloc(sizeof(*mr), GFP_KERNEL);
+	if (mr == NULL)
+		return  ERR_PTR(-ENOMEM);
+
+	/* Allocate memory region key */
+	ret = hns_roce_mr_alloc(to_hr_dev(pd->device), to_hr_pd(pd)->pdn, 0,
+				~0ULL, acc, 0, mr);
+	if (ret)
+		goto err_free;
+
+	ret = hns_roce_mr_enable(to_hr_dev(pd->device), mr);
+	if (ret)
+		goto err_mr;
+
+	mr->ibmr.rkey = mr->ibmr.lkey = mr->key;
+	mr->umem = NULL;
+
+	return &mr->ibmr;
+
+err_mr:
+	hns_roce_mr_free(to_hr_dev(pd->device), mr);
+
+err_free:
+	kfree(mr);
+	return ERR_PTR(ret);
+}
+
 int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_mtt *mtt, struct ib_umem *umem)
 {
@@ -351,4 +519,96 @@ int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 out:
 	free_page((unsigned long) pages);
 	return ret;
+}
+
+static int hns_roce_ib_umem_write_mr(struct hns_roce_mr *mr,
+				     struct ib_umem *umem)
+{
+	int i = 0;
+	int entry;
+	struct scatterlist *sg;
+
+	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
+		mr->pbl_buf[i] = ((u64)sg_dma_address(sg)) >> 12;
+		i++;
+	}
+
+	/* Memory barrier */
+	mb();
+
+	return 0;
+}
+
+struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
+				   u64 virt_addr, int access_flags,
+				   struct ib_udata *udata)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
+	struct device *dev = &hr_dev->pdev->dev;
+	struct hns_roce_mr *mr = NULL;
+	int ret = 0;
+	int n = 0;
+
+	mr = kmalloc(sizeof(*mr), GFP_KERNEL);
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
+
+	mr->umem = ib_umem_get(pd->uobject->context, start, length,
+			       access_flags, 0);
+	if (IS_ERR(mr->umem)) {
+		ret = PTR_ERR(mr->umem);
+		goto err_free;
+	}
+
+	n = ib_umem_page_count(mr->umem);
+	if (mr->umem->page_size != HNS_ROCE_HEM_PAGE_SIZE) {
+		dev_err(dev, "Just support 4K page size but is 0x%x now!\n",
+			mr->umem->page_size);
+	}
+
+	if (n > HNS_ROCE_MAX_MTPT_PBL_NUM) {
+		dev_err(dev, " MR len %lld err. MR is limited to 4G at most!\n",
+			length);
+		goto err_umem;
+	}
+
+	ret = hns_roce_mr_alloc(hr_dev, to_hr_pd(pd)->pdn, virt_addr, length,
+				access_flags, n, mr);
+	if (ret)
+		goto err_umem;
+
+	ret = hns_roce_ib_umem_write_mr(mr, mr->umem);
+	if (ret)
+		goto err_mr;
+
+	ret = hns_roce_mr_enable(hr_dev, mr);
+	if (ret)
+		goto err_mr;
+
+	mr->ibmr.rkey = mr->ibmr.lkey = mr->key;
+
+	return &mr->ibmr;
+
+err_mr:
+	hns_roce_mr_free(hr_dev, mr);
+
+err_umem:
+	ib_umem_release(mr->umem);
+
+err_free:
+	kfree(mr);
+	return ERR_PTR(ret);
+}
+
+int hns_roce_dereg_mr(struct ib_mr *ibmr)
+{
+	struct hns_roce_mr *mr = to_hr_mr(ibmr);
+
+	hns_roce_mr_free(to_hr_dev(ibmr->device), mr);
+	if (mr->umem)
+		ib_umem_release(mr->umem);
+
+	kfree(mr);
+
+	return 0;
 }

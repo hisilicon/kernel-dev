@@ -1000,6 +1000,159 @@ void hns_roce_v1_set_mtu(struct hns_roce_dev *hr_dev, u8 phy_port,
 		   val);
 }
 
+int hns_roce_v1_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
+			   unsigned long mtpt_idx)
+{
+	struct hns_roce_v1_mpt_entry *mpt_entry;
+	struct scatterlist *sg;
+	u64 *pages;
+	int entry;
+	int i;
+
+	/* MPT filled into mailbox buf */
+	mpt_entry = (struct hns_roce_v1_mpt_entry *)mb_buf;
+	memset(mpt_entry, 0, sizeof(*mpt_entry));
+
+	roce_set_field(mpt_entry->mpt_byte_4, MPT_BYTE_4_KEY_STATE_M,
+		       MPT_BYTE_4_KEY_STATE_S, KEY_VALID);
+	roce_set_field(mpt_entry->mpt_byte_4, MPT_BYTE_4_KEY_M,
+		       MPT_BYTE_4_KEY_S, mr->key);
+	roce_set_field(mpt_entry->mpt_byte_4, MPT_BYTE_4_PAGE_SIZE_M,
+		       MPT_BYTE_4_PAGE_SIZE_S, MR_SIZE_4K);
+	roce_set_bit(mpt_entry->mpt_byte_4, MPT_BYTE_4_MW_TYPE_S, 0);
+	roce_set_bit(mpt_entry->mpt_byte_4, MPT_BYTE_4_MW_BIND_ENABLE_S,
+		     (mr->access & IB_ACCESS_MW_BIND ? 1 : 0));
+	roce_set_bit(mpt_entry->mpt_byte_4, MPT_BYTE_4_OWN_S, 0);
+	roce_set_field(mpt_entry->mpt_byte_4, MPT_BYTE_4_MEMORY_LOCATION_TYPE_M,
+		       MPT_BYTE_4_MEMORY_LOCATION_TYPE_S, mr->type);
+	roce_set_bit(mpt_entry->mpt_byte_4, MPT_BYTE_4_REMOTE_ATOMIC_S, 0);
+	roce_set_bit(mpt_entry->mpt_byte_4, MPT_BYTE_4_LOCAL_WRITE_S,
+		     (mr->access & IB_ACCESS_LOCAL_WRITE ? 1 : 0));
+	roce_set_bit(mpt_entry->mpt_byte_4, MPT_BYTE_4_REMOTE_WRITE_S,
+		     (mr->access & IB_ACCESS_REMOTE_WRITE ? 1 : 0));
+	roce_set_bit(mpt_entry->mpt_byte_4, MPT_BYTE_4_REMOTE_READ_S,
+		     (mr->access & IB_ACCESS_REMOTE_READ ? 1 : 0));
+	roce_set_bit(mpt_entry->mpt_byte_4, MPT_BYTE_4_REMOTE_INVAL_ENABLE_S,
+		     0);
+	roce_set_bit(mpt_entry->mpt_byte_4, MPT_BYTE_4_ADDRESS_TYPE_S, 0);
+
+	roce_set_field(mpt_entry->mpt_byte_12, MPT_BYTE_12_PBL_ADDR_H_M,
+		       MPT_BYTE_12_PBL_ADDR_H_S, 0);
+	roce_set_field(mpt_entry->mpt_byte_12, MPT_BYTE_12_MW_BIND_COUNTER_M,
+		       MPT_BYTE_12_MW_BIND_COUNTER_S, 0);
+
+	mpt_entry->virt_addr_l = (u32)mr->iova;
+	mpt_entry->virt_addr_h = (u32)(mr->iova >> 32);
+	mpt_entry->length = (u32)mr->size;
+
+	roce_set_field(mpt_entry->mpt_byte_28, MPT_BYTE_28_PD_M,
+		       MPT_BYTE_28_PD_S, mr->pd);
+	roce_set_field(mpt_entry->mpt_byte_28, MPT_BYTE_28_L_KEY_IDX_L_M,
+		       MPT_BYTE_28_L_KEY_IDX_L_S, mtpt_idx);
+	roce_set_field(mpt_entry->mpt_byte_64, MPT_BYTE_64_L_KEY_IDX_H_M,
+		       MPT_BYTE_64_L_KEY_IDX_H_S, mtpt_idx >> MTPT_IDX_SHIFT);
+
+	/* DMA momery regsiter */
+	if (mr->type == MR_TYPE_DMA)
+		return 0;
+
+	pages = (u64 *) __get_free_page(GFP_KERNEL);
+	if (!pages)
+		return -ENOMEM;
+
+	i = 0;
+	for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry) {
+		pages[i] = ((u64)sg_dma_address(sg)) >> 12;
+
+		/* Directly record to MTPT table firstly 7 entry */
+		if (i >= HNS_ROCE_MAX_INNER_MTPT_NUM)
+			break;
+		i++;
+	}
+
+	/* Register user mr */
+	for (i = 0; i < HNS_ROCE_MAX_INNER_MTPT_NUM; i++) {
+		switch (i) {
+		case 0:
+			mpt_entry->pa0_l = cpu_to_le32((u32)(pages[i]));
+			roce_set_field(mpt_entry->mpt_byte_36,
+				MPT_BYTE_36_PA0_H_M,
+				MPT_BYTE_36_PA0_H_S,
+				cpu_to_le32((u32)(pages[i] >> PAGES_SHIFT_32)));
+			break;
+		case 1:
+			roce_set_field(mpt_entry->mpt_byte_36,
+				       MPT_BYTE_36_PA1_L_M,
+				       MPT_BYTE_36_PA1_L_S,
+				       cpu_to_le32((u32)(pages[i])));
+			roce_set_field(mpt_entry->mpt_byte_40,
+				MPT_BYTE_40_PA1_H_M,
+				MPT_BYTE_40_PA1_H_S,
+				cpu_to_le32((u32)(pages[i] >> PAGES_SHIFT_24)));
+			break;
+		case 2:
+			roce_set_field(mpt_entry->mpt_byte_40,
+				       MPT_BYTE_40_PA2_L_M,
+				       MPT_BYTE_40_PA2_L_S,
+				       cpu_to_le32((u32)(pages[i])));
+			roce_set_field(mpt_entry->mpt_byte_44,
+				MPT_BYTE_44_PA2_H_M,
+				MPT_BYTE_44_PA2_H_S,
+				cpu_to_le32((u32)(pages[i] >> PAGES_SHIFT_16)));
+			break;
+		case 3:
+			roce_set_field(mpt_entry->mpt_byte_44,
+				       MPT_BYTE_44_PA3_L_M,
+				       MPT_BYTE_44_PA3_L_S,
+				       cpu_to_le32((u32)(pages[i])));
+			roce_set_field(mpt_entry->mpt_byte_48,
+				MPT_BYTE_48_PA3_H_M,
+				MPT_BYTE_48_PA3_H_S,
+				cpu_to_le32((u32)(pages[i] >> PAGES_SHIFT_8)));
+			break;
+		case 4:
+			mpt_entry->pa4_l = cpu_to_le32((u32)(pages[i]));
+			roce_set_field(mpt_entry->mpt_byte_56,
+				MPT_BYTE_56_PA4_H_M,
+				MPT_BYTE_56_PA4_H_S,
+				cpu_to_le32((u32)(pages[i] >> PAGES_SHIFT_32)));
+			break;
+		case 5:
+			roce_set_field(mpt_entry->mpt_byte_56,
+				       MPT_BYTE_56_PA5_L_M,
+				       MPT_BYTE_56_PA5_L_S,
+				       cpu_to_le32((u32)(pages[i])));
+			roce_set_field(mpt_entry->mpt_byte_60,
+				MPT_BYTE_60_PA5_H_M,
+				MPT_BYTE_60_PA5_H_S,
+				cpu_to_le32((u32)(pages[i] >> PAGES_SHIFT_24)));
+			break;
+		case 6:
+			roce_set_field(mpt_entry->mpt_byte_60,
+				       MPT_BYTE_60_PA6_L_M,
+				       MPT_BYTE_60_PA6_L_S,
+				       cpu_to_le32((u32)(pages[i])));
+			roce_set_field(mpt_entry->mpt_byte_64,
+				MPT_BYTE_64_PA6_H_M,
+				MPT_BYTE_64_PA6_H_S,
+				cpu_to_le32((u32)(pages[i] >> PAGES_SHIFT_16)));
+			break;
+		default:
+			break;
+		}
+	}
+
+	free_page((unsigned long) pages);
+
+	mpt_entry->pbl_addr_l = (u32)(mr->pbl_dma_addr);
+
+	roce_set_field(mpt_entry->mpt_byte_12, MPT_BYTE_12_PBL_ADDR_H_M,
+		       MPT_BYTE_12_PBL_ADDR_H_S,
+		       ((u32)(mr->pbl_dma_addr >> 32)));
+
+	return 0;
+}
+
 static void *get_cqe(struct hns_roce_cq *hr_cq, int n)
 {
 	return hns_roce_buf_offset(&hr_cq->hr_buf.hr_buf,
@@ -2605,6 +2758,8 @@ int hns_roce_v1_destroy_qp(struct ib_qp *ibqp)
 	return 0;
 }
 
+struct hns_roce_v1_priv hr_v1_priv;
+
 struct hns_roce_hw hns_roce_hw_v1 = {
 	.reset = hns_roce_v1_reset,
 	.hw_profile = hns_roce_v1_profile,
@@ -2613,6 +2768,7 @@ struct hns_roce_hw hns_roce_hw_v1 = {
 	.set_gid = hns_roce_v1_set_gid,
 	.set_mac = hns_roce_v1_set_mac,
 	.set_mtu = hns_roce_v1_set_mtu,
+	.write_mtpt = hns_roce_v1_write_mtpt,
 	.write_cqc = hns_roce_v1_write_cqc,
 	.modify_qp = hns_roce_v1_modify_qp,
 	.query_qp = hns_roce_v1_query_qp,
@@ -2621,4 +2777,5 @@ struct hns_roce_hw hns_roce_hw_v1 = {
 	.post_recv = hns_roce_v1_post_recv,
 	.req_notify_cq = hns_roce_v1_req_notify_cq,
 	.poll_cq = hns_roce_v1_poll_cq,
+	.priv = &hr_v1_priv,
 };

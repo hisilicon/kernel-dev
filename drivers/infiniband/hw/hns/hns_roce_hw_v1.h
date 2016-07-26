@@ -109,6 +109,8 @@
 
 #define HNS_ROCE_ODB_EXTEND_MODE			1
 
+#define KEY_VALID					0x02
+
 #define HNS_ROCE_CQE_QPN_MASK				0x3ffff
 #define HNS_ROCE_CQE_STATUS_MASK			0x1f
 #define HNS_ROCE_CQE_OPCODE_MASK			0xf
@@ -129,6 +131,7 @@
 
 #define QP1C_CFGN_OFFSET				0x28
 #define PHY_PORT_OFFSET					0x8
+#define MTPT_IDX_SHIFT					16
 #define ALL_PORT_VAL_OPEN				0x3f
 #define POL_TIME_INTERVAL_VAL				0x80
 #define SLEEP_TIME_INTERVAL				20
@@ -243,6 +246,106 @@ struct hns_roce_cqe {
 
 #define CQ_DB_REQ_NOT_SOL	0
 #define CQ_DB_REQ_NOT		(1 << 16)
+
+struct hns_roce_v1_mpt_entry {
+	u32  mpt_byte_4;
+	u32  pbl_addr_l;
+	u32  mpt_byte_12;
+	u32  virt_addr_l;
+	u32  virt_addr_h;
+	u32  length;
+	u32  mpt_byte_28;
+	u32  pa0_l;
+	u32  mpt_byte_36;
+	u32  mpt_byte_40;
+	u32  mpt_byte_44;
+	u32  mpt_byte_48;
+	u32  pa4_l;
+	u32  mpt_byte_56;
+	u32  mpt_byte_60;
+	u32  mpt_byte_64;
+};
+
+#define MPT_BYTE_4_KEY_STATE_S 0
+#define MPT_BYTE_4_KEY_STATE_M	(((1UL << 2) - 1) << MPT_BYTE_4_KEY_STATE_S)
+
+#define MPT_BYTE_4_KEY_S 8
+#define MPT_BYTE_4_KEY_M	(((1UL << 8) - 1) << MPT_BYTE_4_KEY_S)
+
+#define MPT_BYTE_4_PAGE_SIZE_S 16
+#define MPT_BYTE_4_PAGE_SIZE_M	(((1UL << 2) - 1) << MPT_BYTE_4_PAGE_SIZE_S)
+
+#define MPT_BYTE_4_MW_TYPE_S 20
+
+#define MPT_BYTE_4_MW_BIND_ENABLE_S 21
+
+#define MPT_BYTE_4_OWN_S 22
+
+#define MPT_BYTE_4_MEMORY_LOCATION_TYPE_S 24
+#define MPT_BYTE_4_MEMORY_LOCATION_TYPE_M   \
+	(((1UL << 2) - 1) << MPT_BYTE_4_MEMORY_LOCATION_TYPE_S)
+
+#define MPT_BYTE_4_REMOTE_ATOMIC_S 26
+#define MPT_BYTE_4_LOCAL_WRITE_S 27
+#define MPT_BYTE_4_REMOTE_WRITE_S 28
+#define MPT_BYTE_4_REMOTE_READ_S 29
+#define MPT_BYTE_4_REMOTE_INVAL_ENABLE_S 30
+#define MPT_BYTE_4_ADDRESS_TYPE_S 31
+
+#define MPT_BYTE_12_PBL_ADDR_H_S 0
+#define MPT_BYTE_12_PBL_ADDR_H_M   \
+	(((1UL << 17) - 1) << MPT_BYTE_12_PBL_ADDR_H_S)
+
+#define MPT_BYTE_12_MW_BIND_COUNTER_S 17
+#define MPT_BYTE_12_MW_BIND_COUNTER_M   \
+	(((1UL << 15) - 1) << MPT_BYTE_12_MW_BIND_COUNTER_S)
+
+#define MPT_BYTE_28_PD_S 0
+#define MPT_BYTE_28_PD_M	(((1UL << 16) - 1) << MPT_BYTE_28_PD_S)
+
+#define MPT_BYTE_28_L_KEY_IDX_L_S 16
+#define MPT_BYTE_28_L_KEY_IDX_L_M   \
+	(((1UL << 16) - 1) << MPT_BYTE_28_L_KEY_IDX_L_S)
+
+#define MPT_BYTE_36_PA0_H_S 0
+#define MPT_BYTE_36_PA0_H_M	(((1UL << 5) - 1) << MPT_BYTE_36_PA0_H_S)
+
+#define MPT_BYTE_36_PA1_L_S 8
+#define MPT_BYTE_36_PA1_L_M	(((1UL << 24) - 1) << MPT_BYTE_36_PA1_L_S)
+
+#define MPT_BYTE_40_PA1_H_S 0
+#define MPT_BYTE_40_PA1_H_M	(((1UL << 13) - 1) << MPT_BYTE_40_PA1_H_S)
+
+#define MPT_BYTE_40_PA2_L_S 16
+#define MPT_BYTE_40_PA2_L_M	(((1UL << 16) - 1) << MPT_BYTE_40_PA2_L_S)
+
+#define MPT_BYTE_44_PA2_H_S 0
+#define MPT_BYTE_44_PA2_H_M	(((1UL << 21) - 1) << MPT_BYTE_44_PA2_H_S)
+
+#define MPT_BYTE_44_PA3_L_S 24
+#define MPT_BYTE_44_PA3_L_M	(((1UL << 8) - 1) << MPT_BYTE_44_PA3_L_S)
+
+#define MPT_BYTE_48_PA3_H_S 0
+#define MPT_BYTE_48_PA3_H_M	(((1UL << 29) - 1) << MPT_BYTE_48_PA3_H_S)
+
+#define MPT_BYTE_56_PA4_H_S 0
+#define MPT_BYTE_56_PA4_H_M	(((1UL << 5) - 1) << MPT_BYTE_56_PA4_H_S)
+
+#define MPT_BYTE_56_PA5_L_S 8
+#define MPT_BYTE_56_PA5_L_M	(((1UL << 24) - 1) << MPT_BYTE_56_PA5_L_S)
+
+#define MPT_BYTE_60_PA5_H_S 0
+#define MPT_BYTE_60_PA5_H_M	(((1UL << 13) - 1) << MPT_BYTE_60_PA5_H_S)
+
+#define MPT_BYTE_60_PA6_L_S 16
+#define MPT_BYTE_60_PA6_L_M	(((1UL << 16) - 1) << MPT_BYTE_60_PA6_L_S)
+
+#define MPT_BYTE_64_PA6_H_S 0
+#define MPT_BYTE_64_PA6_H_M	(((1UL << 21) - 1) << MPT_BYTE_64_PA6_H_S)
+
+#define MPT_BYTE_64_L_KEY_IDX_H_S 24
+#define MPT_BYTE_64_L_KEY_IDX_H_M   \
+	(((1UL << 8) - 1) << MPT_BYTE_64_L_KEY_IDX_H_S)
 
 struct hns_roce_wqe_ctrl_seg {
 	__be32 sgl_pa_h;
