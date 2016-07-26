@@ -107,6 +107,7 @@
 
 #define HNS_ROCE_ODB_EXTEND_MODE			1
 
+#define PHY_PORT_OFFSET					0x8
 #define ALL_PORT_VAL_OPEN				0x3f
 #define POL_TIME_INTERVAL_VAL				0x80
 #define SLEEP_TIME_INTERVAL				20

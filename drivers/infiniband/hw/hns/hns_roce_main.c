@@ -39,6 +39,118 @@
 #include "hns_roce_device.h"
 #include "hns_roce_hem.h"
 
+/**
+ * hns_get_gid_index - Get gid index.
+ * @hr_dev: pointer to structure hns_roce_dev.
+ * @port:  port, value range: 0 ~ MAX
+ * @gid_index:  gid_index, value range: 0 ~ MAX
+ * Description:
+ *    N ports shared gids, allocation method as follow:
+ *		GID[0][0], GID[1][0],.....GID[N - 1][0],
+ *		GID[0][0], GID[1][0],.....GID[N - 1][0],
+ *		And so on
+ */
+int hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index)
+{
+	return gid_index * hr_dev->caps.num_ports + port;
+}
+
+static int hns_roce_set_gid(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
+		     union ib_gid *gid)
+{
+	struct device *dev = &hr_dev->pdev->dev;
+	u8 gid_idx = 0;
+
+	if (gid_index >= hr_dev->caps.gid_table_len[port]) {
+		dev_err(dev, "gid_index %d illegal, port %d gid range: 0~%d\n",
+			gid_index, port, hr_dev->caps.gid_table_len[port] - 1);
+		return -EINVAL;
+	}
+
+	gid_idx = hns_get_gid_index(hr_dev, port, gid_index);
+
+	if (!memcmp(gid, &hr_dev->iboe.gid_table[gid_idx], sizeof(*gid)))
+		return -EINVAL;
+
+	memcpy(&hr_dev->iboe.gid_table[gid_idx], gid, sizeof(*gid));
+
+	hr_dev->hw->set_gid(hr_dev, port, gid_index, gid);
+
+	return 0;
+}
+
+static void hns_roce_set_mac(struct hns_roce_dev *hr_dev, u8 port, u8 *addr)
+{
+	u8 phy_port;
+	u32 i = 0;
+
+	if (!memcmp(hr_dev->dev_addr[port], addr, MAC_ADDR_OCTET_NUM))
+		return;
+
+	for (i = 0; i < MAC_ADDR_OCTET_NUM; i++)
+		hr_dev->dev_addr[port][i] = addr[i];
+
+	phy_port = hr_dev->iboe.phy_port[port];
+	hr_dev->hw->set_mac(hr_dev, phy_port, addr);
+}
+
+static void hns_roce_set_mtu(struct hns_roce_dev *hr_dev, u8 port, int mtu)
+{
+	u8 phy_port = hr_dev->iboe.phy_port[port];
+	enum ib_mtu tmp;
+
+	tmp = iboe_get_mtu(mtu);
+	if (!tmp)
+		tmp = IB_MTU_256;
+
+	hr_dev->hw->set_mtu(hr_dev, phy_port, tmp);
+}
+
+static void hns_roce_update_gids(struct hns_roce_dev *hr_dev, int port)
+{
+	struct ib_event event;
+
+	/* Refresh gid in ib_cache */
+	event.device = &hr_dev->ib_dev;
+	event.element.port_num = port + 1;
+	event.event = IB_EVENT_GID_CHANGE;
+	ib_dispatch_event(&event);
+}
+
+static int hns_roce_setup_mtu_gids(struct hns_roce_dev *hr_dev)
+{
+	struct in_ifaddr *ifa_list = NULL;
+	union ib_gid gid = {{0} };
+	u32 ipaddr = 0;
+	int index = 0;
+	int ret = 0;
+	u8 i = 0;
+
+	for (i = 0; i < hr_dev->caps.num_ports; i++) {
+		hns_roce_set_mtu(hr_dev, i,
+				 ib_mtu_enum_to_int(hr_dev->caps.max_mtu));
+		hns_roce_set_mac(hr_dev, i, hr_dev->iboe.netdevs[i]->dev_addr);
+
+		if (hr_dev->iboe.netdevs[i]->ip_ptr) {
+			ifa_list = hr_dev->iboe.netdevs[i]->ip_ptr->ifa_list;
+			index = 1;
+			while (ifa_list) {
+				ipaddr = ifa_list->ifa_address;
+				ipv6_addr_set_v4mapped(ipaddr,
+						       (struct in6_addr *)&gid);
+				ret = hns_roce_set_gid(hr_dev, i, index, &gid);
+				if (ret)
+					break;
+				index++;
+				ifa_list = ifa_list->ifa_next;
+			}
+			hns_roce_update_gids(hr_dev, i);
+		}
+	}
+
+	return ret;
+}
+
 static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
 {
 	ib_unregister_device(&hr_dev->ib_dev);
@@ -71,7 +183,18 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		return ret;
 	}
 
+	ret = hns_roce_setup_mtu_gids(hr_dev);
+	if (ret) {
+		dev_err(dev, "roce_setup_mtu_gids failed!\n");
+		goto error_failed_setup_mtu_gids;
+	}
+
 	return 0;
+
+error_failed_setup_mtu_gids:
+	ib_unregister_device(ib_dev);
+
+	return ret;
 }
 
 static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)

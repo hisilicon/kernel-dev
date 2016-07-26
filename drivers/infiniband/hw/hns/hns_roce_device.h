@@ -37,6 +37,8 @@
 
 #define DRV_NAME "hns_roce"
 
+#define MAC_ADDR_OCTET_NUM			6
+
 #define HNS_ROCE_BA_SIZE			(32 * 4096)
 
 #define HNS_ROCE_MAX_IRQ_NUM			34
@@ -47,6 +49,9 @@
 #define HNS_ROCE_AEQE_OF_VEC_NUM		1
 
 #define HNS_ROCE_MAX_PORTS			6
+#define HNS_ROCE_MAX_GID_NUM			16
+
+#define PAGES_SHIFT_16				16
 
 enum hns_roce_event {
 	HNS_ROCE_EVENT_TYPE_PATH_MIG                  = 0x01,
@@ -244,6 +249,8 @@ struct hns_roce_qp {
 
 struct hns_roce_ib_iboe {
 	struct net_device      *netdevs[HNS_ROCE_MAX_PORTS];
+	/* 16 GID is shared by 6 port in v1 engine. */
+	union ib_gid		gid_table[HNS_ROCE_MAX_GID_NUM];
 	u8			phy_port[HNS_ROCE_MAX_PORTS];
 };
 
@@ -314,6 +321,11 @@ struct hns_roce_hw {
 	void (*hw_profile)(struct hns_roce_dev *hr_dev);
 	int (*hw_init)(struct hns_roce_dev *hr_dev);
 	void (*hw_exit)(struct hns_roce_dev *hr_dev);
+	void (*set_gid)(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
+			union ib_gid *gid);
+	void (*set_mac)(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr);
+	void (*set_mtu)(struct hns_roce_dev *hr_dev, u8 phy_port,
+			enum ib_mtu mtu);
 	void	*priv;
 };
 
@@ -332,6 +344,7 @@ struct hns_roce_dev {
 	struct hns_roce_caps	caps;
 	struct radix_tree_root  qp_table_tree;
 
+	unsigned char	dev_addr[HNS_ROCE_MAX_PORTS][MAC_ADDR_OCTET_NUM];
 	u64			sys_image_guid;
 	u32                     vendor_id;
 	u32                     vendor_part_id;
@@ -400,6 +413,7 @@ void hns_roce_bitmap_free_range(struct hns_roce_bitmap *bitmap,
 void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn);
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type);
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type);
+int hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index);
 
 extern struct hns_roce_hw hns_roce_hw_v1;
 
