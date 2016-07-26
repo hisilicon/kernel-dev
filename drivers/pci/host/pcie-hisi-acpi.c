@@ -18,16 +18,17 @@
 #include "pcie-hisi.h"
 
 #define DEBUG0          0x728
-#define RC_NUM          4
+#define MAX_RC_NUM	8
 
 enum soc_type {
 	HIP05,
 	HIP06,
+	HIP07,
 };
 
 struct hisi_rc_res {
 	int soc_type;
-	struct resource res[RC_NUM];
+	struct resource res[MAX_RC_NUM];
 };
 
 static int hisi_pcie_link_up_acpi(struct pci_config_window *cfg)
@@ -100,14 +101,37 @@ static struct pci_ops hisi_pcie_ops = {
 };
 
 static struct hisi_rc_res rc_res[] = {
-	{HIP05,
-	{DEFINE_RES_MEM(0xb0070000, SZ_4K), DEFINE_RES_MEM(0xb0080000, SZ_4K),
-	 DEFINE_RES_MEM(0xb0090000, SZ_4K), DEFINE_RES_MEM(0xb00a0000, SZ_4K)}
+	{
+		HIP05,
+		{
+			DEFINE_RES_MEM(0xb0070000, SZ_4K),
+			DEFINE_RES_MEM(0xb0080000, SZ_4K),
+			DEFINE_RES_MEM(0xb0090000, SZ_4K),
+			DEFINE_RES_MEM(0xb00a0000, SZ_4K)
+		}
 	},
-	{HIP06,
-	{DEFINE_RES_MEM(0xa0090000, SZ_4K), DEFINE_RES_MEM(0xa0200000, SZ_4K),
-	 DEFINE_RES_MEM(0xa00a0000, SZ_4K), DEFINE_RES_MEM(0xa00b0000, SZ_4K)}
-	}
+	{
+		HIP06,
+		{
+			DEFINE_RES_MEM(0xa0090000, SZ_4K),
+			DEFINE_RES_MEM(0xa0200000, SZ_4K),
+			DEFINE_RES_MEM(0xa00a0000, SZ_4K),
+			DEFINE_RES_MEM(0xa00b0000, SZ_4K)
+		}
+	},
+	{
+		HIP07,
+		{
+			DEFINE_RES_MEM(0xa0090000, SZ_4K),
+			DEFINE_RES_MEM(0xa0200000, SZ_4K),
+			DEFINE_RES_MEM(0xa00a0000, SZ_4K),
+			DEFINE_RES_MEM(0xa00b0000, SZ_4K),
+			DEFINE_RES_MEM(0x8a0090000UL, SZ_4K),
+			DEFINE_RES_MEM(0x8a0200000UL, SZ_4K),
+			DEFINE_RES_MEM(0x8a00a0000UL, SZ_4K),
+			DEFINE_RES_MEM(0x8a00b0000UL, SZ_4K)
+		}
+	},
 };
 
 struct pci_config_window *hisi_pcie_acpi_init(struct acpi_pci_root *root,
@@ -148,4 +172,10 @@ struct pci_config_window *hisi_pcie_acpi_hip06_init(struct acpi_pci_root *root,
 						    struct pci_ops *ops)
 {
 	return hisi_pcie_acpi_init(root, ops, HIP06);
+}
+
+struct pci_config_window *hisi_pcie_acpi_hip07_init(struct acpi_pci_root *root,
+						    struct pci_ops *ops)
+{
+	return hisi_pcie_acpi_init(root, ops, HIP07);
 }

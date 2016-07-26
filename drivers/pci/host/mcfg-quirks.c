@@ -58,6 +58,8 @@ static struct pci_cfg_fixup mcfg_qurks[] __initconst = {
 	  NULL, hisi_pcie_acpi_hip06_init},
 	{ "HISI", "HISI1612", 0, MCFG_DOM_RANGE(0, 3), MCFG_BUS_ANY,
 	  NULL, hisi_pcie_acpi_hip06_init},
+	{ "HISI", "HISI1616", 0, MCFG_DOM_RANGE(0, 7), MCFG_BUS_ANY,
+	  NULL, hisi_pcie_acpi_hip07_init},
 #endif
 };
 

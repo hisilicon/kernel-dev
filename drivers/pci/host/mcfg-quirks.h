@@ -27,6 +27,9 @@ hisi_pcie_acpi_hip05_init(struct acpi_pci_root *root, struct pci_ops *ops);
 
 struct pci_config_window *
 hisi_pcie_acpi_hip06_init(struct acpi_pci_root *root, struct pci_ops *ops);
+
+struct pci_config_window *
+hisi_pcie_acpi_hip07_init(struct acpi_pci_root *root, struct pci_ops *ops);
 #endif
 
 #endif /* __MCFG_QUIRKS_H__ */
