@@ -144,6 +144,8 @@ static int hns_roce_probe(struct platform_device *pdev)
 		goto error_failed_get_cfg;
 	}
 
+	hr_dev->hw->hw_profile(hr_dev);
+
 error_failed_get_cfg:
 	ib_dealloc_device(&hr_dev->ib_dev);
 
