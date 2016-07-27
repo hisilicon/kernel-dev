@@ -55,10 +55,40 @@
 #define HGC_DFX_CFG2			0xc0
 #define HGC_IOMB_PROC1_STATUS	0x104
 #define CFG_1US_TIMER_TRSH		0xcc
+#define HGC_LM_DFX_STATUS2		0x128
+#define HGC_LM_DFX_STATUS2_IOSTLIST_OFF		0
+#define HGC_LM_DFX_STATUS2_IOSTLIST_MSK	(0xfff << HGC_LM_DFX_STATUS2_IOSTLIST_OFF)
+#define HGC_LM_DFX_STATUS2_ITCTLIST_OFF		12
+#define HGC_LM_DFX_STATUS2_ITCTLIST_MSK	(0x7ff << HGC_LM_DFX_STATUS2_ITCTLIST_OFF)
+#define HGC_CQE_ECC_ADDR		0x13c
+#define HGC_CQE_ECC_1B_ADDR_OFF	0
+#define HGC_CQE_ECC_1B_ADDR_MSK	(0x3f < HGC_CQE_ECC_1B_ADDR_OFF)
+#define HGC_CQE_ECC_MB_ADDR_OFF	8
+#define HGC_CQE_ECC_MB_ADDR_MSK (0x3f < HGC_CQE_ECC_MB_ADDR_OFF)
+#define HGC_IOST_ECC_ADDR		0x140
+#define HGC_IOST_ECC_1B_ADDR_OFF	0
+#define HGC_IOST_ECC_1B_ADDR_MSK	(0x3ff < HGC_IOST_ECC_1B_ADDR_OFF)
+#define HGC_IOST_ECC_MB_ADDR_OFF	16
+#define HGC_IOST_ECC_MB_ADDR_MSK	(0x3ff < HGC_IOST_ECC_MB_ADDR_OFF)
+#define HGC_DQE_ECC_ADDR		0x144
+#define HGC_DQE_ECC_1B_ADDR_OFF	0
+#define HGC_DQE_ECC_1B_ADDR_MSK	(0xfff < HGC_DQE_ECC_1B_ADDR_OFF)
+#define HGC_DQE_ECC_MB_ADDR_OFF	16
+#define HGC_DQE_ECC_MB_ADDR_MSK (0xfff < HGC_DQE_ECC_MB_ADDR_OFF)
 #define HGC_INVLD_DQE_INFO		0x148
 #define HGC_INVLD_DQE_INFO_FB_CH0_OFF	9
 #define HGC_INVLD_DQE_INFO_FB_CH0_MSK	(0x1 << HGC_INVLD_DQE_INFO_FB_CH0_OFF)
 #define HGC_INVLD_DQE_INFO_FB_CH3_OFF	18
+#define HGC_ITCT_ECC_ADDR		0x150
+#define HGC_ITCT_ECC_1B_ADDR_OFF		0
+#define HGC_ITCT_ECC_1B_ADDR_MSK		(0x3ff << HGC_ITCT_ECC_1B_ADDR_OFF)
+#define HGC_ITCT_ECC_MB_ADDR_OFF		16
+#define HGC_ITCT_ECC_MB_ADDR_MSK		(0x3ff << HGC_ITCT_ECC_MB_ADDR_OFF)
+#define HGC_AXI_FIFO_ERR_INFO	0x154
+#define AXI_ERR_INFO_OFF		0
+#define AXI_ERR_INFO_MSK		(0xff << AXI_ERR_INFO_OFF)
+#define FIFO_ERR_INFO_OFF		8
+#define FIFO_ERR_INFO_MSK		(0xff << FIFO_ERR_INFO_OFF)
 #define INT_COAL_EN			0x19c
 #define OQ_INT_COAL_TIME		0x1a0
 #define OQ_INT_COAL_CNT			0x1a4
@@ -73,13 +103,41 @@
 #define ENT_INT_SRC1_D2H_FIS_CH1_MSK	(0x1 << ENT_INT_SRC1_D2H_FIS_CH1_OFF)
 #define ENT_INT_SRC2			0x1bc
 #define ENT_INT_SRC3			0x1c0
+#define ENT_INT_SRC3_WP_DEPTH_OFF		8
+#define ENT_INT_SRC3_IPTT_SLOT_NOMATCH_OFF	9
+#define ENT_INT_SRC3_RP_DEPTH_OFF		10
+#define ENT_INT_SRC3_AXI_OFF			11
+#define ENT_INT_SRC3_FIFO_OFF			12
+#define ENT_INT_SRC3_LM_OFF				14
 #define ENT_INT_SRC3_ITC_INT_OFF	15
 #define ENT_INT_SRC3_ITC_INT_MSK	(0x1 << ENT_INT_SRC3_ITC_INT_OFF)
+#define ENT_INT_SRC3_ABT_OFF		16
 #define ENT_INT_SRC_MSK1		0x1c4
 #define ENT_INT_SRC_MSK2		0x1c8
 #define ENT_INT_SRC_MSK3		0x1cc
 #define ENT_INT_SRC_MSK3_ENT95_MSK_OFF	31
 #define ENT_INT_SRC_MSK3_ENT95_MSK_MSK	(0x1 << ENT_INT_SRC_MSK3_ENT95_MSK_OFF)
+#define SAS_ECC_INTR			0x1e8
+#define SAS_ECC_INTR_DQE_ECC_1B_OFF		0
+#define SAS_ECC_INTR_DQE_ECC_MB_OFF		1
+#define SAS_ECC_INTR_IOST_ECC_1B_OFF	2
+#define SAS_ECC_INTR_IOST_ECC_MB_OFF	3
+#define SAS_ECC_INTR_ITCT_ECC_MB_OFF	4
+#define SAS_ECC_INTR_ITCT_ECC_1B_OFF	5
+#define SAS_ECC_INTR_IOSTLIST_ECC_MB_OFF	6
+#define SAS_ECC_INTR_IOSTLIST_ECC_1B_OFF	7
+#define SAS_ECC_INTR_ITCTLIST_ECC_1B_OFF	8
+#define SAS_ECC_INTR_ITCTLIST_ECC_MB_OFF	9
+#define SAS_ECC_INTR_CQE_ECC_1B_OFF		10
+#define SAS_ECC_INTR_CQE_ECC_MB_OFF		11
+#define SAS_ECC_INTR_NCQ_MEM0_ECC_MB_OFF	12
+#define SAS_ECC_INTR_NCQ_MEM0_ECC_1B_OFF	13
+#define SAS_ECC_INTR_NCQ_MEM1_ECC_MB_OFF	14
+#define SAS_ECC_INTR_NCQ_MEM1_ECC_1B_OFF	15
+#define SAS_ECC_INTR_NCQ_MEM2_ECC_MB_OFF	16
+#define SAS_ECC_INTR_NCQ_MEM2_ECC_1B_OFF	17
+#define SAS_ECC_INTR_NCQ_MEM3_ECC_MB_OFF	18
+#define SAS_ECC_INTR_NCQ_MEM3_ECC_1B_OFF	19
 #define SAS_ECC_INTR_MSK		0x1ec
 #define HGC_ERR_STAT_EN			0x238
 #define DLVRY_Q_0_BASE_ADDR_LO		0x260
@@ -94,7 +152,16 @@
 #define COMPL_Q_0_DEPTH			0x4e8
 #define COMPL_Q_0_WR_PTR		0x4ec
 #define COMPL_Q_0_RD_PTR		0x4f0
-
+#define HGC_RXM_DFX_STATUS14	0xae8
+#define HGC_RXM_DFX_STATUS14_MEM0_OFF		0
+#define HGC_RXM_DFX_STATUS14_MEM0_MSK		(0x1ff << HGC_RXM_DFX_STATUS14_MEM0_OFF)
+#define HGC_RXM_DFX_STATUS14_MEM1_OFF		9
+#define HGC_RXM_DFX_STATUS14_MEM1_MSK		(0x1ff << HGC_RXM_DFX_STATUS14_MEM1_OFF)
+#define HGC_RXM_DFX_STATUS14_MEM2_OFF		18
+#define HGC_RXM_DFX_STATUS14_MEM2_MSK		(0x1ff << HGC_RXM_DFX_STATUS14_MEM2_OFF)
+#define HGC_RXM_DFX_STATUS15	0xaec
+#define HGC_RXM_DFX_STATUS15_MEM3_OFF		0
+#define HGC_RXM_DFX_STATUS15_MEM3_MSK		(0x1ff << HGC_RXM_DFX_STATUS15_MEM3_OFF)
 /* phy registers need init */
 #define PORT_BASE			(0x2000)
 
@@ -271,6 +338,8 @@
 #define ITCT_HDR_MCTLT_MSK		(0xffffULL << ITCT_HDR_MCTLT_OFF)
 #define ITCT_HDR_RTOLT_OFF		48
 #define ITCT_HDR_RTOLT_MSK		(0xffffULL << ITCT_HDR_RTOLT_OFF)
+
+#define HISI_SAS_FATAL_INT_NR	2
 
 #ifdef SAS_DIF
 #define PIRF_UDBS_OFF	30
@@ -835,7 +904,7 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, 0x7efefefe);
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK2, 0x7efefefe);
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, 0x7ffffffe);
-	hisi_sas_write32(hisi_hba, SAS_ECC_INTR_MSK, 0xfffff3c0);
+	hisi_sas_write32(hisi_hba, SAS_ECC_INTR_MSK, 0xfff00c30);
 	for (i = 0; i < hisi_hba->queue_count; i++)
 		hisi_sas_write32(hisi_hba, OQ0_INT_SRC_MSK+0x4*i, 0);
 
@@ -851,7 +920,7 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEIVED_TIME, 0x10);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0, 0xffffffff);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1, 0xffffffff);
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2, 0xffffffff);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2, 0xfff87fff);
 		hisi_sas_phy_write32(hisi_hba, i, RXOP_CHECK_CFG_H, 0x1000);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK, 0xffffffff);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0x8ffffbff);
@@ -1414,18 +1483,6 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 	case SAS_PROTOCOL_SSP:
 	{
 		switch (error) {
-		case TRANS_TX_OPEN_CNX_ERR_NO_DESTINATION:
-		{
-			ts->stat = SAS_OPEN_REJECT;
-			ts->open_rej_reason = SAS_OREJ_NO_DEST;
-			break;
-		}
-		case TRANS_TX_OPEN_CNX_ERR_PATHWAY_BLOCKED:
-		{
-			ts->stat = SAS_OPEN_REJECT;
-			ts->open_rej_reason = SAS_OREJ_PATH_BLOCKED;
-			break;
-		}
 		case TRANS_TX_OPEN_CNX_ERR_PROTOCOL_NOT_SUPPORTED:
 		{
 			ts->stat = SAS_OPEN_REJECT;
@@ -1442,12 +1499,6 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		{
 			ts->stat = SAS_OPEN_REJECT;
 			ts->open_rej_reason = SAS_OREJ_BAD_DEST;
-			break;
-		}
-		case TRANS_TX_OPEN_CNX_ERR_BREAK_RCVD:
-		{
-			ts->stat = SAS_OPEN_REJECT;
-			ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 			break;
 		}
 		case TRANS_TX_OPEN_CNX_ERR_WRONG_DESTINATION:
@@ -1468,74 +1519,72 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 			ts->stat = SAS_DEV_NO_RESPONSE;
 			break;
 		}
-		case TRANS_RX_ERR_WITH_CLOSE_PHY_DISABLE:
-		{
-			ts->stat = SAS_PHY_DOWN;
-			break;
-		}
-		case TRANS_TX_OPEN_CNX_ERR_OPEN_TIMEOUT:
-		{
-			ts->stat = SAS_OPEN_TO;
-			break;
-		}
-		case DMA_RX_DATA_LEN_OVERFLOW:
-		{
-			ts->stat = SAS_DATA_OVERRUN;
-			ts->residual = 0;
-			break;
-		}
 		case DMA_RX_DATA_LEN_UNDERFLOW:
-		case SIPC_RX_DATA_UNDERFLOW_ERR:
 		{
-			ts->residual = trans_tx_fail_type;
+			ts->residual = dma_rx_err_type;
 			ts->stat = SAS_DATA_UNDERRUN;
-			break;
-		}
-		case TRANS_TX_ERR_FRAME_TXED:
-		{
-			/* This will request a retry */
-			ts->stat = SAS_QUEUE_FULL;
-			slot->abort = 1;
 			break;
 		}
 		case TRANS_TX_OPEN_FAIL_WITH_IT_NEXUS_LOSS:
 		case TRANS_TX_ERR_PHY_NOT_ENABLE:
 		case TRANS_TX_OPEN_CNX_ERR_BY_OTHER:
 		case TRANS_TX_OPEN_CNX_ERR_AIP_TIMEOUT:
+		case TRANS_TX_OPEN_CNX_ERR_BREAK_RCVD:
+		case TRANS_TX_OPEN_CNX_ERR_PATHWAY_BLOCKED:
+		case TRANS_TX_OPEN_CNX_ERR_OPEN_TIMEOUT:
+		case TRANS_TX_OPEN_CNX_ERR_NO_DESTINATION:
 		case TRANS_TX_OPEN_RETRY_ERR_THRESHOLD_REACHED:
 		case TRANS_TX_ERR_WITH_BREAK_TIMEOUT:
 		case TRANS_TX_ERR_WITH_BREAK_REQUEST:
 		case TRANS_TX_ERR_WITH_BREAK_RECEVIED:
 		case TRANS_TX_ERR_WITH_CLOSE_TIMEOUT:
 		case TRANS_TX_ERR_WITH_CLOSE_NORMAL:
+		case TRANS_TX_ERR_WITH_CLOSE_PHYDISALE:
 		case TRANS_TX_ERR_WITH_CLOSE_DWS_TIMEOUT:
 		case TRANS_TX_ERR_WITH_CLOSE_COMINIT:
 		case TRANS_TX_ERR_WITH_NAK_RECEVIED:
 		case TRANS_TX_ERR_WITH_ACK_NAK_TIMEOUT:
-		case TRANS_TX_ERR_WITH_IPTT_CONFLICT:
 		case TRANS_TX_ERR_WITH_CREDIT_TIMEOUT:
+		case TRANS_TX_ERR_WITH_IPTT_CONFLICT:
 		case TRANS_RX_ERR_WITH_RXFRAME_CRC_ERR:
 		case TRANS_RX_ERR_WITH_RXFIS_8B10B_DISP_ERR:
 		case TRANS_RX_ERR_WITH_RXFRAME_HAVE_ERRPRM:
+		case TRANS_RX_ERR_WITH_LINK_BUF_OVERRUN:
 		case TRANS_RX_ERR_WITH_BREAK_TIMEOUT:
 		case TRANS_RX_ERR_WITH_BREAK_REQUEST:
 		case TRANS_RX_ERR_WITH_BREAK_RECEVIED:
 		case TRANS_RX_ERR_WITH_CLOSE_NORMAL:
 		case TRANS_RX_ERR_WITH_CLOSE_DWS_TIMEOUT:
 		case TRANS_RX_ERR_WITH_CLOSE_COMINIT:
+		case TRANS_TX_ERR_FRAME_TXED:
+		case TRANS_RX_ERR_WITH_CLOSE_PHY_DISABLE:
 		case TRANS_RX_ERR_WITH_DATA_LEN0:
 		case TRANS_RX_ERR_WITH_BAD_HASH:
 		case TRANS_RX_XRDY_WLEN_ZERO_ERR:
 		case TRANS_RX_SSP_FRM_LEN_ERR:
 		case TRANS_RX_ERR_WITH_BAD_FRM_TYPE:
+		case DMA_TX_DATA_SGL_OVERFLOW:
 		case DMA_TX_UNEXP_XFER_ERR:
 		case DMA_TX_UNEXP_RETRANS_ERR:
 		case DMA_TX_XFER_LEN_OVERFLOW:
 		case DMA_TX_XFER_OFFSET_ERR:
+		case SIPC_RX_DATA_UNDERFLOW_ERR:
+		case DMA_RX_DATA_SGL_OVERFLOW:
+		case DMA_RX_DATA_LEN_OVERFLOW:
 		case DMA_RX_DATA_OFFSET_ERR:
-		case DMA_RX_UNEXP_NORM_RESP_ERR:
-		case DMA_RX_UNEXP_RDFRAME_ERR:
+		case DMA_RX_RDSETUP_LEN_ODD_ERR:
+		case DMA_RX_RDSETUP_LEN_ZERO_ERR:
+		case DMA_RX_RDSETUP_LEN_OVER_ERR:
+		case DMA_RX_SATA_FRAME_TYPE_ERR:
 		case DMA_RX_UNKNOWN_FRM_ERR:
+		{
+			/* This will request a retry */
+			ts->stat = SAS_QUEUE_FULL;
+			slot->abort = 1;
+			break;
+		}
+		case DMA_RX_RESP_BUF_OVERFLOW:
+		case DMA_RX_UNEXP_NORM_RESP_ERR:
 		{
 			ts->stat = SAS_OPEN_REJECT;
 			ts->open_rej_reason = SAS_OREJ_UNKNOWN;
@@ -1556,8 +1605,6 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 	{
 		switch (error) {
 		case TRANS_TX_OPEN_CNX_ERR_LOW_PHY_POWER:
-		case TRANS_TX_OPEN_CNX_ERR_PATHWAY_BLOCKED:
-		case TRANS_TX_OPEN_CNX_ERR_NO_DESTINATION:
 		{
 			ts->resp = SAS_TASK_UNDELIVERED;
 			ts->stat = SAS_DEV_NO_RESPONSE;
@@ -1566,7 +1613,6 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		case TRANS_TX_OPEN_CNX_ERR_PROTOCOL_NOT_SUPPORTED:
 		case TRANS_TX_OPEN_CNX_ERR_CONNECTION_RATE_NOT_SUPPORTED:
 		case TRANS_TX_OPEN_CNX_ERR_BAD_DESTINATION:
-		case TRANS_TX_OPEN_CNX_ERR_BREAK_RCVD:
 		case TRANS_TX_OPEN_CNX_ERR_WRONG_DESTINATION:
 		case TRANS_TX_OPEN_CNX_ERR_ZONE_VIOLATION:
 		case TRANS_TX_OPEN_CNX_ERR_STP_RESOURCES_BUSY:
@@ -1574,38 +1620,50 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 			ts->stat = SAS_OPEN_REJECT;
 			break;
 		}
-		case TRANS_TX_OPEN_CNX_ERR_OPEN_TIMEOUT:
+		case TRANS_RX_SSP_FRM_LEN_ERR:
+		case DMA_RX_RESP_BUF_OVERFLOW:
+		case DMA_RX_UNEXP_NORM_RESP_ERR:
 		{
-			ts->stat = SAS_OPEN_TO;
+			ts->stat = SAS_OPEN_REJECT;
 			break;
 		}
-		case DMA_RX_DATA_LEN_OVERFLOW:
+		case DMA_RX_DATA_LEN_UNDERFLOW:
 		{
-			ts->stat = SAS_DATA_OVERRUN;
+			ts->residual = dma_rx_err_type;
+			ts->stat = SAS_DATA_UNDERRUN;
 			break;
 		}
 		case TRANS_TX_OPEN_FAIL_WITH_IT_NEXUS_LOSS:
 		case TRANS_TX_ERR_PHY_NOT_ENABLE:
 		case TRANS_TX_OPEN_CNX_ERR_BY_OTHER:
 		case TRANS_TX_OPEN_CNX_ERR_AIP_TIMEOUT:
+		case TRANS_TX_OPEN_CNX_ERR_BREAK_RCVD:
+		case TRANS_TX_OPEN_CNX_ERR_PATHWAY_BLOCKED:
+		case TRANS_TX_OPEN_CNX_ERR_OPEN_TIMEOUT:
+		case TRANS_TX_OPEN_CNX_ERR_NO_DESTINATION:
 		case TRANS_TX_OPEN_RETRY_ERR_THRESHOLD_REACHED:
 		case TRANS_TX_ERR_WITH_BREAK_TIMEOUT:
 		case TRANS_TX_ERR_WITH_BREAK_REQUEST:
 		case TRANS_TX_ERR_WITH_BREAK_RECEVIED:
 		case TRANS_TX_ERR_WITH_CLOSE_TIMEOUT:
 		case TRANS_TX_ERR_WITH_CLOSE_NORMAL:
+		case TRANS_TX_ERR_WITH_CLOSE_PHYDISALE:
 		case TRANS_TX_ERR_WITH_CLOSE_DWS_TIMEOUT:
 		case TRANS_TX_ERR_WITH_CLOSE_COMINIT:
-		case TRANS_TX_ERR_WITH_NAK_RECEVIED:
 		case TRANS_TX_ERR_WITH_ACK_NAK_TIMEOUT:
 		case TRANS_TX_ERR_WITH_CREDIT_TIMEOUT:
+		case TRANS_TX_ERR_WITH_OPEN_BY_DES_OR_OTHERS:
 		case TRANS_TX_ERR_WITH_WAIT_RECV_TIMEOUT:
-		case TRANS_RX_ERR_WITH_RXFIS_8B10B_DISP_ERR:
 		case TRANS_RX_ERR_WITH_RXFRAME_HAVE_ERRPRM:
+		case TRANS_RX_ERR_WITH_RXFIS_8B10B_DISP_ERR:
 		case TRANS_RX_ERR_WITH_RXFIS_DECODE_ERROR:
 		case TRANS_RX_ERR_WITH_RXFIS_CRC_ERR:
 		case TRANS_RX_ERR_WITH_RXFRAME_LENGTH_OVERRUN:
 		case TRANS_RX_ERR_WITH_RXFIS_RX_SYNCP:
+		case TRANS_RX_ERR_WITH_LINK_BUF_OVERRUN:
+		case TRANS_RX_ERR_WITH_BREAK_TIMEOUT:
+		case TRANS_RX_ERR_WITH_BREAK_REQUEST:
+		case TRANS_RX_ERR_WITH_BREAK_RECEVIED:
 		case TRANS_RX_ERR_WITH_CLOSE_NORMAL:
 		case TRANS_RX_ERR_WITH_CLOSE_PHY_DISABLE:
 		case TRANS_RX_ERR_WITH_CLOSE_DWS_TIMEOUT:
@@ -1613,7 +1671,12 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		case TRANS_RX_ERR_WITH_DATA_LEN0:
 		case TRANS_RX_ERR_WITH_BAD_HASH:
 		case TRANS_RX_XRDY_WLEN_ZERO_ERR:
-		case TRANS_RX_SSP_FRM_LEN_ERR:
+		case TRANS_RX_ERR_WITH_BAD_FRM_TYPE:
+		case DMA_TX_DATA_SGL_OVERFLOW:
+		case DMA_TX_UNEXP_XFER_ERR:
+		case DMA_TX_UNEXP_RETRANS_ERR:
+		case DMA_TX_XFER_LEN_OVERFLOW:
+		case DMA_TX_XFER_OFFSET_ERR:
 		case SIPC_RX_FIS_STATUS_ERR_BIT_VLD:
 		case SIPC_RX_PIO_WRSETUP_STATUS_DRQ_ERR:
 		case SIPC_RX_FIS_STATUS_BSY_BIT_ERR:
@@ -1621,6 +1684,9 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		case SIPC_RX_WRSETUP_LEN_ZERO_ERR:
 		case SIPC_RX_WRDATA_LEN_NOT_MATCH_ERR:
 		case SIPC_RX_SATA_UNEXP_FIS_ERR:
+		case DMA_RX_DATA_SGL_OVERFLOW:
+		case DMA_RX_DATA_LEN_OVERFLOW:
+		case DMA_RX_DATA_OFFSET_ERR:
 		case DMA_RX_SATA_FRAME_TYPE_ERR:
 		case DMA_RX_UNEXP_RDFRAME_ERR:
 		case DMA_RX_PIO_DATA_LEN_ERR:
@@ -1635,7 +1701,8 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		case DMA_RX_RDSETUP_ESTATUS_ERR:
 		case DMA_RX_UNKNOWN_FRM_ERR:
 		{
-			ts->stat = SAS_OPEN_REJECT;
+			slot->abort = 1;
+			ts->stat = SAS_PHY_DOWN;
 			break;
 		}
 		default:
@@ -2160,6 +2227,291 @@ static irqreturn_t int_chnl_int_v2_hw(int irq_no, void *p)
 	return IRQ_HANDLED;
 }
 
+static void one_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba,
+		u32 irq_value)
+{
+	struct device *dev = &hisi_hba->pdev->dev;
+	u32 reg_val;
+
+	if (irq_value & BIT(SAS_ECC_INTR_DQE_ECC_1B_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_DQE_ECC_ADDR);
+		dev_info(dev, "hgc_dqe_acc1b_intr found: Ram address is 0x%08X\n",
+				(reg_val & HGC_DQE_ECC_1B_ADDR_MSK)
+				>> HGC_DQE_ECC_1B_ADDR_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_IOST_ECC_1B_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_IOST_ECC_ADDR);
+		dev_info(dev, "hgc_iost_acc1b_intr found: Ram address is 0x%08X\n",
+				(reg_val & HGC_IOST_ECC_1B_ADDR_MSK)
+				>> HGC_IOST_ECC_1B_ADDR_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_ITCT_ECC_1B_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_ITCT_ECC_ADDR);
+		dev_info(dev, "hgc_itct_acc1b_intr found: Ram address is 0x%08X\n",
+				(reg_val & HGC_ITCT_ECC_1B_ADDR_MSK)
+				>> HGC_ITCT_ECC_1B_ADDR_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_IOSTLIST_ECC_1B_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_LM_DFX_STATUS2);
+		dev_info(dev, "hgc_iostl_acc1b_intr found: memory address is 0x%08X\n",
+				(reg_val & HGC_LM_DFX_STATUS2_IOSTLIST_MSK)
+				>> HGC_LM_DFX_STATUS2_IOSTLIST_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_ITCTLIST_ECC_1B_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_LM_DFX_STATUS2);
+		dev_info(dev, "hgc_itctl_acc1b_intr found: memory address is 0x%08X\n",
+				(reg_val & HGC_LM_DFX_STATUS2_ITCTLIST_MSK)
+				>> HGC_LM_DFX_STATUS2_ITCTLIST_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_CQE_ECC_1B_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_CQE_ECC_ADDR);
+		dev_info(dev, "hgc_cqe_acc1b_intr found: Ram address is 0x%08X\n",
+				(reg_val & HGC_CQE_ECC_1B_ADDR_MSK)
+				>> HGC_CQE_ECC_1B_ADDR_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM0_ECC_1B_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS14);
+		dev_info(dev, "rxm_mem0_acc1b_intr found: memory address is 0x%08X\n",
+				(reg_val & HGC_RXM_DFX_STATUS14_MEM0_MSK)
+				>> HGC_RXM_DFX_STATUS14_MEM0_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM1_ECC_1B_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS14);
+		dev_info(dev, "rxm_mem1_acc1b_intr found: memory address is 0x%08X\n",
+				(reg_val & HGC_RXM_DFX_STATUS14_MEM1_MSK)
+				>> HGC_RXM_DFX_STATUS14_MEM1_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM2_ECC_1B_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS14);
+		dev_info(dev, "rxm_mem2_acc1b_intr found: memory address is 0x%08X\n",
+				(reg_val & HGC_RXM_DFX_STATUS14_MEM2_MSK)
+				>> HGC_RXM_DFX_STATUS14_MEM2_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM3_ECC_1B_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS15);
+		dev_info(dev, "rxm_mem3_acc1b_intr found: memory address is 0x%08X\n",
+				(reg_val & HGC_RXM_DFX_STATUS15_MEM3_MSK)
+				>> HGC_RXM_DFX_STATUS15_MEM3_OFF);
+	}
+
+}
+
+static void multi_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba,
+		u32 irq_value)
+{
+	u32 reg_val;
+	struct device *dev = &hisi_hba->pdev->dev;
+
+	if (irq_value & BIT(SAS_ECC_INTR_DQE_ECC_MB_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_DQE_ECC_ADDR);
+		panic("%s: hgc_dqe_accbad_intr (0x%x) found: Ram address is 0x%08X\n",
+				dev_name(dev), irq_value,
+				(reg_val & HGC_DQE_ECC_MB_ADDR_MSK)
+				>> HGC_DQE_ECC_MB_ADDR_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_IOST_ECC_MB_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_IOST_ECC_ADDR);
+		panic("%s: hgc_iost_accbad_intr (0x%x) found: Ram address is 0x%08X\n",
+				dev_name(dev), irq_value,
+				(reg_val & HGC_IOST_ECC_MB_ADDR_MSK)
+				>> HGC_IOST_ECC_MB_ADDR_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_ITCT_ECC_MB_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_ITCT_ECC_ADDR);
+		panic("%s: hgc_itct_accbad_intr (0x%x) found: Ram address is 0x%08X\n",
+				dev_name(dev), irq_value,
+				(reg_val & HGC_ITCT_ECC_MB_ADDR_MSK)
+				>> HGC_ITCT_ECC_MB_ADDR_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_IOSTLIST_ECC_MB_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_LM_DFX_STATUS2);
+		panic("%s: hgc_iostl_accbad_intr (0x%x) found: memory address is 0x%08X\n",
+				dev_name(dev), irq_value,
+				(reg_val & HGC_LM_DFX_STATUS2_IOSTLIST_MSK)
+				>> HGC_LM_DFX_STATUS2_IOSTLIST_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_ITCTLIST_ECC_MB_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_LM_DFX_STATUS2);
+		panic("%s: hgc_itctl_accbad_intr (0x%x) found: memory address is 0x%08X\n",
+				dev_name(dev), irq_value,
+				(reg_val & HGC_LM_DFX_STATUS2_ITCTLIST_MSK)
+				>> HGC_LM_DFX_STATUS2_ITCTLIST_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_CQE_ECC_MB_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_CQE_ECC_ADDR);
+		panic("%s: hgc_cqe_accbad_intr (0x%x) found: Ram address is 0x%08X\n",
+				dev_name(dev), irq_value,
+				(reg_val & HGC_CQE_ECC_MB_ADDR_MSK)
+				>> HGC_CQE_ECC_MB_ADDR_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM0_ECC_MB_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS14);
+		panic("%s: rxm_mem0_accbad_intr (0x%x) found: memory address is 0x%08X\n",
+				dev_name(dev), irq_value,
+				(reg_val & HGC_RXM_DFX_STATUS14_MEM0_MSK)
+				>> HGC_RXM_DFX_STATUS14_MEM0_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM1_ECC_MB_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS14);
+		panic("%s: rxm_mem1_accbad_intr (0x%x) found: memory address is 0x%08X\n",
+				dev_name(dev), irq_value,
+				(reg_val & HGC_RXM_DFX_STATUS14_MEM1_MSK)
+				>> HGC_RXM_DFX_STATUS14_MEM1_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM2_ECC_MB_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS14);
+		panic("%s: rxm_mem2_accbad_intr (0x%x) found: memory address is 0x%08X\n",
+				dev_name(dev), irq_value,
+				(reg_val & HGC_RXM_DFX_STATUS14_MEM2_MSK)
+				>> HGC_RXM_DFX_STATUS14_MEM2_OFF);
+	}
+
+	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM3_ECC_MB_OFF)) {
+		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS15);
+		panic("%s: rxm_mem3_accbad_intr (0x%x) found: memory address is 0x%08X\n",
+				dev_name(dev), irq_value,
+				(reg_val & HGC_RXM_DFX_STATUS15_MEM3_MSK)
+				>> HGC_RXM_DFX_STATUS15_MEM3_OFF);
+	}
+
+}
+
+static irqreturn_t fatal_ecc_int_v2_hw(int irq_no, void *p)
+{
+	struct hisi_hba *hisi_hba = p;
+	u32 irq_value, irq_msk;
+
+	irq_msk = hisi_sas_read32(hisi_hba, SAS_ECC_INTR_MSK);
+	hisi_sas_write32(hisi_hba, SAS_ECC_INTR_MSK, irq_msk | 0xffffffff);
+
+	irq_value = hisi_sas_read32(hisi_hba, SAS_ECC_INTR);
+	if (irq_value) {
+		one_bit_ecc_error_process_v2_hw(hisi_hba, irq_value);
+		multi_bit_ecc_error_process_v2_hw(hisi_hba, irq_value);
+	}
+
+	hisi_sas_write32(hisi_hba, SAS_ECC_INTR, irq_value);
+	hisi_sas_write32(hisi_hba, SAS_ECC_INTR_MSK, irq_msk);
+
+	return IRQ_HANDLED;
+}
+
+#define AXI_ERR_NR	8
+static const char axi_err_info[AXI_ERR_NR][32] = {
+	"IOST_AXI_W_ERR",
+	"IOST_AXI_R_ERR",
+	"ITCT_AXI_W_ERR",
+	"ITCT_AXI_R_ERR",
+	"SATA_AXI_W_ERR",
+	"SATA_AXI_R_ERR",
+	"DQE_AXI_R_ERR",
+	"CQE_AXI_W_ERR"
+};
+
+#define FIFO_ERR_NR	5
+static const char fifo_err_info[FIFO_ERR_NR][32] = {
+	"CQE_WINFO_FIFO",
+	"CQE_MSG_FIFIO",
+	"GETDQE_FIFO",
+	"CMDP_FIFO",
+	"AWTCTRL_FIFO"
+};
+
+static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
+{
+	struct hisi_hba *hisi_hba = p;
+	u32 irq_value, irq_msk, err_value;
+	struct device *dev = &hisi_hba->pdev->dev;
+
+	irq_msk = hisi_sas_read32(hisi_hba, ENT_INT_SRC_MSK3);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, irq_msk | 0xfffffffe);
+
+	irq_value = hisi_sas_read32(hisi_hba, ENT_INT_SRC3);
+	if (irq_value) {
+		if (irq_value & BIT(ENT_INT_SRC3_WP_DEPTH_OFF)) {
+			hisi_sas_write32(hisi_hba, ENT_INT_SRC3,
+					1 << ENT_INT_SRC3_WP_DEPTH_OFF);
+			panic("%s: write pointer and depth error (0x%x) found!\n",
+					dev_name(dev), irq_value);
+		}
+
+		if (irq_value & BIT(ENT_INT_SRC3_IPTT_SLOT_NOMATCH_OFF)) {
+			hisi_sas_write32(hisi_hba, ENT_INT_SRC3,
+					1 << ENT_INT_SRC3_IPTT_SLOT_NOMATCH_OFF);
+			panic("%s: iptt no match slot error (0x%x) found!\n",
+					dev_name(dev), irq_value);
+		}
+
+		if (irq_value & BIT(ENT_INT_SRC3_RP_DEPTH_OFF))
+			panic("%s: read pointer and depth error (0x%x) found!\n",
+					dev_name(dev), irq_value);
+
+		if (irq_value & BIT(ENT_INT_SRC3_AXI_OFF)) {
+			int i;
+
+			hisi_sas_write32(hisi_hba, ENT_INT_SRC3,
+					1 << ENT_INT_SRC3_AXI_OFF);
+			err_value = hisi_sas_read32(hisi_hba, HGC_AXI_FIFO_ERR_INFO);
+
+			for (i = 0; i < AXI_ERR_NR; i++) {
+				if (err_value & BIT(i))
+					panic("%s: %s (0x%x) found!\n", dev_name(dev),
+							axi_err_info[i], irq_value);
+			}
+		}
+
+		if (irq_value & BIT(ENT_INT_SRC3_FIFO_OFF)) {
+			int i;
+
+			hisi_sas_write32(hisi_hba, ENT_INT_SRC3,
+					1 << ENT_INT_SRC3_FIFO_OFF);
+			err_value = hisi_sas_read32(hisi_hba, HGC_AXI_FIFO_ERR_INFO);
+
+			for (i = 0; i < FIFO_ERR_NR; i++) {
+				if (err_value & BIT(AXI_ERR_NR + i))
+					panic("%s: %s (0x%x) found!\n", dev_name(dev),
+							fifo_err_info[i], irq_value);
+			}
+
+		}
+
+		if (irq_value & BIT(ENT_INT_SRC3_LM_OFF)) {
+			hisi_sas_write32(hisi_hba, ENT_INT_SRC3,
+					1 << ENT_INT_SRC3_LM_OFF);
+			panic("%s: LM add/fetch list error (0x%x) found!\n",
+					dev_name(dev), irq_value);
+		}
+
+		if (irq_value & BIT(ENT_INT_SRC3_ABT_OFF)) {
+			hisi_sas_write32(hisi_hba, ENT_INT_SRC3,
+					1 << ENT_INT_SRC3_ABT_OFF);
+			panic("%s: SAS_HGC_ABT fetch LM list error (0x%x) found!\n",
+					dev_name(dev), irq_value);
+		}
+	}
+
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, irq_msk);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t cq_interrupt_v2_hw(int irq_no, void *p)
 {
 	struct hisi_sas_cq *cq = p;
@@ -2313,6 +2665,11 @@ static irq_handler_t phy_interrupts[HISI_SAS_PHY_INT_NR] = {
 	int_chnl_int_v2_hw,
 };
 
+static irq_handler_t fatal_interrupts[HISI_SAS_FATAL_INT_NR] = {
+	fatal_ecc_int_v2_hw,
+	fatal_axi_int_v2_hw
+};
+
 /**
  * There is a limitation in the hip06 chipset that we need
  * to map in all mbigen interrupts, even if they are not used.
@@ -2363,6 +2720,26 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 		if (rc) {
 			dev_err(dev, "irq init: could not request "
 				"sata interrupt %d, rc=%d\n",
+				irq, rc);
+			return -ENOENT;
+		}
+	}
+
+	for (i = 0; i < HISI_SAS_FATAL_INT_NR; i++) {
+		int idx = i;
+
+		irq = irq_map[idx + 81];
+		if (!irq) {
+			dev_err(dev, "irq init: fail map fatal interrupt %d\n",
+				idx);
+			return -ENOENT;
+		}
+
+		rc = devm_request_irq(dev, irq, fatal_interrupts[i], 0,
+				      DRV_NAME " fatal", hisi_hba);
+		if (rc) {
+			dev_err(dev,
+				"irq init: could not request fatal interrupt %d, rc=%d\n",
 				irq, rc);
 			return -ENOENT;
 		}
