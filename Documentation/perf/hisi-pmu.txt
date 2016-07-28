@@ -1,0 +1,74 @@
+Hisilicon SoC PMU (Performance Monitoring Unit)
+=====================================================
+The Hisilicon SoC hip05/06/07 chips consist of varous independent system
+device PMU's such as L3 cache(L3C) and Miscellaneous Nodes(MN). These PMU
+devices are independent and have hardware logic to gather statistics and
+performance information.
+
+Hip0x chips are encapsulated by multiple CPU and IO die's. The CPU die is
+called as Super CPU cluster (SCCL) which includes 16 cpu-cores. Every SCCL
+is further grouped as CPU clusters (CCL) which includes 4 cpu-cores each.
+Each SCCL has 1 L3 cache and 1 MN units.
+
+The L3 cache is shared by all CPU cores in a CPU die. The LLC has four banks
+(or instances). Each bank or instance of LLC has Eight 32-bit counter
+registers. The hip05/06 chip L3 cache has 22 statistics events. The hip07
+chip has 66 statistics events. These events are very useful for debugging.
+The L3C support overflow interrupt for its 8 counter registers.
+The overflow interrupt is raised when counter value reach 0xFFFFFFFF.
+
+The MN module is also shared by all CPU cores in a CPU die. It receives
+barriers and DVM(Distributed Virtual Memory) messages from cpu or smmu, and
+perform the required actions and return response messages. These events are
+very useful for debugging. The MN has total 9 statistics events and support
+four 32-bit counter registers in hip05/06/07 chips. The MN support overflow
+interrupt for its 4 counter registers.
+
+There is no memory mapping for L3 cache and MN. It can be accessed by using
+the Hisilicon djtag interface. The Djtag in a SCCL is an independent module
+which connects with some modules in the SoC by Debug Bus.
+
+Hisilicon SoC )hip05/06/07) PMU driver
+----------------
+The hip0x PMU driver shall register perf PMU drivers for L3 cache and MN.
+The available events and configuration options shall be described in the sysfs.
+The "perf list" shall list the available events from sysfs.
+eg. hisi_l3c/read_allocate,cpu_die=?,bank=?/ [kernel PMU event]
+
+The event code contains the information about the cpudie, module, banks and
+the event code.
+These are represented in Perf event attributes as
+	i) event 0-11
+		The event code will be represented using the LSB 12 bits.
+	ii) bank 12-15
+		The Banks or no of instances are with 4 bits. For PMU which
+		have only single instance, this field will be ignored. For L3
+		Cache, this will identify the bank. The 0xf value shall sum the
+		count in all available banks.
+	iii) cpu_cluster 16-19
+		This identfies the CPU cluster (CCL) which share this PMU. For
+		L3 Cache, MN, DDRC etc. which are shared for a SCCL, this field
+		will be	ignored. For modules shared by a CPU cluster this can
+		represent the cluster ID. This filed is reserved and unused now.
+	iv) cpu_die 20-23
+		This identfies the supper CPU cluster (SCCL) which share this
+		PMU. For L3 Cache, MN, DDRC etc. which are shared for a SCCL
+		this field represent the CPU die ID or (SCCL ID).
+
+Example usage of perf:
+$# perf list
+hisi_l3c/read_allocate,cpu_die=?,bank=?/ [kernel PMU event]
+hisi_l3c/read_hit,cpu_die=?,bank=?/ [kernel PMU event]
+hisi_l3c/write_hit,cpu_die=?,bank=?/ [kernel PMU event]
+-------------------------------------------------------
+-------------------------------------------------------
+
+$# perf stat -a -e hisi_l3c/read_allocate,cpu_die=0x2,bank=0xf/ sleep 5
+
+$# perf stat -C 0 -A -e hisi_l3c/read_allocate,cpu_die=0x2,bank=0xf/ ls -l
+
+The current driver doesnot support sampling. so "perf record" is unsupported.
+Also attach to a task is unsupported as the events are all uncore.
+
+Note: Please contact the maintainer for a complete list of events supported for
+the PMU devices in the SoC and its information if needed.
