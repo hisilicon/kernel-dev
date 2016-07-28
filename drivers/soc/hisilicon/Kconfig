@@ -1,0 +1,12 @@
+#
+# Hisilicon SoC drivers
+#
+config HISI_DJTAG
+	bool "Hisilicon Djtag Support"
+	depends on ARCH_HISI || COMPILE_TEST
+	help
+	  Say y here to enable the Hisilicon Djtag support. It is
+	  an independent component which connects with some other
+	  components in the SoC by Debug Bus. This driver can be
+	  configured to access the registers of connecting
+	  components during real time debugging.
