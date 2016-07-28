@@ -27,6 +27,31 @@ Example 1: Djtag for CPU die
 		scl-id = <0x02>;
 
 		/* All connecting components will appear as child nodes */
+
+		pmul3c0 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x02>;
+		};
+
+		pmul3c1 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x04>;
+		};
+
+		pmul3c2 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x01>;
+		};
+
+		pmul3c3 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x08>;
+		};
+
+		pmumn0 {
+			compatible = "hisilicon,hisi-pmu-mn-v1";
+			module-id = <0x0b>;
+		};
 	};
 
 Example 2: Djtag for IO die
