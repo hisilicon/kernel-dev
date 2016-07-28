@@ -27,6 +27,31 @@ Example 1: Djtag for CPU die in HiP07
 		hisilicon,scl-id = <0x02>;
 
 		/* All connecting components will appear as child nodes */
+
+		pmul3c0 {
+			compatible = "hisilicon,hip07-pmu-l3c-v2";
+			hisilicon,module-id = <0x01 0x01>;
+		};
+
+		pmul3c1 {
+			compatible = "hisilicon,hip07-pmu-l3c-v2";
+			hisilicon,module-id = <0x02 0x01>;
+		};
+
+		pmul3c2 {
+			compatible = "hisilicon,hip07-pmu-l3c-v2";
+			hisilicon,module-id = <0x03 0x01>;
+		};
+
+		pmul3c3 {
+			compatible = "hisilicon,hip07-pmu-l3c-v2";
+			hisilicon,module-id = <0x04 0x01>;
+		};
+
+		pmumn0 {
+			compatible = "hisilicon,hip07-pmu-mn-v2";
+			hisilicon,module-id = <0x0b>;
+		};
 	};
 
 Hisilicon HiP05/06/07 djtag for IO die
