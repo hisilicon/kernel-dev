@@ -1,0 +1,93 @@
+Hisilicon SoC hip05/06/07 ARMv8 PMU
+
+The Hisilicon SoC chips like hip05/06/07 etc.. consist of varous independent
+system device PMU's such as L3 cache (L3C) and Miscellaneous Nodes(MN). These
+PMU devices are independent and have hardware logic to gather statistics and
+performance information.
+
+HiSilicon SoC chip is encapsulated by multiple CPU and IO die's. The CPU
+die is called as Super CPU cluster (SCCL) which includes 16 cpu-cores. Every
+CPU SCCL is further grouped as CPU clusters (CCL) which includes 4 cpu-cores
+each. Each SCCL has 1 L3 cache and 1 MN units.
+
+The Hisilicon SoC PMU DT node bindigs for L3C and MN PMU devices are as below
+
+Required properties:
+	- compatible : This field contain two values. The first value is
+		always "hisilicon" and second value is the Module type as shown
+		in below examples:
+		(a) "hisilicon,hisi-pmu-l3c" for Hisilicon SoC L3C PMU device
+		(b) "hisilicon,hisi-pmu-mn" for Hisilicon SoC MN PMU device
+
+	- scl-id : The Super Cluster ID. This can be the ID of the CPU die
+		   or IO die in the chip.
+
+	- num-events : No of events supported by this PMU device.
+
+	- num-counters : No of hardware counters available for counting.
+
+	- counter-reg : Counter register offset.
+
+	- evtype-reg : Event select register offset.
+
+	- evctrl-reg : Event counting control register offset.
+
+Optional Properties:
+
+	- djtag	: The registers of modules like L3 cache, MN etc. are using
+		the Hisilicon djtag interface.
+		This field contains two values. The first value is the djtag
+		node phandle and second value is the ID of the CPU die or SCCL.
+
+	- module-id : Module ID to input for djtag.
+
+	- num-banks : Number of banks or instances of the device.
+
+	- cfgen-map : Config enable to select the bank.
+
+	- event-en : Event enable value.
+
+	- interrupt-parent : A phandle indicating which interrupt controller
+		this PMU signals interrupts to.
+
+	- interrupts : Interrupt lines used by this PMU. If the PMU has
+		multiple banks, then all IRQ lines are listed in this
+		property in the order of bank number.
+
+Example:
+
+	pmul3c0 {
+		compatible = "hisilicon,hisi-pmu-l3c";
+		scl-id = <0x02>;
+		num-events = <0x16>;
+		num-counters = <0x08>;
+		module-id = <0x04>;
+		num-banks = <0x04>;
+		cfgen-map = <0x02 0x04 0x01 0x08>;
+		counter-reg = <0x170>;
+		auctrl-reg = <0x04>;
+		auctrl-event-en = <0x1000000>;
+		evtype-reg = <0x140>;
+		djtag = <&djtag0>; /* DJTAG node corresponding to the Super
+				    * CPU cluster */
+		interrupt-parent = <&mbigen_pc>;
+		interrupts = <141 4>,<142 4>,
+			 <143 4>,<144 4>; /* IRQ for 4 L3C banks */
+	};
+
+	pmumn0 {
+		compatible = "hisilicon,hisi-pmu-mn";
+		scl-id = <0x02>;
+		num-events = <0x09>;
+		num-counters = <0x04>;
+		module-id = <0x0b>;
+		cfgen-map = <0x01>;
+		counter-reg = <0x30>;
+		evctrl-reg = <0x40>;
+		event-en = <0x01>;
+		evtype-reg = <0x48>;
+		djtag = <&djtag0>; /* DJTAG node corresponding to the Super
+				    * CPU cluster */
+		interrupt-parent = <&mbigen_pc>;
+		interrupts = <146 4>;
+	};
