@@ -1,0 +1,52 @@
+Hisilicon SoC HIP05 ARMv8 PMU
+
+The Hisilicon Hip05 chip consists of varous independent system device PMU's
+such as L3 cache (L3C) and Miscellaneous Nodes(MN). These PMU devices are
+independent and have hardware logic to gather statistics and performance
+information.
+
+Hip05 chip is encapsulated by multiple CPU and IO die's. The CPU die is called
+as Super CPU cluster (SCCL) which includes 16 cpu-cores. Every CPU SCCL is
+further grouped as CPU clusters (CCL) which includes 4 cpu-cores each.
+Each SCCL has 1 L3 cache and 1 MN units.
+
+The below section describes the bindings for L3C and MN PMU's
+
+Required Properties:
+	- compatible : This field contain two values. The first value is
+		always "hisilicon" and second value is the Module type as shown
+		in below examples:
+		(a) "hisilicon,hip05-l3c" for Hisilicon SoC L3 cache
+		(b) "hisilicon,hip05-mn" for Hisilicon SoC MN
+
+Optional Properties:
+
+	- djtag	: The registers of modules like L3 cache, MN etc. are using
+		the Hisilicon djtag interface.
+		This field contains two values. The first value is the djtag
+		node phandle and second value is the ID of the CPU die or SCCL.
+
+	- interrupt-parent : A phandle indicating which interrupt controller
+		this PMU signals interrupts to.
+
+	- interrupts : Interrupt lines used by this PMU. If the PMU has
+		multiple banks, then all IRQ lines are listed in this
+		property in the order of bank number.
+
+Example:
+	l3c0: l3c {
+		compatible = "hisilicon,hip05-l3c";
+		djtag = <&djtag0 2>; /* DJTAG node for CPU die 2
+				      * (CPU die starts from 1) */
+		interrupt-parent = <&mbigen_pc>;
+		interrupts = <141 4>,<142 4>,
+			 <143 4>,<144 4>; /* IRQ lines for 4 L3 cache banks */
+	};
+
+	mn1: mn {
+		compatible = "hisilicon,hip05-mn";
+		djtag = <&djtag0 2>; /* DJTAG node for CPU die 2
+				      * (CPU die starts from 1) */
+		interrupt-parent = <&mbigen_pc>;
+		interrupts = <146 4>;
+	};
