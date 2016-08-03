@@ -749,6 +749,35 @@
 			status = "disabled";
 		};
 
+		pc_sysctrl0: hip05-sysctrl@0x80010000 {
+			compatible = "hisilicon,hip05-sysctrl", "syscon", "simple-mfd";
+			reg = <0x0 0x80010000 0x0 0x10000>;
+			djtag0: djtag@0 {
+				compatible = "hisilicon,hip05-cpu-djtag-v1";
+				syscon = <&pc_sysctrl0>;
+			};
+		};
+
+		/* L3 cache for socket0 CPU die scl#2 */
+		pmul3c0 {
+			compatible = "hisilicon,hisi-pmu-l3c";
+			scl-id = <0x02>;
+			num-events = <0x16>;
+			num-counters = <0x08>;
+			module-id = <0x04>;
+			num-banks = <0x04>;
+			cfgen-map = <0x02 0x04 0x01 0x08>;
+			counter-reg = <0x170>;
+			auctrl-reg = <0x04>;
+			auctrl-event-en = <0x1000000>;
+			evtype-reg = <0x140>;
+			djtag = <&djtag0>;
+			interrupt-parent = <&mbigen_pc>;
+			interrupts = <141 4>,<142 4>,
+					<143 4>,<144 4>;
+			status = "okay";
+		};
+
 		pcie0: pcie@b0080000 {
 			compatible = "hisilicon,hip05-pcie", "snps,dw-pcie";
 			reg = <0 0xb0080000 0 0x10000>, <0x220 0x04000000 0 0x04000000>;
