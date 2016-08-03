@@ -749,6 +749,25 @@
 			status = "disabled";
 		};
 
+		pc_sysctrl0: system-controller@0x80010000 {
+			compatible = "hisilicon,hip05-sysctrl", "syscon";
+			reg = <0x0 0x80010000 0x0 0x10000>;
+		};
+
+		djtag0: djtag {
+			compatible = "hisilicon,hip05-cpu-djtag-v1";
+			syscon = <&pc_sysctrl0>;
+		};
+
+		pmul3c0 {
+			compatible = "hisilicon,hisi-pmu-l3c";
+			djtag = <&djtag0 2>;
+			interrupt-parent = <&mbigen_pc>;
+			interrupts = <141 4>,<142 4>,
+				<143 4>,<144 4>;
+			status = "okay";
+		};
+
 		pcie0: pcie@b0080000 {
 			compatible = "hisilicon,hip05-pcie", "snps,dw-pcie";
 			reg = <0 0xb0080000 0 0x10000>, <0x220 0x04000000 0 0x04000000>;
