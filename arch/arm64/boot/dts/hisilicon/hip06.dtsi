@@ -811,6 +811,38 @@
 			status = "disabled";
 		};
 
+		pc_sysctrl0: system-controller@0x60010000 {
+			compatible = "hisilicon,hip06-sysctrl", "syscon";
+			reg = <0x0 0x60010000 0x0 0x10000>;
+		};
+
+		pa_sysctrl0: system-controller@0x40010000 {
+			compatible = "hisilicon,hip06-sysctrl", "syscon";
+			reg = <0x0 0x40010000 0x0 0x10000>;
+		};
+
+		djtag0: djtag0 {
+			compatible = "hisilicon,hip06-cpu-djtag-v1";
+			syscon = <&pc_sysctrl0>;
+		};
+
+		djtag1: djtag1 {
+			compatible = "hisilicon,hip06-cpu-djtag-v1";
+			syscon = <&pa_sysctrl0>;
+		};
+
+		pmul3c0 {
+			compatible = "hisilicon,hisi-pmu-l3c";
+			djtag = <&djtag0 2>;
+			status = "okay";
+		};
+
+		pmul3c1 {
+			compatible = "hisilicon,hisi-pmu-l3c";
+			djtag = <&djtag1 1>;
+			status = "okay";
+		};
+
 		sas1: sas@a2000000 {
 			compatible = "hisilicon,hip06-sas-v2";
 			reg = <0 0xa2000000 0 0x10000>;
