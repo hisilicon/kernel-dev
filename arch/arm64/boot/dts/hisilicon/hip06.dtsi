@@ -815,6 +815,57 @@
 			status = "disabled";
 		};
 
+		pc_sysctrl0: hip06-sysctrl@0x60010000 {
+			compatible = "hisilicon,hip06-sysctrl", "syscon", "simple-mfd";
+			reg = <0x0 0x60010000 0x0 0x10000>;
+			djtag0: djtag@0 {
+				compatible = "hisilicon,hip06-cpu-djtag-v1";
+				syscon = <&pc_sysctrl0>;
+			};
+		};
+
+		pa_sysctrl0: hip06-sysctrl@0x40010000 {
+			compatible = "hisilicon,hip06-sysctrl", "syscon", "simple-mfd";
+			reg = <0x0 0x40010000 0x0 0x10000>;
+			djtag1: djtag@1 {
+				compatible = "hisilicon,hip06-cpu-djtag-v1";
+				syscon = <&pa_sysctrl0>;
+			};
+		};
+
+		/* L3 cache for socket0 CPU die scl#2 */
+		pmul3c0 {
+			compatible = "hisilicon,hisi-pmu-l3c";
+			scl-id = <0x02>;
+			num-events = <0x16>;
+			num-counters = <0x08>;
+			module-id = <0x04>;
+			num-banks = <0x04>;
+			cfgen-map = <0x02 0x04 0x01 0x08>;
+			counter-reg = <0x170>;
+			auctrl-reg = <0x04>;
+			auctrl-event-en = <0x1000000>;
+			evtype-reg = <0x140>;
+			djtag = <&djtag0>;
+			status = "okay";
+		};
+
+		pmul3c1 {
+			compatible = "hisilicon,hisi-pmu-l3c";
+			scl-id = <0x01>;
+			num-events = <0x16>;
+			num-counters = <0x08>;
+			module-id = <0x04>;
+			num-banks = <0x04>;
+			cfgen-map = <0x02 0x04 0x01 0x08>;
+			counter-reg = <0x170>;
+			auctrl-reg = <0x04>;
+			auctrl-event-en = <0x1000000>;
+			evtype-reg = <0x140>;
+			djtag = <&djtag1>;
+			status = "okay";
+		};
+
 		sas1: sas@a2000000 {
 			compatible = "hisilicon,hip06-sas-v2";
 			reg = <0 0xa2000000 0 0x10000>;
