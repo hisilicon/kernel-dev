@@ -1,0 +1,5 @@
+#
+# ACPI Configuration for ARM64
+#
+config ACPI_GTDT
+	bool

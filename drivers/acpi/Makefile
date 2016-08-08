@@ -103,6 +103,7 @@ obj-$(CONFIG_XPOWER_PMIC_OPREGION) += pmic/intel_pmic_xpower.o
 obj-$(CONFIG_BXT_WC_PMIC_OPREGION) += pmic/intel_pmic_bxtwc.o
 
 obj-$(CONFIG_ACPI_CONFIGFS)	+= acpi_configfs.o
+obj-$(CONFIG_ARM64)    += arm64/
 
 video-objs			+= acpi_video.o video_detect.o
 obj-y				+= dptf/
