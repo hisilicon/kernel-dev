@@ -13,6 +13,8 @@
 #include <linux/nls.h>
 #include <linux/dma-mapping.h>
 
+#include <acpi/apei.h> /* for acpi_hest_init() */
+
 #include <asm/pgtable.h>
 
 #include "internal.h"
@@ -1991,6 +1993,7 @@ int __init acpi_scan_init(void)
 	acpi_status status;
 	struct acpi_table_stao *stao_ptr;
 
+	acpi_hest_init();
 	acpi_pci_root_init();
 	acpi_pci_link_init();
 	acpi_processor_init();
