@@ -150,3 +150,73 @@ int __init acpi_gtdt_init(struct acpi_table_header *table)
 
 	return gtdt->platform_timer_count;
 }
+
+static int __init gtdt_parse_gt_block(struct acpi_gtdt_timer_block *block,
+				      struct gt_block_data *data)
+{
+	struct acpi_gtdt_timer_entry *frame;
+	int i;
+
+	if (!block || !data)
+		return -EINVAL;
+
+	if (!block->block_address || !block->timer_count)
+		return -EINVAL;
+
+	data->cntctlbase_phy = (phys_addr_t)block->block_address;
+	data->timer_count = block->timer_count;
+
+	frame = (void *)block + block->timer_offset;
+	if (frame + block->timer_count != (void *)block + block->header.length)
+		return -EINVAL;
+
+	/*
+	 * Get the GT timer Frame data for every GT Block Timer
+	 */
+	for (i = 0; i < block->timer_count; i++, frame++) {
+		if (!frame->base_address || !frame->timer_interrupt)
+			return -EINVAL;
+
+		data->timer[i].irq = map_gt_gsi(frame->timer_interrupt,
+						frame->timer_flags);
+		if (data->timer[i].irq <= 0)
+			return -EINVAL;
+
+		if (frame->virtual_timer_interrupt) {
+			data->timer[i].virtual_irq =
+				map_gt_gsi(frame->virtual_timer_interrupt,
+					   frame->virtual_timer_flags);
+			if (data->timer[i].virtual_irq <= 0)
+				return -EINVAL;
+		}
+
+		data->timer[i].frame_nr = frame->frame_number;
+		data->timer[i].cntbase_phy = frame->base_address;
+	}
+
+	return 0;
+}
+
+/*
+ * Get the GT block info for memory-mapped timer from GTDT table.
+ */
+int __init gtdt_arch_timer_mem_init(struct gt_block_data *data)
+{
+	void *platform_timer;
+	int index = 0;
+	int ret;
+
+	for_each_platform_timer(platform_timer) {
+		if (!is_timer_block(platform_timer))
+			continue;
+		ret = gtdt_parse_gt_block(platform_timer, data + index);
+		if (ret)
+			return ret;
+		index++;
+	}
+
+	if (index)
+		pr_info("found %d memory-mapped timer block(s).\n", index);
+
+	return index;
+}
