@@ -273,6 +273,11 @@ static struct platform_device hisi_lpc_uart = {
 
 static int __init hisi_lpc_uart_init(void)
 {
+	if (!arm64_isa_pio) {
+		pr_warn("no indirect ISA port I/O for Hisilicon LPC uart");
+		return -EINVAL;
+	}
+
 	return platform_device_register(&hisi_lpc_uart);
 }
 
