@@ -120,3 +120,19 @@
 		reg = <1 0x0 0x100>;
 	};
 };
+
+&eth0 {
+	status = "ok";
+};
+
+&eth1 {
+	status = "ok";
+};
+
+&eth2 {
+	status = "ok";
+};
+
+&eth3 {
+	status = "ok";
+};
