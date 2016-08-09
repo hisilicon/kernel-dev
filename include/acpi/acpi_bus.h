@@ -355,6 +355,7 @@ struct acpi_device {
 	int device_type;
 	acpi_handle handle;		/* no handle for fixed hardware */
 	struct fwnode_handle fwnode;
+	struct fwnode_handle *interrupt_producer;
 	struct acpi_device *parent;
 	struct list_head children;
 	struct list_head node;
