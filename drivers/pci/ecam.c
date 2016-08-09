@@ -52,7 +52,7 @@ struct pci_config_window *pci_ecam_create(struct device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	cfg->parent = dev;
-	cfg->ops = ops;
+	cfg->ops = *ops;
 	cfg->busr.start = busr->start;
 	cfg->busr.end = busr->end;
 	cfg->busr.flags = IORESOURCE_BUS;
@@ -138,7 +138,7 @@ void __iomem *pci_ecam_map_bus(struct pci_bus *bus, unsigned int devfn,
 			       int where)
 {
 	struct pci_config_window *cfg = bus->sysdata;
-	unsigned int devfn_shift = cfg->ops->bus_shift - 8;
+	unsigned int devfn_shift = cfg->ops.bus_shift - 8;
 	unsigned int busn = bus->number;
 	void __iomem *base;
 
@@ -149,7 +149,7 @@ void __iomem *pci_ecam_map_bus(struct pci_bus *bus, unsigned int devfn,
 	if (per_bus_mapping)
 		base = cfg->winp[busn];
 	else
-		base = cfg->win + (busn << cfg->ops->bus_shift);
+		base = cfg->win + (busn << cfg->ops.bus_shift);
 	return base + (devfn << devfn_shift) + where;
 }
 

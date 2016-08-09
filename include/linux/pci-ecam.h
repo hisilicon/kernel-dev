@@ -39,7 +39,7 @@ struct pci_config_window {
 	struct resource			res;
 	struct resource			busr;
 	void				*priv;
-	struct pci_ecam_ops		*ops;
+	struct pci_ecam_ops		ops;
 	union {
 		void __iomem		*win;	/* 64-bit single mapping */
 		void __iomem		**winp; /* 32-bit per-bus mapping */
