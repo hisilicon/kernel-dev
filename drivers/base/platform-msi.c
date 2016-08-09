@@ -19,6 +19,7 @@
 
 #include <linux/device.h>
 #include <linux/idr.h>
+#include <linux/iort.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/msi.h>
@@ -415,4 +416,17 @@ int platform_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 		platform_msi_domain_free(domain, virq, nr_irqs);
 
 	return err;
+}
+
+int acpi_configure_msi_domain(struct device *dev)
+{
+	struct irq_domain *d = NULL;
+
+	d = iort_get_device_domain(dev, 0);
+	if (d) {
+		dev_set_msi_domain(dev, d);
+		return 0;
+	}
+
+	return -EINVAL;
 }

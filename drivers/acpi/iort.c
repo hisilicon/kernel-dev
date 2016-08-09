@@ -387,6 +387,7 @@ iort_get_device_domain(struct device *dev, u32 req_id)
 {
 	static struct fwnode_handle *handle;
 	int its_id;
+	enum irq_domain_bus_token bus_token;
 
 	if (!iort_table)
 		return NULL;
@@ -398,7 +399,9 @@ iort_get_device_domain(struct device *dev, u32 req_id)
 	if (!handle)
 		return NULL;
 
-	return irq_find_matching_fwnode(handle, DOMAIN_BUS_PCI_MSI);
+	bus_token = dev_is_pci(dev) ?
+		    DOMAIN_BUS_PCI_MSI : DOMAIN_BUS_PLATFORM_MSI;
+	return irq_find_matching_fwnode(handle, bus_token);
 }
 
 void __init iort_table_detect(void)

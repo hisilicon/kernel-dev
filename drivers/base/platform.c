@@ -24,6 +24,7 @@
 #include <linux/pm_domain.h>
 #include <linux/idr.h>
 #include <linux/acpi.h>
+#include <linux/msi.h>
 #include <linux/clk/clk-conf.h>
 #include <linux/limits.h>
 #include <linux/property.h>
@@ -500,6 +501,7 @@ struct platform_device *platform_device_register_full(
 	pdev->dev.parent = pdevinfo->parent;
 	pdev->dev.fwnode = pdevinfo->fwnode;
 
+	acpi_configure_msi_domain(&pdev->dev);
 	if (pdevinfo->dma_mask) {
 		/*
 		 * This memory isn't freed when the device is put,
