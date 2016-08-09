@@ -16,7 +16,7 @@ The mbigen chip and devices connect to mbigen have the following properties:
 
 Mbigen main node required properties:
 -------------------------------------------
-- compatible: Should be "hisilicon,mbigen-v2"
+- compatible: Should be "hisilicon,mbigen-v2" or "hisilicon,mbigen-v1"
 
 - reg: Specifies the base physical address and size of the Mbigen
   registers.
