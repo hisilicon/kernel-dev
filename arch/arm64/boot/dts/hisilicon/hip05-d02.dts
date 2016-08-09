@@ -136,3 +136,11 @@
 &eth3 {
 	status = "ok";
 };
+
+&sas0 {
+	status = "ok";
+};
+
+&sas1 {
+	status = "ok";
+};
