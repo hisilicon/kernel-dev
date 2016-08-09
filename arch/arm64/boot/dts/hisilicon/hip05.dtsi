@@ -10,6 +10,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/mbigen-v1.h>
 
 / {
 	compatible = "hisilicon,hip05-d02";
@@ -273,6 +274,42 @@
 			#msi-cells = <1>;
 			reg = <0x0 0xc6000000 0x0 0x40000>;
 		};
+	};
+
+	mbigen_pc: mbigen_pc_intc {
+		compatible = "hisilicon,mbigen-v1";
+		msi-parent = <&its_peri MBIGEN_V1_DEVID>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		reg = <0x0 0x8c030000 0x0 0x10000>;
+		num-pins = <256>;
+	};
+
+	mbigen_pcie: mbigen_pcie_intc {
+		compatible = "hisilicon,mbigen-v1";
+		msi-parent = <&its_pcie MBIGEN_V1_DEVID>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		reg = <0x0 0xb7030000 0x0 0x10000>;
+		num-pins = <640>;
+	};
+
+	mbigen_dsa: mbigen_dsa_intc{
+		compatible = "hisilicon,mbigen-v1";
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		reg = <0x0 0xc6030000 0x0 0x10000>;
+		msi-parent = <&its_dsa MBIGEN_V1_DEVID>;
+		num-pins = <640>;
+	};
+
+	mbigen_m3: mbigen_m3_intc {
+		compatible = "hisilicon,mbigen-v1";
+		msi-parent = <&its_m3 MBIGEN_V1_DEVID>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		reg = <0x0 0xa3030000 0x0 0x10000>;
+		num-pins = <256>;
 	};
 
 	timer {
