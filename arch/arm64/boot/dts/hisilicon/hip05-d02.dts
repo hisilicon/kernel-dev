@@ -144,3 +144,11 @@
 &sas1 {
 	status = "ok";
 };
+
+&pcie0 {
+	status = "ok";
+};
+
+&pcie1 {
+	status = "ok";
+};
