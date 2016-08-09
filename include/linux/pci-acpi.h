@@ -25,6 +25,8 @@ static inline acpi_status pci_acpi_remove_pm_notifier(struct acpi_device *dev)
 extern phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle);
 
 extern phys_addr_t pci_mcfg_lookup(u16 domain, struct resource *bus_res);
+extern struct pci_config_window *
+pci_mcfg_match_quirks(struct acpi_pci_root *root);
 
 extern struct pci_config_window *
 pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root, struct pci_ops *ops);
