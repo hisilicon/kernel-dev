@@ -568,16 +568,10 @@
 			reg = <0x0 0xa0000000 0x0 0x10000>;
 		};
 
-		serdes_ctrl0: sds_ctrl0@c2200000 {
+		serdes_ctrl: sds_ctrl0@c2200000 {
 			compatible = "hisilicon,serdes-syscon","syscon";
 			reg = <0 0xc2200000 0x0 0x80000>;
 		};
-
-		serdes_ctrl1: sds_ctrl0@c2280000 {
-			compatible = "hisilicon,serdes-syscon","syscon";
-			reg = <0 0xc2280000 0x0 0x80000>;
-		};
-
 
 		mdio {
 			compatible = "hisilicon,hns-mdio";
@@ -699,7 +693,7 @@
 
 			port@0 {
 				reg = <0>;
-				serdes-syscon = <&serdes_ctrl0>;
+				serdes-syscon = <&serdes_ctrl>;
 				cpld-syscon = <0>;
 				cpld-ctrl-reg = <0>;
 				port-rst-offset = <0>;
@@ -708,7 +702,7 @@
 
 			port@1 {
 				reg = <1>;
-				serdes-syscon= <&serdes_ctrl0>;
+				serdes-syscon= <&serdes_ctrl>;
 				cpld-syscon = <0>;
 				cpld-ctrl-reg = <0>;
 				port-rst-offset = <1>;
@@ -718,7 +712,7 @@
 			port@4 {
 				reg = <4>;
 				phy-handle = <&phy0>;
-				serdes-syscon= <&serdes_ctrl1>;
+				serdes-syscon= <&serdes_ctrl>;
 				cpld-syscon = <0>;
 				cpld-ctrl-reg = <0>;
 				port-rst-offset = <4>;
@@ -728,7 +722,7 @@
 			port@5 {
 				reg = <5>;
 				phy-handle = <&phy1>;
-				serdes-syscon= <&serdes_ctrl1>;
+				serdes-syscon= <&serdes_ctrl>;
 				cpld-syscon = <0>;
 				cpld-ctrl-reg = <0>;
 				port-rst-offset = <5>;
