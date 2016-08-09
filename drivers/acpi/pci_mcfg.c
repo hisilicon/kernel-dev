@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
+#include <linux/pci-ecam.h>
 
 /* Structure to hold entries from the MCFG table */
 struct mcfg_entry {
@@ -50,6 +51,45 @@ phys_addr_t pci_mcfg_lookup(u16 seg, struct resource *bus_res)
 	}
 
 	return 0;
+}
+
+/*
+ * Lookup the bus range for the domain in MCFG, and set up config space
+ * mapping.
+ */
+struct pci_config_window *
+pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root, struct pci_ops *ops)
+{
+	struct resource *bus_res = &root->secondary;
+	u16 seg = root->segment;
+	struct pci_config_window *cfg;
+	struct resource cfgres;
+	struct pci_ecam_ops ecam_ops = {
+			.bus_shift = 20,
+			.pci_ops = *ops,
+	};
+
+	/* Use address from _CBA if present, otherwise lookup MCFG */
+	if (!root->mcfg_addr)
+		root->mcfg_addr = pci_mcfg_lookup(seg, bus_res);
+
+	if (!root->mcfg_addr) {
+		dev_err(&root->device->dev, "%04x:%pR ECAM region not found\n",
+			seg, bus_res);
+		return NULL;
+	}
+
+	cfgres.start = root->mcfg_addr + (bus_res->start << 20);
+	cfgres.end = cfgres.start + (resource_size(bus_res) << 20) - 1;
+	cfgres.flags = IORESOURCE_MEM;
+	cfg = pci_ecam_create(&root->device->dev, &cfgres, bus_res, &ecam_ops);
+	if (IS_ERR(cfg)) {
+		dev_err(&root->device->dev, "%04x:%pR error %ld mapping ECAM\n",
+			seg, bus_res, PTR_ERR(cfg));
+		return NULL;
+	}
+
+	return cfg;
 }
 
 static __init int pci_mcfg_parse(struct acpi_table_header *header)
