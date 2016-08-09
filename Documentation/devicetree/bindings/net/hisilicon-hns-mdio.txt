@@ -7,6 +7,9 @@ Properties:
   "hisilicon,hns-mdio" is recommended to be used for hip05 and later SOCs,
   while "hisilicon,mdio" is optional for backwards compatibility only on
   hip04 Soc.
+- subctrl-vbase: specify a reference to the sub-control bus base address and
+  the offset of reset, clock, reset status and clock status registers, please
+  refer to the example.
 - reg: The base address of the MDIO bus controller register bank.
 - #address-cells: Must be <1>.
 - #size-cells: Must be <0>.  MDIO addresses have no size component.
@@ -14,14 +17,19 @@ Properties:
 Typically an MDIO bus might have several children.
 
 Example:
-         mdio@803c0000 {
-                   #address-cells = <1>;
-                   #size-cells = <0>;
-                   compatible = "hisilicon,hns-mdio","hisilicon,mdio";
-                   reg = <0x0 0x803c0000 0x0 0x10000>;
+	peri_c_subctrl: syscon@80000000 {
+		compatible = "hisilicon,hip05-perisubc", "syscon";
+		reg = < 0x0 0x80000000 0x0 0x10000>;
+        };
+	mdio@803c0000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "hisilicon,hns-mdio","hisilicon,mdio";
+		subctrl-vbase = <&peri_c_subctrl 0x338 0xa38 0x531c 0x5a1c>;
+		reg = <0x0 0x803c0000 0x0 0x10000>;
 
-                   ethernet-phy@0 {
-                            ...
-                            reg = <0>;
-                   };
-         };
+		ethernet-phy@0 {
+			...
+			reg = <0>;
+		};
+	};
