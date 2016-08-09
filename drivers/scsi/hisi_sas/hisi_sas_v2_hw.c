@@ -866,7 +866,8 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 	/* Global registers init */
 
 	/* Deal with am-max-transmissions quirk */
-	if (device_property_present(dev, "hip06-sas-v2-quirk-amt")) {
+	if (device_property_present(dev, "hip06-sas-v2-quirk-amt") ||
+	    device_property_present(dev, "hip07-sas-v2-quirk-amt")) {
 		hisi_sas_write32(hisi_hba, AM_CFG_MAX_TRANS, 0x2020);
 		hisi_sas_write32(hisi_hba, AM_CFG_SINGLE_PORT_MAX_TRANS,
 				 0x2020);
@@ -2814,6 +2815,7 @@ static int hisi_sas_v2_remove(struct platform_device *pdev)
 
 static const struct of_device_id sas_v2_of_match[] = {
 	{ .compatible = "hisilicon,hip06-sas-v2",},
+	{ .compatible = "hisilicon,hip07-sas-v2",},
 	{},
 };
 MODULE_DEVICE_TABLE(of, sas_v2_of_match);
