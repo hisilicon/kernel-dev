@@ -855,6 +855,7 @@
 				cpld-ctrl-reg = <0>;
 				port-rst-offset = <0>;
 				port-mode-offset = <0>;
+				mc-mac-mask = [ff f0 00 00 00 00];
 				media-type = "fiber";
 			};
 
@@ -865,6 +866,7 @@
 				cpld-ctrl-reg = <0>;
 				port-rst-offset = <1>;
 				port-mode-offset = <1>;
+				mc-mac-mask = [ff f0 00 00 00 00];
 				media-type = "fiber";
 			};
 
@@ -875,6 +877,7 @@
 				cpld-ctrl-reg = <0>;
 				port-rst-offset = <2>;
 				port-mode-offset = <2>;
+				mc-mac-mask = [ff f0 00 00 00 00];
 				media-type = "fiber";
 			};
 
@@ -885,6 +888,7 @@
 				cpld-ctrl-reg = <0>;
 				port-rst-offset = <3>;
 				port-mode-offset = <3>;
+				mc-mac-mask = [ff f0 00 00 00 00];
 				media-type = "fiber";
 			};
 
@@ -895,6 +899,7 @@
 				cpld-ctrl-reg = <0>;
 				port-rst-offset = <4>;
 				port-mode-offset = <2>;
+				mc-mac-mask = [ff f0 00 00 00 00];
 				media-type = "fiber";
 			};
 
@@ -905,6 +910,7 @@
 				cpld-ctrl-reg = <0>;
 				port-rst-offset = <5>;
 				port-mode-offset = <3>;
+				mc-mac-mask = [ff f0 00 00 00 00];
 				media-type = "fiber";
 			};
 		};
