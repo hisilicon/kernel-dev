@@ -282,7 +282,7 @@ static acpi_status mbigen_acpi_process_resource(struct acpi_resource *ares,
 	switch (ares->type) {
 	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		ext_irq = &ares->data.extended_irq;
-		*num_irqs = ext_irq->interrupt_count;
+		*num_irqs += ext_irq->interrupt_count;
 		break;
 	default:
 		break;
@@ -333,7 +333,7 @@ static int mbigen_device_probe(struct platform_device *pdev)
 	mgn_chip->pdev = pdev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mgn_chip->base = devm_ioremap_resource(&pdev->dev, res);
+	mgn_chip->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (IS_ERR(mgn_chip->base))
 		return PTR_ERR(mgn_chip->base);
 
@@ -374,8 +374,12 @@ static struct platform_driver mbigen_platform_driver = {
 	.probe			= mbigen_device_probe,
 };
 
-module_platform_driver(mbigen_platform_driver);
+static __init int mbigen_init(void)
+{
+	return platform_driver_register(&mbigen_platform_driver);
+}
 
+arch_initcall(mbigen_init);
 MODULE_AUTHOR("Jun Ma <majun258@huawei.com>");
 MODULE_AUTHOR("Yun Wu <wuyun.wu@huawei.com>");
 MODULE_LICENSE("GPL");
