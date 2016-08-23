@@ -3,6 +3,7 @@ dtb-$(CONFIG_ARCH_HISI) += hip05-d02.dtb
 dtb-$(CONFIG_ARCH_HISI) += hip06-d03.dtb
 dtb-$(CONFIG_ARCH_HISI) += hip06_32c-evb.dtb
 dtb-$(CONFIG_ARCH_HISI) += hip07-d05-1p.dtb
+dtb-$(CONFIG_ARCH_HISI) += hip07-d05-2p.dtb
 
 always		:= $(dtb-y)
 subdir-y	:= $(dts-dirs)
