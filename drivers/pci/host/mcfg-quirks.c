@@ -52,13 +52,11 @@ static struct pci_cfg_fixup mcfg_qurks[] __initconst = {
 	  NULL, thunder_pem_cfg_init},
 #endif
 #ifdef CONFIG_PCI_HISI_ACPI
-	{ "HISI", "HISI0660", 0, MCFG_DOM_RANGE(0, 3), MCFG_BUS_ANY,
+	{ "HISI  ", "HIP05   ", 0, MCFG_DOM_RANGE(0, 3), MCFG_BUS_ANY,
 	  NULL, hisi_pcie_acpi_hip05_init},
-	{ "HISI", "HISI1610", 0, MCFG_DOM_RANGE(0, 3), MCFG_BUS_ANY,
+	{ "HISI  ", "HIP06   ", 0, MCFG_DOM_RANGE(0, 3), MCFG_BUS_ANY,
 	  NULL, hisi_pcie_acpi_hip06_init},
-	{ "HISI", "HISI1612", 0, MCFG_DOM_RANGE(0, 3), MCFG_BUS_ANY,
-	  NULL, hisi_pcie_acpi_hip06_init},
-	{ "HISI", "HISI1616", 0, MCFG_DOM_RANGE(0, 7), MCFG_BUS_ANY,
+	{ "HISI  ", "HIP07   ", 0, MCFG_DOM_RANGE(0, 15), MCFG_BUS_ANY,
 	  NULL, hisi_pcie_acpi_hip07_init},
 #endif
 };
