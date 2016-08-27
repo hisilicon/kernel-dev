@@ -9,10 +9,13 @@ Additional properties are described here:
 
 Required properties
 - compatible: Should contain "hisilicon,hip05-pcie" or "hisilicon,hip06-pcie".
-- reg: Should contain rc_dbi, config registers location and length.
-- reg-names: Must include the following entries:
+- reg: Should contain rc_dbi and  either config or ecam-cfg registers
+       location and length (it depends on the platform BIOS).
+- reg-names: Must include
   "rc_dbi": controller configuration registers;
-  "config": PCIe configuration space registers.
+  and one of the following entries:
+    "config": PCIe configuration space registers for non-ECAM platforms.
+    "ecam-cfg": PCIe configuration space registers for ECAM platforms
 - msi-parent: Should be its_pcie which is an ITS receiving MSI interrupts.
 - port-id: Should be 0, 1, 2 or 3.
 
@@ -23,8 +26,10 @@ Optional properties:
 Hip05 Example (note that Hip06 is the same except compatible):
 	pcie@0xb0080000 {
 		compatible = "hisilicon,hip05-pcie", "snps,dw-pcie";
-		reg = <0 0xb0080000 0 0x10000>, <0x220 0x00000000 0 0x2000>;
-		reg-names = "rc_dbi", "config";
+		reg = <0 0xb0080000 0 0x10000>,
+		      <0x220 0x00000000 0 0x2000>
+		/* or <0x220 0x00100000 0 0x0f00000> for ecam-cfg*/;
+		reg-names = "rc_dbi", "config" /* or "ecam-cfg" */;
 		bus-range = <0  15>;
 		msi-parent = <&its_pcie>;
 		#address-cells = <3>;
