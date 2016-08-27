@@ -227,6 +227,14 @@ config PCI_HISI
 	  Say Y here if you want PCIe controller support on HiSilicon
 	  Hip05 and Hip06 SoCs
 
+config PCI_HISI_ACPI
+	depends on ACPI
+	bool "HiSilicon Hip05 and Hip06 SoCs ACPI PCIe controllers"
+	select ACPI_PCI_HOST_GENERIC
+	help
+	  Say Y here if you want ACPI PCIe controller support on HiSilicon
+	  Hip05 and Hip06 SoCs
+
 config PCIE_QCOM
 	bool "Qualcomm PCIe controller"
 	depends on ARCH_QCOM && OF
