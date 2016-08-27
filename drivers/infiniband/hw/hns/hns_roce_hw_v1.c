@@ -336,6 +336,12 @@ int hns_roce_v1_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		}
 
 		ctrl = get_recv_wqe(hr_qp, ind);
+		if (unlikely(!ctrl)) {
+			dev_err(dev, "Get recv wqe failed!\n");
+			ret = -EINVAL;
+			*bad_wr = wr;
+			goto out;
+		}
 
 		roce_set_field(ctrl->rwqe_byte_12,
 			       RQ_WQE_CTRL_RWQE_BYTE_12_RWQE_SGE_NUM_M,
