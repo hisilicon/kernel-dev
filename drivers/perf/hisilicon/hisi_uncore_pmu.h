@@ -4,7 +4,8 @@
  * Copyright (C) 2016 Huawei Technologies Limited
  * Author: Anurup M <anurup.m@huawei.com>
  *
- * This code is based heavily on the ARMv7 perf event code.
+ * This code is based on the uncore PMU's like arm-cci and
+ * arm-ccn.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,124 +22,100 @@
 #ifndef __HISI_UNCORE_PMU_H__
 #define __HISI_UNCORE_PMU_H__
 
-#include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/types.h>
-#include <asm/local64.h>
 #include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <asm/hisi-djtag.h>
+#include <linux/soc/hisilicon/djtag.h>
+#include <linux/types.h>
+#include <asm/local64.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt)     "hisi_pmu: " fmt
 
-/*
- * ARMv8 HiSilicon SoC CPU SCCL Names.
- */
-enum hisi_die_id {
-	HISI_SOC0_TOTEMA = 1,
-	HISI_SOC0_TOTEMC,
-	HISI_SOC0_TOTEMB,
-	HISI_SOC1_TOTEMA,
-	HISI_SOC1_TOTEMC,
-	HISI_SOC1_TOTEMB,
-};
+#define HISI_DJTAG_MOD_MASK (0xFFFF)
 
-#define HISI_CNTR_SCCL_MASK	(0xF00)
+#define HISI_CNTR_SCCL_MASK    (0xF00)
 
 #define HISI_SCCL_MAX	(1 << 4)
 #define HISI_SCCL_MASK	(0xF00000)
+#define HISI_SCCL_SHIFT 20
 
-#define HISI_HW_MODULE_MAX	(1 << 4)
-#define HISI_HW_MODULE_MASK	(0xF0000)
-
-#define HISI_HW_SUB_MODULE_MAX		(1 << 4)
-#define HISI_HW_SUB_MODULE_MASK	(0xF000)
-
-#define HISI_ARMV8_MAX_CFG_EVENTS_MAX (1 << 12)
-#define HISI_ARMV8_MAX_CFG_EVENTS_MASK 0xfff
-
-#define HISI_ARMV8_EVTYPE_EVENT	0xfff
-#define HISI_ARMV8_MAX_PERIOD ((1LLU << 32) - 1)
+#define HISI_EVTYPE_EVENT	0xfff
+#define HISI_MAX_PERIOD ((1LLU << 32) - 1)
 
 #define MAX_BANKS 8
 #define MAX_COUNTERS 30
 #define MAX_UNITS 8
 
-#define EVENT_PTR(_id) (&event_attr_##_id.attr.attr)
+#define GET_CNTR_IDX(hwc) (hwc->idx)
+#define to_hisi_pmu(c)	(container_of(c, struct hisi_pmu, pmu))
 
-#define EVENT_ATTR(_name, _val)						   \
-static struct perf_pmu_events_attr event_attr_##_name = {		   \
-	.attr	   = __ATTR(_name, 0444, hisi_events_sysfs_show, NULL), \
-	.event_str = "event=" __stringify(_val),			   \
+#define GET_UNIT_IDX(event_code)		\
+	(((event_code & HISI_SCCL_MASK) >>	\
+			   HISI_SCCL_SHIFT) - 1)
+
+#define HISI_PMU_FORMAT_ATTR(_name, _config)		\
+	(&((struct dev_ext_attribute[]) {		\
+		{ .attr = __ATTR(_name, S_IRUGO,	\
+			hisi_format_sysfs_show, NULL),	\
+		  .var = (void *) _config,		\
+		}					\
+	})[0].attr.attr)
+
+#define HISI_PMU_EVENT_ATTR_STR(_name, _str)		\
+	(&((struct perf_pmu_events_attr[]) {		\
+		{ .attr = __ATTR(_name, S_IRUGO,	\
+			 hisi_event_sysfs_show, NULL),	\
+		  .event_str = _str,			\
+		}					\
+	  })[0].attr.attr)
+
+enum hisi_hwmod_type {
+	HISI_L3C = 0x0,
 };
-
-#define EVENT_ATTR_STR(_name, _str)					   \
-static struct perf_pmu_events_attr event_attr_##_name = {		   \
-	.attr	   = __ATTR(_name, 0444, hisi_events_sysfs_show, NULL), \
-	.event_str = _str,						   \
-};
-
-typedef enum hisi_hwmod_type_e {
-	HISI_LLC = 0x0,
-} hisi_hwmod_type;
 
 /* Event granularity */
-typedef enum hisi_pmu_type_e {
+enum hisi_pmu_type {
 	CORE_SPECIFIC,
-	CCL_SPECIFIC,
+	CCL_SPECIFIC, /* For future use */
 	SCCL_SPECIFIC,
-	SOCKET_SPECIFIC,
-} hisi_pmu_type;
-
+	CHIP_SPECIFIC, /* For future use */
+};
 
 struct hisi_pmu_hw_events {
 	struct perf_event **events;
-	unsigned long *used_mask;
 	raw_spinlock_t pmu_lock;
 };
 
-/* Harware module information */
+/* Hardware module information */
 struct hisi_hwmod_unit {
-/*       struct list_head entry; To be implemented as list later */
 	   int unit_id;
 	   struct hisi_pmu_hw_events hw_events;
-	   atomic_t active_events;
-	   cpumask_t cpus; /* CPU's for perf */
-	   struct mutex reserve_mutex;
 	   void *hwmod_data;
 };
 
 /* Generic pmu struct for different pmu types */
 struct hisi_pmu {
 	const char *name;
-	hisi_pmu_type pmu_type;
-	hisi_hwmod_type hwmod_type;
+	enum hisi_pmu_type pmu_type;
+	enum hisi_hwmod_type hwmod_type;
 	int num_counters;
 	int	num_events;
 	struct perf_event *events[MAX_COUNTERS];
 	int num_units;
-/*	struct list_head unit_list; To be implemented as list later */
-	struct notifier_block cpu_nb; /* For uncore PMU's */
-	int (*check_event)(u64);
 	struct hisi_hwmod_unit hwmod_pmu_unit[MAX_UNITS];
 	struct pmu pmu; /* for custom pmu ops */
 	struct platform_device *plat_device;
 };
 
-#define to_hisi_pmu(c)	(container_of(c, struct hisi_pmu, pmu))
-
-int pmu_map_event(struct perf_event *);
 u64 hisi_pmu_event_update(struct perf_event *,
 				struct hw_perf_event *, int);
 int hisi_pmu_enable_counter(struct hisi_hwmod_unit *, int);
 void hisi_pmu_disable_counter(struct hisi_hwmod_unit *, int);
 int hisi_pmu_write_counter(struct hisi_hwmod_unit *, int, u32);
-u32 hisi_pmu_read_counter(int);
 void hisi_pmu_write_evtype(int, u32);
-int hisi_pmu_enable_intens(int);
-int hisi_pmu_disable_intens(int);
 int hisi_pmu_get_event_idx(struct hw_perf_event *,
 				struct hisi_hwmod_unit *);
 void hisi_pmu_clear_event_idx(struct hw_perf_event *,
@@ -164,6 +141,8 @@ int hisi_pmu_unit_init(struct platform_device *,
 				struct hisi_hwmod_unit *,
 						int, int);
 struct hisi_pmu *hisi_pmu_alloc(struct platform_device *);
-ssize_t hisi_events_sysfs_show(struct device *,
+ssize_t hisi_event_sysfs_show(struct device *,
+				  struct device_attribute *, char *);
+ssize_t hisi_format_sysfs_show(struct device *,
 				  struct device_attribute *, char *);
 #endif /* __HISI_UNCORE_PMU_H__ */
