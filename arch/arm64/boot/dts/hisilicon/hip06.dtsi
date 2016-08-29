@@ -843,6 +843,18 @@
 			status = "okay";
 		};
 
+		pmumn0 {
+			compatible = "hisilicon,hisi-pmu-mn";
+			djtag = <&djtag0 2>;
+			status = "okay";
+		};
+
+		pmumn1 {
+			compatible = "hisilicon,hisi-pmu-mn";
+			djtag = <&djtag1 1>;
+			status = "okay";
+		};
+
 		sas1: sas@a2000000 {
 			compatible = "hisilicon,hip06-sas-v2";
 			reg = <0 0xa2000000 0 0x10000>;
