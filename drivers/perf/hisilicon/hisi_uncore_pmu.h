@@ -74,6 +74,7 @@
 
 enum hisi_hwmod_type {
 	HISI_L3C = 0x0,
+	HISI_MN = 0x1,
 };
 
 /* Event granularity */

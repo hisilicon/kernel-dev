@@ -25,6 +25,7 @@
 #include <linux/of.h>
 #include <linux/perf_event.h>
 #include "hisi_uncore_l3c.h"
+#include "hisi_uncore_mn.h"
 #include "hisi_uncore_pmu.h"
 
 /*
@@ -98,6 +99,8 @@ void hisi_uncore_pmu_write_evtype(struct hisi_hwmod_unit *punit,
 	/* Select event based on Hardware counter Module */
 	if (hwmod_type == HISI_L3C)
 		hisi_set_l3c_evtype(punit->hwmod_data, idx, val);
+	else if (hwmod_type == HISI_MN)
+		hisi_set_mn_evtype(punit->hwmod_data, idx, val);
 }
 
 int hisi_pmu_get_event_idx(struct hw_perf_event *hwc,
@@ -110,6 +113,8 @@ int hisi_pmu_get_event_idx(struct hw_perf_event *hwc,
 	/* If event type is L3C events */
 	if (hwmod_type == HISI_L3C)
 		event_idx = hisi_l3c_get_event_idx(punit);
+	else if (hwmod_type == HISI_MN)
+		event_idx = hisi_mn_get_event_idx(punit);
 
 	return event_idx;
 }
@@ -122,6 +127,8 @@ void hisi_pmu_clear_event_idx(struct hw_perf_event *hwc,
 	/* Release the hardware event counter index */
 	if (hwmod_type == HISI_L3C)
 		hisi_clear_l3c_event_idx(punit, idx);
+	else if (hwmod_type == HISI_MN)
+		hisi_clear_mn_event_idx(punit, idx);
 }
 
 static int pmu_map_event(struct perf_event *event)
@@ -214,6 +221,8 @@ u64 hisi_uncore_pmu_event_update(struct perf_event *event,
 	 */
 	if (hwmod_type == HISI_L3C)
 		new_raw_count = hisi_l3c_event_update(event, hwc, idx);
+	else if (hwmod_type == HISI_MN)
+		new_raw_count = hisi_mn_event_update(event, hwc, idx);
 
 	return new_raw_count;
 }
@@ -235,6 +244,8 @@ void hisi_pmu_enable_counter(struct hisi_hwmod_unit *punit,
 	/* Enable the hardware event counting */
 	if (hwmod_type == HISI_L3C)
 		hisi_enable_l3c_counter(punit->hwmod_data, idx);
+	else if (hwmod_type == HISI_MN)
+		hisi_enable_mn_counter(punit->hwmod_data, idx);
 }
 
 void hisi_pmu_disable_counter(struct hisi_hwmod_unit *punit,
@@ -244,6 +255,8 @@ void hisi_pmu_disable_counter(struct hisi_hwmod_unit *punit,
 	/* Disable the hardware event counting */
 	if (hwmod_type == HISI_L3C)
 		hisi_disable_l3c_counter(punit->hwmod_data, idx);
+	else if (hwmod_type == HISI_MN)
+		hisi_disable_mn_counter(punit->hwmod_data, idx);
 }
 
 /*
@@ -288,6 +301,9 @@ int hisi_pmu_write_counter(struct hisi_hwmod_unit *punit,
 	/* Write to the hardware event counter */
 	if (hwmod_type == HISI_L3C)
 		ret = hisi_write_l3c_counter(punit->hwmod_data,
+							idx, value);
+	else if (hwmod_type == HISI_MN)
+		ret = hisi_write_mn_counter(punit->hwmod_data,
 							idx, value);
 
 	return ret;
