@@ -92,6 +92,12 @@ int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		}
 
 		wqe = get_send_wqe(qp, ind & (qp->sq.wqe_cnt - 1));
+		if (unlikely(!wqe)) {
+			dev_err(dev, "get send wqe failed\n");
+			ret = -EINVAL;
+			*bad_wr = wr;
+			goto out;
+		}
 		qp->sq.wrid[(qp->sq.head + nreq) & (qp->sq.wqe_cnt - 1)] =
 								      wr->wr_id;
 
@@ -1558,6 +1564,11 @@ static int hns_roce_v1_poll_one(struct hns_roce_cq *hr_cq,
 		sq_wqe = get_send_wqe(*cur_qp, roce_get_field(cqe->cqe_byte_4,
 						CQE_BYTE_4_WQE_INDEX_M,
 						CQE_BYTE_4_WQE_INDEX_S));
+		if (unlikely(!sq_wqe)) {
+			dev_err(dev, "Get send wqe failed!\n");
+			return -EFAULT;
+		}
+
 		switch (sq_wqe->flag & HNS_ROCE_WQE_OPCODE_MASK) {
 		case HNS_ROCE_WQE_OPCODE_SEND:
 			wc->opcode = IB_WC_SEND;
