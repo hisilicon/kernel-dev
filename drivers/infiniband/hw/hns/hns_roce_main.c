@@ -600,6 +600,11 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->alloc_pd		= hns_roce_alloc_pd;
 	ib_dev->dealloc_pd		= hns_roce_dealloc_pd;
 
+	/* AH */
+	ib_dev->create_ah		= hns_roce_create_ah;
+	ib_dev->query_ah		= hns_roce_query_ah;
+	ib_dev->destroy_ah		= hns_roce_destroy_ah;
+
 	ret = ib_register_device(ib_dev, NULL);
 	if (ret) {
 		dev_err(dev, "ib_register_device failed!\n");
