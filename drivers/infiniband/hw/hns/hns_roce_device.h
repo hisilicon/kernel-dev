@@ -50,6 +50,10 @@
 #define HNS_ROCE_MIN_CQE_NUM			0x40
 #define HNS_ROCE_MIN_WQE_NUM			0x20
 
+/* Hardware specification only for v1 engine */
+#define HNS_ROCE_MAX_INNER_MTPT_NUM		0x7
+#define HNS_ROCE_MAX_MTPT_PBL_NUM		0x100000
+
 #define HNS_ROCE_MAX_IRQ_NUM			34
 
 #define HNS_ROCE_COMP_VEC_NUM			32
@@ -66,10 +70,21 @@
 #define HNS_ROCE_MAX_GID_NUM			16
 #define HNS_ROCE_GID_SIZE			16
 
+#define MR_TYPE_MR				0x00
+#define MR_TYPE_DMA				0x03
+
 #define PKEY_ID					0xffff
 #define NODE_DESC_SIZE				64
 
+#define SERV_TYPE_RC				0
+#define SERV_TYPE_RD				1
+#define SERV_TYPE_UC				2
+#define SERV_TYPE_UD				3
+
+#define PAGES_SHIFT_8				8
 #define PAGES_SHIFT_16				16
+#define PAGES_SHIFT_24				24
+#define PAGES_SHIFT_32				32
 
 enum hns_roce_qp_state {
 	HNS_ROCE_QP_STATE_RST,
@@ -210,6 +225,23 @@ struct hns_roce_mtt {
 	unsigned long	first_seg;
 	int		order;
 	int		page_shift;
+};
+
+/* Only support 4K page size for mr register */
+#define MR_SIZE_4K 0
+
+struct hns_roce_mr {
+	struct ib_mr		ibmr;
+	struct ib_umem		*umem;
+	u64			iova; /* MR's virtual orignal addr */
+	u64			size; /* Address range of MR */
+	u32			key; /* Key of MR */
+	u32			pd;   /* PD num of MR */
+	u32			access;/* Access permission of MR */
+	int			enabled; /* MR's active status */
+	int			type;	/* MR's register type */
+	u64			*pbl_buf;/* MR's PBL space */
+	dma_addr_t		pbl_dma_addr;	/* MR's PBL space PA */
 };
 
 struct hns_roce_mr_table {
@@ -475,6 +507,8 @@ struct hns_roce_hw {
 	void (*set_mac)(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr);
 	void (*set_mtu)(struct hns_roce_dev *hr_dev, u8 phy_port,
 			enum ib_mtu mtu);
+	int (*write_mtpt)(void *mb_buf, struct hns_roce_mr *mr,
+			  unsigned long mtpt_idx);
 	void (*write_cqc)(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_cq *hr_cq, void *mb_buf, u64 *mtts,
 			  dma_addr_t dma_handle, int nent, u32 vector);
@@ -547,6 +581,11 @@ static inline struct hns_roce_pd *to_hr_pd(struct ib_pd *ibpd)
 static inline struct hns_roce_ah *to_hr_ah(struct ib_ah *ibah)
 {
 	return container_of(ibah, struct hns_roce_ah, ibah);
+}
+
+static inline struct hns_roce_mr *to_hr_mr(struct ib_mr *ibmr)
+{
+	return container_of(ibmr, struct hns_roce_mr, ibmr);
 }
 
 static inline struct hns_roce_qp *to_hr_qp(struct ib_qp *ibqp)
@@ -642,6 +681,12 @@ struct ib_pd *hns_roce_alloc_pd(struct ib_device *ib_dev,
 				struct ib_ucontext *context,
 				struct ib_udata *udata);
 int hns_roce_dealloc_pd(struct ib_pd *pd);
+
+struct ib_mr *hns_roce_get_dma_mr(struct ib_pd *pd, int acc);
+struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
+				   u64 virt_addr, int access_flags,
+				   struct ib_udata *udata);
+int hns_roce_dereg_mr(struct ib_mr *ibmr);
 
 void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
 		       struct hns_roce_buf *buf);
