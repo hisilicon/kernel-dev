@@ -264,8 +264,10 @@ int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			}
 			ind++;
 		} else {
-			dev_dbg(dev, "unSupported QP type\n");
-			break;
+			dev_err(dev, "unSupported QP type\n");
+			ret = -EOPNOTSUPP;
+			*bad_wr = wr;
+			goto out;
 		}
 	}
 
