@@ -578,9 +578,73 @@ void hns_roce_v1_exit(struct hns_roce_dev *hr_dev)
 	hns_roce_db_free(hr_dev);
 }
 
+void hns_roce_v1_set_gid(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
+			 union ib_gid *gid)
+{
+	u32 *p = NULL;
+	u8 gid_idx = 0;
+
+	gid_idx = hns_get_gid_index(hr_dev, port, gid_index);
+
+	p = (u32 *)&gid->raw[0];
+	roce_raw_write(*p, hr_dev->reg_base + ROCEE_PORT_GID_L_0_REG +
+		       (HNS_ROCE_V1_GID_NUM * gid_idx));
+
+	p = (u32 *)&gid->raw[4];
+	roce_raw_write(*p, hr_dev->reg_base + ROCEE_PORT_GID_ML_0_REG +
+		       (HNS_ROCE_V1_GID_NUM * gid_idx));
+
+	p = (u32 *)&gid->raw[8];
+	roce_raw_write(*p, hr_dev->reg_base + ROCEE_PORT_GID_MH_0_REG +
+		       (HNS_ROCE_V1_GID_NUM * gid_idx));
+
+	p = (u32 *)&gid->raw[0xc];
+	roce_raw_write(*p, hr_dev->reg_base + ROCEE_PORT_GID_H_0_REG +
+		       (HNS_ROCE_V1_GID_NUM * gid_idx));
+}
+
+void hns_roce_v1_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr)
+{
+	u32 reg_smac_l;
+	u16 reg_smac_h;
+	u16 *p_h;
+	u32 *p;
+	u32 val;
+
+	p = (u32 *)(&addr[0]);
+	reg_smac_l = *p;
+	roce_raw_write(reg_smac_l, hr_dev->reg_base + ROCEE_SMAC_L_0_REG +
+		       PHY_PORT_OFFSET * phy_port);
+
+	val = roce_read(hr_dev,
+			ROCEE_SMAC_H_0_REG + phy_port * PHY_PORT_OFFSET);
+	p_h = (u16 *)(&addr[4]);
+	reg_smac_h  = *p_h;
+	roce_set_field(val, ROCEE_SMAC_H_ROCEE_SMAC_H_M,
+		       ROCEE_SMAC_H_ROCEE_SMAC_H_S, reg_smac_h);
+	roce_write(hr_dev, ROCEE_SMAC_H_0_REG + phy_port * PHY_PORT_OFFSET,
+		   val);
+}
+
+void hns_roce_v1_set_mtu(struct hns_roce_dev *hr_dev, u8 phy_port,
+			 enum ib_mtu mtu)
+{
+	u32 val;
+
+	val = roce_read(hr_dev,
+			ROCEE_SMAC_H_0_REG + phy_port * PHY_PORT_OFFSET);
+	roce_set_field(val, ROCEE_SMAC_H_ROCEE_PORT_MTU_M,
+		       ROCEE_SMAC_H_ROCEE_PORT_MTU_S, mtu);
+	roce_write(hr_dev, ROCEE_SMAC_H_0_REG + phy_port * PHY_PORT_OFFSET,
+		   val);
+}
+
 struct hns_roce_hw hns_roce_hw_v1 = {
 	.reset = hns_roce_v1_reset,
 	.hw_profile = hns_roce_v1_profile,
 	.hw_init = hns_roce_v1_init,
 	.hw_exit = hns_roce_v1_exit,
+	.set_gid = hns_roce_v1_set_gid,
+	.set_mac = hns_roce_v1_set_mac,
+	.set_mtu = hns_roce_v1_set_mtu,
 };
