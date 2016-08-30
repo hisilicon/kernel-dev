@@ -37,6 +37,7 @@
 #include <rdma/ib_user_verbs.h>
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
+#include "hns_roce_hem.h"
 
 static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 {
@@ -104,6 +105,70 @@ static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
+static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
+{
+	int ret;
+	struct device *dev = &hr_dev->pdev->dev;
+
+	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->mr_table.mtt_table,
+				      HEM_TYPE_MTT, hr_dev->caps.mtt_entry_sz,
+				      hr_dev->caps.num_mtt_segs, 1);
+	if (ret) {
+		dev_err(dev, "Failed to init MTT context memory, aborting.\n");
+		return ret;
+	}
+
+	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->mr_table.mtpt_table,
+				      HEM_TYPE_MTPT, hr_dev->caps.mtpt_entry_sz,
+				      hr_dev->caps.num_mtpts, 1);
+	if (ret) {
+		dev_err(dev, "Failed to init MTPT context memory, aborting.\n");
+		goto err_unmap_mtt;
+	}
+
+	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->qp_table.qp_table,
+				      HEM_TYPE_QPC, hr_dev->caps.qpc_entry_sz,
+				      hr_dev->caps.num_qps, 1);
+	if (ret) {
+		dev_err(dev, "Failed to init QP context memory, aborting.\n");
+		goto err_unmap_dmpt;
+	}
+
+	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->qp_table.irrl_table,
+				      HEM_TYPE_IRRL,
+				      hr_dev->caps.irrl_entry_sz *
+				      hr_dev->caps.max_qp_init_rdma,
+				      hr_dev->caps.num_qps, 1);
+	if (ret) {
+		dev_err(dev, "Failed to init irrl_table memory, aborting.\n");
+		goto err_unmap_qp;
+	}
+
+	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->cq_table.table,
+				      HEM_TYPE_CQC, hr_dev->caps.cqc_entry_sz,
+				      hr_dev->caps.num_cqs, 1);
+	if (ret) {
+		dev_err(dev, "Failed to init CQ context memory, aborting.\n");
+		goto err_unmap_irrl;
+	}
+
+	return 0;
+
+err_unmap_irrl:
+	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->qp_table.irrl_table);
+
+err_unmap_qp:
+	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->qp_table.qp_table);
+
+err_unmap_dmpt:
+	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->mr_table.mtpt_table);
+
+err_unmap_mtt:
+	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->mr_table.mtt_table);
+
+	return ret;
+}
+
 /**
 * hns_roce_probe - RoCE driver entrance
 * @pdev: pointer to platform device
@@ -167,6 +232,16 @@ static int hns_roce_probe(struct platform_device *pdev)
 		}
 	}
 
+	ret = hns_roce_init_hem(hr_dev);
+	if (ret) {
+		dev_err(dev, "init HEM(Hardware Entry Memory) failed!\n");
+		goto error_failed_init_hem;
+	}
+
+error_failed_init_hem:
+	if (hr_dev->cmd_mod)
+		hns_roce_cmd_use_polling(hr_dev);
+
 error_failed_use_event:
 	hns_roce_cleanup_eq_table(hr_dev);
 
@@ -191,6 +266,8 @@ error_failed_get_cfg:
 static int hns_roce_remove(struct platform_device *pdev)
 {
 	struct hns_roce_dev *hr_dev = platform_get_drvdata(pdev);
+
+	hns_roce_cleanup_hem(hr_dev);
 
 	if (hr_dev->cmd_mod)
 		hns_roce_cmd_use_polling(hr_dev);
