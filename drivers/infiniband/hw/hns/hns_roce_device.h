@@ -38,6 +38,7 @@
 #define DRV_NAME "hns_roce"
 
 #define MAC_ADDR_OCTET_NUM			6
+#define HNS_ROCE_MAX_MSG_LEN			0x80000000
 
 #define HNS_ROCE_BA_SIZE			(32 * 4096)
 
@@ -50,6 +51,10 @@
 
 #define HNS_ROCE_MAX_PORTS			6
 #define HNS_ROCE_MAX_GID_NUM			16
+#define HNS_ROCE_GID_SIZE			16
+
+#define PKEY_ID					0xffff
+#define NODE_DESC_SIZE				64
 
 #define PAGES_SHIFT_16				16
 
@@ -114,6 +119,11 @@ enum {
 struct hns_roce_uar {
 	u64		pfn;
 	unsigned long	index;
+};
+
+struct hns_roce_ucontext {
+	struct ib_ucontext	ibucontext;
+	struct hns_roce_uar	uar;
 };
 
 struct hns_roce_bitmap {
@@ -365,6 +375,17 @@ struct hns_roce_dev {
 	int			loop_idc;
 	struct hns_roce_hw	*hw;
 };
+
+static inline struct hns_roce_dev *to_hr_dev(struct ib_device *ib_dev)
+{
+	return container_of(ib_dev, struct hns_roce_dev, ib_dev);
+}
+
+static inline struct hns_roce_ucontext
+			*to_hr_ucontext(struct ib_ucontext *ibucontext)
+{
+	return container_of(ibucontext, struct hns_roce_ucontext, ibucontext);
+}
 
 static inline void hns_roce_write64_k(__be32 val[2], void __iomem *dest)
 {
