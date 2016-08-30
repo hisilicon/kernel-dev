@@ -103,6 +103,9 @@ enum {
 
 #define HNS_ROCE_CMD_SUCCESS			1
 
+#define HNS_ROCE_PORT_DOWN			0
+#define HNS_ROCE_PORT_UP			1
+
 struct hns_roce_uar {
 	u64		pfn;
 	unsigned long	index;
@@ -186,6 +189,10 @@ struct hns_roce_cq_table {
 	spinlock_t			lock;
 	struct radix_tree_root		tree;
 	struct hns_roce_hem_table	table;
+};
+
+struct hns_roce_raq_table {
+	struct hns_roce_buf_list	*e_raq_buf;
 };
 
 struct hns_roce_cmd_context {
@@ -305,6 +312,9 @@ struct hns_roce_caps {
 struct hns_roce_hw {
 	int (*reset)(struct hns_roce_dev *hr_dev, bool enable);
 	void (*hw_profile)(struct hns_roce_dev *hr_dev);
+	int (*hw_init)(struct hns_roce_dev *hr_dev);
+	void (*hw_exit)(struct hns_roce_dev *hr_dev);
+	void	*priv;
 };
 
 struct hns_roce_dev {

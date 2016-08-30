@@ -313,6 +313,15 @@ static int hns_roce_probe(struct platform_device *pdev)
 		goto error_failed_setup_hca;
 	}
 
+	ret = hr_dev->hw->hw_init(hr_dev);
+	if (ret) {
+		dev_err(dev, "hw_init failed!\n");
+		goto error_failed_engine_init;
+	}
+
+error_failed_engine_init:
+	hns_roce_cleanup_bitmap(hr_dev);
+
 error_failed_setup_hca:
 	hns_roce_cleanup_hem(hr_dev);
 
@@ -345,6 +354,7 @@ static int hns_roce_remove(struct platform_device *pdev)
 {
 	struct hns_roce_dev *hr_dev = platform_get_drvdata(pdev);
 
+	hr_dev->hw->hw_exit(hr_dev);
 	hns_roce_cleanup_bitmap(hr_dev);
 	hns_roce_cleanup_hem(hr_dev);
 
