@@ -103,6 +103,38 @@ enum {
 
 #define HNS_ROCE_CMD_SUCCESS			1
 
+struct hns_roce_uar {
+	u64		pfn;
+	unsigned long	index;
+};
+
+struct hns_roce_bitmap {
+	/* Bitmap Traversal last a bit which is 1 */
+	unsigned long		last;
+	unsigned long		top;
+	unsigned long		max;
+	unsigned long		reserved_top;
+	unsigned long		mask;
+	spinlock_t		lock;
+	unsigned long		*table;
+};
+
+/* Order bitmap length -- bit num compute formula: 1 << (max_order - order) */
+/* Order = 0: bitmap is biggest, order = max bitmap is least (only a bit) */
+/* Every bit repesent to a partner free/used status in bitmap */
+/*
+* Initial, bits of other bitmap are all 0 except that a bit of max_order is 1
+* Bit = 1 represent to idle and available; bit = 0: not available
+*/
+struct hns_roce_buddy {
+	/* Members point to every order level bitmap */
+	unsigned long **bits;
+	/* Represent to avail bits of the order level bitmap */
+	u32            *num_free;
+	int             max_order;
+	spinlock_t      lock;
+};
+
 /* For Hardware Entry Memory */
 struct hns_roce_hem_table {
 	/* HEM type: 0 = qpc, 1 = mtt, 2 = cqc, 3 = srq, 4 = other */
@@ -119,6 +151,8 @@ struct hns_roce_hem_table {
 };
 
 struct hns_roce_mr_table {
+	struct hns_roce_bitmap		mtpt_bitmap;
+	struct hns_roce_buddy		mtt_buddy;
 	struct hns_roce_hem_table	mtt_table;
 	struct hns_roce_hem_table	mtpt_table;
 };
@@ -136,13 +170,19 @@ struct hns_roce_cq {
 	struct completion		free;
 };
 
+struct hns_roce_uar_table {
+	struct hns_roce_bitmap bitmap;
+};
+
 struct hns_roce_qp_table {
+	struct hns_roce_bitmap		bitmap;
 	spinlock_t			lock;
 	struct hns_roce_hem_table	qp_table;
 	struct hns_roce_hem_table	irrl_table;
 };
 
 struct hns_roce_cq_table {
+	struct hns_roce_bitmap		bitmap;
 	spinlock_t			lock;
 	struct radix_tree_root		tree;
 	struct hns_roce_hem_table	table;
@@ -270,7 +310,10 @@ struct hns_roce_hw {
 struct hns_roce_dev {
 	struct ib_device	ib_dev;
 	struct platform_device  *pdev;
+	struct hns_roce_uar     priv_uar;
 	const char		*irq_names;
+	spinlock_t		sm_lock;
+	spinlock_t		cq_db_lock;
 	spinlock_t		bt_cmd_lock;
 	struct hns_roce_ib_iboe iboe;
 
@@ -285,6 +328,8 @@ struct hns_roce_dev {
 	u32                     hw_rev;
 
 	struct hns_roce_cmdq	cmd;
+	struct hns_roce_bitmap    pd_bitmap;
+	struct hns_roce_uar_table uar_table;
 	struct hns_roce_mr_table  mr_table;
 	struct hns_roce_cq_table  cq_table;
 	struct hns_roce_qp_table  qp_table;
@@ -307,6 +352,11 @@ static inline struct hns_roce_qp
 				 qpn & (hr_dev->caps.num_qps - 1));
 }
 
+int hns_roce_init_uar_table(struct hns_roce_dev *dev);
+int hns_roce_uar_alloc(struct hns_roce_dev *dev, struct hns_roce_uar *uar);
+void hns_roce_uar_free(struct hns_roce_dev *dev, struct hns_roce_uar *uar);
+void hns_roce_cleanup_uar_table(struct hns_roce_dev *dev);
+
 int hns_roce_cmd_init(struct hns_roce_dev *hr_dev);
 void hns_roce_cmd_cleanup(struct hns_roce_dev *hr_dev);
 void hns_roce_cmd_event(struct hns_roce_dev *hr_dev, u16 token, u8 status,
@@ -314,9 +364,28 @@ void hns_roce_cmd_event(struct hns_roce_dev *hr_dev, u16 token, u8 status,
 int hns_roce_cmd_use_events(struct hns_roce_dev *hr_dev);
 void hns_roce_cmd_use_polling(struct hns_roce_dev *hr_dev);
 
+int hns_roce_init_pd_table(struct hns_roce_dev *hr_dev);
+int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_eq_table(struct hns_roce_dev *hr_dev);
+int hns_roce_init_cq_table(struct hns_roce_dev *hr_dev);
+int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev);
 
+void hns_roce_cleanup_pd_table(struct hns_roce_dev *hr_dev);
+void hns_roce_cleanup_mr_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_eq_table(struct hns_roce_dev *hr_dev);
+void hns_roce_cleanup_cq_table(struct hns_roce_dev *hr_dev);
+void hns_roce_cleanup_qp_table(struct hns_roce_dev *hr_dev);
+
+int hns_roce_bitmap_alloc(struct hns_roce_bitmap *bitmap, unsigned long *obj);
+void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj);
+int hns_roce_bitmap_init(struct hns_roce_bitmap *bitmap, u32 num, u32 mask,
+			 u32 reserved_bot, u32 resetrved_top);
+void hns_roce_bitmap_cleanup(struct hns_roce_bitmap *bitmap);
+void hns_roce_cleanup_bitmap(struct hns_roce_dev *hr_dev);
+int hns_roce_bitmap_alloc_range(struct hns_roce_bitmap *bitmap, int cnt,
+				int align, unsigned long *obj);
+void hns_roce_bitmap_free_range(struct hns_roce_bitmap *bitmap,
+				unsigned long obj, int cnt);
 
 void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn);
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type);

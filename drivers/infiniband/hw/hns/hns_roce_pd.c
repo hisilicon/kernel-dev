@@ -31,59 +31,52 @@
  */
 
 #include <linux/platform_device.h>
-#include <rdma/ib_umem.h>
 #include "hns_roce_device.h"
 
-void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn)
+int hns_roce_init_pd_table(struct hns_roce_dev *hr_dev)
 {
-	struct device *dev = &hr_dev->pdev->dev;
-	struct hns_roce_cq *cq;
-
-	cq = radix_tree_lookup(&hr_dev->cq_table.tree,
-			       cqn & (hr_dev->caps.num_cqs - 1));
-	if (!cq) {
-		dev_warn(dev, "Completion event for bogus CQ 0x%08x\n", cqn);
-		return;
-	}
-
-	cq->comp(cq);
+	return hns_roce_bitmap_init(&hr_dev->pd_bitmap, hr_dev->caps.num_pds,
+				    hr_dev->caps.num_pds - 1,
+				    hr_dev->caps.reserved_pds, 0);
 }
 
-void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type)
+void hns_roce_cleanup_pd_table(struct hns_roce_dev *hr_dev)
 {
-	struct hns_roce_cq_table *cq_table = &hr_dev->cq_table;
-	struct device *dev = &hr_dev->pdev->dev;
-	struct hns_roce_cq *cq;
-
-	cq = radix_tree_lookup(&cq_table->tree,
-			       cqn & (hr_dev->caps.num_cqs - 1));
-	if (cq)
-		atomic_inc(&cq->refcount);
-
-	if (!cq) {
-		dev_warn(dev, "Async event for bogus CQ %08x\n", cqn);
-		return;
-	}
-
-	cq->event(cq, (enum hns_roce_event)event_type);
-
-	if (atomic_dec_and_test(&cq->refcount))
-		complete(&cq->free);
+	hns_roce_bitmap_cleanup(&hr_dev->pd_bitmap);
 }
 
-int hns_roce_init_cq_table(struct hns_roce_dev *hr_dev)
+int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 {
-	struct hns_roce_cq_table *cq_table = &hr_dev->cq_table;
+	struct resource *res;
+	int ret = 0;
 
-	spin_lock_init(&cq_table->lock);
-	INIT_RADIX_TREE(&cq_table->tree, GFP_ATOMIC);
+	/* Using bitmap to manager UAR index */
+	ret = hns_roce_bitmap_alloc(&hr_dev->uar_table.bitmap, &uar->index);
+	if (ret == -1)
+		return -ENOMEM;
 
-	return hns_roce_bitmap_init(&cq_table->bitmap, hr_dev->caps.num_cqs,
-				    hr_dev->caps.num_cqs - 1,
-				    hr_dev->caps.reserved_cqs, 0);
+	uar->index = (uar->index - 1) % hr_dev->caps.phy_num_uars + 1;
+
+	res = platform_get_resource(hr_dev->pdev, IORESOURCE_MEM, 0);
+	uar->pfn = ((res->start) >> PAGE_SHIFT) + uar->index;
+
+	return 0;
 }
 
-void hns_roce_cleanup_cq_table(struct hns_roce_dev *hr_dev)
+void hns_roce_uar_free(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 {
-	hns_roce_bitmap_cleanup(&hr_dev->cq_table.bitmap);
+	hns_roce_bitmap_free(&hr_dev->uar_table.bitmap, uar->index);
+}
+
+int hns_roce_init_uar_table(struct hns_roce_dev *hr_dev)
+{
+	return hns_roce_bitmap_init(&hr_dev->uar_table.bitmap,
+				    hr_dev->caps.num_uars,
+				    hr_dev->caps.num_uars - 1,
+				    hr_dev->caps.reserved_uars, 0);
+}
+
+void hns_roce_cleanup_uar_table(struct hns_roce_dev *hr_dev)
+{
+	hns_roce_bitmap_cleanup(&hr_dev->uar_table.bitmap);
 }
