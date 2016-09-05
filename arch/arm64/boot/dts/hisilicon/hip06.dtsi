@@ -866,6 +866,36 @@
 			status = "okay";
 		};
 
+		pmumn0 {
+			compatible = "hisilicon,hisi-pmu-mn";
+			scl-id = <0x02>;
+			num-events = <0x09>;
+			num-counters = <0x04>;
+			module-id = <0x0b>;
+			cfgen-map = <0x01>;
+			counter-reg = <0x30>;
+			evctrl-reg = <0x40>;
+			event-en = <0x01>;
+			evtype-reg = <0x48>;
+			djtag = <&djtag0>;
+			status = "okay";
+		};
+
+		pmumn1 {
+			compatible = "hisilicon,hisi-pmu-mn";
+			scl-id = <0x01>;
+			num-events = <0x09>;
+			num-counters = <0x04>;
+			module-id = <0x0b>;
+			cfgen-map = <0x01>;
+			counter-reg = <0x30>;
+			evctrl-reg = <0x40>;
+			event-en = <0x01>;
+			evtype-reg = <0x48>;
+			djtag = <&djtag1>;
+			status = "okay";
+		};
+
 		sas1: sas@a2000000 {
 			compatible = "hisilicon,hip06-sas-v2";
 			reg = <0 0xa2000000 0 0x10000>;
