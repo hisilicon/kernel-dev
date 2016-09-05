@@ -26,6 +26,34 @@
 #include <linux/perf_event.h>
 #include "hisi_uncore_pmu.h"
 
+/*
+ * PMU format attributes
+ */
+ssize_t hisi_format_sysfs_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct dev_ext_attribute *eattr;
+
+	eattr = container_of(attr, struct dev_ext_attribute,
+					     attr);
+	return sprintf(buf, "%s\n", (char *) eattr->var);
+}
+
+/*
+ * PMU event attributes
+ */
+ssize_t hisi_event_sysfs_show(struct device *dev,
+				  struct device_attribute *attr, char *page)
+{
+	struct perf_pmu_events_attr *pmu_attr =
+		container_of(attr, struct perf_pmu_events_attr, attr);
+
+	if (pmu_attr->event_str)
+		return sprintf(page, "%s", pmu_attr->event_str);
+
+	return 0;
+}
+
 /* djtag read interface - Call djtag driver to access SoC registers */
 int hisi_djtag_readreg(int module_id, int bank, u32 offset,
 				struct device_node *djtag_node, u32 *pvalue)
@@ -235,7 +263,6 @@ void hisi_pmu_event_set_period(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct hisi_pmu *phisi_pmu = to_hisi_pmu(event->pmu);
-	struct hisi_hwmod_unit *punit;
 
 	/*
 	 * The Hisilicon PMU counters have a period of 2^32. To account for the

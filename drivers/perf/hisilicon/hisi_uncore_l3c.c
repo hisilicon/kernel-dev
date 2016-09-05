@@ -424,7 +424,51 @@ free_mem:
 	return ret;
 }
 
-void hisi_l3c_pmu_init(struct platform_device *pdev,
+static struct attribute *hisi_l3c_format_attr[] = {
+	HISI_PMU_FORMAT_ATTR(event, "config:0-11"),
+	NULL,
+};
+
+static struct attribute_group hisi_l3c_format_group = {
+	.name = "format",
+	.attrs = hisi_l3c_format_attr,
+};
+
+static struct attribute *hisi_l3c_events_attr[] = {
+	HISI_PMU_EVENT_ATTR_STR(read_allocate,
+					"event=0x300"),
+	HISI_PMU_EVENT_ATTR_STR(write_allocate,
+					"event=0x301"),
+	HISI_PMU_EVENT_ATTR_STR(read_noallocate,
+					"event=0x302"),
+	HISI_PMU_EVENT_ATTR_STR(write_noallocate,
+					"event=0x303"),
+	HISI_PMU_EVENT_ATTR_STR(read_hit, "event=0x304"),
+	HISI_PMU_EVENT_ATTR_STR(write_hit, "event=0x305"),
+	NULL,
+};
+
+static struct attribute_group hisi_l3c_events_group = {
+	.name = "events",
+	.attrs = hisi_l3c_events_attr,
+};
+
+static struct attribute *hisi_l3c_attrs[] = {
+	NULL,
+};
+
+struct attribute_group hisi_l3c_attr_group = {
+	.attrs = hisi_l3c_attrs,
+};
+
+static const struct attribute_group *hisi_l3c_pmu_attr_groups[] = {
+	&hisi_l3c_attr_group,
+	&hisi_l3c_format_group,
+	&hisi_l3c_events_group,
+	NULL
+};
+
+static int hisi_l3c_pmu_init(struct platform_device *pdev,
 					struct hisi_pmu *pl3c_pmu)
 {
 	struct device *dev = &pdev->dev;
@@ -490,8 +534,8 @@ static int hisi_pmu_l3c_dev_probe(struct platform_device *pdev)
 
 	/* Register with perf PMU */
 	pl3c_pmu->pmu = (struct pmu) {
-		.name	= pl3c_pmu->name,
-		.task_ctx_nr	= perf_invalid_context,
+		.name = pl3c_pmu->name,
+		.task_ctx_nr = perf_invalid_context,
 		.pmu_enable = hisi_uncore_pmu_enable,
 		.pmu_disable = hisi_uncore_pmu_disable,
 		.event_init = hisi_uncore_pmu_event_init,
@@ -500,6 +544,7 @@ static int hisi_pmu_l3c_dev_probe(struct platform_device *pdev)
 		.start = hisi_uncore_pmu_start,
 		.stop = hisi_uncore_pmu_stop,
 		.read = hisi_uncore_pmu_read,
+		.attr_groups = hisi_l3c_pmu_attr_groups,
 	};
 
 	ret = hisi_uncore_pmu_setup(pl3c_pmu, pdev, pl3c_pmu->name);
