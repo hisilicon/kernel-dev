@@ -778,6 +778,22 @@
 			status = "okay";
 		};
 
+		/* MN for socket0 CPU die scl#2 */
+		pmumn0 {
+			compatible = "hisilicon,hisi-pmu-mn";
+			scl-id = <0x02>;
+			num-events = <0x09>;
+			num-counters = <0x04>;
+			module-id = <0x0b>;
+			cfgen-map = <0x01>;
+			counter-reg = <0x30>;
+			evctrl-reg = <0x40>;
+			event-en = <0x01>;
+			evtype-reg = <0x48>;
+			djtag = <&djtag0>;
+			status = "okay";
+		};
+
 		pcie0: pcie@b0080000 {
 			compatible = "hisilicon,hip05-pcie", "snps,dw-pcie";
 			reg = <0 0xb0080000 0 0x10000>, <0x220 0x04000000 0 0x04000000>;
