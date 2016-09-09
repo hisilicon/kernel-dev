@@ -125,24 +125,17 @@ pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root)
 	u16 seg = root->segment;
 	struct pci_config_window *cfg;
 	struct resource cfgres;
-	unsigned int bsz;
+	struct pci_ecam_ops *ecam_ops;
+	int ret;
 
-	/* Use address from _CBA if present, otherwise lookup MCFG */
-	if (!root->mcfg_addr)
-		root->mcfg_addr = pci_mcfg_lookup(seg, bus_res);
-
-	if (!root->mcfg_addr) {
+	ret = pci_mcfg_lookup(root, &cfgres, &ecam_ops);
+	if (ret) {
 		dev_err(&root->device->dev, "%04x:%pR ECAM region not found\n",
 			seg, bus_res);
 		return NULL;
 	}
 
-	bsz = 1 << pci_generic_ecam_ops.bus_shift;
-	cfgres.start = root->mcfg_addr + bus_res->start * bsz;
-	cfgres.end = cfgres.start + resource_size(bus_res) * bsz - 1;
-	cfgres.flags = IORESOURCE_MEM;
-	cfg = pci_ecam_create(&root->device->dev, &cfgres, bus_res,
-			      &pci_generic_ecam_ops);
+	cfg = pci_ecam_create(&root->device->dev, &cfgres, bus_res, ecam_ops);
 	if (IS_ERR(cfg)) {
 		dev_err(&root->device->dev, "%04x:%pR error %ld mapping ECAM\n",
 			seg, bus_res, PTR_ERR(cfg));
