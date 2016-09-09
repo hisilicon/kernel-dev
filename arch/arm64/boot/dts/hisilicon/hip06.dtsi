@@ -604,6 +604,12 @@
 		#size-cells = <2>;
 		ranges;
 
+		refclk: refclk {
+			compatible = "fixed-clock";
+			clock-frequency = <50000000>;
+			#clock-cells = <0>;
+		};
+
 		lpc@a01b0000 {
 			compatible = "hisilicon,low-pin-count";
 			reg = <0x0 0xa01b0000 0x0 0x1000>;
@@ -846,6 +852,7 @@
 			ctrl-reset-reg = <0xa60>;
 			ctrl-reset-sts-reg = <0x5a30>;
 			ctrl-clock-ena-reg = <0x338>;
+			clocks = <&refclk 0>;
 			queue-count = <16>;
 			phy-count = <8>;
 			dma-coherent;
@@ -889,6 +896,7 @@
 			ctrl-reset-reg = <0xa18>;
 			ctrl-reset-sts-reg = <0x5a0c>;
 			ctrl-clock-ena-reg = <0x318>;
+			clocks = <&refclk 0>;
 			queue-count = <16>;
 			phy-count = <8>;
 			dma-coherent;
@@ -931,6 +939,7 @@
 			ctrl-reset-reg = <0xae0>;
 			ctrl-reset-sts-reg = <0x5a70>;
 			ctrl-clock-ena-reg = <0x3a8>;
+			clocks = <&refclk 0>;
 			queue-count = <16>;
 			phy-count = <9>;
 			dma-coherent;
