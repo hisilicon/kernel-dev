@@ -54,6 +54,18 @@ ssize_t hisi_event_sysfs_show(struct device *dev,
 	return 0;
 }
 
+/*
+ * sysfs cpumask attributes
+ */
+ssize_t hisi_cpumask_sysfs_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct pmu *pmu = dev_get_drvdata(dev);
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(pmu);
+
+	return cpumap_print_to_pagebuf(true, buf, &hisi_pmu->cpu);
+}
+
 /* djtag read interface - Call djtag driver to access SoC registers */
 int hisi_djtag_readreg(int module_id, int bank, u32 offset,
 				struct hisi_djtag_client *client, u32 *pvalue)
@@ -125,6 +137,7 @@ __hw_perf_event_init(struct perf_event *event)
 int hisi_uncore_pmu_event_init(struct perf_event *event)
 {
 	int err;
+	struct hisi_pmu *phisi_pmu = to_hisi_pmu(event->pmu);
 
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
@@ -147,6 +160,8 @@ int hisi_uncore_pmu_event_init(struct perf_event *event)
 
 	if (event->cpu < 0)
 		return -EINVAL;
+
+	event->cpu = cpumask_first(&phisi_pmu->cpu);
 
 	err = __hw_perf_event_init(event);
 
