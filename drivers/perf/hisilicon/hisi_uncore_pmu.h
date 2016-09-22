@@ -51,10 +51,21 @@
 	(((event_code & HISI_SCCL_MASK) >>	\
 			   HISI_SCCL_SHIFT) - 1)
 
-struct hisi_pmu_hw_events {
-	struct perf_event **events;
-	raw_spinlock_t pmu_lock;
-};
+#define HISI_PMU_FORMAT_ATTR(_name, _config)		\
+	(&((struct dev_ext_attribute[]) {		\
+		{ .attr = __ATTR(_name, S_IRUGO,	\
+			hisi_format_sysfs_show, NULL),	\
+		  .var = (void *) _config,		\
+		}					\
+	})[0].attr.attr)
+
+#define HISI_PMU_EVENT_ATTR_STR(_name, _str)		\
+	(&((struct perf_pmu_events_attr[]) {		\
+		{ .attr = __ATTR(_name, S_IRUGO,	\
+			 hisi_event_sysfs_show, NULL),	\
+		  .event_str = _str,			\
+		}					\
+	  })[0].attr.attr)
 
 struct hisi_pmu;
 
@@ -68,6 +79,11 @@ struct hisi_uncore_ops {
 	u32 (*write_counter)(struct hisi_pmu *, int, u32);
 	void (*enable_counter)(struct hisi_pmu *, int);
 	void (*disable_counter)(struct hisi_pmu *, int);
+};
+
+struct hisi_pmu_hw_events {
+	struct perf_event **events;
+	raw_spinlock_t pmu_lock;
 };
 
 /* Generic pmu struct for different pmu types */
