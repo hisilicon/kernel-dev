@@ -409,10 +409,22 @@ struct attribute_group hisi_mn_attr_group = {
 	.attrs = hisi_mn_attrs,
 };
 
+static DEVICE_ATTR(cpumask, S_IRUGO, hisi_cpumask_sysfs_show, NULL);
+
+static struct attribute *hisi_mn_cpumask_attrs[] = {
+	&dev_attr_cpumask.attr,
+	NULL,
+};
+
+static const struct attribute_group hisi_mn_cpumask_attr_group = {
+	.attrs = hisi_mn_cpumask_attrs,
+};
+
 static const struct attribute_group *hisi_mn_pmu_attr_groups[] = {
 	&hisi_mn_attr_group,
 	&hisi_mn_format_group,
 	&hisi_mn_events_group,
+	&hisi_mn_cpumask_attr_group,
 	NULL,
 };
 
@@ -438,6 +450,9 @@ static int hisi_mn_pmu_init(struct device *dev,
 	pmn_pmu->name = kasprintf(GFP_KERNEL, "hisi_mn%d",
 						pmn_pmu->scl_id);
 	pmn_pmu->ops = &hisi_uncore_mn_ops;
+
+	/* Pick one core to use for cpumask attributes */
+	cpumask_set_cpu(smp_processor_id(), &pmn_pmu->cpu);
 
 	return 0;
 }
