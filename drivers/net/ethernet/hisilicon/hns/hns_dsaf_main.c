@@ -1696,6 +1696,7 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 	struct dsaf_tbl_tcam_mcast_cfg mac_data;
 	struct dsaf_drv_priv *priv = hns_dsaf_dev_priv(dsaf_dev);
 	struct dsaf_drv_soft_mac_tbl *soft_mac_entry = priv->soft_mac_tbl;
+	struct dsaf_drv_tbl_tcam_key tmp_mac_key;
 	struct dsaf_tbl_tcam_data tcam_data;
 	u8 mc_addr[ETH_ALEN];
 	u8 *mc_mask;
@@ -1746,6 +1747,10 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 		/* if exist, add in */
 		hns_dsaf_tcam_mc_get(dsaf_dev, entry_index, &tcam_data,
 				     &mac_data);
+
+		tmp_mac_key.high.val =
+			le32_to_cpu(tcam_data.tbl_tcam_data_high);
+		tmp_mac_key.low.val = le32_to_cpu(tcam_data.tbl_tcam_data_low);
 	}
 
 	/* config hardware entry */
@@ -1770,8 +1775,8 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 		dsaf_dev->ae_dev.name, mac_key.high.val,
 		mac_key.low.val, entry_index);
 
-	tcam_data.tbl_tcam_data_high = mac_key.high.val;
-	tcam_data.tbl_tcam_data_low = mac_key.low.val;
+	tcam_data.tbl_tcam_data_high = cpu_to_le32(mac_key.high.val);
+	tcam_data.tbl_tcam_data_low = cpu_to_le32(mac_key.low.val);
 
 	/* config mc entry with mask */
 	hns_dsaf_tcam_mc_cfg(dsaf_dev, entry_index, &tcam_data,
@@ -1855,7 +1860,7 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 	struct dsaf_tbl_tcam_data tcam_data;
 	int mskid;
 	const u8 empty_msk[sizeof(mac_data.tbl_mcast_port_msk)] = {0};
-	struct dsaf_drv_tbl_tcam_key mask_key;
+	struct dsaf_drv_tbl_tcam_key mask_key, tmp_mac_key;
 	struct dsaf_tbl_tcam_data *pmask_key = NULL;
 	u8 mc_addr[ETH_ALEN];
 	u8 *mc_mask;
@@ -1913,6 +1918,9 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 	/* read entry */
 	hns_dsaf_tcam_mc_get(dsaf_dev, entry_index, &tcam_data, &mac_data);
 
+	tmp_mac_key.high.val = le32_to_cpu(tcam_data.tbl_tcam_data_high);
+	tmp_mac_key.low.val = le32_to_cpu(tcam_data.tbl_tcam_data_low);
+
 	/*del the port*/
 	if (mac_entry->port_num < DSAF_SERVICE_NW_NUM) {
 		mskid = mac_entry->port_num;
@@ -1937,8 +1945,8 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 		soft_mac_entry += entry_index;
 		soft_mac_entry->index = DSAF_INVALID_ENTRY_IDX;
 	} else { /* not zero, just del port, update */
-		tcam_data.tbl_tcam_data_high = mac_key.high.val;
-		tcam_data.tbl_tcam_data_low = mac_key.low.val;
+		tcam_data.tbl_tcam_data_high = cpu_to_le32(mac_key.high.val);
+		tcam_data.tbl_tcam_data_low = cpu_to_le32(mac_key.low.val);
 
 		hns_dsaf_tcam_mc_cfg(dsaf_dev, entry_index,
 				     &tcam_data,
