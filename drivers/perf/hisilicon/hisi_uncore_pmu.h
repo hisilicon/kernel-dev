@@ -93,6 +93,7 @@ struct hisi_pmu {
 	struct hisi_uncore_ops *ops;
 	struct platform_device *plat_device;
 	void *hwmod_data; /* Hardware module specific data */
+	cpumask_t cpu;
 	struct pmu pmu;
 	u32 scl_id;
 	int num_counters;
@@ -122,4 +123,6 @@ ssize_t hisi_event_sysfs_show(struct device *,
 				  struct device_attribute *, char *);
 ssize_t hisi_format_sysfs_show(struct device *,
 				  struct device_attribute *, char *);
+ssize_t hisi_cpumask_sysfs_show(struct device *,
+				struct device_attribute *, char *);
 #endif /* __HISI_UNCORE_PMU_H__ */

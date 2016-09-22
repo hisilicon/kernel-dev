@@ -432,10 +432,22 @@ struct attribute_group hisi_l3c_attr_group = {
 	.attrs = hisi_l3c_attrs,
 };
 
+static DEVICE_ATTR(cpumask, S_IRUGO, hisi_cpumask_sysfs_show, NULL);
+
+static struct attribute *hisi_l3c_cpumask_attrs[] = {
+	&dev_attr_cpumask.attr,
+	NULL,
+};
+
+static const struct attribute_group hisi_l3c_cpumask_attr_group = {
+	.attrs = hisi_l3c_cpumask_attrs,
+};
+
 static const struct attribute_group *hisi_l3c_pmu_attr_groups[] = {
 	&hisi_l3c_attr_group,
 	&hisi_l3c_format_group,
 	&hisi_l3c_events_group,
+	&hisi_l3c_cpumask_attr_group,
 	NULL,
 };
 
@@ -462,6 +474,9 @@ static int hisi_l3c_pmu_init(struct device *dev,
 	pl3c_pmu->name = kasprintf(GFP_KERNEL, "hisi_l3c%d",
 						pl3c_pmu->scl_id);
 	pl3c_pmu->ops = &hisi_uncore_l3c_ops;
+
+	/* Pick one core to use for cpumask attributes */
+	cpumask_set_cpu(smp_processor_id(), &pl3c_pmu->cpu);
 
 	return 0;
 }
