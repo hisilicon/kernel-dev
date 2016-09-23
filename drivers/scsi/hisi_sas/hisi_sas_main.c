@@ -778,8 +778,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		/* Even TMF timed out, return direct. */
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
-				dev_err(dev, "abort tmf: TMF task[%d] timeout\n",
-					tmf->tag_of_task_to_be_managed);
+				dev_err(dev, "abort tmf: TMF task timeout\n");
 				if (task->lldd_task) {
 					struct hisi_sas_slot *slot =
 						task->lldd_task;
@@ -855,6 +854,7 @@ static void hisi_sas_fill_ata_reset_cmd(struct ata_device *dev,
 		tf.ctl |= ATA_SRST;
 	else
 		tf.ctl &= ~ATA_SRST;
+	tf.command = ATA_CMD_DEV_RESET;
 	ata_tf_to_fis(&tf, pmp, 0, fis);
 }
 
