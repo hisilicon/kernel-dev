@@ -51,14 +51,6 @@ static struct pci_cfg_fixup mcfg_quirks[] __initconst = {
 	{ "CAVIUM", "THUNDERX", 1, MCFG_DOM_RANGE(14, 19), MCFG_BUS_ANY, NULL,
 	  thunder_pem_cfg_init },
 #endif
-#ifdef CONFIG_PCI_HISI_ACPI
-	{ "HISI  ", "HIP05   ", 0, MCFG_DOM_RANGE(0, 3), MCFG_BUS_ANY,
-	  NULL, hisi_pcie_acpi_hip05_init},
-	{ "HISI  ", "HIP06   ", 0, MCFG_DOM_RANGE(0, 3), MCFG_BUS_ANY,
-	  NULL, hisi_pcie_acpi_hip06_init},
-	{ "HISI  ", "HIP07   ", 0, MCFG_DOM_RANGE(0, 15), MCFG_BUS_ANY,
-	  NULL, hisi_pcie_acpi_hip07_init},
-#endif
 };
 
 static bool pci_mcfg_fixup_match(struct pci_cfg_fixup *f,
