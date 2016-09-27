@@ -139,7 +139,8 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	if (!ri)
 		return NULL;
 
-	ri->cfg = pci_mcfg_match_quirks(root);
+	ri->cfg = pci_acpi_setup_ecam_mapping(root,
+					      &pci_generic_ecam_ops.pci_ops);
 	if (!ri->cfg) {
 		kfree(ri);
 		return NULL;
