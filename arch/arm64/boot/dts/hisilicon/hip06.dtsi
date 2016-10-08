@@ -855,6 +855,7 @@
 			dma-coherent;
 			eth-handle = <&eth2 &eth3 0 0 &eth0 &eth1>;
 			dsaf-handle = <&dsaf0>;
+			node-guid = [00 9A CD 00 00 01 02 03];
 			#address-cells = <2>;
 			#size-cells = <2>;
 			interrupt-parent = <&mbigen_dsa_roce>;
