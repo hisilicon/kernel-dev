@@ -173,9 +173,9 @@ void hisi_enable_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx)
 {
 	struct hisi_djtag_client *client;
 	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
-	u32 reg_offset = l3c_hwmod_data->l3c_hwcfg.auctrl_reg_off;
+	u32 reg_offset = l3c_hwmod_data->l3c_hwcfg.event_ctrl_reg_off;
 	u32 module_id = l3c_hwmod_data->l3c_hwcfg.module_id;
-	u32 auctrl_eventen = l3c_hwmod_data->l3c_hwcfg.auctrl_event_enable;
+	u32 eventen = l3c_hwmod_data->l3c_hwcfg.event_enable;
 	u32 value, cfg_en;
 	int i;
 
@@ -198,7 +198,7 @@ void hisi_enable_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx)
 				reg_offset,
 				client, &value);
 
-		value |= auctrl_eventen;
+		value |= eventen;
 		hisi_djtag_writereg(module_id,
 				cfg_en,
 				reg_offset,
@@ -211,9 +211,9 @@ void hisi_disable_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx)
 {
 	struct hisi_djtag_client *client;
 	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
-	u32 reg_offset = l3c_hwmod_data->l3c_hwcfg.auctrl_reg_off;
+	u32 reg_offset = l3c_hwmod_data->l3c_hwcfg.event_ctrl_reg_off;
 	u32 module_id = l3c_hwmod_data->l3c_hwcfg.module_id;
-	u32 auctrl_eventen = l3c_hwmod_data->l3c_hwcfg.auctrl_event_enable;
+	u32 eventen = l3c_hwmod_data->l3c_hwcfg.event_enable;
 	u32 value, cfg_en;
 	int i;
 
@@ -237,7 +237,7 @@ void hisi_disable_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx)
 				reg_offset,
 				client, &value);
 
-		value &= ~(auctrl_eventen);
+		value &= ~(eventen);
 		hisi_djtag_writereg(module_id,
 				cfg_en,
 				reg_offset,
@@ -332,12 +332,12 @@ static int init_hisi_l3c_hwcfg(struct device *dev,
 				     &pl3c_hwcfg->counter_reg0_off))
 		goto fail;
 
-	if (of_property_read_u32(node, "auctrl-reg",
-				     &pl3c_hwcfg->auctrl_reg_off))
+	if (of_property_read_u32(node, "evctrl-reg",
+				     &pl3c_hwcfg->event_ctrl_reg_off))
 		goto fail;
 
-	if (of_property_read_u32(node, "auctrl-event-en",
-				     &pl3c_hwcfg->auctrl_event_enable))
+	if (of_property_read_u32(node, "event-en",
+				     &pl3c_hwcfg->event_enable))
 		goto fail;
 
 	if (of_property_read_u32(node, "evtype-reg",
