@@ -71,6 +71,7 @@ struct hisi_pmu;
 
 struct hisi_uncore_ops {
 	void (*set_evtype)(struct hisi_pmu *, int, u32);
+	void (*set_event_period)(struct perf_event *);
 	int (*get_event_idx)(struct hisi_pmu *);
 	void (*clear_event_idx)(struct hisi_pmu *, int);
 	u64 (*event_update)(struct perf_event *,
@@ -108,7 +109,7 @@ void hisi_uncore_pmu_del(struct perf_event *, int);
 int hisi_uncore_pmu_add(struct perf_event *, int);
 void hisi_uncore_pmu_start(struct perf_event *, int);
 void hisi_uncore_pmu_stop(struct perf_event *, int);
-void hisi_pmu_event_set_period(struct perf_event *);
+void hisi_pmu_set_event_period(struct perf_event *);
 void hisi_uncore_pmu_enable_event(struct perf_event *);
 void hisi_uncore_pmu_disable_event(struct perf_event *);
 void hisi_uncore_pmu_enable(struct pmu *);
