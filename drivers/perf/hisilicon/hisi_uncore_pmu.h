@@ -91,7 +91,7 @@ struct hisi_pmu {
 	const char *name;
 	struct hisi_pmu_hw_events hw_events;
 	struct hisi_uncore_ops *ops;
-	struct platform_device *plat_device;
+	struct device *dev;
 	void *hwmod_data; /* Hardware module specific data */
 	cpumask_t cpu;
 	struct pmu pmu;

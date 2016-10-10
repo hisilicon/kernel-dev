@@ -110,11 +110,13 @@ static int
 __hw_perf_event_init(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
+	struct hisi_pmu *phisi_pmu = to_hisi_pmu(event->pmu);
+	struct device *dev = phisi_pmu->dev;
 	int mapping;
 
 	mapping = pmu_map_event(event);
 	if (mapping < 0) {
-		pr_err("event %x:%llx not supported\n", event->attr.type,
+		dev_err(dev, "event %x:%llx not supported\n", event->attr.type,
 							 event->attr.config);
 		return mapping;
 	}
@@ -341,27 +343,27 @@ int hisi_uncore_common_fwprop_read(struct device *dev,
 {
 	if (device_property_read_u32(dev, "num-events",
 					&phisi_pmu->num_events)) {
-		pr_err("hisi_pmu: Cant read num-events from DT!\n");
+		dev_err(dev, "Cant read num-events from DT!\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(dev, "num-counters",
 				     &phisi_pmu->num_counters)) {
-		pr_err("hisi_pmu: Cant read num-counters from DT!\n");
+		dev_err(dev, "Cant read num-counters from DT!\n");
 		return -EINVAL;
 	}
 
 	/* Find the SCL ID */
 	if (device_property_read_u32(dev, "scl-id",
 					&phisi_pmu->scl_id)) {
-		pr_err("hisi_pmu: cant read scl-id!\n");
+		dev_err(dev, "Cant read scl-id!\n");
 		return -EINVAL;
 	}
 
 	if (phisi_pmu->scl_id == 0 ||
 		phisi_pmu->scl_id >= MAX_UNITS) {
-		pr_err("hisi_pmu: Invalid SCL=%d!\n",
-						phisi_pmu->scl_id);
+		dev_err(dev, "Invalid SCL=%d!\n",
+					phisi_pmu->scl_id);
 		return -EINVAL;
 	}
 
