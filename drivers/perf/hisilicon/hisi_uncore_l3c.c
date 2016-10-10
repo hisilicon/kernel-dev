@@ -512,8 +512,6 @@ static int hisi_pmu_l3c_dev_probe(struct hisi_djtag_client *client)
 	pl3c_pmu->pmu = (struct pmu) {
 		.name = pl3c_pmu->name,
 		.task_ctx_nr = perf_invalid_context,
-		.pmu_enable = hisi_uncore_pmu_enable,
-		.pmu_disable = hisi_uncore_pmu_disable,
 		.event_init = hisi_uncore_pmu_event_init,
 		.add = hisi_uncore_pmu_add,
 		.del = hisi_uncore_pmu_del,
