@@ -48,10 +48,10 @@ enum armv8_hisi_l3c_counters {
 #define HISI_MAX_CFG_L3C_CNTR	0x08
 
 struct hisi_l3c_hwcfg {
-	u32 auctrl_reg_off;
 	u32 evtype_reg0_off;
 	u32 counter_reg0_off;
-	u32 auctrl_event_enable;
+	u32 event_ctrl_reg_off;
+	u32 event_enable;
 	u32 module_id;
 	u32 num_banks;
 	u32 bank_cfgen[MAX_BANKS];
