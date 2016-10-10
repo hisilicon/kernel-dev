@@ -1,10 +1,10 @@
 Hisilicon SoC hip05/06/07 ARMv8 PMU
 ===================================
 
-The Hisilicon SoC chips like hip05/06/07 etc.. consist of varous independent
-system device PMU's such as L3 cache (L3C) and Miscellaneous Nodes(MN). These
-PMU devices are independent and have hardware logic to gather statistics and
-performance information.
+The Hisilicon SoC chips like hip05/06/07 etc. consist of varous independent
+system device PMU's such as L3 cache (L3C), Miscellaneous Nodes(MN) and DDR
+comtroller. These PMU devices are independent and have hardware logic to
+gather statistics and performance information.
 
 HiSilicon SoC chip is encapsulated by multiple CPU and IO die's. The CPU die
 is called as Super CPU cluster (SCCL) which includes 16 cpu-cores. Every SCCL
@@ -21,6 +21,7 @@ Required properties:
 		in below examples:
 		(a) "hisilicon,hisi-pmu-l3c" for Hisilicon SoC L3C PMU device
 		(b) "hisilicon,hisi-pmu-mn" for Hisilicon SoC MN PMU device
+		(c) "hisilicon,hisi-pmu-ddrc" for Hisilicon SoC DDRC PMU
 
 	- scl-id : The Super Cluster ID. This can be the ID of the CPU die
 		   or IO die in the chip.
@@ -89,3 +90,23 @@ Example:
 			interrupts = <146 4>;
 		};
 	};
+
+DDR controller
+--------------
+Each SCCL in Hip05/06/07 chips have 2 DDR channels and hence 2 DDR controllers.
+There are separate DT nodes for each DDR channel.
+For DDRC PMU the additional required properties are
+
+	- ch-id : DDRC Channel ID.
+	- reg : Register base address and range for the DDRC channel.
+
+Example:
+	/* DDRC for CPU die scl #2 Channel #1 for hip05 */
+	pmu_sccl0_ddrc1: pmu_ddrc1@80358000 {
+		 compatible = "hisilicon,hisi-pmu-ddrc-v1";
+		 scl-id = <0x02>;
+		 ch-id = <0x1>;
+		 num-events = <0x0D>;
+		 num-counters = <0x04>;
+		 reg = <0x80358000 0x10000>; /* TOTEMC DDRC1 */
+	 };
