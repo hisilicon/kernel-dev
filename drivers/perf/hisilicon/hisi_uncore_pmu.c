@@ -170,16 +170,6 @@ int hisi_uncore_pmu_event_init(struct perf_event *event)
 	return err;
 }
 
-void hisi_uncore_pmu_enable(struct pmu *pmu)
-{
-	/* Enable all the PMU counters. */
-}
-
-void hisi_uncore_pmu_disable(struct pmu *pmu)
-{
-	/* Disable all the PMU counters. */
-}
-
 /*
  * Enable counter and set the counter to count
  * the event that we're interested in.
