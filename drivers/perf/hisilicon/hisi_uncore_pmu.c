@@ -189,20 +189,23 @@ void hisi_uncore_pmu_enable_event(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	struct hisi_pmu *phisi_pmu = to_hisi_pmu(event->pmu);
 
-	/* Enable the hardware event counting */
-	phisi_pmu->ops->disable_counter(phisi_pmu, GET_CNTR_IDX(hwc));
+	/* Disable the hardware event counting */
+	if (phisi_pmu->ops->disable_counter)
+		phisi_pmu->ops->disable_counter(phisi_pmu, GET_CNTR_IDX(hwc));
 
 	/*
 	 * Set event (if destined for Hisilicon SoC counters).
 	 */
-	phisi_pmu->ops->set_evtype(phisi_pmu, GET_CNTR_IDX(hwc),
-						hwc->config_base);
+	if (phisi_pmu->ops->set_evtype)
+		phisi_pmu->ops->set_evtype(phisi_pmu, GET_CNTR_IDX(hwc),
+							hwc->config_base);
 
-	/* Disable the hardware event counting */
-	phisi_pmu->ops->enable_counter(phisi_pmu, GET_CNTR_IDX(hwc));
+	/* Enable the hardware event counting */
+	if (phisi_pmu->ops->enable_counter)
+		phisi_pmu->ops->enable_counter(phisi_pmu, GET_CNTR_IDX(hwc));
 }
 
-void hisi_pmu_event_set_period(struct perf_event *event)
+void hisi_pmu_set_event_period(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct hisi_pmu *phisi_pmu = to_hisi_pmu(event->pmu);
@@ -237,7 +240,8 @@ void hisi_uncore_pmu_start(struct perf_event *event,
 	WARN_ON_ONCE(!(hwc->state & PERF_HES_UPTODATE));
 	hwc->state = 0;
 
-	hisi_pmu_event_set_period(event);
+	if (phisi_pmu->ops->set_event_period)
+		phisi_pmu->ops->set_event_period(event);
 
 	if (flags & PERF_EF_RELOAD) {
 		u64 prev_raw_count =  local64_read(&hwc->prev_count);
@@ -260,10 +264,12 @@ void hisi_uncore_pmu_stop(struct perf_event *event,
 		return;
 
 	/*
-	 * We always reprogram the counter, so ignore PERF_EF_UPDATE. See
-	 * hisi_uncore_pmu_start()
+	 * We always reprogram the counter, so ignore PERF_EF_UPDATE.
+	 * See hisi_uncore_pmu_start()
 	 */
-	phisi_pmu->ops->disable_counter(phisi_pmu, GET_CNTR_IDX(hwc));
+	if (phisi_pmu->ops->disable_counter)
+		phisi_pmu->ops->disable_counter(phisi_pmu,
+						GET_CNTR_IDX(hwc));
 
 	WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
 	hwc->state |= PERF_HES_STOPPED;
@@ -373,12 +379,6 @@ int hisi_uncore_common_fwprop_read(struct device *dev,
 int hisi_uncore_pmu_setup(struct hisi_pmu *hisipmu,
 					const char *pmu_name)
 {
-	int ret;
-
 	/* Register the events with perf */
-	ret = perf_pmu_register(&hisipmu->pmu, pmu_name, -1);
-	if (ret)
-		return ret;
-
-	return 0;
+	return perf_pmu_register(&hisipmu->pmu, pmu_name, -1);
 }

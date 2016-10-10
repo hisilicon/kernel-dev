@@ -431,6 +431,7 @@ static const struct attribute_group *hisi_mn_pmu_attr_groups[] = {
 
 static struct hisi_uncore_ops hisi_uncore_mn_ops = {
 	.set_evtype = hisi_set_mn_evtype,
+	.set_event_period = hisi_pmu_set_event_period,
 	.get_event_idx = hisi_mn_get_event_idx,
 	.clear_event_idx = hisi_clear_mn_event_idx,
 	.event_update = hisi_mn_event_update,
