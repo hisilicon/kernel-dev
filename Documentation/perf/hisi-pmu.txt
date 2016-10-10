@@ -1,9 +1,9 @@
 Hisilicon SoC PMU (Performance Monitoring Unit)
 ================================================
-The Hisilicon SoC hip05/06/07 chips consist of varous independent system
-device PMU's such as L3 cache(L3C) and Miscellaneous Nodes(MN).
-These PMU devices are independent and have hardware logic to gather
-statistics and performance information.
+The Hisilicon SoC hip05/06/07 chips consist of various independent system
+device PMU's such as L3 cache(L3C), Miscellaneous Nodes(MN) and DDR
+controllers. These PMU devices are independent and have hardware logic to
+gather statistics and performance information.
 
 Hip0x chips are encapsulated by multiple CPU and IO die's. The CPU die is
 called as Super CPU cluster (SCCL) which includes 16 cpu-cores. Every SCCL
@@ -22,13 +22,18 @@ perform the required actions and return response messages. These events are
 very useful for debugging. The MN has total 9 statistics events and support
 four 32-bit counter registers in hip05/06/07 chips.
 
+The DDR controller supports various statistics events. Every SCCL has 2 DDR
+channels and hence 2 DDR controllers. The hip05/06/07 has support for a
+total of 13 statistics events.
+
 There is no memory mapping for L3 cache and MN registers. It can be accessed
 by using the Hisilicon djtag interface. The Djtag in a SCCL is an independent
 module which connects with some modules in the SoC by Debug Bus.
 
 Hisilicon SoC (hip05/06/07) PMU driver
 --------------------------------------
-The hip0x PMU driver shall register perf PMU drivers like L3 cache, MN, etc.
+The hip0x PMU driver shall register perf PMU drivers like L3 cache, MN, DDRC
+etc.
 The available events and configuration options shall be described in the sysfs.
 The "perf list" shall list the available events from sysfs.
 
@@ -42,6 +47,13 @@ e.g. hisi_l3c0_2/read_hit is READ_HIT event of L3 cache bank #0 SCCL ID #2.
 The MN in a SCCL is registered as a separate PMU with perf.
 The PMU name will appear in event listing as hisi_mn_<scl-id>.
 e.g. hisi_mn_2/read_req. READ_REQUEST event of MN of Super CPU cluster #2.
+
+For DRR controller separate PMU shall be registered for each channel in a
+Super CPU cluster.
+The PMU name will appear in event listing as hisi_ddrc<ch-id>_<scl-id>.
+where "ch-id" is the channel identifier.
+eg: hisi_ddrc0_2/flux_read/ is FLUX_READ event of DDRC channel #0 in
+Super CPU cluster #2.
 
 The event code is represented by 12 bits.
 	i) event 0-11
@@ -62,6 +74,10 @@ hisi_l3c0_1/write_hit/ [kernel PMU event]
 ------------------------------------------
 hisi_mn_2/read_req/ [kernel PMU event]
 hisi_mn_2/write_req/ [kernel PMU event]
+------------------------------------------
+hisi_ddrc0_2/flux_read/ [kernel PMU event]
+------------------------------------------
+hisi_ddrc1_2/flux_read/ [kernel PMU event]
 ------------------------------------------
 
 $# perf stat -a -e "hisi_l3c0_2/read_allocate/" sleep 5
