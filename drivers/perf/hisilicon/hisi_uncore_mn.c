@@ -38,11 +38,6 @@ static u32 hisi_read_mn_counter(struct hisi_mn_data *mn_hwmod_data,
 	struct hisi_djtag_client *client = mn_hwmod_data->client;
 	u32 reg_offset, value, cfg_en;
 
-	if (!hisi_mn_counter_valid(idx)) {
-		pr_err("Unsupported event index:%d!\n", idx);
-		return -EINVAL;
-	}
-
 	cfg_en = mn_hwmod_data->mn_hwcfg.bank_cfgen;
 	reg_offset = mn_hwmod_data->mn_hwcfg.counter_reg0_off + (idx * 4);
 
@@ -63,7 +58,8 @@ u64 hisi_mn_event_update(struct perf_event *event,
 	u32 cfg_en;
 
 	if (!hisi_mn_counter_valid(idx)) {
-		pr_err("Unsupported event index:%d!\n", idx);
+		dev_err(pmn_pmu->dev,
+				"Unsupported event index:%d!\n", idx);
 		return 0;
 	}
 
@@ -71,7 +67,8 @@ u64 hisi_mn_event_update(struct perf_event *event,
 
 	/* Check if the MN data is initialized for this SCCL */
 	if (!mn_hwmod_data->client) {
-		pr_err("SCL=%d not initialized!\n", pmn_pmu->scl_id);
+		dev_err(pmn_pmu->dev,
+			"SCL=%d not initialized!\n", pmn_pmu->scl_id);
 		return 0;
 	}
 
@@ -135,10 +132,11 @@ u32 hisi_write_mn_counter(struct hisi_pmu *pmn_pmu, int idx, u32 value)
 	struct hisi_mn_data *mn_hwmod_data = pmn_pmu->hwmod_data;
 	u32 module_id = mn_hwmod_data->mn_hwcfg.module_id;
 	u32 reg_offset, cfg_en;
-	int ret = 0;
+	int ret;
 
 	if (!hisi_mn_counter_valid(idx)) {
-		pr_err("Unsupported event index:%d!\n", idx);
+		dev_err(pmn_pmu->dev,
+				"Unsupported event index:%d!\n", idx);
 		return -EINVAL;
 	}
 
@@ -153,8 +151,6 @@ u32 hisi_write_mn_counter(struct hisi_pmu *pmn_pmu, int idx, u32 value)
 				  reg_offset,
 				  value,
 				  client);
-	if (!ret)
-		ret = value;
 
 	return ret;
 }
@@ -169,7 +165,8 @@ void hisi_enable_mn_counter(struct hisi_pmu *pmn_pmu, int idx)
 	u32 value, cfg_en;
 
 	if (!hisi_mn_counter_valid(idx)) {
-		pr_err("Unsupported event index:%d!\n", idx);
+		dev_err(pmn_pmu->dev,
+				"Unsupported event index:%d!\n", idx);
 		return;
 	}
 
@@ -204,7 +201,8 @@ void hisi_disable_mn_counter(struct hisi_pmu *pmn_pmu, int idx)
 	u32 value, cfg_en;
 
 	if (!hisi_mn_counter_valid(idx)) {
-		pr_err("Unsupported event index:%d!\n", idx);
+		dev_err(pmn_pmu->dev,
+				"Unsupported event index:%d!\n", idx);
 		return;
 	}
 
@@ -238,7 +236,8 @@ void hisi_clear_mn_event_idx(struct hisi_pmu *pmn_pmu, int idx)
 	u32 value, cfg_en;
 
 	if (!hisi_mn_counter_valid(idx)) {
-		pr_err("Unsupported event index:%d!\n", idx);
+		dev_err(pmn_pmu->dev,
+				"Unsupported event index:%d!\n", idx);
 		return;
 	}
 
@@ -292,10 +291,11 @@ static void hisi_free_mn_data(struct hisi_pmu *pmn_pmu)
 	pmn_pmu->hwmod_data = NULL;
 }
 
-static int init_hisi_mn_hwcfg(struct device_node *node,
+static int init_hisi_mn_hwcfg(struct device *dev,
 				struct hisi_mn_data *pmn_data)
 {
 	struct hisi_mn_hwcfg *pmn_hwcfg = &pmn_data->mn_hwcfg;
+	struct device_node *node = dev->of_node;
 	const u32 *cfgen_map = NULL;
 	u32 cfgen_map_len;
 
@@ -326,7 +326,7 @@ static int init_hisi_mn_hwcfg(struct device_node *node,
 	return 0;
 
 fail:
-	pr_err("init_hisi_mn_hwcfg: fail to read DT properties!\n");
+	dev_err(dev, "Fail to read DT properties!\n");
 	return -EINVAL;
 }
 
@@ -334,7 +334,6 @@ static int init_hisi_mn_data(struct device *dev,
 					struct hisi_pmu *pmn_pmu,
 					struct hisi_djtag_client *client)
 {
-	struct device_node *parent_node = dev->of_node;
 	struct hisi_mn_data *mn_hwmod_data;
 	int ret;
 
@@ -359,7 +358,7 @@ static int init_hisi_mn_data(struct device *dev,
 
 	pmn_pmu->hwmod_data = mn_hwmod_data;
 
-	ret = init_hisi_mn_hwcfg(parent_node, mn_hwmod_data);
+	ret = init_hisi_mn_hwcfg(dev, mn_hwmod_data);
 	if (ret)
 		goto fail;
 
@@ -451,6 +450,7 @@ static int hisi_mn_pmu_init(struct device *dev,
 						pmn_pmu->scl_id);
 	pmn_pmu->ops = &hisi_uncore_mn_ops;
 
+	pmn_pmu->dev = dev;
 	/* Pick one core to use for cpumask attributes */
 	cpumask_set_cpu(smp_processor_id(), &pmn_pmu->cpu);
 
@@ -492,7 +492,7 @@ static int hisi_pmu_mn_dev_probe(struct hisi_djtag_client *client)
 
 	ret = hisi_uncore_pmu_setup(pmn_pmu, pmn_pmu->name);
 	if (ret) {
-		pr_err("hisi_uncore_pmu_init FAILED!!\n");
+		dev_err(pmn_pmu->dev, "hisi_uncore_pmu_init FAILED!!\n");
 		goto fail;
 	}
 
@@ -504,7 +504,7 @@ fail:
 fail_init:
 	if (pmn_pmu)
 		devm_kfree(dev, pmn_pmu);
-	pr_err("%s failed\n", __func__);
+	dev_err(pmn_pmu->dev, "%s failed\n", __func__);
 
 	return ret;
 }
@@ -527,8 +527,6 @@ static int __init hisi_pmu_mn_init(void)
 {
 	int rc;
 
-	pr_info("hisi pmu mn init\n");
-
 	rc = hisi_djtag_register_driver(THIS_MODULE, &hisi_pmu_mn_driver);
 	if (rc < 0) {
 		pr_err("hisi pmu mn init failed, rc=%d\n", rc);
@@ -537,7 +535,6 @@ static int __init hisi_pmu_mn_init(void)
 
 	return 0;
 }
-
 module_init(hisi_pmu_mn_init);
 
 MODULE_DESCRIPTION("HiSilicon SoC HIP0x MN PMU driver");

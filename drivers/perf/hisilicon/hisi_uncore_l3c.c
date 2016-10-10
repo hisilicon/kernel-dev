@@ -56,7 +56,7 @@ u64 hisi_l3c_event_update(struct perf_event *event,
 	int i;
 
 	if (!hisi_l3c_counter_valid(idx)) {
-		pr_err("Unsupported event index:%d!\n", idx);
+		dev_err(pl3c_pmu->dev, "Unsupported event index:%d!\n", idx);
 		return 0;
 	}
 
@@ -64,7 +64,8 @@ u64 hisi_l3c_event_update(struct perf_event *event,
 
 	/* Check if the L3C data is initialized for this SCCL */
 	if (!l3c_hwmod_data->client) {
-		pr_err("SCL=%d not initialized!\n", pl3c_pmu->scl_id);
+		dev_err(pl3c_pmu->dev, "SCL=%d not initialized!\n",
+							pl3c_pmu->scl_id);
 		return 0;
 	}
 
@@ -142,7 +143,8 @@ u32 hisi_write_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx, u32 value)
 	int i, ret = 0;
 
 	if (!hisi_l3c_counter_valid(idx)) {
-		pr_err("Unsupported event index:%d!\n", idx);
+		dev_err(pl3c_pmu->dev,
+				"Unsupported event index:%d!\n", idx);
 		return -EINVAL;
 	}
 
@@ -176,7 +178,8 @@ void hisi_enable_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx)
 	int i;
 
 	if (!hisi_l3c_counter_valid(idx)) {
-		pr_err("Unsupported event index:%d!\n", idx);
+		dev_err(pl3c_pmu->dev,
+				"Unsupported event index:%d!\n", idx);
 		return;
 	}
 
@@ -213,7 +216,8 @@ void hisi_disable_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx)
 	int i;
 
 	if (!hisi_l3c_counter_valid(idx)) {
-		pr_err("Unsupported event index:%d!\n", idx);
+		dev_err(pl3c_pmu->dev,
+				"Unsupported event index:%d!\n", idx);
 		return;
 	}
 
@@ -240,11 +244,11 @@ void hisi_disable_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx)
 	}
 }
 
-void hisi_clear_l3c_event_idx(struct hisi_pmu *phisi_pmu,
+void hisi_clear_l3c_event_idx(struct hisi_pmu *pl3c_pmu,
 							int idx)
 {
 	struct hisi_djtag_client *client;
-	struct hisi_l3c_data *l3c_hwmod_data = phisi_pmu->hwmod_data;
+	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
 	u32 reg_offset = l3c_hwmod_data->l3c_hwcfg.evtype_reg0_off;
 	u32 module_id = l3c_hwmod_data->l3c_hwcfg.module_id;
 	void *bitmap_addr;
@@ -252,7 +256,8 @@ void hisi_clear_l3c_event_idx(struct hisi_pmu *phisi_pmu,
 	int i;
 
 	if (!hisi_l3c_counter_valid(idx)) {
-		pr_err("Unsupported event index:%d!\n", idx);
+		dev_err(pl3c_pmu->dev,
+				"Unsupported event index:%d!\n", idx);
 		return;
 	}
 
@@ -313,10 +318,11 @@ static void hisi_free_l3c_data(struct hisi_pmu *pl3c_pmu)
 	pl3c_pmu->hwmod_data = NULL;
 }
 
-static int init_hisi_l3c_hwcfg(struct device_node *node,
+static int init_hisi_l3c_hwcfg(struct device *dev,
 				struct hisi_l3c_data *pl3c_data)
 {
 	struct hisi_l3c_hwcfg *pl3c_hwcfg = &pl3c_data->l3c_hwcfg;
+	struct device_node *node = dev->of_node;
 	const u32 *cfgen_map = NULL;
 	u32 cfgen_map_len;
 
@@ -351,7 +357,7 @@ static int init_hisi_l3c_hwcfg(struct device_node *node,
 	return 0;
 
 fail:
-	pr_err("init_hisi_l3c_hwcfg: fail to read DT properties!\n");
+	dev_err(dev, "Fail to read DT properties!\n");
 	return -EINVAL;
 }
 
@@ -359,7 +365,6 @@ static int init_hisi_l3c_data(struct device *dev,
 					struct hisi_pmu *pl3c_pmu,
 					struct hisi_djtag_client *client)
 {
-	struct device_node *parent_node = dev->of_node;
 	struct hisi_l3c_data *l3c_hwmod_data = NULL;
 	int ret;
 
@@ -384,7 +389,7 @@ static int init_hisi_l3c_data(struct device *dev,
 
 	pl3c_pmu->hwmod_data = l3c_hwmod_data;
 
-	ret = init_hisi_l3c_hwcfg(parent_node, l3c_hwmod_data);
+	ret = init_hisi_l3c_hwcfg(dev, l3c_hwmod_data);
 	if (ret)
 		goto fail;
 
@@ -474,6 +479,7 @@ static int hisi_l3c_pmu_init(struct device *dev,
 	pl3c_pmu->name = kasprintf(GFP_KERNEL, "hisi_l3c%d",
 						pl3c_pmu->scl_id);
 	pl3c_pmu->ops = &hisi_uncore_l3c_ops;
+	pl3c_pmu->dev = dev;
 
 	/* Pick one core to use for cpumask attributes */
 	cpumask_set_cpu(smp_processor_id(), &pl3c_pmu->cpu);
@@ -516,7 +522,7 @@ static int hisi_pmu_l3c_dev_probe(struct hisi_djtag_client *client)
 
 	ret = hisi_uncore_pmu_setup(pl3c_pmu, pl3c_pmu->name);
 	if (ret) {
-		pr_err("hisi_uncore_pmu_init FAILED!!\n");
+		dev_err(dev, "hisi_uncore_pmu_init FAILED!!\n");
 		goto fail;
 	}
 
@@ -528,7 +534,7 @@ fail:
 fail_init:
 	if (pl3c_pmu)
 		devm_kfree(dev, pl3c_pmu);
-	pr_err("%s failed\n", __func__);
+	dev_err(dev, "%s failed\n", __func__);
 	return ret;
 }
 
@@ -549,8 +555,6 @@ static struct hisi_djtag_driver hisi_pmu_l3c_driver = {
 static int __init hisi_pmu_l3c_init(void)
 {
 	int rc;
-
-	pr_info("hisi pmu l3 init\n");
 
 	rc = hisi_djtag_register_driver(THIS_MODULE, &hisi_pmu_l3c_driver);
 	if (rc < 0) {
