@@ -1,9 +1,9 @@
 Hisilicon SoC PMU (Performance Monitoring Unit)
 ================================================
 The Hisilicon SoC hip05/06/07 chips consist of varous independent system
-device PMU's such as L3 cache(L3C) and Miscellaneous Nodes(MN). These PMU
-devices are independent and have hardware logic to gather statistics and
-performance information.
+device PMU's such as L3 cache(L3C), Miscellaneous Nodes(MN) and DDR
+controllers. These PMU devices are independent and have hardware logic to
+gather statistics and performance information.
 
 Hip0x chips are encapsulated by multiple CPU and IO die's. The CPU die is
 called as Super CPU cluster (SCCL) which includes 16 cpu-cores. Every SCCL
@@ -24,14 +24,22 @@ very useful for debugging. The MN has total 9 statistics events and support
 four 32-bit counter registers in hip05/06/07 chips. The MN support overflow
 interrupt for its 4 counter registers.
 
-There is no memory mapping for L3 cache and MN. It can be accessed by using
-the Hisilicon djtag interface. The Djtag in a SCCL is an independent module
-which connects with some modules in the SoC by Debug Bus.
+The DDR conroller supports various statistics events. The Hip05/06/07 has a
+total of 13 statistics events.
+
+There is no memory mapping for L3 cache and MN registers. It can be accessed
+by using the Hisilicon djtag interface. The Djtag in a SCCL is an independent
+module which connects with some modules in the SoC by Debug Bus.
 
 Hisilicon SoC (hip05/06/07) PMU driver
 --------------------------------------
-The hip0x PMU driver shall register perf PMU drivers for L3 cache and MN.
-Separate PMU shall be registered for L3 cache and MN for each Super cluster.
+The hip0x PMU driver shall register perf PMU drivers like L3 cache, MN, DDRC
+etc.
+Separate PMU shall be registered for L3 cache and MN for each Super CPU
+cluster.
+For DRR controller separate PMU shall be registered for each channel in a
+Super CPU cluster.
+
 The available events and configuration options shall be described in the sysfs.
 The "perf list" shall list the available events from sysfs.
 eg. hisi_l3c2/read_allocate/ [kernel PMU event]
@@ -40,24 +48,31 @@ The Super Cluster ID will be the number suffix to PMU name
 e.g. hisi_l3c2. Here Super cluster ID is 2 and so hisi_l3c2/read_allocate
 is the event for read_allocate of SCCL #2.
 
+For DDRC the channel number will be suffix at the end.
+eg: hisi_ddrc2_0/flux_read/. Here Super cluster ID is 2 and the channel number
+is 0 for the event flux_read.
+
 The event code is represented by 12 bits.
 	i) event 0-11
 		The event code will be represented using the LSB 12 bits.
 
 Example usage of perf:
 $# perf list
-hisi_l3c2/read_allocate/ [kernel PMU event]
 hisi_l3c2/read_hit/ [kernel PMU event]
 hisi_l3c2/write_hit/ [kernel PMU event]
--------------------------------------------------------
--------------------------------------------------------
-hisi_l3c1/read_allocate/ [kernel PMU event]
+------------------------------------------
 hisi_l3c1/read_hit/ [kernel PMU event]
 hisi_l3c1/write_hit/ [kernel PMU event]
+------------------------------------------
+hisi_mn2/read_req/ [kernel PMU event]
+hisi_mn2/write_req/ [kernel PMU event]
+------------------------------------------
+hisi_ddrc2_0/flux_read/ [kernel PMU event]
+------------------------------------------
 
 $# perf stat -a -e hisi_l3c2/read_allocate/ sleep 5
 
-$# perf stat -C 0 -A -e hisi_l3c2/read_allocate/ ls -l
+$# perf stat -C 0 -A -e hisi_l3c2/read_hit/ ls -l
 
 The current driver doesnot support sampling. so "perf record" is unsupported.
 Also attach to a task is unsupported as the events are all uncore.
