@@ -789,6 +789,28 @@
 			};
 		};
 
+		/* DDRC for CPU die scl#2 Channel #0 */
+		pmu_sccl0_ddrc0: pmu_ddrc0@80348000 {
+			compatible = "hisilicon,hisi-pmu-ddrc-v1";
+			scl-id = <0x02>;
+			ch-id = <0x0>;
+			num-events = <0x0d>;
+			num-counters = <0x04>;
+			reg = <0x0 0x80348000 0x0 0x10000>; /* TOTEMC DDRC0 */
+			status = "okay";
+		};
+
+		/* DDRC for CPU die scl#2 Channel #1 */
+		pmu_sccl0_ddrc1: pmu_ddrc1@80358000 {
+			compatible = "hisilicon,hisi-pmu-ddrc-v1";
+			scl-id = <0x02>;
+			ch-id = <0x01>;
+			num-events = <0x0d>;
+			num-counters = <0x04>;
+			reg = <0x0 0x80358000 0x0 0x10000>; /* TOTEMC DDRC1 */
+			status = "okay";
+		};
+
 		pcie0: pcie@b0080000 {
 			compatible = "hisilicon,hip05-pcie", "snps,dw-pcie";
 			reg = <0 0xb0080000 0 0x10000>, <0x220 0x04000000 0 0x04000000>;
