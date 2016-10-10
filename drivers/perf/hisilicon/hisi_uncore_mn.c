@@ -126,13 +126,15 @@ void hisi_set_mn_evtype(struct hisi_pmu *pmn_pmu, int idx, u32 val)
 				client);
 }
 
-u32 hisi_write_mn_counter(struct hisi_pmu *pmn_pmu, int idx, u32 value)
+u32 hisi_write_mn_counter(struct hisi_pmu *pmn_pmu,
+				struct hw_perf_event *hwc, u32 value)
 {
 	struct hisi_djtag_client *client;
 	struct hisi_mn_data *mn_hwmod_data = pmn_pmu->hwmod_data;
 	u32 module_id = mn_hwmod_data->mn_hwcfg.module_id;
 	u32 reg_offset, cfg_en;
 	int ret;
+	int idx = GET_CNTR_IDX(hwc);
 
 	if (!hisi_mn_counter_valid(idx)) {
 		dev_err(pmn_pmu->dev,

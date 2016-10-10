@@ -218,7 +218,7 @@ void hisi_pmu_event_set_period(struct perf_event *event)
 	local64_set(&hwc->prev_count, val);
 
 	/* Write to the hardware event counter */
-	phisi_pmu->ops->write_counter(phisi_pmu, GET_CNTR_IDX(hwc), val);
+	phisi_pmu->ops->write_counter(phisi_pmu, hwc, val);
 }
 
 void hisi_uncore_pmu_start(struct perf_event *event,
@@ -242,8 +242,8 @@ void hisi_uncore_pmu_start(struct perf_event *event,
 	if (flags & PERF_EF_RELOAD) {
 		u64 prev_raw_count =  local64_read(&hwc->prev_count);
 
-		phisi_pmu->ops->write_counter(phisi_pmu, GET_CNTR_IDX(hwc),
-							(u32)prev_raw_count);
+		phisi_pmu->ops->write_counter(phisi_pmu, hwc,
+						(u32)prev_raw_count);
 	}
 
 	hisi_uncore_pmu_enable_event(event);

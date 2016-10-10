@@ -67,7 +67,8 @@ struct hisi_l3c_data {
 int hisi_l3c_get_event_idx(struct hisi_pmu *);
 void hisi_clear_l3c_event_idx(struct hisi_pmu *, int);
 void hisi_set_l3c_evtype(struct hisi_pmu *, int, u32);
-u32 hisi_write_l3c_counter(struct hisi_pmu *, int, u32);
+u32 hisi_write_l3c_counter(struct hisi_pmu *,
+				struct hw_perf_event *, u32);
 u64 hisi_l3c_event_update(struct perf_event *,
 				struct hw_perf_event *, int);
 void hisi_disable_l3c_counter(struct hisi_pmu *, int);

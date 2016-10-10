@@ -76,7 +76,8 @@ struct hisi_uncore_ops {
 	u64 (*event_update)(struct perf_event *,
 			     struct hw_perf_event *, int);
 	u32 (*read_counter)(struct hisi_pmu *, int, int);
-	u32 (*write_counter)(struct hisi_pmu *, int, u32);
+	u32 (*write_counter)(struct hisi_pmu *,
+				struct hw_perf_event *, u32);
 	void (*enable_counter)(struct hisi_pmu *, int);
 	void (*disable_counter)(struct hisi_pmu *, int);
 };
