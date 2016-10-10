@@ -68,7 +68,8 @@ struct hisi_mn_data {
 int hisi_mn_get_event_idx(struct hisi_pmu *);
 void hisi_clear_mn_event_idx(struct hisi_pmu *, int);
 void hisi_set_mn_evtype(struct hisi_pmu *, int, u32);
-u32 hisi_write_mn_counter(struct hisi_pmu *, int, u32);
+u32 hisi_write_mn_counter(struct hisi_pmu *,
+				struct hw_perf_event *, u32);
 u64 hisi_mn_event_update(struct perf_event *,
 				struct hw_perf_event *, int);
 void hisi_disable_mn_counter(struct hisi_pmu *, int);

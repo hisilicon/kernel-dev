@@ -134,13 +134,15 @@ void hisi_set_l3c_evtype(struct hisi_pmu *pl3c_pmu, int idx, u32 val)
 	}
 }
 
-u32 hisi_write_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx, u32 value)
+u32 hisi_write_l3c_counter(struct hisi_pmu *pl3c_pmu,
+				struct hw_perf_event *hwc, u32 value)
 {
 	struct hisi_djtag_client *client;
 	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
 	u32 module_id = l3c_hwmod_data->l3c_hwcfg.module_id;
 	u32 reg_offset, cfg_en;
 	int i, ret = 0;
+	int idx = GET_CNTR_IDX(hwc);
 
 	if (!hisi_l3c_counter_valid(idx)) {
 		dev_err(pl3c_pmu->dev,
