@@ -479,7 +479,7 @@ static int hns_mac_config_sds_loopback(struct hns_mac_cb *mac_cb, bool en)
 		1	/* mac 7 -> lane 1 */
 	};
 #define RX_CSR(lane, reg) ((0x4080 + (reg) * 0x0002 + (lane) * 0x0200) * 2)
-	u64 reg_offset = RX_CSR(lane_id[mac_cb->mac_id], 0);
+	u64 reg_offset = RX_CSR(lane_id[mac_cb->port_rst_off], 0);
 
 	int sfp_prsnt;
 	int ret = hns_mac_get_sfp_prsnt(mac_cb, &sfp_prsnt);
