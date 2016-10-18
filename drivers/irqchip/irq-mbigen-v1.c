@@ -34,6 +34,7 @@
  * bit[31:16]:	device id
  * bit[15:0]:	event id value
  */
+#define IRQ_DEVICE_ID_SHIFT		16
 #define IRQ_EVENT_ID_MASK		0xffff
 
 /* offset of vector register in mbigen node */
@@ -59,11 +60,19 @@
  *
  * @pdev:		pointer to the platform device structure of mbigen chip.
  * @base:		mapped address of this mbigen chip.
+ * @dev_id:		device id of this mbigen device.
  */
 struct mbigen_device {
 	struct platform_device	*pdev;
 	void __iomem		*base;
+	unsigned int		dev_id;
 };
+
+/**
+ * define the event ID start value of each mbigen node
+ * in a mbigen chip
+ */
+static int mbigen_event_base[6] = {0, 64, 128, 192, 256, 384};
 
 static int get_mbigen_nid(unsigned int offset)
 {
@@ -158,10 +167,22 @@ static struct irq_chip mbigen_irq_chip = {
 
 static void mbigen_write_msg(struct msi_desc *desc, struct msi_msg *msg)
 {
+	struct irq_data *d = irq_get_irq_data(desc->irq);
+	void __iomem *base = d->chip_data;
+	struct mbigen_device *mgn_chip;
+	u32 newval, oldval, nid;
 
-	/* Because the event ID is programmed in vector register
-	 * We do nothing at here.
-	 */
+	mgn_chip = platform_msi_get_host_data(d->domain);
+
+	nid = get_mbigen_nid(d->hwirq);
+
+	base += get_mbigen_vec_reg(d->hwirq);
+
+	newval = (mgn_chip->dev_id << IRQ_DEVICE_ID_SHIFT) | mbigen_event_base[nid];
+	oldval = readl_relaxed(base);
+
+	if (newval != oldval)
+		writel_relaxed(newval, base);
 }
 
 static int mbigen_domain_translate(struct irq_domain *d,
@@ -234,7 +255,8 @@ static int mbigen_device_probe(struct platform_device *pdev)
 	struct mbigen_device *mgn_chip;
 	struct resource *res;
 	struct irq_domain *domain;
-	u32 num_pins;
+	u32 num_pins, dev_id;
+	int err = 0;
 
 	mgn_chip = devm_kzalloc(&pdev->dev, sizeof(*mgn_chip), GFP_KERNEL);
 	if (!mgn_chip)
@@ -252,6 +274,14 @@ static int mbigen_device_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	if (pdev->dev.of_node)
+		err = of_property_read_u32_index(pdev->dev.of_node, "msi-parent",
+						 1, &dev_id);
+
+	if (err)
+		return err;
+
+	mgn_chip->dev_id = dev_id;
 	domain = platform_msi_create_device_domain(&pdev->dev, num_pins,
 							mbigen_write_msg,
 							&mbigen_domain_ops,
