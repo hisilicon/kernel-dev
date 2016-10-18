@@ -20,6 +20,8 @@
  * This driver is powered by bad coffee and bombay mix.
  */
 
+#include <linux/acpi.h>
+#include <linux/acpi_iort.h>
 #include <linux/delay.h>
 #include <linux/dma-iommu.h>
 #include <linux/err.h>
@@ -2563,6 +2565,32 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	return 0;
 }
 
+static int arm_smmu_device_acpi_probe(struct platform_device *pdev,
+				      struct arm_smmu_device *smmu,
+				      bool *bypass)
+{
+	struct acpi_iort_smmu_v3 *iort_smmu;
+	struct device *dev = smmu->dev;
+	struct acpi_iort_node *node;
+
+	if (!IS_ENABLED(CONFIG_ACPI)) {
+		*bypass = true;
+		return -ENODEV;
+	}
+
+	node = *(struct acpi_iort_node **)dev_get_platdata(dev);
+
+	/* Retrieve SMMUv3 specific data */
+	iort_smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+
+	if (iort_smmu->flags & ACPI_IORT_SMMU_V3_COHACC_OVERRIDE)
+		smmu->features |= ARM_SMMU_FEAT_COHERENCY;
+
+	*bypass = false;
+
+	return 0;
+}
+
 static int arm_smmu_device_dt_probe(struct platform_device *pdev,
 				    struct arm_smmu_device *smmu,
 				    bool *bypass)
@@ -2594,6 +2622,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	struct arm_smmu_device *smmu;
 	struct device *dev = &pdev->dev;
 	bool bypass;
+	struct fwnode_handle *fwnode;
 
 	smmu = devm_kzalloc(dev, sizeof(*smmu), GFP_KERNEL);
 	if (!smmu) {
@@ -2630,7 +2659,10 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	if (irq > 0)
 		smmu->gerr_irq = irq;
 
-	ret = arm_smmu_device_dt_probe(pdev, smmu, &bypass);
+	if (dev->of_node)
+		ret = arm_smmu_device_dt_probe(pdev, smmu, &bypass);
+	else
+		ret = arm_smmu_device_acpi_probe(pdev, smmu, &bypass);
 
 	if (ret)
 		return ret;
@@ -2653,8 +2685,12 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	/* FIXME: DT code path does not set up dev->fwnode pointer */
+	fwnode = dev->of_node ? &dev->of_node->fwnode : dev->fwnode;
+
 	/* And we're up. Go go go! */
-	fwspec_iommu_set_ops(&dev->of_node->fwnode, &arm_smmu_ops);
+	fwspec_iommu_set_ops(fwnode, &arm_smmu_ops);
+
 #ifdef CONFIG_PCI
 	pci_request_acs();
 	ret = bus_set_iommu(&pci_bus_type, &arm_smmu_ops);
@@ -2725,6 +2761,52 @@ static int __init arm_smmu_of_init(struct device_node *np)
 	return 0;
 }
 IOMMU_OF_DECLARE(arm_smmuv3, "arm,smmu-v3", arm_smmu_of_init);
+
+#ifdef CONFIG_ACPI
+static int __init acpi_smmu_v3_init(struct acpi_table_header *table)
+{
+	struct acpi_iort_node *iort_node, *iort_end;
+	struct acpi_table_iort *iort;
+	int i, ret;
+
+	/*
+	 * table and iort will both point to the start of IORT table, but
+	 * have different struct types
+	 */
+	iort = (struct acpi_table_iort *)table;
+
+	/* Get the first IORT node */
+	iort_node = ACPI_ADD_PTR(struct acpi_iort_node, table,
+				 iort->node_offset);
+	iort_end = ACPI_ADD_PTR(struct acpi_iort_node, table,
+				table->length);
+
+	for (i = 0; i < iort->node_count; i++) {
+
+		if (iort_node >= iort_end) {
+			pr_err("iort node pointer overflows, bad table\n");
+			return -EINVAL;
+		}
+
+		if (iort_node->type == ACPI_IORT_NODE_SMMU_V3) {
+			ret = arm_smmu_init();
+			if (ret)
+				return ret;
+
+			ret = iort_add_smmu_platform_device(iort_node);
+			if (ret)
+				return ret;
+		}
+
+		iort_node = ACPI_ADD_PTR(struct acpi_iort_node, iort_node,
+					 iort_node->length);
+	}
+
+	return 0;
+
+}
+IORT_ACPI_DECLARE(arm_smmu_v3, ACPI_SIG_IORT, acpi_smmu_v3_init);
+#endif
 
 MODULE_DESCRIPTION("IOMMU API for ARM architected SMMUv3 implementations");
 MODULE_AUTHOR("Will Deacon <will.deacon@arm.com>");
