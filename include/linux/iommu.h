@@ -38,6 +38,7 @@ struct bus_type;
 struct device;
 struct iommu_domain;
 struct notifier_block;
+struct fwnode_handle;
 
 /* iommu fault flags */
 #define IOMMU_FAULT_READ	0x0
@@ -581,5 +582,29 @@ static inline int iommu_fwspec_add_ids(struct device *dev, u32 *ids,
 }
 
 #endif /* CONFIG_IOMMU_API */
+
+/* IOMMU fwnode handling */
+static inline bool is_fwnode_iommu(struct fwnode_handle *fwnode)
+{
+	return fwnode && fwnode->type == FWNODE_IOMMU;
+}
+
+static inline struct fwnode_handle *iommu_alloc_fwnode(void)
+{
+	struct fwnode_handle *fwnode;
+
+	fwnode = kzalloc(sizeof(struct fwnode_handle), GFP_KERNEL);
+	fwnode->type = FWNODE_IOMMU;
+
+	return fwnode;
+}
+
+static inline void iommu_free_fwnode(struct fwnode_handle *fwnode)
+{
+	if (WARN_ON(!is_fwnode_iommu(fwnode)))
+		return;
+
+	kfree(fwnode);
+}
 
 #endif /* __LINUX_IOMMU_H */
