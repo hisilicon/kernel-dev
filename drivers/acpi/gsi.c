@@ -55,13 +55,19 @@ int acpi_register_gsi(struct device *dev, u32 gsi, int trigger,
 		      int polarity)
 {
 	struct irq_fwspec fwspec;
+	struct acpi_device *adev = dev ? to_acpi_device(dev) : NULL;
 
-	if (WARN_ON(!acpi_gsi_domain_id)) {
+	if (adev && &adev->fwnode && adev->interrupt_producer)
+		/* devices in DSDT connecting to spefic interrupt producer */
+		fwspec.fwnode = adev->interrupt_producer;
+	else if (acpi_gsi_domain_id)
+		/* devices connecting to gicd in default */
+		fwspec.fwnode = acpi_gsi_domain_id;
+	else {
 		pr_warn("GSI: No registered irqchip, giving up\n");
 		return -EINVAL;
 	}
 
-	fwspec.fwnode = acpi_gsi_domain_id;
 	fwspec.param[0] = gsi;
 	fwspec.param[1] = acpi_dev_get_irq_type(trigger, polarity);
 	fwspec.param_count = 2;
