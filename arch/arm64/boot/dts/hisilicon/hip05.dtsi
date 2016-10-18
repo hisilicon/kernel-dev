@@ -614,14 +614,14 @@
 
 			port@0 {
 				reg = <0>;
-				serdes-syscon = <&serdes_ctrl0>;
+				serdes-syscon = <&serdes_ctrl1>;
 				port-rst-offset = <0>;
 				port-mode-offset = <0>;
 			};
 
 			port@1 {
 				reg = <1>;
-				serdes-syscon = <&serdes_ctrl0>;
+				serdes-syscon = <&serdes_ctrl1>;
 				port-rst-offset = <1>;
 				port-mode-offset = <0>;
 			};
@@ -629,7 +629,7 @@
 			port@4 {
 				reg = <4>;
 				phy-handle = <&soc0_phy0>;
-				serdes-syscon = <&serdes_ctrl1>;
+				serdes-syscon = <&serdes_ctrl0>;
 				port-rst-offset = <4>;
 				port-mode-offset = <0>;
 			};
@@ -637,7 +637,7 @@
 			port@5 {
 				reg = <5>;
 				phy-handle = <&soc0_phy1>;
-				serdes-syscon = <&serdes_ctrl1>;
+				serdes-syscon = <&serdes_ctrl0>;
 				port-rst-offset = <5>;
 				port-mode-offset = <0>;
 			};
