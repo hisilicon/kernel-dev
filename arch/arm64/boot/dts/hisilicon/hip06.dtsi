@@ -464,19 +464,6 @@
 		reg = <0x0 0x6d000000 0x0 0x10000>;
 	};
 
-	timer {
-		compatible = "arm,armv8-timer";
-		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
-			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
-			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
-			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
-	};
-
-	pmu {
-		compatible = "arm,cortex-a57-pmu";
-		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
-	};
-
 	mbigen_dsa_sas_icl@c0080000 {
 		compatible = "hisilicon,mbigen-v2";
 		reg = <0x0 0xc0080000 0x0 0x10000>;
@@ -495,6 +482,12 @@
 			num-pins = <128>;
 		};
 
+		mbigen_smmu_dsa_intc: intc_smmu_dsa {
+			msi-parent = <&its_dsa 0x40b20>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
+		};
 	};
 
 	mbigen_pcie@a0080000 {
@@ -540,6 +533,69 @@
 			#interrupt-cells = <2>;
 			num-pins = <128>;
 		};
+		mbigen_smmu_pcie_intc: intc_smmu_pcie {
+			msi-parent = <&its_dsa 0x40b0c>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
+		};
+	};
+
+        smmu0: smmu_pcie {
+                compatible = "arm,smmu-v3";
+                reg = <0x0 0xa0040000 0x0 0x20000>;
+                interrupt-parent  = <&mbigen_smmu_pcie_intc>;
+                interrupts = <871 1>,
+                             <872 1>,
+                             <873 1>;
+                interrupt-names = "eventq", "gerror", "priq";
+                #iommu-cells = <1>;
+                dma-coherent;
+                smmu-cb-memtype = <0x0 0x1>;
+                hisilicon,broken-prefetch-cmd;
+        };
+
+        smmu1: smmu_dsa {
+                compatible = "arm,smmu-v3";
+                reg = <0x0 0xc0040000 0x0 0x20000>;
+                interrupt-parent  = <&mbigen_smmu_dsa_intc>;
+                interrupts = <0x40b20 3 78 6>,
+                             <0x40b20 3 79 6>,
+                             <0x40b20 3 80 6>;
+                interrupt-names = "eventq", "gerror", "priq";
+                #iommu-cells = <1>;
+                dma-coherent;
+                smmu-cb-memtype = <0x0 0x1>;
+                hisilicon,broken-prefetch-cmd;
+        };
+
+/*
+        smmu2: smmu_alg {
+                compatible = "arm,smmu-v3";
+                reg = <0x0 0xd0040000 0x0 0x20000>;
+                interrupt-parent  = <&mbigen_p0_alg>;
+                interrupts = <0x40b1b 3 29 6>,
+                             <0x40b1b 3 30 6>,
+                             <0x40b1b 3 31 6>;
+                interrupt-names = "eventq", "gerror", "priq";
+                #iommu-cells = <1>;
+                dma-coherent;
+                smmu-cb-memtype = <0x0 0x1>;
+                hisilicon,broken-prefetch-cmd;
+        };
+*/
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a57-pmu";
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	soc {
@@ -559,6 +615,7 @@
 			interrupt-parent = <&mbigen_usb>;
 			interrupts = <640 4>;
 			dma-coherent;
+			iommus = <&smmu0 0x40080>;
 			status = "disabled";
 		};
 
@@ -568,6 +625,7 @@
 			interrupt-parent = <&mbigen_usb>;
 			interrupts = <641 4>;
 			dma-coherent;
+			iommus = <&smmu0 0x40080>;
 			status = "disabled";
 		};
 
@@ -619,6 +677,7 @@
 			reg-names = "ppe-base", "dsaf-base";
 			interrupt-parent = <&mbigen_dsaf0>;
 			subctrl-syscon = <&dsa_subctrl>;
+			iommus = <&smmu1 0x0>;
 			reset-field-offset = <0>;
 			interrupts =
 			<576 1>, <577 1>, <578 1>, <579 1>, <580 1>,
@@ -791,6 +850,7 @@
 			phy-count = <8>;
 			dma-coherent;
 			interrupt-parent = <&mbigen_sas0>;
+			iommus = <&smmu1 0x00100>;
 			interrupts = <64 4>,<65 4>,<66 4>,<67 4>,<68 4>,
 				     <69 4>,<70 4>,<71 4>,<72 4>,<73 4>,
 				     <75 4>,<76 4>,<77 4>,<78 4>,<79 4>,
@@ -833,6 +893,7 @@
 			phy-count = <8>;
 			dma-coherent;
 			interrupt-parent = <&mbigen_sas1>;
+			iommus = <&smmu0 0x40000>;
 			interrupts = <64 4>,<65 4>,<66 4>,<67 4>,<68 4>,
 				     <69 4>,<70 4>,<71 4>,<72 4>,<73 4>,
 				     <74 4>,<75 4>,<76 4>,<77 4>,<78 4>,
@@ -874,6 +935,7 @@
 			phy-count = <9>;
 			dma-coherent;
 			interrupt-parent = <&mbigen_sas2>;
+			iommus = <&smmu0 0x40040>;
 			interrupts = <192 4>,<193 4>,<194 4>,<195 4>,<196 4>,
 				     <197 4>,<198 4>,<199 4>,<200 4>,<201 4>,
 				     <202 4>,<203 4>,<204 4>,<205 4>,<206 4>,
