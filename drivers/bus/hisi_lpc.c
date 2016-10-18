@@ -1,3 +1,4 @@
+#include <linux/acpi.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -180,10 +181,16 @@ static const struct of_device_id lpc_pltfm_match[] = {
 	{},
 };
 
+static const struct acpi_device_id lpc_acpi_match[] = {
+        { "HISI0191", },
+        {},
+};
+
 static struct platform_driver lpc_driver = {
 	.driver = {
 		.name           = "LPC",
 		.of_match_table = lpc_pltfm_match,
+		.acpi_match_table = lpc_acpi_match,
 	},
 	.probe                = lpc_probe,
 };
