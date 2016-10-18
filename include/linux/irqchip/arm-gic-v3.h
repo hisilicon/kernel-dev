@@ -25,6 +25,7 @@
 #define GICD_CTLR			0x0000
 #define GICD_TYPER			0x0004
 #define GICD_IIDR			0x0008
+#define GICD_SIDR			0x000c
 #define GICD_STATUSR			0x0010
 #define GICD_SETSPI_NSR			0x0040
 #define GICD_CLRSPI_NSR			0x0048
@@ -81,6 +82,7 @@
 #define GIC_PIDR2_ARCH_MASK		0xf0
 #define GIC_PIDR2_ARCH_GICv3		0x30
 #define GIC_PIDR2_ARCH_GICv4		0x40
+#define GIC_SID_MASK			0x7
 
 #define GIC_V3_DIST_SIZE		0x10000
 
