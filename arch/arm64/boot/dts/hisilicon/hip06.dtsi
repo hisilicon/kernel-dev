@@ -472,6 +472,18 @@
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
 	};
 
+	mbigen_dsa_sas_icl@c0080000 {
+		compatible = "hisilicon,mbigen-v2";
+		reg = <0x0 0xc0080000 0x0 0x10000>;
+
+		mbigen_dsa0: intc-srv {
+			msi-parent = <&its_dsa 0x40800>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <409>;
+		};
+	};
+
 	pmu {
 		compatible = "arm,cortex-a57-pmu";
 		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
