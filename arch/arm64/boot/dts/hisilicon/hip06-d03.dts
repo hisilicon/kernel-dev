@@ -53,6 +53,18 @@
 	status = "ok";
 };
 
+&pcie0 {
+	status = "ok";
+};
+
+&pcie1 {
+	status = "ok";
+};
+
+&pcie2 {
+	status = "ok";
+};
+
 &usb_ohci {
 	status = "ok";
 };
