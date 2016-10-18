@@ -331,10 +331,26 @@
 		#size-cells = <2>;
 		ranges;
 
+		refclk175mhz: refclk175mhz {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <175000000>;
+		};
+
 		refclk200mhz: refclk200mhz {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <200000000>;
+		};
+
+		peri_c_subctrl: syscon@80000000 {
+			compatible = "hisilicon,hip05-perisubc", "syscon";
+			reg = < 0x0 0x80000000 0x0 0x10000>;
+		};
+
+		pcie_subctl: pcie_subctl@b0000000 {
+			compatible = "hisilicon,pcie-sas-subctrl", "syscon";
+			reg = <0x0 0xb0000000 0x0 0x10000>;
 		};
 
 		uart0: uart@80300000 {
@@ -362,6 +378,66 @@
 		lbc: localbus@80380000 {
 			compatible = "hisilicon,hisi-localbus", "simple-bus";
 			reg = <0x0 0x80380000 0x0 0x10000>;
+		};
+
+		m3_i2c0: i2c@a00e0000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			interrupt-parent = <&mbigen_m3>;
+			reg = <0x0 0xa00e0000 0x0 0x10000>;
+			interrupts = <8 4>;
+			clocks = <&refclk175mhz>;
+			status = "disabled";
+		};
+
+		m3_i2c1: i2c@a00f0000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			interrupt-parent = <&mbigen_m3>;
+			reg = <0x0 0xa00f0000 0x0 0x10000>;
+			interrupts = <9 4>;
+			clocks = <&refclk175mhz>;
+			status = "disabled";
+		};
+
+		m3_i2c2: i2c@a0100000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			interrupt-parent = <&mbigen_m3>;
+			reg = <0x0 0xa0100000 0x0 0x10000>;
+			interrupts = <10 4>;
+			clocks = <&refclk175mhz>;
+			status = "disabled";
+		};
+
+		usb0: ehci@a1000000 {
+			compatible = "generic-ehci";
+			interrupt-parent = <&mbigen_m3>;
+			reg = <0x0 0xa1000000 0x0 0x10000>;
+			interrupts = <20 4>;
+			dma-coherent;
+			status = "disabled";
+		};
+
+		usb1: ohci@a1010000 {
+			compatible = "generic-ohci";
+			interrupt-parent = <&mbigen_m3>;
+			reg = <0x0 0xa1010000 0x0 0x10000>;
+			interrupts = <19 4>;
+			dma-coherent;
+			status = "disabled";
+		};
+
+		ahci0: sata@b1002800 {
+			compatible = "hisilicon,hip05-ahci";
+			interrupt-parent = <&mbigen_pcie>;
+			reg = <0x0 0xb1002800 0x0 0x10000>,
+			      <0x0 0xb1000000 0x0 0x10000>;
+			interrupts = <382 4>;
+			dma-coherent;
 			status = "disabled";
 		};
 

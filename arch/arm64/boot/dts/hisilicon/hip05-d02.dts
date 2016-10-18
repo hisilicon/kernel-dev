@@ -49,6 +49,40 @@
 	status = "ok";
 };
 
+&usb0 {
+	status = "ok";
+};
+
+&usb1 {
+	status = "ok";
+};
+
+&m3_i2c1 {
+	clock-frequency = <100000>;
+	status = "ok";
+
+	rtc: ds3231@68 {
+		compatible = "maxim,ds3231";
+		reg = <0x68>;
+	};
+
+	eeprom: at24c128@52 {
+		compatible = "microchip,24c128";
+		reg = <0x52>;
+		pagesize = <64>;
+	};
+
+	tsensor: adt75@48 {
+		compatible = "adi,adt75";
+		reg = <0x48>;
+	};
+
+	dtt: lm96080@28 {
+		compatible = "national,lm96080";
+		reg = <0x28>;
+	};
+};
+
 &peri_gpio0 {
 	status = "ok";
 };
