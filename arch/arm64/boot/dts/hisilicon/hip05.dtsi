@@ -736,5 +736,41 @@
 					<381 4>; /* chip fatal error irq(125) */
 			status = "disabled";
 		};
+
+		pcie0: pcie@b0080000 {
+			compatible = "hisilicon,hip05-pcie", "snps,dw-pcie";
+			reg = <0 0xb0080000 0 0x10000>, <0x220 0x04000000 0 0x04000000>;
+			reg-names = "rc_dbi",  "ecam-cfg";
+			bus-range = <64  127>;
+			msi-map = <0x4000 &its_pcie 0x4000 0x4000>;
+			msi-map-mask = <0xffff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			dma-coherent;
+			ranges = <0x02000000 0 0xb0000000 0x220 0x08000000 0 0x7ff0000>,
+					 <0x01000000 0 0x0 0x220 0x0fff0000 0 0x10000>;
+			num-lanes = <8>;
+			port-id = <1>;
+			status = "disabled";
+		};
+
+		pcie1: pcie@b0090000 {
+			compatible = "hisilicon,hip05-pcie", "snps,dw-pcie";
+			reg = <0 0xb0090000 0 0x10000>, <0x240 0x08000000 0 0x04000000>;
+			reg-names = "rc_dbi", "ecam-cfg";
+			bus-range = <128 191>;
+			msi-map = <0x8000 &its_pcie 0x8000 0x4000>;
+			msi-map-mask = <0xffff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			dma-coherent;
+			ranges = <0x02000000 0 0xc0000000 0x240 0x0c000000 0 0x3ff0000>,
+					 <0x01000000 0 0x0 0x240 0x0fff0000 0 0x10000>;
+			num-lanes = <8>;
+			port-id = <2>;
+			status = "disabled";
+		};
 	};
 };
