@@ -30,6 +30,8 @@ struct fwnode_handle *iort_find_domain_token(int trans_id);
 void acpi_iort_init(void);
 u32 iort_msi_map_rid(struct device *dev, u32 req_id);
 struct irq_domain *iort_get_device_domain(struct device *dev, u32 req_id);
+/* IOMMU interface */
+int __init iort_add_smmu_platform_device(struct acpi_iort_node *node);
 #else
 static inline void acpi_iort_init(void) { }
 static inline u32 iort_msi_map_rid(struct device *dev, u32 req_id)
@@ -37,6 +39,10 @@ static inline u32 iort_msi_map_rid(struct device *dev, u32 req_id)
 static inline struct irq_domain *iort_get_device_domain(struct device *dev,
 							u32 req_id)
 { return NULL; }
+/* IOMMU interface */
+static inline
+int __init iort_add_smmu_platform_device(struct acpi_iort_node *node)
+{ return -ENODEV; }
 #endif
 
 #define IORT_ACPI_DECLARE(name, table_id, fn)		\

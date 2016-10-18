@@ -19,9 +19,11 @@
 #define pr_fmt(fmt)	"ACPI: IORT: " fmt
 
 #include <linux/acpi_iort.h>
+#include <linux/iommu.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/pci.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 
 struct iort_its_msi_chip {
@@ -440,6 +442,113 @@ struct irq_domain *iort_get_device_domain(struct device *dev, u32 req_id)
 		return NULL;
 
 	return irq_find_matching_fwnode(handle, DOMAIN_BUS_PCI_MSI);
+}
+
+struct iort_iommu_config {
+	const char *name;
+	int (*iommu_init)(struct acpi_iort_node *node);
+	bool (*iommu_is_coherent)(struct acpi_iort_node *node);
+	int (*iommu_count_resources)(struct acpi_iort_node *node);
+	void (*iommu_init_resources)(struct resource *res,
+				     struct acpi_iort_node *node);
+};
+
+static __init
+const struct iort_iommu_config *iort_get_iommu_cfg(struct acpi_iort_node *node)
+{
+	return NULL;
+}
+
+/**
+ * iort_add_smmu_platform_device() - Allocate a platform device for SMMU
+ * @node: Pointer to SMMU ACPI IORT node
+ *
+ * Returns: 0 on success, <0 failure
+ */
+int __init iort_add_smmu_platform_device(struct acpi_iort_node *node)
+{
+	struct fwnode_handle *fwnode;
+	struct platform_device *pdev;
+	struct resource *r;
+	enum dev_dma_attr attr;
+	int ret, count;
+	const struct iort_iommu_config *ops = iort_get_iommu_cfg(node);
+
+	if (!ops)
+		return -ENODEV;
+
+	pdev = platform_device_alloc(ops->name, PLATFORM_DEVID_AUTO);
+	if (!pdev)
+		return PTR_ERR(pdev);
+
+	count = ops->iommu_count_resources(node);
+
+	r = kcalloc(count, sizeof(*r), GFP_KERNEL);
+	if (!r) {
+		ret = -ENOMEM;
+		goto dev_put;
+	}
+
+	ops->iommu_init_resources(r, node);
+
+	ret = platform_device_add_resources(pdev, r, count);
+	/*
+	 * Resources are duplicated in platform_device_add_resources,
+	 * free their allocated memory
+	 */
+	kfree(r);
+
+	if (ret)
+		goto dev_put;
+
+	/*
+	 * Add a copy of IORT node pointer to platform_data to
+	 * be used to retrieve IORT data information.
+	 */
+	ret = platform_device_add_data(pdev, &node, sizeof(node));
+	if (ret)
+		goto dev_put;
+
+	/*
+	 * We expect the dma masks to be equivalent for
+	 * all SMMUs set-ups
+	 */
+	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+
+	fwnode = iommu_alloc_fwnode();
+
+	if (!fwnode) {
+		ret = -ENOMEM;
+		goto dev_put;
+	}
+
+	pdev->dev.fwnode = fwnode;
+
+	ret = iort_set_fwnode(node, fwnode);
+	if (ret)
+		goto free_fwnode;
+
+	attr = ops->iommu_is_coherent(node) ?
+			     DEV_DMA_COHERENT : DEV_DMA_NON_COHERENT;
+
+	/* Configure DMA for the page table walker */
+	acpi_dma_configure(&pdev->dev, attr);
+
+	ret = platform_device_add(pdev);
+	if (ret)
+		goto dma_deconfigure;
+
+	return 0;
+
+dma_deconfigure:
+	acpi_dma_deconfigure(&pdev->dev);
+free_fwnode:
+	iort_delete_fwnode(node);
+	kfree(fwnode);
+dev_put:
+	platform_device_put(pdev);
+
+	return ret;
 }
 
 void __init acpi_iort_init(void)
