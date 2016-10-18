@@ -285,7 +285,6 @@ config CLKSRC_MPS2
 config ARM_ARCH_TIMER
 	bool
 	select CLKSRC_OF if OF
-	select CLKSRC_ACPI if ACPI
 
 config ARM_ARCH_TIMER_EVTSTREAM
 	bool "Enable ARM architected timer event stream generation by default"
