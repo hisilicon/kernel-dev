@@ -66,6 +66,10 @@ extern struct pci_ecam_ops pci_thunder_pem_ops;
 extern struct pci_ecam_ops pci_thunder_ecam_ops;
 #endif
 
+#ifdef CONFIG_PCI_HISI_ACPI
+extern struct pci_ecam_ops hisi_pcie_ops;
+#endif
+
 #ifdef CONFIG_PCI_HOST_GENERIC
 /* for DT-based PCI controllers that support ECAM */
 int pci_host_common_probe(struct platform_device *pdev,
