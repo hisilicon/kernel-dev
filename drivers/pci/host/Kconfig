@@ -219,13 +219,13 @@ config PCIE_ALTERA_MSI
 
 config PCI_HISI
 	depends on OF && ARM64
-	bool "HiSilicon Hip05 and Hip06 SoCs PCIe controllers"
+	bool "HiSilicon Hip05 and Hip06 and Hip07 SoCs PCIe controllers"
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIEPORTBUS
 	select PCIE_DW
 	help
 	  Say Y here if you want PCIe controller support on HiSilicon
-	  Hip05 and Hip06 SoCs
+	  Hip05 and Hip06 and Hip07 SoCs
 
 config PCIE_QCOM
 	bool "Qualcomm PCIe controller"
