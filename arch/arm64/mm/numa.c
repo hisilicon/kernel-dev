@@ -153,10 +153,11 @@ static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size,
 				       size_t align)
 {
-	int nid = early_cpu_to_node(cpu);
+	phys_addr_t alloc;
 
-	return  memblock_virt_alloc_try_nid(size, align,
-			__pa(MAX_DMA_ADDRESS), MEMBLOCK_ALLOC_ACCESSIBLE, nid);
+	alloc = memblock_alloc_near_nid(size, align, early_cpu_to_node(cpu));
+
+	return phys_to_virt(alloc);
 }
 
 static void __init pcpu_fc_free(void *ptr, size_t size)
@@ -226,7 +227,7 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 	pr_info("Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
 		nid, start_pfn << PAGE_SHIFT, (end_pfn << PAGE_SHIFT) - 1);
 
-	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
+	nd_pa = memblock_alloc_near_nid(nd_size, SMP_CACHE_BYTES, nid);
 	nd = __va(nd_pa);
 
 	/* report and initialize */
@@ -236,7 +237,7 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 	if (tnid != nid)
 		pr_info("NODE_DATA(%d) on node %d\n", nid, tnid);
 
-	node_data[nid] = nd;
+	NODE_DATA(nid) = nd;
 	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
 	NODE_DATA(nid)->node_id = nid;
 	NODE_DATA(nid)->node_start_pfn = start_pfn;
