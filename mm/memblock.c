@@ -1189,6 +1189,34 @@ again:
 	return ret;
 }
 
+phys_addr_t __init memblock_alloc_near_nid(phys_addr_t size, phys_addr_t align, int nid)
+{
+	int i, best_nid, distance;
+	u64 pa;
+	DECLARE_BITMAP(nodes_map, MAX_NUMNODES);
+
+	bitmap_zero(nodes_map, MAX_NUMNODES);
+
+find_nearest_node:
+	best_nid = NUMA_NO_NODE;
+	distance = INT_MAX;
+
+	for_each_clear_bit(i, nodes_map, MAX_NUMNODES)
+		if (node_distance(nid, i) < distance) {
+			best_nid = i;
+			distance = node_distance(nid, i);
+		}
+
+	pa = memblock_alloc_nid(size, align, best_nid);
+	if (!pa) {
+		BUG_ON(best_nid == NUMA_NO_NODE);
+		bitmap_set(nodes_map, best_nid, 1);
+		goto find_nearest_node;
+	}
+
+	return pa;
+}
+
 phys_addr_t __init __memblock_alloc_base(phys_addr_t size, phys_addr_t align, phys_addr_t max_addr)
 {
 	return memblock_alloc_base_nid(size, align, max_addr, NUMA_NO_NODE,
