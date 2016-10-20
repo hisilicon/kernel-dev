@@ -367,7 +367,7 @@ static int thunder_pem_init(struct pci_config_window *cfg)
 	return 0;
 }
 
-static struct pci_ecam_ops pci_thunder_pem_ops = {
+struct pci_ecam_ops pci_thunder_pem_ops = {
 	.bus_shift	= 24,
 	.init		= thunder_pem_init,
 	.pci_ops	= {
