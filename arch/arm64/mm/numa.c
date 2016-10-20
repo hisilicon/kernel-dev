@@ -147,7 +147,14 @@ static int __init early_cpu_to_node(int cpu)
 
 static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 {
-	return node_distance(from, to);
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+	if (early_cpu_to_node(from) == early_cpu_to_node(to))
+		return LOCAL_DISTANCE;
+	else
+		return REMOTE_DISTANCE;
+#else
+	return LOCAL_DISTANCE;
+#endif
 }
 
 static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size,
