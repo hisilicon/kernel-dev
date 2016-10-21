@@ -11,11 +11,11 @@
 #ifndef __HISI_DJTAG_H
 #define __HISI_DJTAG_H
 
-#define DJATG_CLIENT_NAME_LEN 24
+#define DJTAG_CLIENT_NAME_LEN 24
 
 struct hisi_djtag_client {
 	struct hisi_djtag_host *host;
-	char name[DJATG_CLIENT_NAME_LEN];
+	char name[DJTAG_CLIENT_NAME_LEN];
 	struct device dev;
 };
 
