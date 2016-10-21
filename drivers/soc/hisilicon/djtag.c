@@ -11,13 +11,11 @@
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/list.h>
-#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -64,10 +62,10 @@
 struct hisi_djtag_host {
 	spinlock_t lock;
 	struct device dev;
-	struct list_head list;
-	struct regmap *scl_map;
+	struct list_head client_list;
+	void __iomem *sysctl_reg_map;
 	struct device_node *of_node;
-	int (*djtag_readwrite)(struct regmap *map, u32 offset,
+	int (*djtag_readwrite)(void __iomem *regs_base, u32 offset,
 			u32 mod_sel, u32 mod_mask, bool is_w,
 			u32 wval, int chain_id, u32 *rval);
 };
@@ -77,9 +75,23 @@ struct hisi_djtag_host {
 								 driver)
 #define MODULE_PREFIX "hisi_djtag:"
 
+static void djtag_read32_relaxed(void __iomem *regs_base, u32 off, u32 *value)
+{
+	void __iomem *reg_addr = regs_base + off;
+
+	*value = readl_relaxed(reg_addr);
+}
+
+static void djtag_write32(void __iomem *regs_base, u32 off, u32 val)
+{
+	void __iomem *reg_addr = regs_base + off;
+
+	writel(val, reg_addr);
+}
+
 /*
  * djtag_readwrite_v1/v2: djtag read/write interface
- * @regmap:	djtag base address
+ * @reg_base:	djtag register base address
  * @offset:	register's offset
  * @mod_sel:	module selection
  * @mod_mask:	mask to select specific modules for write
@@ -90,7 +102,7 @@ struct hisi_djtag_host {
  *
  * Return non-zero if error, else return 0.
  */
-static int djtag_readwrite_v1(struct regmap *map, u32 offset, u32 mod_sel,
+static int djtag_readwrite_v1(void __iomem *regs_base, u32 offset, u32 mod_sel,
 		u32 mod_mask, bool is_w, u32 wval, int chain_id, u32 *rval)
 {
 	u32 rd;
@@ -102,30 +114,29 @@ static int djtag_readwrite_v1(struct regmap *map, u32 offset, u32 mod_sel,
 	}
 
 	/* djtag mster enable & accelerate R,W */
-	regmap_write(map, SC_DJTAG_MSTR_EN, DJTAG_NOR_CFG | DJTAG_MSTR_EN);
+	djtag_write32(regs_base, SC_DJTAG_MSTR_EN,
+			DJTAG_NOR_CFG | DJTAG_MSTR_EN);
 
 	/* select module */
-	regmap_write(map, SC_DJTAG_DEBUG_MODULE_SEL, mod_sel);
-
-	regmap_write(map, SC_DJTAG_CHAIN_UNIT_CFG_EN,
-			mod_mask & CHAIN_UNIT_CFG_EN);
+	djtag_write32(regs_base, SC_DJTAG_DEBUG_MODULE_SEL, mod_sel);
+	djtag_write32(regs_base, SC_DJTAG_CHAIN_UNIT_CFG_EN,
+				mod_mask & CHAIN_UNIT_CFG_EN);
 
 	if (is_w) {
-		regmap_write(map, SC_DJTAG_MSTR_WR, DJTAG_MSTR_W);
-		regmap_write(map, SC_DJTAG_MSTR_DATA, wval);
+		djtag_write32(regs_base, SC_DJTAG_MSTR_WR, DJTAG_MSTR_W);
+		djtag_write32(regs_base, SC_DJTAG_MSTR_DATA, wval);
 	} else
-		regmap_write(map, SC_DJTAG_MSTR_WR, DJTAG_MSTR_R);
+		djtag_write32(regs_base, SC_DJTAG_MSTR_WR, DJTAG_MSTR_R);
 
 	/* address offset */
-	regmap_write(map, SC_DJTAG_MSTR_ADDR, offset);
+	djtag_write32(regs_base, SC_DJTAG_MSTR_ADDR, offset);
 
 	/* start to write to djtag register */
-	regmap_write(map, SC_DJTAG_MSTR_START_EN, DJTAG_MSTR_START_EN);
+	djtag_write32(regs_base, SC_DJTAG_MSTR_START_EN, DJTAG_MSTR_START_EN);
 
 	/* ensure the djtag operation is done */
 	do {
-		regmap_read(map, SC_DJTAG_MSTR_START_EN, &rd);
-
+		djtag_read32_relaxed(regs_base, SC_DJTAG_MSTR_START_EN, &rd);
 		if (!(rd & DJTAG_MSTR_EN))
 			break;
 
@@ -138,12 +149,13 @@ static int djtag_readwrite_v1(struct regmap *map, u32 offset, u32 mod_sel,
 	}
 
 	if (!is_w)
-		regmap_read(map, SC_DJTAG_RD_DATA_BASE + chain_id * 0x4, rval);
+		djtag_read32_relaxed(regs_base,
+			SC_DJTAG_RD_DATA_BASE + chain_id * 0x4, rval);
 
 	return 0;
 }
 
-static int djtag_readwrite_v2(struct regmap *map, u32 offset, u32 mod_sel,
+static int djtag_readwrite_v2(void __iomem *regs_base, u32 offset, u32 mod_sel,
 		u32 mod_mask, bool is_w, u32 wval, int chain_id, u32 *rval)
 {
 	u32 rd;
@@ -155,27 +167,28 @@ static int djtag_readwrite_v2(struct regmap *map, u32 offset, u32 mod_sel,
 	}
 
 	/* djtag mster enable */
-	regmap_write(map, SC_DJTAG_SEC_ACC_EN_EX, DJTAG_SEC_ACC_EN_EX);
+	djtag_write32(regs_base, SC_DJTAG_SEC_ACC_EN_EX, DJTAG_SEC_ACC_EN_EX);
 
 	if (is_w) {
-		regmap_write(map, SC_DJTAG_MSTR_CFG_EX, DJTAG_MSTR_WR_EX
+		djtag_write32(regs_base, SC_DJTAG_MSTR_CFG_EX, DJTAG_MSTR_WR_EX
 				| (mod_sel << DEBUG_MODULE_SEL_SHIFT_EX)
 				| (mod_mask & CHAIN_UNIT_CFG_EN_EX));
-		regmap_write(map, SC_DJTAG_MSTR_DATA_EX, wval);
+		djtag_write32(regs_base, SC_DJTAG_MSTR_DATA_EX, wval);
 	} else
-		regmap_write(map, SC_DJTAG_MSTR_CFG_EX, DJTAG_MSTR_RD_EX
+		djtag_write32(regs_base, SC_DJTAG_MSTR_CFG_EX, DJTAG_MSTR_RD_EX
 				| (mod_sel << DEBUG_MODULE_SEL_SHIFT_EX)
 				| (mod_mask & CHAIN_UNIT_CFG_EN_EX));
 
 	/* address offset */
-	regmap_write(map, SC_DJTAG_MSTR_ADDR_EX, offset);
+	djtag_write32(regs_base, SC_DJTAG_MSTR_ADDR_EX, offset);
 
 	/* start to write to djtag register */
-	regmap_write(map, SC_DJTAG_MSTR_START_EN_EX, DJTAG_MSTR_START_EN_EX);
+	djtag_write32(regs_base,
+		      SC_DJTAG_MSTR_START_EN_EX, DJTAG_MSTR_START_EN_EX);
 
 	/* ensure the djtag operation is done */
 	do {
-		regmap_read(map, SC_DJTAG_MSTR_START_EN_EX, &rd);
+		djtag_read32_relaxed(regs_base, SC_DJTAG_MSTR_START_EN_EX, &rd);
 
 		if (!(rd & DJTAG_MSTR_START_EN_EX))
 			break;
@@ -188,7 +201,7 @@ static int djtag_readwrite_v2(struct regmap *map, u32 offset, u32 mod_sel,
 
 	timeout = SC_DJTAG_TIMEOUT;
 	do {
-		regmap_read(map, SC_DJTAG_OP_ST_EX, &rd);
+		djtag_read32_relaxed(regs_base, SC_DJTAG_OP_ST_EX, &rd);
 
 		if (rd & DJTAG_OP_DONE_EX)
 			break;
@@ -200,8 +213,9 @@ static int djtag_readwrite_v2(struct regmap *map, u32 offset, u32 mod_sel,
 		goto timeout;
 
 	if (!is_w)
-		regmap_read(map, SC_DJTAG_RD_DATA_BASE_EX + chain_id * 0x4,
-				rval);
+		djtag_read32_relaxed(regs_base,
+				     SC_DJTAG_RD_DATA_BASE_EX + chain_id * 0x4,
+									rval);
 
 	return 0;
 
@@ -224,12 +238,12 @@ timeout:
 int hisi_djtag_writel(struct hisi_djtag_client *client, u32 offset, u32 mod_sel,
 			u32 mod_mask, u32 val)
 {
-	struct regmap *map = client->host->scl_map;
+	void __iomem *reg_map = client->host->sysctl_reg_map;
 	unsigned long flags;
 	int ret = 0;
 
 	spin_lock_irqsave(&client->host->lock, flags);
-	ret = client->host->djtag_readwrite(map, offset, mod_sel, mod_mask,
+	ret = client->host->djtag_readwrite(reg_map, offset, mod_sel, mod_mask,
 					true, val, 0, NULL);
 	if (ret)
 		pr_err("djtag_writel: error! ret=%d\n", ret);
@@ -252,12 +266,12 @@ EXPORT_SYMBOL_GPL(hisi_djtag_writel);
 int hisi_djtag_readl(struct hisi_djtag_client *client, u32 offset, u32 mod_sel,
 		int chain_id, u32 *val)
 {
-	struct regmap *map = client->host->scl_map;
+	void __iomem *reg_map = client->host->sysctl_reg_map;
 	unsigned long flags;
 	int ret = 0;
 
 	spin_lock_irqsave(&client->host->lock, flags);
-	ret = client->host->djtag_readwrite(map, offset, mod_sel,
+	ret = client->host->djtag_readwrite(reg_map, offset, mod_sel,
 			0xffff, false, 0, chain_id, val);
 	if (ret)
 		pr_err("djtag_readl: error! ret=%d\n", ret);
@@ -353,13 +367,16 @@ static int hisi_djtag_device_match(struct device *dev,
 	struct hisi_djtag_client *client = hisi_djtag_verify_client(dev);
 
 	if (!client)
-		return 0;
+		return false;
+
+	if (of_driver_match_device(dev, drv))
+		return true;
 
 	p = of_match_device(drv->of_match_table, dev);
 	if (!p)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 struct bus_type hisi_djtag_bus = {
@@ -384,12 +401,11 @@ struct hisi_djtag_client *hisi_djtag_new_device(struct hisi_djtag_host *host,
 	client->dev.bus = &hisi_djtag_bus;
 	client->dev.type = &hisi_djtag_client_type;
 	client->dev.of_node = node;
-	snprintf(client->name, DJATG_CLIENT_NAME_LEN, "%s%s",
+	snprintf(client->name, DJTAG_CLIENT_NAME_LEN, "%s%s",
 					DJTAG_PREFIX, node->name);
 	dev_set_name(&client->dev, "%s", client->name);
 
 	status = device_register(&client->dev);
-
 	if (status < 0) {
 		pr_err("error adding new device, status=%d\n", status);
 		kfree(client);
@@ -457,9 +473,8 @@ static int djtag_host_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct hisi_djtag_host *host;
 	const struct of_device_id *of_id;
+	struct resource *res;
 	int rc;
-
-	dev_info(dev, "probing\n");
 
 	of_id = of_match_device(djtag_of_match, dev);
 	if (!of_id)
@@ -473,11 +488,24 @@ static int djtag_host_probe(struct platform_device *pdev)
 	host->djtag_readwrite = of_id->data;
 	spin_lock_init(&host->lock);
 
-	INIT_LIST_HEAD(&host->list);
-	host->scl_map = syscon_regmap_lookup_by_phandle(host->of_node,
-			"syscon");
-	if (IS_ERR(host->scl_map)) {
-		dev_warn(dev, "wrong syscon register address.\n");
+	INIT_LIST_HEAD(&host->client_list);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "No reg resorces!\n");
+		kfree(host);
+		return -EINVAL;
+	}
+
+	if (!resource_size(res)) {
+		dev_err(&pdev->dev, "Zero reg entry!\n");
+		kfree(host);
+		return -EINVAL;
+	}
+
+	host->sysctl_reg_map = devm_ioremap_resource(dev, res);
+	if (IS_ERR(host->sysctl_reg_map)) {
+		dev_warn(dev, "Unable to map sysctl registers.\n");
 		kfree(host);
 		return -EINVAL;
 	}
@@ -487,6 +515,7 @@ static int djtag_host_probe(struct platform_device *pdev)
 	rc = hisi_djtag_add_host(host);
 	if (rc) {
 		dev_err(dev, "add host failed, rc=%d\n", rc);
+		kfree(host);
 		return rc;
 	}
 
@@ -524,9 +553,6 @@ static int __init hisi_djtag_init(void)
 	int rc;
 
 	rc = bus_register(&hisi_djtag_bus);
-
-	pr_info("hisi djtag init\n");
-
 	if (rc) {
 		pr_err("hisi  djtag init failed, rc=%d\n", rc);
 		return rc;
