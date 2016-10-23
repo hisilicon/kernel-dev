@@ -747,6 +747,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			erratum.  If unspecified, the workaround is
 			enabled based on the device tree.
 
+	clocksource.arm_arch_timer.hisilicon-161x01=
+			[ARM64]
+			Format: <bool>
+			Enable/disable the workaround of Hisilicon
+			erratum 161x01.  This can be useful for KVM
+			guests, if the guest device tree doesn't show the
+			erratum.  If unspecified, the workaround is
+			enabled based on the device tree.
+
 	clearcpuid=BITNUM [X86]
 			Disable CPUID feature X for the kernel. See
 			arch/x86/include/asm/cpufeatures.h for the valid bit

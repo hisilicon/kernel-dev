@@ -83,16 +83,23 @@ static int __init early_evtstrm_cfg(char *buf)
 }
 early_param("clocksource.arm_arch_timer.evtstrm", early_evtstrm_cfg);
 
+#define 	FSL_A008585		1
+#define 	HISILICON_161X01	2
+
+struct arch_timer_erratum_workaround *erratum_workaround;
+
+#if IS_ENABLED(CONFIG_FSL_ERRATUM_A008585) || IS_ENABLED(CONFIG_HISILICON_ERRATUM_161X01)
+static int arch_timer_uses_erratum = 0;
+
+DEFINE_STATIC_KEY_FALSE(arch_timer_read_ool_enabled);
+EXPORT_SYMBOL_GPL(arch_timer_read_ool_enabled);
+#endif
+
 /*
  * Architected system timer support.
  */
 
 #ifdef CONFIG_FSL_ERRATUM_A008585
-DEFINE_STATIC_KEY_FALSE(arch_timer_read_ool_enabled);
-EXPORT_SYMBOL_GPL(arch_timer_read_ool_enabled);
-
-static int fsl_a008585_enable = -1;
-
 static int __init early_fsl_a008585_cfg(char *buf)
 {
 	int ret;
@@ -102,27 +109,95 @@ static int __init early_fsl_a008585_cfg(char *buf)
 	if (ret)
 		return ret;
 
-	fsl_a008585_enable = val;
+	if (val)
+		arch_timer_uses_erratum = FSL_A008585;
+
 	return 0;
 }
 early_param("clocksource.arm_arch_timer.fsl-a008585", early_fsl_a008585_cfg);
 
-u32 __fsl_a008585_read_cntp_tval_el0(void)
+u32 fsl_a008585_read_cntp_tval_el0(void)
 {
 	return __fsl_a008585_read_reg(cntp_tval_el0);
 }
 
-u32 __fsl_a008585_read_cntv_tval_el0(void)
+u32 fsl_a008585_read_cntv_tval_el0(void)
 {
 	return __fsl_a008585_read_reg(cntv_tval_el0);
 }
 
-u64 __fsl_a008585_read_cntvct_el0(void)
+u64 fsl_a008585_read_cntvct_el0(void)
 {
 	return __fsl_a008585_read_reg(cntvct_el0);
 }
-EXPORT_SYMBOL(__fsl_a008585_read_cntvct_el0);
+EXPORT_SYMBOL(fsl_a008585_read_cntvct_el0);
+#else
+u32 fsl_a008585_read_cntp_tval_el0(void)
+{
+	return 0;
+}
+
+u32 fsl_a008585_read_cntv_tval_el0(void)
+{
+	return 0;
+}
+
+u64 fsl_a008585_read_cntvct_el0(void)
+{
+	return 0;
+}
+EXPORT_SYMBOL(fsl_a008585_read_cntvct_el0);
 #endif /* CONFIG_FSL_ERRATUM_A008585 */
+
+#ifdef CONFIG_HISILICON_ERRATUM_161X01
+static int __init early_hisi_161x01_cfg(char *buf)
+{
+	int ret;
+	bool val;
+
+	ret = strtobool(buf, &val);
+	if (ret)
+		return ret;
+
+	if (val)
+		arch_timer_uses_erratum = HISILICON_161X01;
+
+	return 0;
+}
+early_param("clocksource.arm_arch_timer.hisilicon-161x01", early_hisi_161x01_cfg);
+
+u32 hisi_161x01_read_cntp_tval_el0(void)
+{
+	return __hisi_161x01_read_reg(cntp_tval_el0);
+}
+
+u32 hisi_161x01_read_cntv_tval_el0(void)
+{
+	return __hisi_161x01_read_reg(cntv_tval_el0);
+}
+
+u64 hisi_161x01_read_cntvct_el0(void)
+{
+	return __hisi_161x01_read_reg(cntvct_el0);
+}
+EXPORT_SYMBOL(hisi_161x01_read_cntvct_el0);
+#else
+u32 hisi_161x01_read_cntp_tval_el0(void)
+{
+	return 0;
+}
+
+u32 hisi_161x01_read_cntv_tval_el0(void)
+{
+	return 0;
+}
+
+u64 hisi_161x01_read_cntvct_el0(void)
+{
+	return 0;
+}
+EXPORT_SYMBOL(hisi_161x01_read_cntvct_el0);
+#endif
 
 static __always_inline
 void arch_timer_reg_write(int access, enum arch_timer_reg reg, u32 val,
@@ -273,8 +348,8 @@ static __always_inline void set_next_event(const int access, unsigned long evt,
 	arch_timer_reg_write(access, ARCH_TIMER_REG_CTRL, ctrl, clk);
 }
 
-#ifdef CONFIG_FSL_ERRATUM_A008585
-static __always_inline void fsl_a008585_set_next_event(const int access,
+#if IS_ENABLED(CONFIG_FSL_ERRATUM_A008585) || IS_ENABLED(CONFIG_HISILICON_ERRATUM_161X01)
+static __always_inline void erratum_set_next_event(const int access,
 		unsigned long evt, struct clock_event_device *clk)
 {
 	unsigned long ctrl;
@@ -292,20 +367,35 @@ static __always_inline void fsl_a008585_set_next_event(const int access,
 	arch_timer_reg_write(access, ARCH_TIMER_REG_CTRL, ctrl, clk);
 }
 
-static int fsl_a008585_set_next_event_virt(unsigned long evt,
+static int erratum_set_next_event_virt(unsigned long evt,
 					   struct clock_event_device *clk)
 {
-	fsl_a008585_set_next_event(ARCH_TIMER_VIRT_ACCESS, evt, clk);
+	erratum_set_next_event(ARCH_TIMER_VIRT_ACCESS, evt, clk);
 	return 0;
 }
 
-static int fsl_a008585_set_next_event_phys(unsigned long evt,
+static int erratum_set_next_event_phys(unsigned long evt,
 					   struct clock_event_device *clk)
 {
-	fsl_a008585_set_next_event(ARCH_TIMER_PHYS_ACCESS, evt, clk);
+	erratum_set_next_event(ARCH_TIMER_PHYS_ACCESS, evt, clk);
 	return 0;
 }
-#endif /* CONFIG_FSL_ERRATUM_A008585 */
+#endif /* CONFIG_FSL_ERRATUM_A008585 || CONFIG_HISILICON_ERRATUM_161X01 */
+
+#if IS_ENABLED(CONFIG_FSL_ERRATUM_A008585) || IS_ENABLED(CONFIG_HISILICON_ERRATUM_161X01)
+static struct arch_timer_erratum_workaround arch_timer_erratum[] = {
+{
+	.erratum = FSL_A008585,
+	.read_cntp_tval_el0 = fsl_a008585_read_cntp_tval_el0,
+	.read_cntv_tval_el0 = fsl_a008585_read_cntv_tval_el0,
+	.read_cntvct_el0 = fsl_a008585_read_cntvct_el0,
+},{
+	.erratum = HISILICON_161X01,
+	.read_cntp_tval_el0 = hisi_161x01_read_cntp_tval_el0,
+	.read_cntv_tval_el0 = hisi_161x01_read_cntv_tval_el0,
+	.read_cntvct_el0 = hisi_161x01_read_cntvct_el0,
+} };
+#endif
 
 static int arch_timer_set_next_event_virt(unsigned long evt,
 					  struct clock_event_device *clk)
@@ -335,16 +425,16 @@ static int arch_timer_set_next_event_phys_mem(unsigned long evt,
 	return 0;
 }
 
-static void fsl_a008585_set_sne(struct clock_event_device *clk)
+static void erratum_set_sne(struct clock_event_device *clk)
 {
-#ifdef CONFIG_FSL_ERRATUM_A008585
+#if IS_ENABLED(CONFIG_FSL_ERRATUM_A008585) || IS_ENABLED(CONFIG_HISILICON_ERRATUM_161X01)
 	if (!static_branch_unlikely(&arch_timer_read_ool_enabled))
 		return;
 
 	if (arch_timer_uses_ppi == VIRT_PPI)
-		clk->set_next_event = fsl_a008585_set_next_event_virt;
+		clk->set_next_event = erratum_set_next_event_virt;
 	else
-		clk->set_next_event = fsl_a008585_set_next_event_phys;
+		clk->set_next_event = erratum_set_next_event_phys;
 #endif
 }
 
@@ -377,7 +467,7 @@ static void __arch_timer_setup(unsigned type,
 			BUG();
 		}
 
-		fsl_a008585_set_sne(clk);
+		erratum_set_sne(clk);
 	} else {
 		clk->features |= CLOCK_EVT_FEAT_DYNIRQ;
 		clk->name = "arch_mem_timer";
@@ -927,12 +1017,21 @@ static int __init arch_timer_of_init(struct device_node *np)
 
 	arch_timer_c3stop = !of_property_read_bool(np, "always-on");
 
-#ifdef CONFIG_FSL_ERRATUM_A008585
-	if (fsl_a008585_enable < 0)
-		fsl_a008585_enable = of_property_read_bool(np, "fsl,erratum-a008585");
-	if (fsl_a008585_enable) {
+#if IS_ENABLED(CONFIG_FSL_ERRATUM_A008585) || IS_ENABLED(CONFIG_HISILICON_ERRATUM_161X01)
+	if (!arch_timer_uses_erratum) {
+		if (IS_ENABLED(CONFIG_FSL_ERRATUM_A008585) &&
+		    of_property_read_bool(np, "fsl,erratum-a008585"))
+			arch_timer_uses_erratum = FSL_A008585;
+		else if (IS_ENABLED(CONFIG_HISI_ERRATUM_161X01) &&
+			 of_property_read_bool(np, "hisilicon,erratum-161x01"))
+			arch_timer_uses_erratum = HISILICON_161X01;
+	}
+
+	if (arch_timer_uses_erratum) {
+		erratum_workaround = &arch_timer_erratum[arch_timer_uses_erratum - 1];
+		pr_info("Enabling workaround for %s\n", arch_timer_uses_erratum == FSL_A008585 ?
+			"FSL erratum A-008585" : "HISILICON ERRATUM 161x01");
 		static_branch_enable(&arch_timer_read_ool_enabled);
-		pr_info("Enabling workaround for FSL erratum A-008585\n");
 	}
 #endif
 
