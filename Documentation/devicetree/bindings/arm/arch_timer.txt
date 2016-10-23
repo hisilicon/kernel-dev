@@ -31,6 +31,12 @@ to deliver its interrupts via SPIs.
   This also affects writes to the tval register, due to the implicit
   counter read.
 
+- hisilicon,erratum-161x01 : A boolean property. Indicates the presence of
+  QorIQ erratum 161201, which says that reading the counter is
+  unreliable unless the small range of value is returned by back-to-back reads.
+  This also affects writes to the tval register, due to the implicit
+  counter read.
+
 ** Optional properties:
 
 - arm,cpu-registers-not-fw-configured : Firmware does not initialize
