@@ -1110,10 +1110,32 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, u64 device_id,
 	struct hisi_sas_cmd_hdr *cmd_hdr_base;
 	int dlvry_queue_slot, dlvry_queue, n_elem = 0, rc, slot_idx;
 
-	if (!device->port)
-		return -1;
+	if (!device->port) {
+		struct task_status_struct *ts = &task->task_status;
+
+		ts->resp = SAS_TASK_UNDELIVERED;
+		ts->stat = SAS_PHY_DOWN;
+		/*
+		 * libsas will use dev->port, should
+		 * not call task_done for sata
+		 */
+		if (device->dev_type != SAS_SATA_DEV)
+			task->task_done(task);
+		return 0;
+	}
 
 	port = device->port->lldd_port;
+	if (DEV_IS_GONE(sas_dev)) {
+		if (sas_dev)
+			dev_info(dev, "task prep: device %llu not ready\n",
+				 sas_dev->device_id);
+		else
+			dev_info(dev, "task prep: device %016llx not ready\n",
+				 SAS_ADDR(device->sas_addr));
+
+		rc = SAS_PHY_DOWN;
+		return rc;
+	}
 
 	/* simply get a slot and send abort command */
 	rc = hisi_sas_slot_index_alloc(hisi_hba, &slot_idx);
@@ -1165,6 +1187,10 @@ err_out_tag:
 	hisi_sas_slot_index_free(hisi_hba, slot_idx);
 err_out:
 	dev_err(dev, "internal abort task prep: failed[%d]!\n", rc);
+	if (!sas_protocol_ata(task->task_proto))
+		if (n_elem)
+			dma_unmap_sg(dev, task->scatter, n_elem,
+				     task->data_dir);
 
 	return rc;
 }
