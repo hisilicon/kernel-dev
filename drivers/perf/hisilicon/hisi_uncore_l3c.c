@@ -50,17 +50,15 @@ u64 hisi_l3c_event_update(struct perf_event *event,
 				struct hw_perf_event *hwc, int idx)
 {
 	struct hisi_pmu *pl3c_pmu = to_hisi_pmu(event->pmu);
-	struct hisi_l3c_data *l3c_hwmod_data;
-	u64 delta, prev_raw_count, new_raw_count = 0;
-	u32 cfg_en;
+	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
+	u64 delta, prev_raw_count, total_raw_count = 0, avg_raw_count = 0;
+	u32 cfg_en, num_banks = l3c_hwmod_data->l3c_hwcfg.num_banks;
 	int i;
 
 	if (!hisi_l3c_counter_valid(idx)) {
 		dev_err(pl3c_pmu->dev, "Unsupported event index:%d!\n", idx);
 		return 0;
 	}
-
-	l3c_hwmod_data = pl3c_pmu->hwmod_data;
 
 	/* Check if the L3C data is initialized for this SCCL */
 	if (!l3c_hwmod_data->client) {
@@ -70,23 +68,36 @@ u64 hisi_l3c_event_update(struct perf_event *event,
 	}
 
 	do {
-		prev_raw_count = local64_read(&hwc->prev_count);
-		for (i = 0; i < l3c_hwmod_data->l3c_hwcfg.num_banks; i++) {
+		/* Get count from individual L3C banks and sum them up */
+		for (i = 0; i < num_banks; i++) {
 			cfg_en = l3c_hwmod_data->l3c_hwcfg.bank_cfgen[i];
 
-			new_raw_count =	hisi_read_l3c_counter(l3c_hwmod_data,
+			total_raw_count += hisi_read_l3c_counter(l3c_hwmod_data,
 								      idx,
 								      cfg_en);
-			delta = (new_raw_count - prev_raw_count) &
-							HISI_MAX_PERIOD;
-
-			local64_add(delta, &event->count);
 		}
-	} while (local64_cmpxchg(
-			&hwc->prev_count, prev_raw_count, new_raw_count) !=
-								prev_raw_count);
+		prev_raw_count = local64_read(&hwc->prev_count);
 
-	return new_raw_count;
+		/*
+		 * As prev_raw_count is updated with average value of
+		 * L3 cache banks, we multiply it by no of banks and
+		 * compute the delta
+		 */
+		delta = (total_raw_count - (prev_raw_count * num_banks)) &
+								HISI_MAX_PERIOD;
+
+		local64_add(delta, &event->count);
+
+		/*
+		 * Divide by num of banks to get average count and
+		 * update prev_count with this value
+		 */
+		avg_raw_count = total_raw_count / num_banks;
+	} while (local64_cmpxchg(
+			 &hwc->prev_count, prev_raw_count, avg_raw_count) !=
+							 prev_raw_count);
+
+	return total_raw_count;
 }
 
 void hisi_set_l3c_evtype(struct hisi_pmu *pl3c_pmu, int idx, u32 val)
