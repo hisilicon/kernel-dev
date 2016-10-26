@@ -1083,4 +1083,83 @@
 			status = "disabled";
 		};
 	};
+
+	djtag0: djtag@60010000 {
+		compatible = "hisilicon,hisi-djtag-v2";
+		reg = <0x0 0x60010000 0x0 0x10000>;
+		scl-id = <0x02>;
+
+		/* L3 cache bank 0 for socket0 CPU die scl#2 */
+		pmul3c0 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x02>;
+		};
+
+		/* L3 cache bank 1 for socket0 CPU die scl#2 */
+		pmul3c1 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x04>;
+		};
+
+		/* L3 cache bank 2 for socket0 CPU die scl#2 */
+		pmul3c2 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x01>;
+		};
+
+		/* L3 cache bank 3 for socket0 CPU die scl#2 */
+		pmul3c3 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x08>;
+		};
+
+		/*
+		 * Miscellaneous node for socket0
+		 * CPU die scl#2
+		 */
+		pmumn0 {
+			compatible = "hisilicon,hisi-pmu-mn-v1";
+			module-id = <0x0b>;
+		};
+	};
+
+	djtag1: djtag@40010000 {
+		compatible = "hisilicon,hip07-cpu-djtag-v2";
+		reg = <0x0 0x40010000 0x0 0x10000>;
+		scl-id = <0x01>;
+
+		/* L3 cache bank 0 for socket0 CPU die scl#1 */
+		pmul3c0 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x02>;
+		};
+
+		/* L3 cache bank 1 for socket0 CPU die scl#1 */
+		pmul3c1 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x04>;
+		};
+
+		/* L3 cache bank 2 for socket0 CPU die scl#1 */
+		pmul3c2 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x01>;
+		};
+
+		/* L3 cache bank 3 for socket0 CPU die scl#1 */
+		pmul3c3 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x08>;
+		};
+
+		/*
+		 * Miscellaneous node for socket0
+		 * CPU die scl#1
+		 */
+		pmumn1 {
+			compatible = "hisilicon,hisi-pmu-mn-v1";
+			module-id = <0x0b>;
+		};
+	};
+
 };
