@@ -50,11 +50,12 @@ are
 
 	- event-en : Event enable value.
 
-	- module-id : Module ID to input for djtag.
+	- module-id : Module ID to input for djtag. This property is an array of
+		      module_id for each L3 cache banks.
 
 	- num-banks : Number of banks or instances of the device.
 
-	- cfgen-map : Config enable to select the bank.
+	- cfgen-map : Config enable array to select the bank.
 
 	- interrupt-parent : A phandle indicating which interrupt controller
 		this PMU signals interrupts to.
@@ -73,7 +74,8 @@ for each SCCL. For MN PMU the additional required properties are
 
 	- evctrl-reg : Event counting control register offset.
 
-	- module-id : Module ID to input for djtag.
+	- module-id : Module ID to input for djtag. As MN doesnot have multiple banks
+		      this property is a single value.
 	
 	- cfgen-map : Config enable to select the bank. For MN it is a single value
 
@@ -95,7 +97,7 @@ Example:
 			scl-id = <0x02>;
 			num-events = <0x16>;
 			num-counters = <0x08>;
-			module-id = <0x04>;
+			module-id = <0x04 0x04 0x04 0x04>;
 			num-banks = <0x04>;
 			cfgen-map = <0x02 0x04 0x01 0x08>;
 			counter-reg = <0x170>;
