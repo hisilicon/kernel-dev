@@ -759,8 +759,8 @@
 				num-banks = <0x04>;
 				cfgen-map = <0x02 0x04 0x01 0x08>;
 				counter-reg = <0x170>;
-				auctrl-reg = <0x04>;
-				auctrl-event-en = <0x1000000>;
+				evctrl-reg = <0x04>;
+				event-en = <0x1000000>;
 				evtype-reg = <0x140>;
 				interrupt-parent = <&mbigen_pc>;
 				interrupts = <141 4>,<142 4>,
