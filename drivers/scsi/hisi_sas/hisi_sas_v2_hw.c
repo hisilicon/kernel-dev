@@ -1478,6 +1478,11 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 	case SAS_PROTOCOL_SSP:
 	{
 		switch (error) {
+		case TRANS_TX_OPEN_CNX_ERR_NO_DESTINATION:
+		{
+			ts->stat = SAS_OPEN_REJECT;
+			ts->open_rej_reason = SAS_OREJ_NO_DEST;
+		}
 		case TRANS_TX_OPEN_CNX_ERR_PROTOCOL_NOT_SUPPORTED:
 		{
 			ts->stat = SAS_OPEN_REJECT;
@@ -1502,7 +1507,9 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 			ts->open_rej_reason = SAS_OREJ_WRONG_DEST;
 			break;
 		}
+		case DMA_RX_UNEXP_NORM_RESP_ERR:
 		case TRANS_TX_OPEN_CNX_ERR_ZONE_VIOLATION:
+		case DMA_RX_RESP_BUF_OVERFLOW:
 		{
 			ts->stat = SAS_OPEN_REJECT;
 			ts->open_rej_reason = SAS_OREJ_UNKNOWN;
@@ -1513,6 +1520,11 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 			/* not sure */
 			ts->stat = SAS_DEV_NO_RESPONSE;
 			break;
+		}
+		case DMA_RX_DATA_LEN_OVERFLOW:
+		{
+			ts->stat = SAS_DATA_OVERRUN;
+			ts->residual = 0;
 		}
 		case DMA_RX_DATA_LEN_UNDERFLOW:
 		{
@@ -1527,7 +1539,6 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		case TRANS_TX_OPEN_CNX_ERR_BREAK_RCVD:
 		case TRANS_TX_OPEN_CNX_ERR_PATHWAY_BLOCKED:
 		case TRANS_TX_OPEN_CNX_ERR_OPEN_TIMEOUT:
-		case TRANS_TX_OPEN_CNX_ERR_NO_DESTINATION:
 		case TRANS_TX_OPEN_RETRY_ERR_THRESHOLD_REACHED:
 		case TRANS_TX_ERR_WITH_BREAK_TIMEOUT:
 		case TRANS_TX_ERR_WITH_BREAK_REQUEST:
@@ -1565,7 +1576,6 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		case DMA_TX_XFER_OFFSET_ERR:
 		case SIPC_RX_DATA_UNDERFLOW_ERR:
 		case DMA_RX_DATA_SGL_OVERFLOW:
-		case DMA_RX_DATA_LEN_OVERFLOW:
 		case DMA_RX_DATA_OFFSET_ERR:
 		case DMA_RX_RDSETUP_LEN_ODD_ERR:
 		case DMA_RX_RDSETUP_LEN_ZERO_ERR:
@@ -1576,13 +1586,6 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 			/* This will request a retry */
 			ts->stat = SAS_QUEUE_FULL;
 			slot->abort = 1;
-			break;
-		}
-		case DMA_RX_RESP_BUF_OVERFLOW:
-		case DMA_RX_UNEXP_NORM_RESP_ERR:
-		{
-			ts->stat = SAS_OPEN_REJECT;
-			ts->open_rej_reason = SAS_OREJ_UNKNOWN;
 			break;
 		}
 		default:
@@ -1599,6 +1602,11 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
 	{
 		switch (error) {
+		case TRANS_TX_OPEN_CNX_ERR_NO_DESTINATION:
+		{
+			ts->stat = SAS_OPEN_REJECT;
+			ts->open_rej_reason = SAS_OREJ_NO_DEST;
+		}
 		case TRANS_TX_OPEN_CNX_ERR_LOW_PHY_POWER:
 		{
 			ts->resp = SAS_TASK_UNDELIVERED;
@@ -1606,21 +1614,41 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 			break;
 		}
 		case TRANS_TX_OPEN_CNX_ERR_PROTOCOL_NOT_SUPPORTED:
-		case TRANS_TX_OPEN_CNX_ERR_CONNECTION_RATE_NOT_SUPPORTED:
-		case TRANS_TX_OPEN_CNX_ERR_BAD_DESTINATION:
-		case TRANS_TX_OPEN_CNX_ERR_WRONG_DESTINATION:
-		case TRANS_TX_OPEN_CNX_ERR_ZONE_VIOLATION:
-		case TRANS_TX_OPEN_CNX_ERR_STP_RESOURCES_BUSY:
 		{
 			ts->stat = SAS_OPEN_REJECT;
+			ts->open_rej_reason = SAS_OREJ_EPROTO;
 			break;
 		}
-		case TRANS_RX_SSP_FRM_LEN_ERR:
-		case DMA_RX_RESP_BUF_OVERFLOW:
-		case DMA_RX_UNEXP_NORM_RESP_ERR:
+		case TRANS_TX_OPEN_CNX_ERR_CONNECTION_RATE_NOT_SUPPORTED:
 		{
 			ts->stat = SAS_OPEN_REJECT;
+			ts->open_rej_reason = SAS_OREJ_CONN_RATE;
 			break;
+		}
+		case TRANS_TX_OPEN_CNX_ERR_BAD_DESTINATION:
+		{
+			ts->stat = SAS_OPEN_REJECT;
+			ts->open_rej_reason = SAS_OREJ_CONN_RATE;
+			break;
+		}
+		case TRANS_TX_OPEN_CNX_ERR_WRONG_DESTINATION:
+		{
+			ts->stat = SAS_OPEN_REJECT;
+			ts->open_rej_reason = SAS_OREJ_WRONG_DEST;
+			break;
+		}
+		case DMA_RX_RESP_BUF_OVERFLOW:
+		case DMA_RX_UNEXP_NORM_RESP_ERR:
+		case TRANS_TX_OPEN_CNX_ERR_ZONE_VIOLATION:
+		{
+			ts->stat = SAS_OPEN_REJECT;
+			ts->open_rej_reason = SAS_OREJ_UNKNOWN;
+			break;
+		}
+		case DMA_RX_DATA_LEN_OVERFLOW:
+		{
+			ts->stat = SAS_DATA_OVERRUN;
+			ts->residual = 0;
 		}
 		case DMA_RX_DATA_LEN_UNDERFLOW:
 		{
@@ -1635,7 +1663,6 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		case TRANS_TX_OPEN_CNX_ERR_BREAK_RCVD:
 		case TRANS_TX_OPEN_CNX_ERR_PATHWAY_BLOCKED:
 		case TRANS_TX_OPEN_CNX_ERR_OPEN_TIMEOUT:
-		case TRANS_TX_OPEN_CNX_ERR_NO_DESTINATION:
 		case TRANS_TX_OPEN_RETRY_ERR_THRESHOLD_REACHED:
 		case TRANS_TX_ERR_WITH_BREAK_TIMEOUT:
 		case TRANS_TX_ERR_WITH_BREAK_REQUEST:
@@ -1680,7 +1707,6 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		case SIPC_RX_WRDATA_LEN_NOT_MATCH_ERR:
 		case SIPC_RX_SATA_UNEXP_FIS_ERR:
 		case DMA_RX_DATA_SGL_OVERFLOW:
-		case DMA_RX_DATA_LEN_OVERFLOW:
 		case DMA_RX_DATA_OFFSET_ERR:
 		case DMA_RX_SATA_FRAME_TYPE_ERR:
 		case DMA_RX_UNEXP_RDFRAME_ERR:
@@ -1695,6 +1721,8 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		case DMA_RX_RDSETUP_ACTIVE_ERR:
 		case DMA_RX_RDSETUP_ESTATUS_ERR:
 		case DMA_RX_UNKNOWN_FRM_ERR:
+		case TRANS_RX_SSP_FRM_LEN_ERR:
+		case TRANS_TX_OPEN_CNX_ERR_STP_RESOURCES_BUSY:
 		{
 			slot->abort = 1;
 			ts->stat = SAS_PHY_DOWN;
