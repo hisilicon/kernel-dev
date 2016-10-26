@@ -15,13 +15,20 @@ The Hisilicon SoC PMU DT node bindigs for uncore PMU devices are as below.
 For PMU devices like L3 cache. MN etc. which are accessed using the djtag,
 the parent node will be the djtag node of the corresponding CPU die(SCCL).
 
+For uncore PMU devices there are some common required properties as detailed
+below.
+
 Required properties:
 	- compatible : This field contain two values. The first value is
 		always "hisilicon" and second value is the Module type as shown
 		in below examples:
-		(a) "hisilicon,hisi-pmu-l3c" for Hisilicon SoC L3C PMU device
-		(b) "hisilicon,hisi-pmu-mn" for Hisilicon SoC MN PMU device
-		(c) "hisilicon,hisi-pmu-ddrc" for Hisilicon SoC DDRC PMU
+		(a) "hisilicon,hisi-pmu-l3c-v1" for Hisilicon SoC L3C PMU
+			device (Version 1)
+		(b) "hisilicon,hisi-pmu-mn-v1" for Hisilicon SoC MN PMU
+			device (Version 1)
+		(c) "hisilicon,hisi-pmu-ddrc-v1" for Hisilicon SoC DDRC PMU
+			device (Version 1)
+		The hip05/06/07 chips have v1 hardware for L3C, MN and DDRC.
 
 	- scl-id : The Super Cluster ID. This can be the ID of the CPU die
 		   or IO die in the chip.
@@ -30,19 +37,45 @@ Required properties:
 
 	- num-counters : No of hardware counters available for counting.
 
+L3 cache
+--------
+The L3 cache is dedicated for each SCCL and hence there are separate DT nodes
+for L3 cache for each SCCL. For L3 cache PMU the additional required properties
+are
 	- counter-reg : Counter register offset.
 
 	- evtype-reg : Event select register offset.
 
-	- evctrl-reg : Event counting control register offset.
+	- evctrl-reg : Event counting control(LAUCTRL) register offset.
 
-Optional Properties:
+	- event-en : Event enable value.
 
 	- module-id : Module ID to input for djtag.
 
 	- num-banks : Number of banks or instances of the device.
 
 	- cfgen-map : Config enable to select the bank.
+
+	- interrupt-parent : A phandle indicating which interrupt controller
+		this PMU signals interrupts to.
+
+	- interrupts : Interrupt lines used by this PMU. If the PMU has
+		multiple banks, then all IRQ lines are listed in this
+		property in the order of bank number.
+
+Miscellaneous Node
+-------------------
+The MN is dedicated for each SCCL and hence there are separate DT nodes for MN
+for each SCCL. For MN PMU the additional required properties are
+	- counter-reg : Counter register offset.
+
+	- evtype-reg : Event select register offset.
+
+	- evctrl-reg : Event counting control register offset.
+
+	- module-id : Module ID to input for djtag.
+	
+	- cfgen-map : Config enable to select the bank. For MN it is a single value
 
 	- event-en : Event enable value.
 
@@ -57,9 +90,8 @@ Example:
 
 	djtag0: djtag@0 {
 		compatible = "hisilicon,hip05-cpu-djtag-v1";
-		syscon = <&pc_sysctrl0>;
 		pmul3c0 {
-			compatible = "hisilicon,hisi-pmu-l3c";
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
 			scl-id = <0x02>;
 			num-events = <0x16>;
 			num-counters = <0x08>;
@@ -67,8 +99,8 @@ Example:
 			num-banks = <0x04>;
 			cfgen-map = <0x02 0x04 0x01 0x08>;
 			counter-reg = <0x170>;
-			auctrl-reg = <0x04>;
-			auctrl-event-en = <0x1000000>;
+			evctrl-reg = <0x04>;
+			event-en = <0x1000000>;
 			evtype-reg = <0x140>;
 			interrupt-parent = <&mbigen_pc>;
 			interrupts = <141 4>,<142 4>,
@@ -76,7 +108,7 @@ Example:
 		};
 
 		pmumn0 {
-			compatible = "hisilicon,hisi-pmu-mn";
+			compatible = "hisilicon,hisi-pmu-mn-v1";
 			scl-id = <0x02>;
 			num-events = <0x09>;
 			num-counters = <0x04>;
