@@ -497,6 +497,9 @@ static int hisi_pmu_mn_dev_probe(struct hisi_djtag_client *client)
 		goto fail;
 	}
 
+	/* Set the drv data to mn_pmu */
+	dev_set_drvdata(dev, pmn_pmu);
+
 	return 0;
 
 fail:
@@ -508,6 +511,19 @@ fail_init:
 	dev_err(pmn_pmu->dev, "%s failed\n", __func__);
 
 	return ret;
+}
+
+static int hisi_pmu_mn_dev_remove(struct hisi_djtag_client *client)
+{
+	struct hisi_pmu *pmn_pmu = NULL;
+	struct device *dev = &client->dev;
+
+	pmn_pmu = dev_get_drvdata(dev);
+
+	perf_pmu_unregister(&pmn_pmu->pmu);
+	hisi_free_mn_data(pmn_pmu);
+
+	return 0;
 }
 
 static const struct of_device_id mn_of_match[] = {
@@ -522,6 +538,7 @@ static struct hisi_djtag_driver hisi_pmu_mn_driver = {
 		.of_match_table = mn_of_match,
 	},
 	.probe = hisi_pmu_mn_dev_probe,
+	.remove = hisi_pmu_mn_dev_remove,
 };
 
 static int __init hisi_pmu_mn_init(void)
@@ -537,6 +554,12 @@ static int __init hisi_pmu_mn_init(void)
 	return 0;
 }
 module_init(hisi_pmu_mn_init);
+
+static void __exit hisi_pmu_mn_exit(void)
+{
+	hisi_djtag_unregister_driver(&hisi_pmu_mn_driver);
+}
+module_exit(hisi_pmu_mn_exit);
 
 MODULE_DESCRIPTION("HiSilicon SoC HIP0x MN PMU driver");
 MODULE_LICENSE("GPL v2");

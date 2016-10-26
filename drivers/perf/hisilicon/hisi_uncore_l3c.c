@@ -527,16 +527,30 @@ static int hisi_pmu_l3c_dev_probe(struct hisi_djtag_client *client)
 		goto fail;
 	}
 
+	/* Set the drv data to l3c_pmu */
+	dev_set_drvdata(dev, pl3c_pmu);
+
 	return 0;
 
 fail:
 	hisi_free_l3c_data(pl3c_pmu);
 
 fail_init:
-	if (pl3c_pmu)
-		devm_kfree(dev, pl3c_pmu);
 	dev_err(dev, "%s failed\n", __func__);
 	return ret;
+}
+
+static int hisi_pmu_l3c_dev_remove(struct hisi_djtag_client *client)
+{
+	struct hisi_pmu *pl3c_pmu = NULL;
+	struct device *dev = &client->dev;
+
+	pl3c_pmu = dev_get_drvdata(dev);
+
+	perf_pmu_unregister(&pl3c_pmu->pmu);
+	hisi_free_l3c_data(pl3c_pmu);
+
+	return 0;
 }
 
 static const struct of_device_id l3c_of_match[] = {
@@ -551,6 +565,7 @@ static struct hisi_djtag_driver hisi_pmu_l3c_driver = {
 		.of_match_table = l3c_of_match,
 	},
 	.probe = hisi_pmu_l3c_dev_probe,
+	.remove = hisi_pmu_l3c_dev_remove,
 };
 
 static int __init hisi_pmu_l3c_init(void)
@@ -566,6 +581,13 @@ static int __init hisi_pmu_l3c_init(void)
 	return 0;
 }
 module_init(hisi_pmu_l3c_init);
+
+static void __exit hisi_pmu_l3c_exit(void)
+{
+	hisi_djtag_unregister_driver(&hisi_pmu_l3c_driver);
+
+}
+module_exit(hisi_pmu_l3c_exit);
 
 MODULE_DESCRIPTION("HiSilicon SoC HIP0x L3C PMU driver");
 MODULE_LICENSE("GPL v2");

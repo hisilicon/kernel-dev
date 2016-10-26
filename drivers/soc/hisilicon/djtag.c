@@ -360,6 +360,33 @@ static int hisi_djtag_device_probe(struct device *dev)
 	return 0;
 }
 
+static int hisi_djtag_device_remove(struct device *dev)
+{
+	struct hisi_djtag_driver *driver;
+	struct hisi_djtag_client *client;
+	int rc;
+
+	client = hisi_djtag_verify_client(dev);
+	if (!client) {
+		dev_err(dev, "could not find client\n");
+		return -ENODEV;
+	}
+
+	driver = to_hisi_djtag_driver(dev->driver);
+	if (!driver) {
+		dev_err(dev, "could not find driver\n");
+		return -ENODEV;
+	}
+
+	rc = driver->remove(client);
+	if (rc < 0) {
+		dev_err(dev, "client probe failed\n");
+		return rc;
+	}
+
+	return 0;
+}
+
 static int hisi_djtag_device_match(struct device *dev,
 					struct device_driver *drv)
 {
@@ -383,6 +410,7 @@ struct bus_type hisi_djtag_bus = {
 	.name		= "hisi-djtag",
 	.match		= hisi_djtag_device_match,
 	.probe		= hisi_djtag_device_probe,
+	.remove		= hisi_djtag_device_remove,
 };
 
 struct hisi_djtag_client *hisi_djtag_new_device(struct hisi_djtag_host *host,
@@ -435,6 +463,7 @@ static struct hisi_djtag_client *hisi_djtag_of_register_device(
 static void djtag_register_devices(struct hisi_djtag_host *host)
 {
 	struct device_node *node;
+	struct hisi_djtag_client *client;
 
 	if (!host->of_node)
 		return;
@@ -442,10 +471,8 @@ static void djtag_register_devices(struct hisi_djtag_host *host)
 	for_each_available_child_of_node(host->of_node, node) {
 		if (of_node_test_and_set_flag(node, OF_POPULATED))
 			continue;
-		hisi_djtag_of_register_device(host, node);
-		/* TODO: we probably need to add the client
-		 * to a list for the host
-		 */
+		client = hisi_djtag_of_register_device(host, node);
+		list_add(&client->next, &host->client_list);
 	}
 }
 
@@ -522,6 +549,25 @@ static int djtag_host_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int djtag_host_remove(struct platform_device *pdev)
+{
+	struct hisi_djtag_host *host;
+	struct hisi_djtag_client *client, *tmp;
+	struct list_head *client_list;
+
+	host = platform_get_drvdata(pdev);
+	client_list = &host->client_list;
+
+	list_for_each_entry_safe(client, tmp, client_list, next) {
+		list_del(&client->next);
+		kfree(client);
+	}
+
+	device_unregister(&host->dev);
+	kfree(host);
+
+	return 0;
+}
 
 static struct platform_driver djtag_dev_driver = {
 	.driver = {
@@ -529,8 +575,8 @@ static struct platform_driver djtag_dev_driver = {
 		.of_match_table = djtag_of_match,
 	},
 	.probe = djtag_host_probe,
+	.remove = djtag_host_remove,
 };
-
 module_platform_driver(djtag_dev_driver);
 
 int hisi_djtag_register_driver(struct module *owner,
@@ -548,6 +594,12 @@ int hisi_djtag_register_driver(struct module *owner,
 	return rc;
 }
 
+void hisi_djtag_unregister_driver(struct hisi_djtag_driver *driver)
+{
+	driver->driver.bus = &hisi_djtag_bus;
+	driver_unregister(&driver->driver);
+}
+
 static int __init hisi_djtag_init(void)
 {
 	int rc;
@@ -561,6 +613,12 @@ static int __init hisi_djtag_init(void)
 	return 0;
 }
 module_init(hisi_djtag_init);
+
+static void __exit hisi_djtag_exit(void)
+{
+	bus_unregister(&hisi_djtag_bus);
+}
+module_exit(hisi_djtag_exit);
 
 MODULE_DESCRIPTION("Hisilicon djtag driver");
 MODULE_LICENSE("GPL");
