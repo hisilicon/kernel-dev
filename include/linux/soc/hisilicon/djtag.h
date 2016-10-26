@@ -15,6 +15,7 @@
 
 struct hisi_djtag_client {
 	struct hisi_djtag_host *host;
+	struct list_head next;
 	char name[DJTAG_CLIENT_NAME_LEN];
 	struct device dev;
 };
@@ -22,11 +23,13 @@ struct hisi_djtag_client {
 struct hisi_djtag_driver {
 	struct device_driver driver;
 	int (*probe)(struct hisi_djtag_client *);
+	int (*remove)(struct hisi_djtag_client *);
 };
 
 extern struct bus_type hisi_djtag_bus;
 
 int hisi_djtag_register_driver(struct module *, struct hisi_djtag_driver *);
+void hisi_djtag_unregister_driver(struct hisi_djtag_driver *);
 int hisi_djtag_readl(struct hisi_djtag_client *, u32, u32, int, u32 *);
 int hisi_djtag_writel(struct hisi_djtag_client *, u32, u32, u32, u32);
 #endif /* __HISI_DJTAG_H */
