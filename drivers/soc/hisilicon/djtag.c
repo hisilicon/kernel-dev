@@ -59,8 +59,11 @@
 
 #define DJTAG_PREFIX "hisi-djtag-dev-"
 
+DEFINE_IDR(djtag_hosts_idr);
+
 struct hisi_djtag_host {
 	spinlock_t lock;
+	int dev_id;
 	struct device dev;
 	struct list_head client_list;
 	void __iomem *sysctl_reg_map;
@@ -479,14 +482,23 @@ static void djtag_register_devices(struct hisi_djtag_host *host)
 static int hisi_djtag_add_host(struct hisi_djtag_host *host)
 {
 	int rc;
-	static int count;
 
 	host->dev.bus = &hisi_djtag_bus;
-	dev_set_name(&host->dev, "djtag-host-%d", count++);
+
+	rc = idr_alloc(&djtag_hosts_idr, host, 0, 0, GFP_KERNEL);
+        if (rc < 0) {
+                dev_err(&host->dev, "No available djtag host ID'!s\n");
+                return rc;
+        }
+        host->dev_id = rc;
+
+	/* Suffix the unique ID and set djtag hostname */
+	dev_set_name(&host->dev, "djtag-host-%d", host->dev_id);
 	rc = device_register(&host->dev);
 	if (rc < 0) {
 		dev_err(&host->dev, "add_host dev register failed, rc=%d\n",
 									rc);
+		idr_remove(&djtag_hosts_idr, host->dev_id);
 		return rc;
 	}
 
@@ -564,6 +576,7 @@ static int djtag_host_remove(struct platform_device *pdev)
 	}
 
 	device_unregister(&host->dev);
+	idr_remove(&djtag_hosts_idr, host->dev_id);
 	kfree(host);
 
 	return 0;
