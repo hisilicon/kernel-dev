@@ -32,16 +32,17 @@ static inline int hisi_l3c_counter_valid(int idx)
 }
 
 static u32 hisi_read_l3c_counter(struct hisi_l3c_data *l3c_hwmod_data,
-								int idx,
-								int bank)
+						int cntr_idx, int bank_idx)
 {
 	struct hisi_djtag_client *client = l3c_hwmod_data->client;
-	u32 module_id = l3c_hwmod_data->l3c_hwcfg.module_id;
+	u32 module_id = l3c_hwmod_data->l3c_hwcfg.module_id[bank_idx];
+	u32 cfg_en = l3c_hwmod_data->l3c_hwcfg.bank_cfgen[bank_idx];
 	u32 reg_offset, value;
 
-	reg_offset = l3c_hwmod_data->l3c_hwcfg.counter_reg0_off + (idx * 4);
+	reg_offset = l3c_hwmod_data->l3c_hwcfg.counter_reg0_off +
+							(cntr_idx * 4);
 
-	hisi_djtag_readreg(module_id, bank, reg_offset, client, &value);
+	hisi_djtag_readreg(module_id, cfg_en, reg_offset, client, &value);
 
 	return value;
 }
@@ -52,7 +53,7 @@ u64 hisi_l3c_event_update(struct perf_event *event,
 	struct hisi_pmu *pl3c_pmu = to_hisi_pmu(event->pmu);
 	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
 	u64 delta, prev_raw_count, total_raw_count = 0, avg_raw_count = 0;
-	u32 cfg_en, num_banks = l3c_hwmod_data->l3c_hwcfg.num_banks;
+	u32 num_banks = l3c_hwmod_data->l3c_hwcfg.num_banks;
 	int i;
 
 	if (!hisi_l3c_counter_valid(idx)) {
@@ -70,11 +71,8 @@ u64 hisi_l3c_event_update(struct perf_event *event,
 	do {
 		/* Get count from individual L3C banks and sum them up */
 		for (i = 0; i < num_banks; i++) {
-			cfg_en = l3c_hwmod_data->l3c_hwcfg.bank_cfgen[i];
-
 			total_raw_count += hisi_read_l3c_counter(l3c_hwmod_data,
-								      idx,
-								      cfg_en);
+									idx, i);
 		}
 		prev_raw_count = local64_read(&hwc->prev_count);
 
@@ -105,9 +103,8 @@ void hisi_set_l3c_evtype(struct hisi_pmu *pl3c_pmu, int idx, u32 val)
 	struct hisi_djtag_client *client;
 	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
 	u32 reg_offset = l3c_hwmod_data->l3c_hwcfg.evtype_reg0_off;
-	u32 module_id = l3c_hwmod_data->l3c_hwcfg.module_id;
 	u32 event_value, value = 0;
-	u32 cfg_en;
+	u32 cfg_en, module_id;
 	int i;
 
 	event_value = (val -
@@ -128,6 +125,7 @@ void hisi_set_l3c_evtype(struct hisi_pmu *pl3c_pmu, int idx, u32 val)
 	 * for all L3C banks
 	 */
 	for (i = 0; i < l3c_hwmod_data->l3c_hwcfg.num_banks; i++) {
+		module_id = l3c_hwmod_data->l3c_hwcfg.module_id[i];
 		cfg_en = l3c_hwmod_data->l3c_hwcfg.bank_cfgen[i];
 		hisi_djtag_readreg(module_id,
 				cfg_en,
@@ -150,8 +148,7 @@ u32 hisi_write_l3c_counter(struct hisi_pmu *pl3c_pmu,
 {
 	struct hisi_djtag_client *client;
 	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
-	u32 module_id = l3c_hwmod_data->l3c_hwcfg.module_id;
-	u32 reg_offset, cfg_en;
+	u32 reg_offset, cfg_en, module_id;
 	int i, ret = 0;
 	int idx = GET_CNTR_IDX(hwc);
 
@@ -167,6 +164,7 @@ u32 hisi_write_l3c_counter(struct hisi_pmu *pl3c_pmu,
 	client = l3c_hwmod_data->client;
 
 	for (i = 0; i < l3c_hwmod_data->l3c_hwcfg.num_banks; i++) {
+		module_id = l3c_hwmod_data->l3c_hwcfg.module_id[i];
 		cfg_en = l3c_hwmod_data->l3c_hwcfg.bank_cfgen[i];
 		ret = hisi_djtag_writereg(module_id,
 					cfg_en,
@@ -185,9 +183,8 @@ void hisi_enable_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx)
 	struct hisi_djtag_client *client;
 	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
 	u32 reg_offset = l3c_hwmod_data->l3c_hwcfg.event_ctrl_reg_off;
-	u32 module_id = l3c_hwmod_data->l3c_hwcfg.module_id;
 	u32 eventen = l3c_hwmod_data->l3c_hwcfg.event_enable;
-	u32 value, cfg_en;
+	u32 value, cfg_en, module_id;
 	int i;
 
 	if (!hisi_l3c_counter_valid(idx)) {
@@ -203,6 +200,7 @@ void hisi_enable_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx)
 	 * for all L3C banks
 	 */
 	for (i = 0; i < l3c_hwmod_data->l3c_hwcfg.num_banks; i++) {
+		module_id = l3c_hwmod_data->l3c_hwcfg.module_id[i];
 		cfg_en = l3c_hwmod_data->l3c_hwcfg.bank_cfgen[i];
 		hisi_djtag_readreg(module_id,
 				cfg_en,
@@ -223,9 +221,8 @@ void hisi_disable_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx)
 	struct hisi_djtag_client *client;
 	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
 	u32 reg_offset = l3c_hwmod_data->l3c_hwcfg.event_ctrl_reg_off;
-	u32 module_id = l3c_hwmod_data->l3c_hwcfg.module_id;
 	u32 eventen = l3c_hwmod_data->l3c_hwcfg.event_enable;
-	u32 value, cfg_en;
+	u32 value, cfg_en, module_id;
 	int i;
 
 	if (!hisi_l3c_counter_valid(idx)) {
@@ -242,6 +239,7 @@ void hisi_disable_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx)
 	 * event counting for all L3C banks
 	 */
 	for (i = 0; i < l3c_hwmod_data->l3c_hwcfg.num_banks; i++) {
+		module_id = l3c_hwmod_data->l3c_hwcfg.module_id[i];
 		cfg_en = l3c_hwmod_data->l3c_hwcfg.bank_cfgen[i];
 		hisi_djtag_readreg(module_id,
 				cfg_en,
@@ -263,9 +261,8 @@ void hisi_clear_l3c_event_idx(struct hisi_pmu *pl3c_pmu,
 	struct hisi_djtag_client *client;
 	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
 	u32 reg_offset = l3c_hwmod_data->l3c_hwcfg.evtype_reg0_off;
-	u32 module_id = l3c_hwmod_data->l3c_hwcfg.module_id;
 	void *bitmap_addr;
-	u32 cfg_en, value;
+	u32 cfg_en, value, module_id;
 	int i;
 
 	if (!hisi_l3c_counter_valid(idx)) {
@@ -289,8 +286,8 @@ void hisi_clear_l3c_event_idx(struct hisi_pmu *pl3c_pmu,
 	 * for all L3C banks
 	 */
 	for (i = 0; i < l3c_hwmod_data->l3c_hwcfg.num_banks; i++) {
+		module_id = l3c_hwmod_data->l3c_hwcfg.module_id[i];
 		cfg_en = l3c_hwmod_data->l3c_hwcfg.bank_cfgen[i];
-
 		hisi_djtag_readreg(module_id,
 				cfg_en,
 				reg_offset,
@@ -336,42 +333,70 @@ static int init_hisi_l3c_hwcfg(struct device *dev,
 {
 	struct hisi_l3c_hwcfg *pl3c_hwcfg = &pl3c_data->l3c_hwcfg;
 	struct device_node *node = dev->of_node;
-	const u32 *cfgen_map = NULL;
-	u32 cfgen_map_len;
+	u32 prop_len;
+	int ret;
 
 	if (of_property_read_u32(node, "counter-reg",
-				     &pl3c_hwcfg->counter_reg0_off))
-		goto fail;
+				     &pl3c_hwcfg->counter_reg0_off)) {
+		dev_err(dev, "DT:Couldnot read counter-reg!\n");
+		return -EINVAL;
+	}
 
 	if (of_property_read_u32(node, "evctrl-reg",
-				     &pl3c_hwcfg->event_ctrl_reg_off))
-		goto fail;
+				     &pl3c_hwcfg->event_ctrl_reg_off)) {
+		dev_err(dev, "DT:Couldnot read evctrl-reg!\n");
+		return -EINVAL;
+	}
 
 	if (of_property_read_u32(node, "event-en",
-				     &pl3c_hwcfg->event_enable))
-		goto fail;
+				     &pl3c_hwcfg->event_enable)) {
+		dev_err(dev, "DT:Couldnot read event-en!\n");
+		return -EINVAL;
+	}
 
 	if (of_property_read_u32(node, "evtype-reg",
-				     &pl3c_hwcfg->evtype_reg0_off))
-		goto fail;
+				     &pl3c_hwcfg->evtype_reg0_off)) {
+		dev_err(dev, "DT:Couldnot read evtype-reg!\n");
+		return -EINVAL;
+	}
 
 	if (of_property_read_u32(node, "num-banks",
-				     &pl3c_hwcfg->num_banks))
-		goto fail;
+				     &pl3c_hwcfg->num_banks)) {
+		dev_err(dev, "DT:Couldnot read num-banks!\n");
+		return -EINVAL;
+	}
 
-	if (of_property_read_u32(node, "module-id",
-				     &pl3c_hwcfg->module_id))
-		goto fail;
+	prop_len = of_property_count_u32_elems(node, "module-id");
+	if (prop_len != pl3c_hwcfg->num_banks) {
+		dev_err(dev, "DT:module-id property doesnot have"
+						" required elements!\n");
+		return -EINVAL;
+	}
 
-	cfgen_map = of_get_property(node, "cfgen-map", &cfgen_map_len);
-	of_property_read_u32_array(node, "cfgen-map",
+	ret = of_property_read_u32_array(node, "module-id",
+					  &pl3c_hwcfg->module_id[0],
+						  pl3c_hwcfg->num_banks);
+	if (ret < 0) {
+		dev_err(dev, "DT:Couldnot read module-id!\n");
+		return -EINVAL;
+	}
+
+	prop_len = of_property_count_u32_elems(node, "cfgen-map");
+	if (prop_len != pl3c_hwcfg->num_banks) {
+		dev_err(dev, "DT:cfgen-map property doesnot have"
+						" required elements!\n");
+		return -EINVAL;
+	}
+
+	ret = of_property_read_u32_array(node, "cfgen-map",
 					&pl3c_hwcfg->bank_cfgen[0],
-					pl3c_hwcfg->num_banks);
-	return 0;
+						pl3c_hwcfg->num_banks);
+	if (ret < 0) {
+		dev_err(dev, "DT:Couldnot read cfgen-map!\n");
+		return -EINVAL;
+	}
 
-fail:
-	dev_err(dev, "Fail to read DT properties!\n");
-	return -EINVAL;
+	return 0;
 }
 
 static int init_hisi_l3c_data(struct device *dev,
