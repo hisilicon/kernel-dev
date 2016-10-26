@@ -52,7 +52,7 @@ struct hisi_l3c_hwcfg {
 	u32 counter_reg0_off;
 	u32 event_ctrl_reg_off;
 	u32 event_enable;
-	u32 module_id;
+	u32 module_id[MAX_BANKS];
 	u32 num_banks;
 	u32 bank_cfgen[MAX_BANKS];
 };
