@@ -209,6 +209,7 @@
 #define RX_IDAF_DWORD5			(PORT_BASE + 0xd8)
 #define RX_IDAF_DWORD6			(PORT_BASE + 0xdc)
 #define RXOP_CHECK_CFG_H		(PORT_BASE + 0xfc)
+#define CON_CONTROL				(PORT_BASE + 0x118)
 #define DONE_RECEIVED_TIME		(PORT_BASE + 0x11c)
 #define CHL_INT0			(PORT_BASE + 0x1b4)
 #define CHL_INT0_HOTPLUG_TOUT_OFF	0
@@ -541,6 +542,8 @@ enum {
 #define SATA_PROTOCOL_DMA		0x4
 #define SATA_PROTOCOL_FPDMA		0x8
 #define SATA_PROTOCOL_ATAPI		0x10
+
+static void hisi_sas_link_timeout_disable_link(unsigned long data);
 
 static u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
 {
@@ -994,6 +997,50 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 
 	hisi_sas_write32(hisi_hba, SATA_INITI_D2H_STORE_ADDR_HI,
 			 upper_32_bits(hisi_hba->initial_fis_dma));
+}
+
+static void hisi_sas_link_timeout_enable_link(unsigned long data)
+{
+	struct hisi_hba *hisi_hba = (struct hisi_hba *)data;
+	int i, reg_val;
+
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		reg_val = hisi_sas_phy_read32(hisi_hba, i, CON_CONTROL);
+		if (!(reg_val & BIT(0))) {
+			hisi_sas_phy_write32(hisi_hba, i,
+					CON_CONTROL, 0x7);
+			break;
+		}
+	}
+
+	hisi_hba->timer.function = hisi_sas_link_timeout_disable_link;
+	mod_timer(&hisi_hba->timer, jiffies + msecs_to_jiffies(900));
+}
+
+static void hisi_sas_link_timeout_disable_link(unsigned long data)
+{
+	struct hisi_hba *hisi_hba = (struct hisi_hba *)data;
+	int i, reg_val;
+
+	reg_val = hisi_sas_read32(hisi_hba, PHY_STATE);
+	for (i = 0; i < hisi_hba->n_phy && reg_val; i++) {
+		if (reg_val & BIT(i)) {
+			hisi_sas_phy_write32(hisi_hba, i,
+					CON_CONTROL, 0x6);
+			break;
+		}
+	}
+
+	hisi_hba->timer.function = hisi_sas_link_timeout_enable_link;
+	mod_timer(&hisi_hba->timer, jiffies + msecs_to_jiffies(100));
+}
+
+static void set_link_timer_quirk(struct hisi_hba *hisi_hba)
+{
+	hisi_hba->timer.data = (unsigned long)hisi_hba;
+	hisi_hba->timer.function = hisi_sas_link_timeout_disable_link;
+	hisi_hba->timer.expires = jiffies + msecs_to_jiffies(1000);
+	add_timer(&hisi_hba->timer);
 }
 
 static int hw_init_v2_hw(struct hisi_hba *hisi_hba)
@@ -2160,9 +2207,12 @@ static int phy_up_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	if (phy->identify.device_type == SAS_END_DEVICE)
 		phy->identify.target_port_protocols =
 			SAS_PROTOCOL_SSP;
-	else if (phy->identify.device_type != SAS_PHY_UNUSED)
+	else if (phy->identify.device_type != SAS_PHY_UNUSED) {
 		phy->identify.target_port_protocols =
 			SAS_PROTOCOL_SMP;
+		if (!timer_pending(&hisi_hba->timer))
+			set_link_timer_quirk(hisi_hba);
+	}
 	queue_work(hisi_hba->wq, &phy->phyup_ws);
 
 end:
@@ -2173,10 +2223,48 @@ end:
 	return res;
 }
 
+static int get_port_id07_v2_hw(u32 phy_port_num_ma, u32 phy_state,
+		int phy_no)
+{
+	return (phy_state & 1 << phy_no) ?
+			(phy_port_num_ma >> (phy_no * 4)) & 0xf : 0xff;
+}
+
+static bool check_any_wideports_v2_hw(struct hisi_hba *hisi_hba)
+{
+	u32 phy_port_num_ma = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA);
+	u32 phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
+	int previous = get_port_id07_v2_hw(phy_port_num_ma, phy_state, 0);
+	int i;
+
+	for (i = 0; i < (hisi_hba->n_phy < 9 ? hisi_hba->n_phy : 8); i++) {
+		int port_id = get_port_id07_v2_hw(phy_port_num_ma,
+				phy_state, i);
+
+		if (previous == port_id && previous != 0xff)
+			return true;
+		previous = port_id;
+	}
+
+	if (hisi_hba->n_phy == 9) {
+		u32 port_state = hisi_sas_read32(hisi_hba, PORT_STATE);
+
+		if (phy_state & 1 << 8)
+			if (((port_state & PORT_STATE_PHY8_PORT_NUM_MSK) >>
+				PORT_STATE_PHY8_PORT_NUM_OFF) == previous)
+				return true;
+	}
+
+	return false;
+}
+
 static int phy_down_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 {
 	int res = 0;
 	u32 phy_state, sl_ctrl, txid_auto;
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct hisi_sas_port *port = phy->port;
+	int port_id = port->id;
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 1);
 
@@ -2186,6 +2274,10 @@ static int phy_down_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	sl_ctrl = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL,
 			     sl_ctrl & ~SL_CONTROL_CTA_MSK);
+	if (!get_wideport_bitmap_v2_hw(hisi_hba, port_id))
+		if (!check_any_wideports_v2_hw(hisi_hba) &&
+				timer_pending(&hisi_hba->timer))
+			del_timer(&hisi_hba->timer);
 
 	txid_auto = hisi_sas_phy_read32(hisi_hba, phy_no, TXID_AUTO);
 	hisi_sas_phy_write32(hisi_hba, phy_no, TXID_AUTO,
