@@ -361,7 +361,7 @@ static void sas_destruct_devices(struct work_struct *work)
 
 	clear_bit(DISCE_DESTRUCT, &port->disc.pending);
 
-	list_for_each_entry_safe(dev, n, &port->destroy_list, disco_list_node) {
+	list_for_each_entry_safe(dev, n, &port->dev_destroy_list, disco_list_node) {
 		list_del_init(&dev->disco_list_node);
 
 		sas_remove_children(&dev->rphy->dev);
@@ -383,7 +383,7 @@ void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *dev)
 
 	if (!test_and_set_bit(SAS_DEV_DESTROY, &dev->state)) {
 		sas_rphy_unlink(dev->rphy);
-		list_move_tail(&dev->disco_list_node, &port->destroy_list);
+		list_move_tail(&dev->disco_list_node, &port->dev_destroy_list);
 		sas_discover_event(dev->port, DISCE_DESTRUCT);
 	}
 }
@@ -525,6 +525,28 @@ static void sas_revalidate_domain(struct work_struct *work)
 	mutex_unlock(&ha->disco_mutex);
 }
 
+/* ---------- Async Port destruct ---------- */
+static void sas_async_port_destruct(struct work_struct *work)
+{
+	struct sas_discovery_event *ev = to_sas_discovery_event(work);
+	struct asd_sas_port *port = ev->port;
+	struct sas_port *sas_port, *n;
+
+	clear_bit(DISCE_PORT_DESTRUCT, &port->disc.pending);
+
+	list_for_each_entry_safe(sas_port, n, &port->port_destroy_list, destroy_list) {
+		list_del_init(&port->port_destroy_list);
+
+		sas_port_delete(sas_port);
+	}
+}
+
+void sas_port_destruct(struct asd_sas_port *port, struct sas_port *sas_port)
+{
+	list_move_tail(&sas_port->destroy_list, &port->port_destroy_list);
+	sas_discover_event(port, DISCE_PORT_DESTRUCT);
+}
+
 /* ---------- Events ---------- */
 
 static void sas_chain_work(struct sas_ha_struct *ha, struct sas_work *sw)
@@ -582,6 +604,7 @@ void sas_init_disc(struct sas_discovery *disc, struct asd_sas_port *port)
 		[DISCE_SUSPEND] = sas_suspend_devices,
 		[DISCE_RESUME] = sas_resume_devices,
 		[DISCE_DESTRUCT] = sas_destruct_devices,
+		[DISCE_PORT_DESTRUCT] = sas_async_port_destruct,
 	};
 
 	disc->pending = 0;
