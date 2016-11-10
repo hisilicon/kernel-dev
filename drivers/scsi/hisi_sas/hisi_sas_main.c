@@ -73,6 +73,8 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 			     struct hisi_sas_slot *slot)
 {
 	struct device *dev = &hisi_hba->pdev->dev;
+	struct domain_device *device = task->dev;
+	struct hisi_sas_device *sas_dev = device->lldd_dev;
 
 	if (!slot->task)
 		return;
@@ -113,8 +115,10 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 	task->lldd_task = NULL;
 	slot->task = NULL;
 	slot->port = NULL;
-	hisi_sas_slot_index_free(hisi_hba, slot->idx);
 	/* slot memory is fully zeroed when it is reused */
+	hisi_sas_slot_index_free(hisi_hba, slot->idx);
+	if (sas_dev)
+		atomic64_dec(&sas_dev->running_req);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_slot_task_free);
 
@@ -159,7 +163,6 @@ static void hisi_sas_slot_abort(struct work_struct *work)
 	struct scsi_cmnd *cmnd = task->uldd_task;
 	struct hisi_sas_tmf_task tmf_task;
 	struct domain_device *device = task->dev;
-	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct scsi_lun lun;
 	struct device *dev = &hisi_hba->pdev->dev;
 	int tag = abort_slot->idx;
@@ -189,8 +192,6 @@ static void hisi_sas_slot_abort(struct work_struct *work)
 	hisi_sas_slot_task_free(hisi_hba, task, abort_slot);
 	if (task->task_done)
 		task->task_done(task);
-	if (sas_dev)
-		atomic64_dec(&sas_dev->running_req);
 }
 
 static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
