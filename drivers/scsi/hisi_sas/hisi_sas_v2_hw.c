@@ -3000,6 +3000,12 @@ static int hisi_sas_v2_probe(struct platform_device *pdev)
 
 static int hisi_sas_v2_remove(struct platform_device *pdev)
 {
+	struct sas_ha_struct *sha = platform_get_drvdata(pdev);
+	struct hisi_hba *hisi_hba = sha->lldd_ha;
+
+	if (timer_pending(&hisi_hba->timer))
+		del_timer(&hisi_hba->timer);
+
 	return hisi_sas_remove(pdev);
 }
 
