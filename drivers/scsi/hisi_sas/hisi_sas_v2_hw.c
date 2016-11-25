@@ -2278,20 +2278,47 @@ static irqreturn_t int_phy_updown_v2_hw(int irq_no, void *p)
 		   >> HGC_INVLD_DQE_INFO_FB_CH0_OFF) & 0x1ff;
 	while (irq_msk) {
 		if (irq_msk  & 1) {
-			u32 irq_value = hisi_sas_phy_read32(hisi_hba, phy_no,
-							    CHL_INT0);
+			u32 reg_value = hisi_sas_phy_read32(hisi_hba, phy_no,
+					    CHL_INT0);
 
-			if (irq_value & CHL_INT0_SL_PHY_ENABLE_MSK)
+			switch (reg_value & (CHL_INT0_NOT_RDY_MSK |
+					CHL_INT0_SL_PHY_ENABLE_MSK)) {
+
+			case CHL_INT0_SL_PHY_ENABLE_MSK:
 				/* phy up */
 				if (phy_up_v2_hw(phy_no, hisi_hba) ==
 				    IRQ_NONE)
 					return IRQ_NONE;
+				break;
 
-			if (irq_value & CHL_INT0_NOT_RDY_MSK)
+			case CHL_INT0_NOT_RDY_MSK:
 				/* phy down */
 				if (phy_down_v2_hw(phy_no, hisi_hba) ==
 				    IRQ_NONE)
 					return IRQ_NONE;
+				break;
+
+			case (CHL_INT0_NOT_RDY_MSK |
+					CHL_INT0_SL_PHY_ENABLE_MSK):
+				reg_value = hisi_sas_read32(hisi_hba,
+						PHY_STATE);
+				if (reg_value & BIT(phy_no)) {
+					/* phy up */
+					if (phy_up_v2_hw(phy_no, hisi_hba) ==
+					    IRQ_NONE)
+						return IRQ_NONE;
+				} else {
+					/* phy down */
+					if (phy_down_v2_hw(phy_no, hisi_hba) ==
+					    IRQ_NONE)
+						return IRQ_NONE;
+				}
+				break;
+
+			default:
+				break;
+			}
+
 		}
 		irq_msk >>= 1;
 		phy_no++;
