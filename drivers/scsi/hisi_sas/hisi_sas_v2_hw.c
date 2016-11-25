@@ -2221,37 +2221,13 @@ end:
 	return res;
 }
 
-static int get_port_id07_v2_hw(u32 phy_port_num_ma, u32 phy_state,
-		int phy_no)
-{
-	return (phy_state & 1 << phy_no) ?
-			(phy_port_num_ma >> (phy_no * 4)) & 0xf : 0xff;
-}
-
 static bool check_any_wideports_v2_hw(struct hisi_hba *hisi_hba)
 {
-	u32 phy_port_num_ma = hisi_sas_read32(hisi_hba, PHY_PORT_NUM_MA);
-	u32 phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
-	int previous = get_port_id07_v2_hw(phy_port_num_ma, phy_state, 0);
-	int i;
+	u32 port_state;
 
-	for (i = 0; i < (hisi_hba->n_phy < 9 ? hisi_hba->n_phy : 8); i++) {
-		int port_id = get_port_id07_v2_hw(phy_port_num_ma,
-				phy_state, i);
-
-		if (previous == port_id && previous != 0xff)
-			return true;
-		previous = port_id;
-	}
-
-	if (hisi_hba->n_phy == 9) {
-		u32 port_state = hisi_sas_read32(hisi_hba, PORT_STATE);
-
-		if (phy_state & 1 << 8)
-			if (((port_state & PORT_STATE_PHY8_PORT_NUM_MSK) >>
-				PORT_STATE_PHY8_PORT_NUM_OFF) == previous)
-				return true;
-	}
+	port_state = hisi_sas_read32(hisi_hba, PORT_STATE);
+	if (port_state & 0x1ff)
+		return true;
 
 	return false;
 }
