@@ -10,11 +10,13 @@ Hisilicon HiP05/06 djtag for CPU and HiP05 IO die
 Required properties:
   - compatible : "hisilicon,hisi-djtag-v1"
   - reg : Register address and size
+  - scl-id : The Super Cluster ID for CPU or IO die
 
 Hisilicon HiP06 djtag for IO die and HiP07 djtag for CPU and IO die
 Required properties:
   - compatible : "hisilicon,hisi-djtag-v2"
   - reg : Register address and size
+  - scl-id : The Super Cluster ID for CPU or IO die
 
 Example 1: Djtag for CPU die
 
@@ -22,8 +24,34 @@ Example 1: Djtag for CPU die
 	djtag0: djtag@80010000 {
 		compatible = "hisilicon,hisi-djtag-v1";
 		reg = <0x0 0x80010000 0x0 0x10000>;
+		scl-id = <0x02>;
 
 		/* All connecting components will appear as child nodes */
+
+		pmul3c0 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x02>;
+		};
+
+		pmul3c1 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x04>;
+		};
+
+		pmul3c2 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x01>;
+		};
+
+		pmul3c3 {
+			compatible = "hisilicon,hisi-pmu-l3c-v1";
+			module-id = <0x04 0x08>;
+		};
+
+		pmumn0 {
+			compatible = "hisilicon,hisi-pmu-mn-v1";
+			module-id = <0x0b>;
+		};
 	};
 
 Example 2: Djtag for IO die
@@ -32,6 +60,7 @@ Example 2: Djtag for IO die
 	djtag1: djtag@d0000000 {
 		compatible = "hisilicon,hisi-djtag-v1";
 		reg = <0x0 0xd0000000 0x0 0x10000>;
+		scl-id = <0x01>;
 
 		/* All connecting components will appear as child nodes */
 	};
