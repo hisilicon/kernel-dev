@@ -27,9 +27,9 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/soc/hisilicon/djtag.h>
 #include <linux/types.h>
 #include <asm/local64.h>
+#include "djtag.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt)     "hisi_pmu: " fmt

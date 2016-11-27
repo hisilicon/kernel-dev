@@ -20,7 +20,7 @@
 #include <linux/spinlock.h>
 
 #include <asm-generic/delay.h>
-#include <linux/soc/hisilicon/djtag.h>
+#include "djtag.h"
 
 #define SC_DJTAG_TIMEOUT		100000	/* 100ms */
 
