@@ -14,23 +14,10 @@
 #include <linux/pci-acpi.h>
 #include <linux/pci-ecam.h>
 
-#define DEBUG0				0x728
-#define PCIE_LTSSM_LINKUP_STATE		0x11
-#define PCIE_LTSSM_STATE_MASK		0x3F
-
 static const struct acpi_device_id hisi_pcie_rc_res_ids[] = {
 	{"HISI0081", 0},
 	{"", 0},
 };
-
-static int hisi_pcie_link_up_acpi(struct pci_config_window *cfg)
-{
-	u32 val;
-	void __iomem *reg_base = cfg->priv;
-
-	val = readl(reg_base + DEBUG0);
-	return ((val & PCIE_LTSSM_STATE_MASK) == PCIE_LTSSM_LINKUP_STATE);
-}
 
 static int hisi_pcie_acpi_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 				  int size, u32 *val)
@@ -151,11 +138,6 @@ static int hisi_pcie_init(struct pci_config_window *cfg)
 	}
 
 	cfg->priv = reg_base;
-	if (!hisi_pcie_link_up_acpi(cfg)) {
-		dev_err(&adev->dev, "link status is down\n");
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
