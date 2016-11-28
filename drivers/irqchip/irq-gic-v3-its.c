@@ -1487,8 +1487,8 @@ static int its_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	int i;
 	int hint;
 
-	hint = get_irq_event_hint(virq, its_dev);
-	for (i = 0; i < nr_irqs; i++) {
+	for (i = 0; i < nr_irqs; i++) {	
+		hint = get_irq_event_hint(virq + i, its_dev);
 		err = its_alloc_device_irq(its_dev, &hwirq, &hint);
 		if (err)
 			return err;
