@@ -1868,7 +1868,6 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot,
 
 	task->task_state_flags &=
 		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
-	task->task_state_flags |= SAS_TASK_STATE_DONE;
 
 	memset(ts, 0, sizeof(*ts));
 	ts->resp = SAS_TASK_COMPLETE;
@@ -1909,9 +1908,12 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot,
 
 		slot_err_v2_hw(hisi_hba, task, slot);
 		if (unlikely(slot->abort)) {
-			queue_work(hisi_hba->wq, &slot->abort_slot);
-			/* immediately return and do not complete */
-			return ts->stat;
+			if (task->task_proto == SAS_PROTOCOL_SSP) {
+				queue_work(hisi_hba->wq, &slot->abort_slot);
+				/* immediately return and do not complete */
+				return ts->stat;
+			}
+			return -EINVAL;
 		}
 		goto out;
 	}
@@ -1964,7 +1966,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot,
 	}
 
 out:
-
+	task->task_state_flags |= SAS_TASK_STATE_DONE;
 	hisi_sas_slot_task_free(hisi_hba, task, slot);
 	sts = ts->stat;
 

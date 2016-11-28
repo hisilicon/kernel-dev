@@ -163,27 +163,18 @@ static void hisi_sas_slot_abort(struct work_struct *work)
 	struct scsi_cmnd *cmnd = task->uldd_task;
 	struct hisi_sas_tmf_task tmf_task;
 	struct domain_device *device = task->dev;
+	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct scsi_lun lun;
 	struct device *dev = &hisi_hba->pdev->dev;
 	int tag = abort_slot->idx;
 
+	sas_dev->dev_status = HISI_SAS_DEV_EH;
 	if (task->task_proto & SAS_PROTOCOL_SSP) {
 		int_to_scsilun(cmnd->device->lun, &lun);
 		tmf_task.tmf = TMF_ABORT_TASK;
 		tmf_task.tag_of_task_to_be_managed = cpu_to_le16(tag);
 		hisi_sas_debug_issue_ssp_tmf(task->dev,
 			lun.scsi_lun, &tmf_task);
-	} else if (task->task_proto & SAS_PROTOCOL_STP_ALL) {
-		int rc;
-
-		rc = hisi_sas_internal_task_abort(hisi_hba, device, 1, 0);
-		if (rc == TMF_RESP_FUNC_COMPLETE) {
-			rc = hisi_sas_softreset_ata_disk(device);
-			if (rc != TMF_RESP_FUNC_COMPLETE)
-				hisi_sas_debug_I_T_nexus_reset(device);
-		} else {
-			dev_err(dev, "Slot abort failed to STP task!\n");
-		}
 	} else {
 		dev_err(dev, "task_proto is not supported for slot abort\n");
 	}
