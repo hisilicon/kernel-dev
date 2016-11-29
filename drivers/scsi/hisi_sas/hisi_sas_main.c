@@ -1610,7 +1610,7 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 
 	refclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(refclk))
-		dev_warn(dev, "no ref clk property");
+		dev_dbg(dev, "no ref clk property");
 	else
 		hisi_hba->refclk_frequency_mhz = clk_get_rate(refclk) / 1000000;
 
