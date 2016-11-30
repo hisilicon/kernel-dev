@@ -34,8 +34,7 @@ ssize_t hisi_format_sysfs_show(struct device *dev,
 {
 	struct dev_ext_attribute *eattr;
 
-	eattr = container_of(attr, struct dev_ext_attribute,
-					     attr);
+	eattr = container_of(attr, struct dev_ext_attribute, attr);
 	return sprintf(buf, "%s\n", (char *) eattr->var);
 }
 
@@ -78,8 +77,7 @@ int hisi_djtag_readreg(int module_id, int bank, u32 offset,
 		chain_id++;
 	}
 
-	ret = hisi_djtag_readl(client, offset, module_id,
-						chain_id, pvalue);
+	ret = hisi_djtag_readl(client, offset, module_id, chain_id, pvalue);
 	if (ret)
 		dev_err(&client->dev, "read failed, ret=%d!\n", ret);
 
@@ -106,18 +104,17 @@ static int pmu_map_event(struct perf_event *event)
 	return (int)(event->attr.config & HISI_EVTYPE_EVENT);
 }
 
-static int
-__hw_perf_event_init(struct perf_event *event)
+static int hisi_hw_perf_event_init(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	struct hisi_pmu *phisi_pmu = to_hisi_pmu(event->pmu);
-	struct device *dev = phisi_pmu->dev;
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(event->pmu);
+	struct device *dev = hisi_pmu->dev;
 	int mapping;
 
 	mapping = pmu_map_event(event);
 	if (mapping < 0) {
-		dev_err(dev, "event %x:%llx not supported\n", event->attr.type,
-							 event->attr.config);
+		dev_err(dev, "event %x:%llx not supported\n",
+				event->attr.type, event->attr.config);
 		return mapping;
 	}
 
@@ -130,7 +127,7 @@ __hw_perf_event_init(struct perf_event *event)
 	hwc->config		= 0;
 	hwc->event_base		= 0;
 
-	/* For HiSilicon SoC L3C update config_base based on event encoding */
+	/* For HiSilicon SoC update config_base based on event encoding */
 	hwc->config_base = event->attr.config;
 
 	return 0;
@@ -139,14 +136,15 @@ __hw_perf_event_init(struct perf_event *event)
 int hisi_uncore_pmu_event_init(struct perf_event *event)
 {
 	int err;
-	struct hisi_pmu *phisi_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_pmu *hisi_pmu;
 
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
 
-	/* we do not support sampling as the counters are all
+	/*
+	 * We do not support sampling as the counters are all
 	 * shared by all CPU cores in a CPU die(SCCL). Also we
-	 * donot support attach to a task(per-process mode)
+	 * do not support attach to a task(per-process mode)
 	 */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
 		return -EOPNOTSUPP;
@@ -163,9 +161,10 @@ int hisi_uncore_pmu_event_init(struct perf_event *event)
 	if (event->cpu < 0)
 		return -EINVAL;
 
-	event->cpu = cpumask_first(&phisi_pmu->cpu);
+	hisi_pmu = to_hisi_pmu(event->pmu);
+	event->cpu = cpumask_first(&hisi_pmu->cpu);
 
-	err = __hw_perf_event_init(event);
+	err = hisi_hw_perf_event_init(event);
 
 	return err;
 }
@@ -177,28 +176,28 @@ int hisi_uncore_pmu_event_init(struct perf_event *event)
 void hisi_uncore_pmu_enable_event(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	struct hisi_pmu *phisi_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(event->pmu);
 
 	/* Disable the hardware event counting */
-	if (phisi_pmu->ops->disable_counter)
-		phisi_pmu->ops->disable_counter(phisi_pmu, GET_CNTR_IDX(hwc));
+	if (hisi_pmu->ops->disable_counter)
+		hisi_pmu->ops->disable_counter(hisi_pmu, GET_CNTR_IDX(hwc));
 
 	/*
-	 * Set event (if destined for Hisilicon SoC counters).
+	 * Set event in Event select registers.
 	 */
-	if (phisi_pmu->ops->set_evtype)
-		phisi_pmu->ops->set_evtype(phisi_pmu, GET_CNTR_IDX(hwc),
+	if (hisi_pmu->ops->set_evtype)
+		hisi_pmu->ops->set_evtype(hisi_pmu, GET_CNTR_IDX(hwc),
 							hwc->config_base);
 
 	/* Enable the hardware event counting */
-	if (phisi_pmu->ops->enable_counter)
-		phisi_pmu->ops->enable_counter(phisi_pmu, GET_CNTR_IDX(hwc));
+	if (hisi_pmu->ops->enable_counter)
+		hisi_pmu->ops->enable_counter(hisi_pmu, GET_CNTR_IDX(hwc));
 }
 
 void hisi_pmu_set_event_period(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	struct hisi_pmu *phisi_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(event->pmu);
 
 	/*
 	 * The Hisilicon PMU counters have a period of 2^32. To account for the
@@ -211,18 +210,17 @@ void hisi_pmu_set_event_period(struct perf_event *event)
 	local64_set(&hwc->prev_count, val);
 
 	/* Write to the hardware event counter */
-	phisi_pmu->ops->write_counter(phisi_pmu, hwc, val);
+	hisi_pmu->ops->write_counter(hisi_pmu, hwc, val);
 }
 
-void hisi_uncore_pmu_start(struct perf_event *event,
-						int pmu_flags)
+void hisi_uncore_pmu_start(struct perf_event *event, int pmu_flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	struct hisi_pmu *phisi_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(event->pmu);
 	struct hisi_pmu_hw_events *hw_events;
 	unsigned long flags;
 
-	hw_events = &phisi_pmu->hw_events;
+	hw_events = &hisi_pmu->hw_events;
 
 	if (WARN_ON_ONCE(!(hwc->state & PERF_HES_STOPPED)))
 		return;
@@ -230,13 +228,13 @@ void hisi_uncore_pmu_start(struct perf_event *event,
 	WARN_ON_ONCE(!(hwc->state & PERF_HES_UPTODATE));
 	hwc->state = 0;
 
-	if (phisi_pmu->ops->set_event_period)
-		phisi_pmu->ops->set_event_period(event);
+	if (hisi_pmu->ops->set_event_period)
+		hisi_pmu->ops->set_event_period(event);
 
 	if (flags & PERF_EF_RELOAD) {
 		u64 prev_raw_count =  local64_read(&hwc->prev_count);
 
-		phisi_pmu->ops->write_counter(phisi_pmu, hwc,
+		hisi_pmu->ops->write_counter(hisi_pmu, hwc,
 						(u32)prev_raw_count);
 	}
 
@@ -244,21 +242,13 @@ void hisi_uncore_pmu_start(struct perf_event *event,
 	perf_event_update_userpage(event);
 }
 
-void hisi_uncore_pmu_stop(struct perf_event *event,
-						int flags)
+void hisi_uncore_pmu_stop(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	struct hisi_pmu *phisi_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(event->pmu);
 
-	if (hwc->state & PERF_HES_UPTODATE)
-		return;
-
-	/*
-	 * We always reprogram the counter, so ignore PERF_EF_UPDATE.
-	 * See hisi_uncore_pmu_start()
-	 */
-	if (phisi_pmu->ops->disable_counter)
-		phisi_pmu->ops->disable_counter(phisi_pmu,
+	if (hisi_pmu->ops->disable_counter)
+		hisi_pmu->ops->disable_counter(hisi_pmu,
 						GET_CNTR_IDX(hwc));
 
 	WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
@@ -267,23 +257,23 @@ void hisi_uncore_pmu_stop(struct perf_event *event,
 		return;
 
 	/* Read hardware counter and update the Perf counter statistics */
-	phisi_pmu->ops->event_update(event, hwc, GET_CNTR_IDX(hwc));
+	hisi_pmu->ops->event_update(event, hwc, GET_CNTR_IDX(hwc));
 	hwc->state |= PERF_HES_UPTODATE;
 }
 
 int hisi_uncore_pmu_add(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	struct hisi_pmu *phisi_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(event->pmu);
 	struct hisi_pmu_hw_events *hw_events;
 	int idx;
 
-	hw_events = &phisi_pmu->hw_events;
+	hw_events = &hisi_pmu->hw_events;
 
 	hwc->state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
 
-	/* If we don't have a free counter then return early. */
-	idx = phisi_pmu->ops->get_event_idx(phisi_pmu);
+	/* Get an available counter index for counting. */
+	idx = hisi_pmu->ops->get_event_idx(hisi_pmu);
 	if (idx < 0)
 		return -EAGAIN;
 
@@ -302,73 +292,40 @@ int hisi_uncore_pmu_add(struct perf_event *event, int flags)
 void hisi_uncore_pmu_del(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	struct hisi_pmu *phisi_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(event->pmu);
 	struct hisi_pmu_hw_events *hw_events;
 
-	hw_events = &phisi_pmu->hw_events;
+	hw_events = &hisi_pmu->hw_events;
 
 	hisi_uncore_pmu_stop(event, PERF_EF_UPDATE);
 
-	phisi_pmu->ops->clear_event_idx(phisi_pmu, GET_CNTR_IDX(hwc));
+	hisi_pmu->ops->clear_event_idx(hisi_pmu, GET_CNTR_IDX(hwc));
 	perf_event_update_userpage(event);
 	hw_events->events[GET_CNTR_IDX(hwc)] = NULL;
 }
 
 struct hisi_pmu *hisi_pmu_alloc(struct device *dev)
 {
-	struct hisi_pmu *phisi_pmu;
+	struct hisi_pmu *hisi_pmu;
 
-	phisi_pmu = devm_kzalloc(dev, sizeof(*phisi_pmu), GFP_KERNEL);
-	if (!phisi_pmu)
+	hisi_pmu = devm_kzalloc(dev, sizeof(*hisi_pmu), GFP_KERNEL);
+	if (!hisi_pmu)
 		return ERR_PTR(-ENOMEM);
 
-	return phisi_pmu;
+	return hisi_pmu;
 }
 
 void hisi_uncore_pmu_read(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	struct hisi_pmu *phisi_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(event->pmu);
 
 	/* Read hardware counter and update the Perf counter statistics */
-	phisi_pmu->ops->event_update(event, hwc, GET_CNTR_IDX(hwc));
+	hisi_pmu->ops->event_update(event, hwc, GET_CNTR_IDX(hwc));
 }
 
-int hisi_uncore_common_fwprop_read(struct device *dev,
-					struct hisi_pmu *phisi_pmu)
-{
-	if (device_property_read_u32(dev, "num-events",
-					&phisi_pmu->num_events)) {
-		dev_err(dev, "Cant read num-events from DT!\n");
-		return -EINVAL;
-	}
-
-	if (device_property_read_u32(dev, "num-counters",
-				     &phisi_pmu->num_counters)) {
-		dev_err(dev, "Cant read num-counters from DT!\n");
-		return -EINVAL;
-	}
-
-	/* Find the SCL ID */
-	if (device_property_read_u32(dev, "scl-id",
-					&phisi_pmu->scl_id)) {
-		dev_err(dev, "Cant read scl-id!\n");
-		return -EINVAL;
-	}
-
-	if (phisi_pmu->scl_id == 0 ||
-		phisi_pmu->scl_id >= MAX_UNITS) {
-		dev_err(dev, "Invalid SCL=%d!\n",
-					phisi_pmu->scl_id);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int hisi_uncore_pmu_setup(struct hisi_pmu *hisipmu,
-					const char *pmu_name)
+int hisi_uncore_pmu_setup(struct hisi_pmu *hisi_pmu, const char *pmu_name)
 {
 	/* Register the events with perf */
-	return perf_pmu_register(&hisipmu->pmu, pmu_name, -1);
+	return perf_pmu_register(&hisi_pmu->pmu, pmu_name, -1);
 }

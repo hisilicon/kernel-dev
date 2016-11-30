@@ -47,10 +47,6 @@
 #define GET_CNTR_IDX(hwc) (hwc->idx)
 #define to_hisi_pmu(c)	(container_of(c, struct hisi_pmu, pmu))
 
-#define GET_UNIT_IDX(event_code)		\
-	(((event_code & HISI_SCCL_MASK) >>	\
-			   HISI_SCCL_SHIFT) - 1)
-
 #define HISI_PMU_FORMAT_ATTR(_name, _config)		\
 	(&((struct dev_ext_attribute[]) {		\
 		{ .attr = __ATTR(_name, S_IRUGO,	\
@@ -100,7 +96,6 @@ struct hisi_pmu {
 	u32 scl_id;
 	int num_counters;
 	int num_events;
-	int num_units;
 };
 
 int hisi_pmu_write_counter(struct hisi_pmu *, int, u32);

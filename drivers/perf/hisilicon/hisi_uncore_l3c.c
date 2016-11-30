@@ -23,419 +23,335 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/perf_event.h>
-#include "hisi_uncore_l3c.h"
+#include "hisi_uncore_pmu.h"
+
+/*
+ * ARMv8 HiSilicon L3C event types.
+ */
+enum armv8_hisi_l3c_event_types {
+	HISI_HWEVENT_L3C_READ_ALLOCATE		= 0x0,
+	HISI_HWEVENT_L3C_WRITE_ALLOCATE		= 0x01,
+	HISI_HWEVENT_L3C_READ_NOALLOCATE	= 0x02,
+	HISI_HWEVENT_L3C_WRITE_NOALLOCATE	= 0x03,
+	HISI_HWEVENT_L3C_READ_HIT		= 0x04,
+	HISI_HWEVENT_L3C_WRITE_HIT		= 0x05,
+	HISI_HWEVENT_L3C_EVENT_MAX		= 0x15,
+};
+
+/*
+ * ARMv8 HiSilicon Hardware counter Index.
+ */
+enum armv8_hisi_l3c_counters {
+	HISI_IDX_L3C_COUNTER0		= 0x0,
+	HISI_IDX_L3C_COUNTER_MAX	= 0x8,
+};
+
+#define HISI_MAX_CFG_L3C_CNTR	0x08
+#define L3C_EVTYPE_REG_OFF 0x140
+#define L3C_EVCTRL_REG_OFF 0x04
+#define L3C_CNT0_REG_OFF 0x170
+#define L3C_EVENT_EN 0x1000000
+
+#define GET_MODULE_ID(hwmod_data) hwmod_data->l3c_hwcfg.module_id
+#define GET_BANK_SEL(hwmod_data) hwmod_data->l3c_hwcfg.module_id
+
+struct hisi_l3c_hwcfg {
+	u32 module_id;
+	u32 bank_select;
+};
+
+struct hisi_l3c_data {
+	struct hisi_djtag_client *client;
+	DECLARE_BITMAP(event_used_mask, HISI_MAX_CFG_L3C_CNTR);
+	struct hisi_l3c_hwcfg l3c_hwcfg;
+};
 
 static inline int hisi_l3c_counter_valid(int idx)
 {
 	return (idx >= HISI_IDX_L3C_COUNTER0 &&
-			idx <= HISI_IDX_L3C_COUNTER_MAX);
+			idx < HISI_IDX_L3C_COUNTER_MAX);
 }
 
-static u32 hisi_read_l3c_counter(struct hisi_l3c_data *l3c_hwmod_data,
-						int cntr_idx, int bank_idx)
+/* Select the counter register offset from the index */
+static inline u32 get_counter_reg_off(int cntr_idx)
 {
-	struct hisi_djtag_client *client = l3c_hwmod_data->client;
-	u32 module_id = l3c_hwmod_data->l3c_hwcfg.module_id[bank_idx];
-	u32 cfg_en = l3c_hwmod_data->l3c_hwcfg.bank_cfgen[bank_idx];
-	u32 reg_offset, value;
+	return (L3C_CNT0_REG_OFF + (cntr_idx * 4));
+}
 
-	reg_offset = l3c_hwmod_data->l3c_hwcfg.counter_reg0_off +
-							(cntr_idx * 4);
+static u32 hisi_l3c_read_counter(struct hisi_l3c_data *l3c_data,
+							int cntr_idx)
+{
+	struct hisi_djtag_client *client = l3c_data->client;
+	u32 module_id = GET_MODULE_ID(l3c_data);
+	u32 bank_sel = GET_BANK_SEL(l3c_data);
+	u32 reg_off, value;
 
-	hisi_djtag_readreg(module_id, cfg_en, reg_offset, client, &value);
+	reg_off = get_counter_reg_off(cntr_idx);
+
+	hisi_djtag_readreg(module_id, bank_sel, reg_off, client, &value);
 
 	return value;
 }
 
-u64 hisi_l3c_event_update(struct perf_event *event,
+static u64 hisi_l3c_event_update(struct perf_event *event,
 				struct hw_perf_event *hwc, int idx)
 {
-	struct hisi_pmu *pl3c_pmu = to_hisi_pmu(event->pmu);
-	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
-	u64 delta, prev_raw_count, total_raw_count = 0, avg_raw_count = 0;
-	u32 num_banks = l3c_hwmod_data->l3c_hwcfg.num_banks;
-	int i;
+	struct hisi_pmu *l3c_pmu = to_hisi_pmu(event->pmu);
+	struct hisi_l3c_data *l3c_data = l3c_pmu->hwmod_data;
+	u64 delta, prev_raw_count, new_raw_count = 0;
 
 	if (!hisi_l3c_counter_valid(idx)) {
-		dev_err(pl3c_pmu->dev, "Unsupported event index:%d!\n", idx);
-		return 0;
-	}
-
-	/* Check if the L3C data is initialized for this SCCL */
-	if (!l3c_hwmod_data->client) {
-		dev_err(pl3c_pmu->dev, "SCL=%d not initialized!\n",
-							pl3c_pmu->scl_id);
+		dev_err(l3c_pmu->dev, "Unsupported event index:%d!\n", idx);
 		return 0;
 	}
 
 	do {
-		/* Get count from individual L3C banks and sum them up */
-		for (i = 0; i < num_banks; i++) {
-			total_raw_count += hisi_read_l3c_counter(l3c_hwmod_data,
-									idx, i);
-		}
+		/* Get count from the L3C bank / submodule */
+		new_raw_count += hisi_l3c_read_counter(l3c_data, idx);
 		prev_raw_count = local64_read(&hwc->prev_count);
 
 		/*
-		 * As prev_raw_count is updated with average value of
-		 * L3 cache banks, we multiply it by no of banks and
-		 * compute the delta
+		 *  compute the delta
 		 */
-		delta = (total_raw_count - (prev_raw_count * num_banks)) &
-								HISI_MAX_PERIOD;
+		delta = (new_raw_count - prev_raw_count) & HISI_MAX_PERIOD;
 
 		local64_add(delta, &event->count);
-
-		/*
-		 * Divide by num of banks to get average count and
-		 * update prev_count with this value
-		 */
-		avg_raw_count = total_raw_count / num_banks;
 	} while (local64_cmpxchg(
-			 &hwc->prev_count, prev_raw_count, avg_raw_count) !=
+			 &hwc->prev_count, prev_raw_count, new_raw_count) !=
 							 prev_raw_count);
 
-	return total_raw_count;
+	return new_raw_count;
 }
 
-void hisi_set_l3c_evtype(struct hisi_pmu *pl3c_pmu, int idx, u32 val)
+static void hisi_l3c_set_evtype(struct hisi_pmu *l3c_pmu, int idx, u32 val)
 {
-	struct hisi_djtag_client *client;
-	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
-	u32 reg_offset = l3c_hwmod_data->l3c_hwcfg.evtype_reg0_off;
+	struct hisi_l3c_data *l3c_data = l3c_pmu->hwmod_data;
+	struct hisi_djtag_client *client = l3c_data->client;
+	u32 module_id = GET_MODULE_ID(l3c_data);
+	u32 bank_sel = GET_BANK_SEL(l3c_data);
+	u32 reg_off = L3C_EVTYPE_REG_OFF;
 	u32 event_value, value = 0;
-	u32 cfg_en, module_id;
-	int i;
 
-	event_value = (val -
-			HISI_HWEVENT_L3C_READ_ALLOCATE);
+	event_value = (val - HISI_HWEVENT_L3C_READ_ALLOCATE);
 
-	/* Select the appropriate Event select register */
+	/*
+	 * Select the appropriate Event select register(L3C_EVENT_TYPEx).
+	 * There are 2 Event Select registers for the 8 hardware counters.
+	 * For the first 4 hardware counters, the L3C_EVTYPE_REG_OFF is chosen.
+	 * For the next 4 hardware counters, the second register is chosen.
+	 */
 	if (idx > 3)
-		reg_offset += 4;
+		reg_off += 4;
 
-	/* Value to write to event type register */
+	/*
+	 * Value to write to event select register
+	 * Each byte in the 32 bit select register is used to
+	 * configure the event code. Each byte correspond to a
+	 * counter register to use.
+	 */
 	val = event_value << (8 * idx);
-
-	/* Find the djtag Identifier of the Unit */
-	client = l3c_hwmod_data->client;
 
 	/*
 	 * Set the event in L3C_EVENT_TYPEx Register
 	 * for all L3C banks
 	 */
-	for (i = 0; i < l3c_hwmod_data->l3c_hwcfg.num_banks; i++) {
-		module_id = l3c_hwmod_data->l3c_hwcfg.module_id[i];
-		cfg_en = l3c_hwmod_data->l3c_hwcfg.bank_cfgen[i];
-		hisi_djtag_readreg(module_id,
-				cfg_en,
-				reg_offset,
-				client, &value);
-
-		value &= ~(0xff << (8 * idx));
-		value |= val;
-
-		hisi_djtag_writereg(module_id,
-				cfg_en,
-				reg_offset,
-				value,
-				client);
-	}
+	hisi_djtag_readreg(module_id, bank_sel, reg_off, client, &value);
+	value &= ~(0xff << (8 * idx));
+	value |= val;
+	hisi_djtag_writereg(module_id, bank_sel, reg_off, value, client);
 }
 
-u32 hisi_write_l3c_counter(struct hisi_pmu *pl3c_pmu,
+static u32 hisi_l3c_write_counter(struct hisi_pmu *l3c_pmu,
 				struct hw_perf_event *hwc, u32 value)
 {
-	struct hisi_djtag_client *client;
-	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
-	u32 reg_offset, cfg_en, module_id;
-	int i, ret = 0;
+	struct hisi_l3c_data *l3c_data = l3c_pmu->hwmod_data;
+	struct hisi_djtag_client *client = l3c_data->client;
+	u32 module_id = GET_MODULE_ID(l3c_data);
+	u32 bank_sel = GET_BANK_SEL(l3c_data);
+	u32 reg_off;
 	int idx = GET_CNTR_IDX(hwc);
+	int ret;
 
 	if (!hisi_l3c_counter_valid(idx)) {
-		dev_err(pl3c_pmu->dev,
+		dev_err(l3c_pmu->dev,
 				"Unsupported event index:%d!\n", idx);
 		return -EINVAL;
 	}
 
-	reg_offset = l3c_hwmod_data->l3c_hwcfg.counter_reg0_off +
-							(idx * 4);
+	reg_off = get_counter_reg_off(idx);
 
-	client = l3c_hwmod_data->client;
-
-	for (i = 0; i < l3c_hwmod_data->l3c_hwcfg.num_banks; i++) {
-		module_id = l3c_hwmod_data->l3c_hwcfg.module_id[i];
-		cfg_en = l3c_hwmod_data->l3c_hwcfg.bank_cfgen[i];
-		ret = hisi_djtag_writereg(module_id,
-					cfg_en,
-					reg_offset,
-					value,
-					client);
-		if (!ret)
-			ret = value;
-	}
+	ret = hisi_djtag_writereg(module_id, bank_sel, reg_off, value, client);
+	if (!ret)
+		ret = value;
 
 	return ret;
 }
 
-void hisi_enable_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx)
+static void hisi_l3c_enable_counter(struct hisi_pmu *l3c_pmu, int idx)
 {
-	struct hisi_djtag_client *client;
-	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
-	u32 reg_offset = l3c_hwmod_data->l3c_hwcfg.event_ctrl_reg_off;
-	u32 eventen = l3c_hwmod_data->l3c_hwcfg.event_enable;
-	u32 value, cfg_en, module_id;
-	int i;
+	struct hisi_l3c_data *l3c_data = l3c_pmu->hwmod_data;
+	struct hisi_djtag_client *client = l3c_data->client;
+	u32 module_id = GET_MODULE_ID(l3c_data);
+	u32 bank_sel = GET_BANK_SEL(l3c_data);
+	u32 reg_off = L3C_EVCTRL_REG_OFF;
+	u32 eventen = L3C_EVENT_EN;
+	u32 value;
 
 	if (!hisi_l3c_counter_valid(idx)) {
-		dev_err(pl3c_pmu->dev,
+		dev_err(l3c_pmu->dev,
 				"Unsupported event index:%d!\n", idx);
 		return;
 	}
-
-	client = l3c_hwmod_data->client;
 
 	/*
 	 * Set the event_bus_en bit in L3C AUCNTRL to enable counting
-	 * for all L3C banks
 	 */
-	for (i = 0; i < l3c_hwmod_data->l3c_hwcfg.num_banks; i++) {
-		module_id = l3c_hwmod_data->l3c_hwcfg.module_id[i];
-		cfg_en = l3c_hwmod_data->l3c_hwcfg.bank_cfgen[i];
-		hisi_djtag_readreg(module_id,
-				cfg_en,
-				reg_offset,
-				client, &value);
-
-		value |= eventen;
-		hisi_djtag_writereg(module_id,
-				cfg_en,
-				reg_offset,
-				value,
-				client);
-	}
+	hisi_djtag_readreg(module_id, bank_sel, reg_off,
+						   client, &value);
+	value |= eventen;
+	hisi_djtag_writereg(module_id, bank_sel, reg_off,
+						 value, client);
 }
 
-void hisi_disable_l3c_counter(struct hisi_pmu *pl3c_pmu, int idx)
+static void hisi_l3c_disable_counter(struct hisi_pmu *l3c_pmu, int idx)
 {
-	struct hisi_djtag_client *client;
-	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
-	u32 reg_offset = l3c_hwmod_data->l3c_hwcfg.event_ctrl_reg_off;
-	u32 eventen = l3c_hwmod_data->l3c_hwcfg.event_enable;
-	u32 value, cfg_en, module_id;
-	int i;
+	struct hisi_l3c_data *l3c_data = l3c_pmu->hwmod_data;
+	struct hisi_djtag_client *client = l3c_data->client;
+	u32 module_id = GET_MODULE_ID(l3c_data);
+	u32 bank_sel = GET_BANK_SEL(l3c_data);
+	u32 reg_off = L3C_EVCTRL_REG_OFF;
+	u32 eventen = L3C_EVENT_EN;
+	u32 value;
 
 	if (!hisi_l3c_counter_valid(idx)) {
-		dev_err(pl3c_pmu->dev,
+		dev_err(l3c_pmu->dev,
 				"Unsupported event index:%d!\n", idx);
 		return;
 	}
-
-	/* Find the djtag Identifier of the Unit */
-	client = l3c_hwmod_data->client;
 
 	/*
-	 * Clear the event_bus_en bit in L3C AUCNTRL if no other
-	 * event counting for all L3C banks
+	 * Clear the event_bus_en bit in L3C AUCNTRL
 	 */
-	for (i = 0; i < l3c_hwmod_data->l3c_hwcfg.num_banks; i++) {
-		module_id = l3c_hwmod_data->l3c_hwcfg.module_id[i];
-		cfg_en = l3c_hwmod_data->l3c_hwcfg.bank_cfgen[i];
-		hisi_djtag_readreg(module_id,
-				cfg_en,
-				reg_offset,
-				client, &value);
-
-		value &= ~(eventen);
-		hisi_djtag_writereg(module_id,
-				cfg_en,
-				reg_offset,
-				value,
-				client);
-	}
+	hisi_djtag_readreg(module_id, bank_sel, reg_off,
+					   client, &value);
+	value &= ~(eventen);
+	hisi_djtag_writereg(module_id, bank_sel, reg_off,
+					value, client);
 }
 
-void hisi_clear_l3c_event_idx(struct hisi_pmu *pl3c_pmu,
-							int idx)
+static void hisi_l3c_clear_event_idx(struct hisi_pmu *l3c_pmu, int idx)
 {
-	struct hisi_djtag_client *client;
-	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
-	u32 reg_offset = l3c_hwmod_data->l3c_hwcfg.evtype_reg0_off;
+	struct hisi_l3c_data *l3c_data = l3c_pmu->hwmod_data;
+	struct hisi_djtag_client *client = l3c_data->client;
 	void *bitmap_addr;
-	u32 cfg_en, value, module_id;
-	int i;
+	u32 module_id = GET_MODULE_ID(l3c_data);
+	u32 bank_sel = GET_BANK_SEL(l3c_data);
+	u32 reg_off = L3C_EVTYPE_REG_OFF;
+	u32 value;
 
 	if (!hisi_l3c_counter_valid(idx)) {
-		dev_err(pl3c_pmu->dev,
+		dev_err(l3c_pmu->dev,
 				"Unsupported event index:%d!\n", idx);
 		return;
 	}
 
-	bitmap_addr = l3c_hwmod_data->hisi_l3c_event_used_mask;
+	bitmap_addr = l3c_data->event_used_mask;
+	clear_bit(idx, bitmap_addr);
 
-	__clear_bit(idx, bitmap_addr);
-
-	/* Clear Counting in L3C event config register */
+	/*
+	 * Clear Counting in L3C event config register.
+	 * Select the appropriate Event select register(L3C_EVENT_TYPEx).
+	 * There are 2 Event Select registers for the 8 hardware counters.
+	 * For the first 4 hardware counters, the L3C_EVTYPE_REG_OFF is chosen.
+	 * For the next 4 hardware counters, the second register is chosen.
+	 */
 	if (idx > 3)
-		reg_offset += 4;
-
-	client = l3c_hwmod_data->client;
+		reg_off += 4;
 
 	/*
 	 * Clear the event in L3C_EVENT_TYPEx Register
-	 * for all L3C banks
 	 */
-	for (i = 0; i < l3c_hwmod_data->l3c_hwcfg.num_banks; i++) {
-		module_id = l3c_hwmod_data->l3c_hwcfg.module_id[i];
-		cfg_en = l3c_hwmod_data->l3c_hwcfg.bank_cfgen[i];
-		hisi_djtag_readreg(module_id,
-				cfg_en,
-				reg_offset,
-				client, &value);
-
-		value &= ~(0xff << (8 * idx));
-		value |= (0xff << (8 * idx));
-		hisi_djtag_writereg(module_id,
-				cfg_en,
-				reg_offset,
-				value,
-				client);
-	}
+	hisi_djtag_readreg(module_id, bank_sel, reg_off,
+					   client, &value);
+	value &= ~(0xff << (8 * idx));
+	value |= (0xff << (8 * idx));
+	hisi_djtag_writereg(module_id, bank_sel, reg_off,
+					    value, client);
 }
 
-int hisi_l3c_get_event_idx(struct hisi_pmu *pl3c_pmu)
+static int hisi_l3c_get_event_idx(struct hisi_pmu *l3c_pmu)
 {
-	struct hisi_l3c_data *l3c_hwmod_data = pl3c_pmu->hwmod_data;
+	struct hisi_l3c_data *l3c_data = l3c_pmu->hwmod_data;
+	unsigned long *used_mask = l3c_data->event_used_mask;
+	u32 num_counters = l3c_pmu->num_counters;
 	int event_idx;
 
-	event_idx =
-		find_first_zero_bit(
-			l3c_hwmod_data->hisi_l3c_event_used_mask,
-					 pl3c_pmu->num_counters);
+	event_idx = find_first_zero_bit(used_mask, num_counters);
 
-	if (event_idx == HISI_MAX_CFG_L3C_CNTR)
+	if (event_idx == num_counters)
 		return -EAGAIN;
 
-	__set_bit(event_idx,
-		l3c_hwmod_data->hisi_l3c_event_used_mask);
+	set_bit(event_idx, used_mask);
 
 	return event_idx;
 }
 
-static void hisi_free_l3c_data(struct hisi_pmu *pl3c_pmu)
+static int init_hisi_l3c_hwcfg_fdt(struct device *dev,
+				struct hisi_l3c_data *l3c_data)
 {
-	kfree(pl3c_pmu->hwmod_data);
-	pl3c_pmu->hwmod_data = NULL;
-}
-
-static int init_hisi_l3c_hwcfg(struct device *dev,
-				struct hisi_l3c_data *pl3c_data)
-{
-	struct hisi_l3c_hwcfg *pl3c_hwcfg = &pl3c_data->l3c_hwcfg;
+	struct hisi_l3c_hwcfg *l3c_hwcfg = &l3c_data->l3c_hwcfg;
 	struct device_node *node = dev->of_node;
-	u32 prop_len;
 	int ret;
 
-	if (of_property_read_u32(node, "counter-reg",
-				     &pl3c_hwcfg->counter_reg0_off)) {
-		dev_err(dev, "DT:Couldnot read counter-reg!\n");
-		return -EINVAL;
-	}
-
-	if (of_property_read_u32(node, "evctrl-reg",
-				     &pl3c_hwcfg->event_ctrl_reg_off)) {
-		dev_err(dev, "DT:Couldnot read evctrl-reg!\n");
-		return -EINVAL;
-	}
-
-	if (of_property_read_u32(node, "event-en",
-				     &pl3c_hwcfg->event_enable)) {
-		dev_err(dev, "DT:Couldnot read event-en!\n");
-		return -EINVAL;
-	}
-
-	if (of_property_read_u32(node, "evtype-reg",
-				     &pl3c_hwcfg->evtype_reg0_off)) {
-		dev_err(dev, "DT:Couldnot read evtype-reg!\n");
-		return -EINVAL;
-	}
-
-	if (of_property_read_u32(node, "num-banks",
-				     &pl3c_hwcfg->num_banks)) {
-		dev_err(dev, "DT:Couldnot read num-banks!\n");
-		return -EINVAL;
-	}
-
-	prop_len = of_property_count_u32_elems(node, "module-id");
-	if (prop_len != pl3c_hwcfg->num_banks) {
-		dev_err(dev, "DT:module-id property doesnot have"
-						" required elements!\n");
-		return -EINVAL;
-	}
-
-	ret = of_property_read_u32_array(node, "module-id",
-					  &pl3c_hwcfg->module_id[0],
-						  pl3c_hwcfg->num_banks);
+	ret = of_property_read_u32_index(node, "module-id", 0,
+						&l3c_hwcfg->module_id);
 	if (ret < 0) {
-		dev_err(dev, "DT:Couldnot read module-id!\n");
+		dev_err(dev, "DT: Couldnot read module-id!\n");
 		return -EINVAL;
 	}
 
-	prop_len = of_property_count_u32_elems(node, "cfgen-map");
-	if (prop_len != pl3c_hwcfg->num_banks) {
-		dev_err(dev, "DT:cfgen-map property doesnot have"
-						" required elements!\n");
-		return -EINVAL;
-	}
-
-	ret = of_property_read_u32_array(node, "cfgen-map",
-					&pl3c_hwcfg->bank_cfgen[0],
-						pl3c_hwcfg->num_banks);
+	ret = of_property_read_u32_index(node, "module-id", 1,
+						&l3c_hwcfg->bank_select);
 	if (ret < 0) {
-		dev_err(dev, "DT:Couldnot read cfgen-map!\n");
+		dev_err(dev, "DT: Couldnot read bank-select!\n");
 		return -EINVAL;
 	}
+
 
 	return 0;
 }
 
-static int init_hisi_l3c_data(struct device *dev,
-					struct hisi_pmu *pl3c_pmu,
-					struct hisi_djtag_client *client)
+static int init_hisi_l3c_data(struct hisi_pmu *l3c_pmu,
+				struct hisi_djtag_client *client)
 {
-	struct hisi_l3c_data *l3c_hwmod_data = NULL;
+	struct hisi_l3c_data *l3c_data = NULL;
+	struct device *dev = &client->dev;
 	int ret;
 
-	l3c_hwmod_data = kzalloc(sizeof(struct hisi_l3c_data),
-							GFP_KERNEL);
-	if (!l3c_hwmod_data)
+	l3c_data = devm_kzalloc(dev, sizeof(*l3c_data), GFP_KERNEL);
+	if (!l3c_data)
 		return -ENOMEM;
 
 	/* Set the djtag Identifier */
-	l3c_hwmod_data->client = client;
+	l3c_data->client = client;
 
-	pl3c_pmu->hw_events.events = devm_kcalloc(dev,
-					pl3c_pmu->num_counters,
-					sizeof(*pl3c_pmu->hw_events.events),
+	l3c_pmu->hw_events.events = devm_kcalloc(dev, l3c_pmu->num_counters,
+					sizeof(*l3c_pmu->hw_events.events),
 					GFP_KERNEL);
-	if (!pl3c_pmu->hw_events.events) {
-		ret = -ENOMEM;
-		goto fail;
+	if (!l3c_pmu->hw_events.events)
+		return -ENOMEM;
+
+	raw_spin_lock_init(&l3c_pmu->hw_events.pmu_lock);
+
+	l3c_pmu->hwmod_data = l3c_data;
+
+	if (dev->of_node) {
+		ret = init_hisi_l3c_hwcfg_fdt(dev, l3c_data);
+		if (ret)
+			return ret;
 	}
 
-	raw_spin_lock_init(&pl3c_pmu->hw_events.pmu_lock);
-
-	pl3c_pmu->hwmod_data = l3c_hwmod_data;
-
-	ret = init_hisi_l3c_hwcfg(dev, l3c_hwmod_data);
-	if (ret)
-		goto fail;
-
 	return 0;
-
-fail:
-	hisi_free_l3c_data(pl3c_pmu);
-	return ret;
 }
 
 static struct attribute *hisi_l3c_format_attr[] = {
@@ -449,14 +365,10 @@ static struct attribute_group hisi_l3c_format_group = {
 };
 
 static struct attribute *hisi_l3c_events_attr[] = {
-	HISI_PMU_EVENT_ATTR_STR(read_allocate,
-					"event=0x0"),
-	HISI_PMU_EVENT_ATTR_STR(write_allocate,
-					"event=0x01"),
-	HISI_PMU_EVENT_ATTR_STR(read_noallocate,
-					"event=0x02"),
-	HISI_PMU_EVENT_ATTR_STR(write_noallocate,
-					"event=0x03"),
+	HISI_PMU_EVENT_ATTR_STR(read_allocate, "event=0x0"),
+	HISI_PMU_EVENT_ATTR_STR(write_allocate, "event=0x01"),
+	HISI_PMU_EVENT_ATTR_STR(read_noallocate, "event=0x02"),
+	HISI_PMU_EVENT_ATTR_STR(write_noallocate, "event=0x03"),
 	HISI_PMU_EVENT_ATTR_STR(read_hit, "event=0x04"),
 	HISI_PMU_EVENT_ATTR_STR(write_hit, "event=0x05"),
 	NULL,
@@ -475,7 +387,7 @@ struct attribute_group hisi_l3c_attr_group = {
 	.attrs = hisi_l3c_attrs,
 };
 
-static DEVICE_ATTR(cpumask, S_IRUGO, hisi_cpumask_sysfs_show, NULL);
+static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
 
 static struct attribute *hisi_l3c_cpumask_attrs[] = {
 	&dev_attr_cpumask.attr,
@@ -495,58 +407,54 @@ static const struct attribute_group *hisi_l3c_pmu_attr_groups[] = {
 };
 
 static struct hisi_uncore_ops hisi_uncore_l3c_ops = {
-	.set_evtype = hisi_set_l3c_evtype,
+	.set_evtype = hisi_l3c_set_evtype,
 	.set_event_period = hisi_pmu_set_event_period,
 	.get_event_idx = hisi_l3c_get_event_idx,
-	.clear_event_idx = hisi_clear_l3c_event_idx,
+	.clear_event_idx = hisi_l3c_clear_event_idx,
 	.event_update = hisi_l3c_event_update,
-	.enable_counter = hisi_enable_l3c_counter,
-	.disable_counter = hisi_disable_l3c_counter,
-	.write_counter = hisi_write_l3c_counter,
+	.enable_counter = hisi_l3c_enable_counter,
+	.disable_counter = hisi_l3c_disable_counter,
+	.write_counter = hisi_l3c_write_counter,
 };
 
-static int hisi_l3c_pmu_init(struct device *dev,
-					struct hisi_pmu *pl3c_pmu)
+static int hisi_l3c_pmu_init(struct hisi_pmu *l3c_pmu,
+				struct hisi_djtag_client *client)
 {
-	int ret;
+	struct device *dev = &client->dev;
 
-	/* Read common PMU properties */
-	ret = hisi_uncore_common_fwprop_read(dev, pl3c_pmu);
-	if (ret)
-		return ret;
-
-	pl3c_pmu->name = kasprintf(GFP_KERNEL, "hisi_l3c%d",
-						pl3c_pmu->scl_id);
-	pl3c_pmu->ops = &hisi_uncore_l3c_ops;
-	pl3c_pmu->dev = dev;
+	l3c_pmu->num_events = HISI_HWEVENT_L3C_EVENT_MAX;
+	l3c_pmu->num_counters = HISI_IDX_L3C_COUNTER_MAX;
+	l3c_pmu->name = kasprintf(GFP_KERNEL, "hisi_l3c%d",
+						l3c_pmu->scl_id);
+	l3c_pmu->ops = &hisi_uncore_l3c_ops;
+	l3c_pmu->dev = dev;
 
 	/* Pick one core to use for cpumask attributes */
-	cpumask_set_cpu(smp_processor_id(), &pl3c_pmu->cpu);
+	cpumask_set_cpu(smp_processor_id(), &l3c_pmu->cpu);
 
 	return 0;
 }
 
 static int hisi_pmu_l3c_dev_probe(struct hisi_djtag_client *client)
 {
-	struct hisi_pmu *pl3c_pmu = NULL;
+	struct hisi_pmu *l3c_pmu = NULL;
 	struct device *dev = &client->dev;
 	int ret;
 
-	pl3c_pmu = hisi_pmu_alloc(dev);
-	if (IS_ERR(pl3c_pmu))
-		return PTR_ERR(pl3c_pmu);
+	l3c_pmu = hisi_pmu_alloc(dev);
+	if (!l3c_pmu)
+		return -ENOMEM;
 
-	ret = hisi_l3c_pmu_init(dev, pl3c_pmu);
+	ret = init_hisi_l3c_data(l3c_pmu, client);
 	if (ret)
 		return ret;
 
-	ret = init_hisi_l3c_data(dev, pl3c_pmu, client);
+	ret = hisi_l3c_pmu_init(l3c_pmu, client);
 	if (ret)
-		goto fail_init;
+		return ret;
 
-	/* Register with perf PMU */
-	pl3c_pmu->pmu = (struct pmu) {
-		.name = pl3c_pmu->name,
+	l3c_pmu->pmu = (struct pmu) {
+		.name = l3c_pmu->name,
 		.task_ctx_nr = perf_invalid_context,
 		.event_init = hisi_uncore_pmu_event_init,
 		.add = hisi_uncore_pmu_add,
@@ -557,34 +465,26 @@ static int hisi_pmu_l3c_dev_probe(struct hisi_djtag_client *client)
 		.attr_groups = hisi_l3c_pmu_attr_groups,
 	};
 
-	ret = hisi_uncore_pmu_setup(pl3c_pmu, pl3c_pmu->name);
+	ret = hisi_uncore_pmu_setup(l3c_pmu, l3c_pmu->name);
 	if (ret) {
 		dev_err(dev, "hisi_uncore_pmu_init FAILED!!\n");
-		goto fail;
+		return ret;
 	}
 
-	/* Set the drv data to l3c_pmu */
-	dev_set_drvdata(dev, pl3c_pmu);
+	/* Set the drv data to L3C pmu */
+	dev_set_drvdata(dev, l3c_pmu);
 
 	return 0;
-
-fail:
-	hisi_free_l3c_data(pl3c_pmu);
-
-fail_init:
-	dev_err(dev, "%s failed\n", __func__);
-	return ret;
 }
 
 static int hisi_pmu_l3c_dev_remove(struct hisi_djtag_client *client)
 {
-	struct hisi_pmu *pl3c_pmu = NULL;
+	struct hisi_pmu *l3c_pmu = NULL;
 	struct device *dev = &client->dev;
 
-	pl3c_pmu = dev_get_drvdata(dev);
+	l3c_pmu = dev_get_drvdata(dev);
 
-	perf_pmu_unregister(&pl3c_pmu->pmu);
-	hisi_free_l3c_data(pl3c_pmu);
+	perf_pmu_unregister(&l3c_pmu->pmu);
 
 	return 0;
 }
