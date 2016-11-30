@@ -210,6 +210,40 @@ static void hisi_l3c_set_evtype(struct hisi_pmu *l3c_pmu, int idx, u32 val)
 	hisi_djtag_writereg(module_id, bank_sel, reg_off, value, client);
 }
 
+static void hisi_l3c_clear_evtype(struct hisi_pmu *l3c_pmu, int idx)
+{
+	struct hisi_l3c_data *l3c_data = l3c_pmu->hwmod_data;
+	struct hisi_djtag_client *client = l3c_data->client;
+	u32 module_id = GET_MODULE_ID(l3c_data);
+	u32 bank_sel = GET_BANK_SEL(l3c_data);
+	u32 reg_off = L3C_EVTYPE_REG_OFF;
+	u32 value;
+
+	if (!hisi_l3c_counter_valid(idx)) {
+		dev_err(l3c_pmu->dev,
+				"Unsupported event index:%d!\n", idx);
+		return;
+	}
+
+	/*
+	 * Clear Counting in L3C event config register.
+	 * Select the appropriate Event select register(L3C_EVENT_TYPEx).
+	 * There are 2 Event Select registers for the 8 hardware counters.
+	 * For the first 4 hardware counters, the L3C_EVTYPE_REG_OFF is chosen.
+	 * For the next 4 hardware counters, the second register is chosen.
+	 */
+	if (idx > 3)
+		reg_off += 4;
+
+	/*
+	 * Clear the event in L3C_EVENT_TYPEx Register
+	 */
+	hisi_djtag_readreg(module_id, bank_sel, reg_off, client, &value);
+	value &= ~(0xff << (8 * idx));
+	value |= (0xff << (8 * idx));
+	hisi_djtag_writereg(module_id, bank_sel, reg_off, value, client);
+}
+
 static u32 hisi_l3c_write_counter(struct hisi_pmu *l3c_pmu,
 				struct hw_perf_event *hwc, u32 value)
 {
@@ -236,96 +270,61 @@ static u32 hisi_l3c_write_counter(struct hisi_pmu *l3c_pmu,
 	return ret;
 }
 
-static void hisi_l3c_enable_counter(struct hisi_pmu *l3c_pmu, int idx)
+static void hisi_l3c_start_counters(struct hisi_pmu *l3c_pmu)
 {
 	struct hisi_l3c_data *l3c_data = l3c_pmu->hwmod_data;
 	struct hisi_djtag_client *client = l3c_data->client;
+	unsigned long *used_mask = l3c_data->event_used_mask;
 	u32 module_id = GET_MODULE_ID(l3c_data);
 	u32 bank_sel = GET_BANK_SEL(l3c_data);
-	u32 reg_off = L3C_EVCTRL_REG_OFF;
-	u32 eventen = L3C_EVENT_EN;
+	u32 num_counters = l3c_pmu->num_counters;
 	u32 value;
 
-	if (!hisi_l3c_counter_valid(idx)) {
-		dev_err(l3c_pmu->dev,
-				"Unsupported event index:%d!\n", idx);
+	int enabled = bitmap_weight(used_mask, num_counters);
+	if (!enabled)
 		return;
-	}
 
 	/*
-	 * Set the event_bus_en bit in L3C AUCNTRL to enable counting
+	 * Set the event_bus_en bit in L3C AUCNTRL to start counting
+	 * for the L3C bank
 	 */
-	hisi_djtag_readreg(module_id, bank_sel, reg_off,
-						   client, &value);
-	value |= eventen;
-	hisi_djtag_writereg(module_id, bank_sel, reg_off,
-						 value, client);
+	hisi_djtag_readreg(module_id, bank_sel, L3C_EVCTRL_REG_OFF,
+							client, &value);
+	value |= L3C_EVENT_EN;
+	hisi_djtag_writereg(module_id, bank_sel, L3C_EVCTRL_REG_OFF,
+							value, client);
 }
 
-static void hisi_l3c_disable_counter(struct hisi_pmu *l3c_pmu, int idx)
+static void hisi_l3c_stop_counters(struct hisi_pmu *l3c_pmu)
 {
 	struct hisi_l3c_data *l3c_data = l3c_pmu->hwmod_data;
 	struct hisi_djtag_client *client = l3c_data->client;
 	u32 module_id = GET_MODULE_ID(l3c_data);
 	u32 bank_sel = GET_BANK_SEL(l3c_data);
-	u32 reg_off = L3C_EVCTRL_REG_OFF;
-	u32 eventen = L3C_EVENT_EN;
 	u32 value;
-
-	if (!hisi_l3c_counter_valid(idx)) {
-		dev_err(l3c_pmu->dev,
-				"Unsupported event index:%d!\n", idx);
-		return;
-	}
 
 	/*
 	 * Clear the event_bus_en bit in L3C AUCNTRL
 	 */
-	hisi_djtag_readreg(module_id, bank_sel, reg_off,
-					   client, &value);
-	value &= ~(eventen);
-	hisi_djtag_writereg(module_id, bank_sel, reg_off,
-					value, client);
+	hisi_djtag_readreg(module_id, bank_sel, L3C_EVCTRL_REG_OFF,
+							client, &value);
+	value &= ~(L3C_EVENT_EN);
+	hisi_djtag_writereg(module_id, bank_sel, L3C_EVCTRL_REG_OFF,
+							value, client);
 }
 
 static void hisi_l3c_clear_event_idx(struct hisi_pmu *l3c_pmu, int idx)
 {
 	struct hisi_l3c_data *l3c_data = l3c_pmu->hwmod_data;
-	struct hisi_djtag_client *client = l3c_data->client;
 	void *bitmap_addr;
-	u32 module_id = GET_MODULE_ID(l3c_data);
-	u32 bank_sel = GET_BANK_SEL(l3c_data);
-	u32 reg_off = L3C_EVTYPE_REG_OFF;
-	u32 value;
 
 	if (!hisi_l3c_counter_valid(idx)) {
-		dev_err(l3c_pmu->dev,
-				"Unsupported event index:%d!\n", idx);
+		dev_err(l3c_pmu->dev, "Unsupported event index:%d!\n", idx);
 		return;
 	}
 
 	bitmap_addr = l3c_data->event_used_mask;
 	clear_bit(idx, bitmap_addr);
-
-	/*
-	 * Clear Counting in L3C event config register.
-	 * Select the appropriate Event select register(L3C_EVENT_TYPEx).
-	 * There are 2 Event Select registers for the 8 hardware counters.
-	 * For the first 4 hardware counters, the L3C_EVTYPE_REG_OFF is chosen.
-	 * For the next 4 hardware counters, the second register is chosen.
-	 */
-	if (idx > 3)
-		reg_off += 4;
-
-	/*
-	 * Clear the event in L3C_EVENT_TYPEx Register
-	 */
-	hisi_djtag_readreg(module_id, bank_sel, reg_off,
-					   client, &value);
-	value &= ~(0xff << (8 * idx));
-	value |= (0xff << (8 * idx));
-	hisi_djtag_writereg(module_id, bank_sel, reg_off,
-					    value, client);
 }
 
 static int hisi_l3c_get_event_idx(struct hisi_pmu *l3c_pmu)
@@ -405,7 +404,7 @@ static int init_hisi_l3c_hwcfg_fdt(struct device *dev,
 static int init_hisi_l3c_data(struct hisi_pmu *l3c_pmu,
 				struct hisi_djtag_client *client)
 {
-	struct hisi_l3c_data *l3c_data = NULL;
+	struct hisi_l3c_data *l3c_data;
 	struct device *dev = &client->dev;
 	int ret;
 
@@ -489,12 +488,13 @@ static const struct attribute_group *hisi_l3c_pmu_attr_groups[] = {
 
 static struct hisi_uncore_ops hisi_uncore_l3c_ops = {
 	.set_evtype = hisi_l3c_set_evtype,
+	.clear_evtype = hisi_l3c_clear_evtype,
 	.set_event_period = hisi_pmu_set_event_period,
 	.get_event_idx = hisi_l3c_get_event_idx,
 	.clear_event_idx = hisi_l3c_clear_event_idx,
 	.event_update = hisi_l3c_event_update,
-	.enable_counter = hisi_l3c_enable_counter,
-	.disable_counter = hisi_l3c_disable_counter,
+	.start_counters = hisi_l3c_start_counters,
+	.stop_counters = hisi_l3c_stop_counters,
 	.write_counter = hisi_l3c_write_counter,
 };
 
@@ -542,6 +542,8 @@ static int hisi_pmu_l3c_dev_probe(struct hisi_djtag_client *client)
 		.name = l3c_pmu->name,
 		.task_ctx_nr = perf_invalid_context,
 		.event_init = hisi_uncore_pmu_event_init,
+		.pmu_enable = hisi_uncore_pmu_enable,
+		.pmu_disable = hisi_uncore_pmu_disable,
 		.add = hisi_uncore_pmu_add,
 		.del = hisi_uncore_pmu_del,
 		.start = hisi_uncore_pmu_start,

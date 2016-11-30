@@ -178,10 +178,6 @@ void hisi_uncore_pmu_enable_event(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	struct hisi_pmu *hisi_pmu = to_hisi_pmu(event->pmu);
 
-	/* Disable the hardware event counting */
-	if (hisi_pmu->ops->disable_counter)
-		hisi_pmu->ops->disable_counter(hisi_pmu, GET_CNTR_IDX(hwc));
-
 	/*
 	 * Set event in Event select registers.
 	 */
@@ -192,6 +188,25 @@ void hisi_uncore_pmu_enable_event(struct perf_event *event)
 	/* Enable the hardware event counting */
 	if (hisi_pmu->ops->enable_counter)
 		hisi_pmu->ops->enable_counter(hisi_pmu, GET_CNTR_IDX(hwc));
+}
+
+/*
+ * Disable counting and clear the event.
+ */
+void hisi_uncore_pmu_disable_event(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(event->pmu);
+
+	/* Disable the hardware event counting */
+	if (hisi_pmu->ops->disable_counter)
+		hisi_pmu->ops->disable_counter(hisi_pmu, GET_CNTR_IDX(hwc));
+
+	/*
+	 * Clear event in Event select registers.
+	 */
+	if (hisi_pmu->ops->clear_evtype)
+		hisi_pmu->ops->clear_evtype(hisi_pmu, GET_CNTR_IDX(hwc));
 }
 
 void hisi_pmu_set_event_period(struct perf_event *event)
@@ -247,12 +262,10 @@ void hisi_uncore_pmu_stop(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 	struct hisi_pmu *hisi_pmu = to_hisi_pmu(event->pmu);
 
-	if (hisi_pmu->ops->disable_counter)
-		hisi_pmu->ops->disable_counter(hisi_pmu,
-						GET_CNTR_IDX(hwc));
-
+	hisi_uncore_pmu_disable_event(event);
 	WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
 	hwc->state |= PERF_HES_STOPPED;
+
 	if (hwc->state & PERF_HES_UPTODATE)
 		return;
 
@@ -322,6 +335,22 @@ void hisi_uncore_pmu_read(struct perf_event *event)
 
 	/* Read hardware counter and update the Perf counter statistics */
 	hisi_pmu->ops->event_update(event, hwc, GET_CNTR_IDX(hwc));
+}
+
+void hisi_uncore_pmu_enable(struct pmu *pmu)
+{
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(pmu);
+
+	if (hisi_pmu->ops->start_counters)
+		hisi_pmu->ops->start_counters(hisi_pmu);
+}
+
+void hisi_uncore_pmu_disable(struct pmu *pmu)
+{
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(pmu);
+
+	if (hisi_pmu->ops->stop_counters)
+		hisi_pmu->ops->start_counters(hisi_pmu);
 }
 
 int hisi_uncore_pmu_setup(struct hisi_pmu *hisi_pmu, const char *pmu_name)
