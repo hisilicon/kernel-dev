@@ -22,6 +22,7 @@
 #include <linux/bitmap.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/perf_event.h>
 #include "hisi_uncore_pmu.h"
 
@@ -58,6 +59,7 @@ enum armv8_hisi_l3c_counters {
 struct hisi_l3c_hwcfg {
 	u32 module_id;
 	u32 bank_select;
+	u32 bank_id;
 };
 
 struct hisi_l3c_data {
@@ -65,6 +67,53 @@ struct hisi_l3c_data {
 	DECLARE_BITMAP(event_used_mask, HISI_MAX_CFG_L3C_CNTR);
 	struct hisi_l3c_hwcfg l3c_hwcfg;
 };
+
+struct hisi_l3c_hw_diff {
+	u32 (*get_bank_id)(u32 module_id, u32 bank_select);
+};
+
+/* hip05/06 chips L3C bank identifier */
+static u32 l3c_bankid_map_v1[MAX_BANKS] = {
+	0x02, 0x01, 0x04, 0x08,
+};
+
+/* hip07 chip L3C bank identifier */
+static u32 l3c_bankid_map_v2[MAX_BANKS] = {
+	0x01, 0x02, 0x03, 0x04,
+};
+
+/* Return the L3C bank index to use in PMU name */
+static u32 get_l3c_bank_v1(u32 module_id, u32 bank_select)
+{
+	u32 i;
+
+	/*
+	 * For v1 chip (hip05/06) the index of bank_select
+	 * in the bankid_map gives the bank index.
+	 */
+	for (i = 0 ; i < MAX_BANKS; i++)
+		if (l3c_bankid_map_v1[i] == bank_select)
+			break;
+
+	return i;
+}
+
+/* Return the L3C bank index to use in PMU name */
+static u32 get_l3c_bank_v2(u32 module_id, u32 bank_select)
+{
+	u32 i;
+
+	/*
+	 * For v2 chip (hip07) each bank has different
+	 * module ID. So index of module ID in the
+	 * bankid_map gives the bank index.
+	 */
+	for (i = 0 ; i < MAX_BANKS; i++)
+		if (l3c_bankid_map_v2[i] == module_id)
+			break;
+
+	return i;
+}
 
 static inline int hisi_l3c_counter_valid(int idx)
 {
@@ -296,11 +345,29 @@ static int hisi_l3c_get_event_idx(struct hisi_pmu *l3c_pmu)
 	return event_idx;
 }
 
+/* Handle differences in L3C hw in v1/v2 chips */
+static const struct hisi_l3c_hw_diff l3c_hw_v1 = {
+	.get_bank_id = get_l3c_bank_v1,
+};
+
+/* Handle differences in L3C hw in v1/v2 chips */
+static const struct hisi_l3c_hw_diff l3c_hw_v2 = {
+	.get_bank_id = get_l3c_bank_v2,
+};
+
+static const struct of_device_id l3c_of_match[] = {
+	{ .compatible = "hisilicon,hisi-pmu-l3c-v1", &l3c_hw_v1},
+	{ .compatible = "hisilicon,hisi-pmu-l3c-v2", &l3c_hw_v2},
+	{},
+};
+MODULE_DEVICE_TABLE(of, l3c_of_match);
+
 static int init_hisi_l3c_hwcfg_fdt(struct device *dev,
-				struct hisi_l3c_data *l3c_data)
+					struct hisi_l3c_data *l3c_data)
 {
 	struct hisi_l3c_hwcfg *l3c_hwcfg = &l3c_data->l3c_hwcfg;
 	struct device_node *node = dev->of_node;
+	const struct of_device_id *of_id;
 	int ret;
 
 	ret = of_property_read_u32_index(node, "module-id", 0,
@@ -317,6 +384,20 @@ static int init_hisi_l3c_hwcfg_fdt(struct device *dev,
 		return -EINVAL;
 	}
 
+	of_id = of_match_device(l3c_of_match, dev);
+	if (of_id) {
+		const struct hisi_l3c_hw_diff *l3c_hw = of_id->data;
+		u32 bank_id;
+
+		/* Get the L3C bank index to set the pmu name */
+		bank_id = l3c_hw->get_bank_id(l3c_hwcfg->module_id,
+							l3c_hwcfg->bank_select);
+		if (bank_id == MAX_BANKS) {
+			dev_err(dev, "DT: Invalid bank-select!\n");
+			return -EINVAL;
+		}
+		l3c_hwcfg->bank_id = bank_id;
+	}
 
 	return 0;
 }
@@ -421,11 +502,15 @@ static int hisi_l3c_pmu_init(struct hisi_pmu *l3c_pmu,
 				struct hisi_djtag_client *client)
 {
 	struct device *dev = &client->dev;
+	struct hisi_l3c_data *l3c_data = l3c_pmu->hwmod_data;
+	struct hisi_l3c_hwcfg *l3c_hwcfg = &l3c_data->l3c_hwcfg;
 
 	l3c_pmu->num_events = HISI_HWEVENT_L3C_EVENT_MAX;
 	l3c_pmu->num_counters = HISI_IDX_L3C_COUNTER_MAX;
-	l3c_pmu->name = kasprintf(GFP_KERNEL, "hisi_l3c%d",
-						l3c_pmu->scl_id);
+	l3c_pmu->scl_id = hisi_djtag_get_sclid(client);
+
+	l3c_pmu->name = kasprintf(GFP_KERNEL, "hisi_l3c%u_%u",
+				l3c_hwcfg->bank_id, l3c_pmu->scl_id);
 	l3c_pmu->ops = &hisi_uncore_l3c_ops;
 	l3c_pmu->dev = dev;
 
@@ -489,12 +574,6 @@ static int hisi_pmu_l3c_dev_remove(struct hisi_djtag_client *client)
 	return 0;
 }
 
-static const struct of_device_id l3c_of_match[] = {
-	{ .compatible = "hisilicon,hisi-pmu-l3c", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, l3c_of_match);
-
 static struct hisi_djtag_driver hisi_pmu_l3c_driver = {
 	.driver = {
 		.name = "hisi-pmu-l3c",
@@ -510,7 +589,7 @@ static int __init hisi_pmu_l3c_init(void)
 
 	rc = hisi_djtag_register_driver(THIS_MODULE, &hisi_pmu_l3c_driver);
 	if (rc < 0) {
-		pr_err("hisi pmu l3 init failed, rc=%d\n", rc);
+		pr_err("hisi pmu L3C init failed, rc=%d\n", rc);
 		return rc;
 	}
 

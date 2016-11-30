@@ -35,4 +35,5 @@ int hisi_djtag_readl(struct hisi_djtag_client *client, u32 offset,
 					u32 mod_sel, int chain_id, u32 *val);
 int hisi_djtag_writel(struct hisi_djtag_client *client, u32 offset,
 					u32 mod_sel, u32 mod_mask, u32 val);
+u32 hisi_djtag_get_sclid(struct hisi_djtag_client *client);
 #endif /* __HISI_DJTAG_H */

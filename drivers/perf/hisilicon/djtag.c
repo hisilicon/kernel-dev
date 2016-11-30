@@ -74,6 +74,7 @@ struct hisi_djtag_ops {
 struct hisi_djtag_host {
 	spinlock_t lock;
 	int id;
+	u32 scl_id;
 	struct device dev;
 	struct list_head client_list;
 	void __iomem *sysctl_reg_map;
@@ -359,6 +360,11 @@ int hisi_djtag_readl(struct hisi_djtag_client *client, u32 offset,
 	return ret;
 }
 
+u32 hisi_djtag_get_sclid(struct hisi_djtag_client *client)
+{
+	return client->host->scl_id;
+}
+
 static const struct hisi_djtag_ops djtag_v1_ops = {
 	.djtag_read  = djtag_read_v1,
 	.djtag_write  = djtag_write_v1,
@@ -585,6 +591,14 @@ static int djtag_host_probe(struct platform_device *pdev)
 
 		host->djtag_ops = djtag_ops;
 		host->of_node = of_node_get(dev->of_node);
+
+		/* Find the SCL ID */
+		if (of_property_read_u32(dev->of_node, "scl-id",
+					&host->scl_id)) {
+			dev_err(dev, "DT: Cant read scl-id!\n");
+			rc = -EINVAL;
+			goto fail;
+		}
 	} else {
 		rc = -EINVAL;
 		goto fail;
