@@ -94,7 +94,7 @@ config MVEBU_MBUS
 
 config HISILICON_LPC
 	bool "Workaround for nonstandard ISA I/O space on Hisilicon Hip0X SoC"
-	depends on (ARCH_HISI || COMPILE_TEST) && ARM64
+	depends on ARCH_HISI || COMPILE_TEST
 	select ARM64_INDIRECT_PIO
 	help
 	  This driver support for some legacy driver that use the ISA I/O ports,
