@@ -2135,8 +2135,8 @@ int hisi_sas_probe(struct platform_device *pdev,
 	shost->max_channel = 1;
 	shost->max_cmd_len = 16;
 	shost->sg_tablesize = min_t(u16, SG_ALL, HISI_SAS_SGE_PAGE_CNT);
-	shost->can_queue = hisi_hba->hw->max_command_entries;
-	shost->cmd_per_lun = hisi_hba->hw->max_command_entries;
+	shost->can_queue = hisi_hba->hw->can_queue;
+	shost->cmd_per_lun = hisi_hba->hw->can_queue;
 
 	sha->sas_ha_name = DRV_NAME;
 	sha->dev = hisi_hba->dev;

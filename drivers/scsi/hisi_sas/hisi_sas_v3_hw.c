@@ -1990,6 +1990,7 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.soft_reset = soft_reset_v3_hw,
 	.get_phys_state = get_phys_state_v3_hw,
 	.get_events = phy_get_events_v3_hw,
+	.can_queue = HISI_SAS_COMMAND_ENTRIES_V3_HW,
 };
 
 static struct Scsi_Host *
