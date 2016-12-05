@@ -213,6 +213,7 @@ struct hisi_sas_hw {
 	int (*soft_reset)(struct hisi_hba *hisi_hba);
 	u32 (*get_phys_state)(struct hisi_hba *hisi_hba);
 	int max_command_entries;
+	int can_queue;
 	int complete_hdr_size;
 };
 
