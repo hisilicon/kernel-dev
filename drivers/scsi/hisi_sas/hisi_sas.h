@@ -202,6 +202,7 @@ struct hisi_sas_hw {
 				struct domain_device *device);
 	int (*soft_reset)(struct hisi_hba *hisi_hba);
 	int max_command_entries;
+	int can_queue;
 	int complete_hdr_size;
 };
 
