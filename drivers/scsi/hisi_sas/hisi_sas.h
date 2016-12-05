@@ -179,6 +179,7 @@ struct hisi_sas_hw {
 			    struct hisi_sas_device *dev);
 	int (*get_wideport_bitmap)(struct hisi_hba *hisi_hba, int port_id);
 	int max_command_entries;
+	int can_queue;
 	int complete_hdr_size;
 #ifdef SAS_DIF
 	u32 prot_cap;

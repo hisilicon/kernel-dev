@@ -1999,6 +1999,7 @@ static const struct hisi_sas_hw hisi_sas_v1_hw = {
 	.phy_get_max_linkrate = phy_get_max_linkrate_v1_hw,
 	.get_wideport_bitmap = get_wideport_bitmap_v1_hw,
 	.max_command_entries = HISI_SAS_COMMAND_ENTRIES_V1_HW,
+	.can_queue = HISI_SAS_COMMAND_ENTRIES_V1_HW,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v1_hdr),
 #ifdef SAS_DIF
 	.prot_cap = SHOST_DIF_TYPE1_PROTECTION |
