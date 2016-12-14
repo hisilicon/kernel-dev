@@ -1228,6 +1228,7 @@ static int hns_nic_init_irq(struct hns_nic_priv *priv)
 {
 	struct hnae_handle *h = priv->ae_handle;
 	struct hns_nic_ring_data *rd;
+	struct net_device *netdev = priv->netdev;
 	int i;
 	int ret;
 	int cpu;
@@ -1256,9 +1257,19 @@ static int hns_nic_init_irq(struct hns_nic_priv *priv)
 		cpu = hns_nic_init_affinity_mask(h->q_num, i,
 						 rd->ring, &rd->mask);
 
-		if (cpu_online(cpu))
+		if (cpu_online(cpu)) {
 			irq_set_affinity_hint(rd->ring->irq,
 					      &rd->mask);
+
+			/* if it is tx ring, init xps config */
+			if (is_tx_ring(rd->ring)) {
+				ret = netif_set_xps_queue(netdev, &rd->mask,
+							  rd->queue_index);
+				if (ret)
+					netdev_err(priv->netdev,
+						   "netif_set_xps_queue fail\n");
+			}
+		}
 
 		rd->ring->irq_init_flag = RCB_IRQ_INITED;
 	}
