@@ -89,6 +89,10 @@ do { \
 
 #define RCB_RING_NAME_LEN 16
 
+#define HNAE_LOWEST_LATENCY_COAL_PARAM	30
+#define HNAE_LOW_LATENCY_COAL_PARAM	80
+#define HNAE_BULK_LATENCY_COAL_PARAM	150
+
 enum hnae_led_state {
 	HNAE_LED_INACTIVE,
 	HNAE_LED_ACTIVE,
@@ -290,6 +294,11 @@ struct hnae_ring {
 
 	int flags;          /* ring attribute */
 	int irq_init_flag;
+
+	u32 total_bytes;	/* total bytes processed this int */
+	u32 update_freq;
+	u16 coal_param;
+	u8 rate_lvl;		/* flow rate level */
 };
 
 #define ring_ptr_move_fw(ring, p) \
@@ -545,6 +554,9 @@ struct hnae_handle {
 	u32 if_support;
 	int q_num;
 	int vf_id;
+	u32 coal_param;		/* self adapt coalesce param */
+	u32 adapt_ring_idx;	/* the ring index of config high coalesce */
+	u32 update_time;	/* update the coalesce param time */
 	u32 eport_id;
 	u32 dport_id;	/* v2 tx bd should fill the dport_id */
 	u32 *rss_key;
