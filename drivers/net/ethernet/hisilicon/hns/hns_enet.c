@@ -810,6 +810,126 @@ static int hns_desc_unused(struct hnae_ring *ring)
 	return ((ntc >= ntu) ? 0 : ring->desc_num) + ntc - ntu;
 }
 
+enum latency_range {
+	lowest_latency = 0,
+	low_latency = 1,
+	bulk_latency = 2,
+};
+
+static void hns_update_rate_lvl(struct hns_nic_ring_data *ring_data)
+{
+	struct hnae_ring *ring = ring_data->ring;
+	struct hnae_handle *handle = ring_data->ring->q->handle;
+	u32 bytes = ring->total_bytes;
+	u32 timepassed_us = handle->coal_param;
+	u8 rate_lvl = ring->rate_lvl;
+	u64 bytes_perint;
+
+	/* simple throttlerate management
+	 *   0-10MB/s   lowest (100000 ints/s)
+	 *  10-20MB/s   low    (20000 ints/s)
+	 *  20-1249MB/s bulk   (8000 ints/s)
+	 */
+	bytes_perint = bytes / timepassed_us / ring->update_freq;
+
+	switch (ring->rate_lvl) {
+	case lowest_latency:
+		if (bytes_perint > 10)
+			rate_lvl = low_latency;
+		break;
+	case low_latency:
+		if (bytes_perint > 20)
+			rate_lvl = bulk_latency;
+		else if (bytes_perint <= 10)
+			rate_lvl = lowest_latency;
+		break;
+	default:
+		if (bytes_perint <= 20)
+			rate_lvl = low_latency;
+		break;
+	}
+
+	/* clear work counters since we have the values we need */
+	ring->total_bytes = 0;
+
+	/* write updated itr to ring container */
+	ring->rate_lvl = rate_lvl;
+}
+
+/**
+ * hns_nic_adp_coalesce - self adapte coalesce according to flow rate
+ * @ring_data: pointer to hns_nic_ring_data
+ *
+ * This function is meant to adapte the coalesce pramameters according
+ * to flow rate.
+ **/
+static void hns_nic_adpt_coalesce(struct hns_nic_ring_data *ring_data)
+{
+	struct hnae_ring *ring = ring_data->ring;
+	struct hnae_handle *handle = ring->q->handle;
+	u32 new_coal_param = ring->coal_param;
+	u32 old_coal_param = ring->coal_param;
+	u32 current_jiffies = jiffies;
+
+	/* control update freq */
+	if (ring->update_freq++ < 16)
+		return;
+
+	hns_update_rate_lvl(ring_data);
+	ring->update_freq = 0;
+
+	switch (ring->rate_lvl) {
+	case lowest_latency:
+		new_coal_param = HNAE_LOWEST_LATENCY_COAL_PARAM;
+		break;
+	case low_latency:
+		new_coal_param = HNAE_LOW_LATENCY_COAL_PARAM;
+		break;
+	case bulk_latency:
+		new_coal_param = HNAE_BULK_LATENCY_COAL_PARAM;
+		break;
+	default:
+		break;
+	}
+
+	if (new_coal_param != old_coal_param) {
+		/* do an exponential smoothing */
+		new_coal_param = (10 * new_coal_param * old_coal_param) /
+				 ((9 * new_coal_param) + old_coal_param - 10);
+
+		ring->coal_param = new_coal_param;
+	}
+
+	/* if this ring adapts the parameter at last, should keep alive */
+	if (handle->adapt_ring_idx == ring_data->queue_index)
+		handle->update_time = current_jiffies;
+
+	/**
+	 * Because all ring in one port has one coalesce param, when one ring
+	 * calculate its own coalesce param, it cannot write to hardware at
+	 * once. There are three conditions as follows:
+	 *       1. current ring's coalesce param is larger than the hardware.
+	 *       2. otherwise, the ring which adapt last time can change again.
+	 *       3. when it timeout.
+	 * Any conditions is true, the current ring's coalesce param will write
+	 * to hardware.
+	 */
+	if (new_coal_param > handle->coal_param ||
+	    (new_coal_param < handle->coal_param &&
+	     handle->adapt_ring_idx == ring_data->queue_index) ||
+	    current_jiffies - handle->update_time > HZ) {
+		if (new_coal_param != handle->coal_param) {
+			handle->dev->ops->set_coalesce_usecs(handle,
+						new_coal_param);
+			handle->dev->ops->set_coalesce_frames(handle,
+						new_coal_param);
+			handle->coal_param = new_coal_param;
+			handle->adapt_ring_idx = ring_data->queue_index;
+		}
+		handle->update_time = jiffies;
+	}
+}
+
 static int hns_nic_rx_poll_one(struct hns_nic_ring_data *ring_data,
 			       int budget, void *v)
 {
@@ -817,13 +937,13 @@ static int hns_nic_rx_poll_one(struct hns_nic_ring_data *ring_data,
 	struct sk_buff *skb;
 	int num, bnum;
 #define RCB_NOF_ALLOC_RX_BUFF_ONCE 16
-	int recv_pkts, recv_bds, clean_count, err;
+	 int recv_pkts, recv_bds, clean_count, err, total_bytes;
 	int unused_count = hns_desc_unused(ring);
 
 	num = readl_relaxed(ring->io_base + RCB_REG_FBDNUM);
 	rmb(); /* make sure num taken effect before the other data is touched */
 
-	recv_pkts = 0, recv_bds = 0, clean_count = 0;
+	recv_pkts = 0, recv_bds = 0, clean_count = 0, total_bytes = 0;
 	num -= unused_count;
 
 	while (recv_pkts < budget && recv_bds < num) {
@@ -847,6 +967,10 @@ static int hns_nic_rx_poll_one(struct hns_nic_ring_data *ring_data,
 			continue;
 		}
 
+		/* tcp ack don't check */
+		if (skb->len > 66)
+			total_bytes += skb->len;
+
 		/* do update ip stack process*/
 		((void (*)(struct hns_nic_ring_data *, struct sk_buff *))v)(
 							ring_data, skb);
@@ -858,6 +982,8 @@ out:
 	if (clean_count + unused_count > 0)
 		hns_nic_alloc_rx_buffers(ring_data,
 					 clean_count + unused_count);
+
+	ring_data->ring->total_bytes += total_bytes;
 
 	return recv_pkts;
 }
@@ -889,10 +1015,12 @@ static bool hns_nic_rx_fini_pro_v2(struct hns_nic_ring_data *ring_data)
 
 	num = readl_relaxed(ring->io_base + RCB_REG_FBDNUM);
 
-	if (!num)
+	if (!num) {
+		hns_nic_adpt_coalesce(ring_data);
 		return true;
-	else
+	} else {
 		return false;
+	}
 }
 
 static inline void hns_nic_reclaim_one_desc(struct hnae_ring *ring,
