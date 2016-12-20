@@ -22,7 +22,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			     struct domain_device *device,
 			     int abort_flag, int tag);
 static int hisi_sas_softreset_ata_disk(struct domain_device *device);
-static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device);
+static int hisi_sas_I_T_nexus_reset(struct domain_device *device);
 
 static struct hisi_hba *dev_to_hisi_hba(struct domain_device *device)
 {
@@ -167,6 +167,7 @@ static void hisi_sas_slot_abort(struct work_struct *work)
 	struct scsi_lun lun;
 	struct device *dev = &hisi_hba->pdev->dev;
 	int tag = abort_slot->idx;
+	unsigned long flags;
 
 	sas_dev->dev_status = HISI_SAS_DEV_EH;
 	if (task->task_proto & SAS_PROTOCOL_SSP) {
@@ -175,14 +176,21 @@ static void hisi_sas_slot_abort(struct work_struct *work)
 		tmf_task.tag_of_task_to_be_managed = cpu_to_le16(tag);
 		hisi_sas_debug_issue_ssp_tmf(task->dev,
 			lun.scsi_lun, &tmf_task);
+		goto out_task_cleanup;
 	} else {
 		dev_err(dev, "task_proto is not supported for slot abort\n");
+		goto out;
 	}
 
+out_task_cleanup:
 	/* Do cleanup for this task */
+	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_slot_task_free(hisi_hba, task, abort_slot);
+	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 	if (task->task_done)
 		task->task_done(task);
+out:
+	return;
 }
 
 static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
@@ -861,6 +869,7 @@ static int hisi_sas_softreset_ata_disk(struct domain_device *device)
 	int rc = TMF_RESP_FUNC_FAILED;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = &hisi_hba->pdev->dev;
+	unsigned long flags;
 
 	ata_for_each_link(link, ap, EDGE) {
 		int pmp = sata_srst_pmp(link);
@@ -884,6 +893,12 @@ static int hisi_sas_softreset_ata_disk(struct domain_device *device)
 		}
 	} else {
 		dev_err(dev, "ata disk reset failed\n");
+	}
+
+	if (rc == TMF_RESP_FUNC_COMPLETE) {
+		spin_lock_irqsave(&hisi_hba->lock, flags);
+		hisi_sas_release_task(hisi_hba, device);
+		spin_unlock_irqrestore(&hisi_hba->lock, flags);
 	}
 
 	return rc;
@@ -963,7 +978,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 			rc = hisi_sas_softreset_ata_disk(device);
 			/* Softreset failed, linkrset*/
 			if (rc != TMF_RESP_FUNC_COMPLETE)
-				hisi_sas_debug_I_T_nexus_reset(device);
+				hisi_sas_I_T_nexus_reset(device);
 			rc = TMF_RESP_FUNC_COMPLETE;
 		}
 	} else if (task->task_proto & SAS_PROTOCOL_SMP) {
@@ -1027,11 +1042,12 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 
 	rc = hisi_sas_debug_I_T_nexus_reset(device);
 
-	spin_lock_irqsave(&hisi_hba->lock, flags);
-	hisi_sas_release_task(hisi_hba, device);
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
-
-	return 0;
+	if (rc == TMF_RESP_FUNC_COMPLETE) {
+		spin_lock_irqsave(&hisi_hba->lock, flags);
+		hisi_sas_release_task(hisi_hba, device);
+		spin_unlock_irqrestore(&hisi_hba->lock, flags);
+	}
+	return rc;
 }
 
 static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
