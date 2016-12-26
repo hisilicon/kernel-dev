@@ -27,9 +27,9 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/soc/hisilicon/djtag.h>
 #include <linux/types.h>
 #include <asm/local64.h>
+#include "djtag.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt)     "hisi_pmu: " fmt
@@ -46,10 +46,6 @@
 
 #define GET_CNTR_IDX(hwc) (hwc->idx)
 #define to_hisi_pmu(c)	(container_of(c, struct hisi_pmu, pmu))
-
-#define GET_UNIT_IDX(event_code)		\
-	(((event_code & HISI_SCCL_MASK) >>	\
-			   HISI_SCCL_SHIFT) - 1)
 
 #define HISI_PMU_FORMAT_ATTR(_name, _config)		\
 	(&((struct dev_ext_attribute[]) {		\
@@ -71,6 +67,7 @@ struct hisi_pmu;
 
 struct hisi_uncore_ops {
 	void (*set_evtype)(struct hisi_pmu *, int, u32);
+	void (*clear_evtype)(struct hisi_pmu *, int);
 	void (*set_event_period)(struct perf_event *);
 	int (*get_event_idx)(struct hisi_pmu *);
 	void (*clear_event_idx)(struct hisi_pmu *, int);
@@ -81,6 +78,8 @@ struct hisi_uncore_ops {
 				struct hw_perf_event *, u32);
 	void (*enable_counter)(struct hisi_pmu *, int);
 	void (*disable_counter)(struct hisi_pmu *, int);
+	void (*start_counters)(struct hisi_pmu *);
+	void (*stop_counters)(struct hisi_pmu *);
 };
 
 struct hisi_pmu_hw_events {
@@ -100,7 +99,6 @@ struct hisi_pmu {
 	u32 scl_id;
 	int num_counters;
 	int num_events;
-	int num_units;
 };
 
 int hisi_pmu_write_counter(struct hisi_pmu *, int, u32);

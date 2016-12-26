@@ -964,74 +964,66 @@
 		};
 
 		djtag0: djtag@60010000 {
-			compatible = "hisilicon,hip06-cpu-djtag-v1";
+			compatible = "hisilicon,hisi-djtag-v1";
 			reg = <0x0 0x60010000 0x0 0x10000>;
 
 			/* L3 cache for socket0 CPU die scl#2 */
 			pmul3c0 {
-				compatible = "hisilicon,hisi-pmu-l3c";
-				scl-id = <0x02>;
-				num-events = <0x16>;
-				num-counters = <0x08>;
-				module-id = <0x04 0x04 0x04 0x04>;
-				num-banks = <0x04>;
-				cfgen-map = <0x02 0x04 0x01 0x08>;
-				counter-reg = <0x170>;
-				evctrl-reg = <0x04>;
-				event-en = <0x1000000>;
-				evtype-reg = <0x140>;
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x02>;
 			};
 
-			/* Miscellaneous node for socket0
-			 * CPU die scl#2
-			 */
+			pmul3c1 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x04>;
+			};
+
+			pmul3c2 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x01>;
+			};
+
+			pmul3c3 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x08>;
+			};
+
+			/* Miscellaneous node for socket0 CPU die scl#2 */
 			pmumn0 {
-				compatible = "hisilicon,hisi-pmu-mn";
-				scl-id = <0x02>;
-				num-events = <0x09>;
-				num-counters = <0x04>;
+				compatible = "hisilicon,hisi-pmu-mn-v1";
 				module-id = <0x0b>;
-				cfgen-map = <0x01>;
-				counter-reg = <0x30>;
-				evctrl-reg = <0x40>;
-				event-en = <0x01>;
-				evtype-reg = <0x48>;
 			};
 		};
 
 		djtag1: djtag@40010000 {
-			compatible = "hisilicon,hip06-cpu-djtag-v1";
+			compatible = "hisilicon,hisi-djtag-v1";
 			reg = <0x0 0x40010000 0x0 0x10000>;
 
 			/* L3 cache for socket0 CPU die scl#1 */
-			pmul3c1 {
-				compatible = "hisilicon,hisi-pmu-l3c";
+			pmul3c0 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
 				scl-id = <0x01>;
-				num-events = <0x16>;
-				num-counters = <0x08>;
-				module-id = <0x04 0x04 0x04 0x04>;
-				num-banks = <0x04>;
-				cfgen-map = <0x02 0x04 0x01 0x08>;
-				counter-reg = <0x170>;
-				evctrl-reg = <0x04>;
-				event-en = <0x1000000>;
-				evtype-reg = <0x140>;
 			};
 
-			/* Miscellaneous node for socket0
-			 * CPU die scl#1
-			 */
+			pmul3c1 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x04>;
+			};
+
+			pmul3c2 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x01>;
+			};
+
+			pmul3c3 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x08>;
+			};
+
+			/* Miscellaneous node for socket0 CPU die scl#1 */
 			pmumn1 {
-				compatible = "hisilicon,hisi-pmu-mn";
-				scl-id = <0x01>;
-				num-events = <0x09>;
-				num-counters = <0x04>;
+				compatible = "hisilicon,hisi-pmu-mn-v1";
 				module-id = <0x0b>;
-				cfgen-map = <0x01>;
-				counter-reg = <0x30>;
-				evctrl-reg = <0x40>;
-				event-en = <0x01>;
-				evtype-reg = <0x48>;
 			};
 		};
 
@@ -1040,8 +1032,6 @@
 			compatible = "hisilicon,hisi-pmu-ddrc-v1";
 			scl-id = <0x01>;
 			ch-id = <0x0>;
-			num-events = <0x0d>;
-			num-counters = <0x04>;
 			reg = <0x0 0x40348000 0x0 0x10000>; /* TOTEMA DDRC0 */
 			status = "okay";
 		};
@@ -1051,8 +1041,6 @@
 			compatible = "hisilicon,hisi-pmu-ddrc-v1";
 			scl-id = <0x01>;
 			ch-id = <0x01>;
-			num-events = <0x0d>;
-			num-counters = <0x04>;
 			reg = <0x0 0x40358000 0x0 0x10000>; /* TOTEMA DDRC1 */
 			status = "okay";
 		};
@@ -1062,8 +1050,6 @@
 			compatible = "hisilicon,hisi-pmu-ddrc-v1";
 			scl-id = <0x02>;
 			ch-id = <0x0>;
-			num-events = <0x0d>;
-			num-counters = <0x04>;
 			reg = <0x0 0x60348000 0x0 0x10000>; /* TOTEMC DDRC0 */
 			status = "okay";
 		};
@@ -1073,8 +1059,6 @@
 			compatible = "hisilicon,hisi-pmu-ddrc-v1";
 			scl-id = <0x02>;
 			ch-id = <0x01>;
-			num-events = <0x0d>;
-			num-counters = <0x04>;
 			reg = <0x0 0x60358000 0x0 0x10000>; /* TOTEMC DDRC1 */
 			status = "okay";
 		};

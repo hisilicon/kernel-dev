@@ -25,37 +25,58 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/perf_event.h>
-#include "hisi_uncore_ddrc.h"
+#include "hisi_uncore_pmu.h"
+
+/*
+ * ARMv8 HiSilicon DDRC event types.
+ */
+enum armv8_hisi_ddrc_event_types {
+	HISI_HWEVENT_DDRC_FLUX_WR	= 0x0,
+	HISI_HWEVENT_DDRC_FLUX_RD	= 0x01,
+	HISI_HWEVENT_DDRC_FLUX_WCMD	= 0x02,
+	HISI_HWEVENT_DDRC_FLUX_RCMD	= 0x03,
+	HISI_HWEVENT_DDRC_EVENT_MAX	= 0x0C,
+};
+
+#define HISI_DDRC_CTRL_PERF_REG_OFF	0x010
+#define HISI_DDRC_CFG_PERF_REG_OFF	0x270
+#define HISI_DDRC_FLUX_WR_REG_OFF	0x380
+
+struct hisi_ddrc_hwcfg {
+	u32 channel_id;
+};
+
+struct hisi_ddrc_data {
+	void __iomem *regs_base;
+	DECLARE_BITMAP(event_used_mask,	HISI_HWEVENT_DDRC_EVENT_MAX);
+	struct hisi_ddrc_hwcfg ddrc_hwcfg;
+};
 
 static inline int hisi_ddrc_counter_valid(int idx, struct hisi_pmu *ddrc_pmu)
 {
-	return (idx >= 0 && idx < ddrc_pmu->num_counters);
+	return (idx >= 0 && idx < HISI_HWEVENT_DDRC_EVENT_MAX);
 }
 
-static u32 hisi_ddrc_read32_relaxed(void __iomem *regs_base, u32 off)
+/*
+ * Select the counter register offset from the event code
+ * In DDRC there are no special counter registers, the
+ * count is read form the statistics register itself
+ */
+static inline u32 get_counter_reg_off(int event_code)
 {
-	void __iomem *reg_addr = regs_base + off;
-
-	return readl_relaxed(reg_addr);
+	return (HISI_DDRC_FLUX_WR_REG_OFF + (event_code * 4));
 }
 
-static void hisi_ddrc_write32(void __iomem *regs_base, u32 off, u32 val)
-{
-	void __iomem *reg_addr = regs_base + off;
-
-	writel(val, reg_addr);
-}
-
-static u32 hisi_read_ddrc_counter(struct hisi_ddrc_data *ddrc_hwmod_data,
-					unsigned long event_code, int idx)
+static u32 hisi_read_ddrc_counter(struct hisi_ddrc_data *ddrc_data,
+					unsigned long event_code)
 {
 	u32 value;
 	u32 reg_off;
 
-	reg_off = HISI_DDRC_FLUX_WR_REG_OFF + (event_code * 4);
+	reg_off = get_counter_reg_off(event_code);
 
-	value = hisi_ddrc_read32_relaxed(ddrc_hwmod_data->regs_base,
-								reg_off);
+	value = readl(ddrc_data->regs_base + reg_off);
+
 	return value;
 }
 
@@ -63,28 +84,19 @@ static u64 hisi_ddrc_event_update(struct perf_event *event,
 				struct hw_perf_event *hwc, int idx)
 {
 	struct hisi_pmu *ddrc_pmu = to_hisi_pmu(event->pmu);
-	struct hisi_ddrc_data *ddrc_hwmod_data;
+	struct hisi_ddrc_data *ddrc_data = ddrc_pmu->hwmod_data;
 	u64 delta, prev_raw_count, new_raw_count = 0;
 
-	if (!hisi_ddrc_counter_valid(idx, ddrc_pmu)) {
-		dev_err(ddrc_pmu->dev,
-			"%s: Unsupported event index:%d!\n", __func__, idx);
-		return 0;
-	}
-
-	ddrc_hwmod_data = ddrc_pmu->hwmod_data;
-
-	/* Check if the DDRC data is initialized for this SCCL */
-	if (!ddrc_hwmod_data->regs_base) {
-		dev_err(ddrc_pmu->dev, "DDRC registers not mapped!\n");
-		return 0;
-	}
-
 	do {
-		prev_raw_count = local64_read(&hwc->prev_count);
+		/* Read the count from the statistics register */
 		new_raw_count =
-			hisi_read_ddrc_counter(ddrc_hwmod_data,
-						hwc->config_base, idx);
+			hisi_read_ddrc_counter(ddrc_data,
+						hwc->config_base);
+		prev_raw_count = local64_read(&hwc->prev_count);
+
+		/*
+		 *  compute the delta
+		 */
 		delta = (new_raw_count - prev_raw_count) &
 						HISI_MAX_PERIOD;
 
@@ -99,53 +111,50 @@ static u64 hisi_ddrc_event_update(struct perf_event *event,
 static u32 hisi_write_ddrc_counter(struct hisi_pmu *ddrc_pmu,
 				struct hw_perf_event *hwc, u32 value)
 {
-	struct hisi_ddrc_data *ddrc_hwmod_data = ddrc_pmu->hwmod_data;
+	struct hisi_ddrc_data *ddrc_data = ddrc_pmu->hwmod_data;
 	u32 reg_off;
 	u32 event_code = hwc->config_base;
 
 	if (!(event_code >= HISI_HWEVENT_DDRC_FLUX_WR &&
-		event_code < HISI_HWEVENT_DDRC_MAX_EVENT)) {
+		event_code < HISI_HWEVENT_DDRC_EVENT_MAX)) {
 		dev_err(ddrc_pmu->dev, "Unknown DDR evevnt!");
 		return 0;
 	}
 
-	if (!ddrc_hwmod_data->regs_base) {
+	if (!ddrc_data->regs_base) {
 		dev_err(ddrc_pmu->dev,
 				"DDR reg address not mapped!\n");
 		return 0;
 	}
 
-	reg_off = HISI_DDRC_FLUX_WR_REG_OFF + (event_code * 4);
+	reg_off = get_counter_reg_off(event_code);
 
-	hisi_ddrc_write32(ddrc_hwmod_data->regs_base,
-						reg_off, value);
+	writel(value, ddrc_data->regs_base + reg_off);
 
 	return value;
 }
 
 static void hisi_ddrc_set_event_period(struct perf_event *event)
 {
-	struct hw_perf_event *hwc = &event->hw;
 	struct hisi_pmu *ddrc_pmu = to_hisi_pmu(event->pmu);
-	struct hisi_ddrc_data *ddrc_hwmod_data = ddrc_pmu->hwmod_data;
+	struct hisi_ddrc_data *ddrc_data = ddrc_pmu->hwmod_data;
+	struct hw_perf_event *hwc = &event->hw;
 	u32 event_code = hwc->config_base;
-	u32 reg_off;
-	u32 value;
+	u32 reg_off, value;
 
-	reg_off = HISI_DDRC_FLUX_WR_REG_OFF + (event_code * 4);
 	/*
 	 * For Hisilicon DDRC PMU we save the current counter value
 	 * to prev_count, as we have enabled continuous counting for
 	 * DDRC.
 	 */
-	value = hisi_ddrc_read32_relaxed(ddrc_hwmod_data->regs_base,
-								reg_off);
+	reg_off = get_counter_reg_off(event_code);
+	value = readl(ddrc_data->regs_base + reg_off);
 	local64_set(&hwc->prev_count, value);
 }
 
 static void hisi_clear_ddrc_event_idx(struct hisi_pmu *ddrc_pmu, int idx)
 {
-	struct hisi_ddrc_data *ddrc_hwmod_data = ddrc_pmu->hwmod_data;
+	struct hisi_ddrc_data *ddrc_data = ddrc_pmu->hwmod_data;
 	void *bitmap_addr;
 
 	if (!hisi_ddrc_counter_valid(idx, ddrc_pmu)) {
@@ -154,26 +163,23 @@ static void hisi_clear_ddrc_event_idx(struct hisi_pmu *ddrc_pmu, int idx)
 		return;
 	}
 
-	bitmap_addr = ddrc_hwmod_data->hisi_ddrc_event_used_mask;
+	bitmap_addr = ddrc_data->event_used_mask;
 
-	__clear_bit(idx, bitmap_addr);
+	clear_bit(idx, bitmap_addr);
 }
 
 static int hisi_ddrc_get_event_idx(struct hisi_pmu *ddrc_pmu)
 {
-	struct hisi_ddrc_data *ddrc_hwmod_data = ddrc_pmu->hwmod_data;
+	struct hisi_ddrc_data *ddrc_data = ddrc_pmu->hwmod_data;
+	unsigned long *used_mask = ddrc_data->event_used_mask;
+	u32 num_counters = ddrc_pmu->num_counters;
 	int event_idx;
 
-	event_idx =
-		find_first_zero_bit(
-			ddrc_hwmod_data->hisi_ddrc_event_used_mask,
-						ddrc_pmu->num_counters);
-
-	if (event_idx == ddrc_pmu->num_counters)
+	event_idx = find_first_zero_bit(used_mask, num_counters);
+	if (event_idx == num_counters)
 		return -EAGAIN;
 
-	__set_bit(event_idx,
-		ddrc_hwmod_data->hisi_ddrc_event_used_mask);
+	set_bit(event_idx, used_mask);
 
 	return event_idx;
 }
@@ -184,42 +190,32 @@ static void hisi_free_ddrc_data(struct hisi_pmu *ddrc_pmu)
 	ddrc_pmu->hwmod_data = NULL;
 }
 
-static void init_hisi_ddr(void __iomem *reg_base)
+static void init_hisi_ddrc(void __iomem *reg_base)
 {
 	u32 value;
 
-	hisi_ddrc_write32(reg_base, HISI_DDRC_CTRL_PERF_REG_OFF, 0);
+	writel(0, reg_base + HISI_DDRC_CTRL_PERF_REG_OFF);
 
-	value = hisi_ddrc_read32_relaxed(reg_base, HISI_DDRC_CFG_PERF_REG_OFF);
+	value = readl(reg_base + HISI_DDRC_CFG_PERF_REG_OFF);
 	value &= 0x2fffffff;
-	hisi_ddrc_write32(reg_base, HISI_DDRC_CFG_PERF_REG_OFF, value);
+	writel(value, reg_base + HISI_DDRC_CFG_PERF_REG_OFF);
 
 	/* Enable Continuous counting */
-	hisi_ddrc_write32(reg_base, HISI_DDRC_CTRL_PERF_REG_OFF, 1);
+	writel(1, reg_base + HISI_DDRC_CTRL_PERF_REG_OFF);
 }
 
-static int init_hisi_ddrc_dts_data(struct platform_device *pdev,
-					struct hisi_ddrc_data *ddrc_hwmod_data)
+static int init_hisi_ddrc_hwcfg_fdt(struct device *dev,
+					struct hisi_ddrc_data *ddrc_data)
 {
-	struct resource *res;
+	struct hisi_ddrc_hwcfg *ddrc_hwcfg;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	/* Continue for zero entries */
-	if (!res) {
-		dev_err(&pdev->dev, "No DDR reg resorces!\n");
+	ddrc_hwcfg = &ddrc_data->ddrc_hwcfg;
+	if (of_property_read_u32(dev->of_node, "ch-id",
+					 &ddrc_hwcfg->channel_id)) {
+		dev_err(dev, "DT: Cant read ch-id!\n");
+		kfree(ddrc_data);
 		return -EINVAL;
 	}
-
-	if (!resource_size(res)) {
-		dev_err(&pdev->dev, "Zero DDR reg entry!\n");
-		return -EINVAL;
-	}
-
-	ddrc_hwmod_data->regs_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(ddrc_hwmod_data->regs_base))
-		return PTR_ERR(ddrc_hwmod_data->regs_base);
-
-	init_hisi_ddr(ddrc_hwmod_data->regs_base);
 
 	return 0;
 }
@@ -228,7 +224,16 @@ static int init_hisi_ddrc_data(struct platform_device *pdev,
 					struct hisi_pmu *ddrc_pmu)
 {
 	struct device *dev = &pdev->dev;
+	struct hisi_ddrc_data *ddrc_data;
+	struct resource *res;
 	int ret;
+
+	ddrc_data = devm_kzalloc(dev, sizeof(struct hisi_ddrc_data),
+							GFP_KERNEL);
+	if (!ddrc_data)
+		return -ENOMEM;
+
+	ddrc_pmu->hwmod_data = ddrc_data;
 
 	ddrc_pmu->hw_events.events = devm_kcalloc(dev,
 					ddrc_pmu->num_counters,
@@ -241,7 +246,29 @@ static int init_hisi_ddrc_data(struct platform_device *pdev,
 
 	raw_spin_lock_init(&ddrc_pmu->hw_events.pmu_lock);
 
-	init_hisi_ddrc_dts_data(pdev, ddrc_pmu->hwmod_data);
+	if (dev->of_node) {
+		ret = init_hisi_ddrc_hwcfg_fdt(dev, ddrc_data);
+		if (ret)
+			return ret;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	/* Continue for zero entries */
+	if (!res) {
+		dev_err(dev, "No DDR reg resources!\n");
+		return -EINVAL;
+	}
+
+	if (!resource_size(res)) {
+		dev_err(dev, "Zero DDR reg entry!\n");
+		return -EINVAL;
+	}
+
+	ddrc_data->regs_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(ddrc_data->regs_base))
+		return PTR_ERR(ddrc_data->regs_base);
+
+	init_hisi_ddrc(ddrc_data->regs_base);
 
 	return 0;
 
@@ -269,16 +296,11 @@ static struct attribute *hisi_ddrc_events_attr[] = {
 	HISI_PMU_EVENT_ATTR_STR(fluxid_read, "event=0x05"),
 	HISI_PMU_EVENT_ATTR_STR(fluxid_write_cmd, "event=0x06"),
 	HISI_PMU_EVENT_ATTR_STR(fluxid_read_cmd, "event=0x07"),
-	HISI_PMU_EVENT_ATTR_STR(write_latency_cnt0,
-					"event=0x08"),
-	HISI_PMU_EVENT_ATTR_STR(read_latency_cnt0,
-					"event=0x09"),
-	HISI_PMU_EVENT_ATTR_STR(write_latency_cnt1,
-					"event=0x0A"),
-	HISI_PMU_EVENT_ATTR_STR(read_latency_cnt1,
-						"event=0x0B"),
-	HISI_PMU_EVENT_ATTR_STR(read_latency_cnt_inher,
-						"event=0x0C"),
+	HISI_PMU_EVENT_ATTR_STR(write_latency_cnt0, "event=0x08"),
+	HISI_PMU_EVENT_ATTR_STR(read_latency_cnt0, "event=0x09"),
+	HISI_PMU_EVENT_ATTR_STR(write_latency_cnt1, "event=0x0A"),
+	HISI_PMU_EVENT_ATTR_STR(read_latency_cnt1, "event=0x0B"),
+	HISI_PMU_EVENT_ATTR_STR(read_latency_cnt_inher,	"event=0x0C"),
 	NULL,
 };
 
@@ -295,7 +317,7 @@ struct attribute_group hisi_ddrc_attr_group = {
 	.attrs = hisi_ddrc_attrs,
 };
 
-static DEVICE_ATTR(cpumask, S_IRUGO, hisi_cpumask_sysfs_show, NULL);
+static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
 
 static struct attribute *hisi_ddrc_cpumask_attrs[] = {
 	&dev_attr_cpumask.attr,
@@ -322,35 +344,28 @@ static struct hisi_uncore_ops hisi_uncore_ddrc_ops = {
 	.write_counter = hisi_write_ddrc_counter,
 };
 
-static int hisi_ddrc_pmu_init(struct device *dev,
-					struct hisi_pmu *ddrc_pmu)
+static int hisi_ddrc_pmu_init(struct device *dev, struct hisi_pmu *ddrc_pmu)
 {
-	struct hisi_ddrc_data *ddrc_hwmod_data;
+	struct hisi_ddrc_data *ddrc_data = ddrc_pmu->hwmod_data;
 	struct hisi_ddrc_hwcfg *ddrc_hwcfg;
-	int ret;
 
-	/* Read common PMU properties */
-	ret = hisi_uncore_common_fwprop_read(dev, ddrc_pmu);
-	if (ret)
-		return ret;
+	ddrc_hwcfg = &ddrc_data->ddrc_hwcfg;
 
-	ddrc_hwmod_data = kzalloc(sizeof(struct hisi_ddrc_data),
-							GFP_KERNEL);
-	if (!ddrc_hwmod_data)
-		return -ENOMEM;
-
-	ddrc_hwcfg = &ddrc_hwmod_data->ddrc_hwcfg;
-	if (of_property_read_u32(dev->of_node, "ch-id",
-					 &ddrc_hwcfg->channel_id)) {
-		kfree(ddrc_hwmod_data);
-		return -EINVAL;
+	if (dev->of_node) {
+		if (of_property_read_u32(dev->of_node, "scl-id",
+						&ddrc_pmu->scl_id)) {
+			dev_err(dev, "DT: Cant read scl-id!\n");
+			return -EINVAL;
+		}
 	}
 
-	ddrc_pmu->name = kasprintf(GFP_KERNEL, "hisi_ddrc%d_%d",
-			ddrc_pmu->scl_id, ddrc_hwcfg->channel_id);
+	ddrc_pmu->name = kasprintf(GFP_KERNEL, "hisi_ddrc%u_%u",
+			ddrc_hwcfg->channel_id, ddrc_pmu->scl_id);
 
+	ddrc_pmu->num_events = HISI_HWEVENT_DDRC_EVENT_MAX;
+	/* For DDRC the num of counters = num of events */
+	ddrc_pmu->num_counters = HISI_HWEVENT_DDRC_EVENT_MAX;
 	ddrc_pmu->ops = &hisi_uncore_ddrc_ops;
-	ddrc_pmu->hwmod_data = ddrc_hwmod_data;
 	ddrc_pmu->dev = dev;
 
 	/* Pick one core to use for cpumask attributes */
@@ -377,18 +392,17 @@ static int hisi_pmu_ddrc_dev_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	ddrc_pmu = hisi_pmu_alloc(dev);
-	if (IS_ERR(ddrc_pmu))
-		return PTR_ERR(ddrc_pmu);
+	if (!ddrc_pmu)
+		return -ENOMEM;
+
+	ret = init_hisi_ddrc_data(pdev, ddrc_pmu);
+	if (ret)
+		return ret;
 
 	ret = hisi_ddrc_pmu_init(dev, ddrc_pmu);
 	if (ret)
 		return ret;
 
-	ret = init_hisi_ddrc_data(pdev, ddrc_pmu);
-	if (ret)
-		goto fail_init;
-
-	/* Register with perf PMU */
 	ddrc_pmu->pmu = (struct pmu) {
 		.name = ddrc_pmu->name,
 		.task_ctx_nr = perf_invalid_context,
@@ -404,19 +418,12 @@ static int hisi_pmu_ddrc_dev_probe(struct platform_device *pdev)
 	ret = hisi_uncore_pmu_setup(ddrc_pmu, ddrc_pmu->name);
 	if (ret) {
 		dev_err(ddrc_pmu->dev, "hisi_uncore_pmu_init FAILED!!\n");
-		goto fail;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, ddrc_pmu);
 
 	return 0;
-fail:
-	hisi_free_ddrc_data(ddrc_pmu);
-
-fail_init:
-	dev_err(ddrc_pmu->dev, "%s failed\n", __func__);
-
-	return ret;
 }
 
 static int hisi_pmu_ddrc_dev_remove(struct platform_device *pdev)
@@ -426,6 +433,7 @@ static int hisi_pmu_ddrc_dev_remove(struct platform_device *pdev)
 	perf_pmu_unregister(&ddrc_pmu->pmu);
 	hisi_free_ddrc_data(ddrc_pmu);
 	platform_set_drvdata(pdev, NULL);
+
 	return 0;
 }
 
