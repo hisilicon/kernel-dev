@@ -423,6 +423,7 @@ unsigned long acpi_dev_irq_flags(u8 triggering, u8 polarity, u8 shareable);
 unsigned int acpi_dev_get_irq_type(int triggering, int polarity);
 bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 				 struct resource *res);
+int acpi_irq_get(acpi_handle handle, unsigned int index, struct resource *res);
 
 void acpi_dev_free_resource_list(struct list_head *list);
 int acpi_dev_get_resources(struct acpi_device *adev, struct list_head *list,
@@ -792,6 +793,11 @@ static inline int acpi_reconfig_notifier_unregister(struct notifier_block *nb)
 static inline struct acpi_device *acpi_resource_consumer(struct resource *res)
 {
 	return NULL;
+}
+static inline int acpi_irq_get(acpi_handle handle, unsigned int index,
+			       struct resource *res)
+{
+	return -EINVAL;
 }
 
 #endif	/* !CONFIG_ACPI */

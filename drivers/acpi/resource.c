@@ -721,3 +721,62 @@ struct acpi_device *acpi_resource_consumer(struct resource *res)
 	acpi_get_devices(NULL, acpi_res_consumer_cb, res, (void **) &consumer);
 	return consumer;
 }
+
+struct acpi_irq_get_ctx {
+	unsigned int index;
+	struct resource *res;
+};
+
+static acpi_status acpi_irq_get_cb(struct acpi_resource *ares, void *context)
+{
+	struct acpi_irq_get_ctx *ctx = context;
+	struct acpi_resource_irq *irq;
+	struct acpi_resource_extended_irq *ext_irq;
+
+	switch (ares->type) {
+	case ACPI_RESOURCE_TYPE_IRQ:
+		irq = &ares->data.irq;
+		if (ctx->index < irq->interrupt_count) {
+			acpi_dev_resource_interrupt(ares, ctx->index, ctx->res);
+			return AE_CTRL_TERMINATE;
+		}
+		ctx->index -= irq->interrupt_count;
+		break;
+	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
+		ext_irq = &ares->data.extended_irq;
+		if (ctx->index < ext_irq->interrupt_count) {
+			acpi_dev_resource_interrupt(ares, ctx->index, ctx->res);
+			return AE_CTRL_TERMINATE;
+		}
+		ctx->index -= ext_irq->interrupt_count;
+		break;
+	}
+
+	return AE_OK;
+}
+
+/** 
+ * acpi_irq_get - Look for the ACPI IRQ resource with the given index and
+ *                use it to initialize the given Linux IRQ resource.
+ * @handle ACPI device handle
+ * @index  ACPI IRQ resource index to lookup
+ * @res    Linux IRQ resource to initialize
+ *
+ * Return: 0 on success
+ *         -EINVAL if an error occurs
+ *         -EPROBE_DEFER if the IRQ lookup/conversion failed
+ */
+int acpi_irq_get(acpi_handle handle, unsigned int index, struct resource *res)
+{
+	struct acpi_irq_get_ctx ctx = { index, res };
+	acpi_status status;
+
+	status = acpi_walk_resources(handle, METHOD_NAME__CRS,
+				     acpi_irq_get_cb, &ctx);
+	if (ACPI_FAILURE(status))
+		return -EINVAL;
+	if (res->flags & IORESOURCE_DISABLED)
+		return -EPROBE_DEFER;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(acpi_irq_get);
