@@ -1065,10 +1065,36 @@ CLOCKSOURCE_OF_DECLARE(armv7_arch_timer_mem, "arm,armv7-timer-mem",
 		       arch_timer_mem_of_init);
 
 #ifdef CONFIG_ACPI_GTDT
-/* Initialize per-processor generic timer */
+static int __init arch_timer_mem_acpi_init(int platform_timer_count)
+{
+	struct arch_timer_mem *timer_mem;
+	int timer_count, i, ret;
+
+	timer_mem = kcalloc(platform_timer_count, sizeof(*timer_mem),
+			    GFP_KERNEL);
+	if (!timer_mem)
+		return -ENOMEM;
+
+	ret = acpi_arch_timer_mem_init(timer_mem, &timer_count);
+	if (ret || !timer_count)
+		goto error;
+
+	for (i = 0; i < timer_count; i++) {
+		ret = arch_timer_mem_init(timer_mem);
+		if (!ret)
+			break;
+		timer_mem++;
+	}
+
+error:
+	kfree(timer_mem);
+	return ret;
+}
+
+/* Initialize per-processor generic timer and memory-mapped timer(if present) */
 static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 {
-	int ret;
+	int ret, platform_timer_count;
 
 	if (arch_timers_present & ARCH_TIMER_TYPE_CP15) {
 		pr_warn("already initialized, skipping\n");
@@ -1077,7 +1103,7 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 
 	arch_timers_present |= ARCH_TIMER_TYPE_CP15;
 
-	ret = acpi_gtdt_init(table, NULL);
+	ret = acpi_gtdt_init(table, &platform_timer_count);
 	if (ret) {
 		pr_err("Failed to init GTDT table.\n");
 		return ret;
@@ -1109,6 +1135,9 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 	ret = arch_timer_register();
 	if (ret)
 		return ret;
+
+	if (arch_timer_mem_acpi_init(platform_timer_count))
+		pr_err("Failed to initialize memory-mapped timer.\n");
 
 	return arch_timer_common_init();
 }
