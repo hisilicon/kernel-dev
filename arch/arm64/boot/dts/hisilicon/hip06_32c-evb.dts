@@ -12,7 +12,7 @@
 /dts-v1/;
 
 /memreserve/ 0x00000000 0x00010000;
-/include/ "hip06-evb-32c.dtsi"
+/include/ "hip06-evb.dtsi"
 
 / {
 	model = "Hisilicon Hip06 Evaluation Board";
