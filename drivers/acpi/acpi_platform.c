@@ -12,6 +12,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/acpi_iort.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -45,6 +46,15 @@ static void acpi_platform_fill_resource(struct acpi_device *adev,
 	parent = acpi_get_first_physical_node(adev->parent);
 	if (parent && dev_is_pci(parent))
 		dest->parent = pci_find_resource(to_pci_dev(parent), dest);
+}
+
+/**
+ * acpi_platform_pre_add_cb - callback before platform device is added, to
+ * prepare firmware related information which is needed for device probe
+ */
+static void acpi_platform_pre_add_cb(struct device *dev)
+{
+	acpi_configure_pmsi_domain(dev);
 }
 
 /**
@@ -109,6 +119,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 	pdevinfo.num_res = count;
 	pdevinfo.fwnode = acpi_fwnode_handle(adev);
 	pdevinfo.properties = properties;
+	pdevinfo.pre_add_cb = acpi_platform_pre_add_cb;
 
 	if (acpi_dma_supported(adev))
 		pdevinfo.dma_mask = DMA_BIT_MASK(32);

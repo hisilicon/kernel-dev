@@ -74,6 +74,9 @@ struct platform_device_info {
 		u64 dma_mask;
 
 		struct property_entry *properties;
+
+		/* preparation callback before the platform device is added */
+		void (*pre_add_cb)(struct device *);
 };
 extern struct platform_device *platform_device_register_full(
 		const struct platform_device_info *pdevinfo);
