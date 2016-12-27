@@ -338,6 +338,25 @@ extern int acpi_get_override_irq(u32 gsi, int *trigger, int *polarity);
  */
 void acpi_unregister_gsi (u32 gsi);
 
+#ifdef CONFIG_ACPI_GENERIC_GSI
+struct fwnode_handle *
+acpi_get_irq_source_fwhandle(const struct acpi_resource_source *source);
+int acpi_register_irq(struct fwnode_handle *source, u32 hwirq, int trigger,
+		      int polarity);
+void acpi_unregister_irq(struct fwnode_handle *source, u32 hwirq);
+#else
+#define acpi_get_irq_source_fwhandle(source) (NULL)
+static inline int acpi_register_irq(struct fwnode_handle *source, u32 hwirq,
+				    int trigger, int polarity)
+{
+	return acpi_register_gsi(NULL, hwirq, trigger, polarity);
+}
+static inline void acpi_unregister_irq(struct fwnode_handle *source, u32 hwirq)
+{
+	acpi_unregister_gsi(hwirq);
+}
+#endif
+
 struct pci_dev;
 
 int acpi_pci_irq_enable (struct pci_dev *dev);
