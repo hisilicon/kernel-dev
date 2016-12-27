@@ -20,18 +20,18 @@
 #include <linux/timecounter.h>
 #include <linux/types.h>
 
-#define ARCH_CP15_TIMER			BIT(0)
-#define ARCH_MEM_TIMER			BIT(1)
+#define ARCH_TIMER_TYPE_CP15		BIT(0)
+#define ARCH_TIMER_TYPE_MEM		BIT(1)
 
 #define ARCH_TIMER_CTRL_ENABLE		(1 << 0)
 #define ARCH_TIMER_CTRL_IT_MASK		(1 << 1)
 #define ARCH_TIMER_CTRL_IT_STAT		(1 << 2)
 
-#define CNTHCTL_EL1PCTEN		(1 << 0)
-#define CNTHCTL_EL1PCEN			(1 << 1)
-#define CNTHCTL_EVNTEN			(1 << 2)
-#define CNTHCTL_EVNTDIR			(1 << 3)
-#define CNTHCTL_EVNTI			(0xF << 4)
+#define ARCH_TIMER_CNTHCTL_EL1PCTEN	(1 << 0)
+#define ARCH_TIMER_CNTHCTL_EL1PCEN	(1 << 1)
+#define ARCH_TIMER_CNTHCTL_EVNTEN	(1 << 2)
+#define ARCH_TIMER_CNTHCTL_EVNTDIR	(1 << 3)
+#define ARCH_TIMER_CNTHCTL_EVNTI	(0xF << 4)
 
 enum arch_timer_reg {
 	ARCH_TIMER_REG_CTRL,
@@ -39,11 +39,11 @@ enum arch_timer_reg {
 };
 
 enum arch_timer_ppi_nr {
-	PHYS_SECURE_PPI,
-	PHYS_NONSECURE_PPI,
-	VIRT_PPI,
-	HYP_PPI,
-	MAX_TIMER_PPI
+	ARCH_TIMER_PHYS_SECURE_PPI,
+	ARCH_TIMER_PHYS_NONSECURE_PPI,
+	ARCH_TIMER_VIRT_PPI,
+	ARCH_TIMER_HYP_PPI,
+	ARCH_TIMER_MAX_TIMER_PPI
 };
 
 enum arch_timer_spi_nr {

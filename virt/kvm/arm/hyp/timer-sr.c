@@ -37,7 +37,7 @@ void __hyp_text __timer_save_state(struct kvm_vcpu *vcpu)
 
 	/* Allow physical timer/counter access for the host */
 	val = read_sysreg(cnthctl_el2);
-	val |= CNTHCTL_EL1PCTEN | CNTHCTL_EL1PCEN;
+	val |= ARCH_TIMER_CNTHCTL_EL1PCTEN | ARCH_TIMER_CNTHCTL_EL1PCEN;
 	write_sysreg(val, cnthctl_el2);
 
 	/* Clear cntvoff for the host */
@@ -55,8 +55,8 @@ void __hyp_text __timer_restore_state(struct kvm_vcpu *vcpu)
 	 * Physical counter access is allowed
 	 */
 	val = read_sysreg(cnthctl_el2);
-	val &= ~CNTHCTL_EL1PCEN;
-	val |= CNTHCTL_EL1PCTEN;
+	val &= ~ARCH_TIMER_CNTHCTL_EL1PCEN;
+	val |= ARCH_TIMER_CNTHCTL_EL1PCTEN;
 	write_sysreg(val, cnthctl_el2);
 
 	if (timer->enabled) {
