@@ -119,7 +119,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 	pdevinfo.num_res = count;
 	pdevinfo.fwnode = acpi_fwnode_handle(adev);
 	pdevinfo.properties = properties;
-	pdevinfo.pre_add_cb = acpi_platform_pre_add_cb;
+	pdevinfo.pre_add_cb = NULL;//acpi_configure_pmsi_domain;
 
 	if (acpi_dma_supported(adev))
 		pdevinfo.dma_mask = DMA_BIT_MASK(32);

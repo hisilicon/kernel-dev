@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/rwsem.h>
 #include <linux/acpi.h>
+#include <linux/acpi_iort.h>
 #include <linux/dma-mapping.h>
 
 #include "internal.h"
@@ -314,6 +315,8 @@ static int acpi_platform_notify(struct device *dev)
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
 		goto out;
+
+	acpi_configure_pmsi_domain(dev);
 
 	if (type && type->setup)
 		type->setup(dev);
