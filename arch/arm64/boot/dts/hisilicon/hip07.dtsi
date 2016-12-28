@@ -1020,6 +1020,12 @@
 			#interrupt-cells = <2>;
 			num-pins = <2>;
 		};
+		mbigen_pcie2_a: intc_pcie2_a {
+			msi-parent = <&p0_its_dsa_a 0x40087>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <10>;
+		};
 	};
 
 	soc {
@@ -1053,6 +1059,27 @@
 			interrupt-parent = <&mbigen_usb>;
 			interrupts = <641 4>;
 			dma-coherent;
+			status = "disabled";
+		};
+
+		p0_pcie2_a: pcie@a00a0000 {
+			compatible = "hisilicon,pcie-almost-ecam";
+			reg = <0 0xa8000000 0 0x800000>,<0 0xa00a0000 0 0x10000>;
+			bus-range = <0x80 0x87>;
+			msi-map = <0x8000 &p0_its_dsa_a 0x8000 0x800>;
+			msi-map-mask = <0xffff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			dma-coherent;
+			ranges = <0x02000000 0 0xa8800000 0x0 0xa8800000 0 0x77f0000
+				      0x01000000 0 0 0 0xafff0000 0 0x10000>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map = <0x0 0 0 1 &mbigen_pcie2_a 671 4
+					 0x0 0 0 2 &mbigen_pcie2_a 671 4
+					 0x0 0 0 3 &mbigen_pcie2_a 671 4
+					 0x0 0 0 4 &mbigen_pcie2_a 671 4>;
 			status = "disabled";
 		};
 	};
