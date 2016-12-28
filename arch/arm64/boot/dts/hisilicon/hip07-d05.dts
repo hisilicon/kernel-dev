@@ -64,3 +64,7 @@
 &usb_ehci {
 	status = "ok";
 };
+
+&p0_pcie2_a {
+	status = "ok";
+};
