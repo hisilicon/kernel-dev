@@ -3054,4 +3054,7 @@
 
 #define PCI_VENDOR_ID_OCZ		0x1b85
 
+#define PCI_VENDOR_ID_HUAWEI         	0x19e5
+#define PCI_DEVICE_ID_HISILICON_1610 	0x1610
+
 #endif /* _LINUX_PCI_IDS_H */
