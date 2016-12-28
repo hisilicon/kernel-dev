@@ -82,9 +82,12 @@ void hns_mac_get_link_status(struct hns_mac_cb *mac_cb, u32 *link_status)
 	else
 		*link_status = 0;
 
-	ret = mac_cb->dsaf_dev->misc_op->get_sfp_prsnt(mac_cb, &sfp_prsnt);
-	if (!ret)
-		*link_status = *link_status && sfp_prsnt;
+	if (mac_cb->media_type == HNAE_MEDIA_TYPE_FIBER) {
+		ret = mac_cb->dsaf_dev->misc_op->get_sfp_prsnt(mac_cb,
+							       &sfp_prsnt);
+		if (!ret)
+			*link_status = *link_status && sfp_prsnt;
+	}
 
 	mac_cb->link = *link_status;
 }
@@ -491,10 +494,9 @@ void hns_mac_reset(struct hns_mac_cb *mac_cb)
 	}
 }
 
-int hns_mac_set_mtu(struct hns_mac_cb *mac_cb, u32 new_mtu)
+int hns_mac_set_mtu(struct hns_mac_cb *mac_cb, u32 new_mtu, u32 buf_size)
 {
 	struct mac_driver *drv = hns_mac_get_drv(mac_cb);
-	u32 buf_size = mac_cb->dsaf_dev->buf_size;
 	u32 new_frm = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 	u32 max_frm = AE_IS_VER1(mac_cb->dsaf_dev->dsaf_ver) ?
 			MAC_MAX_MTU : MAC_MAX_MTU_V2;

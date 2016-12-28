@@ -67,6 +67,8 @@ do { \
 #define AE_IS_VER1(ver) ((ver) == AE_VERSION_1)
 #define AE_NAME_SIZE 16
 
+#define BD_SIZE_2048_MAX_MTU   6000
+
 /* some said the RX and TX RCB format should not be the same in the future. But
  * it is the same now...
  */
@@ -86,6 +88,10 @@ do { \
 #define HNAE_AE_REGISTER 0x1
 
 #define RCB_RING_NAME_LEN 16
+
+#define HNAE_LOWEST_LATENCY_COAL_PARAM	30
+#define HNAE_LOW_LATENCY_COAL_PARAM	80
+#define HNAE_BULK_LATENCY_COAL_PARAM	150
 
 enum hnae_led_state {
 	HNAE_LED_INACTIVE,
@@ -273,6 +279,9 @@ struct hnae_ring {
 	/* statistic */
 	struct ring_stats stats;
 
+	/* ring lock for poll one */
+	spinlock_t lock;
+
 	dma_addr_t desc_dma_addr;
 	u32 buf_size;       /* size for hnae_desc->addr, preset by AE */
 	u16 desc_num;       /* total number of desc */
@@ -288,6 +297,11 @@ struct hnae_ring {
 
 	int flags;          /* ring attribute */
 	int irq_init_flag;
+
+	u32 total_bytes;	/* total bytes processed this int */
+	u32 update_freq;
+	u16 coal_param;
+	u8 rate_lvl;		/* flow rate level */
 };
 
 #define ring_ptr_move_fw(ring, p) \
@@ -543,8 +557,13 @@ struct hnae_handle {
 	u32 if_support;
 	int q_num;
 	int vf_id;
+	u32 coal_param;		/* self adapt coalesce param */
+	u32 adapt_ring_idx;	/* the ring index of config high coalesce */
+	u32 update_time;	/* update the coalesce param time */
 	u32 eport_id;
 	u32 dport_id;	/* v2 tx bd should fill the dport_id */
+	u32 *rss_key;
+	u32 *rss_indir_table;
 	enum hnae_port_type port_type;
 	enum hnae_media_type media_type;
 	struct list_head node;    /* list to hnae_ae_dev->handle_list */
@@ -644,6 +663,41 @@ static inline void hnae_reuse_buffer(struct hnae_ring *ring, int i)
 	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma
 		+ ring->desc_cb[i].page_offset);
 	ring->desc[i].rx.ipoff_bnum_pid_flag = 0;
+}
+
+/* when reinit buffer size, we should reinit buffer description */
+static inline void hnae_reinit_all_ring_desc(struct hnae_handle *h)
+{
+	int i, j;
+	struct hnae_ring *ring;
+
+	for (i = 0; i < h->q_num; i++) {
+		ring = &h->qs[i]->rx_ring;
+		for (j = 0; j < ring->desc_num; j++)
+			ring->desc[j].addr = cpu_to_le64(ring->desc_cb[j].dma);
+	}
+
+	wmb();	/* commit all data before submit */
+}
+
+/* when reinit buffer size, we should reinit page offset */
+static inline void hnae_reinit_all_ring_page_off(struct hnae_handle *h)
+{
+	int i, j;
+	struct hnae_ring *ring;
+
+	for (i = 0; i < h->q_num; i++) {
+		ring = &h->qs[i]->rx_ring;
+		for (j = 0; j < ring->desc_num; j++) {
+			ring->desc_cb[j].page_offset = 0;
+			if (ring->desc[j].addr !=
+			    cpu_to_le64(ring->desc_cb[j].dma))
+				ring->desc[j].addr =
+					cpu_to_le64(ring->desc_cb[j].dma);
+		}
+	}
+
+	wmb();	/* commit all data before submit */
 }
 
 #define hnae_set_field(origin, mask, shift, val) \

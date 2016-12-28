@@ -61,7 +61,6 @@ static void hnae_free_buffer(struct hnae_ring *ring, struct hnae_desc_cb *cb)
 		dev_kfree_skb_any((struct sk_buff *)cb->priv);
 	else if (unlikely(is_rx_ring(ring)))
 		put_page((struct page *)cb->priv);
-	memset(cb, 0, sizeof(*cb));
 }
 
 static int hnae_map_buffer(struct hnae_ring *ring, struct hnae_desc_cb *cb)
@@ -197,6 +196,8 @@ hnae_init_ring(struct hnae_queue *q, struct hnae_ring *ring, int flags)
 
 	ring->q = q;
 	ring->flags = flags;
+	ring->coal_param = q->handle->coal_param;
+	spin_lock_init(&ring->lock);
 	assert(!ring->desc && !ring->desc_cb && !ring->desc_dma_addr);
 
 	/* not matter for tx or rx ring, the ntc and ntc start from 0 */

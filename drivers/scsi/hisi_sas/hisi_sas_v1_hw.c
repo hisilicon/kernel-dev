@@ -199,6 +199,8 @@
 /* HW dma structures */
 /* Delivery queue header */
 /* dw0 */
+#define CMD_HDR_TFP_OFF		4
+#define CMD_HDR_TFP_MSK		0x10
 #define CMD_HDR_RESP_REPORT_OFF		5
 #define CMD_HDR_RESP_REPORT_MSK		0x20
 #define CMD_HDR_TLR_CTRL_OFF		6
@@ -212,6 +214,8 @@
 #define CMD_HDR_CMD_OFF			29
 #define CMD_HDR_CMD_MSK			0xe0000000
 /* dw1 */
+#define CMD_HDR_PIR_OFF		8
+#define CMD_HDR_PIR_MSK		0x100
 #define CMD_HDR_VERIFY_DTL_OFF		10
 #define CMD_HDR_VERIFY_DTL_MSK		0x400
 #define CMD_HDR_SSP_FRAME_TYPE_OFF	13
@@ -231,6 +235,11 @@
 /* dw6 */
 #define CMD_HDR_DATA_SGL_LEN_OFF	16
 #define CMD_HDR_DATA_SGL_LEN_MSK	0xffff0000
+/* dw7 */
+#define CMD_HDR_ADDR_MODE_SEL_OFF		15
+#define CMD_HDR_ADDR_MODE_SEL_MSK		0x8000
+#define CMD_HDR_ABORT_IPTT_OFF		16
+#define CMD_HDR_ABORT_IPTT_MSK		0xffff0000
 
 /* Completion header */
 #define CMPLT_HDR_IPTT_OFF		0
@@ -283,6 +292,27 @@
 #define ERR_HDR_DMA_TX_ERR_TYPE_MSK	(0xffff << ERR_HDR_DMA_TX_ERR_TYPE_OFF)
 #define ERR_HDR_DMA_RX_ERR_TYPE_OFF	16
 #define ERR_HDR_DMA_RX_ERR_TYPE_MSK	(0xffff << ERR_HDR_DMA_RX_ERR_TYPE_OFF)
+
+#ifdef SAS_DIF
+#define PIRF_UDS_OFF		20
+#define PIRF_PDIT10_OFF		7
+#define PIRF_INCR_LBRT_OFF	5
+#define PIRF_T10_CHK_EN_OFF	3
+#define PIRF_T10_RMV_EN_OFF	1
+#define PIRF_T10_INS_EN_OFF	0
+#define PIRF_T10_RPLC_MSK_OFF	24
+#define PIRF_T10_CHK_MSK_OFF	16
+
+struct protect_iu_v1_hw {
+	u32 dw0;
+	u32 lbrtcv;
+	u32 lbrtgv;
+	u32 dw3;
+	u32 dw4;
+	u32 dw5;
+	u32 rsv;
+};
+#endif
 
 struct hisi_sas_complete_v1_hdr {
 	__le32 data;
@@ -975,6 +1005,47 @@ static int prep_prd_sge_v1_hw(struct hisi_hba *hisi_hba,
 	return 0;
 }
 
+#ifdef SAS_DIF
+static int prep_prd_sge_dif_v1_hw(struct hisi_hba *hisi_hba,
+				 struct hisi_sas_slot *slot,
+				 struct hisi_sas_cmd_hdr *hdr,
+				 struct scatterlist *scatter,
+				 int n_elem)
+{
+	struct device *dev = &hisi_hba->pdev->dev;
+	struct scatterlist *sg;
+	int i;
+
+	if (n_elem > HISI_SAS_SGE_PAGE_CNT) {
+		dev_err(dev, "%s n_elem(%d) > HISI_SAS_SGE_PAGE_CNT",
+			__func__, n_elem);
+		return -EINVAL;
+	}
+
+	slot->sge_dif_page = dma_pool_alloc(hisi_hba->sge_dif_page_pool,
+			GFP_ATOMIC,
+			&slot->sge_dif_page_dma);
+	if (!slot->sge_dif_page)
+		return -ENOMEM;
+
+	hdr->dw7 |= 1 << CMD_HDR_ADDR_MODE_SEL_OFF;
+
+	for_each_sg(scatter, sg, n_elem, i) {
+		struct hisi_sas_sge *entry = &slot->sge_dif_page->sge[i];
+
+		entry->addr = cpu_to_le64(sg_dma_address(sg));
+		entry->page_ctrl_0 = entry->page_ctrl_1 = 0;
+		entry->data_len = sg_dma_len(sg);
+		entry->data_off = 0;
+	}
+
+	hdr->dif_prd_table_addr = cpu_to_le64(slot->sge_dif_page_dma);
+	hdr->sg_len |= n_elem;
+
+	return 0;
+}
+#endif
+
 static int prep_smp_v1_hw(struct hisi_hba *hisi_hba,
 			  struct hisi_sas_slot *slot)
 {
@@ -1057,8 +1128,71 @@ static int prep_ssp_v1_hw(struct hisi_hba *hisi_hba,
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
 	int has_data = 0, rc, priority = is_tmf;
 	u8 *buf_cmd, fburst = 0;
-	u32 dw1, dw2;
+	u32 dw1 = 0, dw2 = 0;
 
+#ifdef SAS_DIF
+	if (!is_tmf) {
+		u8 prot_type = scsi_get_prot_type(scsi_cmnd);
+		u8 prot_op = scsi_get_prot_op(scsi_cmnd);
+		u32 lbrt_gen_val = (u32)(0xffffffff & scsi_get_lba(scsi_cmnd));
+		u32 sec_size = scsi_prot_interval(scsi_cmnd) / 4;
+		struct device *dev = &hisi_hba->pdev->dev;
+		union hisi_sas_command_table *cmd =
+			(union hisi_sas_command_table *) slot->command_table;
+		struct protect_iu_v1_hw *prot =
+			(struct protect_iu_v1_hw *)&cmd->ssp.u.prot;
+
+		if (prot_type != SCSI_PROT_DIF_TYPE0) {
+			hdr->dw0 = 1 << CMD_HDR_TFP_OFF;
+			hdr->dw1 = 1 << CMD_HDR_PIR_OFF;
+
+			prot->dw0 |= (1 << PIRF_PDIT10_OFF) |
+				(1 << PIRF_INCR_LBRT_OFF) |
+				(sec_size << PIRF_UDS_OFF);
+
+			prot->dw4 |= 0xff << PIRF_T10_RPLC_MSK_OFF;
+
+			switch (prot_op) {
+			case SCSI_PROT_READ_STRIP:
+				prot->dw0 |= (1 << PIRF_T10_RMV_EN_OFF);
+				prot->dw4 |= (0xff << PIRF_T10_CHK_MSK_OFF);
+				break;
+			case SCSI_PROT_WRITE_INSERT:
+				prot->dw0 |= (1 << PIRF_T10_INS_EN_OFF);
+				prot->dw4 |= (0xff << PIRF_T10_CHK_MSK_OFF);
+				prot->lbrtgv = lbrt_gen_val;
+				break;
+			case SCSI_PROT_WRITE_PASS:
+				prot->dw0 |= (1 << PIRF_T10_CHK_EN_OFF);
+				prot->dw4 |= (0xff << PIRF_T10_CHK_MSK_OFF);
+				prot->lbrtcv = lbrt_gen_val;
+				break;
+			case SCSI_PROT_READ_PASS:
+				prot->dw0 |= (1 << PIRF_T10_CHK_EN_OFF);
+				break;
+			default:
+				break;
+			}
+
+			if (scsi_prot_sg_count(scsi_cmnd)) {
+				int n_elem = dma_map_sg(dev,
+						scsi_prot_sglist(scsi_cmnd),
+						scsi_prot_sg_count(scsi_cmnd),
+						task->data_dir);
+				if (!n_elem) {
+					rc = -ENOMEM;
+					return rc;
+				}
+
+				rc = prep_prd_sge_dif_v1_hw(hisi_hba, slot, hdr,
+						scsi_prot_sglist(scsi_cmnd),
+						n_elem);
+				if (rc)
+					return rc;
+			}
+		}
+	}
+#endif
 	/* create header */
 	hdr->dw0 = cpu_to_le32((1 << CMD_HDR_RESP_REPORT_OFF) |
 			       (0x2 << CMD_HDR_TLR_CTRL_OFF) |
@@ -1596,6 +1730,7 @@ static irqreturn_t cq_interrupt_v1_hw(int irq, void *p)
 			hisi_hba->complete_hdr[queue];
 	u32 irq_value, rd_point = cq->rd_point, wr_point;
 
+	spin_lock(&hisi_hba->lock);
 	irq_value = hisi_sas_read32(hisi_hba, OQ_INT_SRC);
 
 	hisi_sas_write32(hisi_hba, OQ_INT_SRC, 1 << queue);
@@ -1628,6 +1763,7 @@ static irqreturn_t cq_interrupt_v1_hw(int irq, void *p)
 	/* update rd_point */
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
+	spin_unlock(&hisi_hba->lock);
 
 	return IRQ_HANDLED;
 }
@@ -1865,7 +2001,16 @@ static const struct hisi_sas_hw hisi_sas_v1_hw = {
 	.phy_get_max_linkrate = phy_get_max_linkrate_v1_hw,
 	.get_wideport_bitmap = get_wideport_bitmap_v1_hw,
 	.max_command_entries = HISI_SAS_COMMAND_ENTRIES_V1_HW,
+	.can_queue = HISI_SAS_COMMAND_ENTRIES_V1_HW,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v1_hdr),
+#ifdef SAS_DIF
+	.prot_cap = SHOST_DIF_TYPE1_PROTECTION |
+		SHOST_DIF_TYPE2_PROTECTION |
+		SHOST_DIF_TYPE3_PROTECTION |
+		SHOST_DIX_TYPE1_PROTECTION |
+		SHOST_DIX_TYPE2_PROTECTION |
+		SHOST_DIX_TYPE3_PROTECTION,
+#endif
 };
 
 static int hisi_sas_v1_probe(struct platform_device *pdev)

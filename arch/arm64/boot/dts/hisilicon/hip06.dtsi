@@ -13,7 +13,7 @@
 
 / {
 	compatible = "hisilicon,hip06-d03";
-	interrupt-parent = <&gic0>;
+	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
 
@@ -81,62 +81,6 @@
 				};
 				core3 {
 					cpu = <&cpu15>;
-				};
-			};
-			cluster4 {
-				core0 {
-					cpu = <&cpu16>;
-				};
-				core1 {
-					cpu = <&cpu17>;
-				};
-				core2 {
-					cpu = <&cpu18>;
-				};
-				core3 {
-					cpu = <&cpu19>;
-				};
-			};
-			cluster5 {
-				core0 {
-					cpu = <&cpu20>;
-				};
-				core1 {
-					cpu = <&cpu21>;
-				};
-				core2 {
-					cpu = <&cpu22>;
-				};
-				core3 {
-					cpu = <&cpu23>;
-				};
-			};
-			cluster6 {
-				core0 {
-					cpu = <&cpu24>;
-				};
-				core1 {
-					cpu = <&cpu25>;
-				};
-				core2 {
-					cpu = <&cpu26>;
-				};
-				core3 {
-					cpu = <&cpu27>;
-				};
-			};
-			cluster7 {
-				core0 {
-					cpu = <&cpu28>;
-				};
-				core1 {
-					cpu = <&cpu29>;
-				};
-				core2 {
-					cpu = <&cpu30>;
-				};
-				core3 {
-					cpu = <&cpu31>;
 				};
 			};
 		};
@@ -269,134 +213,6 @@
 			next-level-cache = <&cluster3_l2>;
 		};
 
-		cpu16: cpu@20000 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20000>;
-			enable-method = "psci";
-			next-level-cache = <&cluster4_l2>;
-		};
-
-		cpu17: cpu@20001 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20001>;
-			enable-method = "psci";
-			next-level-cache = <&cluster4_l2>;
-		};
-
-		cpu18: cpu@20002 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20002>;
-			enable-method = "psci";
-			next-level-cache = <&cluster4_l2>;
-		};
-
-		cpu19: cpu@20003 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20003>;
-			enable-method = "psci";
-			next-level-cache = <&cluster4_l2>;
-		};
-
-		cpu20: cpu@20100 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20100>;
-			enable-method = "psci";
-			next-level-cache = <&cluster5_l2>;
-		};
-
-		cpu21: cpu@20101 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20101>;
-			enable-method = "psci";
-			next-level-cache = <&cluster5_l2>;
-		};
-
-		cpu22: cpu@20102 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20102>;
-			enable-method = "psci";
-			next-level-cache = <&cluster5_l2>;
-		};
-
-		cpu23: cpu@20103 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20103>;
-			enable-method = "psci";
-			next-level-cache = <&cluster5_l2>;
-		};
-
-		cpu24: cpu@20200 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20200>;
-			enable-method = "psci";
-			next-level-cache = <&cluster6_l2>;
-		};
-
-		cpu25: cpu@20201 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20201>;
-			enable-method = "psci";
-			next-level-cache = <&cluster6_l2>;
-		};
-
-		cpu26: cpu@20202 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20202>;
-			enable-method = "psci";
-			next-level-cache = <&cluster6_l2>;
-		};
-
-		cpu27: cpu@20203 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20203>;
-			enable-method = "psci";
-			next-level-cache = <&cluster6_l2>;
-		};
-
-		cpu28: cpu@20300 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20300>;
-			enable-method = "psci";
-			next-level-cache = <&cluster7_l2>;
-		};
-
-		cpu29: cpu@20301 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20301>;
-			enable-method = "psci";
-			next-level-cache = <&cluster7_l2>;
-		};
-
-		cpu30: cpu@20302 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20302>;
-			enable-method = "psci";
-			next-level-cache = <&cluster7_l2>;
-		};
-
-		cpu31: cpu@20303 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
-			reg = <0x20303>;
-			enable-method = "psci";
-			next-level-cache = <&cluster7_l2>;
-		};
-
 		cluster0_l2: l2-cache0 {
 			compatible = "cache";
 		};
@@ -412,36 +228,19 @@
 		cluster3_l2: l2-cache3 {
 			compatible = "cache";
 		};
-
-		cluster4_l2: l2-cache4 {
-			compatible = "cache";
-		};
-
-		cluster5_l2: l2-cache5 {
-			compatible = "cache";
-		};
-
-		cluster6_l2: l2-cache6 {
-			compatible = "cache";
-		};
-
-		cluster7_l2: l2-cache7 {
-			compatible = "cache";
-		};
 	};
 
-	gic0: interrupt-controller@4d000000 {
-		compatible = "hisilicon,gic-v3";
+	gic: interrupt-controller@4d000000 {
+		compatible = "arm,gic-v3";
 		#interrupt-cells = <3>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
 		interrupt-controller;
-		#redistributor-regions = <2>;
+		#redistributor-regions = <1>;
 		redistributor-stride = <0x0 0x30000>;
-		reg = <0x0 0x4d000000 0 0x10000>,	/* GICD A*/
-		      <0x0 0x4d100000 0 0x300000>,	/* GICR A*/
-		      <0x0 0x6d100000 0 0x300000>,	/* GICR C*/
+		reg = <0x0 0x4d000000 0 0x10000>,	/* GICD */
+		      <0x0 0x4d100000 0 0x300000>,	/* GICR */
 		      <0x0 0xfe000000 0 0x10000>,	/* GICC */
 		      <0x0 0xfe010000 0 0x10000>,       /* GICH */
 		      <0x0 0xfe020000 0 0x10000>;       /* GICV */
@@ -453,15 +252,6 @@
 			#msi-cells = <1>;
 			reg = <0x0 0xc6000000 0x0 0x40000>;
 		};
-	};
-
-	gic1: interrupt-controller@6d000000 {
-		compatible = "hisilicon,gic-v3";
-		#interrupt-cells = <3>;
-		#address-cells = <2>;
-		#size-cells = <2>;
-		interrupt-controller;
-		reg = <0x0 0x6d000000 0x0 0x10000>;
 	};
 
 	timer {
@@ -501,6 +291,14 @@
 			#interrupt-cells = <2>;
 			num-pins = <128>;
 		};
+
+		mbigen_smmu_pcie_intc: intc_smmu_pcie {
+			msi-parent = <&its_dsa 0x40b0c>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
+		};
+
 	};
 
 	mbigen_dsa@c0080000 {
@@ -520,7 +318,28 @@
 			#interrupt-cells = <2>;
 			num-pins = <128>;
 		};
+
+		mbigen_smmu_dsa_intc: intc_smmu_dsa {
+			msi-parent = <&its_dsa 0x40b20>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
+		};
 	};
+
+        smmu1: smmu_dsa {
+                compatible = "arm,smmu-v3";
+                reg = <0x0 0xc0040000 0x0 0x20000>;
+                interrupt-parent  = <&mbigen_smmu_dsa_intc>;
+		interrupts = <733 1>,
+				<734 1>,
+				<735 1>;
+                interrupt-names = "eventq", "gerror", "priq";
+                #iommu-cells = <1>;
+                dma-coherent;
+                smmu-cb-memtype = <0x0 0x1>;
+                hisilicon,broken-prefetch-cmd;
+        };
 
 	soc {
 		compatible = "simple-bus";
@@ -605,6 +424,7 @@
 			reg-names = "ppe-base", "dsaf-base";
 			interrupt-parent = <&mbigen_dsaf0>;
 			subctrl-syscon = <&dsa_subctrl>;
+			iommus = <&smmu1 0x0>;
 			reset-field-offset = <0>;
 			interrupts =
 			<576 1>, <577 1>, <578 1>, <579 1>, <580 1>,

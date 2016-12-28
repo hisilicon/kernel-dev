@@ -659,9 +659,11 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	struct ib_pd *pd;
 	u64 subnet_prefix;
 	int attr_mask = 0;
-	int i;
+	int i, j;
 	int ret;
+	u8 queue_en[HNS_ROCE_V1_RESV_QP] = { 0 };
 	u8 phy_port;
+	u8 port;
 	u8 sl;
 
 	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
@@ -716,6 +718,21 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 
 	subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
 	for (i = 0; i < HNS_ROCE_V1_RESV_QP; i++) {
+		phy_port = (i >= HNS_ROCE_MAX_PORTS) ? (i - 2) :
+				(i % HNS_ROCE_MAX_PORTS);
+		sl = i / HNS_ROCE_MAX_PORTS;
+
+		for (j = 0; j < caps->num_ports; j++) {
+			if (hr_dev->iboe.phy_port[j] == phy_port) {
+				queue_en[i] = 1;
+				port = j;
+				break;
+			}
+		}
+
+		if (!queue_en[i])
+			continue;
+
 		free_mr->mr_free_qp[i] = hns_roce_v1_create_lp_qp(hr_dev, pd);
 		if (IS_ERR(free_mr->mr_free_qp[i])) {
 			dev_err(dev, "Create loop qp failed!\n");
@@ -723,15 +740,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 		}
 		hr_qp = free_mr->mr_free_qp[i];
 
-		sl = i / caps->num_ports;
-
-		if (caps->num_ports == HNS_ROCE_MAX_PORTS)
-			phy_port = (i >= HNS_ROCE_MAX_PORTS) ? (i - 2) :
-				(i % caps->num_ports);
-		else
-			phy_port = i % caps->num_ports;
-
-		hr_qp->port		= phy_port + 1;
+		hr_qp->port		= port;
 		hr_qp->phy_port		= phy_port;
 		hr_qp->ibqp.qp_type	= IB_QPT_RC;
 		hr_qp->ibqp.device	= &hr_dev->ib_dev;
@@ -741,25 +750,23 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 		hr_qp->ibqp.recv_cq	= cq;
 		hr_qp->ibqp.send_cq	= cq;
 
-		attr.ah_attr.port_num	= phy_port + 1;
+		attr.ah_attr.port_num	= port + 1;
 		attr.ah_attr.sl		= sl;
-		attr.port_num		= phy_port + 1;
+		attr.port_num		= port + 1;
 
 		attr.dest_qp_num	= hr_qp->qpn;
-		memcpy(attr.ah_attr.dmac, hr_dev->dev_addr[phy_port],
+		memcpy(attr.ah_attr.dmac, hr_dev->dev_addr[port],
 		       MAC_ADDR_OCTET_NUM);
 
 		memcpy(attr.ah_attr.grh.dgid.raw,
 			&subnet_prefix, sizeof(u64));
 		memcpy(&attr.ah_attr.grh.dgid.raw[8],
-		       hr_dev->dev_addr[phy_port], 3);
+		       hr_dev->dev_addr[port], 3);
 		memcpy(&attr.ah_attr.grh.dgid.raw[13],
-		       hr_dev->dev_addr[phy_port] + 3, 3);
+		       hr_dev->dev_addr[port] + 3, 3);
 		attr.ah_attr.grh.dgid.raw[11] = 0xff;
 		attr.ah_attr.grh.dgid.raw[12] = 0xfe;
 		attr.ah_attr.grh.dgid.raw[8] ^= 2;
-
-		attr_mask |= IB_QP_PORT;
 
 		ret = hr_dev->hw->modify_qp(&hr_qp->ibqp, &attr, attr_mask,
 					    IB_QPS_RESET, IB_QPS_INIT);
@@ -816,6 +823,9 @@ static void hns_roce_v1_release_lp_qp(struct hns_roce_dev *hr_dev)
 
 	for (i = 0; i < HNS_ROCE_V1_RESV_QP; i++) {
 		hr_qp = free_mr->mr_free_qp[i];
+		if (!hr_qp)
+			continue;
+
 		ret = hns_roce_v1_destroy_qp(&hr_qp->ibqp);
 		if (ret)
 			dev_err(dev, "Destroy qp %d for mr free failed(%d)!\n",
@@ -967,7 +977,7 @@ static void hns_roce_v1_mr_free_work_fn(struct work_struct *work)
 		msecs_to_jiffies(HNS_ROCE_V1_FREE_MR_TIMEOUT_MSECS) + jiffies;
 	int i;
 	int ret;
-	int ne;
+	int ne = 0;
 
 	mr_work = container_of(work, struct hns_roce_mr_free_work, work);
 	hr_mr = (struct hns_roce_mr *)mr_work->mr;
@@ -980,6 +990,10 @@ static void hns_roce_v1_mr_free_work_fn(struct work_struct *work)
 
 	for (i = 0; i < HNS_ROCE_V1_RESV_QP; i++) {
 		hr_qp = free_mr->mr_free_qp[i];
+		if (!hr_qp)
+			continue;
+		ne++;
+
 		ret = hns_roce_v1_send_lp_wqe(hr_qp);
 		if (ret) {
 			dev_err(dev,
@@ -989,7 +1003,6 @@ static void hns_roce_v1_mr_free_work_fn(struct work_struct *work)
 		}
 	}
 
-	ne = HNS_ROCE_V1_RESV_QP;
 	do {
 		ret = hns_roce_v1_poll_cq(&mr_free_cq->ib_cq, ne, wc);
 		if (ret < 0) {
