@@ -364,6 +364,60 @@
 				#interrupt-cells = <2>;
 				interrupts = <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>;
 			};
+
+		};
+
+		djtag0: djtag@80010000 {
+			compatible = "hisilicon,hisi-djtag-v1";
+			reg = <0x0 0x80010000 0x0 0x10000>;
+			scl-id = <0x02>;
+
+			/* L3 cache for socket0 CPU die scl#2 */
+			pmul3c0 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x02>;
+			};
+
+			pmul3c1 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x04>;
+			};
+
+			pmul3c2 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x01>;
+			};
+
+			pmul3c3 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x08>;
+			};
+
+			/* Miscellaneous node for socket0
+			 * CPU die scl#2
+			 */
+			pmumn0 {
+				compatible = "hisilicon,hisi-pmu-mn-v1";
+				module-id = <0x0b>;
+			};
+		};
+
+		/* DDRC for CPU die scl#2 Channel #0 */
+		pmu_sccl0_ddrc0: pmu_ddrc0@80348000 {
+			compatible = "hisilicon,hisi-pmu-ddrc-v1";
+			scl-id = <0x02>;
+			ch-id = <0x0>;
+			reg = <0x0 0x80348000 0x0 0x10000>; /* TOTEMC DDRC0 */
+			status = "okay";
+		};
+
+		/* DDRC for CPU die scl#2 Channel #1 */
+		pmu_sccl0_ddrc1: pmu_ddrc1@80358000 {
+			compatible = "hisilicon,hisi-pmu-ddrc-v1";
+			scl-id = <0x02>;
+			ch-id = <0x01>;
+			reg = <0x0 0x80358000 0x0 0x10000>; /* TOTEMC DDRC1 */
+			status = "okay";
 		};
 	};
 };

@@ -647,6 +647,63 @@
 			status = "disabled";
 		};
 
+		djtag1: djtag@40010000 {
+			compatible = "hisilicon,hisi-djtag-v1";
+			reg = <0x0 0x40010000 0x0 0x10000>;
+			scl-id = <0x01>;
+
+			/* L3 cache bank 0 for socket0 CPU die scl#1 */
+			pmul3c0 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x02>;
+			};
+
+			/* L3 cache bank 1 for socket0 CPU die scl#1 */
+			pmul3c1 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x04>;
+			};
+
+			/* L3 cache bank 2 for socket0 CPU die scl#1 */
+			pmul3c2 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x01>;
+			};
+
+			/* L3 cache bank 3 for socket0 CPU die scl#1 */
+			pmul3c3 {
+				compatible = "hisilicon,hisi-pmu-l3c-v1";
+				module-id = <0x04 0x08>;
+			};
+
+			/*
+			 * Miscellaneous node for socket0
+			 * CPU die scl#1
+			 */
+			pmumn1 {
+				compatible = "hisilicon,hisi-pmu-mn-v1";
+				module-id = <0x0b>;
+			};
+		};
+
+		/* DDRC for CPU die scl #1 Channel #0 */
+		pmu_sccl0_ddrc0: pmu_ddrc0@40348000 {
+			compatible = "hisilicon,hisi-pmu-ddrc-v1";
+			scl-id = <0x01>;
+			ch-id = <0x0>;
+			reg = <0x0 0x40348000 0x0 0x10000>; /* TOTEMA DDRC0 */
+			status = "okay";
+		};
+
+		/* DDRC for CPU die scl #1 Channel #1 */
+		pmu_sccl0_ddrc1: pmu_ddrc1@40358000 {
+			compatible = "hisilicon,hisi-pmu-ddrc-v1";
+			scl-id = <0x01>;
+			ch-id = <0x01>;
+			reg = <0x0 0x40358000 0x0 0x10000>; /* TOTEMA DDRC1 */
+			status = "okay";
+		};
+
 		sas1: sas@a2000000 {
 			compatible = "hisilicon,hip06-sas-v2";
 			reg = <0 0xa2000000 0 0x10000>;
