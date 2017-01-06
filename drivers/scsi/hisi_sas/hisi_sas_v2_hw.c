@@ -1111,9 +1111,8 @@ static void phy_hard_reset_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 	start_phy_v2_hw(hisi_hba, phy_no);
 }
 
-static void start_phys_v2_hw(unsigned long data)
+static void start_phys_v2_hw(struct hisi_hba *hisi_hba)
 {
-	struct hisi_hba *hisi_hba = (struct hisi_hba *)data;
 	int i;
 
 	for (i = 0; i < hisi_hba->n_phy; i++)
@@ -1122,10 +1121,7 @@ static void start_phys_v2_hw(unsigned long data)
 
 static void phys_init_v2_hw(struct hisi_hba *hisi_hba)
 {
-	struct timer_list *timer = &hisi_hba->timer;
-
-	setup_timer(timer, start_phys_v2_hw, (unsigned long)hisi_hba);
-	mod_timer(timer, jiffies + HZ);
+	start_phys_v2_hw(hisi_hba);
 }
 
 static void sl_notify_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
