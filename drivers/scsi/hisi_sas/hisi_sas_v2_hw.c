@@ -257,6 +257,10 @@
 #define AM_CFG_MAX_TRANS		(0x5010)
 #define AM_CFG_SINGLE_PORT_MAX_TRANS	(0x5014)
 
+#define AXI_MASTER_CFG_BASE		(0x5000)
+#define AM_CTRL_GLOBAL			(0x0)
+#define AM_CURR_TRANS_RETURN	(0x150)
+
 /* HW dma structures */
 /* Delivery queue header */
 /* dw0 */
@@ -1094,6 +1098,14 @@ static void start_phy_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 static void stop_phy_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	disable_phy_v2_hw(hisi_hba, phy_no);
+}
+
+static void stop_phys_v2_hw(struct hisi_hba *hisi_hba)
+{
+	int i;
+
+	for (i = 0; i < hisi_hba->n_phy; i++)
+		stop_phy_v2_hw(hisi_hba, i);
 }
 
 static void phy_hard_reset_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
@@ -3012,6 +3024,116 @@ static int hisi_sas_v2_init(struct hisi_hba *hisi_hba)
 	return 0;
 }
 
+static void interrupt_disable_v2_hw(struct hisi_hba *hisi_hba)
+{
+	struct platform_device *pdev = hisi_hba->pdev;
+	int i;
+
+	for (i = 0; i < hisi_hba->queue_count; i++)
+		hisi_sas_write32(hisi_hba, OQ0_INT_SRC_MSK + 0x4 * i, 0x1);
+
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, 0xffffffff);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK2, 0xffffffff);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, 0xffffffff);
+	hisi_sas_write32(hisi_hba, SAS_ECC_INTR_MSK, 0xffffffff);
+
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK, 0xffffffff);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0xffffffff);
+	}
+
+	for (i = 0; i < 128; i++)
+		synchronize_irq(platform_get_irq(pdev, i));
+}
+
+static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba,
+		u32 enable_bitmap, u32 updown_msk)
+{
+	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
+	u32 updown_msk_cur;
+	int i;
+
+	updown_msk_cur = hisi_sas_read32(hisi_hba, PHY_STATE);
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		struct hisi_sas_phy *phy = &hisi_hba->phy[i];
+		struct asd_sas_phy *sas_phy = &phy->sas_phy;
+		struct asd_sas_port *sas_port = sas_phy->port;
+		struct domain_device *dev;
+
+		config_id_frame_v2_hw(hisi_hba, i);
+		config_phy_opt_mode_v2_hw(hisi_hba, i);
+
+		if (enable_bitmap & (1 << i)) {
+			enable_phy_v2_hw(hisi_hba, i);
+			msleep(100);
+			if ((updown_msk & (1 << i)) !=
+					(updown_msk_cur & (1 << i))) {
+				if (updown_msk_cur & (1 << i))
+					phy_up_v2_hw(i, hisi_hba);
+				else
+					phy_down_v2_hw(i, hisi_hba);
+			}
+		}
+		if (!sas_port)
+			continue;
+		dev = sas_port->port_dev;
+
+		if (DEV_IS_EXPANDER(dev->dev_type))
+			sas_ha->notify_phy_event(sas_phy, PORTE_BROADCAST_RCVD);
+	}
+}
+
+static int soft_reset_chip_v2_hw(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = &hisi_hba->pdev->dev;
+	u32 phy_enable_bitmap = 0, phy_updown_msk = 0;
+	int rc, cnt = 0;
+	int i;
+
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		u32 cfg_val;
+
+		cfg_val = hisi_sas_phy_read32(hisi_hba, i, PHY_CFG);
+		phy_enable_bitmap |= (cfg_val & 1) << i;
+	}
+	phy_updown_msk = hisi_sas_read32(hisi_hba, PHY_STATE);
+
+	interrupt_disable_v2_hw(hisi_hba);
+	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0x0);
+
+	stop_phys_v2_hw(hisi_hba);
+
+	mdelay(10);
+
+	hisi_sas_write32(hisi_hba, AXI_MASTER_CFG_BASE + AM_CTRL_GLOBAL, 0x1);
+
+	/*  wait until bus idle*/
+	while (1) {
+		u32 status = hisi_sas_read32_relaxed(hisi_hba,
+				AXI_MASTER_CFG_BASE + AM_CURR_TRANS_RETURN);
+
+		if (status == 0x3)
+			break;
+
+		udelay(10);
+		if (cnt++ > 10) {
+			dev_info(dev, "wait axi bus state to idle timeout!\n");
+			return -1;
+		}
+	}
+
+	hisi_sas_initialise_memory(hisi_hba);
+
+	rc = hw_init_v2_hw(hisi_hba);
+	if (rc)
+		return rc;
+
+	hisi_sas_rescan_topology(hisi_hba, phy_enable_bitmap,
+			phy_updown_msk);
+
+	return 0;
+}
+
 static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.hw_init = hisi_sas_v2_init,
 	.setup_itct = setup_itct_v2_hw,
@@ -3035,6 +3157,7 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.max_command_entries = HISI_SAS_COMMAND_ENTRIES_V2_HW,
 	.can_queue = HISI_SAS_COMMAND_ENTRIES_V2_HW/2,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v2_hdr),
+	.soft_reset_chip = soft_reset_chip_v2_hw,
 #ifdef SAS_DIF
 	.prot_cap = SHOST_DIF_TYPE1_PROTECTION |
 		SHOST_DIF_TYPE2_PROTECTION |

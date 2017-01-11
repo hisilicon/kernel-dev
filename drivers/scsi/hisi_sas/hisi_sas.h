@@ -31,6 +31,7 @@
 #define HISI_SAS_QUEUE_SLOTS 512
 #define HISI_SAS_MAX_ITCT_ENTRIES 2048
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
+#define HISI_SAS_RESET_BIT	0
 
 #define HISI_SAS_STATUS_BUF_SZ \
 		(sizeof(struct hisi_sas_err_record) + 1024)
@@ -179,6 +180,7 @@ struct hisi_sas_hw {
 	void (*free_device)(struct hisi_hba *hisi_hba,
 			    struct hisi_sas_device *dev);
 	int (*get_wideport_bitmap)(struct hisi_hba *hisi_hba, int port_id);
+	int (*soft_reset_chip)(struct hisi_hba *hisi_hba);
 	int max_command_entries;
 	int can_queue;
 	int complete_hdr_size;
@@ -244,6 +246,7 @@ struct hisi_hba {
 	struct hisi_sas_breakpoint *sata_breakpoint;
 	dma_addr_t sata_breakpoint_dma;
 	struct hisi_sas_slot	*slot_info;
+	unsigned long flags;
 	const struct hisi_sas_hw *hw;	/* Low level hw interface */
 };
 
@@ -365,4 +368,5 @@ extern void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy);
 extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,
 				    struct sas_task *task,
 				    struct hisi_sas_slot *slot);
+extern void hisi_sas_initialise_memory(struct hisi_hba *hisi_hba);
 #endif
