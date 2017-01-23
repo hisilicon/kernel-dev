@@ -711,6 +711,26 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 	return 0;
 }
 
+static void arm_perf_associate_new_cpu(struct arm_pmu *lpmu, unsigned int cpu)
+{
+	struct platform_device *pdev = lpmu->plat_device;
+	struct resource *res;
+	struct pmu_hw_events *events;
+	int num_res;
+
+	for (num_res = 0; num_res < pdev->num_resources; num_res++) {
+		if (!pdev->resource[num_res].flags)
+			break;
+	}
+	res = &pdev->resource[num_res];
+	arm_pmu_acpi_retrieve_irq(res, cpu);
+	events = per_cpu_ptr(lpmu->hw_events, cpu);
+	cpumask_set_cpu(cpu, &lpmu->supported_cpus);
+	if (lpmu->irq_affinity)
+		lpmu->irq_affinity[num_res] = cpu;
+	events->percpu_pmu = lpmu;
+}
+
 /*
  * PMU hardware loses all context when a CPU goes offline.
  * When a CPU is hotplugged back in, since some hardware registers are
@@ -721,10 +741,18 @@ static int arm_perf_starting_cpu(unsigned int cpu, struct hlist_node *node)
 {
 	struct arm_pmu *pmu = hlist_entry_safe(node, struct arm_pmu, node);
 
-	if (!cpumask_test_cpu(cpu, &pmu->supported_cpus))
-		return 0;
+	if (!cpumask_test_cpu(cpu, &pmu->supported_cpus)) {
+		unsigned int cpuid = read_specific_cpuid(cpu);
+
+		if (acpi_disabled)
+			return 0;
+		if (cpuid != pmu->id)
+			return 0;
+		arm_perf_associate_new_cpu(pmu, cpu);
+	}
 	if (pmu->reset)
 		pmu->reset(pmu);
+
 	return 0;
 }
 
@@ -904,6 +932,8 @@ static int probe_plat_pmu(struct arm_pmu *pmu,
 	int aff_ctr = 0;
 	struct platform_device *pdev = pmu->plat_device;
 	int irq = platform_get_irq(pdev, 0);
+
+	pmu->id = pmuid;
 
 	if (irq >= 0 && !irq_is_percpu(irq)) {
 		pmu->irq_affinity = kcalloc(pdev->num_resources, sizeof(int),
