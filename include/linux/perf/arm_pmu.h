@@ -161,6 +161,7 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 			 const struct pmu_probe_info *probe_table);
 
 #define ARMV8_PMU_PDEV_NAME "armv8-pmu"
+#define ARMV8_PMUV3_DESCRIPTION "armv8_pmuv3"
 
 #endif /* CONFIG_ARM_PMU */
 
