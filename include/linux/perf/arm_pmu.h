@@ -112,6 +112,7 @@ struct arm_pmu {
 	struct mutex	reserve_mutex;
 	u64		max_period;
 	bool		secure_access; /* 32-bit ARM only */
+	unsigned int	id;
 #define ARMV8_PMUV3_MAX_COMMON_EVENTS 0x40
 	DECLARE_BITMAP(pmceid_bitmap, ARMV8_PMUV3_MAX_COMMON_EVENTS);
 	struct platform_device	*plat_device;
@@ -168,8 +169,11 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 #ifdef CONFIG_ARM_PMU_ACPI
 struct acpi_madt_generic_interrupt;
 void arm_pmu_parse_acpi(int cpu, struct acpi_madt_generic_interrupt *gic);
+int arm_pmu_acpi_retrieve_irq(struct resource *pdev, int cpu);
 #else
 #define arm_pmu_parse_acpi(a, b) do { } while (0)
+#define arm_pmu_acpi_retrieve_irq(pdev, cpu) \
+	do { } while (0)
 #endif /* CONFIG_ARM_PMU_ACPI */
 
 #endif /* __ARM_PMU_H__ */
