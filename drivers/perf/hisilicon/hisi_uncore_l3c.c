@@ -54,7 +54,7 @@ enum armv8_hisi_l3c_counters {
 #define L3C_EVENT_EN 0x1000000
 
 #define GET_MODULE_ID(hwmod_data) hwmod_data->l3c_hwcfg.module_id
-#define GET_BANK_SEL(hwmod_data) hwmod_data->l3c_hwcfg.module_id
+#define GET_BANK_SEL(hwmod_data) hwmod_data->l3c_hwcfg.bank_select
 
 struct hisi_l3c_hwcfg {
 	u32 module_id;
@@ -74,7 +74,7 @@ struct hisi_l3c_hw_diff {
 
 /* hip05/06 chips L3C bank identifier */
 static u32 l3c_bankid_map_v1[MAX_BANKS] = {
-	0x02, 0x01, 0x04, 0x08,
+	0x02, 0x04, 0x01, 0x08,
 };
 
 /* hip07 chip L3C bank identifier */
@@ -361,27 +361,34 @@ static const struct of_device_id l3c_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, l3c_of_match);
 
+static int hisi_l3c_get_module_id_prop(struct device *dev,
+				       struct  hisi_l3c_hwcfg *l3c_hwcfg)
+{
+	u32 module_id[2];
+	int ret;
+
+	ret = device_property_read_u32_array(dev, "module-id", module_id, 2);
+	if (ret < 0) {
+		dev_err(dev, "Could not read module-id!\n");
+		return -EINVAL;
+	}
+	l3c_hwcfg->module_id = module_id[0];
+	l3c_hwcfg->bank_select = module_id[1];
+
+	return 0;
+}
+
 static int init_hisi_l3c_hwcfg_fdt(struct device *dev,
 				struct hisi_l3c_data *l3c_data)
 {
 	struct hisi_l3c_hwcfg *l3c_hwcfg = &l3c_data->l3c_hwcfg;
-	struct device_node *node = dev->of_node;
 	const struct of_device_id *of_id;
 	int ret;
 
-	ret = of_property_read_u32_index(node, "module-id", 0,
-						&l3c_hwcfg->module_id);
-	if (ret < 0) {
-		dev_err(dev, "DT: Couldnot read module-id!\n");
+	/* Get the L3C Module ID to identify the bank index */
+	ret = hisi_l3c_get_module_id_prop(dev, l3c_hwcfg);
+	if (ret < 0)
 		return -EINVAL;
-	}
-
-	ret = of_property_read_u32_index(node, "module-id", 1,
-						&l3c_hwcfg->bank_select);
-	if (ret < 0) {
-		dev_err(dev, "DT: Couldnot read bank-select!\n");
-		return -EINVAL;
-	}
 
 	of_id = of_match_device(l3c_of_match, dev);
 	if (of_id) {
