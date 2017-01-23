@@ -299,6 +299,26 @@
 			num-pins = <3>;
 		};
 
+		mbigen_pcie0: intc_pcie0 {
+			msi-parent = <&its_dsa 0x40085>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <10>;
+		};
+
+		mbigen_pcie1: intc_pcie1 {
+			msi-parent = <&its_dsa 0x40086>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <11>;
+		};
+
+		mbigen_pcie2: intc_pcie2 {
+			msi-parent = <&its_dsa 0x40087>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <10>;
+		};
 	};
 
 	mbigen_dsa@c0080000 {
@@ -310,6 +330,13 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			num-pins = <409>;
+		};
+
+		mbigen_dsa_roce: intc-roce {
+			msi-parent = <&its_dsa 0x40B1E>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <34>;
 		};
 
 		mbigen_sas0: intc-sas0 {
@@ -585,6 +612,87 @@
 			dma-coherent;
 		};
 
+		infiniband@c4000000 {
+			compatible = "hisilicon,hns-roce-v1";
+			reg = <0x0 0xc4000000 0x0 0x100000>;
+			dma-coherent;
+			eth-handle = <&eth2 &eth3 0 0 &eth0 &eth1>;
+			dsaf-handle = <&dsaf0>;
+			node-guid = [00 9A CD 00 00 01 02 03];
+			#address-cells = <2>;
+			#size-cells = <2>;
+			interrupt-parent = <&mbigen_dsa_roce>;
+			interrupts = <722 1>,
+					<723 1>,
+					<724 1>,
+					<725 1>,
+					<726 1>,
+					<727 1>,
+					<728 1>,
+					<729 1>,
+					<730 1>,
+					<731 1>,
+					<732 1>,
+					<733 1>,
+					<734 1>,
+					<735 1>,
+					<736 1>,
+					<737 1>,
+					<738 1>,
+					<739 1>,
+					<740 1>,
+					<741 1>,
+					<742 1>,
+					<743 1>,
+					<744 1>,
+					<745 1>,
+					<746 1>,
+					<747 1>,
+					<748 1>,
+					<749 1>,
+					<750 1>,
+					<751 1>,
+					<752 1>,
+					<753 1>,
+					<785 1>,
+					<754 4>;
+
+			interrupt-names = "hns-roce-comp-0",
+					"hns-roce-comp-1",
+					"hns-roce-comp-2",
+					"hns-roce-comp-3",
+					"hns-roce-comp-4",
+					"hns-roce-comp-5",
+					"hns-roce-comp-6",
+					"hns-roce-comp-7",
+					"hns-roce-comp-8",
+					"hns-roce-comp-9",
+					"hns-roce-comp-10",
+					"hns-roce-comp-11",
+					"hns-roce-comp-12",
+					"hns-roce-comp-13",
+					"hns-roce-comp-14",
+					"hns-roce-comp-15",
+					"hns-roce-comp-16",
+					"hns-roce-comp-17",
+					"hns-roce-comp-18",
+					"hns-roce-comp-19",
+					"hns-roce-comp-20",
+					"hns-roce-comp-21",
+					"hns-roce-comp-22",
+					"hns-roce-comp-23",
+					"hns-roce-comp-24",
+					"hns-roce-comp-25",
+					"hns-roce-comp-26",
+					"hns-roce-comp-27",
+					"hns-roce-comp-28",
+					"hns-roce-comp-29",
+					"hns-roce-comp-30",
+					"hns-roce-comp-31",
+					"hns-roce-async",
+					"hns-roce-common";
+		};
+
 		sas0: sas@c3000000 {
 			compatible = "hisilicon,hip06-sas-v2";
 			reg = <0 0xc3000000 0 0x10000>;
@@ -768,6 +876,70 @@
 				     <637 1>,<638 1>,<639 1>;
 			status = "disabled";
 		};
+
+		pcie0: pcie@a0090000 {
+			compatible = "hisilicon,pcie-almost-ecam";
+			reg = <0 0xb0000000 0 0x2000000>, <0 0xa0090000 0 0x10000>;
+			bus-range = <0  31>;
+			msi-map = <0x0000 &its_dsa 0x0000 0x2000>;
+			msi-map-mask = <0xffff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			dma-coherent;
+			ranges = <0x02000000 0 0xb2000000 0x0 0xb2000000 0 0x5ff0000
+				  0x01000000 0 0 0 0xb7ff0000 0 0x10000>;
+			#interrupt-cells = <1>;
+                        interrupt-map-mask = <0xf800 0 0 7>;
+                        interrupt-map = <0x0 0 0 1 &mbigen_pcie0 650 4
+                                         0x0 0 0 2 &mbigen_pcie0 650 4
+                                         0x0 0 0 3 &mbigen_pcie0 650 4
+                                         0x0 0 0 4 &mbigen_pcie0 650 4>;
+			status = "disabled";
+		};
+
+		pcie1: pcie@a0200000 {
+			compatible = "hisilicon,pcie-almost-ecam";
+			reg = <0 0xbe000000 0 0x2000000>, <0 0xa0200000 0 0x10000>;
+			bus-range = <224 255>;
+			msi-map = <0xe000 &its_dsa 0xe000 0x2000>;
+			msi-map-mask = <0xffff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			dma-coherent;
+			ranges = <0x02000000 0 0xb8000000 0x0 0xb8000000 0 0x5ff0000
+				  0x01000000 0 0 0 0xbdff0000 0 0x10000>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map = <0x0 0 0 1 &mbigen_pcie1 661 4
+					 0x0 0 0 2 &mbigen_pcie1 661 4
+					 0x0 0 0 3 &mbigen_pcie1 661 4
+					 0x0 0 0 4 &mbigen_pcie1 661 4>;
+			status = "disabled";
+		};
+
+		pcie2: pcie@a00a0000 {
+			compatible = "hisilicon,pcie-almost-ecam";
+			reg = <0 0xa8000000 0 0x2000000>,<0 0xa00a0000 0 0x10000>;
+			bus-range = <128 159>;
+			msi-map = <0x8000 &its_dsa 0x8000 0x2000>;
+			msi-map-mask = <0xffff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			dma-coherent;
+			ranges = <0x02000000 0 0xaa000000 0x0 0xaa000000 0 0x5ff0000
+				  0x01000000 0 0 0 0xafff0000 0 0x10000>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map = <0x0 0 0 1 &mbigen_pcie2 671 4
+					 0x0 0 0 2 &mbigen_pcie2 671 4
+					 0x0 0 0 3 &mbigen_pcie2 671 4
+					 0x0 0 0 4 &mbigen_pcie2 671 4>;
+			status = "disabled";
+		};
+
 	};
 
 };

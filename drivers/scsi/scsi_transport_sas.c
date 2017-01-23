@@ -934,6 +934,7 @@ struct sas_port *sas_port_alloc(struct device *parent, int port_id)
 
 	mutex_init(&port->phy_list_mutex);
 	INIT_LIST_HEAD(&port->phy_list);
+	INIT_LIST_HEAD(&port->destroy_list);
 
 	if (scsi_is_sas_expander_device(parent)) {
 		struct sas_rphy *rphy = dev_to_rphy(parent);

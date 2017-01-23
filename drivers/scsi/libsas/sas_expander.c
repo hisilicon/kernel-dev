@@ -1906,10 +1906,11 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 	}
 	memset(phy->attached_sas_addr, 0, SAS_ADDR_SIZE);
 	if (phy->port) {
+		struct asd_sas_port *port = found->port;
 		sas_port_delete_phy(phy->port, phy->phy);
 		sas_device_set_phy(found, phy->port);
 		if (phy->port->num_phys == 0)
-			sas_port_delete(phy->port);
+			sas_port_destruct(port, phy->port);
 		phy->port = NULL;
 	}
 }

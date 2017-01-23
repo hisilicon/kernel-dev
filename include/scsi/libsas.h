@@ -91,7 +91,8 @@ enum discover_event {
 	DISCE_SUSPEND		= 4,
 	DISCE_RESUME		= 5,
 	DISCE_DESTRUCT		= 6,
-	DISC_NUM_EVENTS		= 7,
+	DISCE_PORT_DESTRUCT	= 7,
+	DISC_NUM_EVENTS,
 };
 
 /* ---------- Expander Devices ---------- */
@@ -268,7 +269,8 @@ struct asd_sas_port {
 	spinlock_t dev_list_lock;
 	struct list_head dev_list;
 	struct list_head disco_list;
-	struct list_head destroy_list;
+	struct list_head dev_destroy_list;
+	struct list_head port_destroy_list;
 	enum   sas_linkrate linkrate;
 
 	struct sas_work work;
@@ -702,6 +704,7 @@ void sas_init_ex_attr(void);
 int  sas_ex_revalidate_domain(struct domain_device *);
 
 void sas_unregister_domain_devices(struct asd_sas_port *port, int gone);
+void sas_port_destruct(struct asd_sas_port *port, struct sas_port *sas_port);
 void sas_init_disc(struct sas_discovery *disc, struct asd_sas_port *);
 int  sas_discover_event(struct asd_sas_port *, enum discover_event ev);
 
