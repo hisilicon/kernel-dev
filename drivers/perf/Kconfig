@@ -19,4 +19,8 @@ config XGENE_PMU
         help
           Say y if you want to use APM X-Gene SoC performance monitors.
 
+config ARM_PMU_ACPI
+	def_bool y
+	depends on ARM_PMU && ACPI
+
 endmenu
