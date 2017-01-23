@@ -164,4 +164,11 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 
 #endif /* CONFIG_ARM_PMU */
 
+#ifdef CONFIG_ARM_PMU_ACPI
+struct acpi_madt_generic_interrupt;
+void arm_pmu_parse_acpi(int cpu, struct acpi_madt_generic_interrupt *gic);
+#else
+#define arm_pmu_parse_acpi(a, b) do { } while (0)
+#endif /* CONFIG_ARM_PMU_ACPI */
+
 #endif /* __ARM_PMU_H__ */
