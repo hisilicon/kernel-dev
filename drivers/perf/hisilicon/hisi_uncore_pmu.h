@@ -34,9 +34,6 @@
 #undef pr_fmt
 #define pr_fmt(fmt)     "hisi_pmu: " fmt
 
-#define HISI_DJTAG_MOD_MASK (0xFFFF)
-#define HISI_CNTR_SCCL_MASK    (0xF00)
-
 #define HISI_EVTYPE_EVENT	0xfff
 #define HISI_MAX_PERIOD ((1LLU << 32) - 1)
 

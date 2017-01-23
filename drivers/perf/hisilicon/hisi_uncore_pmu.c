@@ -68,7 +68,7 @@ ssize_t hisi_cpumask_sysfs_show(struct device *dev,
 
 /* djtag read interface - Call djtag driver to access SoC registers */
 int hisi_djtag_readreg(int module_id, int bank, u32 offset,
-				struct hisi_djtag_client *client, u32 *pvalue)
+				struct hisi_djtag_client *client, u32 *value)
 {
 	int ret;
 	u32 chain_id = 0;
@@ -78,7 +78,8 @@ int hisi_djtag_readreg(int module_id, int bank, u32 offset,
 		chain_id++;
 	}
 
-	ret = hisi_djtag_readl(client, offset, module_id, chain_id, pvalue);
+	ret = hisi_djtag_readl(client, offset, module_id,
+					chain_id, value);
 	if (ret)
 		dev_err(&client->dev, "read failed, ret=%d!\n", ret);
 
@@ -91,9 +92,15 @@ int hisi_djtag_writereg(int module_id, int bank,
 				struct hisi_djtag_client *client)
 {
 	int ret;
+	u32 chain_id = 0;
+
+	while (bank != 1) {
+		bank = (bank >> 0x1);
+		chain_id++;
+	}
 
 	ret = hisi_djtag_writel(client, offset, module_id,
-						HISI_DJTAG_MOD_MASK, value);
+					(1 << chain_id), value);
 	if (ret)
 		dev_err(&client->dev, "write failed, ret=%d!\n", ret);
 
@@ -364,7 +371,7 @@ void hisi_uncore_pmu_disable(struct pmu *pmu)
 	struct hisi_pmu *hisi_pmu = to_hisi_pmu(pmu);
 
 	if (hisi_pmu->ops->stop_counters)
-		hisi_pmu->ops->start_counters(hisi_pmu);
+		hisi_pmu->ops->stop_counters(hisi_pmu);
 }
 
 int hisi_uncore_pmu_setup(struct hisi_pmu *hisi_pmu, const char *pmu_name)
