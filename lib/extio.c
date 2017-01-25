@@ -28,7 +28,7 @@ void register_extio(struct extio_node *node)
 	write_unlock(&extio_list_lock);
 }
 
-static struct extio_node *find_extio_token(unsigned long addr)
+static struct extio_ops *find_extio_token(unsigned long addr)
 {
 	struct extio_node *extio_entry;
 
@@ -39,7 +39,8 @@ static struct extio_node *find_extio_token(unsigned long addr)
 			break;
 	}
 	read_unlock(&extio_list_lock);
-	return (&extio_entry->list == &extio_dev_list) ? NULL : extio_entry;
+	return (&extio_entry->list == &extio_dev_list) ? NULL :
+			extio_entry->ops;
 }
 
 struct extio_node *extio_find_node(struct fwnode_handle *node)
@@ -308,47 +309,45 @@ int acpi_set_extio_resource(struct acpi_device *adev,
 #define BUILD_EXTIO(bw, type)						\
 type extio_in##bw(unsigned long addr)					\
 {									\
-	struct extio_node *extio_entry = find_extio_token(addr);	\
+	struct extio_ops *ops = find_extio_token(addr);			\
 									\
-	if (!extio_entry)						\
+	if (!ops)							\
 		return read##bw(PCI_IOBASE + addr);			\
-	return extio_entry->ops->pfin ?					\
-			extio_entry->ops->pfin(extio_entry->devpara,	\
-			addr, sizeof(type)) : -1;			\
+	return ops->pfin ?						\
+		ops->pfin(ops->devpara, addr, sizeof(type)) : -1;	\
 }									\
 									\
 void extio_out##bw(type value, unsigned long addr)			\
 {									\
-	struct extio_node *extio_entry = find_extio_token(addr);	\
+	struct extio_ops *ops = find_extio_token(addr);			\
 									\
-	if (!extio_entry)						\
+	if (!ops)							\
 		write##bw(value, PCI_IOBASE + addr);			\
-	else if (extio_entry->ops->pfout)				\
-		extio_entry->ops->pfout(extio_entry->devpara,		\
-				addr, value, sizeof(type));		\
+	else if (ops->pfout)						\
+		ops->pfout(ops->devpara, addr, value, sizeof(type));	\
 }									\
 									\
 void extio_ins##bw(unsigned long addr, void *buffer, unsigned int count)\
 {									\
-	struct extio_node *extio_entry = find_extio_token(addr);	\
+	struct extio_ops *ops = find_extio_token(addr);			\
 									\
-	if (!extio_entry)						\
+	if (!ops)							\
 		reads##bw(PCI_IOBASE + addr, buffer, count);		\
-	else if (extio_entry->ops->pfins)				\
-		extio_entry->ops->pfins(extio_entry->devpara,		\
-				addr, buffer, sizeof(type), count);	\
+	else if (ops->pfins)						\
+		ops->pfins(ops->devpara, addr, buffer,			\
+				sizeof(type), count);			\
 }									\
 									\
 void extio_outs##bw(unsigned long addr, const void *buffer,		\
 		    unsigned int count)					\
 {									\
-	struct extio_node *extio_entry = find_extio_token(addr);	\
+	struct extio_ops *ops = find_extio_token(addr);			\
 									\
-	if (!extio_entry)						\
+	if (!ops)							\
 		writes##bw(PCI_IOBASE + addr, buffer, count);		\
-	else if (extio_entry->ops->pfouts)				\
-		extio_entry->ops->pfouts(extio_entry->devpara,		\
-				addr, buffer, sizeof(type), count);	\
+	else if (ops->pfouts)						\
+		ops->pfouts(ops->devpara, addr, buffer,			\
+				sizeof(type), count);			\
 }
 
 BUILD_EXTIO(b, u8)
