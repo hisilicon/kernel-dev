@@ -485,7 +485,7 @@ static int hisilpc_probe(struct platform_device *pdev)
 		return -EFAULT;
 	}
 
-	lpcdev->extio->devpara = lpcdev;
+	hisi_lpc_ops.devpara = lpcdev;
 	lpcdev->extio->ops = &hisi_lpc_ops;
 
 	platform_set_drvdata(pdev, lpcdev);

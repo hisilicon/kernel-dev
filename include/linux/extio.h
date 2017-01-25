@@ -32,6 +32,7 @@ struct extio_ops {
 	void (*pfouts)(void *devobj, unsigned long ptaddr,
 				const void *outbuf, size_t dlen,
 				unsigned int count);
+	void *devpara;	/* private parameter of the host device */
 };
 
 struct extio_node {
@@ -41,7 +42,6 @@ struct extio_node {
 	struct fwnode_handle *fwnode;
 	struct list_head list;
 	struct extio_ops *ops;	/* ops operating on this node */
-	void *devpara;	/* private parameter of the host device */
 };
 
 extern u8 extio_inb(unsigned long addr);
