@@ -257,25 +257,25 @@ hisi_lpc_pio_to_addr(struct hisilpc_dev *lpcdev, unsigned long pio)
 	return pio - lpcdev->extio->io_start + lpcdev->extio->bus_start;
 }
 
-
-/**
- * hisilpc_comm_in - read/input the data from the I/O peripheral
- *		     through LPC.
- * @devobj: pointer to the device information relevant to LPC controller.
- * @pio: the target I/O port address.
- * @dlen: the data length required to read from the target I/O port.
+/*
+ * hisilpc_comm_in_raw - input/read the data whose maximum length is four bytes
+ *		      to the I/O peripheral through the LPC host.
+ * @ptaddr: the target I/O port address;
  *
- * when succeed, the data read back is stored in buffer pointed by inbuf.
- * For inb, return the data read from I/O or -1 when error occur.
+ * This function interacts with the LPC controller directly. We break the IO
+ * write/output into two functions as in some scenes the caller will use
+ * bus-local port address to perform the I/O operations, such as earlycon.
+ * We don't want to remove hisi_lpc_pio_to_addr to make the input port
+ * of hisilpc_comm_in() is bus-local address, as keeping
+ * hisi_lpc_pio_to_addr() is a bit flexible.
  */
-static u64 hisilpc_comm_in(void *devobj, unsigned long pio, size_t dlen)
+static inline u64 hisilpc_comm_in_raw(struct hisilpc_dev *lpcdev,
+		unsigned long ptaddr, size_t dlen)
 {
-	struct hisilpc_dev *lpcdev = devobj;
 	struct lpc_cycle_para iopara;
-	u32 rd_data;
 	unsigned char *newbuf;
+	u32 rd_data;
 	int ret = 0;
-	unsigned long ptaddr;
 
 	if (!lpcdev || !dlen || dlen > LPC_MAX_DULEN ||	(dlen & (dlen - 1)))
 		return -1;
@@ -285,8 +285,6 @@ static u64 hisilpc_comm_in(void *devobj, unsigned long pio, size_t dlen)
 		return -1;
 
 	newbuf = (unsigned char *)&rd_data;
-
-	ptaddr = hisi_lpc_pio_to_addr(lpcdev, pio);
 
 	iopara.opflags = FG_INCRADDR_LPC;
 	iopara.csize = dlen;
@@ -298,24 +296,43 @@ static u64 hisilpc_comm_in(void *devobj, unsigned long pio, size_t dlen)
 	return le32_to_cpu(rd_data);
 }
 
-/**
- * hisilpc_comm_out - output the data whose maximum length is four bytes
-		      to the I/O peripheral through the LPC host.
+/*
+ * hisilpc_comm_in - read/input the data from the I/O peripheral
+ *		     through LPC.
  * @devobj: pointer to the device information relevant to LPC controller.
- * @outval: a value to be outputted from caller, maximum is four bytes.
- * @pio: the target I/O port address.
- * @dlen: the data length required writing to the target I/O port.
+ * @pio: the logical I/O port address.
+ * @dlen: the data length required to read from the target I/O port.
  *
- * This function is corresponding to out(b,w,l) only
- *
+ * when succeed, the data read back is stored in buffer pointed by inbuf.
+ * For inb, return the data read from I/O or -1 when error occur.
  */
-static void hisilpc_comm_out(void *devobj, unsigned long pio,
-			     u32 outval, size_t dlen)
+static u64 hisilpc_comm_in(void *devobj, unsigned long pio, size_t dlen)
 {
 	struct hisilpc_dev *lpcdev = devobj;
+	unsigned long ptaddr;
+
+	ptaddr = hisi_lpc_pio_to_addr(lpcdev, pio);
+
+	return hisilpc_comm_in_raw(lpcdev, ptaddr, dlen);
+}
+
+/*
+ * hisilpc_comm_out_raw - output the data whose maximum length is four bytes
+ *		      to the I/O peripheral through the LPC host.
+ * @ptaddr: the target I/O port address;
+ *
+ * This function interacts with the LPC controller directly. We break the IO
+ * write/output into two functions as in some scenes the caller will use
+ * bus-local port address to perform the I/O operations, such as earlycon.
+ * We don't want to remove hisi_lpc_pio_to_addr to make the input port
+ * of hisilpc_comm_out() is bus-local address, as keeping
+ * hisi_lpc_pio_to_addr() is a bit flexible.
+ */
+static inline void hisilpc_comm_out_raw(struct hisilpc_dev *lpcdev,
+		unsigned long ptaddr, u32 outval, size_t dlen)
+{
 	struct lpc_cycle_para iopara;
 	const unsigned char *newbuf;
-	unsigned long ptaddr;
 
 	if (!lpcdev || !dlen || dlen > LPC_MAX_DULEN)
 		return;
@@ -327,12 +344,31 @@ static void hisilpc_comm_out(void *devobj, unsigned long pio,
 
 	newbuf = (const unsigned char *)&outval;
 
-	ptaddr = hisi_lpc_pio_to_addr(lpcdev, pio);
-
 	iopara.opflags = FG_INCRADDR_LPC;
 	iopara.csize = dlen;
 
 	hisilpc_target_out(lpcdev, &iopara, ptaddr, newbuf, dlen);
+}
+
+/*
+ * hisilpc_comm_out - output the data whose maximum length is four bytes
+		      to the I/O peripheral through the LPC host.
+ * @devobj: pointer to the device information relevant to LPC controller.
+ * @outval: a value to be outputted from caller, maximum is four bytes.
+ * @pio: the logical I/O port address.
+ * @dlen: the data length required writing to the target I/O port.
+ *
+ * This function is corresponding to out(b,w,l) only
+ */
+static void hisilpc_comm_out(void *devobj, unsigned long pio,
+				u32 outval, size_t dlen)
+{
+	struct hisilpc_dev *lpcdev = devobj;
+	unsigned long ptaddr;
+
+	ptaddr = hisi_lpc_pio_to_addr(lpcdev, pio);
+
+	hisilpc_comm_out_raw(lpcdev, ptaddr, outval, dlen);
 }
 
 /*
@@ -442,6 +478,156 @@ static struct extio_ops hisi_lpc_ops = {
 	.pfins = hisilpc_comm_ins,
 	.pfouts = hisilpc_comm_outs,
 };
+
+/**
+ * hisilpc_early_in - read/input operation specific for hisi LPC earlycon.
+ * @devobj: pointer to device relevant information of the caller.
+ * @inbuf: the buffer where the read back data is populated.
+ *
+ * for earlycon, dlen and count should be one.
+ *
+ * Return the data read from earlycon on success, error ID on fail.
+ *
+ */
+static unsigned int __init hisilpc_early_in(struct uart_port *port, int offset)
+{
+	unsigned int backval;
+	unsigned long ptaddr;
+	unsigned int ret;
+
+	if (!port->mapbase || !port->iobase || !port->membase)
+		return -EINVAL;
+
+	/* For earlycon, only support one byte each time. */
+	ptaddr = port->iobase + (offset << port->regshift);
+	if (!hisi_lpc_ops.devpara) {
+		unsigned int cmd_word;
+
+		cmd_word = LPC_CMD_TYPE_IO | LPC_CMD_READ;
+
+		/*
+		 * the earlycon should work in non-concurrent environment,
+		 * no need to ensure the atomic operation.
+		 */
+		writel(1, port->membase + LPC_REG_OP_LEN);
+
+		writel(cmd_word, port->membase + LPC_REG_CMD);
+
+		writel(ptaddr, port->membase + LPC_REG_ADDR);
+
+		writel(START_WORK, port->membase + LPC_REG_START);
+
+		ret = wait_lpc_idle(port->membase, LPC_PEROP_WAITCNT);
+		if (!ret)
+			backval = readl(port->membase + LPC_REG_RDATA);
+
+		return (ret) ? : (backval & 0xff);
+	}
+	/*
+	 * As ipmi intialization is earlier than the lpc serial intialization,
+	 * it is possible the ipmi I/O will interfere with earlycon because
+	 * there is no lock in earlycon I/O. Adding this special handling
+	 * make earlycon I/O call the safe I/O accessor.
+	 */
+	return hisilpc_comm_in_raw(hisi_lpc_ops.devpara, ptaddr, 1);
+}
+
+/**
+ * hisilpc_early_out - write/output operation specific for hisi LPC earlycon.
+ * @port: pointer to uart_port of eralycon
+ *
+ * for earlycon, dlen and count should be one.
+ *
+ */
+static void __init hisilpc_early_out(struct uart_port *port, int offset,
+					int value)
+{
+	unsigned long ptaddr;
+
+	if (!port->mapbase || !port->iobase || !port->membase)
+		return;
+
+	ptaddr = port->iobase + (offset << port->regshift);
+	if (!hisi_lpc_ops.devpara) {
+		unsigned int cmd_word;
+
+		cmd_word = LPC_CMD_TYPE_IO | LPC_CMD_WRITE;
+		/*
+		 * the earlycon should work in non-concurrent environment,
+		 * no need to ensure the atomic operation.
+		 */
+		writel(1, port->membase + LPC_REG_OP_LEN);
+
+		writel(value & 0xff, port->membase + LPC_REG_WDATA);
+
+		writel(cmd_word, port->membase + LPC_REG_CMD);
+
+		writel(ptaddr, port->membase + LPC_REG_ADDR);
+
+		writel(START_WORK, port->membase + LPC_REG_START);
+
+		wait_lpc_idle(port->membase, LPC_PEROP_WAITCNT);
+	} else {
+		hisilpc_comm_out_raw(hisi_lpc_ops.devpara, ptaddr, value, 1);
+	}
+}
+
+
+/**
+ * early_hisilpc8250_setup - initilize the lpc earlycon
+ * @device: pointer to the elarycon device
+ * @options: a option string from earlycon kernel-parameter
+ *
+ * Returns 0 on success, non-zero on fail.
+ *
+ */
+static int __init early_hisilpc8250_setup(struct earlycon_device *device,
+						const char *options)
+{
+	char *p;
+	int ret;
+
+	if (!device->port.membase)
+		return -ENODEV;
+
+	if (device->port.iotype != UPIO_MEM)
+		return -EINVAL;
+
+	if (device->options) {
+		p = strchr(device->options, ',');
+		if (p && (p + 1) != '\0') {
+			ret = kstrtoul(++p, 0,
+				(unsigned long *)&device->port.iobase);
+			if (ret || device->port.iobase == 0)
+				return ret ?: -EFAULT;
+		} else
+			device->port.iobase = 0x2f8;
+	} else {
+		device->port.iobase = 0x2f8;
+		device->baud = 0;
+	}
+
+	device->port.serial_in = hisilpc_early_in;
+	device->port.serial_out = hisilpc_early_out;
+	/* must convert iotype to UPIO_PORT for Hip06 indirect-io */
+	device->port.iotype = UPIO_PORT;
+
+	/* disable interrupts from LPC */
+	writel(LPC_STAT_BYIRQ, device->port.membase + LPC_REG_IRQ_ST);
+	/* ensure the LPC is available */
+	while (!(readl(device->port.membase + LPC_REG_OP_STATUS) &
+			LPC_STATUS_IDLE))
+		cpu_relax();
+
+	return early_serial8250_setup(device, options);
+}
+
+
+EARLYCON_DECLARE(hisilpcuart, early_hisilpc8250_setup);
+OF_EARLYCON_DECLARE(hisilpcuart, "hisilicon,hip06-lpc-uart",
+					early_hisilpc8250_setup);
+OF_EARLYCON_DECLARE(hisilpcuart, "hisilicon,hip07-lpc-uart",
+					early_hisilpc8250_setup);
 
 /**
  * hisilpc_probe - the probe callback function for hisi lpc device,
