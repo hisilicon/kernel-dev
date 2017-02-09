@@ -795,6 +795,11 @@ struct acpi_iort_smmu_v3 {
 	u32 sync_gsiv;
 };
 
+/* Values for Model field above */
+
+#define ACPI_IORT_SMMU_V3		0x00000000	/* Generic SMMUv3 */
+#define ACPI_IORT_SMMU_V3_HISILICON	0x00000001	/* Hisilicon SMMUv3 */
+
 /* Masks for Flags field above */
 
 #define ACPI_IORT_SMMU_V3_COHACC_OVERRIDE   (1)

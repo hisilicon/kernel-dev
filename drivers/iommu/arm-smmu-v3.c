@@ -2562,6 +2562,18 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 }
 
 #ifdef CONFIG_ACPI
+static void smmu_v3_model_handle(struct acpi_iort_smmu_v3 *iort_smmu,
+				 struct arm_smmu_device *smmu)
+{
+	switch (iort_smmu->model) {
+	case ACPI_IORT_SMMU_V3_HISILICON:
+		smmu->options |= ARM_SMMU_OPT_SKIP_PREFETCH;
+		break;
+	default:
+		break;
+	}
+}
+
 static int arm_smmu_device_acpi_probe(struct platform_device *pdev,
 				      struct arm_smmu_device *smmu)
 {
@@ -2573,6 +2585,8 @@ static int arm_smmu_device_acpi_probe(struct platform_device *pdev,
 
 	/* Retrieve SMMUv3 specific data */
 	iort_smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+
+	smmu_v3_model_handle(iort_smmu, smmu);
 
 	if (iort_smmu->flags & ACPI_IORT_SMMU_V3_COHACC_OVERRIDE)
 		smmu->features |= ARM_SMMU_FEAT_COHERENCY;
