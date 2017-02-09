@@ -554,23 +554,33 @@ static int arch_timer_starting_cpu(unsigned int cpu)
 	return 0;
 }
 
-static void arch_timer_detect_rate(void __iomem *cntbase)
+static void __arch_timer_determine_rate(u32 rate)
 {
-	/* Who has more than one independent system counter? */
-	if (arch_timer_rate)
-		return;
-
-	/*
-	 * Try to determine the frequency from the MMIO timer or the sysreg.
-	 */
-	if (cntbase)
-		arch_timer_rate = readl_relaxed(cntbase + CNTFRQ);
-	else
-		arch_timer_rate = arch_timer_get_cntfrq();
-
 	/* Check the timer frequency. */
-	if (arch_timer_rate == 0)
-		pr_warn("frequency not available\n");
+	if (!arch_timer_rate) {
+		if (rate)
+			arch_timer_rate = rate;
+		else
+			pr_warn("frequency not available\n");
+	} else if (rate && arch_timer_rate != rate) {
+		pr_warn("got different frequency, keep original.\n");
+	}
+}
+
+static void arch_timer_detect_rate(void)
+{
+	/*
+	 * Try to get the timer frequency from the sysreg CNTFRQ.
+	 */
+	__arch_timer_determine_rate(arch_timer_get_cntfrq());
+}
+
+static void arch_timer_mem_detect_rate(void __iomem *cntbase)
+{
+	/*
+	 * Try to get the timer frequency from the CNTFRQ reg of MMIO timer.
+	 */
+	__arch_timer_determine_rate(readl_relaxed(cntbase + CNTFRQ));
 }
 
 static void arch_timer_banner(unsigned type)
@@ -953,7 +963,7 @@ static int __init arch_timer_of_init(struct device_node *np)
 	 */
 	if (!arch_timer_rate &&
 	    of_property_read_u32(np, "clock-frequency", &arch_timer_rate))
-		arch_timer_detect_rate(NULL);
+		arch_timer_detect_rate();
 
 	arch_timer_c3stop = !of_property_read_bool(np, "always-on");
 
@@ -1070,7 +1080,7 @@ static int __init arch_timer_mem_init(struct device_node *np)
 	 */
 	if (!arch_timer_rate &&
 	    of_property_read_u32(np, "clock-frequency", &arch_timer_rate))
-		arch_timer_detect_rate(base);
+		arch_timer_mem_detect_rate(base);
 
 	ret = arch_timer_mem_register(base, irq);
 	if (ret)
@@ -1133,7 +1143,7 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 		gtdt->non_secure_el2_flags);
 
 	/* Get the frequency from the sysreg CNTFRQ */
-	arch_timer_detect_rate(NULL);
+	arch_timer_detect_rate();
 
 	arch_timer_uses_ppi = arch_timer_select_ppi();
 	if (!arch_timer_ppi[arch_timer_uses_ppi]) {
