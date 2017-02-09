@@ -20,6 +20,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/bitmap.h>
+#include <linux/hrtimer.h>
+#include <linux/ktime.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -52,6 +54,22 @@ enum armv8_hisi_l3c_counters {
 #define L3C_EVCTRL_REG_OFF 0x04
 #define L3C_CNT0_REG_OFF 0x170
 #define L3C_EVENT_EN 0x1000000
+
+/*
+ * Default timer frequency to poll and avoid counter overflow.
+ * CPU speed = 2.4Ghz, Therefore Access time = 0.4ns
+ * L1 cache - 2 way set associative
+ * L2  - 16 way set associative
+ * L3  - 16 way set associative. L3 cache has 4 banks.
+ *
+ * Overflow time = 2^31 * (acces time L1 + access time L2 + access time L3)
+ * = 2^31 * ((2 * 0.4ns) + (16 * 0.4ns) + (4 * 16 * 0.4ns)) = 70 seconds
+ *
+ * L3 cache is also used by devices like PCIe, SAS etc. at
+ * the same time. So the overflow time could be even smaller.
+ * So on a safe side we use a timer interval of 10sec
+ */
+#define L3C_HRTIMER_INTERVAL (10LL * MSEC_PER_SEC)
 
 #define GET_MODULE_ID(hwmod_data) hwmod_data->l3c_hwcfg.module_id
 #define GET_BANK_SEL(hwmod_data) hwmod_data->l3c_hwcfg.bank_select
@@ -465,6 +483,18 @@ static const struct attribute_group hisi_l3c_attr_group = {
 
 static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
 
+static DEVICE_ATTR(hrtimer_interval, 0444, hisi_hrtimer_interval_sysfs_show,
+		   NULL);
+
+static struct attribute *hisi_l3c_hrtimer_interval_attrs[] = {
+	&dev_attr_hrtimer_interval.attr,
+	NULL,
+};
+
+static const struct attribute_group hisi_l3c_hrtimer_interval_attr_group = {
+	.attrs = hisi_l3c_hrtimer_interval_attrs,
+};
+
 static struct attribute *hisi_l3c_cpumask_attrs[] = {
 	&dev_attr_cpumask.attr,
 	NULL,
@@ -479,6 +509,7 @@ static const struct attribute_group *hisi_l3c_pmu_attr_groups[] = {
 	&hisi_l3c_format_group,
 	&hisi_l3c_events_group,
 	&hisi_l3c_cpumask_attr_group,
+	&hisi_l3c_hrtimer_interval_attr_group,
 	NULL,
 };
 
@@ -494,6 +525,15 @@ static struct hisi_uncore_ops hisi_uncore_l3c_ops = {
 	.write_counter = hisi_l3c_write_counter,
 };
 
+/* Initialize hrtimer to poll for avoiding counter overflow */
+static void hisi_l3c_hrtimer_init(struct hisi_pmu *l3c_pmu)
+{
+	INIT_LIST_HEAD(&l3c_pmu->active_list);
+	l3c_pmu->ops->start_hrtimer = hisi_hrtimer_start;
+	l3c_pmu->ops->stop_hrtimer = hisi_hrtimer_stop;
+	hisi_hrtimer_init(l3c_pmu, L3C_HRTIMER_INTERVAL);
+}
+
 static int hisi_l3c_pmu_init(struct hisi_pmu *l3c_pmu,
 			     struct hisi_djtag_client *client)
 {
@@ -503,6 +543,7 @@ static int hisi_l3c_pmu_init(struct hisi_pmu *l3c_pmu,
 
 	l3c_pmu->num_events = HISI_HWEVENT_L3C_EVENT_MAX;
 	l3c_pmu->num_counters = HISI_IDX_L3C_COUNTER_MAX;
+	l3c_pmu->num_active = 0;
 	l3c_pmu->scl_id = hisi_djtag_get_sclid(client);
 
 	l3c_pmu->name = kasprintf(GFP_KERNEL, "hisi_l3c%u_%u",
@@ -512,6 +553,9 @@ static int hisi_l3c_pmu_init(struct hisi_pmu *l3c_pmu,
 
 	/* Pick one core to use for cpumask attributes */
 	cpumask_set_cpu(smp_processor_id(), &l3c_pmu->cpu);
+
+	/* Use hrtimer to poll for avoiding counter overflow */
+	hisi_l3c_hrtimer_init(l3c_pmu);
 
 	return 0;
 }

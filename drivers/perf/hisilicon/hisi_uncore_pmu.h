@@ -79,13 +79,20 @@ struct hisi_uncore_ops {
 	void (*disable_counter)(struct hisi_pmu *, int);
 	void (*start_counters)(struct hisi_pmu *);
 	void (*stop_counters)(struct hisi_pmu *);
+	void (*start_hrtimer)(struct hisi_pmu *);
+	void (*stop_hrtimer)(struct hisi_pmu *);
 };
 
 /* Generic pmu struct for different pmu types */
 struct hisi_pmu {
 	const char *name;
 	struct perf_event **hw_perf_events;
+	struct list_head active_list; /* Active events list */
 	struct hisi_uncore_ops *ops;
+	struct hrtimer hrtimer; /* hrtimer to handle the
+				 * counter overflow
+				 */
+	u64 hrt_duration; /* hrtimer timeout */
 	struct device *dev;
 	void *hwmod_data; /* Hardware module specific data */
 	cpumask_t cpu;
@@ -94,6 +101,7 @@ struct hisi_pmu {
 	u32 scl_id;
 	int num_counters;
 	int num_events;
+	int num_active;
 };
 
 void hisi_uncore_pmu_read(struct perf_event *event);
@@ -113,6 +121,15 @@ ssize_t hisi_format_sysfs_show(struct device *dev,
 			       struct device_attribute *attr, char *buf);
 ssize_t hisi_cpumask_sysfs_show(struct device *dev,
 				struct device_attribute *attr, char *buf);
+ssize_t hisi_hrtimer_interval_sysfs_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf);
+ssize_t hisi_hrtimer_interval_sysfs_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count);
+void hisi_hrtimer_init(struct hisi_pmu *hisi_pmu, u64 timer_interval);
+void hisi_hrtimer_start(struct hisi_pmu *hisi_pmu);
+void hisi_hrtimer_stop(struct hisi_pmu *hisi_pmu);
 int hisi_djtag_readreg(int module_id, int bank, u32 offset,
 		       struct hisi_djtag_client *client, u32 *value);
 int hisi_djtag_writereg(int module_id, int bank, u32 offset,
