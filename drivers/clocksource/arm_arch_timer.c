@@ -1146,6 +1146,39 @@ CLOCKSOURCE_OF_DECLARE(armv7_arch_timer_mem, "arm,armv7-timer-mem",
 		       arch_timer_mem_of_init);
 
 #ifdef CONFIG_ACPI_GTDT
+struct gtdt_arch_timer_fixup {
+	char oem_id[ACPI_OEM_ID_SIZE + 1];
+	char oem_table_id[ACPI_OEM_TABLE_ID_SIZE + 1];
+	u32 oem_revision;
+
+	/* quirk handler for arch timer erratum */
+	void (*handler)(void *context);
+	void *context;
+};
+
+/* note: this needs to be updated according to the doc of OEM ID
+ * and TABLE ID for different board.
+ */
+static struct gtdt_arch_timer_fixup arch_timer_quirks[] __initdata = {
+};
+
+static void __init arch_timer_acpi_quirks_handler(char *oem_id,
+						  char *oem_table_id,
+						  u32 oem_revision)
+{
+	struct gtdt_arch_timer_fixup *quirks = arch_timer_quirks;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(arch_timer_quirks); i++, quirks++) {
+		if (!memcmp(quirks->oem_id, oem_id, ACPI_OEM_ID_SIZE) &&
+		    !memcmp(quirks->oem_table_id, oem_table_id, ACPI_OEM_TABLE_ID_SIZE) &&
+		    quirks->oem_revision == oem_revision) {
+			if (quirks->handler && quirks->context)
+				quirks->handler(quirks->context);
+		}
+	}
+}
+
 static int __init arch_timer_mem_acpi_init(int platform_timer_count)
 {
 	struct arch_timer_mem *timer_mem;
@@ -1181,6 +1214,9 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 		pr_warn("already initialized, skipping\n");
 		return -EINVAL;
 	}
+
+	arch_timer_acpi_quirks_handler(table->oem_id, table->oem_table_id,
+				       table->oem_revision);
 
 	arch_timers_present |= ARCH_TIMER_TYPE_CP15;
 
