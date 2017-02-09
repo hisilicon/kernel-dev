@@ -65,6 +65,70 @@ ssize_t hisi_cpumask_sysfs_show(struct device *dev,
 	return cpumap_print_to_pagebuf(true, buf, &hisi_pmu->cpu);
 }
 
+/*
+ * sysfs hrtimer_interval attributes
+ */
+ssize_t hisi_hrtimer_interval_sysfs_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct pmu *pmu = dev_get_drvdata(dev);
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(pmu);
+
+	if (hisi_pmu->hrt_duration)
+		return sprintf(buf, "%llu\n", hisi_pmu->hrt_duration);
+	return 0;
+}
+
+/* The counter overflow IRQ is not supported for some PMUs
+ * use hrtimer to periodically poll and avoid overflow
+ */
+static enum hrtimer_restart hisi_hrtimer_callback(struct hrtimer *hrtimer)
+{
+	struct hisi_pmu *hisi_pmu = container_of(hrtimer,
+						 struct hisi_pmu, hrtimer);
+	struct perf_event *event;
+	struct hw_perf_event *hwc;
+	unsigned long flags;
+
+	/* Return if no active events */
+	if (!hisi_pmu->num_active)
+		return HRTIMER_NORESTART;
+
+	local_irq_save(flags);
+
+	/* Update event count for each active event */
+	list_for_each_entry(event, &hisi_pmu->active_list, active_entry) {
+		hwc = &event->hw;
+		/* Read hardware counter and update the Perf event counter */
+		hisi_pmu->ops->event_update(event, hwc, GET_CNTR_IDX(hwc));
+	}
+
+	local_irq_restore(flags);
+	hrtimer_forward_now(hrtimer, ms_to_ktime(hisi_pmu->hrt_duration));
+	return HRTIMER_RESTART;
+}
+
+void hisi_hrtimer_init(struct hisi_pmu *hisi_pmu, u64 timer_interval)
+{
+	/* hr timer clock initalization */
+	hrtimer_init(&hisi_pmu->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hisi_pmu->hrtimer.function = &hisi_hrtimer_callback;
+	hisi_pmu->hrt_duration = timer_interval;
+}
+
+void hisi_hrtimer_start(struct hisi_pmu *hisi_pmu)
+{
+	hrtimer_start(&hisi_pmu->hrtimer,
+		      ms_to_ktime(hisi_pmu->hrt_duration),
+		      HRTIMER_MODE_REL_PINNED);
+}
+
+void hisi_hrtimer_stop(struct hisi_pmu *hisi_pmu)
+{
+	hrtimer_cancel(&hisi_pmu->hrtimer);
+}
+
 /* djtag read interface - Call djtag driver to access SoC registers */
 int hisi_djtag_readreg(int module_id, int bank, u32 offset,
 		       struct hisi_djtag_client *client, u32 *value)
@@ -266,6 +330,15 @@ void hisi_uncore_pmu_start(struct perf_event *event, int flags)
 					     (u32) prev_raw_count);
 	}
 
+	/* Start hrtimer when the first event is started in this PMU */
+	if (hisi_pmu->ops->start_hrtimer) {
+		hisi_pmu->num_active++;
+		list_add_tail(&event->active_entry, &hisi_pmu->active_list);
+
+		if (hisi_pmu->num_active == 1)
+			hisi_pmu->ops->start_hrtimer(hisi_pmu);
+	}
+
 	hisi_uncore_pmu_enable_event(event);
 	perf_event_update_userpage(event);
 }
@@ -278,6 +351,15 @@ void hisi_uncore_pmu_stop(struct perf_event *event, int flags)
 	hisi_uncore_pmu_disable_event(event);
 	WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
 	hwc->state |= PERF_HES_STOPPED;
+
+	/* Stop hrtimer when the last event is stopped in this PMU */
+	if (hisi_pmu->ops->stop_hrtimer) {
+		hisi_pmu->num_active--;
+		list_del(&event->active_entry);
+
+		if (hisi_pmu->num_active == 0)
+			hisi_pmu->ops->stop_hrtimer(hisi_pmu);
+	}
 
 	if (hwc->state & PERF_HES_UPTODATE)
 		return;
