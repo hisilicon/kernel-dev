@@ -1101,10 +1101,10 @@ static void stop_phy_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 
 static void stop_phys_v2_hw(struct hisi_hba *hisi_hba)
 {
-	int i;
+	int phy_no;
 
-	for (i = 0; i < hisi_hba->n_phy; i++)
-		stop_phy_v2_hw(hisi_hba, i);
+	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++)
+		stop_phy_v2_hw(hisi_hba, phy_no);
 }
 
 static void phy_hard_reset_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
@@ -3045,57 +3045,14 @@ static void interrupt_disable_v2_hw(struct hisi_hba *hisi_hba)
 		synchronize_irq(platform_get_irq(pdev, i));
 }
 
-static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba,
-		u32 enable_bitmap, u32 updown_msk)
-{
-	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
-	u32 updown_msk_cur;
-	int i;
-
-	updown_msk_cur = hisi_sas_read32(hisi_hba, PHY_STATE);
-	for (i = 0; i < hisi_hba->n_phy; i++) {
-		struct hisi_sas_phy *phy = &hisi_hba->phy[i];
-		struct asd_sas_phy *sas_phy = &phy->sas_phy;
-		struct asd_sas_port *sas_port = sas_phy->port;
-		struct domain_device *dev;
-
-		config_id_frame_v2_hw(hisi_hba, i);
-		config_phy_opt_mode_v2_hw(hisi_hba, i);
-
-		if (enable_bitmap & (1 << i)) {
-			enable_phy_v2_hw(hisi_hba, i);
-			msleep(100);
-			if ((updown_msk & (1 << i)) !=
-					(updown_msk_cur & (1 << i))) {
-				if (updown_msk_cur & (1 << i))
-					phy_up_v2_hw(i, hisi_hba);
-				else
-					phy_down_v2_hw(i, hisi_hba);
-			}
-		}
-		if (!sas_port)
-			continue;
-		dev = sas_port->port_dev;
-
-		if (DEV_IS_EXPANDER(dev->dev_type))
-			sas_ha->notify_phy_event(sas_phy, PORTE_BROADCAST_RCVD);
-	}
-}
-
-static int soft_reset_chip_v2_hw(struct hisi_hba *hisi_hba)
+static int soft_reset_v2_hw(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = &hisi_hba->pdev->dev;
-	u32 phy_enable_bitmap = 0, phy_updown_msk = 0;
-	int rc, cnt = 0;
-	int i;
+	u32 old_state, state;
+	int rc, cnt;
+	int phy_no;
 
-	for (i = 0; i < hisi_hba->n_phy; i++) {
-		u32 cfg_val;
-
-		cfg_val = hisi_sas_phy_read32(hisi_hba, i, PHY_CFG);
-		phy_enable_bitmap |= (cfg_val & 1) << i;
-	}
-	phy_updown_msk = hisi_sas_read32(hisi_hba, PHY_STATE);
+	old_state = hisi_sas_read32(hisi_hba, PHY_STATE);
 
 	interrupt_disable_v2_hw(hisi_hba);
 	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0x0);
@@ -3106,7 +3063,8 @@ static int soft_reset_chip_v2_hw(struct hisi_hba *hisi_hba)
 
 	hisi_sas_write32(hisi_hba, AXI_MASTER_CFG_BASE + AM_CTRL_GLOBAL, 0x1);
 
-	/*  wait until bus idle*/
+	/* wait until bus idle */
+	cnt = 0;
 	while (1) {
 		u32 status = hisi_sas_read32_relaxed(hisi_hba,
 				AXI_MASTER_CFG_BASE + AM_CURR_TRANS_RETURN);
@@ -3121,14 +3079,27 @@ static int soft_reset_chip_v2_hw(struct hisi_hba *hisi_hba)
 		}
 	}
 
-	hisi_sas_initialise_memory(hisi_hba);
+	hisi_sas_init_mem(hisi_hba);
 
 	rc = hw_init_v2_hw(hisi_hba);
 	if (rc)
 		return rc;
 
-	hisi_sas_rescan_topology(hisi_hba, phy_enable_bitmap,
-			phy_updown_msk);
+	/* Re-enable the PHYs */
+	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
+		struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+		struct asd_sas_phy *sas_phy = &phy->sas_phy;
+
+		if (sas_phy->enabled)
+			start_phy_v2_hw(hisi_hba, phy_no);
+	}
+
+	/* Wait for the PHYs to come up and read the PHY state */
+	msleep(100);
+
+	state = hisi_sas_read32(hisi_hba, PHY_STATE);
+
+	hisi_sas_rescan_topology(hisi_hba, old_state, state);
 
 	return 0;
 }
@@ -3156,7 +3127,7 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.max_command_entries = HISI_SAS_COMMAND_ENTRIES_V2_HW,
 	.can_queue = HISI_SAS_COMMAND_ENTRIES_V2_HW/2,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v2_hdr),
-	.soft_reset_chip = soft_reset_chip_v2_hw,
+	.soft_reset = soft_reset_v2_hw,
 #ifdef SAS_DIF
 	.prot_cap = SHOST_DIF_TYPE1_PROTECTION |
 		SHOST_DIF_TYPE2_PROTECTION |
