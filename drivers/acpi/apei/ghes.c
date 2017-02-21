@@ -45,6 +45,7 @@
 #include <linux/aer.h>
 #include <linux/nmi.h>
 
+#include <acpi/actbl1.h>
 #include <acpi/ghes.h>
 #include <acpi/apei.h>
 #include <asm/tlbflush.h>
@@ -78,6 +79,10 @@
 #define GHES_ESTATUS_FROM_NODE(estatus_node)			\
 	((struct acpi_hest_generic_status *)				\
 	 ((struct ghes_estatus_node *)(estatus_node) + 1))
+
+#define IS_HEST_TYPE_GENERIC_V2(ghes)				\
+	((struct acpi_hest_header *)ghes->generic)->type ==	\
+	 ACPI_HEST_TYPE_GENERIC_ERROR_V2
 
 /*
  * This driver isn't really modular, however for the time being,
@@ -248,10 +253,18 @@ static struct ghes *ghes_new(struct acpi_hest_generic *generic)
 	ghes = kzalloc(sizeof(*ghes), GFP_KERNEL);
 	if (!ghes)
 		return ERR_PTR(-ENOMEM);
+
 	ghes->generic = generic;
+	if (IS_HEST_TYPE_GENERIC_V2(ghes)) {
+		rc = apei_map_generic_address(
+			&ghes->generic_v2->read_ack_register);
+		if (rc)
+			goto err_free;
+	}
+
 	rc = apei_map_generic_address(&generic->error_status_address);
 	if (rc)
-		goto err_free;
+		goto err_unmap_read_ack_addr;
 	error_block_length = generic->error_block_length;
 	if (error_block_length > GHES_ESTATUS_MAX_SIZE) {
 		pr_warning(FW_WARN GHES_PFX
@@ -263,13 +276,17 @@ static struct ghes *ghes_new(struct acpi_hest_generic *generic)
 	ghes->estatus = kmalloc(error_block_length, GFP_KERNEL);
 	if (!ghes->estatus) {
 		rc = -ENOMEM;
-		goto err_unmap;
+		goto err_unmap_status_addr;
 	}
 
 	return ghes;
 
-err_unmap:
+err_unmap_status_addr:
 	apei_unmap_generic_address(&generic->error_status_address);
+err_unmap_read_ack_addr:
+	if (IS_HEST_TYPE_GENERIC_V2(ghes))
+		apei_unmap_generic_address(
+			&ghes->generic_v2->read_ack_register);
 err_free:
 	kfree(ghes);
 	return ERR_PTR(rc);
@@ -279,6 +296,9 @@ static void ghes_fini(struct ghes *ghes)
 {
 	kfree(ghes->estatus);
 	apei_unmap_generic_address(&ghes->generic->error_status_address);
+	if (IS_HEST_TYPE_GENERIC_V2(ghes))
+		apei_unmap_generic_address(
+			&ghes->generic_v2->read_ack_register);
 }
 
 static inline int ghes_severity(int severity)
@@ -648,6 +668,23 @@ static void ghes_estatus_cache_add(
 	rcu_read_unlock();
 }
 
+static int ghes_ack_error(struct acpi_hest_generic_v2 *generic_v2)
+{
+	int rc;
+	u64 val = 0;
+
+	rc = apei_read(&val, &generic_v2->read_ack_register);
+	if (rc)
+		return rc;
+	val &= generic_v2->read_ack_preserve <<
+		generic_v2->read_ack_register.bit_offset;
+	val |= generic_v2->read_ack_write <<
+		generic_v2->read_ack_register.bit_offset;
+	rc = apei_write(val, &generic_v2->read_ack_register);
+
+	return rc;
+}
+
 static int ghes_proc(struct ghes *ghes)
 {
 	int rc;
@@ -660,6 +697,12 @@ static int ghes_proc(struct ghes *ghes)
 			ghes_estatus_cache_add(ghes->generic, ghes->estatus);
 	}
 	ghes_do_proc(ghes, ghes->estatus);
+
+	if (IS_HEST_TYPE_GENERIC_V2(ghes)) {
+		rc = ghes_ack_error(ghes->generic_v2);
+		if (rc)
+			return rc;
+	}
 out:
 	ghes_clear_estatus(ghes);
 	return rc;
