@@ -58,4 +58,6 @@ extern void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
 
 #endif	/* __ASSEMBLY__ */
 
+int handle_guest_sea(unsigned long addr, unsigned int esr);
+
 #endif	/* __ASM_SYSTEM_MISC_H */
