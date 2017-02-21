@@ -514,7 +514,13 @@ static void ghes_do_proc(struct ghes *ghes,
 		}
 #endif
 #ifdef CONFIG_RAS
-		else if (trace_unknown_sec_event_enabled()) {
+		else if (!uuid_le_cmp(sec_type, CPER_SEC_PROC_ARM) &&
+			 trace_arm_event_enabled()) {
+			struct cper_sec_proc_arm *arm_err;
+
+			arm_err = acpi_hest_generic_data_payload(gdata);
+			trace_arm_event(arm_err);
+		} else if (trace_unknown_sec_event_enabled()) {
 			void *unknown_err = acpi_hest_generic_data_payload(gdata);
 			trace_unknown_sec_event(&sec_type,
 					fru_id, fru_text, sec_sev,
