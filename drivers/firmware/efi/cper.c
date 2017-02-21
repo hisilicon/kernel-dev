@@ -591,8 +591,16 @@ static void cper_estatus_print_section(
 			cper_print_proc_arm(newpfx, arm_err);
 		else
 			goto err_section_too_small;
-	} else
+	} else {
+		const void *unknown_err;
+
+		unknown_err = acpi_hest_generic_data_payload(gdata);
 		printk("%s""section type: unknown, %pUl\n", newpfx, sec_type);
+		printk("%s""section length: %d\n", newpfx,
+		       gdata->error_data_length);
+		print_hex_dump(newpfx, "", DUMP_PREFIX_OFFSET, 16, 4,
+			       unknown_err, gdata->error_data_length, true);
+	}
 
 	return;
 
