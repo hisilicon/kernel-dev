@@ -20,7 +20,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/bitmap.h>
+#include <linux/hrtimer.h>
 #include <linux/io.h>
+#include <linux/ktime.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -41,6 +43,18 @@ enum armv8_hisi_ddrc_event_types {
 #define HISI_DDRC_CTRL_PERF_REG_OFF	0x010
 #define HISI_DDRC_CFG_PERF_REG_OFF	0x270
 #define HISI_DDRC_FLUX_WR_REG_OFF	0x380
+
+/*
+ * Default timer frequency to poll and avoid counter overflow.
+ * Memory clocked at 2400Mhz. DDR efficency is 80% in the chip version.
+ * The DDR bandwidth is calculated as 80% of (2400*64/8 MB/s).
+ * which is about 15.36 G/s
+ *
+ * Overflow time = (2^32 * 32Byte) / 15.36 = 8 seconds
+ *
+ * So on a safe side we use a timer interval of 3 seconds
+ */
+#define DDRC_HRTIMER_INTERVAL (3LL * MSEC_PER_SEC)
 
 struct hisi_ddrc_hwcfg {
 	u32 channel_id;
@@ -326,11 +340,24 @@ static const struct attribute_group hisi_ddrc_cpumask_attr_group = {
 	.attrs = hisi_ddrc_cpumask_attrs,
 };
 
+static DEVICE_ATTR(hrtimer_interval, 0444, hisi_hrtimer_interval_sysfs_show,
+		   NULL);
+
+static struct attribute *hisi_ddrc_hrtimer_interval_attrs[] = {
+	&dev_attr_hrtimer_interval.attr,
+	NULL,
+};
+
+static const struct attribute_group hisi_ddrc_hrtimer_interval_attr_group = {
+	.attrs = hisi_ddrc_hrtimer_interval_attrs,
+};
+
 static const struct attribute_group *hisi_ddrc_pmu_attr_groups[] = {
 	&hisi_ddrc_attr_group,
 	&hisi_ddrc_format_group,
 	&hisi_ddrc_events_group,
 	&hisi_ddrc_cpumask_attr_group,
+	&hisi_ddrc_hrtimer_interval_attr_group,
 	NULL,
 };
 
@@ -341,6 +368,15 @@ static struct hisi_uncore_ops hisi_uncore_ddrc_ops = {
 	.event_update = hisi_ddrc_event_update,
 	.write_counter = hisi_write_ddrc_counter,
 };
+
+/* Initialize hrtimer to poll for avoiding counter overflow */
+static void hisi_ddrc_hrtimer_init(struct hisi_pmu *ddrc_pmu)
+{
+	INIT_LIST_HEAD(&ddrc_pmu->active_list);
+	ddrc_pmu->ops->start_hrtimer = hisi_hrtimer_start;
+	ddrc_pmu->ops->stop_hrtimer = hisi_hrtimer_stop;
+	hisi_hrtimer_init(ddrc_pmu, DDRC_HRTIMER_INTERVAL);
+}
 
 static int hisi_ddrc_pmu_init(struct device *dev, struct hisi_pmu *ddrc_pmu)
 {
@@ -360,6 +396,9 @@ static int hisi_ddrc_pmu_init(struct device *dev, struct hisi_pmu *ddrc_pmu)
 
 	/* Pick one core to use for cpumask attributes */
 	cpumask_set_cpu(smp_processor_id(), &ddrc_pmu->cpu);
+
+	/* Use hrtimer to poll for avoiding counter overflow */
+	hisi_ddrc_hrtimer_init(ddrc_pmu);
 
 	return 0;
 }
