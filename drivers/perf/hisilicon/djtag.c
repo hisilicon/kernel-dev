@@ -25,7 +25,11 @@
 #include "djtag.h"
 
 #define SC_DJTAG_TIMEOUT_US    (100 * USEC_PER_MSEC) /* 100ms */
+#define DJTAG_LOCK_RETRY_COUNT		100	/* attempt count to lock the
+						 * djtag if the djtag is busy
+						 */
 
+#define DJTAG_PREFIX "hisi-djtag-dev-"
 /* for djtag v1 */
 #define SC_DJTAG_MSTR_EN		0x6800
 #define DJTAG_NOR_CFG			BIT(1)	/* accelerate R,W */
@@ -41,6 +45,9 @@
 #define SC_DJTAG_MSTR_ADDR		0x6818
 #define SC_DJTAG_MSTR_DATA		0x681c
 #define SC_DJTAG_RD_DATA_BASE		0xe800
+
+#define  SC_DJTAG_V1_UNLOCK             0x3B
+#define  SC_DJTAG_V1_KERNEL_LOCK        0x3C
 
 /* for djtag v2 */
 #define SC_DJTAG_SEC_ACC_EN_EX		0xd800
@@ -59,7 +66,9 @@
 #define SC_DJTAG_OP_ST_EX		0xe828
 #define DJTAG_OP_DONE_EX		BIT(8)
 
-#define DJTAG_PREFIX "hisi-djtag-dev-"
+#define  SC_DJTAG_V2_UNLOCK             0xAA
+#define  SC_DJTAG_V2_KERNEL_LOCK        0xAB
+#define  SC_DJTAG_V2_MODULE_SEL_MASK    0xFF00FFFF
 
 static DEFINE_IDR(djtag_hosts_idr);
 static DEFINE_IDR(djtag_clients_idr);
@@ -87,6 +96,39 @@ struct hisi_djtag_host {
 #define to_hisi_djtag_driver(d) container_of(d, struct hisi_djtag_driver, \
 					     driver)
 #define MODULE_PREFIX "hisi_djtag:"
+
+/*
+ * djtag_lock_v1: djtag lock to avoid djtag access conflict
+ * @reg_base:	djtag register base address
+ *
+ * Return non-zero if error, else return 0.
+ */
+static int djtag_lock_v1(void __iomem *regs_base)
+{
+	u32 rd;
+	unsigned int attempt_count = DJTAG_LOCK_RETRY_COUNT;
+
+	/* ensure the djtag is free */
+	while (1) {
+		rd = readl(regs_base + SC_DJTAG_DEBUG_MODULE_SEL);
+		if (rd == SC_DJTAG_V1_UNLOCK) {
+			writel(SC_DJTAG_V1_KERNEL_LOCK,
+			       regs_base + SC_DJTAG_DEBUG_MODULE_SEL);
+			udelay(10);
+			rd = readl(regs_base + SC_DJTAG_DEBUG_MODULE_SEL);
+			if (rd == SC_DJTAG_V1_KERNEL_LOCK)
+				break;
+		}
+		attempt_count--;
+		if (attempt_count > 0) {
+			pr_debug("djtag busy:\n");
+			udelay(10); /* 10us */
+			continue;
+		}
+		return -EBUSY;
+	}
+	return 0;
+}
 
 static void djtag_prepare_v1(void __iomem *regs_base, u32 offset,
 			     u32 mod_sel, u32 mod_mask)
@@ -124,6 +166,64 @@ static int djtag_do_operation_v1(void __iomem *regs_base)
 		return -EBUSY;
 
 	return 0;
+}
+
+/*
+ * djtag_lock_v2: djtag lock to avoid djtag access conflict
+ * @reg_base:	djtag register base address
+ *
+ * Return non-zero if error, else return 0.
+ */
+static int djtag_lock_v2(void __iomem *regs_base)
+{
+	u32 rd, wr, mod_sel;
+	unsigned int attempt_count = DJTAG_LOCK_RETRY_COUNT;
+
+	/* ensure the djtag is free */
+	while (1) {
+		rd = readl(regs_base + SC_DJTAG_MSTR_CFG_EX);
+		mod_sel = ((rd >> DEBUG_MODULE_SEL_SHIFT_EX) & 0xFF);
+		if (mod_sel == SC_DJTAG_V2_UNLOCK) {
+			wr = ((rd & SC_DJTAG_V2_MODULE_SEL_MASK) |
+				(SC_DJTAG_V2_KERNEL_LOCK <<
+					DEBUG_MODULE_SEL_SHIFT_EX));
+			writel(wr, regs_base + SC_DJTAG_MSTR_CFG_EX);
+			udelay(10); /* 10us */
+			rd = readl(regs_base + SC_DJTAG_MSTR_CFG_EX);
+			mod_sel = ((rd >> DEBUG_MODULE_SEL_SHIFT_EX) & 0xFF);
+			if (mod_sel == SC_DJTAG_V2_KERNEL_LOCK)
+				break;
+		}
+		attempt_count--;
+		if (attempt_count > 0) {
+			pr_debug("djtag busy:\n");
+			udelay(10); /* 10us */
+			continue;
+		}
+		return -EBUSY;
+	}
+	return 0;
+}
+
+/*
+ * djtag_unlock_v2: djtag unlock
+ * @reg_base:	djtag register base address
+ *
+ * Return - none.
+ */
+static void djtag_unlock_v2(void __iomem *regs_base)
+{
+	u32 rd, wr;
+
+	rd = readl(regs_base + SC_DJTAG_MSTR_CFG_EX);
+
+	wr = ((rd & SC_DJTAG_V2_MODULE_SEL_MASK) |
+		(SC_DJTAG_V2_UNLOCK << DEBUG_MODULE_SEL_SHIFT_EX));
+	/*
+	 * Release djtag module by writing to module
+	 * selection bits of DJTAG_MSTR_CFG register
+	 */
+	writel(wr, regs_base + SC_DJTAG_MSTR_CFG_EX);
 }
 
 static void djtag_prepare_v2(void __iomem *regs_base, u32 offset,
@@ -197,6 +297,11 @@ static int djtag_read_v1(void __iomem *regs_base, u32 offset, u32 mod_sel,
 		return 0;
 	}
 
+	if (djtag_lock_v1(regs_base) < 0) {
+		pr_err("djtag_v1: busy!\n");
+		return -EBUSY;
+	}
+
 	djtag_prepare_v1(regs_base, offset, mod_sel, mod_mask);
 
 	writel(DJTAG_MSTR_R, regs_base + SC_DJTAG_MSTR_WR);
@@ -205,11 +310,17 @@ static int djtag_read_v1(void __iomem *regs_base, u32 offset, u32 mod_sel,
 	if (ret) {
 		if (ret == EBUSY)
 			pr_err("djtag: %s timeout!\n", "read");
+		/* Unlock djtag by setting module selection register to 0x3A */
+		writel(SC_DJTAG_V1_UNLOCK,
+		       regs_base + SC_DJTAG_DEBUG_MODULE_SEL);
 		return ret;
 	}
 
 	*rval = readl(regs_base + SC_DJTAG_RD_DATA_BASE + chain_id * 0x4);
 
+	/* Unlock djtag by setting module selection register to 0x3A */
+	writel(SC_DJTAG_V1_UNLOCK,
+	       regs_base + SC_DJTAG_DEBUG_MODULE_SEL);
 	return 0;
 }
 
@@ -223,6 +334,11 @@ static int djtag_read_v2(void __iomem *regs_base, u32 offset, u32 mod_sel,
 		return 0;
 	}
 
+	if (djtag_lock_v2(regs_base) < 0) {
+		pr_err("djtag_v2: busy!\n");
+		return -EBUSY;
+	}
+
 	djtag_prepare_v2(regs_base, offset, mod_sel, mod_mask);
 
 	writel(DJTAG_MSTR_RD_EX
@@ -234,12 +350,14 @@ static int djtag_read_v2(void __iomem *regs_base, u32 offset, u32 mod_sel,
 	if (ret) {
 		if (ret == EBUSY)
 			pr_err("djtag: %s timeout!\n", "read");
+		djtag_unlock_v2(regs_base);
 		return ret;
 	}
 
 	*rval = readl(regs_base + SC_DJTAG_RD_DATA_BASE_EX +
 					      chain_id * 0x4);
 
+	djtag_unlock_v2(regs_base);
 	return 0;
 }
 
@@ -264,6 +382,11 @@ static int djtag_write_v1(void __iomem *regs_base, u32 offset, u32 mod_sel,
 		return 0;
 	}
 
+	if (djtag_lock_v1(regs_base) < 0) {
+		pr_err("djtag_v1: busy!\n");
+		return -EBUSY;
+	}
+
 	djtag_prepare_v1(regs_base, offset, mod_sel, mod_mask);
 
 	writel(DJTAG_MSTR_W, regs_base + SC_DJTAG_MSTR_WR);
@@ -273,10 +396,13 @@ static int djtag_write_v1(void __iomem *regs_base, u32 offset, u32 mod_sel,
 	if (ret) {
 		if (ret == EBUSY)
 			pr_err("djtag: %s timeout!\n", "write");
-		return ret;
 	}
 
-	return 0;
+	/* Unlock djtag by setting module selection register to 0x3A */
+	writel(SC_DJTAG_V1_UNLOCK,
+	       regs_base + SC_DJTAG_DEBUG_MODULE_SEL);
+
+	return ret;
 }
 
 static int djtag_write_v2(void __iomem *regs_base, u32 offset, u32 mod_sel,
@@ -287,6 +413,11 @@ static int djtag_write_v2(void __iomem *regs_base, u32 offset, u32 mod_sel,
 	if (!(mod_mask & CHAIN_UNIT_CFG_EN_EX)) {
 		pr_warn("djtag: do nothing.\n");
 		return 0;
+	}
+
+	if (djtag_lock_v2(regs_base) < 0) {
+		pr_err("djtag_v2: busy!\n");
+		return -EBUSY;
 	}
 
 	djtag_prepare_v2(regs_base, offset, mod_sel, mod_mask);
@@ -301,13 +432,13 @@ static int djtag_write_v2(void __iomem *regs_base, u32 offset, u32 mod_sel,
 	if (ret) {
 		if (ret == EBUSY)
 			pr_err("djtag: %s timeout!\n", "write");
-		return ret;
 	}
 
-	return 0;
+	djtag_unlock_v2(regs_base);
+	return ret;
 }
 
-/**
+/*
  * djtag_writel - write registers via djtag
  * @client: djtag client handle
  * @offset:	register's offset
@@ -334,7 +465,7 @@ int hisi_djtag_writel(struct hisi_djtag_client *client, u32 offset,
 	return ret;
 }
 
-/**
+/*
  * djtag_readl - read registers via djtag
  * @client: djtag client handle
  * @offset:	register's offset
