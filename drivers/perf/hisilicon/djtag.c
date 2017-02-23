@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -78,6 +79,7 @@ struct hisi_djtag_host {
 	struct list_head client_list;
 	void __iomem *sysctl_reg_map;
 	struct device_node *of_node;
+	acpi_handle acpi_handle;
 	const struct hisi_djtag_ops *djtag_ops;
 };
 
@@ -397,6 +399,13 @@ static const struct of_device_id djtag_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, djtag_of_match);
 
+static const struct acpi_device_id djtag_acpi_match[] = {
+	{ "HISI0201", (kernel_ulong_t)&djtag_v1_ops},
+	{ "HISI0202", (kernel_ulong_t)&djtag_v2_ops},
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, djtag_acpi_match);
+
 static ssize_t show_modalias(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
@@ -490,6 +499,10 @@ static int hisi_djtag_device_match(struct device *dev,
 	if (of_driver_match_device(dev, drv))
 		return true;
 
+#ifdef CONFIG_ACPI
+	if (acpi_driver_match_device(dev, drv))
+		return true;
+#endif
 	return false;
 }
 
@@ -578,6 +591,55 @@ fail:
 	return rc;
 }
 
+static acpi_status djtag_add_new_acpi_device(acpi_handle handle, u32 level,
+					     void *data, void **return_value)
+{
+	struct acpi_device *acpi_dev;
+	struct hisi_djtag_client *client;
+	struct hisi_djtag_host *host = data;
+	struct device *dev;
+	const char *cid = NULL;
+	int rc;
+
+	if (acpi_bus_get_device(handle, &acpi_dev))
+		return -ENODEV;
+
+	dev = &acpi_dev->dev;
+	client = hisi_djtag_client_alloc(host);
+	if (!client) {
+		dev_err(dev, "ACPI: Client alloc fail!\n");
+		return -ENOMEM;
+	}
+
+	client->dev.fwnode = acpi_fwnode_handle(acpi_dev);
+
+	cid = acpi_device_hid(acpi_dev);
+	if (!cid) {
+		dev_err(dev, "ACPI: could not read _CID!\n");
+		rc = -EINVAL;
+		goto fail;
+	}
+
+	rc = hisi_djtag_set_client_name(client, cid);
+	if (rc < 0)
+		goto fail;
+
+	rc = device_register(&client->dev);
+	if (rc < 0) {
+		dev_err(dev, "ACPI: Error adding new device, rc=%d\n", rc);
+		idr_remove(&djtag_clients_idr, client->id);
+		goto fail;
+	}
+
+	list_add(&client->next, &host->client_list);
+
+	return 0;
+
+fail:
+	kfree(client);
+	return rc;
+}
+
 static void djtag_register_devices(struct hisi_djtag_host *host)
 {
 	struct device_node *node;
@@ -588,6 +650,18 @@ static void djtag_register_devices(struct hisi_djtag_host *host)
 				continue;
 			if (hisi_djtag_new_of_device(host, node))
 				break;
+		}
+	} else if (host->acpi_handle) {
+		acpi_handle handle = host->acpi_handle;
+		acpi_status status;
+
+		status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+					     djtag_add_new_acpi_device, NULL,
+					     host, NULL);
+		if (ACPI_FAILURE(status)) {
+			dev_err(&host->dev,
+				"ACPI: Fail to read client devices!\n");
+			return;
 		}
 	}
 }
@@ -642,6 +716,21 @@ static int djtag_host_probe(struct platform_device *pdev)
 
 		host->djtag_ops = of_id->data;
 		host->of_node = of_node_get(dev->of_node);
+	} else if (ACPI_COMPANION(dev)) {
+		const struct acpi_device_id *acpi_id;
+
+		acpi_id = acpi_match_device(djtag_acpi_match, dev);
+		if (!acpi_id) {
+			rc = -EINVAL;
+			goto fail;
+		}
+		host->djtag_ops = (struct hisi_djtag_ops *)acpi_id->driver_data;
+
+		host->acpi_handle = ACPI_HANDLE(dev);
+		if (!host->acpi_handle) {
+			rc = -EINVAL;
+			goto fail;
+		}
 	} else {
 		rc = -EINVAL;
 		goto fail;
@@ -719,6 +808,7 @@ static struct platform_driver djtag_dev_driver = {
 	.driver = {
 		.name = "hisi-djtag",
 		.of_match_table = djtag_of_match,
+		.acpi_match_table = ACPI_PTR(djtag_acpi_match),
 	},
 	.probe = djtag_host_probe,
 	.remove = djtag_host_remove,
