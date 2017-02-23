@@ -19,6 +19,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <linux/acpi.h>
 #include <linux/bitmap.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -367,6 +368,13 @@ static const struct of_device_id mn_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mn_of_match);
 
+static const struct acpi_device_id hisi_mn_pmu_acpi_match[] = {
+	{ "HISI0221", },
+	{ "HISI0222", },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, hisi_l3c_pmu_acpi_match);
+
 static int hisi_mn_init_irqs_fdt(struct device *dev,
 				 struct hisi_pmu *mn_pmu)
 {
@@ -426,15 +434,23 @@ static int hisi_mn_init_data(struct hisi_pmu *mn_pmu,
 		ret = hisi_mn_init_irqs_fdt(dev, mn_pmu);
 		if (ret)
 			return ret;
+	} else if (ACPI_COMPANION(dev)) {
+		const struct acpi_device_id *acpi_id;
 
-		ret = device_property_read_u32(dev, "hisilicon,module-id",
-					       &mn_hwcfg->module_id);
-		if (ret < 0) {
-			dev_err(dev, "DT: Could not read module-id!\n");
+		acpi_id = acpi_match_device(hisi_mn_pmu_acpi_match, dev);
+		if (!acpi_id) {
+			dev_err(dev, "ACPI: Match device fail!\n");
 			return -EINVAL;
 		}
 	} else
 		return -EINVAL;
+
+	ret = device_property_read_u32(dev, "hisilicon,module-id",
+				       &mn_hwcfg->module_id);
+	if (ret < 0) {
+		dev_err(dev, "DT: Could not read module-id!\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -581,6 +597,7 @@ static struct hisi_djtag_driver hisi_pmu_mn_driver = {
 	.driver = {
 		.name = "hisi-pmu-mn",
 		.of_match_table = mn_of_match,
+		.acpi_match_table = ACPI_PTR(hisi_mn_pmu_acpi_match),
 	},
 	.probe = hisi_pmu_mn_dev_probe,
 	.remove = hisi_pmu_mn_dev_remove,
