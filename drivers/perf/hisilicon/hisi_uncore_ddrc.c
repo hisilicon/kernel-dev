@@ -19,6 +19,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <linux/acpi.h>
 #include <linux/bitmap.h>
 #include <linux/hrtimer.h>
 #include <linux/io.h>
@@ -209,6 +210,13 @@ static void hisi_ddrc_init(void __iomem *reg_base)
 	writel(1, reg_base + HISI_DDRC_CTRL_PERF_REG_OFF);
 }
 
+static const struct acpi_device_id hisi_ddrc_pmu_acpi_match[] = {
+	{ "HISI0231", },
+	{ "HISI0232", },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, hisi_ddrc_pmu_acpi_match);
+
 static const struct of_device_id ddrc_of_match[] = {
 	{ .compatible = "hisilicon,hip05-pmu-ddrc-v1", },
 	{ .compatible = "hisilicon,hip06-pmu-ddrc-v1", },
@@ -248,6 +256,14 @@ static int hisi_ddrc_init_data(struct platform_device *pdev,
 		of_id = of_match_device(ddrc_of_match, dev);
 		if (!of_id) {
 			dev_err(dev, "DT: Match device fail!\n");
+			return -EINVAL;
+		}
+	} else if (ACPI_COMPANION(dev)) {
+		const struct acpi_device_id *acpi_id;
+
+		acpi_id = acpi_match_device(hisi_ddrc_pmu_acpi_match, dev);
+		if (!acpi_id) {
+			dev_err(dev, "ACPI: Match device fail!\n");
 			return -EINVAL;
 		}
 	} else
@@ -460,6 +476,7 @@ static struct platform_driver hisi_pmu_ddrc_driver = {
 	.driver = {
 		.name = "hisi-pmu-ddrc",
 		.of_match_table = ddrc_of_match,
+		.acpi_match_table = ACPI_PTR(hisi_ddrc_pmu_acpi_match),
 	},
 	.probe = hisi_pmu_ddrc_dev_probe,
 	.remove = hisi_pmu_ddrc_dev_remove,
