@@ -1002,7 +1002,7 @@ static void armv8_pmu_init(struct arm_pmu *cpu_pmu)
 static int armv8_pmuv3_init(struct arm_pmu *cpu_pmu)
 {
 	armv8_pmu_init(cpu_pmu);
-	cpu_pmu->name			= "armv8_pmuv3";
+	cpu_pmu->name			= ARMV8_PMUV3_DESCRIPTION;
 	cpu_pmu->map_event		= armv8_pmuv3_map_event;
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_EVENTS] =
 		&armv8_pmuv3_events_attr_group;

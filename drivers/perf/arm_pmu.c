@@ -11,6 +11,7 @@
  */
 #define pr_fmt(fmt) "hw perfevents: " fmt
 
+#include <linux/acpi.h>
 #include <linux/bitmap.h>
 #include <linux/cpumask.h>
 #include <linux/cpu_pm.h>
@@ -24,6 +25,7 @@
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
 
+#include <asm/cpu.h>
 #include <asm/cputype.h>
 #include <asm/irq_regs.h>
 
@@ -709,6 +711,26 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 	return 0;
 }
 
+static void arm_perf_associate_new_cpu(struct arm_pmu *lpmu, unsigned int cpu)
+{
+	struct platform_device *pdev = lpmu->plat_device;
+	struct resource *res;
+	struct pmu_hw_events *events;
+	int num_res;
+
+	for (num_res = 0; num_res < pdev->num_resources; num_res++) {
+		if (!pdev->resource[num_res].flags)
+			break;
+	}
+	res = &pdev->resource[num_res];
+	arm_pmu_acpi_retrieve_irq(res, cpu);
+	events = per_cpu_ptr(lpmu->hw_events, cpu);
+	cpumask_set_cpu(cpu, &lpmu->supported_cpus);
+	if (lpmu->irq_affinity)
+		lpmu->irq_affinity[num_res] = cpu;
+	events->percpu_pmu = lpmu;
+}
+
 /*
  * PMU hardware loses all context when a CPU goes offline.
  * When a CPU is hotplugged back in, since some hardware registers are
@@ -719,10 +741,18 @@ static int arm_perf_starting_cpu(unsigned int cpu, struct hlist_node *node)
 {
 	struct arm_pmu *pmu = hlist_entry_safe(node, struct arm_pmu, node);
 
-	if (!cpumask_test_cpu(cpu, &pmu->supported_cpus))
-		return 0;
+	if (!cpumask_test_cpu(cpu, &pmu->supported_cpus)) {
+		unsigned int cpuid = read_specific_cpuid(cpu);
+
+		if (acpi_disabled)
+			return 0;
+		if (cpuid != pmu->id)
+			return 0;
+		arm_perf_associate_new_cpu(pmu, cpu);
+	}
 	if (pmu->reset)
 		pmu->reset(pmu);
+
 	return 0;
 }
 
@@ -889,25 +919,49 @@ static void cpu_pmu_destroy(struct arm_pmu *cpu_pmu)
 }
 
 /*
- * CPU PMU identification and probing.
+ * CPU PMU identification and probing. Its possible to have
+ * multiple CPU types in an ARM machine. Assure that we are
+ * picking the right PMU types based on the CPU in question
  */
-static int probe_current_pmu(struct arm_pmu *pmu,
-			     const struct pmu_probe_info *info)
+static int probe_plat_pmu(struct arm_pmu *pmu,
+			     const struct pmu_probe_info *info,
+			     unsigned int pmuid)
 {
-	int cpu = get_cpu();
-	unsigned int cpuid = read_cpuid_id();
 	int ret = -ENODEV;
+	int cpu;
+	int aff_ctr = 0;
+	struct platform_device *pdev = pmu->plat_device;
+	int irq = platform_get_irq(pdev, 0);
 
-	pr_info("probing PMU on CPU %d\n", cpu);
+	pmu->id = pmuid;
 
+	if (irq >= 0 && !irq_is_percpu(irq)) {
+		pmu->irq_affinity = kcalloc(pdev->num_resources, sizeof(int),
+					    GFP_KERNEL);
+		if (!pmu->irq_affinity)
+			return -ENOMEM;
+	}
+
+	for_each_possible_cpu(cpu) {
+		unsigned int cpuid = read_specific_cpuid(cpu);
+
+		if (cpuid == pmuid) {
+			cpumask_set_cpu(cpu, &pmu->supported_cpus);
+			if (pmu->irq_affinity) {
+				pmu->irq_affinity[aff_ctr] = cpu;
+				aff_ctr++;
+			}
+		}
+	}
+
+	/* find the type of PMU given the CPU */
 	for (; info->init != NULL; info++) {
-		if ((cpuid & info->mask) != info->cpuid)
+		if ((pmuid & info->mask) != info->cpuid)
 			continue;
 		ret = info->init(pmu);
 		break;
 	}
 
-	put_cpu();
 	return ret;
 }
 
@@ -1011,6 +1065,7 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 			 const struct of_device_id *of_table,
 			 const struct pmu_probe_info *probe_table)
 {
+	static int duplicate_pmus;
 	const struct of_device_id *of_id;
 	const int (*init_fn)(struct arm_pmu *);
 	struct device_node *node = pdev->dev.of_node;
@@ -1043,8 +1098,13 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 		if (!ret)
 			ret = init_fn(pmu);
 	} else if (probe_table) {
-		cpumask_setall(&pmu->supported_cpus);
-		ret = probe_current_pmu(pmu, probe_table);
+		if (acpi_disabled) {
+			/* use the current cpu. */
+			ret = probe_plat_pmu(pmu, probe_table,
+					     read_cpuid_id());
+		} else {
+			ret = probe_plat_pmu(pmu, probe_table, pdev->id);
+		}
 	}
 
 	if (ret) {
@@ -1052,6 +1112,25 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 		goto out_free;
 	}
 
+	/*
+	 * if this pmu declaration is a generic pmu and we have
+	 * previously found a generic pmu on this platform
+	 * then append a PMU number to the pmu name. This avoids
+	 * changing the names of PMUs that are specific to a class
+	 * of CPUs. The assumption is that if we match a specific PMU
+	 * then it's unique, and another PMU in the system will match
+	 * a different entry rather than needing the _number to
+	 * assure its unique.
+	 */
+	if (!strcmp(pmu->name, ARMV8_PMUV3_DESCRIPTION)) {
+		if (duplicate_pmus) {
+			pmu->name = kasprintf(GFP_KERNEL, "%s_%d",
+					      pmu->name, duplicate_pmus);
+			if (!pmu->name)
+				goto out_free;
+		}
+		duplicate_pmus++;
+	}
 
 	ret = cpu_pmu_init(pmu);
 	if (ret)
