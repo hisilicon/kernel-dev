@@ -806,6 +806,58 @@ static struct notifier_block ghes_notifier_sci = {
 	.notifier_call = ghes_notify_sci,
 };
 
+#ifdef CONFIG_HAVE_ACPI_APEI_GSIV
+static LIST_HEAD(ghes_gsiv);
+
+static int ghes_notify_gsiv(struct notifier_block *this,
+				unsigned long event, void *data)
+{
+	struct ghes *ghes;
+	int ret = NOTIFY_DONE;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(ghes, &ghes_gsiv, list) {
+	if (!ghes_proc(ghes))
+		ret = NOTIFY_OK;
+	}
+	rcu_read_unlock();
+	return ret;
+}
+static struct notifier_block ghes_notifier_gsiv = {
+	.notifier_call = ghes_notify_gsiv,
+};
+
+static void ghes_gsiv_add(struct ghes *ghes)
+{
+	mutex_lock(&ghes_list_mutex);
+	if (list_empty(&ghes_gsiv))
+		register_acpi_hed_notifier(&ghes_notifier_gsiv);
+	list_add_rcu(&ghes->list, &ghes_gsiv);
+	mutex_unlock(&ghes_list_mutex);
+}
+
+static void ghes_gsiv_remove(struct ghes *ghes)
+{
+	mutex_lock(&ghes_list_mutex);
+	list_del_rcu(&ghes->list);
+	if (list_empty(&ghes_gsiv))
+		unregister_acpi_hed_notifier(&ghes_notifier_gsiv);
+	mutex_unlock(&ghes_list_mutex);
+}
+#else /* CONFIG_HAVE_ACPI_APEI_GSIV */
+static inline void ghes_gsiv_add(struct ghes *ghes)
+{
+	pr_err(GHES_PFX "ID: %d, trying to add GSIV notification which is not supported\n",
+	       ghes->generic->header.source_id);
+}
+
+static inline void ghes_gsiv_remove(struct ghes *ghes)
+{
+	pr_err(GHES_PFX "ID: %d, trying to remove GSIV notification which is not supported\n",
+	       ghes->generic->header.source_id);
+}
+#endif /* CONFIG_HAVE_ACPI_APEI_GSIV */
+
 #ifdef CONFIG_ACPI_APEI_SEA
 static LIST_HEAD(ghes_sea);
 
@@ -1106,13 +1158,20 @@ static int ghes_probe(struct platform_device *ghes_dev)
 			goto err;
 		}
 		break;
+	case ACPI_HEST_NOTIFY_GSIV:
+		if (!IS_ENABLED(CONFIG_HAVE_ACPI_APEI_GSIV)) {
+			pr_warn(GHES_PFX "Generic hardware error source: %d notified via notification GSIV is not supported\n",
+				generic->header.source_id);
+			rc = -ENOTSUPP;
+			goto err;
+		}
+		break;
 	case ACPI_HEST_NOTIFY_LOCAL:
 		pr_warning(GHES_PFX "Generic hardware error source: %d notified via local interrupt is not supported!\n",
 			   generic->header.source_id);
 		goto err;
 	case ACPI_HEST_NOTIFY_GPIO:
 	case ACPI_HEST_NOTIFY_SEI:
-	case ACPI_HEST_NOTIFY_GSIV:
 		pr_warn(GHES_PFX "Generic hardware error source: %d notified via notification type %u is not supported\n",
 			generic->header.source_id, generic->header.source_id);
 		rc = -ENOTSUPP;
@@ -1177,6 +1236,9 @@ static int ghes_probe(struct platform_device *ghes_dev)
 	case ACPI_HEST_NOTIFY_NMI:
 		ghes_nmi_add(ghes);
 		break;
+	case ACPI_HEST_NOTIFY_GSIV:
+		ghes_gsiv_add(ghes);
+		break;
 	default:
 		BUG();
 	}
@@ -1221,6 +1283,9 @@ static int ghes_remove(struct platform_device *ghes_dev)
 		break;
 	case ACPI_HEST_NOTIFY_NMI:
 		ghes_nmi_remove(ghes);
+		break;
+	case ACPI_HEST_NOTIFY_GSIV:
+		ghes_gsiv_remove(ghes);
 		break;
 	default:
 		BUG();
