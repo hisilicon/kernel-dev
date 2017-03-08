@@ -227,6 +227,7 @@ struct hnae_desc_cb {
 
        /* desc type, used by the ring user to mark the type of the priv data */
 	u16 type;
+	int eop; /* end of packet */
 };
 
 #define setflags(flags, bits) ((flags) |= (bits))
