@@ -270,6 +270,25 @@ static u64 notrace hisi_161010101_read_cntvct_el0(void)
 {
 	return __hisi_161010101_read_reg(cntvct_el0);
 }
+
+static struct ate_acpi_oem_info hisi_161010101_oem_info[] = {
+	{
+		.oem_id		= "HISI  ",
+		.oem_table_id	= "HIP05   ",
+		.oem_revision	= 0,
+	},
+	{
+		.oem_id		= "HISI  ",
+		.oem_table_id	= "HIP06   ",
+		.oem_revision	= 0,
+	},
+	{
+		.oem_id		= "HISI  ",
+		.oem_table_id	= "HIP07   ",
+		.oem_revision	= 0,
+	},
+	{ },
+};
 #endif
 
 #ifdef CONFIG_ARM64_ERRATUM_858921
@@ -340,6 +359,16 @@ static const struct arch_timer_erratum_workaround ool_workarounds[] = {
 	{
 		.match_type = ate_match_dt,
 		.id = "hisilicon,erratum-161010101",
+		.desc_str = "HiSilicon erratum 161010101",
+		.read_cntp_tval_el0 = hisi_161010101_read_cntp_tval_el0,
+		.read_cntv_tval_el0 = hisi_161010101_read_cntv_tval_el0,
+		.read_cntvct_el0 = hisi_161010101_read_cntvct_el0,
+		.set_next_event_phys = erratum_set_next_event_tval_phys,
+		.set_next_event_virt = erratum_set_next_event_tval_virt,
+	},
+	{
+		.match_type = ate_match_acpi_oem_info,
+		.id = hisi_161010101_oem_info,
 		.desc_str = "HiSilicon erratum 161010101",
 		.read_cntp_tval_el0 = hisi_161010101_read_cntp_tval_el0,
 		.read_cntv_tval_el0 = hisi_161010101_read_cntv_tval_el0,
