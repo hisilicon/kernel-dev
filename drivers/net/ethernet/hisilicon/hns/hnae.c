@@ -60,8 +60,10 @@ static void hnae_free_buffer(struct hnae_ring *ring, struct hnae_desc_cb *cb)
 	if (unlikely(!cb->priv))
 		return;
 
-	if (cb->type == DESC_TYPE_SKB)
+	if (cb->eop == 1) {
+		/* free skb if this is the last frag of the skb */
 		dev_kfree_skb_any((struct sk_buff *)cb->priv);
+	}
 	else if (unlikely(is_rx_ring(ring)))
 		put_page((struct page *)cb->priv);
 
