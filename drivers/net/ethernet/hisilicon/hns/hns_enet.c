@@ -40,28 +40,83 @@
 #define SKB_TMP_LEN(SKB) \
 	(((SKB)->transport_header - (SKB)->mac_header) + tcp_hdrlen(SKB))
 
-static void fill_v2_desc(struct hnae_ring *ring, void *priv,
-			 int size, dma_addr_t dma, int frag_end,
-			 int buf_num, enum hns_desc_type type, int mtu)
+static const struct acpi_device_id hns_enet_acpi_match[] = {
+	{ "HISI00C1", 0 },
+	{ "HISI00C2", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, hns_enet_acpi_match);
+
+static int hns_nic_maybe_stop(struct sk_buff **out_skb, int *bnum,
+				  struct hnae_ring *ring)
 {
-	struct hnae_desc *desc = &ring->desc[ring->next_to_use];
+	struct sk_buff *skb = *out_skb;
+	struct sk_buff *new_skb = NULL;
+	struct skb_frag_struct *frag;
+	int frag_num;
+	int buf_num;
+	int size;
+	int i;
+
+	/* for TSO header, header length could be more than maximum supported
+	 * send size per-descriptor. Hence, we might need to split.
+	 */
+	size = skb_headlen(skb);
+	buf_num = (size + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
+
+	frag_num = skb_shinfo(skb)->nr_frags;
+	for (i = 0; i < frag_num; i++) {
+		/* for TSO frags, each fragment length could be more than
+		 * maximum supported send size per-descriptor
+		 */
+		frag = &skb_shinfo(skb)->frags[i];
+		size = skb_frag_size(frag);
+		buf_num += (size + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
+	}
+
+	if (unlikely(buf_num > ring->max_desc_num_per_pkt)) {
+		buf_num = (skb->len + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
+		if (ring_space(ring) < buf_num)
+			return -EBUSY;
+
+		/* manual split the send packet */
+		new_skb = skb_copy(skb, GFP_ATOMIC);
+		if (!new_skb)
+			return -ENOMEM;
+
+		dev_kfree_skb_any(skb);
+		*out_skb = new_skb;
+	} else if (ring_space(ring) < buf_num) {
+		return -EBUSY;
+	}
+
+	*bnum = buf_num;
+	return 0;
+}
+
+static void hns_nic_fill_v2_desc(struct hnae_ring *ring, void *priv,
+				 int size, dma_addr_t dma, int eop,
+				 int buf_num, enum hns_desc_type type, int mtu)
+{
 	struct hnae_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
-	struct iphdr *iphdr;
+	struct hnae_desc *desc = &ring->desc[ring->next_to_use];
 	struct ipv6hdr *ipv6hdr;
+	struct iphdr *iphdr;
 	struct sk_buff *skb;
-	__be16 protocol;
-	u8 bn_pid = 0;
-	u8 rrcfv = 0;
 	u8 ip_offset = 0;
-	u8 tvsvsn = 0;
-	u16 mss = 0;
-	u8 l4_len = 0;
+	__be16 protocol;
 	u16 paylen = 0;
+	u8 bn_pid = 0;
+	u8 l4_len = 0;
+	u8 tvsvsn = 0;
+	u8 rrcfv = 0;
+	u16 mss = 0;
 
 	desc_cb->priv = priv;
 	desc_cb->length = size;
 	desc_cb->dma = dma;
 	desc_cb->type = type;
+	desc_cb->eop = eop;
 
 	desc->addr = cpu_to_le64(dma);
 	desc->tx.send_size = cpu_to_le16((u16)size);
@@ -125,7 +180,7 @@ static void fill_v2_desc(struct hnae_ring *ring, void *priv,
 		}
 	}
 
-	hnae_set_bit(rrcfv, HNSV2_TXD_FE_B, frag_end);
+	hnae_set_bit(rrcfv, HNSV2_TXD_FE_B, eop);
 
 	desc->tx.bn_pid = bn_pid;
 	desc->tx.ra_ri_cs_fe_vld = rrcfv;
@@ -133,24 +188,17 @@ static void fill_v2_desc(struct hnae_ring *ring, void *priv,
 	ring_ptr_move_fw(ring, next_to_use);
 }
 
-static const struct acpi_device_id hns_enet_acpi_match[] = {
-	{ "HISI00C1", 0 },
-	{ "HISI00C2", 0 },
-	{ },
-};
-MODULE_DEVICE_TABLE(acpi, hns_enet_acpi_match);
-
-static void fill_desc(struct hnae_ring *ring, void *priv,
+static void hns_nic_fill_v1_desc(struct hnae_ring *ring, void *priv,
 		      int size, dma_addr_t dma, int frag_end,
 		      int buf_num, enum hns_desc_type type, int mtu)
 {
-	struct hnae_desc *desc = &ring->desc[ring->next_to_use];
 	struct hnae_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
+	struct hnae_desc *desc = &ring->desc[ring->next_to_use];
+	u32 asid_bufnum_pid = 0;
+	u32 flag_ipoffset = 0;
 	struct sk_buff *skb;
 	__be16 protocol;
 	u32 ip_offset;
-	u32 asid_bufnum_pid = 0;
-	u32 flag_ipoffset = 0;
 
 	desc_cb->priv = priv;
 	desc_cb->length = size;
@@ -201,103 +249,202 @@ static void fill_desc(struct hnae_ring *ring, void *priv,
 	ring_ptr_move_fw(ring, next_to_use);
 }
 
-static void unfill_desc(struct hnae_ring *ring)
+void hns_nic_rollback_map_n_fill(struct hnae_ring *ring, int next_to_use_orig)
 {
-	ring_ptr_move_bw(ring, next_to_use);
+	struct device *dev = ring_to_dev(ring);
+
+	while (1) {
+		/* check if this is where we started */
+		if (ring->next_to_use == next_to_use_orig)
+			break;
+
+		/* unmap the descriptor dma address */
+		if (ring->desc_cb[ring->next_to_use].type == DESC_TYPE_SKB)
+			dma_unmap_single(dev,
+			ring->desc_cb[ring->next_to_use].dma,
+			ring->desc_cb[ring->next_to_use].length,
+			DMA_TO_DEVICE);
+		else
+			dma_unmap_page(dev,
+				ring->desc_cb[ring->next_to_use].dma,
+				ring->desc_cb[ring->next_to_use].length,
+				DMA_TO_DEVICE);
+
+		/* rollback one */
+		ring_ptr_move_bw(ring, next_to_use);
+	}
 }
 
-static int hns_nic_maybe_stop_tx(
-	struct sk_buff **out_skb, int *bnum, struct hnae_ring *ring)
+int hns_nic_map_n_fill_v2_desc(struct net_device *ndev,
+				   struct hnae_ring *ring,
+				   struct sk_buff *skb, int fragid,
+				   int fragend, int buf_num,
+				   enum hns_desc_type type)
 {
-	struct sk_buff *skb = *out_skb;
-	struct sk_buff *new_skb = NULL;
-	int buf_num;
-
-	/* no. of segments (plus a header) */
-	buf_num = skb_shinfo(skb)->nr_frags + 1;
-
-	if (unlikely(buf_num > ring->max_desc_num_per_pkt)) {
-		if (ring_space(ring) < 1)
-			return -EBUSY;
-
-		new_skb = skb_copy(skb, GFP_ATOMIC);
-		if (!new_skb)
-			return -ENOMEM;
-
-		dev_kfree_skb_any(skb);
-		*out_skb = new_skb;
-		buf_num = 1;
-	} else if (buf_num > ring_space(ring)) {
-		return -EBUSY;
-	}
-
-	*bnum = buf_num;
-	return 0;
-}
-
-static int hns_nic_maybe_stop_tso(
-	struct sk_buff **out_skb, int *bnum, struct hnae_ring *ring)
-{
-	int i;
-	int size;
-	int buf_num;
-	int frag_num;
-	struct sk_buff *skb = *out_skb;
-	struct sk_buff *new_skb = NULL;
-	struct skb_frag_struct *frag;
-
-	size = skb_headlen(skb);
-	buf_num = (size + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
-
-	frag_num = skb_shinfo(skb)->nr_frags;
-	for (i = 0; i < frag_num; i++) {
-		frag = &skb_shinfo(skb)->frags[i];
-		size = skb_frag_size(frag);
-		buf_num += (size + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
-	}
-
-	if (unlikely(buf_num > ring->max_desc_num_per_pkt)) {
-		buf_num = (skb->len + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
-		if (ring_space(ring) < buf_num)
-			return -EBUSY;
-		/* manual split the send packet */
-		new_skb = skb_copy(skb, GFP_ATOMIC);
-		if (!new_skb)
-			return -ENOMEM;
-		dev_kfree_skb_any(skb);
-		*out_skb = new_skb;
-
-	} else if (ring_space(ring) < buf_num) {
-		return -EBUSY;
-	}
-
-	*bnum = buf_num;
-	return 0;
-}
-
-static void fill_tso_desc(struct hnae_ring *ring, void *priv,
-			  int size, dma_addr_t dma, int frag_end,
-			  int buf_num, enum hns_desc_type type, int mtu)
-{
+	struct device *dev = ring_to_dev(ring);
+	int mtu = ndev->mtu;
+	int tsofragsize = 0;
 	int frag_buf_num;
 	int sizeoflast;
+	dma_addr_t dma;
+	u8 *tso_data;
+	int size;
 	int k;
 
-	frag_buf_num = (size + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
-	sizeoflast = size % BD_MAX_SEND_SIZE;
-	sizeoflast = sizeoflast ? sizeoflast : BD_MAX_SEND_SIZE;
+	/* map, split and create decriptors for header part (non-paged) */
+	if (type == DESC_TYPE_SKB) {
+		size = skb_headlen(skb);
+		tso_data = skb->data;
 
-	/* when the frag size is bigger than hardware, split this frag */
-	for (k = 0; k < frag_buf_num; k++)
-		fill_v2_desc(ring, priv,
-			     (k == frag_buf_num - 1) ?
-					sizeoflast : BD_MAX_SEND_SIZE,
-			     dma + BD_MAX_SEND_SIZE * k,
-			     frag_end && (k == frag_buf_num - 1) ? 1 : 0,
-			     buf_num,
-			     (type == DESC_TYPE_SKB && !k) ?
-					DESC_TYPE_SKB : DESC_TYPE_PAGE,
-			     mtu);
+		/* Maximum size of data which can be held by single HNS v2 H/W
+		 * descriptor is given by BD_MAX_SEND_SIZE(=8K-1). Therefore,
+		 * might have to split the header data further.
+		 */
+		frag_buf_num = (size + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
+		sizeoflast = size % BD_MAX_SEND_SIZE;
+		sizeoflast = sizeoflast ? sizeoflast : BD_MAX_SEND_SIZE;
+
+		for (k = 0; k < frag_buf_num; k++) {
+			tsofragsize = (k == frag_buf_num - 1)?
+						sizeoflast : BD_MAX_SEND_SIZE;
+
+			dma = dma_map_single(dev, tso_data, tsofragsize,
+					     DMA_TO_DEVICE);
+			if (dma_mapping_error(dev, dma)) {
+				netdev_err(ndev,
+					"TX head seg[%i] DMA map failed\n", k);
+
+				ring->stats.sw_err_cnt++;
+				return -1;
+			}
+
+			hns_nic_fill_v2_desc(ring, skb, tsofragsize, dma,
+				     fragend && (k == frag_buf_num - 1) ? 1 : 0,
+				     buf_num,type,mtu);
+
+			tso_data += tsofragsize;
+		}
+	} else {
+		struct skb_frag_struct * frag = &skb_shinfo(skb)->frags[fragid];
+		int offset = 0;
+		int eop;
+
+		size = skb_frag_size(frag);
+		frag_buf_num = (size + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
+		sizeoflast = size % BD_MAX_SEND_SIZE;
+		sizeoflast = sizeoflast ? sizeoflast : BD_MAX_SEND_SIZE;
+
+		for (k = 0; k < frag_buf_num; k++) {
+			tsofragsize = (k == frag_buf_num - 1)?
+					sizeoflast : BD_MAX_SEND_SIZE;
+
+			dma = skb_frag_dma_map(dev, frag, offset, tsofragsize,
+					       DMA_TO_DEVICE);
+			if (dma_mapping_error(dev, dma)) {
+				netdev_err(ndev, "TX frag %u DMA map failed\n",
+					   fragid);
+
+				ring->stats.sw_err_cnt++;
+				return -1;
+			}
+			eop = fragend && (k == frag_buf_num - 1) ? 1 : 0;
+			hns_nic_fill_v2_desc(ring, skb, tsofragsize, dma,
+					     eop, buf_num, type, mtu);
+			offset = tsofragsize;
+		}
+	}
+
+	return 0;
+}
+
+int hns_nic_map_n_fill_v1_desc(struct net_device *ndev,
+			       struct hnae_ring *ring,
+			       struct sk_buff *skb, int fragid,
+			       int fragend, int buf_num,
+			       enum hns_desc_type type)
+{
+	struct device *dev = ring_to_dev(ring);
+	int mtu = ndev->mtu;
+	dma_addr_t dma;
+	int size;
+
+	/* map the data or fragment buffer for DMA */
+	if (type == DESC_TYPE_SKB) {
+		size = skb_headlen(skb);
+
+		dma = dma_map_single(dev, skb->data, size, DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, dma)) {
+			dev_err(dev, "TX head DMA map failed\n");
+			ring->stats.sw_err_cnt++;
+			return -1;
+		}
+
+		/* populate the mapped descriptor */
+		hns_nic_fill_v1_desc(ring, skb, size, dma, fragend, buf_num,
+				     type, mtu);
+	} else {
+		struct skb_frag_struct * frag = &skb_shinfo(skb)->frags[fragid];
+		size = skb_frag_size(frag);
+
+		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, dma)) {
+			dev_err(dev, "TX frag DMA map failed\n");
+			ring->stats.sw_err_cnt++;
+			return -1;
+		}
+
+		/* populate the mapped descriptor */
+		hns_nic_fill_v1_desc(ring, skb, size, dma,
+				     fragend, buf_num, type, mtu);
+	}
+
+	return 0;
+}
+
+int hns_nic_map_n_fill_tx_desc(struct net_device *ndev,
+			  struct sk_buff *skb,
+			  struct hnae_ring *ring, int buf_num)
+{
+	struct hns_nic_priv *priv = netdev_priv(ndev);
+	int next_to_use_head;
+	int next_to_use_frag;
+	int fragid = 0;
+	int fragend = 0;
+	int ret;
+
+	/* map and populate the descriptors for *non-paged* part first */
+	next_to_use_head = ring->next_to_use;
+	fragend = (skb_shinfo(skb)->nr_frags + 1) == 1 ? 1 : 0;
+
+	ret = priv->ops.fill_desc(ndev, ring, skb, fragid, fragend, buf_num,
+				  DESC_TYPE_SKB);
+	if (ret) {
+		netdev_err(ndev, "TX head DMA map failed\n");
+		goto head_dma_map_err;
+	}
+
+	/* now, map and populate the descriptors for *paged* frags */
+	next_to_use_frag = ring->next_to_use;
+
+	for (fragid = 0; fragid < skb_shinfo(skb)->nr_frags; fragid++) {
+		fragend = (skb_shinfo(skb)->nr_frags -1) == fragid? 1 : 0;
+
+		ret = priv->ops.fill_desc(ndev, ring, skb, fragid, fragend,
+					  buf_num, DESC_TYPE_PAGE);
+		if (ret) {
+			netdev_err(ndev, "TX frag(%d) DMA map failed\n",
+				   fragid);
+			goto frag_dma_map_err;
+		}
+	}
+
+	return 0;
+frag_dma_map_err:
+	hns_nic_rollback_map_n_fill(ring, next_to_use_frag);
+head_dma_map_err:
+	hns_nic_rollback_map_n_fill(ring, next_to_use_head);
+
+	return -1;
 }
 
 netdev_tx_t hns_nic_net_xmit_hw(struct net_device *ndev,
@@ -306,15 +453,11 @@ netdev_tx_t hns_nic_net_xmit_hw(struct net_device *ndev,
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 	struct hnae_ring *ring = ring_data->ring;
-	struct device *dev = ring_to_dev(ring);
 	struct netdev_queue *dev_queue;
-	struct skb_frag_struct *frag;
 	int buf_num;
-	int seg_num;
-	dma_addr_t dma;
-	int size, next_to_use;
-	int i;
+	int ret;
 
+	/* check the available space & estimate the buffers required */
 	switch (priv->ops.maybe_stop_tx(&skb, &buf_num, ring)) {
 	case -EBUSY:
 		ring->stats.tx_busy++;
@@ -327,34 +470,11 @@ netdev_tx_t hns_nic_net_xmit_hw(struct net_device *ndev,
 		break;
 	}
 
-	/* no. of segments (plus a header) */
-	seg_num = skb_shinfo(skb)->nr_frags + 1;
-	next_to_use = ring->next_to_use;
-
-	/* fill the first part */
-	size = skb_headlen(skb);
-	dma = dma_map_single(dev, skb->data, size, DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, dma)) {
-		netdev_err(ndev, "TX head DMA map failed\n");
-		ring->stats.sw_err_cnt++;
+	/* map & populate the TX descriptors for the DMA */
+	ret = hns_nic_map_n_fill_tx_desc(ndev, skb, ring, buf_num);
+	if (ret ) {
+		netdev_err(ndev, "TX DMA map-n-fill failed\n");
 		goto out_err_tx_ok;
-	}
-	priv->ops.fill_desc(ring, skb, size, dma, seg_num == 1 ? 1 : 0,
-			    buf_num, DESC_TYPE_SKB, ndev->mtu);
-
-	/* fill the fragments */
-	for (i = 1; i < seg_num; i++) {
-		frag = &skb_shinfo(skb)->frags[i - 1];
-		size = skb_frag_size(frag);
-		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
-		if (dma_mapping_error(dev, dma)) {
-			netdev_err(ndev, "TX frag(%d) DMA map failed\n", i);
-			ring->stats.sw_err_cnt++;
-			goto out_map_frag_fail;
-		}
-		priv->ops.fill_desc(ring, skb_frag_page(frag), size, dma,
-				    seg_num - 1 == i ? 1 : 0, buf_num,
-				    DESC_TYPE_PAGE, ndev->mtu);
 	}
 
 	/*complete translate all packets*/
@@ -373,29 +493,11 @@ netdev_tx_t hns_nic_net_xmit_hw(struct net_device *ndev,
 
 	return NETDEV_TX_OK;
 
-out_map_frag_fail:
-
-	while (ring->next_to_use != next_to_use) {
-		unfill_desc(ring);
-		if (ring->next_to_use != next_to_use)
-			dma_unmap_page(dev,
-				       ring->desc_cb[ring->next_to_use].dma,
-				       ring->desc_cb[ring->next_to_use].length,
-				       DMA_TO_DEVICE);
-		else
-			dma_unmap_single(dev,
-					 ring->desc_cb[next_to_use].dma,
-					 ring->desc_cb[next_to_use].length,
-					 DMA_TO_DEVICE);
-	}
-
 out_err_tx_ok:
-
 	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 
 out_net_tx_busy:
-
 	netif_stop_subqueue(ndev, skb->queue_mapping);
 
 	/* Herbert's original patch had:
@@ -1874,14 +1976,13 @@ static int hns_nic_set_features(struct net_device *netdev,
 			netdev_info(netdev, "enet v1 do not support tso!\n");
 		break;
 	default:
+		netdev_info(netdev, "%s: called tso leg!\n",__FUNCTION__);
 		if (features & (NETIF_F_TSO | NETIF_F_TSO6)) {
-			priv->ops.fill_desc = fill_tso_desc;
-			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tso;
-			/* The chip only support 7*4096 */
+			priv->ops.maybe_stop_tx = hns_nic_maybe_stop;
+			/* The chip only support 7*4096 = 28K */
 			netif_set_gso_max_size(netdev, 7 * 4096);
 		} else {
-			priv->ops.fill_desc = fill_v2_desc;
-			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
+			priv->ops.maybe_stop_tx = hns_nic_maybe_stop;
 		}
 		break;
 	}
@@ -2257,25 +2358,25 @@ static void hns_nic_set_priv_ops(struct net_device *netdev)
 	struct hnae_handle *h = priv->ae_handle;
 
 	if (AE_IS_VER1(priv->enet_ver)) {
-		priv->ops.fill_desc = fill_desc;
+		priv->ops.fill_desc = hns_nic_map_n_fill_v1_desc;
 		priv->ops.get_rxd_bnum = get_rx_desc_bnum;
-		priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
+		priv->ops.maybe_stop_tx = hns_nic_maybe_stop;
 	} else {
 		priv->ops.get_rxd_bnum = get_v2rx_desc_bnum;
+		priv->ops.fill_desc = hns_nic_map_n_fill_v2_desc;
+		priv->ops.maybe_stop_tx = hns_nic_maybe_stop;
+
 		if ((netdev->features & NETIF_F_TSO) ||
 		    (netdev->features & NETIF_F_TSO6)) {
-			priv->ops.fill_desc = fill_tso_desc;
-			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tso;
-			/* This chip only support 7*4096 */
+			/* This chip only support 7*4096=28k */
 			netif_set_gso_max_size(netdev, 7 * 4096);
+
+			/* enable TSO in the descriptor */
+			h->dev->ops->set_tso_stats(h, 1);
 		} else {
-			priv->ops.fill_desc = fill_v2_desc;
-			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
+			/* disable TSO in the descriptor */
+			h->dev->ops->set_tso_stats(h, 0);
 		}
-		/* enable tso when init
-		 * control tso on/off through TSE bit in bd
-		 */
-		h->dev->ops->set_tso_stats(h, 1);
 	}
 }
 
@@ -2432,6 +2533,7 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 		ndev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
 			NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6;
+
 		ndev->max_mtu = MAC_MAX_MTU_V2 -
 				(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
 		break;
