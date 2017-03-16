@@ -1216,6 +1216,7 @@ static int ghes_remove(struct platform_device *ghes_dev)
 		if (list_empty(&ghes_hed))
 			unregister_acpi_hed_notifier(&ghes_notifier_hed);
 		mutex_unlock(&ghes_list_mutex);
+		synchronize_rcu();
 		break;
 	case ACPI_HEST_NOTIFY_SEA:
 		ghes_sea_remove(ghes);
