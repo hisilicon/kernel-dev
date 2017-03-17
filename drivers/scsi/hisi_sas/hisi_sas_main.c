@@ -275,18 +275,25 @@ static void hisi_sas_slot_abort(struct work_struct *work)
 	struct device *dev = hisi_hba->dev;
 	int tag = abort_slot->idx;
 	unsigned long flags;
+	int rc;
 
 	if (!(task->task_proto & SAS_PROTOCOL_SSP)) {
 		dev_err(dev, "cannot abort slot for non-ssp task\n");
-		goto out;
+		return;
 	}
 
 	int_to_scsilun(cmnd->device->lun, &lun);
 	tmf_task.tmf = TMF_ABORT_TASK;
 	tmf_task.tag_of_task_to_be_managed = cpu_to_le16(tag);
 
-	hisi_sas_debug_issue_ssp_tmf(task->dev, lun.scsi_lun, &tmf_task);
-out:
+	rc = hisi_sas_debug_issue_ssp_tmf(task->dev, lun.scsi_lun, &tmf_task);
+	/*
+	 * If we could not abort, then allow to timeout so upper layer
+	 * can escalate
+	 */
+	if (rc != TMF_RESP_FUNC_COMPLETE)
+		return;
+
 	/* Do cleanup for this task */
 	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_slot_task_free(hisi_hba, task, abort_slot);
