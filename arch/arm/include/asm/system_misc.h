@@ -24,4 +24,9 @@ extern unsigned int user_debug;
 
 #endif /* !__ASSEMBLY__ */
 
+static inline int handle_guest_sea(unsigned long addr, unsigned int esr)
+{
+	return -1;
+}
+
 #endif /* __ASM_ARM_SYSTEM_MISC_H */
