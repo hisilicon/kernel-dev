@@ -12,6 +12,18 @@
 #define GHES_TO_CLEAR		0x0001
 #define GHES_EXITING		0x0002
 
+#define acpi_hest_generic_data_error_length(gdata)	\
+	(((struct acpi_hest_generic_data *)(gdata))->error_data_length)
+#define acpi_hest_generic_data_size(gdata)		\
+	((acpi_hest_generic_data_version(gdata) >= 3) ?	\
+	sizeof(struct acpi_hest_generic_data_v300) :	\
+	sizeof(struct acpi_hest_generic_data))
+#define acpi_hest_generic_data_record_size(gdata)	\
+	(acpi_hest_generic_data_size(gdata) +		\
+	acpi_hest_generic_data_error_length(gdata))
+#define acpi_hest_generic_data_next(gdata)		\
+	((void *)(gdata) + acpi_hest_generic_data_record_size(gdata))
+
 struct ghes {
 	union {
 		struct acpi_hest_generic *generic;
@@ -73,3 +85,13 @@ static inline void ghes_edac_unregister(struct ghes *ghes)
 {
 }
 #endif
+
+#define acpi_hest_generic_data_version(gdata)			\
+	(gdata->revision >> 8)
+
+static inline void *acpi_hest_generic_data_payload(struct acpi_hest_generic_data *gdata)
+{
+	return acpi_hest_generic_data_version(gdata) >= 3 ?
+		(void *)(((struct acpi_hest_generic_data_v300 *)(gdata)) + 1) :
+		gdata + 1;
+}
