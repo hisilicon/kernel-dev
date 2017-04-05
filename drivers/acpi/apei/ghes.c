@@ -810,18 +810,17 @@ static struct notifier_block ghes_notifier_hed = {
 #ifdef CONFIG_ACPI_APEI_SEA
 static LIST_HEAD(ghes_sea);
 
-int ghes_notify_sea(void)
+void ghes_notify_sea(void)
 {
 	struct ghes *ghes;
-	int ret = -ENOENT;
 
-	rcu_read_lock();
+	/*
+	 * synchronize_rcu() will wait for nmi_exit(), so no need to
+	 * rcu_read_lock().
+	 */
 	list_for_each_entry_rcu(ghes, &ghes_sea, list) {
-		if(!ghes_proc(ghes))
-			ret = 0;
+		ghes_proc(ghes);
 	}
-	rcu_read_unlock();
-	return ret;
 }
 
 static void ghes_sea_add(struct ghes *ghes)

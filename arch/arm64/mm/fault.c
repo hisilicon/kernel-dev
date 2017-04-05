@@ -497,7 +497,6 @@ static int do_bad(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 {
 	struct siginfo info;
-	int ret = 0;
 
 	pr_err("Synchronous External Abort: %s (0x%08x) at 0x%016lx\n",
 		 fault_name(esr), esr, addr);
@@ -509,7 +508,7 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 	 */
 	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA)) {
 		nmi_enter();
-		ret = ghes_notify_sea();
+		ghes_notify_sea();
 		nmi_exit();
 	}
 
@@ -522,7 +521,7 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 		info.si_addr  = (void __user *)addr;
 	arm64_notify_die("", regs, &info, esr);
 
-	return ret;
+	return 0;
 }
 
 static const struct fault_info {
@@ -601,20 +600,6 @@ static const char *fault_name(unsigned int esr)
 {
 	const struct fault_info *inf = fault_info + (esr & 63);
 	return inf->name;
-}
-
-/*
- * Handle Synchronous External Aborts that occur in a guest kernel.
- */
-int handle_guest_sea(unsigned long addr, unsigned int esr)
-{
-	int ret = -ENOENT;
-
-	if(IS_ENABLED(CONFIG_ACPI_APEI_SEA)) {
-		ret = ghes_notify_sea();
-	}
-
-	return ret;
 }
 
 /*
