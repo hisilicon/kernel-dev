@@ -13,10 +13,7 @@
 #define GHES_EXITING		0x0002
 
 struct ghes {
-	union {
-		struct acpi_hest_generic *generic;
-		struct acpi_hest_generic_v2 *generic_v2;
-	};
+	struct acpi_hest_generic *generic;
 	struct acpi_hest_generic_status *estatus;
 	u64 buffer_paddr;
 	unsigned long flags;
