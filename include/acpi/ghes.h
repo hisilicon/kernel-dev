@@ -1,6 +1,3 @@
-#ifndef GHES_H
-#define GHES_H
-
 #include <acpi/apei.h>
 #include <acpi/hed.h>
 
@@ -98,7 +95,3 @@ static inline void *acpi_hest_generic_data_payload(struct acpi_hest_generic_data
 		(void *)(((struct acpi_hest_generic_data_v300 *)(gdata)) + 1) :
 		gdata + 1;
 }
-
-void ghes_notify_sea(void);
-
-#endif /* GHES_H */
