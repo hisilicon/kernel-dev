@@ -2730,6 +2730,18 @@ static int hns_dsaf_probe(struct platform_device *pdev)
 	struct dsaf_device *dsaf_dev;
 	int ret;
 
+	/*
+	 * Check if we should defer the probe before we probe the
+	 * dsaf, as it's hard to defer later on.
+	 */
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0) {
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Cannot obtain irq\n");
+
+		return ret;
+	}
+
 	dsaf_dev = hns_dsaf_alloc_dev(&pdev->dev, sizeof(struct dsaf_drv_priv));
 	if (IS_ERR(dsaf_dev)) {
 		ret = PTR_ERR(dsaf_dev);
