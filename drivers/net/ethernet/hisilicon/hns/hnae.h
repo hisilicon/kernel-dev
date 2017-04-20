@@ -561,6 +561,7 @@ struct hnae_handle {
 	u32 update_time;	/* update the coalesce param time */
 	u32 eport_id;
 	u32 dport_id;	/* v2 tx bd should fill the dport_id */
+	bool coal_adapt_en;
 	enum hnae_port_type port_type;
 	enum hnae_media_type media_type;
 	struct list_head node;    /* list to hnae_ae_dev->handle_list */

@@ -1018,7 +1018,8 @@ static bool hns_nic_rx_fini_pro_v2(struct hns_nic_ring_data *ring_data)
 	num = readl_relaxed(ring->io_base + RCB_REG_FBDNUM);
 
 	if (!num) {
-		hns_nic_adpt_coalesce(ring_data);
+		if (ring->q->handle->coal_adapt_en)
+			hns_nic_adpt_coalesce(ring_data);
 		return true;
 	} else {
 		return false;
