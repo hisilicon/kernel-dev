@@ -46,7 +46,7 @@ struct hns_nic_ring_data {
 
 /* compatible the difference between two versions */
 struct hns_nic_ops {
-	void (*fill_desc)(struct hnae_ring *ring, void *priv,
+	void (*fill_desc)(struct hns_nic_ring_data *ring, void *priv,
 			  int size, dma_addr_t dma, int frag_end,
 			  int buf_num, enum hns_desc_type type, int mtu);
 	int (*maybe_stop_tx)(struct sk_buff **out_skb,

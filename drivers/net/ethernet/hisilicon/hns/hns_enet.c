@@ -40,12 +40,14 @@
 #define SKB_TMP_LEN(SKB) \
 	(((SKB)->transport_header - (SKB)->mac_header) + tcp_hdrlen(SKB))
 
-static void fill_v2_desc(struct hnae_ring *ring, void *priv,
+static void fill_v2_desc(struct hns_nic_ring_data *ring_data, void *priv,
 			 int size, dma_addr_t dma, int frag_end,
 			 int buf_num, enum hns_desc_type type, int mtu)
 {
+	struct hnae_ring *ring = ring_data->ring;
 	struct hnae_desc *desc = &ring->desc[ring->next_to_use];
 	struct hnae_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
+	struct net_device *netdev = ring_data->napi.dev;
 	struct iphdr *iphdr;
 	struct ipv6hdr *ipv6hdr;
 	struct sk_buff *skb;
@@ -90,8 +92,13 @@ static void fill_v2_desc(struct hnae_ring *ring, void *priv,
 
 			if (skb->protocol == htons(ETH_P_IP)) {
 				iphdr = ip_hdr(skb);
-				hnae_set_bit(rrcfv, HNSV2_TXD_L3CS_B, 1);
-				hnae_set_bit(rrcfv, HNSV2_TXD_L4CS_B, 1);
+
+				if (netdev->features & NETIF_F_IP_CSUM) {
+					hnae_set_bit(rrcfv, HNSV2_TXD_L3CS_B,
+						     1);
+					hnae_set_bit(rrcfv, HNSV2_TXD_L4CS_B,
+						     1);
+				}
 
 				/* check for tcp/udp header */
 				if (iphdr->protocol == IPPROTO_TCP &&
@@ -105,7 +112,10 @@ static void fill_v2_desc(struct hnae_ring *ring, void *priv,
 			} else if (skb->protocol == htons(ETH_P_IPV6)) {
 				hnae_set_bit(tvsvsn, HNSV2_TXD_IPV6_B, 1);
 				ipv6hdr = ipv6_hdr(skb);
-				hnae_set_bit(rrcfv, HNSV2_TXD_L4CS_B, 1);
+
+				if (netdev->features & NETIF_F_IPV6_CSUM)
+					hnae_set_bit(rrcfv, HNSV2_TXD_L4CS_B,
+						     1);
 
 				/* check for tcp/udp header */
 				if (ipv6hdr->nexthdr == IPPROTO_TCP &&
@@ -140,12 +150,14 @@ static const struct acpi_device_id hns_enet_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, hns_enet_acpi_match);
 
-static void fill_desc(struct hnae_ring *ring, void *priv,
+static void fill_desc(struct hns_nic_ring_data *ring_data, void *priv,
 		      int size, dma_addr_t dma, int frag_end,
 		      int buf_num, enum hns_desc_type type, int mtu)
 {
+	struct hnae_ring *ring = ring_data->ring;
 	struct hnae_desc *desc = &ring->desc[ring->next_to_use];
 	struct hnae_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
+	struct net_device *netdev = ring_data->napi.dev;
 	struct sk_buff *skb;
 	__be16 protocol;
 	u32 ip_offset;
@@ -179,12 +191,14 @@ static void fill_desc(struct hnae_ring *ring, void *priv,
 				skb->protocol = protocol;
 			}
 
-			if (skb->protocol == htons(ETH_P_IP)) {
+			if (skb->protocol == htons(ETH_P_IP) &&
+			    (netdev->features & NETIF_F_IP_CSUM)) {
 				flag_ipoffset |= 1 << HNS_TXD_L3CS_B;
 				/* check for tcp/udp header */
 				flag_ipoffset |= 1 << HNS_TXD_L4CS_B;
 
-			} else if (skb->protocol == htons(ETH_P_IPV6)) {
+			} else if (skb->protocol == htons(ETH_P_IPV6) &&
+				   (netdev->features & NETIF_F_IPV6_CSUM)) {
 				/* ipv6 has not l3 cs, check for L4 header */
 				flag_ipoffset |= 1 << HNS_TXD_L4CS_B;
 			}
@@ -275,7 +289,7 @@ static int hns_nic_maybe_stop_tso(
 	return 0;
 }
 
-static void fill_tso_desc(struct hnae_ring *ring, void *priv,
+static void fill_tso_desc(struct hns_nic_ring_data *ring_data, void *priv,
 			  int size, dma_addr_t dma, int frag_end,
 			  int buf_num, enum hns_desc_type type, int mtu)
 {
@@ -289,7 +303,7 @@ static void fill_tso_desc(struct hnae_ring *ring, void *priv,
 
 	/* when the frag size is bigger than hardware, split this frag */
 	for (k = 0; k < frag_buf_num; k++)
-		fill_v2_desc(ring, priv,
+		fill_v2_desc(ring_data, priv,
 			     (k == frag_buf_num - 1) ?
 					sizeoflast : BD_MAX_SEND_SIZE,
 			     dma + BD_MAX_SEND_SIZE * k,
@@ -339,7 +353,7 @@ netdev_tx_t hns_nic_net_xmit_hw(struct net_device *ndev,
 		ring->stats.sw_err_cnt++;
 		goto out_err_tx_ok;
 	}
-	priv->ops.fill_desc(ring, skb, size, dma, seg_num == 1 ? 1 : 0,
+	priv->ops.fill_desc(ring_data, skb, size, dma, seg_num == 1 ? 1 : 0,
 			    buf_num, DESC_TYPE_SKB, ndev->mtu);
 
 	/* fill the fragments */
@@ -352,7 +366,7 @@ netdev_tx_t hns_nic_net_xmit_hw(struct net_device *ndev,
 			ring->stats.sw_err_cnt++;
 			goto out_map_frag_fail;
 		}
-		priv->ops.fill_desc(ring, skb_frag_page(frag), size, dma,
+		priv->ops.fill_desc(ring_data, skb_frag_page(frag), size, dma,
 				    seg_num - 1 == i ? 1 : 0, buf_num,
 				    DESC_TYPE_PAGE, ndev->mtu);
 	}
