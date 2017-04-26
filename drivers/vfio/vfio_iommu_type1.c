@@ -2587,6 +2587,41 @@ static int vfio_iommu_iova_build_caps(struct vfio_iommu *iommu,
 	return ret;
 }
 
+static void
+vfio_detach_pasid_table(struct vfio_iommu *iommu)
+{
+	struct vfio_domain *d;
+
+	mutex_lock(&iommu->lock);
+	list_for_each_entry(d, &iommu->domain_list, next)
+		iommu_detach_pasid_table(d->domain);
+
+	mutex_unlock(&iommu->lock);
+}
+
+static int
+vfio_attach_pasid_table(struct vfio_iommu *iommu, unsigned long arg)
+{
+	struct vfio_domain *d;
+	int ret = 0;
+
+	mutex_lock(&iommu->lock);
+
+	list_for_each_entry(d, &iommu->domain_list, next) {
+		ret = iommu_uapi_attach_pasid_table(d->domain, (void __user *)arg);
+		if (ret)
+			goto unwind;
+	}
+	goto unlock;
+unwind:
+	list_for_each_entry_continue_reverse(d, &iommu->domain_list, next) {
+		iommu_detach_pasid_table(d->domain);
+	}
+unlock:
+	mutex_unlock(&iommu->lock);
+	return ret;
+}
+
 static int vfio_iommu_migration_build_caps(struct vfio_iommu *iommu,
 					   struct vfio_info_cap *caps)
 {
@@ -2747,6 +2782,34 @@ static int vfio_iommu_type1_unmap_dma(struct vfio_iommu *iommu,
 			-EFAULT : 0;
 }
 
+static int vfio_iommu_type1_set_pasid_table(struct vfio_iommu *iommu,
+					    unsigned long arg)
+{
+	struct vfio_iommu_type1_set_pasid_table spt;
+	unsigned long minsz;
+	int ret = -EINVAL;
+
+	minsz = offsetofend(struct vfio_iommu_type1_set_pasid_table, flags);
+
+	if (copy_from_user(&spt, (void __user *)arg, minsz))
+		return -EFAULT;
+
+	if (spt.argsz < minsz)
+		return -EINVAL;
+
+	if (spt.flags & VFIO_PASID_TABLE_FLAG_SET &&
+	    spt.flags & VFIO_PASID_TABLE_FLAG_UNSET)
+		return -EINVAL;
+
+	if (spt.flags & VFIO_PASID_TABLE_FLAG_SET)
+		ret = vfio_attach_pasid_table(iommu, arg + minsz);
+	else if (spt.flags & VFIO_PASID_TABLE_FLAG_UNSET) {
+		vfio_detach_pasid_table(iommu);
+		ret = 0;
+	}
+	return ret;
+}
+
 static int vfio_iommu_type1_dirty_pages(struct vfio_iommu *iommu,
 					unsigned long arg)
 {
@@ -2867,6 +2930,8 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 		return vfio_iommu_type1_unmap_dma(iommu, arg);
 	case VFIO_IOMMU_DIRTY_PAGES:
 		return vfio_iommu_type1_dirty_pages(iommu, arg);
+	case VFIO_IOMMU_SET_PASID_TABLE:
+		return vfio_iommu_type1_set_pasid_table(iommu, arg);
 	default:
 		return -ENOTTY;
 	}
