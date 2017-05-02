@@ -23,6 +23,11 @@ struct rcb_common_cb;
 #define HNS_RCB_IRQ_IDX_RX			1
 #define HNS_RCB_TX_REG_OFFSET			0x40
 
+#define HNS_RCB_IRQ_ENABLE			0
+#define HNS_RCB_IRQ_DISABLE			0xFFFFFFFF
+#define HNS_RCB_BD_IRQ_ENABLE			0x2
+#define HNS_RCB_BD_IRQ_DISABLE			0x3
+
 #define HNS_RCB_SERVICE_NW_ENGINE_NUM		DSAF_COMM_CHN
 #define HNS_RCB_DEBUG_NW_ENGINE_NUM		1
 #define HNS_RCB_RING_MAX_BD_PER_PKT		3
@@ -105,9 +110,11 @@ struct rcb_common_cb {
 	u8 __iomem *io_base;
 	phys_addr_t phy_base;
 	struct dsaf_device *dsaf_dev;
+	int irq_en;
 	u16 max_vfn;
 	u16 max_q_per_vf;
-
+	struct hns_irq_info irq_ring_info;
+	struct hns_irq_info irq_axi_info;
 	u8 comm_index;
 	u32 ring_num;
 	u32 desc_num; /*  desc num per queue*/
@@ -117,6 +124,7 @@ struct rcb_common_cb {
 
 int hns_rcb_buf_size2type(u32 buf_size);
 
+int hns_rcb_comm_irq_init(struct rcb_common_cb *rcb_common);
 int hns_rcb_common_get_cfg(struct dsaf_device *dsaf_dev, int comm_index);
 void hns_rcb_common_free_cfg(struct dsaf_device *dsaf_dev, u32 comm_index);
 int hns_rcb_common_init_hw(struct rcb_common_cb *rcb_common);
@@ -163,5 +171,6 @@ void hns_rcb_get_ring_regs(struct hnae_queue *queue, void *data);
 void hns_rcb_get_strings(int stringset, u8 *data, int index);
 void hns_rcb_set_rx_ring_bs(struct hnae_queue *q, u32 buf_size);
 void hns_rcb_set_tx_ring_bs(struct hnae_queue *q, u32 buf_size);
-
+void hns_rcb_irq_set(struct rcb_common_cb *rcb_common, int en);
+void hns_rcb_irq_clear(struct rcb_common_cb *rcb_common);
 #endif /* _HNS_DSAF_RCB_H */

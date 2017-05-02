@@ -254,7 +254,8 @@ static void hns_rcb_ring_init(struct ring_pair_cb *ring_pair, int ring_type)
 		dsaf_write_dev(q, RCB_RING_TX_RING_BD_NUM_REG,
 			       ring_pair->port_id_in_comm);
 		dsaf_write_dev(q, RCB_RING_TX_RING_PKTLINE_REG,
-			ring_pair->port_id_in_comm + HNS_RCB_TX_PKTLINE_OFFSET);
+			       ring_pair->port_id_in_comm +
+			       HNS_RCB_TX_PKTLINE_OFFSET);
 	}
 }
 
@@ -749,14 +750,249 @@ static phys_addr_t hns_rcb_common_get_paddr(struct rcb_common_cb *rcb_common)
 	return dsaf_dev->ppe_paddr + RCB_COMMON_REG_OFFSET;
 }
 
+static void rcb_ring_cfg_int_handler(struct rcb_common_cb *rcb_common)
+{
+	u32 int_sts;
+
+	int_sts = dsaf_read_dev(rcb_common, RCB_COM_SF_CFG_RING_STS_REG);
+	dsaf_write_dev(rcb_common,
+		       RCB_COM_SF_CFG_INTMASK_RING, HNS_RCB_IRQ_DISABLE);
+
+	if (dsaf_get_bit(int_sts, SF_CFG_TXRING))
+		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+				 "rcb_common has configurable error, cause: sf_cfg_txring.\n");
+
+	if (dsaf_get_bit(int_sts, SF_CFG_RXRING))
+		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+				 "rcb_common has configurable error, cause: sf_cfg_rxring.\n");
+
+	if (int_sts)
+		dsaf_write_dev(rcb_common,
+			       RCB_COM_SF_CFG_RING_STS_REG, int_sts);
+
+	if (rcb_common->irq_ring_info.total < HNS_LIMIT_IRQ_FREQ)
+		dsaf_write_dev(rcb_common, RCB_COM_SF_CFG_INTMASK_RING,
+			       HNS_RCB_IRQ_ENABLE);
+}
+
+static void rcb_bd_cfg_error_int_handler(
+		struct rcb_common_cb *rcb_common)
+{
+	u32 int_sts;
+
+	int_sts = dsaf_read_dev(rcb_common, RCB_COM_SF_CFG_BD_RINT_STS);
+	dsaf_write_dev(rcb_common,
+		       RCB_COM_SF_CFG_INTMASK_BD, HNS_RCB_BD_IRQ_DISABLE);
+
+	if (dsaf_get_bit(int_sts, SF_TXRING_FBD_INT)) {
+		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+				 "rcb_common has configure error, cause: sf_txring_fbd.\n");
+	}
+
+	if (dsaf_get_bit(int_sts, SF_RXRING_EBD_INT)) {
+		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+				 "rcb_common has configure error, cause: sf_rxring_ebd.\n");
+	}
+
+	if (int_sts)
+		dsaf_write_dev(rcb_common, RCB_COM_SF_CFG_BD_RINT_STS, int_sts);
+
+	if (rcb_common->irq_ring_info.total < HNS_LIMIT_IRQ_FREQ)
+		dsaf_write_dev(rcb_common, RCB_COM_SF_CFG_INTMASK_BD,
+			       HNS_RCB_BD_IRQ_ENABLE);
+}
+
+static void rcb_ecc_error_int_handler(struct rcb_common_cb *rcb_common)
+{
+	u32 int_sts;
+
+	int_sts = dsaf_read_dev(rcb_common, RCB_COM_INTSTS_ECC_ERR_REG);
+	dsaf_write_dev(rcb_common,
+		       RCB_COM_INTMASK_ECC_ERR_REG, HNS_RCB_IRQ_DISABLE);
+
+	if (dsaf_get_bit(int_sts, RCB_RINT_MB_SRAM))
+		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+				 "rcb_common has unrepairable error, cause: rcb_rint_mb_sram.\n");
+
+	if (dsaf_get_bit(int_sts, RCB_RINT_TX_FBD_SRAM))
+		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+				 "rcb_commonhas unrepairable error, cause: rcb_rint_tx_fbd_sram.\n");
+
+	if (dsaf_get_bit(int_sts, RCB_RINT_TX_RING))
+		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+				 "rcb_common has unrepairable error, cause: rcb_rint_tx_ring.\n");
+
+	if (dsaf_get_bit(int_sts, RCB_RINT_RX_RING))
+		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+				 "rcb_common has unrepairable error, cause: rcb_rint_rx_ring.\n");
+
+	if (dsaf_get_bit(int_sts, RCB_RINT_EBD_SRAM))
+		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+				 "rcb_common has unrepairable error, cause: rcb_rint_ebd_sram.\n");
+
+	if (int_sts)
+		dsaf_write_dev(rcb_common, RCB_COM_INTSTS_ECC_ERR_REG, int_sts);
+
+	if (rcb_common->irq_ring_info.total < HNS_LIMIT_IRQ_FREQ)
+		dsaf_write_dev(rcb_common, RCB_COM_INTMASK_ECC_ERR_REG,
+			       HNS_RCB_IRQ_ENABLE);
+}
+
+static irqreturn_t rcb_ring_bd_and_ecc_int_handler(int irq, void *rcb_common)
+{
+	struct rcb_common_cb *irq_rcb_common;
+	unsigned long next;
+
+	irq_rcb_common = (struct rcb_common_cb *)rcb_common;
+	irq_rcb_common->irq_ring_info.total++;
+
+	rcb_ring_cfg_int_handler(irq_rcb_common);
+	rcb_bd_cfg_error_int_handler(irq_rcb_common);
+	rcb_ecc_error_int_handler(irq_rcb_common);
+
+	if (irq_rcb_common->irq_ring_info.total < HNS_LIMIT_IRQ_FREQ) {
+		next = irq_rcb_common->irq_ring_info.last_jiffies + HZ;
+		if (time_after_eq(jiffies, next)) {
+			irq_rcb_common->irq_ring_info.last_jiffies = jiffies;
+			irq_rcb_common->irq_ring_info.total = 0;
+		}
+	}
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t rcb_axi_error_int_handler(int irq, void *rcb_common)
+{
+	struct rcb_common_cb *irq_rcb_common;
+	unsigned long next;
+	u32 int_sts;
+
+	irq_rcb_common = (struct rcb_common_cb *)rcb_common;
+	int_sts = dsaf_read_dev(irq_rcb_common, RCB_COM_AXI_ERR_STS);
+	dsaf_write_dev(irq_rcb_common,
+		       RCB_COM_AXI_WR_ERR_INTMASK, HNS_RCB_IRQ_DISABLE);
+
+	if (dsaf_get_bit(int_sts, RCB_SLV_RD_ERR_INT)) {
+		net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
+				 "rcb_common has unrepairable error, cause: rcb_slv_rd_err.\n");
+	}
+
+	if (dsaf_get_bit(int_sts, RCB_SLV_WR_ERR_INT))
+		net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
+				 "rcb_common has unrepairable error, cause: rcb_slv_wr_err.\n");
+	if (dsaf_get_bit(int_sts, RCB_MST_ERR0_INT))
+		net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
+				 "rcb_common has unrepairable error, cause: rcb_mst_err0.\n");
+
+	if (dsaf_get_bit(int_sts, RCB_MST_ERR1_INT))
+		net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
+				 "rcb_common has unrepairable error, cause: rcb_mst_err1.\n");
+
+	if (dsaf_get_bit(int_sts, RCB_MST_ERR2_INT))
+		net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
+				 "rcb_common has unrepairable error, cause: rcb_mst_err2.\n");
+
+	if (dsaf_get_bit(int_sts, RCB_MST_ERR3_INT))
+		net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
+				 "rcb_common has unrepairable error, cause: rcb_mst_err3.\n");
+
+	if (int_sts)
+		dsaf_write_dev(irq_rcb_common, RCB_COM_AXI_ERR_STS, int_sts);
+
+	irq_rcb_common->irq_axi_info.total++;
+	if (irq_rcb_common->irq_axi_info.total < HNS_LIMIT_IRQ_FREQ) {
+		dsaf_write_dev(irq_rcb_common,
+			       RCB_COM_AXI_WR_ERR_INTMASK, HNS_RCB_IRQ_ENABLE);
+
+		next = irq_rcb_common->irq_axi_info.last_jiffies + HZ;
+		if (time_after_eq(jiffies, next)) {
+			irq_rcb_common->irq_axi_info.last_jiffies = jiffies;
+			irq_rcb_common->irq_axi_info.total = 0;
+		}
+	}
+
+	return IRQ_HANDLED;
+}
+
+int hns_rcb_comm_irq_init(struct rcb_common_cb *rcb_common)
+{
+	struct dsaf_device *dsaf_dev;
+	int ret;
+
+	if ((rcb_common->irq_ring_info.virq < 0) ||
+	    (rcb_common->irq_axi_info.virq < 0))
+		return 0;
+
+	dsaf_dev = rcb_common->dsaf_dev;
+
+	/* close rcb irq and clear irq status */
+	hns_rcb_irq_set(rcb_common, 0);
+	hns_rcb_irq_clear(rcb_common);
+	rcb_common->irq_en = 0;
+
+	ret = request_irq(rcb_common->irq_ring_info.virq,
+			  rcb_ring_bd_and_ecc_int_handler, 0,
+			  rcb_common->irq_ring_info.irq_name, rcb_common);
+	if (ret) {
+		dev_err(dsaf_dev->dev,
+			"rcb ring request_irq failed. virq=%d, ret=%d\n",
+			rcb_common->irq_ring_info.virq, ret);
+		return ret;
+	}
+	rcb_common->irq_ring_info.last_jiffies = jiffies;
+	rcb_common->irq_ring_info.total = 0;
+
+	ret = request_irq(rcb_common->irq_axi_info.virq,
+			  rcb_axi_error_int_handler, 0,
+			  rcb_common->irq_axi_info.irq_name, rcb_common);
+	if (ret) {
+		dev_err(dsaf_dev->dev,
+			"rcb tx request_irq failed. virq=%d, ret=%d\n",
+			rcb_common->irq_axi_info.virq, ret);
+		goto rcb_virq_tx_failed;
+	}
+	rcb_common->irq_axi_info.last_jiffies = jiffies;
+	rcb_common->irq_axi_info.total = 0;
+
+	hns_rcb_irq_set(rcb_common, 1);
+	rcb_common->irq_en = 1;
+	return 0;
+
+rcb_virq_tx_failed:
+	free_irq(rcb_common->irq_ring_info.virq, rcb_common);
+	return ret;
+}
+
+static void hns_rcb_comm_irq_free(struct rcb_common_cb *rcb_common)
+{
+	/* close rcb irq and clear irq status */
+	hns_rcb_irq_set(rcb_common, 0);
+
+	if ((!rcb_common->irq_en) ||
+	    (rcb_common->irq_ring_info.virq < 0) ||
+	    (rcb_common->irq_axi_info.virq < 0))
+		return;
+
+	disable_irq(rcb_common->irq_ring_info.virq);
+	free_irq(rcb_common->irq_ring_info.virq, rcb_common);
+	disable_irq(rcb_common->irq_axi_info.virq);
+	free_irq(rcb_common->irq_axi_info.virq, rcb_common);
+
+	rcb_common->irq_en = 0;
+}
+
 int hns_rcb_common_get_cfg(struct dsaf_device *dsaf_dev,
 			   int comm_index)
 {
-	struct rcb_common_cb *rcb_common;
 	enum dsaf_mode dsaf_mode = dsaf_dev->dsaf_mode;
-	u16 max_vfn;
-	u16 max_q_per_vf;
 	int ring_num = hns_rcb_get_ring_num(dsaf_dev);
+	struct rcb_common_cb *rcb_common;
+	struct hns_irq_info *irq_info;
+	struct platform_device *pdev;
+	u16 max_q_per_vf;
+	int virq_ring;
+	int virq_axi;
+	u16 max_vfn;
 
 	rcb_common =
 		devm_kzalloc(dsaf_dev->dev, sizeof(*rcb_common) +
@@ -778,6 +1014,48 @@ int hns_rcb_common_get_cfg(struct dsaf_device *dsaf_dev,
 	rcb_common->io_base = hns_rcb_common_get_vaddr(rcb_common);
 	rcb_common->phy_base = hns_rcb_common_get_paddr(rcb_common);
 
+	if (!AE_IS_VER1(dsaf_dev->dsaf_ver) &&
+	    !HNS_DSAF_IS_DEBUG(dsaf_dev)) {
+		pdev = to_platform_device(dsaf_dev->dev);
+
+		virq_ring = platform_get_irq(pdev, RCB_0_PF_INT_INDEX + 2);
+		if (virq_ring < 0) {
+			dev_err(dsaf_dev->dev,
+				"rcb platform_get_irq failed. error code=%d, index=%d\n",
+				virq_ring, RCB_0_PF_INT_INDEX + 2);
+
+			rcb_common->irq_ring_info.virq = DSAF_INVALID_VIRQ;
+
+			return virq_ring;
+		}
+
+		irq_info = &rcb_common->irq_ring_info;
+		snprintf(irq_info->irq_name, DSAF_EVENT_NAME_LEN,
+			 "rcb_ring_irq");
+		irq_info->irq_name[DSAF_EVENT_NAME_LEN - 1] = '\0';
+		irq_info->virq = virq_ring;
+
+		virq_axi = platform_get_irq(pdev, RCB_0_PF_INT_INDEX + 3);
+		if (virq_axi < 0) {
+			dev_err(dsaf_dev->dev,
+				"rcb platform_get_irq failed. error code=%d, index=%d\n",
+				virq_axi, RCB_0_PF_INT_INDEX + 3);
+
+			rcb_common->irq_axi_info.virq = DSAF_INVALID_VIRQ;
+
+			return virq_axi;
+		}
+
+		irq_info = &rcb_common->irq_axi_info;
+		snprintf(irq_info->irq_name, DSAF_EVENT_NAME_LEN,
+			 "rcb_axi_irq");
+		irq_info->irq_name[DSAF_EVENT_NAME_LEN - 1] = '\0';
+		irq_info->virq = virq_axi;
+	} else {
+		rcb_common->irq_ring_info.virq = DSAF_INVALID_VIRQ;
+		rcb_common->irq_axi_info.virq = DSAF_INVALID_VIRQ;
+	}
+
 	dsaf_dev->rcb_common[comm_index] = rcb_common;
 	return 0;
 }
@@ -785,6 +1063,13 @@ int hns_rcb_common_get_cfg(struct dsaf_device *dsaf_dev,
 void hns_rcb_common_free_cfg(struct dsaf_device *dsaf_dev,
 			     u32 comm_index)
 {
+	if (!dsaf_dev->rcb_common[comm_index])
+		return;
+
+	if (!AE_IS_VER1(dsaf_dev->dsaf_ver) &&
+	    !HNS_DSAF_IS_DEBUG(dsaf_dev))
+		hns_rcb_comm_irq_free(dsaf_dev->rcb_common[comm_index]);
+
 	dsaf_dev->rcb_common[comm_index] = NULL;
 }
 
@@ -1089,4 +1374,26 @@ void hns_rcb_get_ring_regs(struct hnae_queue *queue, void *data)
 	/* mark end of ring regs */
 	for (i = 35; i < 40; i++)
 		regs[i] = 0xcccccc00 + ring_pair->index;
+}
+
+void hns_rcb_irq_set(struct rcb_common_cb *rcb_common, int en)
+{
+	dsaf_write_dev(rcb_common, RCB_COM_INTMASK_ECC_ERR_REG,
+		       en ? HNS_RCB_IRQ_ENABLE : HNS_RCB_IRQ_DISABLE);
+	dsaf_write_dev(rcb_common, RCB_COM_SF_CFG_INTMASK_RING,
+		       en ? HNS_RCB_IRQ_ENABLE : HNS_RCB_IRQ_DISABLE);
+	dsaf_write_dev(rcb_common, RCB_COM_SF_CFG_INTMASK_BD,
+		       en ? HNS_RCB_BD_IRQ_ENABLE : HNS_RCB_BD_IRQ_DISABLE);
+	dsaf_write_dev(rcb_common, RCB_COM_INTMSK_TX_PKT_REG,
+		       en ? HNS_RCB_IRQ_ENABLE : HNS_RCB_IRQ_DISABLE);
+	dsaf_write_dev(rcb_common, RCB_COM_AXI_WR_ERR_INTMASK,
+		       en ? HNS_RCB_IRQ_ENABLE : HNS_RCB_IRQ_DISABLE);
+}
+
+void hns_rcb_irq_clear(struct rcb_common_cb *rcb_common)
+{
+	dsaf_write_dev(rcb_common, RCB_COM_SF_CFG_RING_STS_REG, 0xFFFFFFFFU);
+	dsaf_write_dev(rcb_common, RCB_COM_SF_CFG_BD_RINT_STS, 0xFFFFFFFFU);
+	dsaf_write_dev(rcb_common, RCB_COM_INTSTS_ECC_ERR_REG, 0xFFFFFFFFU);
+	dsaf_write_dev(rcb_common, RCB_COM_AXI_ERR_STS, 0xFFFFFFFFU);
 }
