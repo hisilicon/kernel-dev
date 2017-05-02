@@ -717,6 +717,9 @@ void *hns_gmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 	mac_drv->get_strings = hns_gmac_get_strings;
 	mac_drv->update_stats = hns_gmac_update_stats;
 	mac_drv->set_promiscuous = hns_gmac_set_promisc;
+	mac_drv->get_irq = NULL;
+	mac_drv->event_irq_init = NULL;
+	mac_drv->event_irq_free = NULL;
 
 	return (void *)mac_drv;
 }

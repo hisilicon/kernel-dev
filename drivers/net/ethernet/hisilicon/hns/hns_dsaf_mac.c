@@ -483,6 +483,24 @@ int hns_mac_set_mtu(struct hns_mac_cb *mac_cb, u32 new_mtu, u32 buf_size)
 	return 0;
 }
 
+int hns_mac_irq_init(struct hns_mac_cb *mac_cb)
+{
+	struct mac_driver *mac_drv = hns_mac_get_drv(mac_cb);
+
+	if (mac_drv->event_irq_init)
+		return mac_drv->event_irq_init(mac_drv);
+
+	return 0;
+}
+
+void hns_mac_irq_free(struct hns_mac_cb *mac_cb)
+{
+	struct mac_driver *mac_drv = hns_mac_get_drv(mac_cb);
+
+	if (mac_drv->event_irq_free)
+		mac_drv->event_irq_free(mac_drv);
+}
+
 void hns_mac_start(struct hns_mac_cb *mac_cb)
 {
 	struct mac_driver *mac_drv = hns_mac_get_drv(mac_cb);
@@ -985,6 +1003,8 @@ int hns_mac_get_cfg(struct dsaf_device *dsaf_dev, struct hns_mac_cb *mac_cb)
 	mac_cb->dsaf_dev->misc_op->cpld_reset_led(mac_cb);
 	mac_cb->vaddr = hns_mac_get_vaddr(dsaf_dev, mac_cb, mac_mode_idx);
 
+	mac_cb->irq_info.virq = DSAF_INVALID_VIRQ;
+
 	return 0;
 }
 
@@ -994,6 +1014,19 @@ static int hns_mac_get_max_port_num(struct dsaf_device *dsaf_dev)
 		return 1;
 	else
 		return  DSAF_MAX_PORT_NUM;
+}
+
+static int hns_mac_get_event_irq(struct dsaf_device *dsaf_dev,
+				 struct hns_mac_cb *mac_cb)
+{
+	struct platform_device *pdev =
+		container_of(dsaf_dev->dev, struct platform_device, dev);
+	struct mac_driver *mac_ctrl_drv = hns_mac_get_drv(mac_cb);
+
+	if (mac_ctrl_drv->get_irq)
+		return mac_ctrl_drv->get_irq(pdev, mac_ctrl_drv);
+
+	return 0;
 }
 
 /**
@@ -1058,6 +1091,10 @@ int hns_mac_init(struct dsaf_device *dsaf_dev)
 			return ret;
 
 		ret = hns_mac_init_ex(mac_cb);
+		if (ret)
+			return ret;
+
+		ret = hns_mac_get_event_irq(dsaf_dev, mac_cb);
 		if (ret)
 			return ret;
 	}

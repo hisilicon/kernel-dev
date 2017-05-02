@@ -892,6 +892,7 @@ static int hns_ae_set_rss(struct hnae_handle *handle, const u32 *indir,
 static int hns_ae_port_irq_init(struct hnae_handle *handle)
 {
 	struct dsaf_device *dsaf_dev;
+	struct hns_mac_cb *mac_cb;
 	int ret;
 
 	if (handle->irq_en)
@@ -908,9 +909,16 @@ static int hns_ae_port_irq_init(struct hnae_handle *handle)
 	if (ret)
 		goto xbar_irq_failed;
 
+	mac_cb = hns_get_mac_cb(handle);
+	ret = hns_mac_irq_init(mac_cb);
+	if (ret)
+		goto mac_irq_failed;
+
 	handle->irq_en = 1;
 	return 0;
 
+mac_irq_failed:
+	hns_dsaf_xbar_irq_free(dsaf_dev, handle->dport_id);
 xbar_irq_failed:
 	return ret;
 }
@@ -933,6 +941,7 @@ static void hns_ae_port_irq_free(struct hnae_handle *handle)
 	mac_cb = hns_get_mac_cb(handle);
 
 	hns_dsaf_xbar_irq_free(dsaf_dev, handle->dport_id);
+	hns_mac_irq_free(mac_cb);
 
 	handle->irq_en = 0;
 }

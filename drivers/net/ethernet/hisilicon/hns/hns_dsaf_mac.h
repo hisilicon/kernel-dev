@@ -322,6 +322,7 @@ struct hns_mac_cb {
 	u8 sfp_prsnt;
 	u8 cpld_led_value;
 	u8 mac_id;
+	struct hns_irq_info irq_info;
 
 	u8 link;
 	u8 half_duplex;
@@ -395,6 +396,10 @@ struct mac_driver {
 
 	void (*update_stats)(void *mac_drv);
 
+	int (*get_irq)(struct platform_device *pdev, void *mac_drv);
+	int (*event_irq_init)(void *mac_drv);
+	void (*event_irq_free)(void *mac_drv);
+
 	enum mac_mode mac_mode;
 	u8 mac_id;
 	struct hns_mac_cb *mac_cb;
@@ -432,6 +437,8 @@ int hns_mac_change_vf_addr(struct hns_mac_cb *mac_cb, u32 vmid, char *addr);
 int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
 		      u32 port_num, char *addr, bool enable);
 int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vm, bool enable);
+int hns_mac_irq_init(struct hns_mac_cb *mac_cb);
+void hns_mac_irq_free(struct hns_mac_cb *mac_cb);
 void hns_mac_start(struct hns_mac_cb *mac_cb);
 void hns_mac_stop(struct hns_mac_cb *mac_cb);
 void hns_mac_uninit(struct dsaf_device *dsaf_dev);
