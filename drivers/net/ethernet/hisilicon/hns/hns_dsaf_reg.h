@@ -1016,6 +1016,73 @@
 #define XGMAC_PAUSE_CTL_RSP_MODE_B	2
 #define XGMAC_PAUSE_CTL_TX_XOFF_B	3
 
+/* interrupt index in DTSI */
+#define DSAF_0_XGE_INT_INDEX		427
+#define DSAF_0_PPE_INT_INDEX		433
+
+#define XGE_XBAR_NUM (6U)
+#define PPE_XBAR_NUM (6U)
+/* DSAF_XGE_INT_SRC */
+#define DSAF_SBM_XGE_PFC_EN_ALLZERO_CFG_INT	27
+#define DSAF_SBM_XGE_PFC_EN_ALLONE_CFG_INT	26
+#define DSAF_SBM_XGE_PFC_EN_PART_CFG_INT	25
+#define DSAF_SBM_XGE_CFG_SET_BUF_INT		24
+#define DSAF_SBM_XGE_CFG_RESET_BUF_INT		23
+#define DSAF_VOQ_XGE_ECC_ERR_INT		22
+#define DSAF_VOQ_XGE_START_TO_OVER_1_INT	21
+#define DSAF_VOQ_XGE_START_TO_OVER_0_INT	20
+#define DSAF_SBM_XGE_MIB_RELS_EXTRA_INT		16
+#define DSAF_SBM_XGE_MIB_REQ_EXTRA_INT		15
+#define DSAF_SBM_XGE_MIB_BUF_SUM_ERR_INT	14
+#define DSAF_SBM_XGE_SRAM_ECC_2BIT_INT		13
+#define DSAF_SBM_XGE_MIB_RELS_FSM_TIMOUT_INT	12
+#define DSAF_SBM_XGE_MIB_REQ_FSM_TIMEOUT_INT	11
+#define DSAF_SBM_XGE_MIB_REQ_FAILED_INT		10
+#define DSAF_SBM_XGE_LNK_ECC_2BIT_INT		9
+#define DSAF_SBM_XGE_LNK_FSM_TIMEOUT_INT	8
+#define DSAF_XID_XGE_LONG_PKT_LEN_INT		4
+#define DSAF_XID_XGE_SHT_PKT_LEN_INT		3
+#define DSAF_XID_XGE_LKTB_RSLT_ERR_INT		2
+#define DSAF_XID_XGE_FSM_TIMEOUT_INT		1
+#define DSAF_XID_XGE_ECC_ERR_INT		0
+
+/* DSAF_PPE_INT_SRC */
+#define DSAF_XOD_PPE_FIFO_WR_FULL_INT		25
+#define DSAF_XOD_PPE_FIFO_RD_EMPTY_INT		24
+#define DSAF_VOQ_PPE_ECC_ERR_INT		21
+#define DSAF_VOQ_PPE_START_TO_OVER_0_INT	20
+#define DSAF_SBM_PPE_CFG_USEFUL_PID_NUM_INT	17
+#define DSAF_SBM_PPE_MIB_RELS_EXTRA_INT		16
+#define DSAF_SBM_PPE_MIB_REQ_EXTRA_INT		15
+#define DSAF_SBM_PPE_MIB_BUF_SUM_ERR_INT	14
+#define DSAF_SBM_PPE_SRAM_ECC_2BIT_INT		13
+#define DSAF_SBM_PPE_MIB_RELS_FSM_TIMEOUT_INT	12
+#define DSAF_SBM_PPE_MIB_REQ_FSM_TIMEOUT_INT	11
+#define DSAF_SBM_PPE_MIB_REQ_FAILED_INT		10
+#define DSAF_SBM_PPE_LNK_ECC_2BIT_INT		9
+#define DSAF_SBM_PPE_LNK_FSM_TIMEOUT_INT	8
+#define DSAF_XID_PPE_LONG_PKT_LEN_INT		4
+#define DSAF_XID_PPE_SHT_PKT_LEN_INT		3
+#define DSAF_XID_PPE_LONG_MCAST_PKT_INT		2
+#define DSAF_XID_PPE_LKTB_RSLT_ERR_INT		1
+#define DSAF_XID_PPE_FSM_TIMEOUT_INT		0
+
+#define DSAF_EVENT_NAME_LEN		32
+#define DSAF_INVALID_VIRQ		(-1)
+#define DSAF_INVALID_INT_INDEX		0xFFFFFF
+
+#define REG_STEP_SHIFT		2
+
+struct hns_irq_info {
+	int virq;
+	char irq_name[DSAF_EVENT_NAME_LEN];
+	unsigned long last_jiffies;
+	u32 total;
+};
+
+#define HNS_LIMIT_PRINT_TIME	(10 * HZ)
+#define HNS_LIMIT_IRQ_FREQ	1000
+
 static inline void dsaf_write_reg(void __iomem *base, u32 reg, u32 value)
 {
 	writel(value, base + reg);
@@ -1096,5 +1163,14 @@ static inline u32 dsaf_get_reg_field(void __iomem *base, u32 reg, u32 mask,
 
 #define hns_mac_reg_read64(drv, offset) \
 	readq((__iomem void *)(((u8 *)(drv)->io_base + 0xc00 + (offset))))
+
+#define net_edac_dev_err(dev, port, X, ARGS...) \
+	do {	\
+		static unsigned long last[DSAF_SERVICE_NW_NUM];  \
+		if (time_after_eq(jiffies, last[port])) { \
+			last[port] = jiffies + HNS_LIMIT_PRINT_TIME; \
+			pr_err("CHIP_ERR: nic %s " X, dev_name(dev), ##ARGS); \
+		} \
+	} while (0)
 
 #endif	/* _DSAF_REG_H */

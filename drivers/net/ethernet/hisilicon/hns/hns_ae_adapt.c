@@ -889,6 +889,54 @@ static int hns_ae_set_rss(struct hnae_handle *handle, const u32 *indir,
 	return 0;
 }
 
+static int hns_ae_port_irq_init(struct hnae_handle *handle)
+{
+	struct dsaf_device *dsaf_dev;
+	int ret;
+
+	if (handle->irq_en)
+		return 0;
+
+	dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
+
+	/* only register for service port and 161x */
+	if ((handle->dport_id >= DSAF_SERVICE_NW_NUM) ||
+	    AE_IS_VER1(dsaf_dev->dsaf_ver))
+		return 0;
+
+	ret = hns_dsaf_xbar_irq_init(dsaf_dev, handle->dport_id);
+	if (ret)
+		goto xbar_irq_failed;
+
+	handle->irq_en = 1;
+	return 0;
+
+xbar_irq_failed:
+	return ret;
+}
+
+static void hns_ae_port_irq_free(struct hnae_handle *handle)
+{
+	struct dsaf_device *dsaf_dev;
+	struct hns_mac_cb *mac_cb;
+
+	if (!handle->irq_en)
+		return;
+
+	dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
+
+	/* only register for service port and 161x */
+	if ((handle->dport_id >= DSAF_SERVICE_NW_NUM) ||
+	    AE_IS_VER1(dsaf_dev->dsaf_ver))
+		return;
+
+	mac_cb = hns_get_mac_cb(handle);
+
+	hns_dsaf_xbar_irq_free(dsaf_dev, handle->dport_id);
+
+	handle->irq_en = 0;
+}
+
 static struct hnae_ae_ops hns_dsaf_ops = {
 	.get_handle = hns_ae_get_handle,
 	.put_handle = hns_ae_put_handle,
@@ -931,7 +979,9 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.get_rss_key_size = hns_ae_get_rss_key_size,
 	.get_rss_indir_size = hns_ae_get_rss_indir_size,
 	.get_rss = hns_ae_get_rss,
-	.set_rss = hns_ae_set_rss
+	.set_rss = hns_ae_set_rss,
+	.port_irq_init = hns_ae_port_irq_init,
+	.port_irq_free = hns_ae_port_irq_free,
 };
 
 int hns_dsaf_ae_init(struct dsaf_device *dsaf_dev)

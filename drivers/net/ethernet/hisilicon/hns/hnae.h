@@ -534,6 +534,8 @@ struct hnae_ae_ops {
 			   u8 *hfunc);
 	int	(*set_rss)(struct hnae_handle *handle, const u32 *indir,
 			   const u8 *key, const u8 hfunc);
+	int (*port_irq_init)(struct hnae_handle *handle);
+	void (*port_irq_free)(struct hnae_handle *handle);
 };
 
 struct hnae_ae_dev {
@@ -554,6 +556,7 @@ struct hnae_handle {
 	struct phy_device *phy_dev;
 	phy_interface_t phy_if;
 	u32 if_support;
+	int irq_en;
 	int q_num;
 	int vf_id;
 	u32 coal_param;		/* self adapt coalesce param */

@@ -42,6 +42,25 @@ static const struct acpi_device_id hns_dsaf_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, hns_dsaf_acpi_match);
 
+static int hns_dsaf_get_xbar_irq(struct platform_device *pdev,
+				 struct dsaf_device *dsaf_dev,
+				 int index, int *virq_record) {
+	int virq;
+
+	virq = platform_get_irq(pdev, index);
+	if (virq < 0) {
+		dev_err(dsaf_dev->dev,
+			"dasf platform_get_irq failed. error code=%d, index=%d\n",
+			virq, index);
+
+		*virq_record = DSAF_INVALID_VIRQ;
+		return virq;
+	}
+
+	*virq_record = virq;
+	return 0;
+}
+
 int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 {
 	int ret, i;
@@ -54,6 +73,7 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 	struct resource *res;
 	struct device_node *np = dsaf_dev->dev->of_node, *np_temp;
 	struct platform_device *pdev = to_platform_device(dsaf_dev->dev);
+	struct hns_irq_info *irq_info;
 
 	if (dev_of_node(dsaf_dev->dev)) {
 		if (of_device_is_compatible(np, "hisilicon,hns-dsaf-v1"))
@@ -205,6 +225,34 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 		dev_dbg(dsaf_dev->dev, "set mask to 64bit\n");
 	else
 		dev_err(dsaf_dev->dev, "set mask to 64bit fail!\n");
+
+	if (!AE_IS_VER1(dsaf_dev->dsaf_ver)) {
+		for (i = 0; i < DSAF_COMM_CHN; i++) {
+			irq_info = &dsaf_dev->irq_xge_info[i];
+			ret = hns_dsaf_get_xbar_irq(pdev, dsaf_dev,
+						    DSAF_0_XGE_INT_INDEX + i,
+						    &irq_info->virq);
+			if (ret)
+				return 0;
+
+			snprintf(irq_info->irq_name,
+				 DSAF_EVENT_NAME_LEN, "xbar_xge_irq%d", i);
+			irq_info->irq_name[DSAF_EVENT_NAME_LEN - 1] = '\0';
+		}
+
+		for (i = 0; i < DSAF_COMM_CHN; i++) {
+			irq_info = &dsaf_dev->irq_ppe_info[i];
+			ret = hns_dsaf_get_xbar_irq(pdev, dsaf_dev,
+						    DSAF_0_PPE_INT_INDEX + i,
+						    &irq_info->virq);
+			if (ret)
+				return 0;
+
+			snprintf(irq_info->irq_name,
+				 DSAF_EVENT_NAME_LEN, "xbar_ppe_irq%d", i);
+			irq_info->irq_name[DSAF_EVENT_NAME_LEN - 1] = '\0';
+		}
+	}
 
 	return 0;
 }
@@ -2177,6 +2225,398 @@ void hns_dsaf_update_stats(struct dsaf_device *dsaf_dev, u32 node_num)
 	}
 	hw_stats->tx_pkts += dsaf_read_dev(dsaf_dev,
 		DSAF_XOD_RCVPKT_CNT_0_REG + 0x90 * (u64)node_num);
+}
+
+void hns_dsaf_irq_set(struct dsaf_device *dsaf_dev, int port, int en)
+{
+	u32 reg_set = en ? HNS_DSAF_XGE_IRQ_ENABLE_MSK :
+		HNS_DSAF_IRQ_DISABLE_MSK;
+
+	dsaf_write_dev(dsaf_dev,
+		       (DSAF_XGE_INT_MSK_0_REG + (port << REG_STEP_SHIFT)),
+		       reg_set);
+
+	reg_set = en ? HNS_DSAF_PPE_IRQ_ENABLE_MSK :
+		HNS_DSAF_IRQ_DISABLE_MSK;
+	dsaf_write_dev(dsaf_dev,
+		       (DSAF_PPE_INT_MSK_0_REG + (port << REG_STEP_SHIFT)),
+		       reg_set);
+}
+
+void hns_dsaf_irq_clear(struct dsaf_device *dsaf_dev, int port)
+{
+	/* erver irq src write 1 to clear */
+	dsaf_write_dev(dsaf_dev,
+		       (DSAF_XGE_INT_SRC_0_REG + (port << REG_STEP_SHIFT)),
+		       0xFFFFFFFFU);
+	dsaf_write_dev(dsaf_dev,
+		       (DSAF_PPE_INT_SRC_0_REG + (port << REG_STEP_SHIFT)),
+		       0xFFFFFFFFU);
+}
+
+static irqreturn_t xbar_xge_int_handler(int irq, void *dev)
+{
+	struct dsaf_device *dsaf_dev = (struct dsaf_device *)dev;
+	unsigned long next;
+	u32 int_sts;
+	u32 port_id;
+	int i;
+
+	if (unlikely(!dsaf_dev)) {
+		pr_err("dsaf_dev %p  virq %d input error.\n", dsaf_dev, irq);
+		return IRQ_NONE;
+	}
+
+	for (i = 0; i < XGE_XBAR_NUM; i++) {
+		if (irq == dsaf_dev->irq_xge_info[i].virq)
+			break;
+	}
+	port_id = i;
+
+	if (port_id >= XGE_XBAR_NUM) {
+		pr_err("dsaf_dev %p port_id %u virq %d input error.\n",
+		       dsaf_dev, port_id, irq);
+		return IRQ_NONE;
+	}
+
+	int_sts = dsaf_read_dev(dsaf_dev, DSAF_XGE_INT_STS_0_REG +
+				(port_id << REG_STEP_SHIFT));
+	dsaf_write_dev(dsaf_dev, DSAF_XGE_INT_MSK_0_REG +
+		       (port_id << REG_STEP_SHIFT),
+		       HNS_DSAF_IRQ_DISABLE_MSK);
+
+	if (dsaf_get_bit(int_sts, DSAF_VOQ_XGE_START_TO_OVER_0_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u warning, cause: dsaf_voq_xge_start_to_over_0.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_VOQ_XGE_START_TO_OVER_1_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u warning, cause: dsaf_voq_xge_start_to_over_1.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_SRAM_ECC_2BIT_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u warning, cause: dsaf_sbm_xge_sram_ecc_2bit.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_FSM_TIMEOUT_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has repairable error, cause: dsaf_xid_xge_fsm_timeout.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_LNK_FSM_TIMEOUT_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_lnk_fsm_timeout.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_REQ_FAILED_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_req_failed.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_REQ_FSM_TIMEOUT_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_req_fsm_timeout.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_RELS_FSM_TIMOUT_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_rels_fsm_timeout.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_REQ_EXTRA_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_req_extra.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_RELS_EXTRA_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_rels_extra.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_LNK_ECC_2BIT_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_lnk_ecc_2bit.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_ECC_ERR_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has repairable error, cause: dsaf_xid_xge_ecc_err.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_VOQ_XGE_ECC_ERR_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has repairable error, cause: dsaf_voq_xge_ecc_err.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_LKTB_RSLT_ERR_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has configurable error, cause: dsaf_xid_xge_lktb_rslt_err.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_SHT_PKT_LEN_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has configurable error, cause: dsaf_xid_xge_sht_pkt_len.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_LONG_PKT_LEN_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has configurable error, cause: dsaf_xid_xge_long_pkt_len.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_BUF_SUM_ERR_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_mib_buf_sum_err.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_CFG_RESET_BUF_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_cfg_reset_buf.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_CFG_SET_BUF_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_cfg_set_buf.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_PFC_EN_PART_CFG_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_pfc_en_part_cfg.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_PFC_EN_ALLONE_CFG_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_pfc_en_allone_cfg.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_PFC_EN_ALLZERO_CFG_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_pfc_en_allzero_cfg.\n",
+				 port_id);
+
+	if (int_sts) {
+		dsaf_write_dev(dsaf_dev, DSAF_XGE_INT_SRC_0_REG +
+			       (port_id << REG_STEP_SHIFT),
+			       int_sts);
+	}
+
+	dsaf_dev->irq_xge_info[port_id].total++;
+	if (dsaf_dev->irq_xge_info[port_id].total < HNS_LIMIT_IRQ_FREQ) {
+		next = dsaf_dev->irq_xge_info[port_id].last_jiffies + HZ;
+		if (time_after_eq(jiffies, next)) {
+			dsaf_dev->irq_xge_info[port_id].last_jiffies = jiffies;
+			dsaf_dev->irq_xge_info[port_id].total = 0;
+		}
+		dsaf_write_dev(dsaf_dev, DSAF_XGE_INT_MSK_0_REG +
+			       (port_id << REG_STEP_SHIFT),
+			       HNS_DSAF_XGE_IRQ_ENABLE_MSK);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t xbar_ppe_int_handler(int irq, void *dev)
+{
+	struct dsaf_device *dsaf_dev = (struct dsaf_device *)dev;
+	unsigned long next;
+	u32 int_sts;
+	u32 port_id;
+	int i;
+
+	if (unlikely(!dsaf_dev)) {
+		pr_err("dsaf_dev %p  virq %d input error.\n", dsaf_dev, irq);
+		return IRQ_NONE;
+	}
+
+	for (i = 0; i < PPE_XBAR_NUM; i++) {
+		if (irq == dsaf_dev->irq_ppe_info[i].virq)
+			break;
+	}
+	port_id = i;
+
+	if (port_id >= PPE_XBAR_NUM) {
+		pr_err("dsaf_dev %p port_id %u virq %d input error.\n",
+		       dsaf_dev, port_id, irq);
+		return IRQ_NONE;
+	}
+
+	int_sts = dsaf_read_dev(dsaf_dev,
+				(DSAF_PPE_INT_STS_0_REG +
+				(port_id << REG_STEP_SHIFT)));
+	dsaf_write_dev(dsaf_dev,
+		       (DSAF_PPE_INT_MSK_0_REG + (port_id << REG_STEP_SHIFT)),
+		       HNS_DSAF_IRQ_DISABLE_MSK);
+
+	if (dsaf_get_bit(int_sts, DSAF_VOQ_PPE_START_TO_OVER_0_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u warning, cause: dsaf_voq_ppe_start_to_over_0.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_XID_PPE_FSM_TIMEOUT_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u warning, cause: dsaf_xid_ppe_fsm_timeout.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_SRAM_ECC_2BIT_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u warning, cause: dsaf_sbm_ppe_sram_ecc_2bit.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_VOQ_PPE_ECC_ERR_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has repairable error, cause: dsaf_voq_ppe_ecc_err.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_LNK_ECC_2BIT_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_lnk_ecc_2bit.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_RELS_EXTRA_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_rels_extra.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_REQ_EXTRA_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_req_extra.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_RELS_FSM_TIMEOUT_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_rels_fsm_timeout.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_REQ_FSM_TIMEOUT_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_req_fsm_timeout.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_REQ_FAILED_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_req_failed.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_LNK_FSM_TIMEOUT_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_lnk_fsm_timeout.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_XOD_PPE_FIFO_WR_FULL_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has repairable error, cause: dsaf_xod_ppe_fifo_wr_full.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_XOD_PPE_FIFO_RD_EMPTY_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has repairable error, cause: dsaf_xod_ppe_fifo_rd_empty.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_CFG_USEFUL_PID_NUM_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has configurable error, cause: dsaf_sbm_ppe_cfg_useful_pid_num.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_BUF_SUM_ERR_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has configurable error, cause: dsaf_sbm_ppe_mib_buf_sum_err.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_XID_PPE_LONG_PKT_LEN_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has configurable error, cause: dsaf_xid_ppe_long_pkt_len.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_XID_PPE_LONG_MCAST_PKT_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has configurable error, cause: dsaf_xid_ppe_long_mcast_pkt.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, DSAF_XID_PPE_LKTB_RSLT_ERR_INT))
+		net_edac_dev_err(dsaf_dev->dev, 0,
+				 "ppe xbar%u has configurable error, cause: dsaf_xid_ppe_lktb_rslt_err.\n",
+				 port_id);
+
+	if (int_sts)
+		dsaf_write_dev(dsaf_dev,
+			       (DSAF_PPE_INT_SRC_0_REG +
+			       (port_id << REG_STEP_SHIFT)), int_sts);
+
+	dsaf_dev->irq_ppe_info[port_id].total++;
+	if (dsaf_dev->irq_ppe_info[port_id].total < HNS_LIMIT_IRQ_FREQ) {
+		next = dsaf_dev->irq_ppe_info[port_id].last_jiffies + HZ;
+		if (time_after_eq(jiffies, next)) {
+			dsaf_dev->irq_ppe_info[port_id].last_jiffies = jiffies;
+			dsaf_dev->irq_ppe_info[port_id].total = 0;
+		}
+		dsaf_write_dev(dsaf_dev, (DSAF_PPE_INT_MSK_0_REG +
+			       (port_id << REG_STEP_SHIFT)),
+			       HNS_DSAF_PPE_IRQ_ENABLE_MSK);
+	}
+
+	return IRQ_HANDLED;
+}
+
+int hns_dsaf_xbar_irq_init(struct dsaf_device *dsaf_dev, int port_id)
+{
+	int ret;
+	int xge_virq = dsaf_dev->irq_xge_info[port_id].virq;
+	int ppe_virq = dsaf_dev->irq_ppe_info[port_id].virq;
+
+	if ((xge_virq == DSAF_INVALID_VIRQ) || (ppe_virq == DSAF_INVALID_VIRQ))
+		return 0;
+
+	/* close xbar irq and clear irq status */
+	hns_dsaf_irq_set(dsaf_dev, port_id, 0);
+	hns_dsaf_irq_clear(dsaf_dev, port_id);
+
+	ret = request_irq(xge_virq, xbar_xge_int_handler, 0,
+			  dsaf_dev->irq_xge_info[port_id].irq_name, dsaf_dev);
+	if (ret) {
+		dev_err(dsaf_dev->dev,
+			"dsaf request_irq failed. name:%s, virq=%d, ret=%d\n",
+			 dsaf_dev->irq_xge_info[port_id].irq_name,
+			 xge_virq, ret);
+		return ret;
+	}
+	dsaf_dev->irq_xge_info[port_id].last_jiffies = jiffies;
+	dsaf_dev->irq_xge_info[port_id].total = 0;
+
+	ret = request_irq(ppe_virq, xbar_ppe_int_handler, 0,
+			  dsaf_dev->irq_ppe_info[port_id].irq_name, dsaf_dev);
+	if (ret) {
+		dev_err(dsaf_dev->dev,
+			"dsaf request_irq failed. name:%s, virq=%d, ret=%d\n",
+			dsaf_dev->irq_ppe_info[port_id].irq_name,
+			ppe_virq, ret);
+		goto xbar_xge_failed;
+	}
+	dsaf_dev->irq_ppe_info[port_id].last_jiffies = jiffies;
+	dsaf_dev->irq_ppe_info[port_id].total = 0;
+
+	hns_dsaf_irq_set(dsaf_dev, port_id, true);
+
+	return 0;
+
+xbar_xge_failed:
+	free_irq(xge_virq, dsaf_dev);
+	return ret;
+}
+
+void hns_dsaf_xbar_irq_free(struct dsaf_device *dsaf_dev, int port_id)
+{
+	if ((dsaf_dev->irq_xge_info[port_id].virq == DSAF_INVALID_VIRQ) ||
+	    (dsaf_dev->irq_ppe_info[port_id].virq == DSAF_INVALID_VIRQ))
+		return;
+
+	hns_dsaf_irq_set(dsaf_dev, port_id, 0);
+
+	disable_irq(dsaf_dev->irq_xge_info[port_id].virq);
+	free_irq(dsaf_dev->irq_xge_info[port_id].virq, dsaf_dev);
+
+	disable_irq(dsaf_dev->irq_ppe_info[port_id].virq);
+	free_irq(dsaf_dev->irq_ppe_info[port_id].virq, dsaf_dev);
 }
 
 /**
