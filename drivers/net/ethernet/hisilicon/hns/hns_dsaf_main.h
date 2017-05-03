@@ -44,6 +44,45 @@ struct hns_mac_cb;
 #define DSAF_ROCE_CREDIT_CHN	8
 #define DSAF_ROCE_CHAN_MODE	3
 
+#define HNS_DSAF_XGE_IRQ_ENABLE_MSK	\
+		(~((1U << DSAF_SBM_XGE_PFC_EN_ALLZERO_CFG_INT) | \
+		 (1U << DSAF_SBM_XGE_PFC_EN_ALLONE_CFG_INT) | \
+		 (1U << DSAF_SBM_XGE_PFC_EN_PART_CFG_INT) | \
+		 (1U << DSAF_SBM_XGE_CFG_SET_BUF_INT) | \
+		 (1U << DSAF_SBM_XGE_CFG_RESET_BUF_INT) | \
+		 (1U << DSAF_VOQ_XGE_ECC_ERR_INT) | \
+		 (1U << DSAF_SBM_XGE_MIB_RELS_EXTRA_INT) | \
+		 (1U << DSAF_SBM_XGE_MIB_REQ_EXTRA_INT) | \
+		 (1U << DSAF_SBM_XGE_MIB_BUF_SUM_ERR_INT) | \
+		 (1U << DSAF_SBM_XGE_SRAM_ECC_2BIT_INT) | \
+		 (1U << DSAF_SBM_XGE_MIB_RELS_FSM_TIMOUT_INT) | \
+		 (1U << DSAF_SBM_XGE_MIB_REQ_FSM_TIMEOUT_INT) | \
+		 (1U << DSAF_SBM_XGE_MIB_REQ_FAILED_INT) | \
+		 (1U << DSAF_SBM_XGE_LNK_ECC_2BIT_INT) | \
+		 (1U << DSAF_SBM_XGE_LNK_FSM_TIMEOUT_INT) | \
+		 (1U << DSAF_XID_XGE_SHT_PKT_LEN_INT) | \
+		 (1U << DSAF_XID_XGE_LKTB_RSLT_ERR_INT) | \
+		 (1U << DSAF_XID_XGE_ECC_ERR_INT)))
+
+#define HNS_DSAF_PPE_IRQ_ENABLE_MSK	\
+		(~((1U << DSAF_XOD_PPE_FIFO_WR_FULL_INT) | \
+		 (1U << DSAF_XOD_PPE_FIFO_RD_EMPTY_INT) | \
+		 (1U << DSAF_VOQ_PPE_ECC_ERR_INT) | \
+		 (1U << DSAF_SBM_PPE_CFG_USEFUL_PID_NUM_INT) | \
+		 (1U << DSAF_SBM_PPE_MIB_RELS_EXTRA_INT) | \
+		 (1U << DSAF_SBM_PPE_MIB_REQ_EXTRA_INT) | \
+		 (1U << DSAF_SBM_PPE_MIB_BUF_SUM_ERR_INT) | \
+		 (1U << DSAF_SBM_PPE_SRAM_ECC_2BIT_INT) | \
+		 (1U << DSAF_SBM_PPE_MIB_RELS_FSM_TIMEOUT_INT) | \
+		 (1U << DSAF_SBM_PPE_MIB_REQ_FSM_TIMEOUT_INT) | \
+		 (1U << DSAF_SBM_PPE_MIB_REQ_FAILED_INT) | \
+		 (1U << DSAF_SBM_PPE_LNK_ECC_2BIT_INT) | \
+		 (1U << DSAF_SBM_PPE_LNK_FSM_TIMEOUT_INT) | \
+		 (1U << DSAF_XID_PPE_LONG_MCAST_PKT_INT) | \
+		 (1U << DSAF_XID_PPE_LKTB_RSLT_ERR_INT)))
+
+#define HNS_DSAF_IRQ_DISABLE_MSK	(0xFFFFFFFFU)
+
 enum dsaf_roce_port_mode {
 	DSAF_ROCE_6PORT_MODE,
 	DSAF_ROCE_4PORT_MODE,
@@ -68,7 +107,7 @@ enum dsaf_roce_qos_sl {
 };
 
 #define DSAF_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
-#define HNS_DSAF_IS_DEBUG(dev) (dev->dsaf_mode == DSAF_MODE_DISABLE_SP)
+#define HNS_DSAF_IS_DEBUG(dev) ((dev)->dsaf_mode == DSAF_MODE_DISABLE_SP)
 
 enum hal_dsaf_mode {
 	HRD_DSAF_NO_DSAF_MODE	= 0x0,
@@ -341,6 +380,9 @@ struct dsaf_device {
 	u32 dsaf_ver;
 	u16 tcam_max_num;	/* max TCAM entry for user except promisc */
 
+	struct hns_irq_info irq_xge_info[XGE_XBAR_NUM];
+	struct hns_irq_info irq_ppe_info[PPE_XBAR_NUM];
+
 	struct ppe_common_cb *ppe_common[DSAF_COMM_DEV_NUM];
 	struct rcb_common_cb *rcb_common[DSAF_COMM_DEV_NUM];
 	struct hns_mac_cb *mac_cb[DSAF_MAX_PORT_NUM];
@@ -429,23 +471,12 @@ static inline struct hnae_vf_cb *hns_ae_get_vf_cb(
 
 int hns_dsaf_set_mac_uc_entry(struct dsaf_device *dsaf_dev,
 			      struct dsaf_drv_mac_single_dest_entry *mac_entry);
-int hns_dsaf_set_mac_mc_entry(struct dsaf_device *dsaf_dev,
-			      struct dsaf_drv_mac_multi_dest_entry *mac_entry);
 int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     struct dsaf_drv_mac_single_dest_entry *mac_entry);
 int hns_dsaf_del_mac_entry(struct dsaf_device *dsaf_dev, u16 vlan_id,
 			   u8 in_port_num, u8 *addr);
 int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     struct dsaf_drv_mac_single_dest_entry *mac_entry);
-int hns_dsaf_get_mac_uc_entry(struct dsaf_device *dsaf_dev,
-			      struct dsaf_drv_mac_single_dest_entry *mac_entry);
-int hns_dsaf_get_mac_mc_entry(struct dsaf_device *dsaf_dev,
-			      struct dsaf_drv_mac_multi_dest_entry *mac_entry);
-int hns_dsaf_get_mac_entry_by_index(
-	struct dsaf_device *dsaf_dev,
-	u16 entry_index,
-	struct dsaf_drv_mac_multi_dest_entry *mac_entry);
-
 void hns_dsaf_fix_mac_mode(struct hns_mac_cb *mac_cb);
 
 int hns_dsaf_ae_init(struct dsaf_device *dsaf_dev);
@@ -474,6 +505,9 @@ int hns_dsaf_rm_mac_addr(
 
 int hns_dsaf_clr_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     u8 mac_id, u8 port_num);
-
+int hns_dsaf_xbar_irq_init(struct dsaf_device *dsaf_dev, int port_id);
+void hns_dsaf_xbar_irq_free(struct dsaf_device *dsaf_dev, int port_id);
+void hns_dsaf_irq_set(struct dsaf_device *dsaf_dev, int port, int en);
+void hns_dsaf_irq_clear(struct dsaf_device *dsaf_dev, int port);
 
 #endif /* __HNS_DSAF_MAIN_H__ */

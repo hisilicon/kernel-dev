@@ -8,6 +8,7 @@
  */
 
 #include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/platform_device.h>
 #include <linux/of_mdio.h>
 #include "hns_dsaf_main.h"
 #include "hns_dsaf_mac.h"
@@ -227,6 +228,124 @@ static void hns_xgmac_init(void *mac_drv)
 	hns_xgmac_disable(mac_drv, MAC_COMM_MODE_RX_AND_TX);
 }
 
+static void hns_xgmac_event_enable_hw(struct mac_driver *mac_drv)
+{
+	dsaf_write_dev(mac_drv, XGMAC_INT_ENABLE_REG, XGE_INT_EN_MASK);
+}
+
+static void hns_xgmac_event_disable_hw(struct mac_driver *mac_drv)
+{
+	dsaf_write_dev(mac_drv, XGMAC_INT_ENABLE_REG, ~XGE_INT_EN_MASK);
+}
+
+static irqreturn_t xge_status_int_handler(int irq, void *mac_drv)
+{
+	struct mac_driver *drv = (struct mac_driver *)mac_drv;
+	unsigned long next;
+	u32 port_id;
+	u32 int_sts;
+
+	port_id = drv->mac_id;
+	int_sts = dsaf_read_dev(drv, XGMAC_INT_STATUS_REG);
+	hns_xgmac_event_disable_hw(drv);
+
+	if (dsaf_get_bit(int_sts, XGE_MIB_ECCERR_MUL_INT))
+		net_edac_dev_err(drv->dev, port_id,
+				 "xge%d has repairable error, cause: mib_eccerr_mul.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, XGE_FEC_ECCERR_MUL_INT))
+		net_edac_dev_err(drv->dev, port_id,
+				 "xge%d has repairable error, cause: fec_eccerr_mul.\n",
+				 port_id);
+
+	if (int_sts)
+		dsaf_write_dev(drv, XGMAC_INT_STATUS_REG, int_sts);
+
+	drv->mac_cb->irq_info.total++;
+	if (drv->mac_cb->irq_info.total < HNS_LIMIT_IRQ_FREQ) {
+		hns_xgmac_event_enable_hw(drv);
+		next = drv->mac_cb->irq_info.last_jiffies + HZ;
+		if (time_after_eq(jiffies, next)) {
+			drv->mac_cb->irq_info.last_jiffies = jiffies;
+			drv->mac_cb->irq_info.total = 0;
+		}
+	}
+
+	return IRQ_HANDLED;
+}
+
+static int hns_xgmac_get_irq(struct platform_device *pdev, void *mac_drv)
+{
+	struct dsaf_device *dsaf_dev;
+	struct mac_driver *drv;
+	int virq;
+	int index;
+
+	drv = (struct mac_driver *)mac_drv;
+	dsaf_dev = drv->mac_cb->dsaf_dev;
+	index = XGE_0_INT_INDEX + drv->mac_id;
+
+	virq = DSAF_INVALID_VIRQ;
+	if (!AE_IS_VER1(dsaf_dev->dsaf_ver) &&
+	    drv->mac_cb->mac_type == HNAE_PORT_SERVICE) {
+		virq = platform_get_irq(pdev, index);
+		if (virq < 0) {
+			dev_err(drv->mac_cb->dsaf_dev->dev,
+				"XGE(%d) platform_get_irq failed. error code=%d\n",
+				drv->mac_id, virq);
+			/* some products will not support abnormal irq */
+			virq = DSAF_INVALID_VIRQ;
+		}
+	}
+
+	drv->mac_cb->irq_info.virq = virq;
+	snprintf(drv->mac_cb->irq_info.irq_name, DSAF_EVENT_NAME_LEN,
+		 "xge_event_irq%d", drv->mac_id);
+	drv->mac_cb->irq_info.irq_name[DSAF_EVENT_NAME_LEN - 1] = '\0';
+
+	return 0;
+}
+
+static int hns_xgmac_event_irq_init(void *mac_drv)
+{
+	int ret;
+	struct mac_driver *drv = (struct mac_driver *)mac_drv;
+	char *name = drv->mac_cb->irq_info.irq_name;
+	int virq = drv->mac_cb->irq_info.virq;
+
+	if (virq < 0)
+		return 0;
+
+	hns_xgmac_event_disable_hw(drv);
+	dsaf_write_dev(drv, XGMAC_INT_STATUS_REG, 0xFFFFFFFF);
+
+	ret = request_irq(virq, xge_status_int_handler, 0, name, mac_drv);
+	if (ret) {
+		dev_err(drv->mac_cb->dsaf_dev->dev,
+			"mac(%d) request_irq failed. virq=%d, ret=%d\n",
+			drv->mac_id, virq, ret);
+		return ret;
+	}
+	drv->mac_cb->irq_info.last_jiffies = jiffies;
+	drv->mac_cb->irq_info.total = 0;
+
+	hns_xgmac_event_enable_hw(drv);
+	return 0;
+}
+
+static void hns_xgmac_event_irq_free(void *mac_drv)
+{
+	struct mac_driver *drv = (struct mac_driver *)mac_drv;
+
+	if (drv->mac_cb->irq_info.virq < 0)
+		return;
+
+	hns_xgmac_event_disable_hw(drv);
+	disable_irq(drv->mac_cb->irq_info.virq);
+	free_irq(drv->mac_cb->irq_info.virq, mac_drv);
+}
+
 /**
  *hns_xgmac_config_pad_and_crc - set xgmac pad and crc enable the same time
  *@mac_drv: mac driver
@@ -297,18 +416,6 @@ static void hns_xgmac_set_tx_auto_pause_frames(void *mac_drv, u16 enable)
 	/*if enable is not zero ,set tx pause time */
 	if (enable)
 		dsaf_write_dev(drv, XGMAC_MAC_PAUSE_TIME_REG, enable);
-}
-
-/**
- *hns_xgmac_get_id - get xgmac port id
- *@mac_drv: mac driver
- *@newval:xgmac max frame length
- */
-static void hns_xgmac_get_id(void *mac_drv, u8 *mac_id)
-{
-	struct mac_driver *drv = (struct mac_driver *)mac_drv;
-
-	*mac_id = drv->mac_id;
 }
 
 /**
@@ -833,7 +940,6 @@ void *hns_xgmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 	mac_drv->config_half_duplex = NULL;
 	mac_drv->set_rx_ignore_pause_frames =
 		hns_xgmac_set_rx_ignore_pause_frames;
-	mac_drv->mac_get_id = hns_xgmac_get_id;
 	mac_drv->mac_free = hns_xgmac_free;
 	mac_drv->adjust_link = NULL;
 	mac_drv->set_tx_auto_pause_frames = hns_xgmac_set_tx_auto_pause_frames;
@@ -849,6 +955,9 @@ void *hns_xgmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 	mac_drv->get_regs_count = hns_xgmac_get_regs_count;
 	mac_drv->get_strings = hns_xgmac_get_strings;
 	mac_drv->update_stats = hns_xgmac_update_stats;
+	mac_drv->get_irq = hns_xgmac_get_irq;
+	mac_drv->event_irq_init = hns_xgmac_event_irq_init;
+	mac_drv->event_irq_free = hns_xgmac_event_irq_free;
 
 	return (void *)mac_drv;
 }

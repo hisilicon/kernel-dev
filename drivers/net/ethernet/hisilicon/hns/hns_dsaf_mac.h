@@ -322,6 +322,7 @@ struct hns_mac_cb {
 	u8 sfp_prsnt;
 	u8 cpld_led_value;
 	u8 mac_id;
+	struct hns_irq_info irq_info;
 
 	u8 link;
 	u8 half_duplex;
@@ -373,8 +374,6 @@ struct mac_driver {
 	void (*set_rx_ignore_pause_frames)(void *mac_drv, u32 enable);
 	/* config rx mode for promiscuous*/
 	void (*set_promiscuous)(void *mac_drv, u8 enable);
-	/* get mac id */
-	void (*mac_get_id)(void *mac_drv, u8 *mac_id);
 	void (*mac_pausefrm_cfg)(void *mac_drv, u32 rx_en, u32 tx_en);
 
 	void (*autoneg_stat)(void *mac_drv, u32 *enable);
@@ -396,6 +395,10 @@ struct mac_driver {
 	void (*get_info)(void *mac_drv, struct mac_info *mac_info);
 
 	void (*update_stats)(void *mac_drv);
+
+	int (*get_irq)(struct platform_device *pdev, void *mac_drv);
+	int (*event_irq_init)(void *mac_drv);
+	void (*event_irq_free)(void *mac_drv);
 
 	enum mac_mode mac_mode;
 	u8 mac_id;
@@ -434,9 +437,10 @@ int hns_mac_change_vf_addr(struct hns_mac_cb *mac_cb, u32 vmid, char *addr);
 int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
 		      u32 port_num, char *addr, bool enable);
 int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vm, bool enable);
+int hns_mac_irq_init(struct hns_mac_cb *mac_cb);
+void hns_mac_irq_free(struct hns_mac_cb *mac_cb);
 void hns_mac_start(struct hns_mac_cb *mac_cb);
 void hns_mac_stop(struct hns_mac_cb *mac_cb);
-int hns_mac_del_mac(struct hns_mac_cb *mac_cb, u32 vfn, char *mac);
 void hns_mac_uninit(struct dsaf_device *dsaf_dev);
 void hns_mac_adjust_link(struct hns_mac_cb *mac_cb, int speed, int duplex);
 void hns_mac_reset(struct hns_mac_cb *mac_cb);
@@ -444,7 +448,7 @@ void hns_mac_get_autoneg(struct hns_mac_cb *mac_cb, u32 *auto_neg);
 void hns_mac_get_pauseparam(struct hns_mac_cb *mac_cb, u32 *rx_en, u32 *tx_en);
 int hns_mac_set_autoneg(struct hns_mac_cb *mac_cb, u8 enable);
 int hns_mac_set_pauseparam(struct hns_mac_cb *mac_cb, u32 rx_en, u32 tx_en);
-int hns_mac_set_mtu(struct hns_mac_cb *mac_cb, u32 new_mtu);
+int hns_mac_set_mtu(struct hns_mac_cb *mac_cb, u32 new_mtu, u32 buf_size);
 int hns_mac_get_port_info(struct hns_mac_cb *mac_cb,
 			  u8 *auto_neg, u16 *speed, u8 *duplex);
 int hns_mac_config_mac_loopback(struct hns_mac_cb *mac_cb,

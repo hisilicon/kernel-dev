@@ -117,10 +117,17 @@ static void __iomem *hns_ppe_get_iobase(struct ppe_common_cb *ppe_common,
 
 static void hns_ppe_get_cfg(struct ppe_common_cb *ppe_common)
 {
-	u32 i;
+	struct platform_device *pdev;
+	struct dsaf_device *dsaf_dev;
 	struct hns_ppe_cb *ppe_cb;
-	u32 ppe_num = ppe_common->ppe_num;
+	int irq_index;
+	u32 ppe_num;
+	int virq;
+	u32 i;
 
+	dsaf_dev = ppe_common->dsaf_dev;
+	ppe_num = ppe_common->ppe_num;
+	pdev = to_platform_device(dsaf_dev->dev);
 	for (i = 0; i < ppe_num; i++) {
 		ppe_cb = &ppe_common->ppe_cb[i];
 		ppe_cb->dev = ppe_common->dev;
@@ -128,7 +135,25 @@ static void hns_ppe_get_cfg(struct ppe_common_cb *ppe_common)
 		ppe_cb->ppe_common_cb = ppe_common;
 		ppe_cb->index = i;
 		ppe_cb->io_base = hns_ppe_get_iobase(ppe_common, i);
-		ppe_cb->virq = 0;
+		virq = DSAF_INVALID_VIRQ;
+		if (!AE_IS_VER1(dsaf_dev->dsaf_ver) &&
+		    !HNS_DSAF_IS_DEBUG(dsaf_dev)) {
+			irq_index = PPE_SERVICE_CHANNEL_INDEX_0 + i;
+			virq = platform_get_irq(pdev, irq_index);
+			if (virq < 0) {
+				dev_err(dsaf_dev->dev,
+					"ppe(%d) platform_get_irq failed. error code=%d, index=%d\n",
+					i, virq, irq_index);
+				ppe_cb->irq_info.virq = DSAF_INVALID_VIRQ;
+				continue;
+			}
+			snprintf(ppe_cb->irq_info.irq_name, DSAF_EVENT_NAME_LEN,
+				 "ppe_irq%d", i);
+			ppe_cb->irq_info.irq_name[DSAF_EVENT_NAME_LEN - 1]
+				= '\0';
+		}
+
+		ppe_cb->irq_info.virq = virq;
 	}
 }
 
@@ -272,6 +297,17 @@ static void hns_ppe_exc_irq_en(struct hns_ppe_cb *ppe_cb, int en)
 
 	/*for some reserved bits, so set 0**/
 	dsaf_write_dev(ppe_cb, PPE_INTEN_REG, msk_vlue & vld_msk);
+}
+
+void hns_ppe_irq_set(struct hns_ppe_cb *ppe_cb, int en)
+{
+	dsaf_write_dev(ppe_cb, PPE_INTEN_REG,
+		       en ? HNS_PPE_IRQ_ENABLE : HNS_PPE_IRQ_DISABLE);
+}
+
+void hns_ppe_irq_clear(struct hns_ppe_cb *ppe_cb)
+{
+	dsaf_write_dev(ppe_cb, PPE_RINT_REG, 0xFFFFFFFFU);
 }
 
 /**
@@ -489,6 +525,110 @@ void hns_ppe_get_stats(struct hns_ppe_cb *ppe_cb, u64 *data)
 	regs_buff[11] = hw_stats->tx_err_checksum;
 }
 
+static irqreturn_t ppe_channel_int_handler(int irq, void *ppe_cb)
+{
+	struct hns_ppe_cb *irq_ppe_cb = (struct hns_ppe_cb *)ppe_cb;
+	int port_id = irq_ppe_cb->index;
+	unsigned long next;
+	u32 int_sts;
+
+	int_sts = dsaf_read_dev(irq_ppe_cb, PPE_INTSTS_REG);
+	hns_ppe_irq_set(irq_ppe_cb, 0);
+
+	if (dsaf_get_bit(int_sts, PPE_DDR_RW_INT))
+		net_edac_dev_err(irq_ppe_cb->dev, port_id,
+				 "ppe_cb(%u) has configure error, cause: ppe_ddr_rw.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, PPE_TX_DROP_INT))
+		net_edac_dev_err(irq_ppe_cb->dev, port_id,
+				 "ppe_cb(%u) has configure error, cause: ppe_tx_drop.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, PPE_RX_SRAM_PAR_INT))
+		net_edac_dev_err(irq_ppe_cb->dev, port_id,
+				 "ppe_cb(%u) has unrepairable error, cause: ppe_rx_sram_par.\n",
+				 port_id);
+
+	if (dsaf_get_bit(int_sts, PPE_TX_SRAM_PAR_INT))
+		net_edac_dev_err(irq_ppe_cb->dev, port_id,
+				 "ppe_cb(%u) has unrepairable error, cause: ppe_tx_sram_par.\n",
+				 port_id);
+
+	if (int_sts)
+		dsaf_write_dev(irq_ppe_cb, PPE_RINT_REG, int_sts);
+
+	irq_ppe_cb->irq_info.total++;
+	if (irq_ppe_cb->irq_info.total < HNS_LIMIT_IRQ_FREQ) {
+		next = irq_ppe_cb->irq_info.last_jiffies + HZ;
+		if (time_after_eq(jiffies, next)) {
+			irq_ppe_cb->irq_info.last_jiffies = jiffies;
+			irq_ppe_cb->irq_info.total = 0;
+		}
+
+		hns_ppe_irq_set(irq_ppe_cb, 1);
+	}
+
+	return IRQ_HANDLED;
+}
+
+int hns_ppe_irq_init(struct dsaf_device *dsaf_dev, int port_id)
+{
+	struct ppe_common_cb *ppe_common;
+	struct hns_ppe_cb *ppe_cb;
+	int ret;
+
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
+	    HNS_DSAF_IS_DEBUG(dsaf_dev))
+		return 0;
+
+	/* only register for service port */
+	ppe_common = dsaf_dev->ppe_common[0];
+	ppe_cb = &ppe_common->ppe_cb[port_id];
+
+	if (ppe_cb->irq_info.virq == DSAF_INVALID_VIRQ)
+		return 0;
+
+	/* close ppe irq and clear irq status */
+	hns_ppe_irq_set(ppe_cb, 0);
+	hns_ppe_irq_clear(ppe_cb);
+
+	ret = request_irq(ppe_cb->irq_info.virq, ppe_channel_int_handler, 0,
+			  ppe_cb->irq_info.irq_name, ppe_cb);
+	if (ret) {
+		dev_err(dsaf_dev->dev,
+			"ppe(%d) request_irq failed. virq=%d, ret=%d\n",
+			port_id, ppe_cb->irq_info.virq, ret);
+		return ret;
+	}
+	ppe_cb->irq_info.last_jiffies = jiffies;
+	ppe_cb->irq_info.total = 0;
+
+	hns_ppe_irq_set(ppe_cb, 1);
+	return 0;
+}
+
+void hns_ppe_irq_free(struct dsaf_device *dsaf_dev, int port_id)
+{
+	struct ppe_common_cb *ppe_common;
+	struct hns_ppe_cb *ppe_cb;
+
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
+	    HNS_DSAF_IS_DEBUG(dsaf_dev))
+		return;
+
+	/* only register for service port */
+	ppe_common = dsaf_dev->ppe_common[0];
+	ppe_cb = &ppe_common->ppe_cb[port_id];
+
+	if (ppe_cb->irq_info.virq == DSAF_INVALID_VIRQ)
+		return;
+
+	hns_ppe_irq_set(ppe_cb, 0);
+	disable_irq(ppe_cb->irq_info.virq);
+	free_irq(ppe_cb->irq_info.virq, ppe_cb);
+}
+
 /**
  * hns_ppe_init - init ppe device
  * @dsaf_dev: dasf device
@@ -496,17 +636,17 @@ void hns_ppe_get_stats(struct hns_ppe_cb *ppe_cb, u64 *data)
  */
 int hns_ppe_init(struct dsaf_device *dsaf_dev)
 {
-	int i, k;
 	int ret;
+	int i;
 
 	for (i = 0; i < HNS_PPE_COM_NUM; i++) {
 		ret = hns_ppe_common_get_cfg(dsaf_dev, i);
 		if (ret)
-			goto get_ppe_cfg_fail;
+			goto get_cfg_fail;
 
 		ret = hns_rcb_common_get_cfg(dsaf_dev, i);
 		if (ret)
-			goto get_rcb_cfg_fail;
+			goto get_cfg_fail;
 
 		hns_ppe_get_cfg(dsaf_dev->ppe_common[i]);
 
@@ -516,15 +656,23 @@ int hns_ppe_init(struct dsaf_device *dsaf_dev)
 	for (i = 0; i < HNS_PPE_COM_NUM; i++)
 		hns_ppe_reset_common(dsaf_dev, i);
 
+	if (!AE_IS_VER1(dsaf_dev->dsaf_ver) ||
+	    !HNS_DSAF_IS_DEBUG(dsaf_dev)) {
+		/* enable common irq after reset for service port */
+		ret = hns_rcb_comm_irq_init(
+			dsaf_dev->rcb_common[0]);
+		if (ret)
+			goto get_cfg_fail;
+	}
+
 	return 0;
 
-get_rcb_cfg_fail:
-	hns_ppe_common_free_cfg(dsaf_dev, i);
-get_ppe_cfg_fail:
-	for (k = i - 1; k >= 0; k--) {
-		hns_rcb_common_free_cfg(dsaf_dev, k);
-		hns_ppe_common_free_cfg(dsaf_dev, k);
+get_cfg_fail:
+	for (i = 0; i < HNS_PPE_COM_NUM; i++) {
+		hns_rcb_common_free_cfg(dsaf_dev, i);
+		hns_ppe_common_free_cfg(dsaf_dev, i);
 	}
+
 	return ret;
 }
 

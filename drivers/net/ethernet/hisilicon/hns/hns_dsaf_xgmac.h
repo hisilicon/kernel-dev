@@ -13,4 +13,8 @@
 #define HNS_XGMAC_DUMP_NUM		214
 #define HNS_XGMAC_NO_LF_RF_INSERT	0x0
 #define HNS_XGMAC_LF_INSERT		0x2
+
+#define XGE_INT_EN_MASK ((1 << XGE_MIB_ECCERR_MUL_INT) |\
+			 (1 << XGE_FEC_ECCERR_MUL_INT))
+
 #endif

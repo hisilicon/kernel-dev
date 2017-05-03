@@ -340,6 +340,8 @@
 #define PPE_INTEN_REG				0x100
 #define PPE_RINT_REG				0x104
 #define PPE_INTSTS_REG				0x108
+#define PPE_GE_ERR_INT_MASK_REG			0x110
+#define PPE_GE_ERR_INT_STS_REG			0x114
 #define PPE_CFG_RX_PKT_INT_REG			0x140
 #define PPE_CFG_HEAT_DECT_TIME0_REG		0x144
 #define PPE_CFG_HEAT_DECT_TIME1_REG		0x148
@@ -404,11 +406,12 @@
 #define RCB_ECC_ERR_ADDR4_REG			0x460
 #define RCB_ECC_ERR_ADDR5_REG			0x464
 
-#define RCB_COM_SF_CFG_INTMASK_RING		0x480
+#define RCB_COM_SF_CFG_INTMASK_RING		0x470
+#define RCB_COM_SF_CFG_RING_STS_REG		0x474
+#define RCB_COM_SF_CFG_INTMASK_BD		0x47C
+#define RCB_COM_SF_CFG_BD_RINT_STS		0x480
 #define RCB_COM_SF_CFG_RING_STS			0x484
 #define RCB_COM_SF_CFG_RING			0x488
-#define RCB_COM_SF_CFG_INTMASK_BD		0x48C
-#define RCB_COM_SF_CFG_BD_RINT_STS		0x470
 #define RCB_COM_RCB_RD_BD_BUSY			0x490
 #define RCB_COM_RCB_FBD_CRT_EN			0x494
 #define RCB_COM_AXI_WR_ERR_INTMASK		0x498
@@ -421,7 +424,7 @@
 #define RCB_CFG_OVERTIME_REG			0x9300
 #define RCB_CFG_PKTLINE_INT_NUM_REG		0x9304
 #define RCB_CFG_OVERTIME_INT_NUM_REG		0x9308
-#define RCB_INT_GAP_TIME_REG			0x9400
+#define RCB_PORT_INT_GAPTIME_REG		0x9400
 #define RCB_PORT_CFG_OVERTIME_REG		0x9430
 
 #define RCB_RING_RX_RING_BASEADDR_L_REG		0x00000
@@ -466,6 +469,7 @@
 
 #define GMAC_DUPLEX_TYPE_REG			0x0008UL
 #define GMAC_FD_FC_TYPE_REG			0x000CUL
+#define GMAC_TX_WATER_LINE_REG			0x0010UL
 #define GMAC_FC_TX_TIMER_REG			0x001CUL
 #define GMAC_FD_FC_ADDR_LOW_REG			0x0020UL
 #define GMAC_FD_FC_ADDR_HIGH_REG		0x0024UL
@@ -912,6 +916,9 @@
 
 #define GMAC_DUPLEX_TYPE_B 0
 
+#define GMAC_TX_WATER_LINE_MASK		((1UL << 8) - 1)
+#define GMAC_TX_WATER_LINE_SHIFT	0
+
 #define GMAC_FC_TX_TIMER_S 0
 #define GMAC_FC_TX_TIMER_M 0xffff
 
@@ -1012,6 +1019,129 @@
 #define XGMAC_PAUSE_CTL_RSP_MODE_B	2
 #define XGMAC_PAUSE_CTL_TX_XOFF_B	3
 
+/* interrupt index in DTSI */
+#define DSAF_0_XGE_INT_INDEX		427
+#define DSAF_0_PPE_INT_INDEX		433
+
+#define PPE_SERVICE_CHANNEL_INDEX_0	7
+#define RCB_0_PF_INT_INDEX		3
+#define RCB_1_PF_INT_INDEX		411
+#define RCB_2_PF_INT_INDEX		420
+#define GE_0_INT_INDEX			445
+#define GE_6_INT_INDEX			416
+#define GE_7_INT_INDEX			425
+#define XGE_0_INT_INDEX			451
+#define XGE_6_INT_INDEX			417
+#define XGE_7_INT_INDEX			426
+
+#define XGE_XBAR_NUM (6U)
+#define PPE_XBAR_NUM (6U)
+
+/* RCB_COM_AXI_ERR_STS */
+#define RCB_SLV_RD_ERR_INT	5
+#define RCB_SLV_WR_ERR_INT	4
+#define RCB_MST_ERR0_INT	3
+#define RCB_MST_ERR1_INT	2
+#define RCB_MST_ERR2_INT	1
+#define RCB_MST_ERR3_INT	0
+
+/* XGE_INT_STS */
+#define XGE_LINK_UP_INT		4
+#define XGE_LINK_DOWN_INT	5
+#define XGE_LINK_LF_INT		6
+#define XGE_LINK_RF_INT		7
+#define XGE_MIB_ECCERR_MUL_INT	12
+#define XGE_FEC_ECCERR_MUL_INT	14
+#define XGE_LINK_AN_INT		15
+#define XGE_LINK_TRAIN_INT	16
+
+/* DSAF_XGE_INT_SRC */
+#define DSAF_SBM_XGE_PFC_EN_ALLZERO_CFG_INT	27
+#define DSAF_SBM_XGE_PFC_EN_ALLONE_CFG_INT	26
+#define DSAF_SBM_XGE_PFC_EN_PART_CFG_INT	25
+#define DSAF_SBM_XGE_CFG_SET_BUF_INT		24
+#define DSAF_SBM_XGE_CFG_RESET_BUF_INT		23
+#define DSAF_VOQ_XGE_ECC_ERR_INT		22
+#define DSAF_VOQ_XGE_START_TO_OVER_1_INT	21
+#define DSAF_VOQ_XGE_START_TO_OVER_0_INT	20
+#define DSAF_SBM_XGE_MIB_RELS_EXTRA_INT		16
+#define DSAF_SBM_XGE_MIB_REQ_EXTRA_INT		15
+#define DSAF_SBM_XGE_MIB_BUF_SUM_ERR_INT	14
+#define DSAF_SBM_XGE_SRAM_ECC_2BIT_INT		13
+#define DSAF_SBM_XGE_MIB_RELS_FSM_TIMOUT_INT	12
+#define DSAF_SBM_XGE_MIB_REQ_FSM_TIMEOUT_INT	11
+#define DSAF_SBM_XGE_MIB_REQ_FAILED_INT		10
+#define DSAF_SBM_XGE_LNK_ECC_2BIT_INT		9
+#define DSAF_SBM_XGE_LNK_FSM_TIMEOUT_INT	8
+#define DSAF_XID_XGE_LONG_PKT_LEN_INT		4
+#define DSAF_XID_XGE_SHT_PKT_LEN_INT		3
+#define DSAF_XID_XGE_LKTB_RSLT_ERR_INT		2
+#define DSAF_XID_XGE_FSM_TIMEOUT_INT		1
+#define DSAF_XID_XGE_ECC_ERR_INT		0
+
+/* DSAF_PPE_INT_SRC */
+#define DSAF_XOD_PPE_FIFO_WR_FULL_INT		25
+#define DSAF_XOD_PPE_FIFO_RD_EMPTY_INT		24
+#define DSAF_VOQ_PPE_ECC_ERR_INT		21
+#define DSAF_VOQ_PPE_START_TO_OVER_0_INT	20
+#define DSAF_SBM_PPE_CFG_USEFUL_PID_NUM_INT	17
+#define DSAF_SBM_PPE_MIB_RELS_EXTRA_INT		16
+#define DSAF_SBM_PPE_MIB_REQ_EXTRA_INT		15
+#define DSAF_SBM_PPE_MIB_BUF_SUM_ERR_INT	14
+#define DSAF_SBM_PPE_SRAM_ECC_2BIT_INT		13
+#define DSAF_SBM_PPE_MIB_RELS_FSM_TIMEOUT_INT	12
+#define DSAF_SBM_PPE_MIB_REQ_FSM_TIMEOUT_INT	11
+#define DSAF_SBM_PPE_MIB_REQ_FAILED_INT		10
+#define DSAF_SBM_PPE_LNK_ECC_2BIT_INT		9
+#define DSAF_SBM_PPE_LNK_FSM_TIMEOUT_INT	8
+#define DSAF_XID_PPE_LONG_PKT_LEN_INT		4
+#define DSAF_XID_PPE_SHT_PKT_LEN_INT		3
+#define DSAF_XID_PPE_LONG_MCAST_PKT_INT		2
+#define DSAF_XID_PPE_LKTB_RSLT_ERR_INT		1
+#define DSAF_XID_PPE_FSM_TIMEOUT_INT		0
+
+#define DSAF_EVENT_NAME_LEN		32
+#define DSAF_INVALID_VIRQ		(-1)
+#define DSAF_INVALID_INT_INDEX		0xFFFFFF
+
+/* PPE_RINT */
+#define PPE_PA_ST_HEAT_INT	11
+#define PPE_RX_ST_HEAT_INT	10
+#define PPE_TX_ST_HEAT_INT	9
+#define PPE_DDR_RW_INT		7
+#define PPE_RX_NO_BUF_INT	5
+#define PPE_RX_DROP_INT		4
+#define PPE_TX_DROP_INT		2
+#define PPE_TX_SRAM_PAR_INT	1
+#define PPE_RX_SRAM_PAR_INT	0
+
+/* RCB_RINT_ECC_ERR */
+#define RCB_RINT_MB_SRAM	4
+#define RCB_RINT_TX_FBD_SRAM	3
+#define RCB_RINT_TX_RING	2
+#define RCB_RINT_RX_RING	1
+#define RCB_RINT_EBD_SRAM	0
+
+/* SF_CFG_RING_STS */
+#define SF_CFG_TXRING		1
+#define SF_CFG_RXRING		0
+
+/* SF_CFG_BD_RING_STS */
+#define SF_TXRING_FBD_INT	1
+#define SF_RXRING_EBD_INT	0
+
+#define REG_STEP_SHIFT		2
+
+struct hns_irq_info {
+	int virq;
+	char irq_name[DSAF_EVENT_NAME_LEN];
+	unsigned long last_jiffies;
+	u32 total;
+};
+
+#define HNS_LIMIT_PRINT_TIME	(10 * HZ)
+#define HNS_LIMIT_IRQ_FREQ	1000
+
 static inline void dsaf_write_reg(void __iomem *base, u32 reg, u32 value)
 {
 	writel(value, base + reg);
@@ -1092,5 +1222,14 @@ static inline u32 dsaf_get_reg_field(void __iomem *base, u32 reg, u32 mask,
 
 #define hns_mac_reg_read64(drv, offset) \
 	readq((__iomem void *)(((u8 *)(drv)->io_base + 0xc00 + (offset))))
+
+#define net_edac_dev_err(dev, port, X, ARGS...) \
+	do {	\
+		static unsigned long last[DSAF_SERVICE_NW_NUM];  \
+		if (time_after_eq(jiffies, last[port])) { \
+			last[port] = jiffies + HNS_LIMIT_PRINT_TIME; \
+			pr_err("CHIP_ERR: nic %s " X, dev_name(dev), ##ARGS); \
+		} \
+	} while (0)
 
 #endif	/* _DSAF_REG_H */
