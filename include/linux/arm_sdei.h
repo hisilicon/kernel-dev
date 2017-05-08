@@ -87,6 +87,9 @@ struct sdei_registered_event {
 	void			*callback_arg;
 	u32			 event_num;
 	u8			 priority;
+
+	/* Only valid over power management events. */
+	bool			 was_enabled;
 };
 
 /* The arch code entry point should then call this when an event arrives. */
