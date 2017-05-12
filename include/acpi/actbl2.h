@@ -778,6 +778,8 @@ struct acpi_iort_smmu {
 #define ACPI_IORT_SMMU_V2               0x00000001	/* Generic SMMUv2 */
 #define ACPI_IORT_SMMU_CORELINK_MMU400  0x00000002	/* ARM Corelink MMU-400 */
 #define ACPI_IORT_SMMU_CORELINK_MMU500  0x00000003	/* ARM Corelink MMU-500 */
+#define ACPI_IORT_SMMU_CORELINK_MMU401  0x00000004	/* ARM Corelink MMU-401 */
+#define ACPI_IORT_SMMU_CAVIUM_SMMUV2    0x00000005	/* Cavium ThunderX SMMUv2 */
 
 /* Masks for Flags field above */
 
@@ -804,6 +806,12 @@ struct acpi_iort_smmu_v3 {
 	u32 gerr_gsiv;
 	u32 sync_gsiv;
 };
+
+/* Values for Model field above */
+
+#define ACPI_IORT_SMMU_V3               0x00000000	/* Generic SMMUv3 */
+#define ACPI_IORT_SMMU_HISILICON_HI161X 0x00000001	/* HiSilicon Hi161x SMMUv3 */
+#define ACPI_IORT_SMMU_CAVIUM_CN99XX    0x00000002	/* Cavium CN99xx SMMUv3 */
 
 /* Masks for Flags field above */
 
