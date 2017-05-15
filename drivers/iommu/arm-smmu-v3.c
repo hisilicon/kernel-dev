@@ -1114,8 +1114,8 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
 	arm_smmu_sync_ste_for_sid(smmu, sid);
 
 	/* It's likely that we'll want to use the new STE soon */
-	if (!(smmu->options & ARM_SMMU_OPT_SKIP_PREFETCH))
-		arm_smmu_cmdq_issue_cmd(smmu, &prefetch_cmd);
+//	if (!(smmu->options & ARM_SMMU_OPT_SKIP_PREFETCH))
+//		arm_smmu_cmdq_issue_cmd(smmu, &prefetch_cmd);
 }
 
 static void arm_smmu_init_bypass_stes(u64 *strtab, unsigned int nent)
