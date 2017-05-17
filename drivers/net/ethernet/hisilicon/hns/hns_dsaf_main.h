@@ -83,6 +83,30 @@ struct hns_mac_cb;
 
 #define HNS_DSAF_IRQ_DISABLE_MSK	(0xFFFFFFFFU)
 
+#define HNS_DSAF_MAIN_XGE_MAX_ERR_SRC 22
+#define HNS_DSAF_MAIN_PPE_MAX_ERR_SRC 15
+
+/* Vendor specific CPER SEC TYPE for HNS DSAF errors */
+#define CPER_SEC_HISI_HNS_DSAF                                          \
+	UUID_LE(0xFBC2D923, 0xEA7A, 0x453D, 0xAB, 0x13, 0x29, 0x49,     \
+	0xF5, 0xAF, 0x9E, 0x53)
+#define HNS_DSAF_VALID_ERR_COUNT   (0x1 << 0)
+#define HNS_DSAF_VALID_ERR_SRC	(0x1 << 1)
+#define HNS_DSAF_VALID_ERR_TYPE	(0x1 << 2)
+#define HNS_DSAF_VALID_PORT_ID	(0x1 << 3)
+
+#define HNS_FRU_TEXT_SIZE    128
+
+#define net_dev_err_trace(err_data, err_src, \
+				fru_text, fru_text_len, text) \
+	do {    \
+		(err_data).error_src |= err_src; \
+		(err_data).error_count++; \
+		fru_text_len = (fru_text_len) + \
+					sprintf((fru_text + (fru_text_len)), \
+						text); \
+	} while (0)
+
 enum dsaf_roce_port_mode {
 	DSAF_ROCE_6PORT_MODE,
 	DSAF_ROCE_4PORT_MODE,
@@ -392,6 +416,69 @@ struct dsaf_device {
 	struct dsaf_int_stat int_stat;
 	/* make sure tcam table config spinlock */
 	spinlock_t tcam_lock;
+};
+
+struct hns_dsaf_err_info {
+	u64   validation_bits;
+	u64   error_count;
+	u32   error_src;
+	u32   error_type;
+	u32   port_id;
+};
+
+enum err_src_hns_dsaf_xge {
+	ERR_SRC_DSAF_XGE_UNKNOWN = (0x0 << 0),
+	ERR_SRC_DSAF_VOQ_XGE_START_TO_OVER_0_INT = (0x1 << 0),
+	ERR_SRC_DSAF_VOQ_XGE_START_TO_OVER_1_INT = (0x1 << 1),
+	ERR_SRC_DSAF_SBM_XGE_SRAM_ECC_2BIT_INT = (0x1 << 2),
+	ERR_SRC_DSAF_XID_XGE_FSM_TIMEOUT_INT = (0x1 << 3),
+	ERR_SRC_DSAF_SBM_XGE_LNK_FSM_TIMEOUT_INT = (0x1 << 4),
+	ERR_SRC_DSAF_SBM_XGE_MIB_REQ_FAILED_INT = (0x1 << 5),
+	ERR_SRC_DSAF_SBM_XGE_MIB_REQ_FSM_TIMEOUT_INT = (0x1 << 6),
+	ERR_SRC_DSAF_SBM_XGE_MIB_RELS_FSM_TIMOUT_INT = (0x1 << 7),
+	ERR_SRC_DSAF_SBM_XGE_MIB_REQ_EXTRA_INT = (0x1 << 8),
+	ERR_SRC_DSAF_SBM_XGE_MIB_RELS_EXTRA_INT = (0x1 << 9),
+	ERR_SRC_DSAF_SBM_XGE_LNK_ECC_2BIT_INT = (0x1 << 10),
+	ERR_SRC_DSAF_XID_XGE_ECC_ERR_INT = (0x1 << 11),
+	ERR_SRC_DSAF_VOQ_XGE_ECC_ERR_INT = (0x1 << 12),
+	ERR_SRC_DSAF_XID_XGE_LKTB_RSLT_ERR_INT = (0x1 << 13),
+	ERR_SRC_DSAF_XID_XGE_SHT_PKT_LEN_INT = (0x1 << 14),
+	ERR_SRC_DSAF_XID_XGE_LONG_PKT_LEN_INT = (0x1 << 15),
+	ERR_SRC_DSAF_SBM_XGE_MIB_BUF_SUM_ERR_INT = (0x1 << 16),
+	ERR_SRC_DSAF_SBM_XGE_CFG_RESET_BUF_INT = (0x1 << 17),
+	ERR_SRC_DSAF_SBM_XGE_CFG_SET_BUF_INT = (0x1 << 18),
+	ERR_SRC_DSAF_SBM_XGE_PFC_EN_PART_CFG_INT = (0x1 << 19),
+	ERR_SRC_DSAF_SBM_XGE_PFC_EN_ALLONE_CFG_INT = (0x1 << 20),
+	ERR_SRC_DSAF_SBM_XGE_PFC_EN_ALLZERO_CFG_INT = (0x1 << 21),
+};
+
+enum err_src_hns_dsaf_ppe {
+	ERR_SRC_DSAF_PPE_UNKNOWN = (0x0 << 0),
+	ERR_SRC_DSAF_VOQ_PPE_START_TO_OVER_0_INT = (0x1 << 0),
+	ERR_SRC_DSAF_XID_PPE_FSM_TIMEOUT_INT = (0x1 << 1),
+	ERR_SRC_DSAF_SBM_PPE_SRAM_ECC_2BIT_INT = (0x1 << 2),
+	ERR_SRC_DSAF_VOQ_PPE_ECC_ERR_INT = (0x1 << 3),
+	ERR_SRC_DSAF_SBM_PPE_LNK_ECC_2BIT_INT = (0x1 << 4),
+	ERR_SRC_DSAF_SBM_PPE_MIB_RELS_EXTRA_INT = (0x1 << 5),
+	ERR_SRC_DSAF_SBM_PPE_MIB_REQ_EXTRA_INT = (0x1 << 6),
+	ERR_SRC_DSAF_SBM_PPE_MIB_RELS_FSM_TIMEOUT_INT = (0x1 << 7),
+	ERR_SRC_DSAF_SBM_PPE_MIB_REQ_FSM_TIMEOUT_INT = (0x1 << 8),
+	ERR_SRC_DSAF_SBM_PPE_MIB_REQ_FAILED_INT = (0x1 << 9),
+	ERR_SRC_DSAF_SBM_PPE_LNK_FSM_TIMEOUT_INT = (0x1 << 10),
+	ERR_SRC_DSAF_XOD_PPE_FIFO_WR_FULL_INT = (0x1 << 11),
+	ERR_SRC_DSAF_XOD_PPE_FIFO_RD_EMPTY_INT = (0x1 << 12),
+	ERR_SRC_DSAF_SBM_PPE_CFG_USEFUL_PID_NUM_INT = (0x1 << 13),
+	ERR_SRC_DSAF_SBM_PPE_MIB_BUF_SUM_ERR_INT = (0x1 << 14),
+	ERR_SRC_DSAF_XID_PPE_LONG_PKT_LEN_INT = (0x1 << 15),
+	ERR_SRC_DSAF_XID_PPE_LONG_MCAST_PKT_INT = (0x1 << 16),
+	ERR_SRC_DSAF_XID_PPE_LKTB_RSLT_ERR_INT = (0x1 << 17),
+};
+
+enum hns_ecc_err_type {
+	HNS_DSAF_ERR_TYPE_UNKNOWN = 0x0,
+	HNS_DSAF_ERR_TYPE_NO_ERROR = 0x01,
+	HNS_DSAF_ERR_TYPE_CORRECTABLE = 0x02,
+	HNS_DSAF_ERR_TYPE_UNCORRECTABLE = 0x03,
 };
 
 static inline void *hns_dsaf_dev_priv(const struct dsaf_device *dsaf_dev)

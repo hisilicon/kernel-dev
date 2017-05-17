@@ -75,10 +75,34 @@ struct rcb_common_cb;
 #define HNS_TSO_MODE_8BD_32K			1
 #define HNS_TSO_MDOE_4BD_16K			0
 
+#define HNS_RCB_RING_CFG_MAX_ERR_SRC 2
+#define HNS_RCB_BD_CFG_MAX_ERR_SRC 2
+#define HNS_RCB_ECC_MAX_ERR_SRC 5
+#define HNS_RCB_AXI_MAX_ERR_SRC 6
+
 enum rcb_int_flag {
 	RCB_INT_FLAG_TX = 0x1,
 	RCB_INT_FLAG_RX = (0x1 << 1),
 	RCB_INT_FLAG_MAX = (0x1 << 2),	/*must be the last element */
+};
+
+enum err_src_hns_rcb {
+	ERR_SRC_RCB_UNKNOWN = (0x0 << 0),
+	ERR_SRC_RCB_RING_SF_CFG_TXRING = (0x1 << 0),
+	ERR_SRC_RCB_RING_SF_CFG_RXRING = (0x1 << 1),
+	ERR_SRC_RCB_BD_SF_TXRING_FBD_INT = (0x1 << 2),
+	ERR_SRC_RCB_BD_SF_RXRING_EBD_INT = (0x1 << 3),
+	ERR_SRC_ECC_RCB_RINT_MB_SRAM = (0x1 << 4),
+	ERR_SRC_ECC_RCB_RINT_TX_FBD_SRAM = (0x1 << 5),
+	ERR_SRC_ECC_RCB_RINT_TX_RING = (0x1 << 6),
+	ERR_SRC_ECC_RCB_RINT_RX_RING = (0x1 << 7),
+	ERR_SRC_ECC_RCB_RINT_EBD_SRAM = (0x1 << 8),
+	ERR_SRC_AXI_RCB_SLV_RD_ERR_INT = (0x1 << 9),
+	ERR_SRC_AXI_RCB_SLV_WR_ERR_INT = (0x1 << 10),
+	ERR_SRC_AXI_RCB_MST_ERR0_INT = (0x1 << 11),
+	ERR_SRC_AXI_RCB_MST_ERR1_INT = (0x1 << 12),
+	ERR_SRC_AXI_RCB_MST_ERR2_INT = (0x1 << 13),
+	ERR_SRC_AXI_RCB_MST_ERR3_INT = (0x1 << 14),
 };
 
 struct hns_ring_hw_stats {

@@ -38,6 +38,8 @@
 			    (1U << PPE_DDR_RW_INT))
 #define HNS_PPE_IRQ_DISABLE 0
 
+#define HNS_PPE_MAX_ERR_SRC 4
+
 enum ppe_qid_mode {
 	PPE_QID_MODE0 = 0, /* fixed queue id mode */
 	PPE_QID_MODE1,	   /* switch:128VM non switch:6Port/4VM/4TC */
@@ -62,6 +64,14 @@ enum ppe_common_mode {
 	PPE_COMMON_MODE_DEBUG = 0,
 	PPE_COMMON_MODE_SERVICE,
 	PPE_COMMON_MODE_MAX
+};
+
+enum err_src_hns_ppe {
+	ERR_SRC_PPE_UNKNOWN = (0x0 << 0),
+	ERR_SRC_PPE_DDR_RW_INT = (0x1 << 0),
+	ERR_SRC_PPE_TX_DROP_INT = (0x1 << 1),
+	ERR_SRC_PPE_RX_SRAM_PAR_INT = (0x1 << 2),
+	ERR_SRC_PPE_TX_SRAM_PAR_INT = (0x1 << 3),
 };
 
 struct hns_ppe_hw_stats {

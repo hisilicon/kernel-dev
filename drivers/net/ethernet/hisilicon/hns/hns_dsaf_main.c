@@ -21,6 +21,9 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/vmalloc.h>
+#include <linux/uuid.h>
+#include <ras/ras_event.h>
+#include <acpi/ghes.h>
 
 #include "hns_dsaf_mac.h"
 #include "hns_dsaf_main.h"
@@ -2261,6 +2264,13 @@ static irqreturn_t xbar_xge_int_handler(int irq, void *dev)
 	u32 int_sts;
 	u32 port_id;
 	int i;
+	int sec_sev = GHES_SEV_RECOVERABLE;
+	uuid_le sec_type = CPER_SEC_HISI_HNS_DSAF;
+	uuid_le *fru_id = &NULL_UUID_LE;
+	struct hns_dsaf_err_info dsaf_xge_err_data;
+	char fru_text[HNS_DSAF_MAIN_XGE_MAX_ERR_SRC * HNS_FRU_TEXT_SIZE];
+	bool trace_unknown_enabled = trace_unknown_sec_event_enabled();
+	u32 text_len = 0;
 
 	if (unlikely(!dsaf_dev)) {
 		pr_err("dsaf_dev %p  virq %d input error.\n", dsaf_dev, irq);
@@ -2279,121 +2289,340 @@ static irqreturn_t xbar_xge_int_handler(int irq, void *dev)
 		return IRQ_NONE;
 	}
 
+	if (trace_unknown_enabled) {
+		memset(&dsaf_xge_err_data, 0, sizeof(dsaf_xge_err_data));
+		dsaf_xge_err_data.validation_bits =
+						HNS_DSAF_VALID_ERR_COUNT |
+						HNS_DSAF_VALID_ERR_SRC |
+						HNS_DSAF_VALID_ERR_TYPE |
+						HNS_DSAF_VALID_PORT_ID;
+		dsaf_xge_err_data.error_src = ERR_SRC_DSAF_XGE_UNKNOWN;
+		dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_CORRECTABLE;
+		dsaf_xge_err_data.port_id = port_id;
+		text_len += sprintf(fru_text, "%s - ", dev_name(dsaf_dev->dev));
+	}
+
 	int_sts = dsaf_read_dev(dsaf_dev, DSAF_XGE_INT_STS_0_REG +
 				(port_id << REG_STEP_SHIFT));
 	dsaf_write_dev(dsaf_dev, DSAF_XGE_INT_MSK_0_REG +
 		       (port_id << REG_STEP_SHIFT),
 		       HNS_DSAF_IRQ_DISABLE_MSK);
 
-	if (dsaf_get_bit(int_sts, DSAF_VOQ_XGE_START_TO_OVER_0_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u warning, cause: dsaf_voq_xge_start_to_over_0.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_VOQ_XGE_START_TO_OVER_0_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_VOQ_XGE_START_TO_OVER_0_INT,
+					  fru_text, text_len,
+					  "DSAF_VOQ_XGE_START_TO_OVER_0 ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u warning, cause: dsaf_voq_xge_start_to_over_0.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_VOQ_XGE_START_TO_OVER_1_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u warning, cause: dsaf_voq_xge_start_to_over_1.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_VOQ_XGE_START_TO_OVER_1_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_VOQ_XGE_START_TO_OVER_1_INT,
+					  fru_text, text_len,
+					  "DSAF_VOQ_XGE_START_TO_OVER_1 ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u warning, cause: dsaf_voq_xge_start_to_over_1.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_SRAM_ECC_2BIT_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u warning, cause: dsaf_sbm_xge_sram_ecc_2bit.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_SRAM_ECC_2BIT_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_SBM_XGE_SRAM_ECC_2BIT_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_XGE_SRAM_ECC_2BIT ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u warning, cause: dsaf_sbm_xge_sram_ecc_2bit.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_FSM_TIMEOUT_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has repairable error, cause: dsaf_xid_xge_fsm_timeout.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_FSM_TIMEOUT_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_XID_XGE_FSM_TIMEOUT_INT,
+					  fru_text, text_len,
+					  "DSAF_XID_XGE_FSM_TIMEOUT ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has repairable error, cause: dsaf_xid_xge_fsm_timeout.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_LNK_FSM_TIMEOUT_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_lnk_fsm_timeout.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_LNK_FSM_TIMEOUT_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_SBM_XGE_LNK_FSM_TIMEOUT_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_XGE_LNK_FSM_TIMEOUT ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_lnk_fsm_timeout.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_REQ_FAILED_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_req_failed.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_REQ_FAILED_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_SBM_XGE_MIB_REQ_FAILED_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_XGE_MIB_REQ_FAILED ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_req_failed.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_REQ_FSM_TIMEOUT_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_req_fsm_timeout.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_REQ_FSM_TIMEOUT_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_SBM_XGE_MIB_REQ_FSM_TIMEOUT_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_XGE_MIB_REQ_FSM_TIMEOUT ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_req_fsm_timeout.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_RELS_FSM_TIMOUT_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_rels_fsm_timeout.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_RELS_FSM_TIMOUT_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_SBM_XGE_MIB_RELS_FSM_TIMOUT_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_XGE_MIB_RELS_FSM_TIMEOUT ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_rels_fsm_timeout.\n",
+					 port_id);
+		}
+	}
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_REQ_EXTRA_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_SBM_XGE_MIB_REQ_EXTRA_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_XGE_MIB_REQ_EXTRA ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_req_extra.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_REQ_EXTRA_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_req_extra.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_RELS_EXTRA_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_SBM_XGE_MIB_RELS_EXTRA_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_XGE_MIB_RELS_EXTRA ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_rels_extra.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_RELS_EXTRA_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_mib_rels_extra.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_LNK_ECC_2BIT_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_SBM_XGE_LNK_ECC_2BIT_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_XGE_LNK_ECC_2BIT ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_lnk_ecc_2bit.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_LNK_ECC_2BIT_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has repairable error, cause: dsaf_sbm_xge_lnk_ecc_2bit.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_ECC_ERR_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_XID_XGE_ECC_ERR_INT,
+					  fru_text, text_len,
+					  "DSAF_XID_XGE_ECC_ERR ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has repairable error, cause: dsaf_xid_xge_ecc_err.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_ECC_ERR_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has repairable error, cause: dsaf_xid_xge_ecc_err.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_VOQ_XGE_ECC_ERR_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  HNS_DSAF_ERR_TYPE_UNCORRECTABLE,
+					  fru_text, text_len,
+					  "DSAF_VOQ_XGE_ECC_ERR ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has repairable error, cause: dsaf_voq_xge_ecc_err.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_VOQ_XGE_ECC_ERR_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has repairable error, cause: dsaf_voq_xge_ecc_err.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_LKTB_RSLT_ERR_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_XID_XGE_LKTB_RSLT_ERR_INT,
+					  fru_text, text_len,
+					  "DSAF_XID_XGE_LKTB_RSLT_ERR ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has configurable error, cause: dsaf_xid_xge_lktb_rslt_err.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_LKTB_RSLT_ERR_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has configurable error, cause: dsaf_xid_xge_lktb_rslt_err.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_SHT_PKT_LEN_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_XID_XGE_SHT_PKT_LEN_INT,
+					  fru_text, text_len,
+					  "DSAF_XID_XGE_SHT_PKT_LEN ");
+			dsaf_xge_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has configurable error, cause: dsaf_xid_xge_sht_pkt_len.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_SHT_PKT_LEN_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has configurable error, cause: dsaf_xid_xge_sht_pkt_len.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_LONG_PKT_LEN_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_XID_XGE_LONG_PKT_LEN_INT,
+					  fru_text, text_len,
+					  "DSAF_XID_XGE_LONG_PKT_LEN ");
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has configurable error, cause: dsaf_xid_xge_long_pkt_len.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_XID_XGE_LONG_PKT_LEN_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has configurable error, cause: dsaf_xid_xge_long_pkt_len.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_BUF_SUM_ERR_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_SBM_XGE_MIB_BUF_SUM_ERR_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_XGE_MIB_BUF_SUM_ERR ");
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_mib_buf_sum_err.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_MIB_BUF_SUM_ERR_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_mib_buf_sum_err.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_CFG_RESET_BUF_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_SBM_XGE_CFG_RESET_BUF_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_XGE_CFG_RESET_BUF ");
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_cfg_reset_buf.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_CFG_RESET_BUF_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_cfg_reset_buf.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_CFG_SET_BUF_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_SBM_XGE_CFG_SET_BUF_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_XGE_CFG_SET_BUF ");
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_cfg_set_buf.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_CFG_SET_BUF_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_cfg_set_buf.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_PFC_EN_PART_CFG_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_SBM_XGE_PFC_EN_PART_CFG_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_XGE_PFC_EN_PART_CFG ");
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_pfc_en_part_cfg.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_PFC_EN_PART_CFG_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_pfc_en_part_cfg.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_PFC_EN_ALLONE_CFG_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_SBM_XGE_PFC_EN_ALLONE_CFG_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_XGE_PFC_EN_ALLONE_CFG ");
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_pfc_en_allone_cfg.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_PFC_EN_ALLONE_CFG_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_pfc_en_allone_cfg.\n",
-				 port_id);
-
-	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_PFC_EN_ALLZERO_CFG_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_pfc_en_allzero_cfg.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_XGE_PFC_EN_ALLZERO_CFG_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_xge_err_data,
+					  ERR_SRC_DSAF_SBM_XGE_PFC_EN_ALLZERO_CFG_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_XGE_PFC_EN_ALLZERO_CFG ");
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "xge xbar%u has configurable error, cause: dsaf_sbm_xge_pfc_en_allzero_cfg.\n",
+					 port_id);
+		}
+	}
 
 	if (int_sts) {
 		dsaf_write_dev(dsaf_dev, DSAF_XGE_INT_SRC_0_REG +
@@ -2413,6 +2642,14 @@ static irqreturn_t xbar_xge_int_handler(int irq, void *dev)
 			       HNS_DSAF_XGE_IRQ_ENABLE_MSK);
 	}
 
+	if ((dsaf_xge_err_data.error_count > 0) && trace_unknown_enabled) {
+		sprintf((fru_text + text_len), "\n");
+		trace_unknown_sec_event(&sec_type, fru_id,
+					fru_text, sec_sev,
+					(const u8 *)&dsaf_xge_err_data,
+					sizeof(dsaf_xge_err_data));
+	}
+
 	return IRQ_HANDLED;
 }
 
@@ -2423,6 +2660,15 @@ static irqreturn_t xbar_ppe_int_handler(int irq, void *dev)
 	u32 int_sts;
 	u32 port_id;
 	int i;
+	int sec_sev = GHES_SEV_RECOVERABLE;
+	uuid_le sec_type = CPER_SEC_HISI_HNS_DSAF;
+	uuid_le *fru_id = &NULL_UUID_LE;
+	struct hns_dsaf_err_info dsaf_ppe_err_data;
+	char fru_text[HNS_DSAF_MAIN_PPE_MAX_ERR_SRC *
+					HNS_FRU_TEXT_SIZE];
+	bool trace_unknown_enabled = trace_unknown_sec_event_enabled();
+	u32 text_len = 0;
+
 
 	if (unlikely(!dsaf_dev)) {
 		pr_err("dsaf_dev %p  virq %d input error.\n", dsaf_dev, irq);
@@ -2441,6 +2687,20 @@ static irqreturn_t xbar_ppe_int_handler(int irq, void *dev)
 		return IRQ_NONE;
 	}
 
+	if (trace_unknown_enabled) {
+		memset(&dsaf_ppe_err_data, 0, sizeof(dsaf_ppe_err_data));
+		dsaf_ppe_err_data.validation_bits =
+						HNS_DSAF_VALID_ERR_COUNT |
+						HNS_DSAF_VALID_ERR_SRC |
+						HNS_DSAF_VALID_ERR_TYPE |
+						HNS_DSAF_VALID_PORT_ID;
+		dsaf_ppe_err_data.error_src = ERR_SRC_DSAF_PPE_UNKNOWN;
+		dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_CORRECTABLE;
+		dsaf_ppe_err_data.port_id = port_id;
+		text_len += sprintf(fru_text, "%s - ", dev_name(dsaf_dev->dev));
+	}
+
 	int_sts = dsaf_read_dev(dsaf_dev,
 				(DSAF_PPE_INT_STS_0_REG +
 				(port_id << REG_STEP_SHIFT)));
@@ -2448,95 +2708,299 @@ static irqreturn_t xbar_ppe_int_handler(int irq, void *dev)
 		       (DSAF_PPE_INT_MSK_0_REG + (port_id << REG_STEP_SHIFT)),
 		       HNS_DSAF_IRQ_DISABLE_MSK);
 
-	if (dsaf_get_bit(int_sts, DSAF_VOQ_PPE_START_TO_OVER_0_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u warning, cause: dsaf_voq_ppe_start_to_over_0.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_VOQ_PPE_START_TO_OVER_0_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_VOQ_PPE_START_TO_OVER_0_INT,
+					  fru_text, text_len,
+					  "DSAF_VOQ_PPE_START_TO_OVER_0 ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u warning, cause: dsaf_voq_ppe_start_to_over_0.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_XID_PPE_FSM_TIMEOUT_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u warning, cause: dsaf_xid_ppe_fsm_timeout.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_XID_PPE_FSM_TIMEOUT_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_XID_PPE_FSM_TIMEOUT_INT,
+					  fru_text, text_len,
+					  "DSAF_XID_PPE_FSM_TIMEOUT ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u warning, cause: dsaf_xid_ppe_fsm_timeout.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_SRAM_ECC_2BIT_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u warning, cause: dsaf_sbm_ppe_sram_ecc_2bit.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_SRAM_ECC_2BIT_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_SBM_PPE_SRAM_ECC_2BIT_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_PPE_SRAM_ECC_2BIT ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u warning, cause: dsaf_sbm_ppe_sram_ecc_2bit.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_VOQ_PPE_ECC_ERR_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has repairable error, cause: dsaf_voq_ppe_ecc_err.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_VOQ_PPE_ECC_ERR_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_VOQ_PPE_ECC_ERR_INT,
+					  fru_text, text_len,
+					  "DSAF_VOQ_PPE_ECC_ERR ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has repairable error, cause: dsaf_voq_ppe_ecc_err.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_LNK_ECC_2BIT_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_lnk_ecc_2bit.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_LNK_ECC_2BIT_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_SBM_PPE_LNK_ECC_2BIT_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_PPE_LNK_ECC_2BIT ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_lnk_ecc_2bit.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_RELS_EXTRA_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_rels_extra.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_RELS_EXTRA_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_SBM_PPE_MIB_RELS_EXTRA_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_PPE_MIB_RELS_EXTRA ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_rels_extra.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_REQ_EXTRA_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_req_extra.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_REQ_EXTRA_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_SBM_PPE_MIB_REQ_EXTRA_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_PPE_MIB_RELS_EXTRA ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_rels_extra.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_RELS_FSM_TIMEOUT_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_rels_fsm_timeout.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_REQ_EXTRA_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_SBM_PPE_MIB_REQ_EXTRA_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_PPE_MIB_RELS_EXTRA ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_rels_extra.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_REQ_FSM_TIMEOUT_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_req_fsm_timeout.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_REQ_EXTRA_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_SBM_PPE_MIB_REQ_EXTRA_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_PPE_MIB_REQ_EXTRA ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_req_extra.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_REQ_FAILED_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_req_failed.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_RELS_FSM_TIMEOUT_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_SBM_PPE_MIB_RELS_FSM_TIMEOUT_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_PPE_MIB_RELS_FSM_TIMEOUT ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_rels_fsm_timeout.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_LNK_FSM_TIMEOUT_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_lnk_fsm_timeout.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_REQ_FSM_TIMEOUT_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_SBM_PPE_MIB_REQ_FSM_TIMEOUT_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_PPE_MIB_REQ_FSM_TIMEOUT ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_req_fsm_timeout.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_XOD_PPE_FIFO_WR_FULL_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has repairable error, cause: dsaf_xod_ppe_fifo_wr_full.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_REQ_FAILED_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_SBM_PPE_MIB_REQ_FAILED_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_PPE_MIB_REQ_FAILED ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_mib_req_failed.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_XOD_PPE_FIFO_RD_EMPTY_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has repairable error, cause: dsaf_xod_ppe_fifo_rd_empty.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_LNK_FSM_TIMEOUT_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_SBM_PPE_LNK_FSM_TIMEOUT_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_PPE_LNK_FSM_TIMEOUT ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has repairable error, cause: dsaf_sbm_ppe_lnk_fsm_timeout.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_CFG_USEFUL_PID_NUM_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has configurable error, cause: dsaf_sbm_ppe_cfg_useful_pid_num.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_XOD_PPE_FIFO_WR_FULL_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_XOD_PPE_FIFO_WR_FULL_INT,
+					  fru_text, text_len,
+					  "DSAF_XOD_PPE_FIFO_WR_FULL ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has repairable error, cause: dsaf_xod_ppe_fifo_wr_full.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_BUF_SUM_ERR_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has configurable error, cause: dsaf_sbm_ppe_mib_buf_sum_err.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_XOD_PPE_FIFO_RD_EMPTY_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_XOD_PPE_FIFO_RD_EMPTY_INT,
+					  fru_text, text_len,
+					  "DSAF_XOD_PPE_FIFO_RD_EMPTY ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has repairable error, cause: dsaf_xod_ppe_fifo_rd_empty.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_XID_PPE_LONG_PKT_LEN_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has configurable error, cause: dsaf_xid_ppe_long_pkt_len.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_CFG_USEFUL_PID_NUM_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_SBM_PPE_CFG_USEFUL_PID_NUM_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_PPE_CFG_USEFUL_PID_NUM ");
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has configurable error, cause: dsaf_sbm_ppe_cfg_useful_pid_num.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_XID_PPE_LONG_MCAST_PKT_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has configurable error, cause: dsaf_xid_ppe_long_mcast_pkt.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_SBM_PPE_MIB_BUF_SUM_ERR_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_SBM_PPE_MIB_BUF_SUM_ERR_INT,
+					  fru_text, text_len,
+					  "DSAF_SBM_PPE_MIB_BUF_SUM_ERR ");
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has configurable error, cause: dsaf_sbm_ppe_mib_buf_sum_err.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, DSAF_XID_PPE_LKTB_RSLT_ERR_INT))
-		net_edac_dev_err(dsaf_dev->dev, 0,
-				 "ppe xbar%u has configurable error, cause: dsaf_xid_ppe_lktb_rslt_err.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, DSAF_XID_PPE_LONG_PKT_LEN_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_XID_PPE_LONG_PKT_LEN_INT,
+					  fru_text, text_len,
+					  "DSAF_XID_PPE_LONG_PKT_LEN ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has configurable error, cause: dsaf_xid_ppe_long_pkt_len.\n",
+					 port_id);
+		}
+	}
+
+	if (dsaf_get_bit(int_sts, DSAF_XID_PPE_LONG_MCAST_PKT_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_XID_PPE_LONG_MCAST_PKT_INT,
+					  fru_text, text_len,
+					  "DSAF_XID_PPE_LONG_MCAST_PKT ");
+			dsaf_ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has configurable error, cause: dsaf_xid_ppe_long_mcast_pkt.\n",
+					 port_id);
+		}
+	}
+
+	if (dsaf_get_bit(int_sts, DSAF_XID_PPE_LKTB_RSLT_ERR_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(dsaf_ppe_err_data,
+					  ERR_SRC_DSAF_XID_PPE_LKTB_RSLT_ERR_INT,
+					  fru_text, text_len,
+					  "DSAF_XID_PPE_LKTB_RSLT_ERR ");
+		} else {
+			net_edac_dev_err(dsaf_dev->dev, 0,
+					 "ppe xbar%u has configurable error, cause: dsaf_xid_ppe_lktb_rslt_err.\n",
+					 port_id);
+		}
+	}
 
 	if (int_sts)
 		dsaf_write_dev(dsaf_dev,
@@ -2553,6 +3017,14 @@ static irqreturn_t xbar_ppe_int_handler(int irq, void *dev)
 		dsaf_write_dev(dsaf_dev, (DSAF_PPE_INT_MSK_0_REG +
 			       (port_id << REG_STEP_SHIFT)),
 			       HNS_DSAF_PPE_IRQ_ENABLE_MSK);
+	}
+
+	if ((dsaf_ppe_err_data.error_count > 0) && trace_unknown_enabled) {
+		sprintf((fru_text + text_len), "\n");
+		trace_unknown_sec_event(&sec_type, fru_id,
+					fru_text, sec_sev,
+					(const u8 *)&dsaf_ppe_err_data,
+					sizeof(dsaf_ppe_err_data));
 	}
 
 	return IRQ_HANDLED;

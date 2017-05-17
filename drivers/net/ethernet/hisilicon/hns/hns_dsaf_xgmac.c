@@ -14,6 +14,9 @@
 #include "hns_dsaf_mac.h"
 #include "hns_dsaf_xgmac.h"
 #include "hns_dsaf_reg.h"
+#include <linux/uuid.h>
+#include <ras/ras_event.h>
+#include <acpi/ghes.h>
 
 static const struct mac_stats_string g_xgmac_stats_string[] = {
 	{"xgmac_tx_bad_pkts_minto64", MAC_STATS_FIELD_OFF(tx_fragment_err)},
@@ -244,20 +247,57 @@ static irqreturn_t xge_status_int_handler(int irq, void *mac_drv)
 	unsigned long next;
 	u32 port_id;
 	u32 int_sts;
+	int sec_sev = GHES_SEV_RECOVERABLE;
+	uuid_le sec_type = CPER_SEC_HISI_HNS_DSAF;
+	uuid_le *fru_id = &NULL_UUID_LE;
+	struct hns_dsaf_err_info xgmac_err_data;
+	char fru_text[HNS_DSAF_XGMAC_MAX_ERR_SRC * HNS_FRU_TEXT_SIZE];
+	bool trace_unknown_enabled = trace_unknown_sec_event_enabled();
+	u32 text_len = 0;
 
 	port_id = drv->mac_id;
 	int_sts = dsaf_read_dev(drv, XGMAC_INT_STATUS_REG);
 	hns_xgmac_event_disable_hw(drv);
 
-	if (dsaf_get_bit(int_sts, XGE_MIB_ECCERR_MUL_INT))
-		net_edac_dev_err(drv->dev, port_id,
-				 "xge%d has repairable error, cause: mib_eccerr_mul.\n",
-				 port_id);
+	if (trace_unknown_enabled) {
+		memset(&xgmac_err_data, 0, sizeof(xgmac_err_data));
+		xgmac_err_data.validation_bits =
+						HNS_DSAF_VALID_ERR_COUNT |
+						HNS_DSAF_VALID_ERR_SRC |
+						HNS_DSAF_VALID_ERR_TYPE |
+						HNS_DSAF_VALID_PORT_ID;
+		xgmac_err_data.error_src = ERR_SRC_XGMAC_UNKNOWN;
+		xgmac_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_CORRECTABLE;
+		xgmac_err_data.port_id = port_id;
+		text_len += sprintf(fru_text, "%s - ", dev_name(drv->dev));
+	}
 
-	if (dsaf_get_bit(int_sts, XGE_FEC_ECCERR_MUL_INT))
-		net_edac_dev_err(drv->dev, port_id,
-				 "xge%d has repairable error, cause: fec_eccerr_mul.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, XGE_MIB_ECCERR_MUL_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(xgmac_err_data,
+					  ERR_SRC_XGMAC_XGE_MIB_ECCERR_MUL_INT,
+					  fru_text, text_len,
+					  "DSAF_XGMAC_XGE_MIB_ECCERR_MUL ");
+		} else {
+			net_edac_dev_err(drv->dev, port_id,
+					 "xge%d has repairable error, cause: mib_eccerr_mul.\n",
+					 port_id);
+		}
+	}
+
+	if (dsaf_get_bit(int_sts, XGE_FEC_ECCERR_MUL_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(xgmac_err_data,
+					  ERR_SRC_XGMAC_XGE_FEC_ECCERR_MUL_INT,
+					  fru_text, text_len,
+					  "DSAF_XGMAC_XGE_FEC_ECCERR_MUL ");
+		} else {
+			net_edac_dev_err(drv->dev, port_id,
+					 "xge%d has repairable error, cause: fec_eccerr_mul.\n",
+					 port_id);
+		}
+	}
 
 	if (int_sts)
 		dsaf_write_dev(drv, XGMAC_INT_STATUS_REG, int_sts);
@@ -270,6 +310,14 @@ static irqreturn_t xge_status_int_handler(int irq, void *mac_drv)
 			drv->mac_cb->irq_info.last_jiffies = jiffies;
 			drv->mac_cb->irq_info.total = 0;
 		}
+	}
+
+	if ((xgmac_err_data.error_count > 0) && trace_unknown_enabled) {
+		sprintf((fru_text + text_len), "\n");
+		trace_unknown_sec_event(&sec_type, fru_id,
+					fru_text, sec_sev,
+					(const u8 *)&xgmac_err_data,
+					sizeof(xgmac_err_data));
 	}
 
 	return IRQ_HANDLED;

@@ -20,6 +20,10 @@
 #include <linux/of_platform.h>
 #include <linux/of_irq.h>
 #include <linux/spinlock.h>
+#include <linux/uuid.h>
+#include <ras/ras_event.h>
+#include <acpi/ghes.h>
+
 
 #include "hns_dsaf_main.h"
 #include "hns_dsaf_ppe.h"
@@ -753,19 +757,54 @@ static phys_addr_t hns_rcb_common_get_paddr(struct rcb_common_cb *rcb_common)
 static void rcb_ring_cfg_int_handler(struct rcb_common_cb *rcb_common)
 {
 	u32 int_sts;
+	int sec_sev = GHES_SEV_RECOVERABLE;
+	uuid_le sec_type = CPER_SEC_HISI_HNS_DSAF;
+	uuid_le *fru_id = &NULL_UUID_LE;
+	struct hns_dsaf_err_info rcb_ring_err_data;
+	char fru_text[HNS_RCB_RING_CFG_MAX_ERR_SRC * HNS_FRU_TEXT_SIZE];
+	bool trace_unknown_enabled = trace_unknown_sec_event_enabled();
+	u32 text_len = 0;
 
 	int_sts = dsaf_read_dev(rcb_common, RCB_COM_SF_CFG_RING_STS_REG);
 	dsaf_write_dev(rcb_common,
 		       RCB_COM_SF_CFG_INTMASK_RING, HNS_RCB_IRQ_DISABLE);
 
-	if (dsaf_get_bit(int_sts, SF_CFG_TXRING))
-		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
-				 "rcb_common has configurable error, cause: sf_cfg_txring.\n");
+	if (trace_unknown_enabled) {
+		memset(&rcb_ring_err_data, 0, sizeof(rcb_ring_err_data));
+		rcb_ring_err_data.validation_bits =
+						HNS_DSAF_VALID_ERR_COUNT |
+						HNS_DSAF_VALID_ERR_SRC |
+						HNS_DSAF_VALID_ERR_TYPE;
+		rcb_ring_err_data.error_src = ERR_SRC_RCB_UNKNOWN;
+		rcb_ring_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		text_len += sprintf(fru_text, "%s - ",
+					dev_name(rcb_common->dsaf_dev->dev));
+	}
 
-	if (dsaf_get_bit(int_sts, SF_CFG_RXRING))
-		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
-				 "rcb_common has configurable error, cause: sf_cfg_rxring.\n");
+	if (dsaf_get_bit(int_sts, SF_CFG_TXRING)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_ring_err_data,
+					  ERR_SRC_RCB_RING_SF_CFG_TXRING,
+					  fru_text, text_len,
+					  "RCB_RING_SF_CFG_TXRING ");
+		} else {
+			net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+					 "rcb_common has configurable error, cause: sf_cfg_txring.\n");
+		}
+	}
 
+	if (dsaf_get_bit(int_sts, SF_CFG_RXRING)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_ring_err_data,
+					  ERR_SRC_RCB_RING_SF_CFG_RXRING,
+					  fru_text, text_len,
+					  "RCB_RING_SF_CFG_RXRING ");
+		} else {
+			net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+					 "rcb_common has configurable error, cause: sf_cfg_rxring.\n");
+		}
+	}
 	if (int_sts)
 		dsaf_write_dev(rcb_common,
 			       RCB_COM_SF_CFG_RING_STS_REG, int_sts);
@@ -773,25 +812,67 @@ static void rcb_ring_cfg_int_handler(struct rcb_common_cb *rcb_common)
 	if (rcb_common->irq_ring_info.total < HNS_LIMIT_IRQ_FREQ)
 		dsaf_write_dev(rcb_common, RCB_COM_SF_CFG_INTMASK_RING,
 			       HNS_RCB_IRQ_ENABLE);
+
+	if ((rcb_ring_err_data.error_count > 0) && trace_unknown_enabled) {
+		sprintf((fru_text + text_len), "\n");
+		trace_unknown_sec_event(&sec_type, fru_id,
+					fru_text, sec_sev,
+					(const u8 *)&rcb_ring_err_data,
+					sizeof(rcb_ring_err_data));
+	}
 }
 
 static void rcb_bd_cfg_error_int_handler(
 		struct rcb_common_cb *rcb_common)
 {
 	u32 int_sts;
+	int sec_sev = GHES_SEV_RECOVERABLE;
+	uuid_le sec_type = CPER_SEC_HISI_HNS_DSAF;
+	uuid_le *fru_id = &NULL_UUID_LE;
+	struct hns_dsaf_err_info rcb_bd_err_data;
+	char fru_text[HNS_RCB_BD_CFG_MAX_ERR_SRC * HNS_FRU_TEXT_SIZE];
+	bool trace_unknown_enabled = trace_unknown_sec_event_enabled();
+	u32 text_len = 0;
 
 	int_sts = dsaf_read_dev(rcb_common, RCB_COM_SF_CFG_BD_RINT_STS);
 	dsaf_write_dev(rcb_common,
 		       RCB_COM_SF_CFG_INTMASK_BD, HNS_RCB_BD_IRQ_DISABLE);
 
+	if (trace_unknown_enabled) {
+		memset(&rcb_bd_err_data, 0, sizeof(rcb_bd_err_data));
+		rcb_bd_err_data.validation_bits =
+						HNS_DSAF_VALID_ERR_COUNT |
+						HNS_DSAF_VALID_ERR_SRC |
+						HNS_DSAF_VALID_ERR_TYPE;
+		rcb_bd_err_data.error_src = ERR_SRC_RCB_UNKNOWN;
+		rcb_bd_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		text_len += sprintf(fru_text, "%s - ",
+					dev_name(rcb_common->dsaf_dev->dev));
+	}
+
 	if (dsaf_get_bit(int_sts, SF_TXRING_FBD_INT)) {
-		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
-				 "rcb_common has configure error, cause: sf_txring_fbd.\n");
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_bd_err_data,
+					  ERR_SRC_RCB_BD_SF_TXRING_FBD_INT,
+					  fru_text, text_len,
+					  "RCB_BD_SF_TXRING_FBD ");
+		} else {
+			net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+					 "rcb_common has configure error, cause: sf_txring_fbd.\n");
+		}
 	}
 
 	if (dsaf_get_bit(int_sts, SF_RXRING_EBD_INT)) {
-		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
-				 "rcb_common has configure error, cause: sf_rxring_ebd.\n");
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_bd_err_data,
+					  ERR_SRC_RCB_BD_SF_RXRING_EBD_INT,
+					  fru_text, text_len,
+					  "RCB_BD_SF_RXRING_EBD ");
+		} else {
+			net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+					 "rcb_common has configure error, cause: sf_rxring_ebd.\n");
+		}
 	}
 
 	if (int_sts)
@@ -800,35 +881,104 @@ static void rcb_bd_cfg_error_int_handler(
 	if (rcb_common->irq_ring_info.total < HNS_LIMIT_IRQ_FREQ)
 		dsaf_write_dev(rcb_common, RCB_COM_SF_CFG_INTMASK_BD,
 			       HNS_RCB_BD_IRQ_ENABLE);
+
+	if ((rcb_bd_err_data.error_count > 0) && trace_unknown_enabled) {
+		sprintf((fru_text + text_len), "\n");
+		trace_unknown_sec_event(&sec_type, fru_id,
+					fru_text, sec_sev,
+					(const u8 *)&rcb_bd_err_data,
+					sizeof(rcb_bd_err_data));
+	}
 }
 
 static void rcb_ecc_error_int_handler(struct rcb_common_cb *rcb_common)
 {
 	u32 int_sts;
+	int sec_sev = GHES_SEV_RECOVERABLE;
+	uuid_le sec_type = CPER_SEC_HISI_HNS_DSAF;
+	uuid_le *fru_id = &NULL_UUID_LE;
+	struct hns_dsaf_err_info rcb_ecc_err_data;
+	char fru_text[HNS_RCB_ECC_MAX_ERR_SRC * HNS_FRU_TEXT_SIZE];
+	bool trace_unknown_enabled = trace_unknown_sec_event_enabled();
+	u32 text_len = 0;
+
 
 	int_sts = dsaf_read_dev(rcb_common, RCB_COM_INTSTS_ECC_ERR_REG);
 	dsaf_write_dev(rcb_common,
 		       RCB_COM_INTMASK_ECC_ERR_REG, HNS_RCB_IRQ_DISABLE);
 
-	if (dsaf_get_bit(int_sts, RCB_RINT_MB_SRAM))
-		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
-				 "rcb_common has unrepairable error, cause: rcb_rint_mb_sram.\n");
+	if (trace_unknown_enabled) {
+		memset(&rcb_ecc_err_data, 0, sizeof(rcb_ecc_err_data));
+		rcb_ecc_err_data.validation_bits =
+						HNS_DSAF_VALID_ERR_COUNT |
+						HNS_DSAF_VALID_ERR_SRC |
+						HNS_DSAF_VALID_ERR_TYPE;
+		rcb_ecc_err_data.error_src = ERR_SRC_RCB_UNKNOWN;
+		rcb_ecc_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		text_len += sprintf(fru_text, "%s - ",
+					dev_name(rcb_common->dsaf_dev->dev));
+	}
 
-	if (dsaf_get_bit(int_sts, RCB_RINT_TX_FBD_SRAM))
-		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
-				 "rcb_commonhas unrepairable error, cause: rcb_rint_tx_fbd_sram.\n");
+	if (dsaf_get_bit(int_sts, RCB_RINT_MB_SRAM)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_ecc_err_data,
+					  ERR_SRC_ECC_RCB_RINT_MB_SRAM,
+					  fru_text, text_len,
+					  "ECC_RCB_RINT_MB_SRAM ");
+		} else {
+			net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+					 "rcb_common has unrepairable error, cause: rcb_rint_mb_sram.\n");
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, RCB_RINT_TX_RING))
-		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
-				 "rcb_common has unrepairable error, cause: rcb_rint_tx_ring.\n");
+	if (dsaf_get_bit(int_sts, RCB_RINT_TX_FBD_SRAM)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_ecc_err_data,
+					  ERR_SRC_ECC_RCB_RINT_TX_FBD_SRAM,
+					  fru_text, text_len,
+					  "ECC_RCB_RINT_TX_FBD_SRAM ");
+		} else {
+			net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+					 "rcb_commonhas unrepairable error, cause: rcb_rint_tx_fbd_sram.\n");
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, RCB_RINT_RX_RING))
-		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
-				 "rcb_common has unrepairable error, cause: rcb_rint_rx_ring.\n");
+	if (dsaf_get_bit(int_sts, RCB_RINT_TX_RING)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_ecc_err_data,
+					  ERR_SRC_ECC_RCB_RINT_TX_RING,
+					  fru_text, text_len,
+					  "ECC_RCB_RINT_TX_RING ");
+		} else {
+			net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+					 "rcb_common has unrepairable error, cause: rcb_rint_tx_ring.\n");
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, RCB_RINT_EBD_SRAM))
-		net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
-				 "rcb_common has unrepairable error, cause: rcb_rint_ebd_sram.\n");
+	if (dsaf_get_bit(int_sts, RCB_RINT_RX_RING)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_ecc_err_data,
+					  ERR_SRC_ECC_RCB_RINT_RX_RING,
+					  fru_text, text_len,
+					  "ECC_RCB_RINT_RX_RING ");
+		} else {
+			net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+					 "rcb_common has unrepairable error, cause: rcb_rint_rx_ring.\n");
+		}
+	}
+
+	if (dsaf_get_bit(int_sts, RCB_RINT_EBD_SRAM)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_ecc_err_data,
+					  ERR_SRC_ECC_RCB_RINT_EBD_SRAM,
+					  fru_text, text_len,
+					  "ECC_RCB_RINT_EBD_SRAM ");
+		} else {
+			net_edac_dev_err(rcb_common->dsaf_dev->dev, 0,
+					 "rcb_common has unrepairable error, cause: rcb_rint_ebd_sram.\n");
+		}
+	}
 
 	if (int_sts)
 		dsaf_write_dev(rcb_common, RCB_COM_INTSTS_ECC_ERR_REG, int_sts);
@@ -836,6 +986,15 @@ static void rcb_ecc_error_int_handler(struct rcb_common_cb *rcb_common)
 	if (rcb_common->irq_ring_info.total < HNS_LIMIT_IRQ_FREQ)
 		dsaf_write_dev(rcb_common, RCB_COM_INTMASK_ECC_ERR_REG,
 			       HNS_RCB_IRQ_ENABLE);
+
+	if ((rcb_ecc_err_data.error_count > 0) && trace_unknown_enabled) {
+		sprintf((fru_text + text_len), "\n");
+		trace_unknown_sec_event(&sec_type, fru_id,
+					fru_text, sec_sev,
+					(const u8 *)&rcb_ecc_err_data,
+					sizeof(rcb_ecc_err_data));
+	}
+
 }
 
 static irqreturn_t rcb_ring_bd_and_ecc_int_handler(int irq, void *rcb_common)
@@ -866,35 +1025,103 @@ static irqreturn_t rcb_axi_error_int_handler(int irq, void *rcb_common)
 	struct rcb_common_cb *irq_rcb_common;
 	unsigned long next;
 	u32 int_sts;
+	int sec_sev = GHES_SEV_RECOVERABLE;
+	uuid_le sec_type = CPER_SEC_HISI_HNS_DSAF;
+	uuid_le *fru_id = &NULL_UUID_LE;
+	struct hns_dsaf_err_info rcb_axi_err_data;
+	char fru_text[HNS_RCB_AXI_MAX_ERR_SRC * HNS_FRU_TEXT_SIZE];
+	bool trace_unknown_enabled = trace_unknown_sec_event_enabled();
+	u32 text_len = 0;
 
 	irq_rcb_common = (struct rcb_common_cb *)rcb_common;
 	int_sts = dsaf_read_dev(irq_rcb_common, RCB_COM_AXI_ERR_STS);
 	dsaf_write_dev(irq_rcb_common,
 		       RCB_COM_AXI_WR_ERR_INTMASK, HNS_RCB_IRQ_DISABLE);
 
-	if (dsaf_get_bit(int_sts, RCB_SLV_RD_ERR_INT)) {
-		net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
-				 "rcb_common has unrepairable error, cause: rcb_slv_rd_err.\n");
+	if (trace_unknown_enabled) {
+		memset(&rcb_axi_err_data, 0, sizeof(rcb_axi_err_data));
+		rcb_axi_err_data.validation_bits =
+						HNS_DSAF_VALID_ERR_COUNT |
+						HNS_DSAF_VALID_ERR_SRC |
+						HNS_DSAF_VALID_ERR_TYPE;
+		rcb_axi_err_data.error_src = ERR_SRC_RCB_UNKNOWN;
+		rcb_axi_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		text_len += sprintf(fru_text, "%s - ",
+				dev_name(irq_rcb_common->dsaf_dev->dev));
 	}
 
-	if (dsaf_get_bit(int_sts, RCB_SLV_WR_ERR_INT))
-		net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
-				 "rcb_common has unrepairable error, cause: rcb_slv_wr_err.\n");
-	if (dsaf_get_bit(int_sts, RCB_MST_ERR0_INT))
-		net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
-				 "rcb_common has unrepairable error, cause: rcb_mst_err0.\n");
+	if (dsaf_get_bit(int_sts, RCB_SLV_RD_ERR_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_axi_err_data,
+					  ERR_SRC_AXI_RCB_SLV_RD_ERR_INT,
+					  fru_text, text_len,
+					  "AXI_RCB_SLV_RD_ERR ");
+		} else {
+			net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
+					 "rcb_common has unrepairable error, cause: rcb_slv_rd_err.\n");
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, RCB_MST_ERR1_INT))
-		net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
-				 "rcb_common has unrepairable error, cause: rcb_mst_err1.\n");
+	if (dsaf_get_bit(int_sts, RCB_SLV_WR_ERR_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_axi_err_data,
+					  ERR_SRC_AXI_RCB_SLV_WR_ERR_INT,
+					  fru_text, text_len,
+					  "AXI_RCB_SLV_WR_ERR ");
+		} else {
+			net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
+					 "rcb_common has unrepairable error, cause: rcb_slv_wr_err.\n");
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, RCB_MST_ERR2_INT))
-		net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
-				 "rcb_common has unrepairable error, cause: rcb_mst_err2.\n");
+	if (dsaf_get_bit(int_sts, RCB_MST_ERR0_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_axi_err_data,
+					  ERR_SRC_AXI_RCB_MST_ERR0_INT,
+					  fru_text, text_len,
+					  "AXI_RCB_MST_ERR0 ");
+		} else {
+			net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
+					 "rcb_common has unrepairable error, cause: rcb_mst_err0.\n");
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, RCB_MST_ERR3_INT))
-		net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
-				 "rcb_common has unrepairable error, cause: rcb_mst_err3.\n");
+	if (dsaf_get_bit(int_sts, RCB_MST_ERR1_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_axi_err_data,
+					  ERR_SRC_AXI_RCB_MST_ERR1_INT,
+					  fru_text, text_len,
+					  "AXI_RCB_MST_ERR1 ");
+		} else {
+			net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
+					 "rcb_common has unrepairable error, cause: rcb_mst_err1.\n");
+		}
+	}
+
+	if (dsaf_get_bit(int_sts, RCB_MST_ERR2_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_axi_err_data,
+					  ERR_SRC_AXI_RCB_MST_ERR2_INT,
+					  fru_text, text_len,
+					  "AXI_RCB_MST_ERR2 ");
+		} else {
+			net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
+					 "rcb_common has unrepairable error, cause: rcb_mst_err2.\n");
+		}
+	}
+
+	if (dsaf_get_bit(int_sts, RCB_MST_ERR3_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(rcb_axi_err_data,
+					  ERR_SRC_AXI_RCB_MST_ERR3_INT,
+					  fru_text, text_len,
+					  "AXI_RCB_MST_ERR3 ");
+		} else {
+			net_edac_dev_err(irq_rcb_common->dsaf_dev->dev, 0,
+					 "rcb_common has unrepairable error, cause: rcb_mst_err3.\n");
+		}
+	}
 
 	if (int_sts)
 		dsaf_write_dev(irq_rcb_common, RCB_COM_AXI_ERR_STS, int_sts);
@@ -909,6 +1136,14 @@ static irqreturn_t rcb_axi_error_int_handler(int irq, void *rcb_common)
 			irq_rcb_common->irq_axi_info.last_jiffies = jiffies;
 			irq_rcb_common->irq_axi_info.total = 0;
 		}
+	}
+
+	if ((rcb_axi_err_data.error_count > 0) && trace_unknown_enabled) {
+		sprintf((fru_text + text_len), "\n");
+		trace_unknown_sec_event(&sec_type, fru_id,
+					fru_text, sec_sev,
+					(const u8 *)&rcb_axi_err_data,
+					sizeof(rcb_axi_err_data));
 	}
 
 	return IRQ_HANDLED;

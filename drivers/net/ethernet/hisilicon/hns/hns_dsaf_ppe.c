@@ -16,6 +16,9 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/uuid.h>
+#include <ras/ras_event.h>
+#include <acpi/ghes.h>
 
 #include "hns_dsaf_ppe.h"
 
@@ -531,30 +534,88 @@ static irqreturn_t ppe_channel_int_handler(int irq, void *ppe_cb)
 	int port_id = irq_ppe_cb->index;
 	unsigned long next;
 	u32 int_sts;
+	int sec_sev = GHES_SEV_RECOVERABLE;
+	uuid_le sec_type = CPER_SEC_HISI_HNS_DSAF;
+	uuid_le *fru_id = &NULL_UUID_LE;
+	struct hns_dsaf_err_info ppe_err_data;
+	char fru_text[HNS_PPE_MAX_ERR_SRC * HNS_FRU_TEXT_SIZE];
+	bool trace_unknown_enabled = trace_unknown_sec_event_enabled();
+	u32 text_len = 0;
 
 	int_sts = dsaf_read_dev(irq_ppe_cb, PPE_INTSTS_REG);
 	hns_ppe_irq_set(irq_ppe_cb, 0);
 
-	if (dsaf_get_bit(int_sts, PPE_DDR_RW_INT))
-		net_edac_dev_err(irq_ppe_cb->dev, port_id,
-				 "ppe_cb(%u) has configure error, cause: ppe_ddr_rw.\n",
-				 port_id);
+	if (trace_unknown_enabled) {
+		memset(&ppe_err_data, 0, sizeof(ppe_err_data));
+		ppe_err_data.validation_bits =
+						HNS_DSAF_VALID_ERR_COUNT |
+						HNS_DSAF_VALID_ERR_SRC |
+						HNS_DSAF_VALID_ERR_TYPE |
+						HNS_DSAF_VALID_PORT_ID;
+		ppe_err_data.error_src = ERR_SRC_PPE_UNKNOWN;
+		ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		ppe_err_data.port_id = port_id;
+		text_len += sprintf(fru_text, "%s - ",
+					dev_name(irq_ppe_cb->dev));
+	}
 
-	if (dsaf_get_bit(int_sts, PPE_TX_DROP_INT))
-		net_edac_dev_err(irq_ppe_cb->dev, port_id,
-				 "ppe_cb(%u) has configure error, cause: ppe_tx_drop.\n",
-				 port_id);
 
-	if (dsaf_get_bit(int_sts, PPE_RX_SRAM_PAR_INT))
-		net_edac_dev_err(irq_ppe_cb->dev, port_id,
-				 "ppe_cb(%u) has unrepairable error, cause: ppe_rx_sram_par.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, PPE_DDR_RW_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(ppe_err_data,
+					  ERR_SRC_PPE_DDR_RW_INT,
+					  fru_text, text_len,
+					  "PPE_DDR_RW ");
+		} else {
+			net_edac_dev_err(irq_ppe_cb->dev, port_id,
+					 "ppe_cb(%u) has configure error, cause: ppe_ddr_rw.\n",
+					 port_id);
+		}
+	}
 
-	if (dsaf_get_bit(int_sts, PPE_TX_SRAM_PAR_INT))
-		net_edac_dev_err(irq_ppe_cb->dev, port_id,
-				 "ppe_cb(%u) has unrepairable error, cause: ppe_tx_sram_par.\n",
-				 port_id);
+	if (dsaf_get_bit(int_sts, PPE_TX_DROP_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(ppe_err_data,
+					  ERR_SRC_PPE_TX_DROP_INT,
+					  fru_text, text_len,
+					  "PPE_TX_DROP ");
+		} else {
+			net_edac_dev_err(irq_ppe_cb->dev, port_id,
+					 "ppe_cb(%u) has configure error, cause: ppe_tx_drop.\n",
+					 port_id);
+		}
+	}
 
+	if (dsaf_get_bit(int_sts, PPE_RX_SRAM_PAR_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(ppe_err_data,
+					  ERR_SRC_PPE_RX_SRAM_PAR_INT,
+					  fru_text, text_len,
+					  "PPE_RX_SRAM_PAR ");
+			ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(irq_ppe_cb->dev, port_id,
+					 "ppe_cb(%u) has unrepairable error, cause: ppe_rx_sram_par.\n",
+					 port_id);
+		}
+	}
+
+	if (dsaf_get_bit(int_sts, PPE_TX_SRAM_PAR_INT)) {
+		if (trace_unknown_enabled) {
+			net_dev_err_trace(ppe_err_data,
+					  ERR_SRC_PPE_TX_SRAM_PAR_INT,
+					  fru_text, text_len,
+					  "PPE_TX_SRAM_PAR ");
+			ppe_err_data.error_type =
+					HNS_DSAF_ERR_TYPE_UNCORRECTABLE;
+		} else {
+			net_edac_dev_err(irq_ppe_cb->dev, port_id,
+					 "ppe_cb(%u) has unrepairable error, cause: ppe_tx_sram_par.\n",
+					 port_id);
+		}
+	}
 	if (int_sts)
 		dsaf_write_dev(irq_ppe_cb, PPE_RINT_REG, int_sts);
 
@@ -567,6 +628,14 @@ static irqreturn_t ppe_channel_int_handler(int irq, void *ppe_cb)
 		}
 
 		hns_ppe_irq_set(irq_ppe_cb, 1);
+	}
+
+	if ((ppe_err_data.error_count > 0) && trace_unknown_enabled) {
+		sprintf((fru_text + text_len), "\n");
+		trace_unknown_sec_event(&sec_type, fru_id,
+					fru_text, sec_sev,
+					(const u8 *)&ppe_err_data,
+					sizeof(ppe_err_data));
 	}
 
 	return IRQ_HANDLED;
