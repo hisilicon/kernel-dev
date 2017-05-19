@@ -20,12 +20,14 @@
 #include <linux/types.h>
 #include <linux/string.h>
 
+#define UUID_SIZE 16
+
 typedef struct {
-	__u8 b[16];
+	__u8 b[UUID_SIZE];
 } uuid_le;
 
 typedef struct {
-	__u8 b[16];
+	__u8 b[UUID_SIZE];
 } uuid_be;
 
 #define UUID_LE(a, b, c, d0, d1, d2, d3, d4, d5, d6, d7)		\
