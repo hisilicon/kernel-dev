@@ -33,7 +33,8 @@ struct vfio_platform_irq {
 	int			hwirq;
 	char			*name;
 	struct eventfd_ctx	*trigger;
-	bool			masked;
+	bool			usermasked;
+	bool			automasked;
 	spinlock_t		lock;
 	struct virqfd		*unmask;
 	struct virqfd		*mask;
@@ -102,6 +103,9 @@ extern int vfio_platform_set_irqs_ioctl(struct vfio_platform_device *vdev,
 extern void __vfio_platform_register_reset(struct vfio_platform_reset_node *n);
 extern void vfio_platform_unregister_reset(const char *compat,
 					   vfio_platform_reset_fn_t fn);
+
+#define is_masked(irq) ((irq)->usermasked || (irq)->automasked)
+
 #define vfio_platform_register_reset(__compat, __reset)		\
 static struct vfio_platform_reset_node __reset ## _node = {	\
 	.owner = THIS_MODULE,					\
