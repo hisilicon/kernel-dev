@@ -17,6 +17,7 @@
 
 #include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/irqbypass.h>
 
 #define VFIO_PLATFORM_OFFSET_SHIFT   40
 #define VFIO_PLATFORM_OFFSET_MASK (((u64)(1) << VFIO_PLATFORM_OFFSET_SHIFT) - 1)
@@ -40,6 +41,7 @@ struct vfio_platform_irq {
 	struct virqfd		*mask;
 	bool			deoi;
 	irqreturn_t		(*handler)(int irq, void *dev_id);
+	struct irq_bypass_producer producer;
 };
 
 struct vfio_platform_region {
@@ -102,11 +104,31 @@ extern int vfio_platform_set_irqs_ioctl(struct vfio_platform_device *vdev,
 					unsigned start, unsigned count,
 					void *data);
 
+extern int vfio_platform_set_deoi(struct vfio_platform_irq *irq_ctx, bool deoi);
+
 extern void __vfio_platform_register_reset(struct vfio_platform_reset_node *n);
 extern void vfio_platform_unregister_reset(const char *compat,
 					   vfio_platform_reset_fn_t fn);
 
 #define is_masked(irq) ((irq)->usermasked || (irq)->automasked)
+
+#ifdef CONFIG_VFIO_PLATFORM_IRQ_BYPASS_DEOI
+bool vfio_platform_has_deoi(void);
+void vfio_platform_register_deoi_producer(struct vfio_platform_device *vdev,
+					  struct vfio_platform_irq *irq,
+					  struct eventfd_ctx *trigger,
+					  unsigned int host_irq);
+#else
+static inline bool vfio_platform_has_deoi(void)
+{
+	return false;
+}
+static inline
+void vfio_platform_register_deoi_producer(struct vfio_platform_device *vdev,
+					  struct vfio_platform_irq *irq,
+					  struct eventfd_ctx *trigger,
+					  unsigned int host_irq) {}
+#endif
 
 #define vfio_platform_register_reset(__compat, __reset)		\
 static struct vfio_platform_reset_node __reset ## _node = {	\
