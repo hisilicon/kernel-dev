@@ -20,6 +20,7 @@
 #include <linux/types.h>
 #include <linux/vfio.h>
 #include <linux/irq.h>
+#include <linux/irqbypass.h>
 
 #include "vfio_platform_private.h"
 
@@ -186,6 +187,19 @@ static irqreturn_t vfio_wrapper_handler(int irq, void *dev_id)
 	return ret;
 }
 
+/* must be called with irq_ctx->lock held */
+int vfio_platform_set_deoi(struct vfio_platform_irq *irq_ctx, bool deoi)
+{
+	irq_ctx->deoi = deoi;
+
+	if (!deoi && (irq_ctx->flags & VFIO_IRQ_INFO_AUTOMASKED))
+		irq_ctx->handler = vfio_automasked_irq_handler;
+	else
+		irq_ctx->handler = vfio_irq_handler;
+
+	return 0;
+}
+
 static int vfio_set_trigger(struct vfio_platform_device *vdev, int index,
 			    int fd, irq_handler_t handler)
 {
@@ -196,6 +210,7 @@ static int vfio_set_trigger(struct vfio_platform_device *vdev, int index,
 	if (irq->trigger) {
 		irq_clear_status_flags(irq->hwirq, IRQ_NOAUTOEN);
 		free_irq(irq->hwirq, irq);
+		irq_bypass_unregister_producer(&irq->producer);
 		kfree(irq->name);
 		eventfd_ctx_put(irq->trigger);
 		irq->trigger = NULL;
@@ -226,6 +241,10 @@ static int vfio_set_trigger(struct vfio_platform_device *vdev, int index,
 		irq->trigger = NULL;
 		return ret;
 	}
+
+	if (vfio_platform_has_deoi())
+		vfio_platform_register_deoi_producer(vdev, irq,
+						     trigger, irq->hwirq);
 
 	if (!irq->usermasked)
 		enable_irq(irq->hwirq);

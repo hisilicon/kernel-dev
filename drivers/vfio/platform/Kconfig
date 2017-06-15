@@ -2,6 +2,7 @@ config VFIO_PLATFORM
 	tristate "VFIO support for platform devices"
 	depends on VFIO && EVENTFD && (ARM || ARM64)
 	select VFIO_VIRQFD
+	select IRQ_BYPASS_MANAGER
 	help
 	  Support for platform devices with VFIO. This is required to make
 	  use of platform devices present on the system using the VFIO
@@ -18,5 +19,9 @@ config VFIO_AMBA
 	  framework.
 
 	  If you don't know what to do here, say N.
+
+config VFIO_PLATFORM_IRQ_BYPASS_DEOI
+	depends on VFIO_PLATFORM
+	def_bool y
 
 source "drivers/vfio/platform/reset/Kconfig"
