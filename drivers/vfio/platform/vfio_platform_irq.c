@@ -148,10 +148,7 @@ static int vfio_platform_set_irq_unmask(struct vfio_platform_device *vdev,
 static irqreturn_t vfio_automasked_irq_handler(int irq, void *dev_id)
 {
 	struct vfio_platform_irq *irq_ctx = dev_id;
-	unsigned long flags;
 	int ret = IRQ_NONE;
-
-	spin_lock_irqsave(&irq_ctx->lock, flags);
 
 	if (!is_masked(irq_ctx)) {
 		ret = IRQ_HANDLED;
@@ -160,8 +157,6 @@ static irqreturn_t vfio_automasked_irq_handler(int irq, void *dev_id)
 		disable_irq_nosync(irq_ctx->hwirq);
 		irq_ctx->automasked = true;
 	}
-
-	spin_unlock_irqrestore(&irq_ctx->lock, flags);
 
 	if (ret == IRQ_HANDLED)
 		eventfd_signal(irq_ctx->trigger, 1);
@@ -176,6 +171,19 @@ static irqreturn_t vfio_irq_handler(int irq, void *dev_id)
 	eventfd_signal(irq_ctx->trigger, 1);
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t vfio_wrapper_handler(int irq, void *dev_id)
+{
+	struct vfio_platform_irq *irq_ctx = dev_id;
+	unsigned long flags;
+	irqreturn_t ret;
+
+	spin_lock_irqsave(&irq_ctx->lock, flags);
+	ret = irq_ctx->handler(irq, dev_id);
+	spin_unlock_irqrestore(&irq_ctx->lock, flags);
+
+	return ret;
 }
 
 static int vfio_set_trigger(struct vfio_platform_device *vdev, int index,
@@ -208,9 +216,10 @@ static int vfio_set_trigger(struct vfio_platform_device *vdev, int index,
 	}
 
 	irq->trigger = trigger;
+	irq->handler = handler;
 
 	irq_set_status_flags(irq->hwirq, IRQ_NOAUTOEN);
-	ret = request_irq(irq->hwirq, handler, 0, irq->name, irq);
+	ret = request_irq(irq->hwirq, vfio_wrapper_handler, 0, irq->name, irq);
 	if (ret) {
 		kfree(irq->name);
 		eventfd_ctx_put(trigger);
@@ -232,7 +241,7 @@ static int vfio_platform_set_irq_trigger(struct vfio_platform_device *vdev,
 	struct vfio_platform_irq *irq = &vdev->irqs[index];
 	irq_handler_t handler;
 
-	if (vdev->irqs[index].flags & VFIO_IRQ_INFO_AUTOMASKED)
+	if (vdev->irqs[index].flags & VFIO_IRQ_INFO_AUTOMASKED && !irq->deoi)
 		handler = vfio_automasked_irq_handler;
 	else
 		handler = vfio_irq_handler;
