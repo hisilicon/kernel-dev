@@ -31,11 +31,17 @@ struct irq_bypass_consumer;
  * are not supported.
  */
 
+enum irq_bypass_producer_type {
+	IRQ_BYPASS_VFIO_PCI_MSI,
+	IRQ_BYPASS_VFIO_PLATFORM,
+};
+
 /**
  * struct irq_bypass_producer - IRQ bypass producer definition
  * @node: IRQ bypass manager private list management
  * @token: opaque token to match between producer and consumer (non-NULL)
  * @irq: Linux IRQ number for the producer device
+ * @type: type of the producer to easily assess interoperability with consumer
  * @add_consumer: Connect the IRQ producer to an IRQ consumer (optional)
  * @del_consumer: Disconnect the IRQ producer from an IRQ consumer (optional)
  * @stop: Perform any quiesce operations necessary prior to add/del (optional)
@@ -49,6 +55,7 @@ struct irq_bypass_producer {
 	struct list_head node;
 	void *token;
 	int irq;
+	enum irq_bypass_producer_type type;
 	int (*add_consumer)(struct irq_bypass_producer *,
 			    struct irq_bypass_consumer *);
 	void (*del_consumer)(struct irq_bypass_producer *,
