@@ -351,4 +351,9 @@ int kvm_vgic_setup_default_irq_routing(struct kvm *kvm);
 
 int kvm_vgic_set_owner(struct kvm_vcpu *vcpu, unsigned int intid, void *owner);
 
+int kvm_vgic_set_forwarding(struct kvm *kvm, unsigned int host_irq,
+			    unsigned int vintid);
+void kvm_vgic_unset_forwarding(struct kvm *kvm, unsigned int host_irq,
+			       unsigned int vintid);
+
 #endif /* __KVM_ARM_VGIC_H */
