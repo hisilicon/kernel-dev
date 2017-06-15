@@ -887,3 +887,91 @@ bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, unsigned int vintid)
 	return map_is_active;
 }
 
+/**
+ * kvm_vgic_set_forwarding - Set IRQ forwarding
+ *
+ * @kvm: kvm handle
+ * @host_irq: the host linux IRQ
+ * @vintid: the virtual INTID
+ *
+ * This function must be called when the IRQ is not active:
+ * ie. not active at GIC level and not currently under injection
+ * into the guest using the unforwarded mode. The physical IRQ must
+ * be disabled and all vCPUs must have been exited and prevented
+ * from being re-entered.
+ */
+int kvm_vgic_set_forwarding(struct kvm *kvm, unsigned int host_irq,
+			    unsigned int vintid)
+{
+	struct kvm_vcpu *vcpu;
+	struct vgic_irq *irq;
+	int ret;
+
+	kvm_debug("%s host_irq=%d vintid=%d\n", __func__, host_irq, vintid);
+
+	if (!vgic_valid_spi(kvm, vintid))
+		return -EINVAL;
+
+	irq = vgic_get_irq(kvm, NULL, vintid);
+	spin_lock(&irq->irq_lock);
+
+	if (irq->hw) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+	vcpu = irq->target_vcpu;
+	if (!vcpu) {
+		ret = -EAGAIN;
+		goto unlock;
+	}
+
+	ret = kvm_vgic_map_irq(vcpu, irq, host_irq, NULL);
+	if (!ret)
+		irq_set_vcpu_affinity(host_irq, vcpu);
+unlock:
+	spin_unlock(&irq->irq_lock);
+	vgic_put_irq(kvm, irq);
+	return ret;
+}
+
+/**
+ * kvm_vgic_unset_forwarding - Unset IRQ forwarding
+ *
+ * @kvm: KVM handle
+ * @host_irq: the host Linux IRQ number
+ * @vintid: virtual INTID
+ *
+ * This function must be called when the host irq is disabled and
+ * all vCPUs have been exited and prevented from being re-entered.
+ */
+void kvm_vgic_unset_forwarding(struct kvm *kvm,
+			       unsigned int host_irq,
+			       unsigned int vintid)
+{
+	struct vgic_irq *irq;
+	bool active;
+
+	kvm_debug("%s host_irq=%d vintid=%d\n", __func__, host_irq, vintid);
+
+	if (!vgic_valid_spi(kvm, vintid))
+		return;
+
+	irq = vgic_get_irq(kvm, NULL, vintid);
+	spin_lock(&irq->irq_lock);
+
+	if (!irq->hw)
+		goto unlock;
+
+	WARN_ON(irq_get_irqchip_state(host_irq, IRQCHIP_STATE_ACTIVE, &active));
+
+	if (active)
+		irq_set_irqchip_state(host_irq, IRQCHIP_STATE_ACTIVE, false);
+
+	kvm_vgic_unmap_irq(irq);
+	irq_set_vcpu_affinity(host_irq, NULL);
+
+unlock:
+	spin_unlock(&irq->irq_lock);
+	vgic_put_irq(kvm, irq);
+}
+
