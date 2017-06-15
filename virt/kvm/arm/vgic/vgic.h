@@ -96,18 +96,23 @@
 /* we only support 64 kB translation table page size */
 #define KVM_ITS_L1E_ADDR_MASK		GENMASK_ULL(51, 16)
 
+bool irq_line_level(struct vgic_irq *irq);
+
 static inline bool irq_is_pending(struct vgic_irq *irq)
 {
 	if (irq->config == VGIC_CONFIG_EDGE)
 		return irq->pending_latch;
 	else
-		return irq->pending_latch || irq->line_level;
+		return irq->pending_latch || irq_line_level(irq);
 }
 
 static inline bool vgic_irq_is_mapped_level(struct vgic_irq *irq)
 {
 	return irq->config == VGIC_CONFIG_LEVEL && irq->hw;
 }
+
+#define is_mapped_spi(i) \
+((i)->hw && (i)->intid >= VGIC_NR_PRIVATE_IRQS && (i)->intid < 1020)
 
 /*
  * This struct provides an intermediate representation of the fields contained
