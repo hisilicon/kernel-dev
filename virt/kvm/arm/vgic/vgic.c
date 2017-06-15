@@ -140,6 +140,17 @@ void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 	kfree(irq);
 }
 
+bool irq_line_level(struct vgic_irq *irq)
+{
+	bool line_level = irq->line_level;
+
+	if (unlikely(is_mapped_spi(irq)))
+		WARN_ON(irq_get_irqchip_state(irq->host_irq,
+					      IRQCHIP_STATE_PENDING,
+					      &line_level));
+	return line_level;
+}
+
 /**
  * kvm_vgic_target_oracle - compute the target vcpu for an irq
  *
@@ -238,7 +249,8 @@ static void vgic_sort_ap_list(struct kvm_vcpu *vcpu)
 /*
  * Only valid injection if changing level for level-triggered IRQs or for a
  * rising edge, and in-kernel connected IRQ lines can only be controlled by
- * their owner.
+ * their owner. Injection of virtual interrupts associated to physical
+ * interrupts always is valid.
  */
 static bool vgic_validate_injection(struct vgic_irq *irq, bool level, void *owner)
 {
@@ -247,7 +259,7 @@ static bool vgic_validate_injection(struct vgic_irq *irq, bool level, void *owne
 
 	switch (irq->config) {
 	case VGIC_CONFIG_LEVEL:
-		return irq->line_level != level;
+		return (irq->line_level != level || unlikely(is_mapped_spi(irq)));
 	case VGIC_CONFIG_EDGE:
 		return level;
 	}
