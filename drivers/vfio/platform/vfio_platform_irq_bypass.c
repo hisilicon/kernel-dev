@@ -102,6 +102,7 @@ void vfio_platform_register_deoi_producer(struct vfio_platform_device *vdev,
 
 	prod->token =		trigger;
 	prod->irq =		host_irq;
+	prod->type =		IRQ_BYPASS_VFIO_PLATFORM;
 	prod->add_consumer =	irq_bypass_deoi_add_consumer;
 	prod->del_consumer =	irq_bypass_deoi_del_consumer;
 	prod->stop =		irq_bypass_deoi_stop;
