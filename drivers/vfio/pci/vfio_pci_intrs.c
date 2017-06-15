@@ -343,6 +343,7 @@ static int vfio_msi_set_vector_signal(struct vfio_pci_device *vdev,
 
 	vdev->ctx[vector].producer.token = trigger;
 	vdev->ctx[vector].producer.irq = irq;
+	vdev->ctx[vector].producer.type = IRQ_BYPASS_VFIO_PCI_MSI;
 	ret = irq_bypass_register_producer(&vdev->ctx[vector].producer);
 	if (unlikely(ret))
 		dev_info(&pdev->dev,
