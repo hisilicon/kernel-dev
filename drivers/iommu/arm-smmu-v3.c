@@ -597,6 +597,7 @@ struct arm_smmu_device {
 	u32				features;
 
 #define ARM_SMMU_OPT_SKIP_PREFETCH	(1 << 0)
+#define ARM_SMMU_OPT_RESV_HW_MSI	(1 << 1)
 	u32				options;
 
 	struct arm_smmu_cmdq		cmdq;
@@ -1904,14 +1905,34 @@ static void arm_smmu_get_resv_regions(struct device *dev,
 				      struct list_head *head)
 {
 	struct iommu_resv_region *region;
+	struct arm_smmu_device *smmu;
+	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
 	int prot = IOMMU_WRITE | IOMMU_NOEXEC | IOMMU_MMIO;
+	int resv = 0;
 
-	region = iommu_alloc_resv_region(MSI_IOVA_BASE, MSI_IOVA_LENGTH,
-					 prot, IOMMU_RESV_SW_MSI);
-	if (!region)
+	smmu = arm_smmu_get_by_fwnode(fwspec->iommu_fwnode);
+	if (WARN_ON(!smmu))
 		return;
 
-	list_add_tail(&region->list, head);
+	if ((smmu->options & ARM_SMMU_OPT_RESV_HW_MSI)) {
+
+		if (!is_of_node(smmu->dev->fwnode))
+			resv = iort_iommu_its_get_resv_regions(dev, head);
+
+		if (resv < 0) {
+			dev_warn(dev, "HW MSI region resv failed: %d\n", resv);
+			return;
+		}
+	}
+
+	if (!resv) {
+		region = iommu_alloc_resv_region(MSI_IOVA_BASE, MSI_IOVA_LENGTH,
+						 prot, IOMMU_RESV_SW_MSI);
+		if (!region)
+			return;
+
+		list_add_tail(&region->list, head);
+	}
 
 	iommu_dma_get_resv_regions(dev, head);
 }
@@ -2611,6 +2632,7 @@ static void parse_driver_acpi_options(struct acpi_iort_smmu_v3 *iort_smmu,
 	switch (iort_smmu->model) {
 	case ACPI_IORT_SMMU_HISILICON_HI161X:
 		smmu->options |= ARM_SMMU_OPT_SKIP_PREFETCH;
+		smmu->options |= ARM_SMMU_OPT_RESV_HW_MSI;
 		break;
 	default:
 		break;
