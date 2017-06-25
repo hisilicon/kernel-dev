@@ -706,6 +706,19 @@ static int vgic_its_cmd_handle_movi(struct kvm *kvm, struct vgic_its *its,
 	ite->irq->target_vcpu = vcpu;
 	spin_unlock(&ite->irq->irq_lock);
 
+	if (ite->irq->hw) {
+		struct its_vlpi_map map;
+		int ret;
+
+		ret = its_get_vlpi(ite->irq->host_irq, &map);
+		if (ret)
+			return ret;
+
+		map.vpe_idx = vcpu->vcpu_id;
+
+		return its_map_vlpi(ite->irq->host_irq, &map);
+	}
+
 	return 0;
 }
 
