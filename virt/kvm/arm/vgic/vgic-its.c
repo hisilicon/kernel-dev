@@ -623,8 +623,12 @@ static void its_free_ite(struct kvm *kvm, struct its_ite *ite)
 	list_del(&ite->ite_list);
 
 	/* This put matches the get in vgic_add_lpi. */
-	if (ite->irq)
+	if (ite->irq) {
+		if (ite->irq->hw)
+			its_unmap_vlpi(ite->irq->host_irq);
+
 		vgic_put_irq(kvm, ite->irq);
+	}
 
 	kfree(ite);
 }
