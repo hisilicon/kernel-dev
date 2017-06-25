@@ -26,6 +26,8 @@
 #include <linux/list.h>
 #include <linux/jump_label.h>
 
+#include <linux/irqchip/arm-gic-v4.h>
+
 #define VGIC_V3_MAX_CPUS	255
 #define VGIC_V2_MAX_CPUS	8
 #define VGIC_NR_IRQS_LEGACY     256
@@ -236,6 +238,9 @@ struct vgic_dist {
 
 	/* used by vgic-debug */
 	struct vgic_state_iter *iter;
+
+	/* GICv4 ITS per-VM stuff */
+	struct its_vm		its_vm;
 };
 
 struct vgic_v2_cpu_if {
@@ -254,6 +259,9 @@ struct vgic_v3_cpu_if {
 	u32		vgic_ap0r[4];
 	u32		vgic_ap1r[4];
 	u64		vgic_lr[VGIC_V3_MAX_LRS];
+
+	/* GICv4 vPE info */
+	struct its_vpe	its_vpe;
 };
 
 struct vgic_cpu {
