@@ -1457,11 +1457,16 @@ int kvm_arch_irq_bypass_add_producer(struct irq_bypass_consumer *cons,
 	struct kvm_kernel_irqfd *irqfd =
 		container_of(cons, struct kvm_kernel_irqfd, consumer);
 
-	if (prod->type != IRQ_BYPASS_VFIO_PLATFORM)
+	switch (prod->type) {
+	case IRQ_BYPASS_VFIO_PLATFORM:
+		return kvm_vgic_set_forwarding(irqfd->kvm, prod->irq,
+					       irqfd->gsi + VGIC_NR_PRIVATE_IRQS);
+	case IRQ_BYPASS_VFIO_PCI_MSI:
+		return kvm_vgic_v4_set_forwarding(irqfd->kvm, prod->irq,
+						  &irqfd->irq_entry);
+	default:
 		return 0;
-
-	return kvm_vgic_set_forwarding(irqfd->kvm, prod->irq,
-				       irqfd->gsi + VGIC_NR_PRIVATE_IRQS);
+	}
 }
 void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *cons,
 				      struct irq_bypass_producer *prod)
@@ -1469,11 +1474,17 @@ void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *cons,
 	struct kvm_kernel_irqfd *irqfd =
 		container_of(cons, struct kvm_kernel_irqfd, consumer);
 
-	if (prod->type != IRQ_BYPASS_VFIO_PLATFORM)
-		return;
+	switch (prod->type) {
+	case IRQ_BYPASS_VFIO_PLATFORM:
+		kvm_vgic_unset_forwarding(irqfd->kvm, prod->irq,
+					  irqfd->gsi + VGIC_NR_PRIVATE_IRQS);
+		break;
 
-	kvm_vgic_unset_forwarding(irqfd->kvm, prod->irq,
-				  irqfd->gsi + VGIC_NR_PRIVATE_IRQS);
+	case IRQ_BYPASS_VFIO_PCI_MSI:
+		kvm_vgic_v4_unset_forwarding(irqfd->kvm, prod->irq,
+					     &irqfd->irq_entry);
+		break;
+	}
 }
 
 void kvm_arch_irq_bypass_stop(struct irq_bypass_consumer *cons)

@@ -367,4 +367,12 @@ int kvm_vgic_set_forwarding(struct kvm *kvm, unsigned int host_irq,
 void kvm_vgic_unset_forwarding(struct kvm *kvm, unsigned int host_irq,
 			       unsigned int vintid);
 
+struct kvm_kernel_irq_routing_entry;
+
+int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int irq,
+			       struct kvm_kernel_irq_routing_entry *irq_entry);
+
+int kvm_vgic_v4_unset_forwarding(struct kvm *kvm, int irq,
+				 struct kvm_kernel_irq_routing_entry *irq_entry);
+
 #endif /* __KVM_ARM_VGIC_H */
