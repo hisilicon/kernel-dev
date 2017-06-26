@@ -119,6 +119,30 @@ void vgic_v4_teardown(struct kvm *kvm)
 	its_vm->vpes = NULL;
 }
 
+int vgic_v4_schedule(struct kvm_vcpu *vcpu, bool on)
+{
+	int irq = vcpu->arch.vgic_cpu.vgic_v3.its_vpe.irq;
+
+	if (!vgic_is_v4_capable(vcpu->kvm) || !irq)
+		return 0;
+
+	/*
+	 * Before making the VPE resident, make sure the redistributor
+	 * expects us here.
+	 */
+	if (on) {
+		int err;
+
+		err = irq_set_affinity(irq, cpumask_of(smp_processor_id()));
+		if (err) {
+			kvm_err("failed irq_set_affinity IRQ%d (%d)\n", irq, err);
+			return err;
+		}
+	}
+
+	return its_schedule_vpe(&vcpu->arch.vgic_cpu.vgic_v3.its_vpe, on);
+}
+
 static struct vgic_its *vgic_get_its(struct kvm *kvm,
 				     struct kvm_kernel_irq_routing_entry *irq_entry)
 {
