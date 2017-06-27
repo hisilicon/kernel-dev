@@ -315,6 +315,26 @@ struct hns_roce_vf_res_b {
 #define VF_RES_B_DATA_3_VF_SL_NUM_M \
 	(((1UL << 4) - 1) << VF_RES_B_DATA_3_VF_SL_NUM_S)
 
+#define ROCEE_VF_MB_CFG0_REG		0x40
+#define ROCEE_VF_MB_STATUS_REG		0x58
+
+#define HNS_ROCE_V2_GO_BIT_TIMEOUT_MSECS	10000
+
+#define HNS_ROCE_HW_RUN_BIT_SHIFT	31
+#define HNS_ROCE_HW_MB_STATUS_MASK	0xFF
+
+#define HNS_ROCE_VF_MB4_TAG_MASK	0xFFFFFF00
+#define HNS_ROCE_VF_MB4_TAG_SHIFT	8
+
+#define HNS_ROCE_VF_MB4_CMD_MASK	0xFF
+#define HNS_ROCE_VF_MB4_CMD_SHIFT	0
+
+#define HNS_ROCE_VF_MB5_EVENT_MASK	0x10000
+#define HNS_ROCE_VF_MB5_EVENT_SHIFT	16
+
+#define HNS_ROCE_VF_MB5_TOKEN_MASK	0xFFFF
+#define HNS_ROCE_VF_MB5_TOKEN_SHIFT	0
+
 struct hns_roce_cmdq_desc_cb {
 	dma_addr_t dma;
 	void *va;

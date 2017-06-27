@@ -1618,6 +1618,88 @@ void hns_roce_v1_exit(struct hns_roce_dev *hr_dev)
 	hns_roce_db_free(hr_dev);
 }
 
+static int hns_roce_v1_cmd_pending(struct hns_roce_dev *hr_dev)
+{
+	u32 status = readl(hr_dev->reg_base + ROCEE_MB6_REG);
+
+	return (!!(status & (1 << HCR_GO_BIT)));
+}
+
+int hns_roce_v1_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
+			  u64 out_param, u32 in_modifier, u8 op_modifier,
+			  u16 op, u16 token, int event)
+{
+	struct device *dev = hr_dev->dev;
+	u32 *hcr = (u32 *)(hr_dev->reg_base + ROCEE_MB1_REG);
+	int ret = -EAGAIN;
+	unsigned long end;
+	u32 val = 0;
+
+	end = msecs_to_jiffies(GO_BIT_TIMEOUT_MSECS) + jiffies;
+	while (hns_roce_v1_cmd_pending(hr_dev)) {
+		if (time_after(jiffies, end)) {
+			dev_dbg(dev, "jiffies=%d end=%d\n", (int)jiffies,
+				(int)end);
+			goto out;
+		}
+		cond_resched();
+	}
+
+	roce_set_field(val, ROCEE_MB6_ROCEE_MB_CMD_M, ROCEE_MB6_ROCEE_MB_CMD_S,
+		       op);
+	roce_set_field(val, ROCEE_MB6_ROCEE_MB_CMD_MDF_M,
+		       ROCEE_MB6_ROCEE_MB_CMD_MDF_S, op_modifier);
+	roce_set_bit(val, ROCEE_MB6_ROCEE_MB_EVENT_S, event);
+	roce_set_bit(val, ROCEE_MB6_ROCEE_MB_HW_RUN_S, 1);
+	roce_set_field(val, ROCEE_MB6_ROCEE_MB_TOKEN_M,
+		       ROCEE_MB6_ROCEE_MB_TOKEN_S, token);
+
+	__raw_writeq(cpu_to_le64(in_param), hcr + 0);
+	__raw_writeq(cpu_to_le64(out_param), hcr + 2);
+	__raw_writel(cpu_to_le32(in_modifier), hcr + 4);
+	/* Memory barrier */
+	wmb();
+
+	__raw_writel(cpu_to_le32(val), hcr + 5);
+
+	mmiowb();
+	ret = 0;
+
+out:
+	return ret;
+}
+
+static int hns_roce_v1_chk_mbox(struct hns_roce_dev *hr_dev,
+				unsigned long timeout)
+{
+	struct device *dev = hr_dev->dev;
+	u8 __iomem *hcr = hr_dev->reg_base + ROCEE_MB1_REG;
+	unsigned long end = 0;
+	u32 status = 0;
+	int ret = 0;
+
+	end = msecs_to_jiffies(timeout) + jiffies;
+	while (hns_roce_v1_cmd_pending(hr_dev) && time_before(jiffies, end))
+		cond_resched();
+
+	if (hns_roce_v1_cmd_pending(hr_dev)) {
+		dev_err(dev, "[cmd_poll]hw run cmd TIMEDOUT!\n");
+		ret = -ETIMEDOUT;
+		goto out;
+	}
+
+	status = le32_to_cpu((__force __be32)
+			      __raw_readl(hcr + HCR_STATUS_OFFSET));
+	if ((status & STATUS_MASK) != 0x1) {
+		dev_err(dev, "mailbox status 0x%x!\n", status);
+		ret = -EBUSY;
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
 void hns_roce_v1_set_gid(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
 			 union ib_gid *gid)
 {
@@ -3851,6 +3933,8 @@ struct hns_roce_hw hns_roce_hw_v1 = {
 	.hw_profile = hns_roce_v1_profile,
 	.hw_init = hns_roce_v1_init,
 	.hw_exit = hns_roce_v1_exit,
+	.post_mbox = hns_roce_v1_post_mbox,
+	.chk_mbox = hns_roce_v1_chk_mbox,
 	.set_gid = hns_roce_v1_set_gid,
 	.set_mac = hns_roce_v1_set_mac,
 	.set_mtu = hns_roce_v1_set_mtu,
