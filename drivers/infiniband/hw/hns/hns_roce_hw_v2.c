@@ -199,8 +199,446 @@ static void hns_roce_v2_cmq_exit(struct hns_roce_dev *hr_dev)
 	mutex_destroy(&priv->cmd.crq.mutex);
 }
 
-void hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
+void hns_roce_cmd_setup_basic_desc(struct hns_roce_cmdq_desc *desc,
+				   enum hns_roce_opcode_type opcode,
+				   bool is_read)
 {
+	memset((void *)desc, 0, sizeof(struct hns_roce_cmdq_desc));
+	desc->opcode = cpu_to_le16(opcode);
+	desc->flag =
+		cpu_to_le16(HNS_ROCE_CMD_FLAG_NO_INTR | HNS_ROCE_CMD_FLAG_IN);
+	if (is_read)
+		desc->flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_WR);
+	else
+		desc->flag &= cpu_to_le16(~HNS_ROCE_CMD_FLAG_WR);
+}
+
+static int hns_roce_cmd_csq_done(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_v2_priv *priv =
+				(struct hns_roce_v2_priv *)hr_dev->hw->priv;
+
+	u32 head = roce_read(hr_dev, RoCEE_TX_CMDQ_HEAD_REG);
+	return head == priv->cmd.csq.next_to_use;
+}
+
+static int hns_roce_cmd_csq_clean(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_cmdq_desc *desc;
+	struct hns_roce_v2_priv *priv =
+				(struct hns_roce_v2_priv *)hr_dev->hw->priv;
+	struct hns_roce_v2_cmdq *csq = &priv->cmd.csq;
+	u16 ntc = csq->next_to_clean;
+	u32 head;
+	int clean = 0;
+
+	desc = &csq->desc[ntc];
+	head = roce_read(hr_dev, RoCEE_TX_CMDQ_HEAD_REG);
+	while (head != ntc) {
+		memset(desc, 0, sizeof(*desc));
+		ntc++;
+		if (ntc == csq->desc_num)
+			ntc = 0;
+		desc = &csq->desc[ntc];
+		clean++;
+	}
+	csq->next_to_clean = ntc;
+
+	return clean;
+}
+
+enum hns_roce_cmd_status hns_roce_cmd_send(struct hns_roce_dev *hr_dev,
+					   struct hns_roce_cmdq_desc *desc,
+					   int num)
+{
+	struct hns_roce_v2_priv *priv =
+				(struct hns_roce_v2_priv *)hr_dev->hw->priv;
+	enum hns_roce_cmd_status status = 0;
+	struct hns_roce_cmdq_desc *desc_to_use;
+	u32 timeout = 0;
+	bool complete = false;
+	int handle = 0;
+	int ntc;
+	u16 retval;
+
+	mutex_lock(&priv->cmd.csq.mutex);
+
+	/**
+	 * Record the location of desc in the cmq for this time
+	 * which will be use for hardware to write back
+	 */
+	ntc = priv->cmd.csq.next_to_use;
+
+	while (handle < num) {
+		desc_to_use = &priv->cmd.csq.desc[priv->cmd.csq.next_to_use];
+		*desc_to_use = desc[handle];
+		dev_dbg(hr_dev->dev, "set cmd desc:\n");
+		priv->cmd.csq.next_to_use++;
+		if (priv->cmd.csq.next_to_use == priv->cmd.csq.desc_num)
+			priv->cmd.csq.next_to_use = 0;
+		handle++;
+	}
+
+	/* Write to hardware */
+	roce_write(hr_dev, ROCEE_TX_CMDQ_TAIL_REG, priv->cmd.csq.next_to_use);
+
+	/**
+	 * If the command is sync, wait for the firmware to write back,
+	 * if multi descriptors to be sent, use the first one to check
+	 */
+	if ((desc->flag) & HNS_ROCE_CMD_FLAG_NO_INTR) {
+		do {
+			if (hns_roce_cmd_csq_done(hr_dev))
+				break;
+			usleep_range(1000, 2000);
+			timeout++;
+		} while (timeout < priv->cmd.tx_timeout);
+	}
+
+	if (hns_roce_cmd_csq_done(hr_dev)) {
+		complete = true;
+		handle = 0;
+		while (handle < num) {
+			/* get the result of hardware write back */
+			desc_to_use = &priv->cmd.csq.desc[ntc];
+			desc[handle] = *desc_to_use;
+			dev_dbg(hr_dev->dev, "Get cmd desc:\n");
+			retval = desc[handle].retval;
+			if ((enum hns_roce_cmd_return_status)retval ==
+			    CMD_EXEC_SUCCESS)
+				status = 0;
+			else
+				status = ERR_CSQ_ERROR;
+			priv->cmd.last_status =
+					(enum hns_roce_cmd_status)retval;
+			ntc++;
+			handle++;
+			if (ntc == priv->cmd.csq.desc_num)
+				ntc = 0;
+		}
+	}
+
+	if (!complete)
+		status = ERR_CSQ_TIMEOUT;
+
+	/* clean the command send queue */
+	handle = hns_roce_cmd_csq_clean(hr_dev);
+	if (handle != num) {
+		dev_warn(hr_dev->dev, "Cleaned %d, need to clean %d\n",
+			 handle, num);
+	}
+
+	mutex_unlock(&priv->cmd.csq.mutex);
+	return status;
+}
+
+enum hns_roce_cmd_status hns_roce_cmd_query_hw_info(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_cmdq_desc desc;
+	struct hns_roce_query_version *resp =
+				     (struct hns_roce_query_version *)desc.data;
+	enum hns_roce_cmd_status status;
+
+	hns_roce_cmd_setup_basic_desc(&desc, HNS_ROCE_OPC_QUERY_HW_VER, true);
+	status = hns_roce_cmd_send(hr_dev, &desc, 1);
+	if (status)
+		return status;
+
+	hr_dev->hw_rev = le32_to_cpu(resp->rocee_hw_version);
+	hr_dev->vendor_id = le32_to_cpu(resp->rocee_vendor_id);
+
+	return status;
+}
+
+static int hns_roce_config_global_param(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_cmdq_desc desc;
+	struct hns_roce_cfg_global_param *req =
+				(struct hns_roce_cfg_global_param *)desc.data;
+	enum hns_roce_cmd_status status;
+
+	hns_roce_cmd_setup_basic_desc(&desc, HNS_ROCE_OPC_CFG_GLOBAL_PARAM,
+				      false);
+	memset(req, 0, sizeof(*req));
+	roce_set_field(req->data_0,
+		       CFG_GLOBAL_PARAM_DATA_0_ROCEE_TIME_1US_CFG_M,
+		       CFG_GLOBAL_PARAM_DATA_0_ROCEE_TIME_1US_CFG_S, 0x12b7);
+	roce_set_field(req->data_0, CFG_GLOBAL_PARAM_DATA_0_ROCEE_UDP_PORT_M,
+		       CFG_GLOBAL_PARAM_DATA_0_ROCEE_UDP_PORT_S, 0x3e8);
+	status = hns_roce_cmd_send(hr_dev, &desc, 1);
+	if (status)
+		return status;
+
+	return 0;
+}
+
+static int hns_roce_alloc_pf_resource(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_cmdq_desc desc[2];
+	struct hns_roce_pf_res_a *req_a =
+				(struct hns_roce_pf_res_a *)desc[0].data;
+	struct hns_roce_pf_res_b *req_b =
+				(struct hns_roce_pf_res_b *)desc[1].data;
+	enum hns_roce_cmd_status status;
+	int i;
+
+	memset(req_a, 0, sizeof(*req_a));
+	memset(req_b, 0, sizeof(*req_b));
+	for (i = 0; i < 2; i++) {
+		hns_roce_cmd_setup_basic_desc(&desc[i],
+					      HNS_ROCE_OPC_ALLOC_PF_RES, false);
+
+		if (i == 0)
+			desc[i].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
+		else
+			desc[i].flag &= ~cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
+
+		if (i == 0) {
+			roce_set_field(req_a->data_1,
+				       PF_RES_A_DATA_1_PF_QPC_BT_IDX_M,
+				       PF_RES_A_DATA_1_PF_QPC_BT_IDX_S, 0);
+			roce_set_field(req_a->data_1,
+				       PF_RES_A_DATA_1_PF_QPC_BT_NUM_M,
+				       PF_RES_A_DATA_1_PF_QPC_BT_NUM_S,
+				       HNS_ROCE_VF_QPC_BT_NUM);
+
+			roce_set_field(req_a->data_2,
+				       PF_RES_A_DATA_2_PF_SRQC_BT_IDX_M,
+				       PF_RES_A_DATA_2_PF_SRQC_BT_IDX_S, 0);
+			roce_set_field(req_a->data_2,
+				       PF_RES_A_DATA_2_PF_SRQC_BT_NUM_M,
+				       PF_RES_A_DATA_2_PF_SRQC_BT_NUM_S,
+				       HNS_ROCE_VF_SRQC_BT_NUM);
+
+			roce_set_field(req_a->data_3,
+				       PF_RES_A_DATA_3_PF_CQC_BT_IDX_M,
+				       PF_RES_A_DATA_3_PF_CQC_BT_IDX_S, 0);
+			roce_set_field(req_a->data_3,
+				       PF_RES_A_DATA_3_PF_CQC_BT_NUM_M,
+				       PF_RES_A_DATA_3_PF_CQC_BT_NUM_S,
+				       HNS_ROCE_VF_CQC_BT_NUM);
+
+			roce_set_field(req_a->data_4,
+				       PF_RES_A_DATA_4_PF_MPT_BT_IDX_M,
+				       PF_RES_A_DATA_4_PF_MPT_BT_IDX_S, 0);
+			roce_set_field(req_a->data_4,
+				       PF_RES_A_DATA_4_PF_MPT_BT_NUM_M,
+				       PF_RES_A_DATA_4_PF_MPT_BT_NUM_S,
+				       HNS_ROCE_VF_MPT_BT_NUM);
+
+			roce_set_field(req_a->data_5,
+				       PF_RES_A_DATA_5_PF_EQC_BT_IDX_M,
+				       PF_RES_A_DATA_5_PF_EQC_BT_IDX_S, 0);
+			roce_set_field(req_a->data_5,
+				       PF_RES_A_DATA_5_PF_EQC_BT_NUM_M,
+				       PF_RES_A_DATA_5_PF_EQC_BT_NUM_S,
+				       HNS_ROCE_VF_EQC_NUM);
+		} else {
+			roce_set_field(req_b->data_1,
+				       PF_RES_B_DATA_1_PF_SMAC_IDX_M,
+				       PF_RES_B_DATA_1_PF_SMAC_IDX_S, 0);
+			roce_set_field(req_b->data_1,
+				       PF_RES_B_DATA_1_PF_SMAC_NUM_M,
+				       PF_RES_B_DATA_1_PF_SMAC_NUM_S,
+				       HNS_ROCE_VF_SMAC_NUM);
+
+			roce_set_field(req_b->data_2,
+				       PF_RES_B_DATA_2_PF_SGID_IDX_M,
+				       PF_RES_B_DATA_2_PF_SGID_IDX_S, 0);
+			roce_set_field(req_b->data_2,
+				       PF_RES_B_DATA_2_PF_SGID_NUM_M,
+				       PF_RES_B_DATA_2_PF_SGID_NUM_S,
+				       HNS_ROCE_VF_SGID_NUM);
+
+			roce_set_field(req_b->data_3,
+				       VF_RES_B_DATA_3_VF_QID_IDX_M,
+				       VF_RES_B_DATA_3_VF_QID_IDX_S, 0);
+			roce_set_field(req_b->data_3,
+				       VF_RES_B_DATA_3_VF_SL_NUM_M,
+				       VF_RES_B_DATA_3_VF_SL_NUM_S,
+				       HNS_ROCE_VF_SL_NUM);
+		}
+	}
+
+	status = hns_roce_cmd_send(hr_dev, desc, 2);
+	if (status)
+		return status;
+
+	return 0;
+}
+
+static int hns_roce_alloc_vf_resource(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_cmdq_desc desc[2];
+	struct hns_roce_vf_res_a *req_a =
+				    (struct hns_roce_vf_res_a *)desc[0].data;
+	struct hns_roce_vf_res_b *req_b =
+				    (struct hns_roce_vf_res_b *)desc[1].data;
+	enum hns_roce_cmd_status status;
+	int i;
+
+	memset(req_a, 0, sizeof(*req_a));
+	memset(req_b, 0, sizeof(*req_b));
+	for (i = 0; i < 2; i++) {
+		hns_roce_cmd_setup_basic_desc(&desc[i],
+					      HNS_ROCE_OPC_ALLOC_VF_RES, false);
+
+		if (i == 0)
+			desc[i].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
+		else
+			desc[i].flag &= ~cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
+
+		if (i == 0) {
+			roce_set_field(req_a->data_1,
+				       VF_RES_A_DATA_1_VF_QPC_BT_IDX_M,
+				       VF_RES_A_DATA_1_VF_QPC_BT_IDX_S, 0);
+			roce_set_field(req_a->data_1,
+				       VF_RES_A_DATA_1_VF_QPC_BT_NUM_M,
+				       VF_RES_A_DATA_1_VF_QPC_BT_NUM_S,
+				       HNS_ROCE_VF_QPC_BT_NUM);
+
+			roce_set_field(req_a->data_2,
+				       VF_RES_A_DATA_2_VF_SRQC_BT_IDX_M,
+				       VF_RES_A_DATA_2_VF_SRQC_BT_IDX_S, 0);
+			roce_set_field(req_a->data_2,
+				       VF_RES_A_DATA_2_VF_SRQC_BT_NUM_M,
+				       VF_RES_A_DATA_2_VF_SRQC_BT_NUM_S,
+				       HNS_ROCE_VF_SRQC_BT_NUM);
+
+			roce_set_field(req_a->data_3,
+				       VF_RES_A_DATA_3_VF_CQC_BT_IDX_M,
+				       VF_RES_A_DATA_3_VF_CQC_BT_IDX_S, 0);
+			roce_set_field(req_a->data_3,
+				       VF_RES_A_DATA_3_VF_CQC_BT_NUM_M,
+				       VF_RES_A_DATA_3_VF_CQC_BT_NUM_S,
+				       HNS_ROCE_VF_CQC_BT_NUM);
+
+			roce_set_field(req_a->data_4,
+				       VF_RES_A_DATA_4_VF_MPT_BT_IDX_M,
+				       VF_RES_A_DATA_4_VF_MPT_BT_IDX_S, 0);
+			roce_set_field(req_a->data_4,
+				       VF_RES_A_DATA_4_VF_MPT_BT_NUM_M,
+				       VF_RES_A_DATA_4_VF_MPT_BT_NUM_S,
+				       HNS_ROCE_VF_MPT_BT_NUM);
+
+			roce_set_field(req_a->data_5,
+				       VF_RES_A_DATA_5_VF_EQC_IDX_M,
+				       VF_RES_A_DATA_5_VF_EQC_IDX_S, 0);
+			roce_set_field(req_a->data_5,
+				       VF_RES_A_DATA_5_VF_EQC_NUM_M,
+				       VF_RES_A_DATA_5_VF_EQC_NUM_S,
+				       HNS_ROCE_VF_EQC_NUM);
+		} else {
+			roce_set_field(req_b->data_1,
+				       VF_RES_B_DATA_1_VF_SMAC_IDX_M,
+				       VF_RES_B_DATA_1_VF_SMAC_IDX_S, 0);
+			roce_set_field(req_b->data_1,
+				       VF_RES_B_DATA_1_VF_SMAC_NUM_M,
+				       VF_RES_B_DATA_1_VF_SMAC_NUM_S,
+				       HNS_ROCE_VF_SMAC_NUM);
+
+			roce_set_field(req_b->data_2,
+				       VF_RES_B_DATA_2_VF_SGID_IDX_M,
+				       VF_RES_B_DATA_2_VF_SGID_IDX_S, 0);
+			roce_set_field(req_b->data_2,
+				       VF_RES_B_DATA_2_VF_SGID_NUM_M,
+				       VF_RES_B_DATA_2_VF_SGID_NUM_S,
+				       HNS_ROCE_VF_SGID_NUM);
+
+			roce_set_field(req_b->data_3,
+				       VF_RES_B_DATA_3_VF_QID_IDX_M,
+				       VF_RES_B_DATA_3_VF_QID_IDX_S, 0);
+			roce_set_field(req_b->data_3,
+				       VF_RES_B_DATA_3_VF_SL_NUM_M,
+				       VF_RES_B_DATA_3_VF_SL_NUM_S,
+				       HNS_ROCE_VF_SL_NUM);
+		}
+	}
+
+	status = hns_roce_cmd_send(hr_dev, desc, 2);
+	if (status)
+		return status;
+
+	return 0;
+}
+
+int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
+{
+	int ret;
+	struct hns_roce_caps *caps = &hr_dev->caps;
+
+	ret = hns_roce_cmd_query_hw_info(hr_dev);
+	if (ret) {
+		dev_err(hr_dev->dev, "Query firmware version fail, ret = %d.\n",
+			ret);
+		return ret;
+	}
+
+	dev_err(hr_dev->dev, "the hw version is 0x%x\n", hr_dev->hw_rev);
+
+	ret = hns_roce_config_global_param(hr_dev);
+	if (ret) {
+		dev_err(hr_dev->dev, "Configure global param fail, ret = %d.\n",
+			ret);
+	}
+
+	ret = hns_roce_alloc_pf_resource(hr_dev);
+	if (ret) {
+		dev_err(hr_dev->dev, "Allocate pf resource fail, ret = %d.\n",
+			ret);
+		return ret;
+	}
+
+	ret = hns_roce_alloc_vf_resource(hr_dev);
+	if (ret) {
+		dev_err(hr_dev->dev, "Allocate vf resource fail, ret = %d.\n",
+			ret);
+		return ret;
+	}
+
+	hr_dev->vendor_part_id = 0;
+	hr_dev->sys_image_guid = 0;
+
+	caps->num_qps		= HNS_ROCE_V2_MAX_QP_NUM;
+	caps->max_wqes		= HNS_ROCE_V2_MAX_WQE_NUM;
+	caps->num_cqs		= HNS_ROCE_V2_MAX_CQ_NUM;
+	caps->max_cqes		= HNS_ROCE_V2_MAX_CQE_NUM;
+	caps->max_sq_sg		= HNS_ROCE_V2_MAX_SQ_SGE_NUM;
+	caps->max_rq_sg		= HNS_ROCE_V2_MAX_RQ_SGE_NUM;
+	caps->max_sq_inline	= HNS_ROCE_V2_MAX_SQ_INLINE;
+	caps->num_uars		= HNS_ROCE_V2_UAR_NUM;
+	caps->phy_num_uars	= HNS_ROCE_V2_PHY_UAR_NUM;
+	caps->num_aeq_vectors	= 1;
+	caps->num_comp_vectors	= 63;
+	caps->num_other_vectors	= 0;
+	caps->num_mtpts		= HNS_ROCE_V2_MAX_MTPT_NUM;
+	caps->num_mtt_segs	= HNS_ROCE_V2_MAX_MTT_SEGS;/* need to confirm */
+	caps->num_cqe_segs	= HNS_ROCE_V2_MAX_CQE_SEGS;
+	caps->num_pds		= HNS_ROCE_V2_MAX_PD_NUM;
+	caps->max_qp_init_rdma	= HNS_ROCE_V2_MAX_QP_INIT_RDMA;
+	caps->max_qp_dest_rdma	= HNS_ROCE_V2_MAX_QP_DEST_RDMA;
+	caps->max_sq_desc_sz	= HNS_ROCE_V2_MAX_SQ_DESC_SZ;
+	caps->max_rq_desc_sz	= HNS_ROCE_V2_MAX_RQ_DESC_SZ;
+	caps->max_srq_desc_sz	= HNS_ROCE_V2_MAX_SRQ_DESC_SZ;
+	caps->qpc_entry_sz	= HNS_ROCE_V2_QPC_ENTRY_SZ;
+	caps->irrl_entry_sz	= HNS_ROCE_V2_IRRL_ENTRY_SZ;
+	caps->cqc_entry_sz	= HNS_ROCE_V2_CQC_ENTRY_SZ;
+	caps->mtpt_entry_sz	= HNS_ROCE_V2_MTPT_ENTRY_SZ;
+	caps->mtt_entry_sz	= HNS_ROCE_V2_MTT_ENTRY_SZ;
+	caps->cq_entry_sz	= HNS_ROCE_V2_CQE_ENTRY_SIZE;
+	caps->page_size_cap	= HNS_ROCE_V2_PAGE_SIZE_SUPPORTED;
+	caps->reserved_lkey	= 0;
+	caps->reserved_pds	= 0;
+	caps->reserved_mrws	= 1;
+	caps->reserved_uars	= 0;
+	caps->reserved_cqs	= 0;
+
+	caps->pkey_table_len[0] = 1;
+	caps->gid_table_len[0] = 2;
+	caps->local_ca_ack_delay = 0;
+	caps->max_mtu = IB_MTU_4096;
+
+	return 0;
 }
 
 struct hns_roce_v2_priv hr_v2_priv;

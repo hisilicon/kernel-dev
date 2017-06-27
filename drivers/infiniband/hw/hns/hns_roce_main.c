@@ -683,7 +683,11 @@ int hns_roce_init(struct hns_roce_dev *hr_dev)
 		}
 	}
 
-	hr_dev->hw->hw_profile(hr_dev);
+	ret = hr_dev->hw->hw_profile(hr_dev);
+	if (ret) {
+		dev_err(dev, "Get RoCE engine profile failed!\n");
+		return ret;
+	}
 
 	ret = hns_roce_cmd_init(hr_dev);
 	if (ret) {
