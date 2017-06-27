@@ -38,7 +38,11 @@
 #include "hnae3.h"
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
+#include "hns_roce_cmd.h"
 #include "hns_roce_hem.h"
+#include "hns_roce_hw_v2.h"
+
+#define HNS_ROCE_CMDQ_TX_TIMEOUT		200
 
 int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			  struct ib_send_wr **bad_wr)
@@ -63,18 +67,143 @@ int hns_roce_v2_reset(struct hns_roce_dev *hr_dev, bool dereset)
 	return 0;
 }
 
+static int hns_roce_alloc_cmd_desc(struct hns_roce_dev *hr_dev,
+				   struct hns_roce_v2_cmdq *cmdq)
+{
+	int size = cmdq->desc_num * sizeof(struct hns_roce_cmdq_desc);
+
+	cmdq->desc = kzalloc(size, GFP_KERNEL);
+	if (!cmdq->desc)
+		return -ENOMEM;
+
+	cmdq->desc_dma_addr = dma_map_single(hr_dev->dev, cmdq->desc, size,
+					     DMA_BIDIRECTIONAL);
+
+	if (dma_mapping_error(hr_dev->dev, cmdq->desc_dma_addr)) {
+		cmdq->desc_dma_addr = 0;
+		kfree(cmdq->desc);
+		cmdq->desc = NULL;
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int hns_roce_init_cmq(struct hns_roce_dev *hr_dev, bool cmdq_type)
+{
+	struct hns_roce_v2_priv *priv =
+				    (struct hns_roce_v2_priv *)hr_dev->hw->priv;
+
+	struct hns_roce_v2_cmdq *cmdq = (cmdq_type == TYPE_CSQ) ?
+					 &priv->cmd.csq : &priv->cmd.crq;
+	int ret;
+
+	cmdq->flag = cmdq_type;
+
+	ret = hns_roce_alloc_cmd_desc(hr_dev, cmdq);
+	if (ret)
+		goto err_alloc_desc;
+
+	cmdq->next_to_clean = 0;
+	cmdq->next_to_use = 0;
+
+	return ret;
+
+err_alloc_desc:
+
+	return ret;
+}
+
+static void hns_roce_cmd_init_regs(struct hns_roce_dev *hr_dev, bool cmdq_type)
+{
+	struct hns_roce_v2_priv *priv =
+				(struct hns_roce_v2_priv *)hr_dev->hw->priv;
+
+	struct hns_roce_v2_cmdq *cmdq = (cmdq_type == TYPE_CSQ) ?
+					 &priv->cmd.csq : &priv->cmd.crq;
+	dma_addr_t dma = cmdq->desc_dma_addr;
+
+	if (cmdq_type == TYPE_CSQ) {
+		roce_write(hr_dev, RoCEE_TX_CMDQ_BASEADDR_L_REG, (u32)dma);
+		roce_write(hr_dev, RoCEE_TX_CMDQ_BASEADDR_H_REG,
+			  (u32)((dma >> 31) >> 1));
+		roce_write(hr_dev, RoCEE_TX_CMDQ_DEPTH_REG,
+			  (cmdq->desc_num >> HNS_ROCE_CMQ_DESC_NUM_S) |
+			   HNS_ROCE_CMQ_ENABLE);
+		roce_write(hr_dev, RoCEE_TX_CMDQ_HEAD_REG, 0);
+		roce_write(hr_dev, ROCEE_TX_CMDQ_TAIL_REG, 0);
+	} else {
+		roce_write(hr_dev, RoCEE_RX_CMDQ_BASEADDR_L_REG, (u32)dma);
+		roce_write(hr_dev, RoCEE_RX_CMDQ_BASEADDR_H_REG,
+			  (u32)((dma >> 31) >> 1));
+		roce_write(hr_dev, RoCEE_RX_CMDQ_DEPTH_REG,
+			  (cmdq->desc_num >> HNS_ROCE_CMQ_DESC_NUM_S) |
+			   HNS_ROCE_CMQ_ENABLE);
+		roce_write(hr_dev, RoCEE_RX_CMDQ_HEAD_REG, 0);
+		roce_write(hr_dev, RoCEE_RX_CMDQ_TAIL_REG, 0);
+	}
+}
+
 static int hns_roce_v2_cmq_init(struct hns_roce_dev *hr_dev)
 {
-	return 0;
+	int ret;
+
+	struct hns_roce_v2_priv *priv =
+				(struct hns_roce_v2_priv *)hr_dev->hw->priv;
+
+	/* Setup the queue entries for use cmd queue */
+	priv->cmd.csq.desc_num = 1024;
+	priv->cmd.crq.desc_num = 1024;
+
+	/* Setup the lock for command queue */
+	mutex_init(&priv->cmd.csq.mutex);
+	mutex_init(&priv->cmd.crq.mutex);
+
+	/* Setup Tx write back timeout */
+	priv->cmd.tx_timeout = HNS_ROCE_CMDQ_TX_TIMEOUT;
+
+	/* Init CSQ */
+	ret = hns_roce_init_cmq(hr_dev, TYPE_CSQ);
+	if (ret) {
+		dev_err(hr_dev->dev, "Init CSQ error, ret = %d.\n", ret);
+		return ret;
+	}
+
+	/* Init CRQ */
+	ret = hns_roce_init_cmq(hr_dev, TYPE_CRQ);
+	if (ret) {
+		dev_err(hr_dev->dev, "Init CRQ error, ret = %d.\n", ret);
+		return ret;
+	}
+
+	/* Init CSQ REG */
+	hns_roce_cmd_init_regs(hr_dev, TYPE_CSQ);
+
+	/* Init CRQ REG */
+	hns_roce_cmd_init_regs(hr_dev, TYPE_CRQ);
+
+	return ret;
 }
 
 static void hns_roce_v2_cmq_exit(struct hns_roce_dev *hr_dev)
 {
+	struct hns_roce_v2_priv *priv =
+				(struct hns_roce_v2_priv *)hr_dev->hw->priv;
+
+	kfree(priv->cmd.csq.desc_cb);
+	kfree(priv->cmd.crq.desc_cb);
+	priv->cmd.csq.desc_cb = NULL;
+	priv->cmd.crq.desc_cb = NULL;
+
+	mutex_destroy(&priv->cmd.csq.mutex);
+	mutex_destroy(&priv->cmd.crq.mutex);
 }
 
 void hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 {
 }
+
+struct hns_roce_v2_priv hr_v2_priv;
 
 int hns_roce_v2_init(struct hns_roce_dev *hr_dev)
 {
@@ -165,6 +294,7 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.post_recv = hns_roce_v2_post_recv,
 	.req_notify_cq = hns_roce_v2_req_notify_cq,
 	.poll_cq = hns_roce_v2_poll_cq,
+	.priv = &hr_v2_priv,
 };
 
 static const struct pci_device_id hns_roce_pci_tbl[] = {
