@@ -40,7 +40,131 @@
 #include "hns_roce_device.h"
 #include "hns_roce_hem.h"
 
-struct hns_roce_hw hns_roce_hw_v2 = {
+int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
+			  struct ib_send_wr **bad_wr)
+{
+	return 0;
+}
+
+int hns_roce_v2_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
+			  struct ib_recv_wr **bad_wr)
+{
+	return 0;
+}
+
+/**
+ * hns_roce_v2_reset - reset RoCE
+ * @hr_dev: RoCE device struct pointer
+ * @enable: true -- drop reset, false -- reset
+ * return 0 - success , negative --fail
+ */
+int hns_roce_v2_reset(struct hns_roce_dev *hr_dev, bool dereset)
+{
+	return 0;
+}
+
+static int hns_roce_v2_cmq_init(struct hns_roce_dev *hr_dev)
+{
+	return 0;
+}
+
+static void hns_roce_v2_cmq_exit(struct hns_roce_dev *hr_dev)
+{
+}
+
+void hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
+{
+}
+
+int hns_roce_v2_init(struct hns_roce_dev *hr_dev)
+{
+	return 0;
+}
+
+void hns_roce_v2_exit(struct hns_roce_dev *hr_dev)
+{
+}
+
+void hns_roce_v2_set_gid(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
+			 union ib_gid *gid)
+{
+}
+
+void hns_roce_v2_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr)
+{
+}
+
+void hns_roce_v2_set_mtu(struct hns_roce_dev *hr_dev, u8 phy_port,
+			 enum ib_mtu mtu)
+{
+}
+
+int hns_roce_v2_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
+			   unsigned long mtpt_idx)
+{
+	return 0;
+}
+
+void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
+			   struct hns_roce_cq *hr_cq, void *mb_buf, u64 *mtts,
+			   dma_addr_t dma_handle, int nent, u32 vector)
+{
+}
+
+int hns_roce_v2_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
+{
+	return 0;
+}
+
+int hns_roce_v2_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
+{
+	return 0;
+}
+
+int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
+		struct hns_roce_hem_table *table, int obj)
+{
+	return 0;
+}
+
+int hns_roce_v2_modify_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
+			  int attr_mask, enum ib_qp_state cur_state,
+			  enum ib_qp_state new_state)
+{
+	return 0;
+}
+
+int hns_roce_v2_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
+			 int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr)
+{
+	return 0;
+}
+
+int hns_roce_v2_destroy_qp(struct ib_qp *ibqp)
+{
+	return 0;
+}
+
+static const struct hns_roce_hw hns_roce_hw_v2 = {
+	.reset = hns_roce_v2_reset,
+	.cmq_init = hns_roce_v2_cmq_init,
+	.cmq_exit = hns_roce_v2_cmq_exit,
+	.hw_profile = hns_roce_v2_profile,
+	.hw_init = hns_roce_v2_init,
+	.hw_exit = hns_roce_v2_exit,
+	.set_gid = hns_roce_v2_set_gid,
+	.set_mac = hns_roce_v2_set_mac,
+	.set_mtu = hns_roce_v2_set_mtu,
+	.write_mtpt = hns_roce_v2_write_mtpt,
+	.write_cqc = hns_roce_v2_write_cqc,
+	.clear_hem = hns_roce_v2_clear_hem,
+	.modify_qp = hns_roce_v2_modify_qp,
+	.query_qp = hns_roce_v2_query_qp,
+	.destroy_qp = hns_roce_v2_destroy_qp,
+	.post_send = hns_roce_v2_post_send,
+	.post_recv = hns_roce_v2_post_recv,
+	.req_notify_cq = hns_roce_v2_req_notify_cq,
+	.poll_cq = hns_roce_v2_poll_cq,
 };
 
 static const struct pci_device_id hns_roce_pci_tbl[] = {
@@ -81,9 +205,9 @@ static int hns_roce_get_pci_cfg(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
-static int hns_roce_init_instance(struct hnae3_handle *handle)
+static int hns_roce_pci_init_instance(struct hnae3_handle *handle)
 {
-	int ret = 0;
+	int ret;
 	struct hns_roce_dev *hr_dev;
 
 	hr_dev = (struct hns_roce_dev *)ib_alloc_device(sizeof(*hr_dev));
@@ -100,19 +224,21 @@ static int hns_roce_init_instance(struct hnae3_handle *handle)
 		return ret;
 	}
 
-	return 0;
+	return hns_roce_init(hr_dev);
 }
 
-static void hns_roce_uninit_instance(struct hnae3_handle *handle, bool reset)
+static void hns_roce_pci_uninit_instance(struct hnae3_handle *handle,
+					 bool reset)
 {
 	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
 
+	hns_roce_exit(hr_dev);
 	ib_dealloc_device(&hr_dev->ib_dev);
 }
 
 static struct hnae3_client_ops hns_roce_ops = {
-	.init_instance = hns_roce_init_instance,
-	.uninit_instance = hns_roce_uninit_instance,
+	.init_instance = hns_roce_pci_init_instance,
+	.uninit_instance = hns_roce_pci_uninit_instance,
 };
 
 static struct hnae3_client hns_roce_client = {

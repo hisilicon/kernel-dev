@@ -117,7 +117,7 @@ static int hns_roce_del_gid(struct ib_device *device, u8 port_num,
 static int handle_en_event(struct hns_roce_dev *hr_dev, u8 port,
 			   unsigned long event)
 {
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	struct net_device *netdev;
 
 	netdev = hr_dev->iboe.netdevs[port];
@@ -239,7 +239,7 @@ static int hns_roce_query_port(struct ib_device *ib_dev, u8 port_num,
 			       struct ib_port_attr *props)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	struct net_device *net_dev;
 	unsigned long flags;
 	enum ib_mtu mtu;
@@ -427,7 +427,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	int ret;
 	struct hns_roce_ib_iboe *iboe = NULL;
 	struct ib_device *ib_dev = NULL;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 
 	iboe = &hr_dev->iboe;
 	spin_lock_init(&iboe->lock);
@@ -535,7 +535,7 @@ error_failed_setup_mtu_mac:
 static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 {
 	int ret;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 
 	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->mr_table.mtt_table,
 				      HEM_TYPE_MTT, hr_dev->caps.mtt_entry_sz,
@@ -604,7 +604,7 @@ err_unmap_mtt:
 static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 {
 	int ret;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 
 	spin_lock_init(&hr_dev->sm_lock);
 	spin_lock_init(&hr_dev->bt_cmd_lock);
@@ -667,12 +667,20 @@ err_uar_table_free:
 int hns_roce_init(struct hns_roce_dev *hr_dev)
 {
 	int ret;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 
 	ret = hr_dev->hw->reset(hr_dev, true);
 	if (ret) {
 		dev_err(dev, "Reset RoCE engine failed!\n");
 		return ret;
+	}
+
+	if (hr_dev->hw->cmq_init) {
+		ret = hr_dev->hw->cmq_init(hr_dev);
+		if (ret) {
+			dev_err(dev, "Init RoCE Command Queue failed!\n");
+			goto error_failed_cmq_init;
+		}
 	}
 
 	hr_dev->hw->hw_profile(hr_dev);
@@ -683,10 +691,12 @@ int hns_roce_init(struct hns_roce_dev *hr_dev)
 		goto error_failed_cmd_init;
 	}
 
-	ret = hns_roce_init_eq_table(hr_dev);
-	if (ret) {
-		dev_err(dev, "eq init failed!\n");
-		goto error_failed_eq_table;
+	if (hr_dev->hw_rev == HNS_ROCE_HW_VER1) {
+		ret = hns_roce_init_eq_table(hr_dev);
+		if (ret) {
+			dev_err(dev, "eq init failed!\n");
+			goto error_failed_eq_table;
+		}
 	}
 
 	if (hr_dev->cmd_mod) {
@@ -735,15 +745,20 @@ error_failed_init_hem:
 		hns_roce_cmd_use_polling(hr_dev);
 
 error_failed_use_event:
-	hns_roce_cleanup_eq_table(hr_dev);
+	if (hr_dev->hw_rev == HNS_ROCE_HW_VER1)
+		hns_roce_cleanup_eq_table(hr_dev);
 
 error_failed_eq_table:
 	hns_roce_cmd_cleanup(hr_dev);
 
 error_failed_cmd_init:
+	if (hr_dev->hw->cmq_exit)
+		hr_dev->hw->cmq_exit(hr_dev);
+
+error_failed_cmq_init:
 	ret = hr_dev->hw->reset(hr_dev, false);
 	if (ret)
-		dev_err(dev, "roce_engine reset fail\n");
+		dev_err(hr_dev->dev, "roce_engine reset fail\n");
 
 	return ret;
 }
@@ -759,8 +774,11 @@ void hns_roce_exit(struct hns_roce_dev *hr_dev)
 	if (hr_dev->cmd_mod)
 		hns_roce_cmd_use_polling(hr_dev);
 
-	hns_roce_cleanup_eq_table(hr_dev);
+	if (hr_dev->hw_rev == HNS_ROCE_HW_VER1)
+		hns_roce_cleanup_eq_table(hr_dev);
 	hns_roce_cmd_cleanup(hr_dev);
+	if (hr_dev->hw->cmq_exit)
+		hr_dev->hw->cmq_exit(hr_dev);
 	hr_dev->hw->reset(hr_dev, false);
 }
 EXPORT_SYMBOL_GPL(hns_roce_exit);
