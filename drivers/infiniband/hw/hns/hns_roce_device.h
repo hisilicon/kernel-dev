@@ -749,7 +749,7 @@ void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn);
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type);
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type);
 int hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index);
-
-extern struct hns_roce_hw hns_roce_hw_v1;
+int hns_roce_init(struct hns_roce_dev *hr_dev);
+void hns_roce_exit(struct hns_roce_dev *hr_dev);
 
 #endif /* _HNS_ROCE_DEVICE_H */

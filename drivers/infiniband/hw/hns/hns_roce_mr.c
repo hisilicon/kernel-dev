@@ -46,6 +46,7 @@ unsigned long key_to_hw_index(u32 key)
 {
 	return (key << 24) | (key >> 8);
 }
+EXPORT_SYMBOL_GPL(key_to_hw_index);
 
 static int hns_roce_sw2hw_mpt(struct hns_roce_dev *hr_dev,
 			      struct hns_roce_cmd_mailbox *mailbox,
@@ -64,6 +65,7 @@ int hns_roce_hw2sw_mpt(struct hns_roce_dev *hr_dev,
 				 mpt_index, !mailbox, HNS_ROCE_CMD_HW2SW_MPT,
 				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
+EXPORT_SYMBOL_GPL(hns_roce_hw2sw_mpt);
 
 static int hns_roce_buddy_alloc(struct hns_roce_buddy *buddy, int order,
 				unsigned long *seg)
@@ -232,6 +234,7 @@ void hns_roce_mtt_cleanup(struct hns_roce_dev *hr_dev, struct hns_roce_mtt *mtt)
 	hns_roce_table_put_range(hr_dev, &mr_table->mtt_table, mtt->first_seg,
 				 mtt->first_seg + (1 << mtt->order) - 1);
 }
+EXPORT_SYMBOL_GPL(hns_roce_mtt_cleanup);
 
 static int hns_roce_mr_alloc(struct hns_roce_dev *hr_dev, u32 pd, u64 iova,
 			     u64 size, u32 access, int npages,

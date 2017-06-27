@@ -4,7 +4,8 @@ config INFINIBAND_HNS
 	depends on ARM64 && HNS && HNS_DSAF && HNS_ENET
 	---help---
 	  This is a RoCE/RDMA driver for the Hisilicon RoCE engine. The engine
-	  is used in Hisilicon Hi1610 and more further ICT SoC.
+	  is used in Hisilicon Hip06 and more further ICT SoC based on
+	  platform device.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called hns-roce.
+	  will be called hns-roce and hns-roce-hw-v1.
