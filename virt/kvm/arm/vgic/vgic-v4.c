@@ -137,6 +137,8 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 	irq->hw		= true;
 	irq->host_irq	= virq;
 
+	/* Force the property update and invalidate */
+	update_lpi_config(kvm, irq, NULL, true);
 out:
 	mutex_unlock(&its->its_lock);
 	return 0;

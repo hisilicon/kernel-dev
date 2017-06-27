@@ -37,8 +37,6 @@
 static int vgic_its_save_tables_v0(struct vgic_its *its);
 static int vgic_its_restore_tables_v0(struct vgic_its *its);
 static int vgic_its_commit_v0(struct vgic_its *its);
-static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
-			     struct kvm_vcpu *filter_vcpu, bool needs_inv);
 
 /*
  * Creates a new (reference to a) struct vgic_irq for a given LPI.
@@ -273,8 +271,8 @@ static struct its_collection *find_collection(struct vgic_its *its, int coll_id)
  * If filter_vcpu is not NULL, applies only if the IRQ is targeting this
  * VCPU. Unconditionally applies if filter_vcpu is NULL.
  */
-static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
-			     struct kvm_vcpu *filter_vcpu, bool needs_inv)
+int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
+		      struct kvm_vcpu *filter_vcpu, bool needs_inv)
 {
 	u64 propbase = GICR_PROPBASER_ADDRESS(kvm->arch.vgic.propbaser);
 	u8 prop;

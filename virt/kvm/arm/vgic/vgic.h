@@ -228,6 +228,8 @@ void unlock_all_vcpus(struct kvm *kvm);
 int vgic_its_resolve_lpi(struct kvm *kvm, struct vgic_its *its,
 			 u32 devid, u32 eventid, struct vgic_irq **irq);
 struct vgic_its *vgic_msi_to_its(struct kvm *kvm, struct kvm_msi *msi);
+int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
+		      struct kvm_vcpu *filter_vcpu, bool needs_inv);
 
 bool vgic_is_v4_capable(struct kvm *kvm);
 int vgic_v4_init(struct kvm *kvm);
