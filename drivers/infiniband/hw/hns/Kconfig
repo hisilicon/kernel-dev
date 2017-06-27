@@ -9,3 +9,13 @@ config INFINIBAND_HNS
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called hns-roce and hns-roce-hw-v1.
+
+config INFINIBAND_HNS_PCI
+	tristate "HNS RoCE PCI Driver support"
+	depends on INFINIBAND_HNS && PCI && HNS3
+	---help---
+	  RoCE driver support for Hisilicon RoCE engine in Hisilicon Hip08 and more
+	  further ICT SoC. These RoCE engines is PCI device.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called hns-roce-hw-v2 etc.
