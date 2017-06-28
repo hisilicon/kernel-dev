@@ -304,6 +304,12 @@ struct hns_roce_wq {
 	void __iomem	*db_reg_l;
 };
 
+struct hns_roce_sge {
+	int		sge_cnt;  /* SGE num */
+	int		offset;
+	int		sge_shift;/* SGE size */
+};
+
 struct hns_roce_buf_list {
 	void		*buf;
 	dma_addr_t	map;
@@ -455,6 +461,9 @@ struct hns_roce_qp {
 
 	atomic_t		refcount;
 	struct completion	free;
+
+	struct hns_roce_sge	sge;
+	u32			next_sge;
 };
 
 struct hns_roce_sqp {
