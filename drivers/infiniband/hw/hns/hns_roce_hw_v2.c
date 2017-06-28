@@ -828,10 +828,51 @@ out:
 void hns_roce_v2_set_gid(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
 			 union ib_gid *gid)
 {
+	u32 *p;
+	u32 val;
+
+	p = (u32 *)&gid->raw[0];
+	roce_raw_write(*p, hr_dev->reg_base + ROCEE_VF_SGID_CFG0_REG +
+		       0x20 * gid_index);
+
+	p = (u32 *)&gid->raw[4];
+	roce_raw_write(*p, hr_dev->reg_base + ROCEE_VF_SGID_CFG1_REG +
+		       0x20 * gid_index);
+
+	p = (u32 *)&gid->raw[8];
+	roce_raw_write(*p, hr_dev->reg_base + ROCEE_VF_SGID_CFG2_REG +
+		       0x20 * gid_index);
+
+	p = (u32 *)&gid->raw[0xc];
+	roce_raw_write(*p, hr_dev->reg_base + ROCEE_VF_SGID_CFG3_REG +
+		       0x20 * gid_index);
+
+	val = roce_read(hr_dev, ROCEE_VF_SGID_CFG4_REG + 0x20 * gid_index);
+	roce_set_field(val, ROCEE_VF_SGID_CFG4_SGID_TYPE_M,
+		       ROCEE_VF_SGID_CFG4_SGID_TYPE_S, 0);
+
+	roce_write(hr_dev, ROCEE_VF_SGID_CFG4_REG + 0x20 * gid_index, val);
 }
 
 void hns_roce_v2_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr)
 {
+	u16 reg_smac_h;
+	u16 *p_h;
+	u32 val;
+
+	u32 *p = (u32 *)(&addr[0]);
+	u32 reg_smac_l = *p;
+
+	roce_raw_write(reg_smac_l, hr_dev->reg_base + ROCEE_VF_SMAC_CFG0_REG +
+		       0x08 * phy_port);
+	val = roce_read(hr_dev, ROCEE_VF_SMAC_CFG1_REG + 0x08 * phy_port);
+
+	p_h = (u16 *)(&addr[4]);
+	reg_smac_h  = *p_h;
+	roce_set_field(val, ROCEE_VF_SMAC_CFG1_VF_SMAC_H_M,
+		       ROCEE_VF_SMAC_CFG1_VF_SMAC_H_S, reg_smac_h);
+	roce_write(hr_dev, ROCEE_VF_SMAC_CFG1_REG + 0x08 * phy_port,
+		   val);
 }
 
 void hns_roce_v2_set_mtu(struct hns_roce_dev *hr_dev, u8 phy_port,

@@ -323,6 +323,48 @@ struct hns_roce_vf_res_b {
 #define VF_RES_B_DATA_3_VF_SL_NUM_M \
 	(((1UL << 4) - 1) << VF_RES_B_DATA_3_VF_SL_NUM_S)
 
+struct hns_roce_cfg_smac_tb {
+	u32 vf_smac_h;
+	u32 data_1;
+	u32 rsv[4];
+};
+#define CFG_SMAC_TB_DATA_1_VF_SMAC_L_S 0
+#define CFG_SMAC_TB_DATA_1_VF_SMAC_L_M \
+	(((1UL << 16) - 1) << CFG_SMAC_TB_DATA_1_VF_SMAC_L_S)
+
+#define CFG_SMAC_TB_DATA_1_VF_SMAC_IDX_S 16
+#define CFG_SMAC_TB_DATA_1_VF_SMAC_IDX_M \
+	(((1UL << 8) - 1) << CFG_SMAC_TB_DATA_1_VF_SMAC_IDX_S)
+
+#define CFG_SMAC_TB_DATA_1_VF_SAMC_IDX_VLD_S 24
+
+/* Reg field definition */
+#define ROCEE_VF_SMAC_CFG1_VF_SMAC_H_S 0
+#define ROCEE_VF_SMAC_CFG1_VF_SMAC_H_M \
+	(((1UL << 16) - 1) << ROCEE_VF_SMAC_CFG1_VF_SMAC_H_S)
+
+struct hns_roce_cfg_sgid_tb {
+	u32 vf_sgid_l;
+	u32 vf_sgid_ml;
+	u32 vf_sgid_mh;
+	u32 vf_sgid_h;
+	u32 data_4;
+	u32 rsv;
+};
+#define CFG_SGID_TB_DATA_4_VF_SGID_TYPE_S 0
+#define CFG_SGID_TB_DATA_4_VF_SGID_TYPE_M \
+	(((1UL << 2) - 1) << CFG_SGID_TB_DATA_4_VF_SGID_TYPE_S)
+
+#define CFG_SGID_TB_DATA_4_VF_SGID_IDX_S 2
+#define CFG_SGID_TB_DATA_4_VF_SGID_IDX_M \
+	(((1UL << 8) - 1) << CFG_SGID_TB_DATA_4_VF_SGID_IDX_S)
+
+#define CFG_SGID_TB_DATA_4_VF_GID_IDX_VLD_S 10
+
+#define ROCEE_VF_SGID_CFG4_SGID_TYPE_S 0
+#define ROCEE_VF_SGID_CFG4_SGID_TYPE_M \
+	(((1UL << 2) - 1) << ROCEE_VF_SGID_CFG4_SGID_TYPE_S)
+
 struct hns_roce_cfg_bt_attr {
 	u32 data_0;
 	u32 data_1;
