@@ -76,8 +76,9 @@ static int hns_roce_sw2hw_cq(struct hns_roce_dev *dev,
 			     struct hns_roce_cmd_mailbox *mailbox,
 			     unsigned long cq_num)
 {
-	return hns_roce_cmd_mbox(dev, mailbox->dma, 0, cq_num, 0,
-			    HNS_ROCE_CMD_SW2HW_CQ, HNS_ROCE_CMD_TIMEOUT_MSECS);
+		return hns_roce_cmd_mbox(dev, mailbox->dma, 0, cq_num, 0,
+					 HNS_ROCE_CMD_SW2HW_CQ,
+					 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
 static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
@@ -195,14 +196,15 @@ void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 	if (ret)
 		dev_err(dev, "HW2SW_CQ failed (%d) for CQN %06lx\n", ret,
 			hr_cq->cqn);
+	if (hr_dev->hw_rev == HNS_ROCE_HW_VER1) {
+		/* Waiting interrupt process procedure carried out */
+		synchronize_irq(hr_dev->eq_table.eq[hr_cq->vector].irq);
 
-	/* Waiting interrupt process procedure carried out */
-	synchronize_irq(hr_dev->eq_table.eq[hr_cq->vector].irq);
-
-	/* wait for all interrupt processed */
-	if (atomic_dec_and_test(&hr_cq->refcount))
-		complete(&hr_cq->free);
-	wait_for_completion(&hr_cq->free);
+		/* wait for all interrupt processed */
+		if (atomic_dec_and_test(&hr_cq->refcount))
+			complete(&hr_cq->free);
+		wait_for_completion(&hr_cq->free);
+	}
 
 	spin_lock_irq(&cq_table->lock);
 	radix_tree_delete(&cq_table->tree, hr_cq->cqn);
@@ -315,9 +317,10 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	if (!hr_cq)
 		return ERR_PTR(-ENOMEM);
 
-	/* In v1 engine, parameter verification */
-	if (cq_entries < HNS_ROCE_MIN_CQE_NUM)
-		cq_entries = HNS_ROCE_MIN_CQE_NUM;
+	if (hr_dev->caps.max_sq_sg <= 2)
+		/* In v1 engine, parameter verification */
+		if (cq_entries < HNS_ROCE_MIN_CQE_NUM)
+			cq_entries = HNS_ROCE_MIN_CQE_NUM;
 
 	cq_entries = roundup_pow_of_two((unsigned int)cq_entries);
 	hr_cq->ib_cq.cqe = cq_entries - 1;
@@ -351,8 +354,12 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 		}
 
 		uar = &hr_dev->priv_uar;
-		hr_cq->cq_db_l = hr_dev->reg_base + ROCEE_DB_OTHERS_L_0_REG +
-				 0x1000 * uar->index;
+		if (hr_dev->hw_rev == HNS_ROCE_HW_VER1)
+			hr_cq->cq_db_l = hr_dev->reg_base +
+					 ROCEE_DB_OTHERS_L_0_REG +
+					 0x1000 * uar->index;
+		else
+			hr_cq->cq_db_l = hr_dev->reg_base + 0x0230;
 	}
 
 	/* Allocate cq index, fill cq_context */
@@ -369,8 +376,9 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	 * problems if tptr is set to zero here, so we initialze it in user
 	 * space.
 	 */
-	if (!context)
-		*hr_cq->tptr_addr = 0;
+	if (hr_dev->hw_rev == HNS_ROCE_HW_VER1)
+		if (!context)
+			*hr_cq->tptr_addr = 0;
 
 	/* Get created cq handler and carry out event */
 	hr_cq->comp = hns_roce_ib_cq_comp;
