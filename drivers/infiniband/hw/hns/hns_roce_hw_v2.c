@@ -632,6 +632,23 @@ int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->reserved_mrws	= 1;
 	caps->reserved_uars	= 0;
 	caps->reserved_cqs	= 0;
+	caps->qpc_bt_num	= HNS_ROCE_VF_QPC_BT_NUM;
+	caps->cqc_bt_num	= HNS_ROCE_VF_CQC_BT_NUM;
+	caps->srqc_bt_num	= HNS_ROCE_VF_SRQC_BT_NUM;
+	caps->mpt_bt_num	= HNS_ROCE_VF_MPT_BT_NUM;
+
+	caps->qpc_ba_pg_sz	= 0;
+	caps->qpc_buf_pg_sz	= 0;
+	caps->qpc_hop_num	= HNS_ROCE_CONTEXT_HOP_NUM;
+	caps->srqc_ba_pg_sz	= 0;
+	caps->srqc_buf_pg_sz	= 0;
+	caps->srqc_hop_num	= HNS_ROCE_HOP_NUM_0;
+	caps->cqc_ba_pg_sz	= 0;
+	caps->cqc_buf_pg_sz	= 0;
+	caps->cqc_hop_num	= HNS_ROCE_CONTEXT_HOP_NUM;
+	caps->mpt_ba_pg_sz	= 0;
+	caps->mpt_buf_pg_sz	= 0;
+	caps->mpt_hop_num	= HNS_ROCE_CONTEXT_HOP_NUM;
 
 	caps->pkey_table_len[0] = 1;
 	caps->gid_table_len[0] = 2;
@@ -776,8 +793,14 @@ int hns_roce_v2_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	return 0;
 }
 
+int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
+		struct hns_roce_hem_table *table, int obj, int step_idx)
+{
+	return 0;
+}
+
 int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
-		struct hns_roce_hem_table *table, int obj)
+		struct hns_roce_hem_table *table, int obj, int step_idx)
 {
 	return 0;
 }
@@ -814,6 +837,7 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.set_mtu = hns_roce_v2_set_mtu,
 	.write_mtpt = hns_roce_v2_write_mtpt,
 	.write_cqc = hns_roce_v2_write_cqc,
+	.set_hem = hns_roce_v2_set_hem,
 	.clear_hem = hns_roce_v2_clear_hem,
 	.modify_qp = hns_roce_v2_modify_qp,
 	.query_qp = hns_roce_v2_query_qp,
