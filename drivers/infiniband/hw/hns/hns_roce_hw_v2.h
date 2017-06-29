@@ -67,6 +67,7 @@
 #define HNS_ROCE_V2_MTT_ENTRY_SZ		64
 #define HNS_ROCE_V2_CQE_ENTRY_SIZE		32
 #define HNS_ROCE_V2_PAGE_SIZE_SUPPORTED		0xFFFFF000
+#define HNS_ROCE_V2_MAX_INNER_MTPT_NUM		2
 #define	GID_LEN_V2				16
 
 #define V2_CQ_DB_REQ_NOT_SOL			0
@@ -188,6 +189,10 @@ enum hns_roce_cmd_status {
 	ERR_CSQ_FULL	= -1,
 	ERR_CSQ_TIMEOUT	= -2,
 	ERR_CSQ_ERROR	= -3
+};
+
+enum{
+	V2_MPT_ST_VALID = 0x1,
 };
 
 enum hns_roce_v2_qp_state {
@@ -875,6 +880,92 @@ struct hns_roce_v2_cqe {
 #define	V2_CQE_BYTE_32_GRH_S 30
 
 #define	V2_CQE_BYTE_32_LPK_S 31
+
+struct hns_roce_v2_mpt_entry {
+	__le32	mpt_byte_4;
+	__le32	mpt_byte_8;
+	__le32	mpt_byte_12;
+	__le32	bound_lkey;
+	__le32	len_l;
+	__le32	len_h;
+	__le32	lkey;
+	__le32	va_l;
+	__le32	va_h;
+	__le32	pbl_size;
+	__le32	pbl_ba_l;
+	__le32	mpt_byte_48;
+	__le32	pa0_l;
+	__le32	mpt_byte_56;
+	__le32	pa1_l;
+	__le32	mpt_byte_64;
+};
+
+#define V2_MPT_BYTE_4_MPT_ST_S 0
+#define V2_MPT_BYTE_4_MPT_ST_M  (((1UL << 2) - 1) << V2_MPT_BYTE_4_MPT_ST_S)
+
+#define V2_MPT_BYTE_4_PBL_HOP_NUM_S 2
+#define V2_MPT_BYTE_4_PBL_HOP_NUM_M  \
+	(((1UL << 2) - 1) << V2_MPT_BYTE_4_PBL_HOP_NUM_S)
+
+#define V2_MPT_BYTE_4_PBL_BA_PG_SZ_S 4
+#define V2_MPT_BYTE_4_PBL_BA_PG_SZ_M  \
+	(((1UL << 4) - 1) << V2_MPT_BYTE_4_PBL_BA_PG_SZ_S)
+
+#define V2_MPT_BYTE_4_PD_S 8
+#define V2_MPT_BYTE_4_PD_M  (((1UL << 24) - 1) << V2_MPT_BYTE_4_PD_S)
+
+#define V2_MPT_BYTE_8_RA_EN_S 0
+
+#define V2_MPT_BYTE_8_R_INV_EN_S 1
+
+#define V2_MPT_BYTE_8_L_INV_EN_S 2
+
+#define V2_MPT_BYTE_8_BIND_EN_S 3
+
+#define V2_MPT_BYTE_8_ATOMIC_EN_S 4
+
+#define V2_MPT_BYTE_8_RR_EN_S 5
+
+#define V2_MPT_BYTE_8_RW_EN_S 6
+
+#define V2_MPT_BYTE_8_LW_EN_S 7
+
+#define V2_MPT_BYTE_12_FRE_S 0
+
+#define V2_MPT_BYTE_12_PA_S 1
+
+#define V2_MPT_BYTE_12_ZBVA_S 2
+
+#define V2_MPT_BYTE_12_SHARE_S 3
+
+#define V2_MPT_BYTE_12_MR_MW_S 4
+
+#define V2_MPT_BYTE_12_BPD_S 5
+
+#define V2_MPT_BYTE_12_BQP_S 6
+
+#define V2_MPT_BYTE_12_INNER_PA_VLD_S 7
+
+#define V2_MPT_BYTE_12_MW_BIND_QPN_S 8
+#define V2_MPT_BYTE_12_MW_BIND_QPN_M  \
+	(((1UL << 24) - 1) << V2_MPT_BYTE_12_MW_BIND_QPN_S)
+
+#define V2_MPT_BYTE_48_PBL_BA_H_S 0
+#define V2_MPT_BYTE_48_PBL_BA_H_M  \
+	(((1UL << 29) - 1) << V2_MPT_BYTE_48_PBL_BA_H_S)
+
+#define V2_MPT_BYTE_48_BLK_MODE_S 29
+
+#define V2_MPT_BYTE_56_PA0_H_S 0
+#define V2_MPT_BYTE_56_PA0_H_M  (((1UL << 26) - 1) << V2_MPT_BYTE_56_PA0_H_S)
+
+#define V2_MPT_BYTE_64_PA1_H_S 0
+#define V2_MPT_BYTE_64_PA1_H_M  (((1UL << 26) - 1) << V2_MPT_BYTE_64_PA1_H_S)
+
+#define V2_MPT_BYTE_64_PBL_BUF_PG_SZ_S 28
+#define V2_MPT_BYTE_64_PBL_BUF_PG_SZ_M  \
+	(((1UL << 4) - 1) << V2_MPT_BYTE_64_PBL_BUF_PG_SZ_S)
+
 struct hns_roce_v2_db {
 	u32	byte_4;
 	u32	parameter;
