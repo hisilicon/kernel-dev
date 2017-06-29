@@ -87,6 +87,7 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 {
 	struct hns_roce_cmd_mailbox *mailbox = NULL;
 	struct hns_roce_cq_table *cq_table = NULL;
+	struct hns_roce_hem_table *mtt_table;
 	struct device *dev = hr_dev->dev;
 	dma_addr_t dma_handle;
 	u64 *mtts = NULL;
@@ -95,7 +96,8 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 	cq_table = &hr_dev->cq_table;
 
 	/* Get the physical address of cq buf */
-	mtts = hns_roce_table_find(&hr_dev->mr_table.mtt_table,
+	mtt_table = &hr_dev->mr_table.mtt_table;
+	mtts = hns_roce_table_find(hr_dev, mtt_table,
 				   hr_mtt->first_seg, &dma_handle);
 	if (!mtts) {
 		dev_err(dev, "CQ alloc.Failed to find cq buf addr.\n");

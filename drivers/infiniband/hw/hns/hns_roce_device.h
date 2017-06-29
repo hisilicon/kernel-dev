@@ -525,6 +525,12 @@ struct hns_roce_caps {
 	u8		mpt_ba_pg_sz;
 	u8		mpt_buf_pg_sz;
 	u8		mpt_hop_num;
+	u8		mtt_ba_pg_sz;
+	u8		mtt_buf_pg_sz;
+	u8		mtt_hop_num;
+	u8		cqe_ba_pg_sz;
+	u8		cqe_buf_pg_sz;
+	u8		cqe_hop_num;
 };
 
 struct hns_roce_hw {
