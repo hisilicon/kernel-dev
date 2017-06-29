@@ -90,6 +90,10 @@
 #define HNS_ROCE_CMQ_EN_B		16
 #define HNS_ROCE_CMQ_ENABLE		BIT(HNS_ROCE_CMQ_EN_B)
 
+#define check_whether_last_step(hop_num, step_idx) \
+	((step_idx == 0 && hop_num == HNS_ROCE_HOP_NUM_0) || \
+	(step_idx == 1 && hop_num == 1) || \
+	(step_idx == 2 && hop_num == 2))
 
 /* CMQ command */
 enum hns_roce_opcode_type {
@@ -99,6 +103,7 @@ enum hns_roce_opcode_type {
 
 	/* Need to enclosure to two cmd */
 	HNS_ROCE_OPC_ALLOC_VF_RES			= 0x8401,
+	HNS_ROCE_OPC_CFG_BT_ATTR			= 0x8506,
 };
 
 enum {
@@ -317,6 +322,62 @@ struct hns_roce_vf_res_b {
 #define VF_RES_B_DATA_3_VF_SL_NUM_S 16
 #define VF_RES_B_DATA_3_VF_SL_NUM_M \
 	(((1UL << 4) - 1) << VF_RES_B_DATA_3_VF_SL_NUM_S)
+
+struct hns_roce_cfg_bt_attr {
+	u32 data_0;
+	u32 data_1;
+	u32 data_2;
+	u32 data_3;
+	u32 rsv[2];
+};
+
+#define CFG_BT_ATTR_DATA_0_VF_QPC_BA_PGSZ_S 0
+#define CFG_BT_ATTR_DATA_0_VF_QPC_BA_PGSZ_M \
+	(((1UL << 4) - 1) << CFG_BT_ATTR_DATA_0_VF_QPC_BA_PGSZ_S)
+
+#define CFG_BT_ATTR_DATA_0_VF_QPC_BUF_PGSZ_S 4
+#define CFG_BT_ATTR_DATA_0_VF_QPC_BUF_PGSZ_M \
+	(((1UL << 4) - 1) << CFG_BT_ATTR_DATA_0_VF_QPC_BUF_PGSZ_S)
+
+#define CFG_BT_ATTR_DATA_0_VF_QPC_HOPNUM_S 8
+#define CFG_BT_ATTR_DATA_0_VF_QPC_HOPNUM_M \
+	(((1UL << 2) - 1) << CFG_BT_ATTR_DATA_0_VF_QPC_HOPNUM_S)
+
+#define CFG_BT_ATTR_DATA_1_VF_SRQC_BA_PGSZ_S 0
+#define CFG_BT_ATTR_DATA_1_VF_SRQC_BA_PGSZ_M \
+	(((1UL << 4) - 1) << CFG_BT_ATTR_DATA_1_VF_SRQC_BA_PGSZ_S)
+
+#define CFG_BT_ATTR_DATA_1_VF_SRQC_BUF_PGSZ_S 4
+#define CFG_BT_ATTR_DATA_1_VF_SRQC_BUF_PGSZ_M \
+	(((1UL << 4) - 1) << CFG_BT_ATTR_DATA_1_VF_SRQC_BUF_PGSZ_S)
+
+#define CFG_BT_ATTR_DATA_1_VF_SRQC_HOPNUM_S 8
+#define CFG_BT_ATTR_DATA_1_VF_SRQC_HOPNUM_M \
+	(((1UL << 2) - 1) << CFG_BT_ATTR_DATA_1_VF_SRQC_HOPNUM_S)
+
+#define CFG_BT_ATTR_DATA_2_VF_CQC_BA_PGSZ_S 0
+#define CFG_BT_ATTR_DATA_2_VF_CQC_BA_PGSZ_M \
+	(((1UL << 4) - 1) << CFG_BT_ATTR_DATA_2_VF_CQC_BA_PGSZ_S)
+
+#define CFG_BT_ATTR_DATA_2_VF_CQC_BUF_PGSZ_S 4
+#define CFG_BT_ATTR_DATA_2_VF_CQC_BUF_PGSZ_M \
+	(((1UL << 4) - 1) << CFG_BT_ATTR_DATA_2_VF_CQC_BUF_PGSZ_S)
+
+#define CFG_BT_ATTR_DATA_2_VF_CQC_HOPNUM_S 8
+#define CFG_BT_ATTR_DATA_2_VF_CQC_HOPNUM_M \
+	(((1UL << 2) - 1) << CFG_BT_ATTR_DATA_2_VF_CQC_HOPNUM_S)
+
+#define CFG_BT_ATTR_DATA_3_VF_MPT_BA_PGSZ_S 0
+#define CFG_BT_ATTR_DATA_3_VF_MPT_BA_PGSZ_M \
+	(((1UL << 4) - 1) << CFG_BT_ATTR_DATA_3_VF_MPT_BA_PGSZ_S)
+
+#define CFG_BT_ATTR_DATA_3_VF_MPT_BUF_PGSZ_S 4
+#define CFG_BT_ATTR_DATA_3_VF_MPT_BUF_PGSZ_M \
+	(((1UL << 4) - 1) << CFG_BT_ATTR_DATA_3_VF_MPT_BUF_PGSZ_S)
+
+#define CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_S 8
+#define CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_M \
+	(((1UL << 2) - 1) << CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_S)
 
 #define ROCEE_VF_MB_CFG0_REG		0x40
 #define ROCEE_VF_MB_STATUS_REG		0x58
