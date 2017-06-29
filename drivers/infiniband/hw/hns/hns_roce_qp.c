@@ -626,7 +626,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		}
 	}
 
-	if ((init_attr->qp_type) == IB_QPT_GSI) {
+	if (hr_dev->caps.max_sq_sg <= 2 && init_attr->qp_type == IB_QPT_GSI) {
 		ret = hns_roce_gsi_qp_alloc(hr_dev, qpn, hr_qp);
 		if (ret) {
 			dev_err(dev, "hns_roce_qp_alloc failed!\n");
