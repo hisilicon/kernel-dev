@@ -466,6 +466,18 @@ static int __init early_gicv4_enable(char *buf)
 }
 early_param("kvm-arm.vgic_v4_enable", early_gicv4_enable);
 
+static void vgic_check_v4_cpuif(void *param)
+{
+	u32 ich_vtr_el2 = kvm_call_hyp(__vgic_v3_get_ich_vtr_el2);
+	bool *v4 = param, this_cpu_is_v4;
+
+	this_cpu_is_v4 = !(ich_vtr_el2 & ICH_VTR_nV4_MASK);
+	if (!this_cpu_is_v4)
+		kvm_info("CPU%d is not GICv4 capable\n", smp_processor_id());
+
+	*v4 &= this_cpu_is_v4;
+}
+
 /**
  * vgic_v3_probe - probe for a GICv3 compatible interrupt controller in DT
  * @node:	pointer to the DT node
@@ -485,8 +497,16 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	kvm_vgic_global_state.can_emulate_gicv2 = false;
 	kvm_vgic_global_state.ich_vtr_el2 = ich_vtr_el2;
 
-	/* GICv4 support? */
+	/*
+	 * GICv4 support? We need to check on all CPUs in case of some
+	 * extremely creative form of big-little brain damage...
+	 */
 	if (info->has_v4) {
+		int cpu;
+
+		for_each_online_cpu(cpu)
+			smp_call_function_single(cpu, vgic_check_v4_cpuif,
+						 &gicv4_enable, 1);
 		kvm_vgic_global_state.has_gicv4 = gicv4_enable;
 		kvm_info("GICv4 support %sabled\n",
 			 gicv4_enable ? "en" : "dis");
