@@ -16,6 +16,7 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kvm_host.h>
 
@@ -73,6 +74,14 @@ int vgic_v4_init(struct kvm *kvm)
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		int irq = dist->its_vm.vpes[i]->irq;
 
+		/*
+		 * Don't automatically enable the doorbell, as we're
+		 * flipping it back and forth when the vcpu gets
+		 * blocked. Also disable the lazy disabling, as the
+		 * doorbell could kick us out of the guest too
+		 * early...
+		 */
+		irq_set_status_flags(irq, IRQ_NOAUTOEN | IRQ_DISABLE_UNLAZY);
 		ret = request_irq(irq, vgic_v4_doorbell_handler,
 				  0, "vcpu", vcpu);
 		if (ret) {
@@ -98,7 +107,10 @@ void vgic_v4_teardown(struct kvm *kvm)
 
 	for (i = 0; i < its_vm->nr_vpes; i++) {
 		struct kvm_vcpu *vcpu = kvm_get_vcpu(kvm, i);
-		free_irq(its_vm->vpes[i]->irq, vcpu);
+		int irq = its_vm->vpes[i]->irq;
+
+		irq_clear_status_flags(irq, IRQ_NOAUTOEN | IRQ_DISABLE_UNLAZY);
+		free_irq(irq, vcpu);
 	}
 
 	its_free_vcpu_irqs(its_vm);
@@ -210,4 +222,22 @@ int kvm_vgic_v4_unset_forwarding(struct kvm *kvm, int virq,
 out:
 	mutex_unlock(&its->its_lock);
 	return ret;
+}
+
+void kvm_vgic_v4_enable_doorbell(struct kvm_vcpu *vcpu)
+{
+	if (vgic_is_v4_capable(vcpu->kvm)) {
+		int irq = vcpu->arch.vgic_cpu.vgic_v3.its_vpe.irq;
+		if (irq)
+			enable_irq(irq);
+	}
+}
+
+void kvm_vgic_v4_disable_doorbell(struct kvm_vcpu *vcpu)
+{
+	if (vgic_is_v4_capable(vcpu->kvm)) {
+		int irq = vcpu->arch.vgic_cpu.vgic_v3.its_vpe.irq;
+		if (irq)
+			disable_irq(irq);
+	}
 }
