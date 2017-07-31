@@ -3447,7 +3447,6 @@ static void interrupt_disable_v2_hw(struct hisi_hba *hisi_hba)
 		synchronize_irq(platform_get_irq(pdev, i));
 }
 
-
 static u32 get_phys_state_v2_hw(struct hisi_hba *hisi_hba)
 {
 	return hisi_sas_read32(hisi_hba, PHY_STATE);

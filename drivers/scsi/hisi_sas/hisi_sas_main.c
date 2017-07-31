@@ -1580,7 +1580,6 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy)
 }
 EXPORT_SYMBOL_GPL(hisi_sas_phy_down);
 
-
 struct scsi_transport_template *hisi_sas_stt;
 EXPORT_SYMBOL_GPL(hisi_sas_stt);
 
