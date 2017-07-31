@@ -125,6 +125,15 @@ struct hisi_sas_port *to_hisi_sas_port(struct asd_sas_port *sas_port)
 }
 EXPORT_SYMBOL_GPL(to_hisi_sas_port);
 
+void hisi_sas_stop_phys(struct hisi_hba *hisi_hba)
+{
+	int i;
+
+	for (i = 0; i < hisi_hba->n_phy; i++)
+		hisi_hba->hw->phy_disable(hisi_hba, i);
+}
+EXPORT_SYMBOL_GPL(hisi_sas_stop_phys);
+
 static void hisi_sas_slot_index_clear(struct hisi_hba *hisi_hba, int slot_idx)
 {
 	void *bitmap = hisi_hba->slot_index_tags;
