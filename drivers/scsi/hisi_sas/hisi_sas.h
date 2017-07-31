@@ -29,8 +29,6 @@
 #include <ras/ras_event.h>
 #include <acpi/ghes.h>
 
-#define DRV_VERSION "v1.6"
-
 #define HISI_SAS_MAX_PHYS	9
 #define HISI_SAS_MAX_QUEUES	32
 #define HISI_SAS_QUEUE_SLOTS 512

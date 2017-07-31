@@ -2057,7 +2057,7 @@ EXPORT_SYMBOL_GPL(hisi_sas_remove);
 
 static __init int hisi_sas_init(void)
 {
-	pr_info("hisi_sas: driver version %s\n", DRV_VERSION);
+	pr_info("HiSilicon SAS core driver\n");
 
 	hisi_sas_stt = sas_domain_attach_transport(&hisi_sas_transport_ops);
 	if (!hisi_sas_stt)
@@ -2074,7 +2074,6 @@ static __exit void hisi_sas_exit(void)
 module_init(hisi_sas_init);
 module_exit(hisi_sas_exit);
 
-MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("John Garry <john.garry@huawei.com>");
 MODULE_DESCRIPTION("HISILICON SAS controller driver");
