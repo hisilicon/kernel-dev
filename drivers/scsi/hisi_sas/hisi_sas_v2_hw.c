@@ -730,6 +730,11 @@ enum {
 #define DIR_TO_DEVICE 2
 #define DIR_RESERVED 3
 
+/* Vendor specific CPER SEC TYPE for HISI SAS Memory errors */
+#define CPER_SEC_HISI_SAS_MEM                                           \
+	UUID_LE(0xDAFFD814, 0x6EBA, 0x4D8C, 0x8A, 0x91, 0xBC, 0x9B,     \
+	0xBF, 0x4A, 0xA3, 0x01)
+
 #define ERR_ON_TX_PHASE(err_phase) (err_phase == 0x2 || \
 		err_phase == 0x4 || err_phase == 0x8 ||\
 		err_phase == 0x6 || err_phase == 0xa)
@@ -2939,6 +2944,10 @@ one_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba, u32 irq_value)
 	const struct hisi_sas_ecc_error *ecc_error;
 	u32 val;
 	int i;
+	int sec_sev = GHES_SEV_RECOVERABLE;
+	char buf[100];
+	u32 len;
+	bool trace_ns_event_enabled = trace_non_standard_event_enabled();
 
 	for (i = 0; i < ARRAY_SIZE(one_bit_ecc_errors); i++) {
 		ecc_error = &one_bit_ecc_errors[i];
@@ -2946,7 +2955,17 @@ one_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba, u32 irq_value)
 			val = hisi_sas_read32(hisi_hba, ecc_error->reg);
 			val &= ecc_error->msk;
 			val >>= ecc_error->shift;
-			dev_warn(dev, ecc_error->msg, val);
+			if (trace_ns_event_enabled) {
+				len = snprintf(buf, 100, ecc_error->msg, val);
+				len = roundup(len, 4);
+				log_non_standard_event(&CPER_SEC_HISI_SAS_MEM,
+						       &NULL_UUID_LE,
+						       dev_name(dev), sec_sev,
+						       (const u8 *)buf,
+						       len);
+			} else {
+				dev_warn(dev, ecc_error->msg, val);
+			}
 		}
 	}
 }
@@ -2958,6 +2977,10 @@ static void multi_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba,
 	const struct hisi_sas_ecc_error *ecc_error;
 	u32 val;
 	int i;
+	int sec_sev = GHES_SEV_PANIC;
+	char buf[100];
+	u32 len;
+	bool trace_ns_event_enabled = trace_non_standard_event_enabled();
 
 	for (i = 0; i < ARRAY_SIZE(multi_bit_ecc_errors); i++) {
 		ecc_error = &multi_bit_ecc_errors[i];
@@ -2965,7 +2988,18 @@ static void multi_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba,
 			val = hisi_sas_read32(hisi_hba, ecc_error->reg);
 			val &= ecc_error->msk;
 			val >>= ecc_error->shift;
-			dev_warn(dev, ecc_error->msg, irq_value, val);
+			if (trace_ns_event_enabled) {
+				len = snprintf(buf, 100, ecc_error->msg,
+					       irq_value, val);
+				len = roundup(len, 4);
+				log_non_standard_event(&CPER_SEC_HISI_SAS_MEM,
+						       &NULL_UUID_LE,
+						       dev_name(dev), sec_sev,
+						       (const u8 *)buf,
+						       len);
+			} else {
+				dev_warn(dev, ecc_error->msg, irq_value, val);
+			}
 			queue_work(hisi_hba->wq, &hisi_hba->rst_work);
 		}
 	}

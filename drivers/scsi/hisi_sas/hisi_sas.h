@@ -24,6 +24,9 @@
 #include <linux/regmap.h>
 #include <scsi/sas_ata.h>
 #include <scsi/libsas.h>
+#include <linux/ras.h>
+#include <ras/ras_event.h>
+#include <acpi/ghes.h>
 
 #define DRV_VERSION "v1.6"
 
