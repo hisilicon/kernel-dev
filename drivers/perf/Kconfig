@@ -33,6 +33,15 @@ config HISI_PMU
          Support for HiSilicon SoC uncore performance monitoring
          unit (PMU), such as: L3C, HHA and DDRC.
 
+config ARM_SMMUV3_PMU
+	 bool "ARM SMMUv3 PMU"
+	 depends on PERF_EVENTS && ARM64 && ACPI
+	   help
+	   Provides support for the SMMU version 3 performance monitor unit (PMU)
+	   on ARM-based systems.
+	   Adds the SMMU PMU into the perf events subsystem for
+	   monitoring SMMU performance events.
+
 config QCOM_L2_PMU
 	bool "Qualcomm Technologies L2-cache PMU"
 	depends on ARCH_QCOM && ARM64 && ACPI
