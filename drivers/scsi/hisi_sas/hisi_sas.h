@@ -427,4 +427,5 @@ extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,
 extern void hisi_sas_init_mem(struct hisi_hba *hisi_hba);
 extern void hisi_sas_rst_work_handler(struct work_struct *work);
 extern void hisi_sas_kill_tasklets(struct hisi_hba *hisi_hba);
+extern int hisi_sas_controller_reset(struct hisi_hba *hisi_hba);
 #endif

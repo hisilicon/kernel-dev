@@ -1093,7 +1093,7 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 old_state,
 	drain_workqueue(hisi_hba->shost->work_q);
 }
 
-static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
+int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
 	struct Scsi_Host *shost = hisi_hba->shost;
@@ -1140,6 +1140,7 @@ out:
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(hisi_sas_controller_reset);
 
 static int hisi_sas_abort_task(struct sas_task *task)
 {
