@@ -128,6 +128,39 @@ static int set_core_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 out:
 	return err;
 }
+static int get_fault_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
+{
+	void __user *uaddr = (void __user *)(unsigned long)reg->addr;
+	u32 value;
+	u32 id = reg->id & ~(KVM_REG_ARCH_MASK |
+			KVM_REG_SIZE_MASK | KVM_REG_ARM64_FAULT);
+
+	switch (id) {
+	case KVM_REG_ARM64_FAULT_ESR_EC_ISS:
+		/*
+		 * The user space may need to know the fault exception class
+		 * ESR_ELx.EC and instruction specific syndrome ESR_ELx.ISS
+		 */
+		value = kvm_vcpu_get_hsr(vcpu) & (ESR_ELx_EC_MASK | ESR_ELx_ISS_MASK);
+		if (copy_to_user(uaddr, &value, KVM_REG_SIZE(reg->id)) != 0)
+			return -EFAULT;
+		break;
+	case KVM_REG_ARM64_FAULT_FAR:
+		/*
+		 * When user space injects synchronized abort, it needs
+		 * to inject the faulting virtual address to guest OS, so
+		 * needs to get it from kvm.
+		 */
+		if (copy_to_user(uaddr, &(vcpu->arch.fault.far_el2),
+				KVM_REG_SIZE(reg->id)) != 0)
+			return -EFAULT;
+		break;
+	default:
+		return -ENOENT;
+	}
+	return 0;
+}
+
 
 int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
@@ -242,6 +275,9 @@ int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	/* Register group 16 means we want a core register. */
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_CORE)
 		return get_core_reg(vcpu, reg);
+
+	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM64_FAULT)
+		return get_fault_reg(vcpu, reg);
 
 	if (is_timer_reg(reg->id))
 		return get_timer_reg(vcpu, reg);
