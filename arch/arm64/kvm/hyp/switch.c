@@ -42,6 +42,13 @@ bool __hyp_text __fpsimd_enabled(void)
 	return __fpsimd_is_enabled()();
 }
 
+static void __hyp_text __sysreg_set_vsesr(struct kvm_vcpu *vcpu)
+{
+	if (cpus_have_const_cap(ARM64_HAS_RAS_EXTN) &&
+			(vcpu->arch.hcr_el2 & HCR_VSE))
+		write_sysreg_s(vcpu->arch.fault.vsesr_el2, REG_VSESR_EL2);
+}
+
 static void __hyp_text __activate_traps_vhe(void)
 {
 	u64 val;
@@ -86,6 +93,13 @@ static void __hyp_text __activate_traps(struct kvm_vcpu *vcpu)
 		isb();
 	}
 	write_sysreg(val, hcr_el2);
+
+	/*
+	 * If the virtual SError interrupt is taken to EL1 using AArch64,
+	 * then VSESR_EL2 provides the syndrome value reported in ESR_EL1.
+	 */
+	__sysreg_set_vsesr(vcpu);
+
 	/* Trap on AArch32 cp15 c15 accesses (EL1 or EL0) */
 	write_sysreg(1 << 15, hstr_el2);
 	/*

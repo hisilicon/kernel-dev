@@ -57,6 +57,7 @@ extern void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
 })
 
 int handle_guest_sea(phys_addr_t addr, unsigned int esr);
+int handle_guest_sei(unsigned int esr);
 
 #endif	/* __ASSEMBLY__ */
 

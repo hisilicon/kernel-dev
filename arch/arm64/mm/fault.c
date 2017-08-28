@@ -691,6 +691,40 @@ int handle_guest_sea(phys_addr_t addr, unsigned int esr)
 }
 
 /*
+ * Handle SError interrupt that occur in guest OS.
+ *
+ * The return value will be zero if the SEI was successfully handled
+ * and non-zero if handling is failed.
+ */
+int handle_guest_sei(unsigned int esr)
+{
+	int ret = 0;
+
+	struct siginfo info;
+
+	pr_alert("Asynchronous SError interrupt detected on CPU: %d, esr: %x\n",
+		smp_processor_id(), esr);
+
+	info.si_signo = SIGBUS;
+	info.si_errno = 0;
+	info.si_code  = BUS_MCEERR_AR;
+	/*
+	 * Because the address is not accurate for Asynchronous Aborts, so set
+	 * NULL for the fault address
+	 */
+	info.si_addr = NULL;
+
+	ret = force_sig_info(SIGBUS, &info, current);
+	if (ret < 0)
+		pr_info("Handle guest SEI: Error sending signal to %s:%d: %d\n",
+			current->comm, current->pid, ret);
+	else
+		ret = 0;
+
+	 return ret;
+}
+
+/*
  * Dispatch a data abort to the relevant handler.
  */
 asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,

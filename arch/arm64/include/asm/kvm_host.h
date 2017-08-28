@@ -88,6 +88,7 @@ struct kvm_vcpu_fault_info {
 	u32 esr_el2;		/* Hyp Syndrom Register */
 	u64 far_el2;		/* Hyp Fault Address Register */
 	u64 hpfar_el2;		/* Hyp IPA Fault Address Register */
+	u32 vsesr_el2;		/* Virtual SError Exception Syndrome Register */
 };
 
 /*
@@ -381,6 +382,7 @@ int kvm_arm_vcpu_arch_get_attr(struct kvm_vcpu *vcpu,
 			       struct kvm_device_attr *attr);
 int kvm_arm_vcpu_arch_has_attr(struct kvm_vcpu *vcpu,
 			       struct kvm_device_attr *attr);
+int kvm_vcpu_ioctl_sei(struct kvm_vcpu *vcpu, u64 *syndrome);
 
 static inline void __cpu_init_stage2(void)
 {

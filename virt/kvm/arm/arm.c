@@ -1022,6 +1022,13 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			return -EFAULT;
 		return kvm_arm_vcpu_has_attr(vcpu, &attr);
 	}
+	case KVM_ARM_SEI: {
+		u64 syndrome;
+
+		if (copy_from_user(&syndrome, argp, sizeof(syndrome)))
+			return -EFAULT;
+		return kvm_vcpu_ioctl_sei(vcpu, &syndrome);
+	}
 	default:
 		return -EINVAL;
 	}
