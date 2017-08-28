@@ -248,6 +248,15 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	return -EINVAL;
 }
 
+/*
+ * we only support SEI injection with specified synchronous
+ * in ARM64, not support it in ARM32.
+ */
+int kvm_vcpu_ioctl_sei(struct kvm_vcpu *vcpu, u64 *syndrome)
+{
+	return -EINVAL;
+}
+
 int __attribute_const__ kvm_target_cpu(void)
 {
 	switch (read_cpuid_part()) {

@@ -313,6 +313,20 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	return -EINVAL;
 }
 
+int kvm_vcpu_ioctl_sei(struct kvm_vcpu *vcpu, u64 *syndrome)
+{
+	u64 reg = *syndrome;
+
+	if (cpus_have_const_cap(ARM64_HAS_RAS_EXTN) && reg)
+		/* set vsesr_el2[24:0] with value that user space specified */
+		kvm_vcpu_set_vsesr(vcpu, reg & ESR_ELx_ISS_MASK);
+
+	/* inject virtual system Error or asynchronous abort */
+	kvm_inject_vabt(vcpu);
+
+	return 0;
+}
+
 int __attribute_const__ kvm_target_cpu(void)
 {
 	unsigned long implementor = read_cpuid_implementor();

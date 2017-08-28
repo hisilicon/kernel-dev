@@ -102,6 +102,7 @@
 #define ESR_ELx_FSC_ACCESS	(0x08)
 #define ESR_ELx_FSC_FAULT	(0x04)
 #define ESR_ELx_FSC_PERM	(0x0C)
+#define ESR_ELx_FSC_SERROR	(0x11)
 
 /* ISS field definitions for Data Aborts */
 #define ESR_ELx_ISV_SHIFT	(24)
@@ -118,6 +119,15 @@
 #define ESR_ELx_AR 		(UL(1) << ESR_ELx_AR_SHIFT)
 #define ESR_ELx_CM_SHIFT	(8)
 #define ESR_ELx_CM 		(UL(1) << ESR_ELx_CM_SHIFT)
+
+/* ISS field definitions for SError interrupt */
+#define ESR_ELx_AET_SHIFT	(10)
+#define ESR_ELx_AET		(UL(0x7) << ESR_ELx_AET_SHIFT)
+#define ESR_ELx_AET_UC		(UL(0) << ESR_ELx_AET_SHIFT)	/* Uncontainable */
+#define ESR_ELx_AET_UEU		(UL(1) << ESR_ELx_AET_SHIFT)	/* Uncorrected Unrecoverable */
+#define ESR_ELx_AET_UEO		(UL(2) << ESR_ELx_AET_SHIFT)	/* Uncorrected Restartable */
+#define ESR_ELx_AET_UER		(UL(3) << ESR_ELx_AET_SHIFT)	/* Uncorrected Recoverable */
+#define ESR_ELx_AET_CE		(UL(6) << ESR_ELx_AET_SHIFT)	/* Corrected */
 
 /* ISS field definitions for exceptions taken in to Hyp */
 #define ESR_ELx_CV		(UL(1) << 24)
