@@ -363,6 +363,9 @@ __notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 	 */
 	dsb(ish);
 
+	/* Deliver any pending SError from prev */
+	esb();
+
 	/* the actual thread switch */
 	last = cpu_switch_to(prev, next);
 
