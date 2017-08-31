@@ -68,6 +68,8 @@ config HISILICON_LPC
 	bool "Workaround for nonstandard ISA I/O space on Hisilicon Hip0X"
 	depends on (ARM64 && ARCH_HISI && PCI) || COMPILE_TEST
 	select INDIRECT_PIO
+	select SERIAL_8250
+	select SERIAL_8250_CONSOLE
 	help
 	  Driver needed for some legacy ISA devices attached to Low-Pin-Count
 	  on Hisilicon Hip0X SoC.

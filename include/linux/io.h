@@ -24,7 +24,9 @@
 #include <linux/err.h>
 #include <asm/io.h>
 #include <asm/page.h>
+#ifndef BOOT_COMPRESSED_MISC_H
 #include <linux/extio.h>
+#endif
 
 struct device;
 struct resource;
