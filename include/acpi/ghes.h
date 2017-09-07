@@ -115,4 +115,12 @@ static inline void *acpi_hest_get_next(struct acpi_hest_generic_data *gdata)
 
 int ghes_notify_sea(void);
 
+struct ghes_mem_err {
+	int notify_type;
+	int severity;
+	struct cper_sec_mem_err *mem_err;
+};
+
+extern struct atomic_notifier_head ghes_mem_err_chain;
+
 #endif /* GHES_H */
