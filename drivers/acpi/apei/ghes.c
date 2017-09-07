@@ -46,12 +46,12 @@
 #include <linux/nmi.h>
 #include <linux/sched/clock.h>
 #include <linux/uuid.h>
-#include <linux/ras.h>
 
 #include <acpi/actbl1.h>
 #include <acpi/ghes.h>
 #include <acpi/apei.h>
 #include <asm/tlbflush.h>
+#include <asm/ras.h>
 #include <ras/ras_event.h>
 
 #include "apei-internal.h"
@@ -520,7 +520,7 @@ static void ghes_do_proc(struct ghes *ghes,
 		else if (guid_equal(sec_type, &CPER_SEC_PROC_ARM)) {
 			struct cper_sec_proc_arm *err = acpi_hest_get_payload(gdata);
 
-			log_arm_hw_error(err);
+			arm_process_error(ghes, err);
 		} else {
 			void *err = acpi_hest_get_payload(gdata);
 

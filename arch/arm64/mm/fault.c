@@ -594,14 +594,25 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 			nmi_exit();
 	}
 
-	info.si_signo = SIGBUS;
-	info.si_errno = 0;
-	info.si_code  = 0;
-	if (esr & ESR_ELx_FnV)
-		info.si_addr = NULL;
-	else
-		info.si_addr  = (void __user *)addr;
-	arm64_notify_die("", regs, &info, esr);
+	if (user_mode(regs)) {
+		if (test_thread_flag(TIF_SEA_NOTIFY))
+			return ret;
+
+		info.si_signo = SIGBUS;
+		info.si_errno = 0;
+		info.si_code  = 0;
+		if (esr & ESR_ELx_FnV)
+			info.si_addr = NULL;
+		else
+			info.si_addr  = (void __user *)addr;
+
+		current->thread.fault_address = 0;
+		current->thread.fault_code = esr;
+		force_sig_info(info.si_signo, &info, current);
+	} else {
+		die("Uncorrected hardware memory error in kernel-access\n",
+		    regs, esr);
+	}
 
 	return ret;
 }
