@@ -384,6 +384,17 @@
 
 #define HISI_SAS_FATAL_INT_NR	2
 
+#define HISI_SAS_ECC_ERR_HGC_DQE	BIT(0)
+#define HISI_SAS_ECC_ERR_HGC_IOST	BIT(1)
+#define HISI_SAS_ECC_ERR_HGC_ITCT	BIT(2)
+#define HISI_SAS_ECC_ERR_HGC_IOSTLIST	BIT(3)
+#define HISI_SAS_ECC_ERR_HGC_ITCTLIST	BIT(4)
+#define HISI_SAS_ECC_ERR_HGC_CQE	BIT(5)
+#define HISI_SAS_ECC_ERR_HGC_RXM_MEM0	BIT(6)
+#define HISI_SAS_ECC_ERR_HGC_RXM_MEM1	BIT(7)
+#define HISI_SAS_ECC_ERR_HGC_RXM_MEM2	BIT(8)
+#define HISI_SAS_ECC_ERR_HGC_RXM_MEM3	BIT(9)
+
 struct hisi_sas_complete_v2_hdr {
 	__le32 dw0;
 	__le32 dw1;
@@ -406,6 +417,13 @@ struct hisi_sas_err_record_v2 {
 	__le32 dma_rx_err_type;
 };
 
+struct hisi_sas_hw_err_info {
+	u64   validation_bits;
+	u64   physical_addr;
+	u32   mb_err;
+	u32   type;
+};
+
 static const struct hisi_sas_hw_error one_bit_ecc_errors[] = {
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_DQE_ECC_1B_OFF),
@@ -413,6 +431,7 @@ static const struct hisi_sas_hw_error one_bit_ecc_errors[] = {
 		.shift = HGC_DQE_ECC_1B_ADDR_OFF,
 		.msg = "hgc_dqe_acc1b_intr found: Ram address is 0x%08X\n",
 		.reg = HGC_DQE_ECC_ADDR,
+		.type = HISI_SAS_ECC_ERR_HGC_DQE,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_IOST_ECC_1B_OFF),
@@ -420,6 +439,7 @@ static const struct hisi_sas_hw_error one_bit_ecc_errors[] = {
 		.shift = HGC_IOST_ECC_1B_ADDR_OFF,
 		.msg = "hgc_iost_acc1b_intr found: Ram address is 0x%08X\n",
 		.reg = HGC_IOST_ECC_ADDR,
+		.type = HISI_SAS_ECC_ERR_HGC_IOST,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_ITCT_ECC_1B_OFF),
@@ -427,6 +447,7 @@ static const struct hisi_sas_hw_error one_bit_ecc_errors[] = {
 		.shift = HGC_ITCT_ECC_1B_ADDR_OFF,
 		.msg = "hgc_itct_acc1b_intr found: am address is 0x%08X\n",
 		.reg = HGC_ITCT_ECC_ADDR,
+		.type = HISI_SAS_ECC_ERR_HGC_ITCT,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_IOSTLIST_ECC_1B_OFF),
@@ -434,6 +455,7 @@ static const struct hisi_sas_hw_error one_bit_ecc_errors[] = {
 		.shift = HGC_LM_DFX_STATUS2_IOSTLIST_OFF,
 		.msg = "hgc_iostl_acc1b_intr found: memory address is 0x%08X\n",
 		.reg = HGC_LM_DFX_STATUS2,
+		.type = HISI_SAS_ECC_ERR_HGC_IOSTLIST,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_ITCTLIST_ECC_1B_OFF),
@@ -441,6 +463,7 @@ static const struct hisi_sas_hw_error one_bit_ecc_errors[] = {
 		.shift = HGC_LM_DFX_STATUS2_ITCTLIST_OFF,
 		.msg = "hgc_itctl_acc1b_intr found: memory address is 0x%08X\n",
 		.reg = HGC_LM_DFX_STATUS2,
+		.type = HISI_SAS_ECC_ERR_HGC_ITCTLIST,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_CQE_ECC_1B_OFF),
@@ -448,6 +471,7 @@ static const struct hisi_sas_hw_error one_bit_ecc_errors[] = {
 		.shift = HGC_CQE_ECC_1B_ADDR_OFF,
 		.msg = "hgc_cqe_acc1b_intr found: Ram address is 0x%08X\n",
 		.reg = HGC_CQE_ECC_ADDR,
+		.type = HISI_SAS_ECC_ERR_HGC_CQE,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM0_ECC_1B_OFF),
@@ -455,6 +479,7 @@ static const struct hisi_sas_hw_error one_bit_ecc_errors[] = {
 		.shift = HGC_RXM_DFX_STATUS14_MEM0_OFF,
 		.msg = "rxm_mem0_acc1b_intr found: memory address is 0x%08X\n",
 		.reg = HGC_RXM_DFX_STATUS14,
+		.type = HISI_SAS_ECC_ERR_HGC_RXM_MEM0,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM1_ECC_1B_OFF),
@@ -462,6 +487,7 @@ static const struct hisi_sas_hw_error one_bit_ecc_errors[] = {
 		.shift = HGC_RXM_DFX_STATUS14_MEM1_OFF,
 		.msg = "rxm_mem1_acc1b_intr found: memory address is 0x%08X\n",
 		.reg = HGC_RXM_DFX_STATUS14,
+		.type = HISI_SAS_ECC_ERR_HGC_RXM_MEM1,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM2_ECC_1B_OFF),
@@ -469,6 +495,7 @@ static const struct hisi_sas_hw_error one_bit_ecc_errors[] = {
 		.shift = HGC_RXM_DFX_STATUS14_MEM2_OFF,
 		.msg = "rxm_mem2_acc1b_intr found: memory address is 0x%08X\n",
 		.reg = HGC_RXM_DFX_STATUS14,
+		.type = HISI_SAS_ECC_ERR_HGC_RXM_MEM2,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM3_ECC_1B_OFF),
@@ -476,6 +503,7 @@ static const struct hisi_sas_hw_error one_bit_ecc_errors[] = {
 		.shift = HGC_RXM_DFX_STATUS15_MEM3_OFF,
 		.msg = "rxm_mem3_acc1b_intr found: memory address is 0x%08X\n",
 		.reg = HGC_RXM_DFX_STATUS15,
+		.type = HISI_SAS_ECC_ERR_HGC_RXM_MEM3,
 	},
 };
 
@@ -486,6 +514,7 @@ static const struct hisi_sas_hw_error multi_bit_ecc_errors[] = {
 		.shift = HGC_DQE_ECC_MB_ADDR_OFF,
 		.msg = "hgc_dqe_accbad_intr (0x%x) found: Ram address is 0x%08X\n",
 		.reg = HGC_DQE_ECC_ADDR,
+		.type = HISI_SAS_ECC_ERR_HGC_DQE,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_IOST_ECC_MB_OFF),
@@ -493,6 +522,7 @@ static const struct hisi_sas_hw_error multi_bit_ecc_errors[] = {
 		.shift = HGC_IOST_ECC_MB_ADDR_OFF,
 		.msg = "hgc_iost_accbad_intr (0x%x) found: Ram address is 0x%08X\n",
 		.reg = HGC_IOST_ECC_ADDR,
+		.type = HISI_SAS_ECC_ERR_HGC_IOST,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_ITCT_ECC_MB_OFF),
@@ -500,6 +530,7 @@ static const struct hisi_sas_hw_error multi_bit_ecc_errors[] = {
 		.shift = HGC_ITCT_ECC_MB_ADDR_OFF,
 		.msg = "hgc_itct_accbad_intr (0x%x) found: Ram address is 0x%08X\n",
 		.reg = HGC_ITCT_ECC_ADDR,
+		.type = HISI_SAS_ECC_ERR_HGC_ITCT,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_IOSTLIST_ECC_MB_OFF),
@@ -507,6 +538,7 @@ static const struct hisi_sas_hw_error multi_bit_ecc_errors[] = {
 		.shift = HGC_LM_DFX_STATUS2_IOSTLIST_OFF,
 		.msg = "hgc_iostl_accbad_intr (0x%x) found: memory address is 0x%08X\n",
 		.reg = HGC_LM_DFX_STATUS2,
+		.type = HISI_SAS_ECC_ERR_HGC_IOSTLIST,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_ITCTLIST_ECC_MB_OFF),
@@ -514,6 +546,7 @@ static const struct hisi_sas_hw_error multi_bit_ecc_errors[] = {
 		.shift = HGC_LM_DFX_STATUS2_ITCTLIST_OFF,
 		.msg = "hgc_itctl_accbad_intr (0x%x) found: memory address is 0x%08X\n",
 		.reg = HGC_LM_DFX_STATUS2,
+		.type = HISI_SAS_ECC_ERR_HGC_ITCTLIST,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_CQE_ECC_MB_OFF),
@@ -521,6 +554,7 @@ static const struct hisi_sas_hw_error multi_bit_ecc_errors[] = {
 		.shift = HGC_CQE_ECC_MB_ADDR_OFF,
 		.msg = "hgc_cqe_accbad_intr (0x%x) found: Ram address is 0x%08X\n",
 		.reg = HGC_CQE_ECC_ADDR,
+		.type = HISI_SAS_ECC_ERR_HGC_CQE,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM0_ECC_MB_OFF),
@@ -528,6 +562,7 @@ static const struct hisi_sas_hw_error multi_bit_ecc_errors[] = {
 		.shift = HGC_RXM_DFX_STATUS14_MEM0_OFF,
 		.msg = "rxm_mem0_accbad_intr (0x%x) found: memory address is 0x%08X\n",
 		.reg = HGC_RXM_DFX_STATUS14,
+		.type = HISI_SAS_ECC_ERR_HGC_RXM_MEM0,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM1_ECC_MB_OFF),
@@ -535,6 +570,7 @@ static const struct hisi_sas_hw_error multi_bit_ecc_errors[] = {
 		.shift = HGC_RXM_DFX_STATUS14_MEM1_OFF,
 		.msg = "rxm_mem1_accbad_intr (0x%x) found: memory address is 0x%08X\n",
 		.reg = HGC_RXM_DFX_STATUS14,
+		.type = HISI_SAS_ECC_ERR_HGC_RXM_MEM1,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM2_ECC_MB_OFF),
@@ -542,6 +578,7 @@ static const struct hisi_sas_hw_error multi_bit_ecc_errors[] = {
 		.shift = HGC_RXM_DFX_STATUS14_MEM2_OFF,
 		.msg = "rxm_mem2_accbad_intr (0x%x) found: memory address is 0x%08X\n",
 		.reg = HGC_RXM_DFX_STATUS14,
+		.type = HISI_SAS_ECC_ERR_HGC_RXM_MEM2,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM3_ECC_MB_OFF),
@@ -549,6 +586,7 @@ static const struct hisi_sas_hw_error multi_bit_ecc_errors[] = {
 		.shift = HGC_RXM_DFX_STATUS15_MEM3_OFF,
 		.msg = "rxm_mem3_accbad_intr (0x%x) found: memory address is 0x%08X\n",
 		.reg = HGC_RXM_DFX_STATUS15,
+		.type = HISI_SAS_ECC_ERR_HGC_RXM_MEM3,
 	},
 };
 
@@ -706,6 +744,15 @@ enum {
 #define DIR_TO_INI 1
 #define DIR_TO_DEVICE 2
 #define DIR_RESERVED 3
+
+/* Vendor specific CPER SEC TYPE for HISI SAS Memory errors */
+#define CPER_SEC_TYPE_HISI_SAS                                           \
+	UUID_LE(0xDAFFD814, 0x6EBA, 0x4D8C, 0x8A, 0x91, 0xBC, 0x9B,     \
+	0xBF, 0x4A, 0xA3, 0x01)
+
+#define HISI_SAS_VALID_PA		BIT(0)
+#define HISI_SAS_VALID_MB_ERR		BIT(1)
+#define HISI_SAS_VALID_ERR_TYPE		BIT(2)
 
 #define ERR_ON_TX_PHASE(err_phase) (err_phase == 0x2 || \
 		err_phase == 0x4 || err_phase == 0x8 ||\
@@ -2946,6 +2993,17 @@ one_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba, u32 irq_value)
 	const struct hisi_sas_hw_error *ecc_error;
 	u32 val;
 	int i;
+	struct hisi_sas_hw_err_info err_data;
+	bool trace_ns_event_enabled = trace_non_standard_event_enabled();
+
+	if (trace_ns_event_enabled) {
+		memset(&err_data, 0, sizeof(err_data));
+		err_data.validation_bits =
+					HISI_SAS_VALID_PA |
+					HISI_SAS_VALID_MB_ERR |
+					HISI_SAS_VALID_ERR_TYPE;
+		err_data.mb_err = HISI_SAS_ERR_SINGLE_BIT_ECC;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(one_bit_ecc_errors); i++) {
 		ecc_error = &one_bit_ecc_errors[i];
@@ -2953,7 +3011,18 @@ one_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba, u32 irq_value)
 			val = hisi_sas_read32(hisi_hba, ecc_error->reg);
 			val &= ecc_error->msk;
 			val >>= ecc_error->shift;
-			dev_warn(dev, ecc_error->msg, val);
+			if (trace_ns_event_enabled) {
+				err_data.physical_addr = val;
+				err_data.type = ecc_error->type;
+				log_non_standard_event(&CPER_SEC_TYPE_HISI_SAS,
+						       &NULL_UUID_LE,
+						       dev_name(dev),
+						       GHES_SEV_RECOVERABLE,
+						       (const u8 *)&err_data,
+						       sizeof(err_data));
+			} else {
+				dev_warn(dev, ecc_error->msg, val);
+			}
 		}
 	}
 }
@@ -2965,6 +3034,17 @@ static void multi_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba,
 	const struct hisi_sas_hw_error *ecc_error;
 	u32 val;
 	int i;
+	struct hisi_sas_hw_err_info err_data;
+	bool trace_ns_event_enabled = trace_non_standard_event_enabled();
+
+	if (trace_ns_event_enabled) {
+		memset(&err_data, 0, sizeof(err_data));
+		err_data.validation_bits =
+					HISI_SAS_VALID_PA |
+					HISI_SAS_VALID_MB_ERR |
+					HISI_SAS_VALID_ERR_TYPE;
+		err_data.mb_err = HISI_SAS_ERR_MULTI_BIT_ECC;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(multi_bit_ecc_errors); i++) {
 		ecc_error = &multi_bit_ecc_errors[i];
@@ -2972,7 +3052,18 @@ static void multi_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba,
 			val = hisi_sas_read32(hisi_hba, ecc_error->reg);
 			val &= ecc_error->msk;
 			val >>= ecc_error->shift;
-			dev_err(dev, ecc_error->msg, irq_value, val);
+			if (trace_ns_event_enabled) {
+				err_data.physical_addr = val;
+				err_data.type = ecc_error->type;
+				log_non_standard_event(&CPER_SEC_TYPE_HISI_SAS,
+						       &NULL_UUID_LE,
+						       dev_name(dev),
+						       GHES_SEV_PANIC,
+						       (const u8 *)&err_data,
+						       sizeof(err_data));
+			} else {
+				dev_err(dev, ecc_error->msg, irq_value, val);
+			}
 			queue_work(hisi_hba->wq, &hisi_hba->rst_work);
 		}
 	}

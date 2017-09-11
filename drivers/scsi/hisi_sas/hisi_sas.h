@@ -12,6 +12,7 @@
 #ifndef _HISI_SAS_H_
 #define _HISI_SAS_H_
 
+#include <acpi/ghes.h>
 #include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/dmapool.h>
@@ -22,7 +23,9 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+#include <linux/ras.h>
 #include <linux/regmap.h>
+#include <ras/ras_event.h>
 #include <scsi/sas_ata.h>
 #include <scsi/libsas.h>
 
@@ -96,6 +99,7 @@ struct hisi_sas_hw_error {
 	int shift;
 	const char *msg;
 	int reg;
+	u32 type;
 	const struct hisi_sas_hw_error *sub;
 };
 
