@@ -1072,7 +1072,7 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 old_state,
 
 		/* Report PHY state change to libsas */
 		if (state & (1 << phy_no)) {
-			if (do_port_check && sas_port) {
+			if (do_port_check && sas_port && sas_port->port_dev) {
 				struct domain_device *dev = sas_port->port_dev;
 
 				_sas_port = sas_port;
