@@ -458,6 +458,12 @@ static void ghes_handle_memory_failure(struct acpi_hest_generic_data *gdata, int
 #endif
 }
 
+void __weak ghes_arm_process_error(struct ghes *ghes,
+				   struct cper_sec_proc_arm *err)
+{
+	log_arm_hw_error(err);
+}
+
 static void ghes_do_proc(struct ghes *ghes,
 			 const struct acpi_hest_generic_status *estatus)
 {
@@ -520,7 +526,7 @@ static void ghes_do_proc(struct ghes *ghes,
 		else if (guid_equal(sec_type, &CPER_SEC_PROC_ARM)) {
 			struct cper_sec_proc_arm *err = acpi_hest_get_payload(gdata);
 
-			log_arm_hw_error(err);
+			ghes_arm_process_error(ghes, err);
 		} else {
 			void *err = acpi_hest_get_payload(gdata);
 
