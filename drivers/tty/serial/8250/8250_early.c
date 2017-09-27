@@ -60,7 +60,7 @@ static unsigned int __init serial8250_early_in_raw(struct uart_port *port, int o
 	}
 }
 
-static void __init serial8250_early_out_raw(struct uart_port *port, int offset, int value)
+static void serial8250_early_out_raw(struct uart_port *port, int offset, int value)
 {
 	int reg_offset = offset;
 	offset <<= port->regshift;
@@ -110,7 +110,7 @@ static inline unsigned int __init serial8250_early_in(struct uart_port *port,
 
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
-static void serial_putc(struct uart_port *port, int c)
+static void __init serial_putc(struct uart_port *port, int c)
 {
 	unsigned int status;
 
@@ -124,7 +124,7 @@ static void serial_putc(struct uart_port *port, int c)
 	}
 }
 
-static void early_serial8250_write(struct console *console,
+static void __init early_serial8250_write(struct console *console,
 					const char *s, unsigned int count)
 {
 	struct earlycon_device *device = console->data;
