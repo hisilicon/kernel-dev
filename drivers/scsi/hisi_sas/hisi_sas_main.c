@@ -1102,8 +1102,6 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 old_state,
 			hisi_sas_phy_down(hisi_hba, phy_no, 0);
 
 	}
-
-	drain_workqueue(hisi_hba->shost->work_q);
 }
 
 int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
@@ -1120,7 +1118,7 @@ int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	if (test_and_set_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags))
 		return -1;
 
-	dev_dbg(dev, "controller resetting...\n");
+	dev_info(dev, "controller resetting...\n");
 	old_state = hisi_hba->hw->get_phys_state(hisi_hba);
 
 	scsi_block_requests(shost);
@@ -1129,6 +1127,7 @@ int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	if (rc) {
 		dev_warn(dev, "controller reset failed (%d)\n", rc);
 		clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
+		scsi_unblock_requests(shost);
 		goto out;
 	}
 	spin_lock_irqsave(&hisi_hba->lock, flags);
@@ -1141,15 +1140,13 @@ int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	hisi_hba->hw->phys_init(hisi_hba);
 	msleep(1000);
 	hisi_sas_refresh_port_id(hisi_hba);
-	drain_workqueue(hisi_hba->wq);
-	drain_workqueue(shost->work_q);
+	scsi_unblock_requests(shost);
 
 	state = hisi_hba->hw->get_phys_state(hisi_hba);
 	hisi_sas_rescan_topology(hisi_hba, old_state, state);
-	dev_dbg(dev, "controller reset complete\n");
+	dev_info(dev, "controller reset complete\n");
 
 out:
-	scsi_unblock_requests(shost);
 	clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
 
 	return rc;
