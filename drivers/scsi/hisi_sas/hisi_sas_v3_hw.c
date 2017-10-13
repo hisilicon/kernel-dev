@@ -2279,12 +2279,15 @@ static pci_ers_result_t hisi_sas_slot_reset_v3_hw(struct pci_dev *pdev)
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
 	struct device *dev = hisi_hba->dev;
+	HISI_SAS_DECLARE_RST_WORK_ON_STACK(r);
 
 	dev_info(dev, "PCI error: slot reset callback!!\n");
-	if (hisi_sas_controller_reset(hisi_hba))
-		return PCI_ERS_RESULT_DISCONNECT;
+	queue_work(hisi_hba->wq, &r.work);
+	wait_for_completion(r.completion);
+	if (r.done)
+		return PCI_ERS_RESULT_RECOVERED;
 
-	return PCI_ERS_RESULT_RECOVERED;
+	return PCI_ERS_RESULT_DISCONNECT;
 }
 
 enum {
