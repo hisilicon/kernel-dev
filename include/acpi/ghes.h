@@ -118,7 +118,7 @@ static inline void *acpi_hest_get_next(struct acpi_hest_generic_data *gdata)
 	     (void *)section - (void *)(estatus + 1) < estatus->data_length; \
 	     section = acpi_hest_get_next(section))
 
-int ghes_notify_sea(void);
+int ghes_notify_abort(u8 type);
 
 extern void ghes_arm_process_error(struct ghes *ghes,
 				   struct cper_sec_proc_arm *err);

@@ -833,43 +833,67 @@ static struct notifier_block ghes_notifier_hed = {
 
 #ifdef CONFIG_ACPI_APEI_SEA
 static LIST_HEAD(ghes_sea);
+#endif
 
+#ifdef CONFIG_ACPI_APEI_SEI
+static LIST_HEAD(ghes_sei);
+#endif
+
+#if defined(CONFIG_ACPI_APEI_SEA) || defined(CONFIG_ACPI_APEI_SEI)
 /*
  * Return 0 only if one of the SEA error sources successfully reported an error
  * record sent from the firmware.
  */
-int ghes_notify_sea(void)
+int ghes_notify_abort(u8 type)
 {
 	struct ghes *ghes;
+	struct list_head *head = NULL;
 	int ret = -ENOENT;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(ghes, &ghes_sea, list) {
-		if (!ghes_proc(ghes))
-			ret = 0;
+	if (type == ACPI_HEST_NOTIFY_SEA)
+		head = &ghes_sea;
+	else if (type == ACPI_HEST_NOTIFY_SEI)
+		head = &ghes_sei;
+
+	if (head) {
+		rcu_read_lock();
+		list_for_each_entry_rcu(ghes, head, list) {
+			if (!ghes_proc(ghes))
+				ret = 0;
+		}
+		rcu_read_unlock();
 	}
-	rcu_read_unlock();
 	return ret;
 }
 
-static void ghes_sea_add(struct ghes *ghes)
+static void ghes_abort_add(struct ghes *ghes)
 {
-	mutex_lock(&ghes_list_mutex);
-	list_add_rcu(&ghes->list, &ghes_sea);
-	mutex_unlock(&ghes_list_mutex);
+	struct list_head *head = NULL;
+	u8 notify_type = ghes->generic->notify.type;
+
+	if (notify_type == ACPI_HEST_NOTIFY_SEA)
+		head = &ghes_sea;
+	else if (notify_type == ACPI_HEST_NOTIFY_SEI)
+		head = &ghes_sei;
+
+	if (head) {
+		mutex_lock(&ghes_list_mutex);
+		list_add_rcu(&ghes->list, head);
+		mutex_unlock(&ghes_list_mutex);
+	}
 }
 
-static void ghes_sea_remove(struct ghes *ghes)
+static void ghes_abort_remove(struct ghes *ghes)
 {
 	mutex_lock(&ghes_list_mutex);
 	list_del_rcu(&ghes->list);
 	mutex_unlock(&ghes_list_mutex);
 	synchronize_rcu();
 }
-#else /* CONFIG_ACPI_APEI_SEA */
-static inline void ghes_sea_add(struct ghes *ghes) { }
-static inline void ghes_sea_remove(struct ghes *ghes) { }
-#endif /* CONFIG_ACPI_APEI_SEA */
+#else
+static inline void ghes_abort_add(struct ghes *ghes) { }
+static inline void ghes_abort_remove(struct ghes *ghes) { }
+#endif
 
 #ifdef CONFIG_HAVE_ACPI_APEI_NMI
 /*
@@ -1102,6 +1126,13 @@ static int ghes_probe(struct platform_device *ghes_dev)
 			goto err;
 		}
 		break;
+	case ACPI_HEST_NOTIFY_SEI:
+		if (!IS_ENABLED(CONFIG_ACPI_APEI_SEI)) {
+			pr_warn(GHES_PFX "Generic hardware error source: %d notified via SEI is not supported!\n",
+				generic->header.source_id);
+		goto err;
+	}
+	break;
 	case ACPI_HEST_NOTIFY_NMI:
 		if (!IS_ENABLED(CONFIG_HAVE_ACPI_APEI_NMI)) {
 			pr_warn(GHES_PFX "Generic hardware error source: %d notified via NMI interrupt is not supported!\n",
@@ -1172,7 +1203,8 @@ static int ghes_probe(struct platform_device *ghes_dev)
 		break;
 
 	case ACPI_HEST_NOTIFY_SEA:
-		ghes_sea_add(ghes);
+	case ACPI_HEST_NOTIFY_SEI:
+		ghes_abort_add(ghes);
 		break;
 	case ACPI_HEST_NOTIFY_NMI:
 		ghes_nmi_add(ghes);
@@ -1225,7 +1257,8 @@ static int ghes_remove(struct platform_device *ghes_dev)
 		break;
 
 	case ACPI_HEST_NOTIFY_SEA:
-		ghes_sea_remove(ghes);
+	case ACPI_HEST_NOTIFY_SEI:
+		ghes_abort_remove(ghes);
 		break;
 	case ACPI_HEST_NOTIFY_NMI:
 		ghes_nmi_remove(ghes);

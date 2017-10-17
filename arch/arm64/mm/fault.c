@@ -625,7 +625,7 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 		if (interrupts_enabled(regs))
 			nmi_enter();
 
-		ret = ghes_notify_sea();
+		ret = ghes_notify_abort(ACPI_HEST_NOTIFY_SEA);
 
 		if (interrupts_enabled(regs))
 			nmi_exit();
@@ -733,7 +733,7 @@ int handle_guest_sea(phys_addr_t addr, unsigned int esr)
 	int ret = -ENOENT;
 
 	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA))
-		ret = ghes_notify_sea();
+		ret = ghes_notify_abort(ACPI_HEST_NOTIFY_SEA);
 
 	return ret;
 }
