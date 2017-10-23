@@ -33,6 +33,7 @@
 #define SATA_INITI_D2H_STORE_ADDR_LO	0x60
 #define SATA_INITI_D2H_STORE_ADDR_HI	0x64
 #define CFG_MAX_TAG			0x68
+#define SAS_DMAC_OUTSTAND	0x6c
 #define HGC_SAS_TX_OPEN_FAIL_RETRY_CTRL	0x84
 #define HGC_SAS_TXFAIL_RETRY_CTRL	0x88
 #define HGC_GET_ITV_TIME		0x90
@@ -403,6 +404,7 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, CFG_MAX_TAG, 0xfff0400);
 	hisi_sas_write32(hisi_hba, HGC_SAS_TXFAIL_RETRY_CTRL, 0x108);
 	hisi_sas_write32(hisi_hba, CFG_1US_TIMER_TRSH, 0xd);
+	hisi_sas_write32(hisi_hba, SAS_DMAC_OUTSTAND, 0x48); /* Just for FPGA */
 	hisi_sas_write32(hisi_hba, INT_COAL_EN, 0x1);
 	hisi_sas_write32(hisi_hba, OQ_INT_COAL_TIME, 0x1);
 	hisi_sas_write32(hisi_hba, OQ_INT_COAL_CNT, 0x1);
