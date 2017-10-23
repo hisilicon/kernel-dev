@@ -197,6 +197,7 @@ static void hisi_sas_slot_index_init(struct hisi_hba *hisi_hba)
 void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 			     struct hisi_sas_slot *slot)
 {
+	WARN_ON(!spin_is_locked(&hisi_hba->lock));
 
 	if (task) {
 		struct device *dev = hisi_hba->dev;
