@@ -964,17 +964,10 @@ static int sdei_probe(struct platform_device *pdev)
 		return 0;
 	}
 
-	err = cpuhp_setup_state_nocalls(CPUHP_AP_ARM_SDEI_STARTING, "SDEI",
-				&sdei_cpuhp_up, &sdei_cpuhp_down);
-	if (err) {
-		pr_warn("Failed to register CPU hotplug notifier...\n");
-		return err;
-	}
-
 	err = cpu_pm_register_notifier(&sdei_pm_nb);
 	if (err) {
 		pr_warn("Failed to register CPU PM notifier...\n");
-		goto remove_cpuhp;
+		goto error;
 	}
 
 	err = register_reboot_notifier(&sdei_reboot_nb);
@@ -983,16 +976,23 @@ static int sdei_probe(struct platform_device *pdev)
 		goto remove_cpupm;
 	}
 
-	on_each_cpu(&_ipi_unmask_cpu, NULL, false);
+	err = cpuhp_setup_state(CPUHP_AP_ARM_SDEI_STARTING, "SDEI",
+				&sdei_cpuhp_up, &sdei_cpuhp_down);
+	if (err) {
+		pr_warn("Failed to register CPU hotplug notifier...\n");
+		goto remove_reboot;
+	}
 
 	return 0;
+
+remove_reboot:
+	unregister_reboot_notifier(&sdei_reboot_nb);
 
 remove_cpupm:
 	cpu_pm_unregister_notifier(&sdei_pm_nb);
 
-remove_cpuhp:
-	cpuhp_remove_state_nocalls(CPUHP_AP_ARM_SDEI_STARTING);
-
+error:
+	sdei_mark_interface_broken();
 	return err;
 }
 
