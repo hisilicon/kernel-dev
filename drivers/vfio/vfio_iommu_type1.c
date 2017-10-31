@@ -1198,6 +1198,50 @@ static bool vfio_iommu_has_sw_msi(struct iommu_group *group, phys_addr_t *base)
 	return ret;
 }
 
+static int vfio_mdev_type(struct device *dev, void *data)
+{
+	struct iommu_domain **domain = data;
+	struct iommu_domain *pdomain;
+	int ret = 0;
+	struct device *(*mdev_parent)(struct mdev_device *mdev);
+	struct mdev_device *(*dev_to_mdev)(struct device *dev);
+	struct device *pdev;
+	struct mdev_device *mdev;
+
+	mdev_parent = symbol_get(mdev_parent_dev);
+	if (!mdev_parent)
+		return -ENODEV;
+	dev_to_mdev = symbol_get(mdev_from_dev);
+	if (!dev_to_mdev) {
+		symbol_put(mdev_parent_dev);
+		pr_err("Fail to get mdev_from_dev!\n");
+		return -ENODEV;
+	}
+	mdev = dev_to_mdev(dev);
+	if (!mdev) {
+		pr_err("Fail to dev_to_mdev!\n");
+		ret = -ENODEV;
+		goto get_exit;
+	}
+	pdev = mdev_parent(mdev);
+	if (!pdev) {
+		pr_err("Fail to parent dev of mdev!\n");
+		ret = -ENODEV;
+		goto get_exit;
+	}
+	pdomain = iommu_get_domain_for_dev(pdev);
+	if (*domain && *domain != pdomain) {
+		pr_err("Bus of devs in this group is not matching!\n");
+		ret = -ENODEV;
+		goto get_exit;
+	}
+	*domain = pdomain;
+get_exit:
+	symbol_put(mdev_parent_dev);
+	symbol_put(mdev_from_dev);
+	return ret;
+}
+
 static int vfio_iommu_type1_attach_group(void *iommu_data,
 					 struct iommu_group *iommu_group)
 {
@@ -1208,6 +1252,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	int ret;
 	bool resv_msi, msi_remap;
 	phys_addr_t resv_msi_base;
+	struct iommu_domain *pdomain;
 
 	mutex_lock(&iommu->lock);
 
@@ -1244,6 +1289,20 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	if (mdev_bus) {
 		if ((bus == mdev_bus) && !iommu_present(bus)) {
 			symbol_put(mdev_bus_type);
+			pdomain = NULL;
+			ret = iommu_group_for_each_dev(iommu_group, &pdomain,
+						vfio_mdev_type);
+			if (ret < 0)
+				goto out_free;
+			else if (!ret) {
+				domain->domain = pdomain;
+				INIT_LIST_HEAD(&domain->group_list);
+				list_add(&group->next, &domain->group_list);
+				list_add(&domain->next, &iommu->domain_list);
+				domain->prot |= IOMMU_CACHE;
+				mutex_unlock(&iommu->lock);
+				return 0;
+			}
 			if (!iommu->external_domain) {
 				INIT_LIST_HEAD(&domain->group_list);
 				iommu->external_domain = domain;
@@ -1404,6 +1463,8 @@ static void vfio_iommu_type1_detach_group(void *iommu_data,
 	struct vfio_iommu *iommu = iommu_data;
 	struct vfio_domain *domain;
 	struct vfio_group *group;
+	struct iommu_domain *pdomain;
+	int ret;
 
 	mutex_lock(&iommu->lock);
 
@@ -1430,6 +1491,16 @@ static void vfio_iommu_type1_detach_group(void *iommu_data,
 		group = find_iommu_group(domain, iommu_group);
 		if (!group)
 			continue;
+		pdomain = NULL;
+		ret = iommu_group_for_each_dev(iommu_group, &pdomain,
+						vfio_mdev_type);
+		if (!ret) {
+			list_del(&group->next);
+			kfree(group);
+			list_del(&domain->next);
+			kfree(domain);
+			goto detach_group_done;
+		}
 
 		iommu_detach_group(domain->domain, iommu_group);
 		list_del(&group->next);
