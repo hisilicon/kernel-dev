@@ -457,4 +457,12 @@ config EDAC_XGENE
 	  Support for error detection and correction on the
 	  APM X-Gene family of SOCs.
 
+config EDAC_EINJ_HIP07
+	tristate "HW Error Injection support for Hisilicon HIP07 SoC"
+	depends on ARM64
+	help
+	  Support for HW error injection on the
+	  Hisilicon HIP07 SoC.
+
+
 endif # EDAC
