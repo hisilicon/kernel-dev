@@ -2853,7 +2853,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	}
 	ioaddr = res->start;
 
-	smmu->base = devm_ioremap_resource(dev, res);
+	smmu->base = devm_ioremap(dev, res->start, resource_size(res));
 	if (IS_ERR(smmu->base))
 		return PTR_ERR(smmu->base);
 
@@ -2875,6 +2875,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		if (irq > 0)
 			smmu->gerr_irq = irq;
 	}
+
 	/* Probe the h/w */
 	ret = arm_smmu_device_hw_probe(smmu);
 	if (ret)

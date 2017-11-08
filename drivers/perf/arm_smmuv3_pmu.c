@@ -121,6 +121,16 @@
 #define SMMU_PMU_PCIE_ATS_TRANS_RQ      6
 #define SMMU_PMU_PCIE_ATS_TRANS_PASSED  7
 
+/* Common MSI config fields */
+#define MSI_CFG0_ADDR_SHIFT             2
+#define MSI_CFG0_ADDR_MASK              0x3fffffffffffUL
+#define MSI_CFG2_SH_SHIFT               4
+#define MSI_CFG2_SH_NSH                 (0UL << MSI_CFG2_SH_SHIFT)
+#define MSI_CFG2_SH_OSH                 (2UL << MSI_CFG2_SH_SHIFT)
+#define MSI_CFG2_SH_ISH                 (3UL << MSI_CFG2_SH_SHIFT)
+#define MSI_CFG2_MEMATTR_SHIFT          0
+#define MSI_CFG2_MEMATTR_DEVICE_nGnRE   (0x1 << MSI_CFG2_MEMATTR_SHIFT)
+
 static int cpuhp_state_num;
 
 struct smmu_pmu {
@@ -212,17 +222,6 @@ static inline void smmu_pmu_interrupt_disable(struct smmu_pmu *smmu_pmu,
 					      u32 idx)
 {
 	writeq(BIT(idx), smmu_pmu->reg_base + SMMU_PMCG_INTENCLR0);
-}
-
-static void smmu_pmu_reset(struct smmu_pmu *smmu_pmu)
-{
-	unsigned int i;
-
-	for (i = 0; i < smmu_pmu->num_counters; i++) {
-		smmu_pmu_counter_disable(smmu_pmu, i);
-		smmu_pmu_interrupt_disable(smmu_pmu, i);
-	}
-	smmu_pmu_disable(&smmu_pmu->pmu);
 }
 
 static inline void smmu_pmu_set_evtyper(struct smmu_pmu *smmu_pmu, u32 idx,
@@ -636,6 +635,90 @@ static int smmu_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
+static void smmu_pmu_free_msis(void *data)
+{
+	struct device *dev = data;
+
+	platform_msi_domain_free_irqs(dev);
+}
+
+static void smmu_pmu_write_msi_msg(struct msi_desc *desc, struct msi_msg *msg)
+{
+	phys_addr_t doorbell;
+	struct device *dev = msi_desc_to_dev(desc);
+	struct smmu_pmu *smmu_pmu = dev_get_drvdata(dev);
+
+	doorbell = (((u64)msg->address_hi) << 32) | msg->address_lo;
+
+//	doorbell &= SMMU_PMCG_IRQ_CFG0_ADDR_MASK << MSI_CFG0_ADDR_SHIFT; // ?
+	doorbell &= SMMU_PMCG_IRQ_CFG0_ADDR_MASK;
+
+	writeq_relaxed(doorbell, smmu_pmu->reg_base + SMMU_PMCG_IRQ_CFG0);
+	writel_relaxed(msg->data, smmu_pmu->reg_base + SMMU_PMCG_IRQ_CFG1);
+	writel_relaxed(MSI_CFG2_MEMATTR_DEVICE_nGnRE, smmu_pmu->reg_base + SMMU_PMCG_IRQ_CFG2);
+}
+
+static void smmu_pmu_setup_msis(struct smmu_pmu *smmu_pmu)
+{
+	struct msi_desc *desc;
+	int ret, nvec = 1;
+	struct platform_device *pdev = smmu_pmu->pdev;
+	struct device *dev = &pdev->dev;
+
+	/* Clear the MSI address regs */
+	writeq_relaxed(0, smmu_pmu->reg_base + SMMU_PMCG_IRQ_CFG0);
+
+	ret = platform_msi_domain_alloc_irqs(&pdev->dev, nvec, smmu_pmu_write_msi_msg);
+	if (ret) {
+		dev_warn(dev, "failed to allocate MSIs\n");
+		return;
+	}
+
+	for_each_msi_entry(desc, dev) {
+		smmu_pmu->irq = desc->irq;
+	}
+
+	/* Add callback to free MSIs on teardown */
+	devm_add_action(dev, smmu_pmu_free_msis, dev);
+}
+
+static int smmu_pmu_reset(struct smmu_pmu *smmu_pmu)
+{
+	unsigned int i;
+	int irq, ret;
+	struct platform_device *pdev = smmu_pmu->pdev;
+
+	for (i = 0; i < smmu_pmu->num_counters; i++) {
+		smmu_pmu_counter_disable(smmu_pmu, i);
+		smmu_pmu_interrupt_disable(smmu_pmu, i);
+	}
+	smmu_pmu_disable(&smmu_pmu->pmu);
+
+	if (smmu_pmu->irq <= 0)
+		smmu_pmu_setup_msis(smmu_pmu);
+
+	/* Request interrupt lines */
+	irq = smmu_pmu->irq;
+	if(irq) {
+		ret = devm_request_irq(&pdev->dev, irq, smmu_pmu_handle_irq,
+			       IRQF_NOBALANCING | IRQF_SHARED | IRQF_NO_THREAD,
+			       "smmu-pmu", smmu_pmu);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Unable to request IRQ%d for SMMU PMU counters\n", irq);
+			return ret;
+		}
+	}
+
+	for (i = 0; i < smmu_pmu->num_counters; i++) {
+		smmu_pmu_counter_enable(smmu_pmu, i);
+		smmu_pmu_interrupt_enable(smmu_pmu, i);
+	}
+	smmu_pmu_enable(&smmu_pmu->pmu);
+
+	return 0;
+}
+
 static int smmu_pmu_probe(struct platform_device *pdev)
 {
 	struct smmu_pmu *smmu_pmu;
@@ -651,6 +734,7 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 	if (!smmu_pmu)
 		return -ENOMEM;
 
+	smmu_pmu->pdev = pdev;
 	platform_set_drvdata(pdev, smmu_pmu);
 	smmu_pmu->pmu = (struct pmu) {
 		.task_ctx_nr    = perf_invalid_context,
@@ -666,8 +750,9 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 	};
 
 	mem_resource_0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mem_map_0 = devm_ioremap_resource(&pdev->dev, mem_resource_0);
 
+	mem_map_0 = devm_ioremap(&pdev->dev, mem_resource_0->start,
+				 resource_size(mem_resource_0));
 	if (IS_ERR(mem_map_0)) {
 		dev_err(&pdev->dev, "Can't map SMMU PMU @%pa\n",
 			&mem_resource_0->start);
@@ -697,7 +782,8 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 	if (readl(smmu_pmu->reg_base + SMMU_PMCG_CFGR) &
 	    SMMU_PMCG_CFGR_RELOC_CTRS) {
 		mem_resource_1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		mem_map_1 = devm_ioremap_resource(&pdev->dev, mem_resource_1);
+		mem_map_1 = devm_ioremap(&pdev->dev, mem_resource_1->start,
+					 resource_size(mem_resource_1));
 
 		if (IS_ERR(mem_map_1)) {
 			dev_err(&pdev->dev, "Can't map SMMU PMU @%pa\n",
@@ -710,23 +796,12 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev,
-			"Failed to get valid irq for smmu @%pa\n",
-			&mem_resource_0->start);
-		return irq;
-	}
+	if (irq > 0)
+		smmu_pmu->irq = irq;
 
-	err = devm_request_irq(&pdev->dev, irq, smmu_pmu_handle_irq,
-			       IRQF_NOBALANCING | IRQF_SHARED | IRQF_NO_THREAD,
-			       "smmu-pmu", smmu_pmu);
-	if (err) {
-		dev_err(&pdev->dev,
-			"Unable to request IRQ%d for SMMU PMU counters\n", irq);
+	err = smmu_pmu_reset(smmu_pmu);
+	if(err)
 		return err;
-	}
-
-	smmu_pmu->irq = irq;
 
 	/* Pick one CPU to be the preferred one to use */
 	smmu_pmu->on_cpu = smp_processor_id();
@@ -739,8 +814,6 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 		    SMMU_PMCG_CFGR_SIZE_MASK) >> SMMU_PMCG_CFGR_SIZE_SHIFT;
 	smmu_pmu->reg_size_32 = (reg_size == SMMU_PMCG_CFGR_COUNTER_SIZE_32);
 	smmu_pmu->counter_mask = GENMASK_ULL(reg_size, 0);
-
-	smmu_pmu_reset(smmu_pmu);
 
 	err = cpuhp_state_add_instance_nocalls(cpuhp_state_num,
 					       &smmu_pmu->node);
