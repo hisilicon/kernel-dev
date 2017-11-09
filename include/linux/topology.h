@@ -43,6 +43,8 @@
 		if (nr_cpus_node(node))
 
 int arch_update_cpu_topology(void);
+int find_acpi_cpu_topology(unsigned int cpu, int level);
+int find_acpi_cpu_topology_package(unsigned int cpu);
 
 /* Conform to ACPI 2.0 SLIT distance definitions */
 #define LOCAL_DISTANCE		10
