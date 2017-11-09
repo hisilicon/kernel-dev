@@ -3023,12 +3023,13 @@ one_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba, u32 irq_value)
 			if (trace_ns_event_enabled) {
 				err_data.physical_addr = val;
 				err_data.type = ecc_error->type;
-				log_non_standard_event(&CPER_SEC_TYPE_HISI_SAS,
-						       &NULL_UUID_LE,
-						       dev_name(dev),
-						       GHES_SEV_RECOVERABLE,
-						       (const u8 *)&err_data,
-						       sizeof(err_data));
+				trace_non_standard_event(
+						&CPER_SEC_TYPE_HISI_SAS,
+						&NULL_UUID_LE,
+						dev_name(dev),
+						GHES_SEV_RECOVERABLE,
+						(const u8 *)&err_data,
+						sizeof(err_data));
 			} else {
 				dev_warn(dev, ecc_error->msg, val);
 			}
@@ -3064,7 +3065,7 @@ static void multi_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba,
 			if (trace_ns_event_enabled) {
 				err_data.physical_addr = val;
 				err_data.type = ecc_error->type;
-				log_non_standard_event(&CPER_SEC_TYPE_HISI_SAS,
+				trace_non_standard_event(&CPER_SEC_TYPE_HISI_SAS,
 						       &NULL_UUID_LE,
 						       dev_name(dev),
 						       GHES_SEV_PANIC,
@@ -3199,7 +3200,7 @@ static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
 						HISI_SAS_VALID_AXI_ERR_INFO;
 					err_data.type = axi_error->type;
 					err_data.axi_err_info = sub->msk;
-					log_non_standard_event(
+					trace_non_standard_event(
 							&CPER_SEC_TYPE_HISI_SAS,
 							&NULL_UUID_LE,
 							dev_name(dev),
@@ -3216,7 +3217,7 @@ static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
 				err_data.validation_bits =
 						HISI_SAS_VALID_ERR_TYPE;
 				err_data.type = axi_error->type;
-				log_non_standard_event(&CPER_SEC_TYPE_HISI_SAS,
+				trace_non_standard_event(&CPER_SEC_TYPE_HISI_SAS,
 						       &NULL_UUID_LE,
 						       dev_name(dev),
 						       GHES_SEV_PANIC,
