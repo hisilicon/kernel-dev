@@ -324,6 +324,7 @@ static void update_cache_properties(struct cacheinfo *this_leaf,
 				    struct acpi_pptt_cache *found_cache,
 				    struct acpi_pptt_processor *cpu_node)
 {
+	this_leaf->firmware_node = cpu_node;
 	if (found_cache->flags & ACPI_PPTT_SIZE_PROPERTY_VALID)
 		this_leaf->size = found_cache->size;
 	if (found_cache->flags & ACPI_PPTT_LINE_SIZE_VALID)

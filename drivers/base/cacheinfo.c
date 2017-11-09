@@ -75,7 +75,7 @@ static int cache_setup_of_node(unsigned int cpu)
 static inline bool cache_leaves_are_shared(struct cacheinfo *this_leaf,
 					   struct cacheinfo *sib_leaf)
 {
-	return sib_leaf->of_node == this_leaf->of_node;
+	return sib_leaf->firmware_node == this_leaf->firmware_node;
 }
 
 /* OF properties to query for a given cache type */
@@ -217,6 +217,11 @@ static inline bool cache_leaves_are_shared(struct cacheinfo *this_leaf,
 }
 #endif
 
+int __weak cache_setup_acpi(unsigned int cpu)
+{
+	return -ENOTSUPP;
+}
+
 static int cache_shared_cpu_map_setup(unsigned int cpu)
 {
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
@@ -227,11 +232,11 @@ static int cache_shared_cpu_map_setup(unsigned int cpu)
 	if (this_cpu_ci->cpu_map_populated)
 		return 0;
 
-	if (of_have_populated_dt())
+	if (!acpi_disabled)
+		ret = cache_setup_acpi(cpu);
+	else if (of_have_populated_dt())
 		ret = cache_setup_of_node(cpu);
-	else if (!acpi_disabled)
-		/* No cache property/hierarchy support yet in ACPI */
-		ret = -ENOTSUPP;
+
 	if (ret)
 		return ret;
 
@@ -288,7 +293,7 @@ static void cache_shared_cpu_map_remove(unsigned int cpu)
 
 static void cache_override_properties(unsigned int cpu)
 {
-	if (of_have_populated_dt())
+	if (acpi_disabled && of_have_populated_dt())
 		return cache_of_override_properties(cpu);
 }
 

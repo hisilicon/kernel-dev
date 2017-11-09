@@ -37,6 +37,9 @@ enum cache_type {
  * @of_node: if devicetree is used, this represents either the cpu node in
  *	case there's no explicit cache node or the cache node itself in the
  *	device tree
+ * @firmware_node: Shared with of_node. When not using DT, this may contain
+ *	pointers to other firmware based values. Particularly ACPI/PPTT
+ *	unique values.
  * @disable_sysfs: indicates whether this node is visible to the user via
  *	sysfs or not
  * @priv: pointer to any private data structure specific to particular
@@ -65,8 +68,10 @@ struct cacheinfo {
 #define CACHE_ALLOCATE_POLICY_MASK	\
 	(CACHE_READ_ALLOCATE | CACHE_WRITE_ALLOCATE)
 #define CACHE_ID		BIT(4)
-
-	struct device_node *of_node;
+	union {
+		struct device_node *of_node;
+		void *firmware_node;
+	};
 	bool disable_sysfs;
 	void *priv;
 };
@@ -99,6 +104,8 @@ int func(unsigned int cpu)					\
 struct cpu_cacheinfo *get_cpu_cacheinfo(unsigned int cpu);
 int init_cache_level(unsigned int cpu);
 int populate_cache_leaves(unsigned int cpu);
+int cache_setup_acpi(unsigned int cpu);
+int acpi_find_last_cache_level(unsigned int cpu);
 
 const struct attribute_group *cache_get_priv_group(struct cacheinfo *this_leaf);
 
