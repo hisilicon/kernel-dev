@@ -120,5 +120,6 @@ static inline void *acpi_hest_get_next(struct acpi_hest_generic_data *gdata)
 	     section = acpi_hest_get_next(section))
 
 int ghes_notify_sea(void);
+int ghes_notify_sei(void);
 
 #endif /* GHES_H */
