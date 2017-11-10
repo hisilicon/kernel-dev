@@ -279,7 +279,16 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 
 int kvm_arm_set_sei_esr(struct kvm_vcpu *vcpu, u32 *syndrome)
 {
-	return -EINVAL;
+	u64 reg = *syndrome;
+
+	/* inject virtual system Error or asynchronous abort */
+	kvm_inject_vabt(vcpu);
+
+	if (reg)
+		/* set vsesr_el2[24:0] with value that user space specified */
+		kvm_vcpu_set_vsesr(vcpu, reg & ESR_ELx_ISS_MASK);
+
+	return 0;
 }
 
 int __attribute_const__ kvm_target_cpu(void)

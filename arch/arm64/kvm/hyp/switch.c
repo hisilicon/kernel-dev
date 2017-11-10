@@ -67,6 +67,14 @@ static hyp_alternate_select(__activate_traps_arch,
 			    __activate_traps_nvhe, __activate_traps_vhe,
 			    ARM64_HAS_VIRT_HOST_EXTN);
 
+static void __hyp_text __sysreg_set_vsesr(struct kvm_vcpu *vcpu, u64 value)
+{
+	if (cpus_have_const_cap(ARM64_HAS_RAS_EXTN) &&
+			       (value & HCR_VSE))
+		write_sysreg_s(kvm_vcpu_get_vsesr(vcpu), REG_VSESR_EL2);
+}
+
+
 static void __hyp_text __activate_traps(struct kvm_vcpu *vcpu)
 {
 	u64 val;
@@ -91,6 +99,13 @@ static void __hyp_text __activate_traps(struct kvm_vcpu *vcpu)
 		val |= HCR_TID3; /* TID3: trap feature register accesses */
 
 	write_sysreg(val, hcr_el2);
+
+	/*
+	 * If the virtual SError interrupt is taken to EL1 using AArch64,
+	 * then VSESR_EL2 provides the syndrome value reported in ISS field
+	 * of ESR_EL1.
+	 */
+	__sysreg_set_vsesr(vcpu, val);
 
 	/* Trap on AArch32 cp15 c15 accesses (EL1 or EL0) */
 	write_sysreg(1 << 15, hstr_el2);
