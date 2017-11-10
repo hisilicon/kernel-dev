@@ -28,6 +28,7 @@
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_psci.h>
+#include <asm/system_misc.h>
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -186,6 +187,66 @@ static exit_handle_fn kvm_get_exit_handler(struct kvm_vcpu *vcpu)
 	return arm_exit_handlers[hsr_ec];
 }
 
+/**
+ * kvm_handle_guest_sei - handles SError interrupt or asynchronous aborts
+ * @vcpu:	the VCPU pointer
+ *
+ * For RAS SError interrupt, firstly let host kernel handle it.
+ * If the AET is [ESR_ELx_AET_UER], then let user space handle it,
+ */
+static int kvm_handle_guest_sei(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	unsigned int esr = kvm_vcpu_get_hsr(vcpu);
+	bool impdef_syndrome =  esr & ESR_ELx_ISV;	/* aka IDS */
+	unsigned int aet = esr & ESR_ELx_AET;
+
+	/*
+	 * This is not RAS SError
+	 */
+	if (!cpus_have_const_cap(ARM64_HAS_RAS_EXTN)) {
+		kvm_inject_vabt(vcpu);
+		return 1;
+	}
+
+	/* The host kernel may handle this abort. */
+	handle_guest_sei();
+
+	/*
+	 * In below two conditions, it will directly inject the
+	 * virtual SError:
+	 * 1. The Syndrome is IMPLEMENTATION DEFINED
+	 * 2. It is Uncategorized SEI
+	 */
+	if (impdef_syndrome ||
+		((esr & ESR_ELx_FSC) != ESR_ELx_FSC_SERROR)) {
+		kvm_inject_vabt(vcpu);
+		return 1;
+	}
+
+	switch (aet) {
+	case ESR_ELx_AET_CE:	/* corrected error */
+	case ESR_ELx_AET_UEO:	/* restartable error, not yet consumed */
+		return 1;	/* continue processing the guest exit */
+	case ESR_ELx_AET_UER:	/* The error has not been propagated */
+		/*
+		 * Userspace only handle the guest SError Interrupt(SEI) if the
+		 * error has not been propagated
+		 */
+		run->exit_reason = KVM_EXIT_EXCEPTION;
+		run->ex.exception = ESR_ELx_EC_SERROR;
+		run->ex.error_code = KVM_SEI_SEV_RECOVERABLE;
+		return 0;
+	default:
+		/*
+		 * Until now, the CPU supports RAS and SEI is fatal, or host
+		 * does not support to handle the SError.
+		 */
+		panic("This Asynchronous SError interrupt is dangerous, panic");
+	}
+
+	return 0;
+}
+
 /*
  * Return > 0 to return to guest, < 0 on error, 0 (and set exit_reason) on
  * proper exit to userspace.
@@ -209,8 +270,7 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			*vcpu_pc(vcpu) -= adj;
 		}
 
-		kvm_inject_vabt(vcpu);
-		return 1;
+		return kvm_handle_guest_sei(vcpu, run);
 	}
 
 	exception_index = ARM_EXCEPTION_CODE(exception_index);
@@ -219,8 +279,7 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case ARM_EXCEPTION_IRQ:
 		return 1;
 	case ARM_EXCEPTION_EL1_SERROR:
-		kvm_inject_vabt(vcpu);
-		return 1;
+		return kvm_handle_guest_sei(vcpu, run);
 	case ARM_EXCEPTION_TRAP:
 		/*
 		 * See ARM ARM B1.14.1: "Hyp traps on instructions
