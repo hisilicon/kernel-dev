@@ -1043,6 +1043,13 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			return -EFAULT;
 		return kvm_arm_vcpu_has_attr(vcpu, &attr);
 	}
+	case KVM_ARM_INJECT_SERROR_ESR: {
+		u32 syndrome;
+
+		if (copy_from_user(&syndrome, argp, sizeof(syndrome)))
+			return -EFAULT;
+		return kvm_arm_set_sei_esr(vcpu, &syndrome);
+	}
 	default:
 		return -EINVAL;
 	}

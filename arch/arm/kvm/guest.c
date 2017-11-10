@@ -248,6 +248,15 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	return -EINVAL;
 }
 
+/*
+ * we only support guest SError syndrome specifying
+ * for ARM64, not support it for ARM32.
+ */
+int kvm_arm_set_sei_esr(struct kvm_vcpu *vcpu, u32 *syndrome)
+{
+	return -EINVAL;
+}
+
 int __attribute_const__ kvm_target_cpu(void)
 {
 	switch (read_cpuid_part()) {
