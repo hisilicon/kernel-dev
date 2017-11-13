@@ -1096,8 +1096,6 @@ static void hisi_sas_refresh_port_id(struct hisi_hba *hisi_hba)
 		if (phy) {
 			port->id = phy->port_id;
 
-			hisi_hba->hw->clear_itct(hisi_hba, sas_dev);
-
 			/* Update linkrate of directly attached device. */
 			if (!device->parent)
 				device->linkrate = phy->sas_phy.linkrate;
