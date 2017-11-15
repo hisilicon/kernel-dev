@@ -819,9 +819,11 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 
 	hisi_sas_dereg_device(hisi_hba, device);
 
+	down(&hisi_hba->sem);
 	hisi_hba->hw->clear_itct(hisi_hba, sas_dev);
 	if (hisi_hba->hw->free_device)
 		hisi_hba->hw->free_device(sas_dev);
+	up(&hisi_hba->sem);
 
 	device->lldd_dev = NULL;
 	memset(sas_dev, 0, sizeof(*sas_dev));
@@ -1154,6 +1156,7 @@ int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	if (test_and_set_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags))
 		return -1;
 
+	down(&hisi_hba->sem);
 	dev_info(dev, "controller resetting...\n");
 	old_state = hisi_hba->hw->get_phys_state(hisi_hba);
 
@@ -1183,6 +1186,7 @@ int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	dev_info(dev, "controller reset complete\n");
 
 out:
+	up(&hisi_hba->sem);
 	clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
 
 	return rc;
@@ -1740,6 +1744,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 	struct device *dev = hisi_hba->dev;
 	int i, s, max_command_entries = hisi_hba->hw->max_command_entries;
 
+	sema_init(&hisi_hba->sem, 1);
 	spin_lock_init(&hisi_hba->lock);
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		hisi_sas_phy_init(hisi_hba, i);
