@@ -792,9 +792,11 @@ int hns_roce_init(struct hns_roce_dev *hr_dev)
 		}
 	}
 
-	ret = hns_roce_register_device(hr_dev);
-	if (ret)
-		goto error_failed_register_device;
+	if (!hr_dev->is_reset) {
+		ret = hns_roce_register_device(hr_dev);
+		if (ret)
+			goto error_failed_register_device;
+	}
 
 	return 0;
 
@@ -835,7 +837,9 @@ EXPORT_SYMBOL_GPL(hns_roce_init);
 
 void hns_roce_exit(struct hns_roce_dev *hr_dev)
 {
-	hns_roce_unregister_device(hr_dev);
+	if (!hr_dev->is_reset)
+		hns_roce_unregister_device(hr_dev);
+
 	if (hr_dev->hw->hw_exit)
 		hr_dev->hw->hw_exit(hr_dev);
 	hns_roce_cleanup_bitmap(hr_dev);

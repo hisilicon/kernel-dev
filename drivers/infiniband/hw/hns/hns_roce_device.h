@@ -801,6 +801,7 @@ struct hns_roce_dev {
 
 	int			cmd_mod;
 	int			loop_idc;
+	bool			is_reset;
 	u32			sdb_offset;
 	u32			odb_offset;
 	dma_addr_t		tptr_dma_addr; /*only for hw v1*/

@@ -5093,25 +5093,33 @@ static int hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 	struct hns_roce_dev *hr_dev;
 	int ret;
 
-	hr_dev = (struct hns_roce_dev *)ib_alloc_device(sizeof(*hr_dev));
-	if (!hr_dev)
-		return -ENOMEM;
+	if (!handle->rinfo.is_reset) {
+		hr_dev =
+			(struct hns_roce_dev *)ib_alloc_device(sizeof(*hr_dev));
+		if (!hr_dev)
+			return -ENOMEM;
 
-	hr_dev->priv = kzalloc(sizeof(struct hns_roce_v2_priv), GFP_KERNEL);
-	if (!hr_dev->priv) {
-		ret = -ENOMEM;
-		goto error_failed_kzalloc;
+		hr_dev->priv =
+			   kzalloc(sizeof(struct hns_roce_v2_priv), GFP_KERNEL);
+		if (!hr_dev->priv) {
+			ret = -ENOMEM;
+			goto error_failed_kzalloc;
+		}
+
+		hr_dev->pci_dev = handle->pdev;
+		hr_dev->dev = &handle->pdev->dev;
+		handle->priv = hr_dev;
+
+		ret = hns_roce_hw_v2_get_cfg(hr_dev, handle);
+		if (ret) {
+			dev_err(hr_dev->dev, "Get Configuration failed!\n");
+			goto error_failed_get_cfg;
+		}
+	} else {
+		hr_dev = (struct hns_roce_dev *)handle->priv;
 	}
 
-	hr_dev->pci_dev = handle->pdev;
-	hr_dev->dev = &handle->pdev->dev;
-	handle->priv = hr_dev;
-
-	ret = hns_roce_hw_v2_get_cfg(hr_dev, handle);
-	if (ret) {
-		dev_err(hr_dev->dev, "Get Configuration failed!\n");
-		goto error_failed_get_cfg;
-	}
+	hr_dev->is_reset = handle->rinfo.is_reset;
 
 	ret = hns_roce_init(hr_dev);
 	if (ret) {
