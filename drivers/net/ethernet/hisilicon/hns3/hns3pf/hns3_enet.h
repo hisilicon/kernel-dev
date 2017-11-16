@@ -611,5 +611,7 @@ static inline void hns3_dcbnl_setup(struct hnae3_handle *handle) {}
 #endif
 void hns3_get_channels(struct net_device *netdev,
 		       struct ethtool_channels *ch);
+int hns3_set_channels(struct net_device *netdev,
+		      struct ethtool_channels *ch);
 
 #endif

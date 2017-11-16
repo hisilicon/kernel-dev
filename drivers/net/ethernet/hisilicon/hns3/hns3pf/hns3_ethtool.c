@@ -856,6 +856,7 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_ringparam = hns3_get_ringparam,
 	.set_ringparam = hns3_set_ringparam,
 	.get_channels = hns3_get_channels,
+	.set_channels = hns3_set_channels,
 	.get_pauseparam = hns3_get_pauseparam,
 	.get_strings = hns3_get_strings,
 	.get_ethtool_stats = hns3_get_stats,
