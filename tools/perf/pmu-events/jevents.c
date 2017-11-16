@@ -42,6 +42,7 @@
 #include <dirent.h>
 #include <sys/time.h>			/* getrlimit */
 #include <sys/resource.h>		/* getrlimit */
+#include <sys/queue.h>
 #include <ftw.h>
 #include <sys/stat.h>
 #include "jsmn.h"
@@ -340,12 +341,11 @@ struct event_struct {
 	char *metric_expr;
 	char *metric_name;
 	char *metric_group;
-	struct event_struct *next;
-	int index;
+	LIST_ENTRY(event_struct) list;
 	char strings[];
 };
 
-struct event_struct *recommended_events;
+LIST_HEAD(listhead, event_struct) recommended_events;
 
 static int save_recommended_events(void *data, char *name, char *event,
 				    char *desc, char *long_desc,
@@ -355,7 +355,7 @@ static int save_recommended_events(void *data, char *name, char *event,
 {
 	static int count = 0;
 	char temp[1024];
-	struct event_struct *events;
+	struct event_struct *es;
 	int len = 0;
 	char *strings;
 
@@ -381,62 +381,52 @@ static int save_recommended_events(void *data, char *name, char *event,
 	if (metric_group)
 		len += strlen(metric_group) + 1;
 
-	events = malloc(sizeof(*events) + len);
-	if (!events)
+	es = malloc(sizeof(*es) + len);
+	if (!es)
 		return -ENOMEM;
-	memset(events, 0, sizeof(*events));
-	events->index = count;
-	if (!recommended_events) {
-		recommended_events = events;
-	} else {
-		struct event_struct *tail = recommended_events;
+	memset(es, 0, sizeof(*es));
+	LIST_INSERT_HEAD(&recommended_events, es, list);
 
-		while (tail->next) {
-			tail = tail->next;
-		}
-		tail->next = events;
-	}
-
-	strings = &events->strings[0];
+	strings = &es->strings[0];
 
 	if (name) {
-		events->name = strings;
+		es->name = strings;
 		strings += snprintf(strings, 1024, "%s", name) + 1;
 	}
 	if (event) {
-		events->event = strings;
+		es->event = strings;
 		strings += snprintf(strings, 1024, "%s", event) + 1;
 	}
 	if (desc) {
-		events->desc = strings;
+		es->desc = strings;
 		strings += snprintf(strings, 1024, "%s", desc) + 1;
 	}
 	if (long_desc) {
-		events->long_desc = strings;
+		es->long_desc = strings;
 		strings += snprintf(strings, 1024, "%s", long_desc) + 1;
 	}
 	if (pmu) {
-		events->pmu = strings;
+		es->pmu = strings;
 		strings += snprintf(strings, 1024, "%s", pmu) + 1;
 	}
 	if (unit) {
-		events->unit = strings;
+		es->unit = strings;
 		strings += snprintf(strings, 1024, "%s", unit) + 1;
 	}
 	if (perpkg) {
-		events->perpkg = strings;
+		es->perpkg = strings;
 		strings += snprintf(strings, 1024, "%s", perpkg) + 1;
 	}
 	if (metric_expr) {
-		events->metric_expr = strings;
+		es->metric_expr = strings;
 		strings += snprintf(strings, 1024, "%s", metric_expr) + 1;
 	}
 	if (metric_name) {
-		events->metric_name = strings;
+		es->metric_name = strings;
 		strings += snprintf(strings, 1024, "%s", metric_name) + 1;
 	}
 	if (metric_group) {
-		events->metric_group = strings;
+		es->metric_group = strings;
 		strings += snprintf(strings, 1024, "%s", metric_group) + 1;
 	}
 
@@ -500,36 +490,34 @@ static int try_fixup(const char *fn, char *event, char **desc, char **name, char
 				char **perpkg, char **unit, char **metric_expr, char **metric_name, char **metric_group)
 {
 	/* try to find matching event from recommended values */
-	struct event_struct *event_struct = recommended_events;
+	struct event_struct *es;
 
-	while (event_struct) {
-		if (!strcmp(event, event_struct->event)) {
+	LIST_FOREACH(es, &recommended_events, list) {
+		if (!strcmp(event, es->event)) {
 			/* now fixup */
-			if (event_struct->desc)
-				fixup_field(event_struct->desc, desc);
-			if (event_struct->name)
-				fixup_field(event_struct->name, name);
-			if (event_struct->long_desc)
-				fixup_field(event_struct->long_desc, long_desc);
-			if (event_struct->pmu)
-				fixup_field(event_struct->pmu, pmu);
+			if (es->desc)
+				fixup_field(es->desc, desc);
+			if (es->name)
+				fixup_field(es->name, name);
+			if (es->long_desc)
+				fixup_field(es->long_desc, long_desc);
+			if (es->pmu)
+				fixup_field(es->pmu, pmu);
 		//	if (event_struct->filter)
 		//		fixup_field(event_struct->filter, filter);
-			if (event_struct->perpkg)
-				fixup_field(event_struct->perpkg, perpkg);
-			if (event_struct->unit)
-				fixup_field(event_struct->unit, unit);
-			if (event_struct->metric_expr)
-				fixup_field(event_struct->metric_expr, metric_expr);
-			if (event_struct->metric_name)
-				fixup_field(event_struct->metric_name, metric_name);
-			if (event_struct->metric_group)
-				fixup_field(event_struct->metric_group, metric_group);
+			if (es->perpkg)
+				fixup_field(es->perpkg, perpkg);
+			if (es->unit)
+				fixup_field(es->unit, unit);
+			if (es->metric_expr)
+				fixup_field(es->metric_expr, metric_expr);
+			if (es->metric_name)
+				fixup_field(es->metric_name, metric_name);
+			if (es->metric_group)
+				fixup_field(es->metric_group, metric_group);
 
 			return 0;
 		}
-
-		event_struct = event_struct->next;
 	}
 
 	pr_err("%s: could not find matching %s for %s\n",
@@ -955,7 +943,7 @@ static int process_one_file(const char *fpath, const struct stat *sb,
 		 * to find this.
 		 */
 		bname = (char *) fpath + ftwbuf->base - 2;
-		for (;;) {
+		while (true) {
 			if (*bname == '/')
 				break;
 			bname--;
@@ -969,8 +957,10 @@ static int process_one_file(const char *fpath, const struct stat *sb,
 		 level, sb->st_size, bname, fpath);
 
 	/* base dir */
-	if (level == 0)
+	if (level == 0) {
+		LIST_INIT(&recommended_events);
 		return nftw(fpath, preprocess_level0_files, get_maxfds(), 0);
+	}
 
 	/* model directory, reset topic */
 	if (level == 1 && is_dir && isLeafDir(fpath)) {
@@ -1094,6 +1084,7 @@ int main(int argc, char *argv[])
 	const char *output_file;
 	const char *start_dirname;
 	struct stat stbuf;
+	struct event_struct *es1, *es2;
 
 	prog = basename(argv[0]);
 	if (argc < 4) {
@@ -1150,11 +1141,11 @@ int main(int argc, char *argv[])
 	}
 
 	/* Free struct for recommended events */
-	while (recommended_events) {
-		struct event_struct *next = recommended_events->next;
-
-		free(recommended_events);
-		recommended_events = next;
+	es1 = LIST_FIRST(&recommended_events);
+	while (es1) {
+		es2 = LIST_NEXT(es1, list);
+		free(es1);
+		es1 = es2;
 	}
 
 	if (close_table)
