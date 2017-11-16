@@ -329,6 +329,120 @@ static int print_events_table_entry(void *data, char *name, char *event,
 	return 0;
 }
 
+struct event_struct {
+	char *name;
+	char *event;
+	char *desc;
+	char *long_desc;
+	char *pmu;
+	char *unit;
+	char *perpkg;
+	char *metric_expr;
+	char *metric_name;
+	char *metric_group;
+	struct event_struct *next;
+	int index;
+	char strings[];
+};
+
+struct event_struct *recommended_events;
+
+static int save_recommended_events(void *data, char *name, char *event,
+				    char *desc, char *long_desc,
+				    char *pmu, char *unit, char *perpkg,
+				    char *metric_expr,
+				    char *metric_name, char *metric_group)
+{
+	static int count = 0;
+	char temp[1024];
+	struct event_struct *events;
+	int len = 0;
+	char *strings;
+
+	/* Find the size we require for storing the strings */
+	if (name)
+		len += strlen(name) + 1;
+	if (event)
+		len += strlen(event) + 1;
+	if (desc)
+		len += strlen(desc) + 1;
+	if (long_desc)
+		len += strlen(long_desc) + 1;
+	if (pmu)
+		len += strlen(pmu) + 1;
+	if (unit)
+		len += strlen(unit) + 1;
+	if (perpkg)
+		len += strlen(perpkg) + 1;
+	if (metric_expr)
+		len += strlen(metric_expr) + 1;
+	if (metric_name)
+		len += strlen(metric_name) + 1;
+	if (metric_group)
+		len += strlen(metric_group) + 1;
+
+	events = malloc(sizeof(*events) + len);
+	if (!events)
+		return -ENOMEM;
+	memset(events, 0, sizeof(*events));
+	events->index = count;
+	if (!recommended_events) {
+		recommended_events = events;
+	} else {
+		struct event_struct *tail = recommended_events;
+
+		while (tail->next) {
+			tail = tail->next;
+		}
+		tail->next = events;
+	}
+
+	strings = &events->strings[0];
+
+	if (name) {
+		events->name = strings;
+		strings += snprintf(strings, 1024, "%s", name) + 1;
+	}
+	if (event) {
+		events->event = strings;
+		strings += snprintf(strings, 1024, "%s", event) + 1;
+	}
+	if (desc) {
+		events->desc = strings;
+		strings += snprintf(strings, 1024, "%s", desc) + 1;
+	}
+	if (long_desc) {
+		events->long_desc = strings;
+		strings += snprintf(strings, 1024, "%s", long_desc) + 1;
+	}
+	if (pmu) {
+		events->pmu = strings;
+		strings += snprintf(strings, 1024, "%s", pmu) + 1;
+	}
+	if (unit) {
+		events->unit = strings;
+		strings += snprintf(strings, 1024, "%s", unit) + 1;
+	}
+	if (perpkg) {
+		events->perpkg = strings;
+		strings += snprintf(strings, 1024, "%s", perpkg) + 1;
+	}
+	if (metric_expr) {
+		events->metric_expr = strings;
+		strings += snprintf(strings, 1024, "%s", metric_expr) + 1;
+	}
+	if (metric_name) {
+		events->metric_name = strings;
+		strings += snprintf(strings, 1024, "%s", metric_name) + 1;
+	}
+	if (metric_group) {
+		events->metric_group = strings;
+		strings += snprintf(strings, 1024, "%s", metric_group) + 1;
+	}
+
+	return 0;
+}
+
 static void print_events_table_suffix(FILE *outfp)
 {
 	fprintf(outfp, "{\n");
@@ -369,6 +483,64 @@ static char *real_event(const char *name, char *event)
 			return (char *)fixed[i].event;
 	return event;
 }
+
+static void fixup_field(char *from, char **to)
+{
+	/*
+	 * If we already had a valid pointer (string), then
+	 * don't allocate a new one, just reuse and overwrite.
+	 */
+	if (!*to)
+		*to = malloc(strlen(from));
+
+	strcpy(*to, from);
+}
+
+static int try_fixup(const char *fn, char *event, char **desc, char **name, char **long_desc, char **pmu, char **filter,
+				char **perpkg, char **unit, char **metric_expr, char **metric_name, char **metric_group)
+{
+	/* try to find matching event from recommended values */
+	struct event_struct *event_struct = recommended_events;
+
+	while (event_struct) {
+		if (!strcmp(event, event_struct->event)) {
+			/* now fixup */
+			if (event_struct->desc)
+				fixup_field(event_struct->desc, desc);
+			if (event_struct->name)
+				fixup_field(event_struct->name, name);
+			if (event_struct->long_desc)
+				fixup_field(event_struct->long_desc, long_desc);
+			if (event_struct->pmu)
+				fixup_field(event_struct->pmu, pmu);
+		//	if (event_struct->filter)
+		//		fixup_field(event_struct->filter, filter);
+			if (event_struct->perpkg)
+				fixup_field(event_struct->perpkg, perpkg);
+			if (event_struct->unit)
+				fixup_field(event_struct->unit, unit);
+			if (event_struct->metric_expr)
+				fixup_field(event_struct->metric_expr, metric_expr);
+			if (event_struct->metric_name)
+				fixup_field(event_struct->metric_name, metric_name);
+			if (event_struct->metric_group)
+				fixup_field(event_struct->metric_group, metric_group);
+
+			return 0;
+		}
+
+		event_struct = event_struct->next;
+	}
+
+	pr_err("%s: could not find matching %s for %s\n",
+					prog, event, fn);
+	return -1;
+}
+
+#define  FREE_MEMORIES \
+		free(event); free(desc); free(name); free(long_desc); \
+		free(extra_desc);  free(pmu); free(filter); free(perpkg); \
+		free(unit); free(metric_expr); free(metric_name);
 
 /* Call func with each event in the json file */
 int json_events(const char *fn,
@@ -514,20 +686,22 @@ int json_events(const char *fn,
 		if (name)
 			fixname(name);
 
+		if (!desc) {
+			/*
+			 * If we have no valid desc, then fixup *all* values from recommended
+			 * by matching the event.
+			 */
+			err = try_fixup(fn, event, &desc, &name, &long_desc, &pmu, &filter, &perpkg, &unit, &metric_expr,
+					&metric_name, &metric_group);
+			if (err) {
+				FREE_MEMORIES
+				goto out_free;
+			}
+		}
+
 		err = func(data, name, real_event(name, event), desc, long_desc,
 			   pmu, unit, perpkg, metric_expr, metric_name, metric_group);
-		free(event);
-		free(desc);
-		free(name);
-		free(long_desc);
-		free(extra_desc);
-		free(pmu);
-		free(filter);
-		free(perpkg);
-		free(unit);
-		free(metric_expr);
-		free(metric_name);
-		free(metric_group);
+		FREE_MEMORIES
 		if (err)
 			break;
 		tok += j;
@@ -739,6 +913,32 @@ static int isLeafDir(const char *fpath)
 	return res;
 }
 
+static int isJsonFile(const char *name)
+{
+	const char *suffix;
+
+	if (strlen(name) < 5)
+		return 0;
+
+	suffix = name + strlen(name) - 5;
+
+	if (strncmp(suffix, ".json", 5) == 0)
+		return 1;
+	return 0;
+}
+
+static int preprocess_level0_files(const char *fpath, const struct stat *sb,
+				int typeflag, struct FTW *ftwbuf)
+{
+	int level	= ftwbuf->level;
+	int is_file = typeflag == FTW_F;
+
+	if (level == 1 && is_file && isJsonFile(fpath))
+		return json_events(fpath, save_recommended_events, NULL);
+
+	return 0;
+}
+
 static int process_one_file(const char *fpath, const struct stat *sb,
 			    int typeflag, struct FTW *ftwbuf)
 {
@@ -770,7 +970,7 @@ static int process_one_file(const char *fpath, const struct stat *sb,
 
 	/* base dir */
 	if (level == 0)
-		return 0;
+		return nftw(fpath, preprocess_level0_files, get_maxfds(), 0);
 
 	/* model directory, reset topic */
 	if (level == 1 && is_dir && isLeafDir(fpath)) {
@@ -832,9 +1032,7 @@ static int process_one_file(const char *fpath, const struct stat *sb,
 	 * ignore it. It could be a readme.txt for instance.
 	 */
 	if (is_file) {
-		char *suffix = bname + strlen(bname) - 5;
-
-		if (strncmp(suffix, ".json", 5)) {
+		if (!isJsonFile(bname)) {
 			pr_info("%s: Ignoring file without .json suffix %s\n", prog,
 				fpath);
 			return 0;
@@ -949,6 +1147,14 @@ int main(int argc, char *argv[])
 		return 1;
 	} else if (rc) {
 		goto empty_map;
+	}
+
+	/* Free struct for recommended events */
+	while (recommended_events) {
+		struct event_struct *next = recommended_events->next;
+
+		free(recommended_events);
+		recommended_events = next;
 	}
 
 	if (close_table)
