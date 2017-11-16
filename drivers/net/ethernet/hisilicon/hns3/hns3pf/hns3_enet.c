@@ -3160,6 +3160,15 @@ static int hns3_reset_notify(struct hnae3_handle *handle,
 	return ret;
 }
 
+void hns3_get_channels(struct net_device *netdev,
+		       struct ethtool_channels *ch)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (h->ae_algo->ops->get_channels)
+		h->ae_algo->ops->get_channels(h, ch);
+}
+
 static const struct hnae3_client_ops client_ops = {
 	.init_instance = hns3_client_init,
 	.uninit_instance = hns3_client_uninit,
