@@ -464,5 +464,11 @@ config EDAC_EINJ_HIP07
 	  Support for HW error injection on the
 	  Hisilicon HIP07 SoC.
 
+config EDAC_EINJ_HIP08
+        tristate "HW Error Injection support for Hisilicon HIP08 SoC"
+        depends on ARM64
+        help
+          Support for HW error injection on the
+          Hisilicon HIP08 SoC.
 
 endif # EDAC
