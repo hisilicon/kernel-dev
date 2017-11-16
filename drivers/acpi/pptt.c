@@ -324,16 +324,25 @@ static void update_cache_properties(struct cacheinfo *this_leaf,
 				    struct acpi_pptt_cache *found_cache,
 				    struct acpi_pptt_processor *cpu_node)
 {
+	int valid_flags = 0;
 	this_leaf->firmware_node = cpu_node;
-	if (found_cache->flags & ACPI_PPTT_SIZE_PROPERTY_VALID)
+	if (found_cache->flags & ACPI_PPTT_SIZE_PROPERTY_VALID) {
 		this_leaf->size = found_cache->size;
-	if (found_cache->flags & ACPI_PPTT_LINE_SIZE_VALID)
+		valid_flags++;
+	}
+	if (found_cache->flags & ACPI_PPTT_LINE_SIZE_VALID) {
 		this_leaf->coherency_line_size = found_cache->line_size;
-	if (found_cache->flags & ACPI_PPTT_NUMBER_OF_SETS_VALID)
+		valid_flags++;
+	}
+	if (found_cache->flags & ACPI_PPTT_NUMBER_OF_SETS_VALID) {
 		this_leaf->number_of_sets = found_cache->number_of_sets;
-	if (found_cache->flags & ACPI_PPTT_ASSOCIATIVITY_VALID)
+		valid_flags++;
+	}
+	if (found_cache->flags & ACPI_PPTT_ASSOCIATIVITY_VALID) {
 		this_leaf->ways_of_associativity = found_cache->associativity;
-	if (found_cache->flags & ACPI_PPTT_WRITE_POLICY_VALID)
+		valid_flags++;
+	}
+	if (found_cache->flags & ACPI_PPTT_WRITE_POLICY_VALID) {
 		switch (found_cache->attributes & ACPI_PPTT_MASK_WRITE_POLICY) {
 		case ACPI_PPTT_CACHE_POLICY_WT:
 			this_leaf->attributes = CACHE_WRITE_THROUGH;
@@ -342,7 +351,9 @@ static void update_cache_properties(struct cacheinfo *this_leaf,
 			this_leaf->attributes = CACHE_WRITE_BACK;
 			break;
 		}
-	if (found_cache->flags & ACPI_PPTT_ALLOCATION_TYPE_VALID)
+		valid_flags++;
+	}
+	if (found_cache->flags & ACPI_PPTT_ALLOCATION_TYPE_VALID) {
 		switch (found_cache->attributes & ACPI_PPTT_MASK_ALLOCATION_TYPE) {
 		case ACPI_PPTT_CACHE_READ_ALLOCATE:
 			this_leaf->attributes |= CACHE_READ_ALLOCATE;
@@ -355,6 +366,25 @@ static void update_cache_properties(struct cacheinfo *this_leaf,
 			this_leaf->attributes |=
 				CACHE_READ_ALLOCATE | CACHE_WRITE_ALLOCATE;
 			break;
+		}
+		valid_flags++;
+	}
+	/*
+	 * if all the above flags are valid, and the cache type was NOCACHE
+	 * update the cache type as well.
+	 */
+	if ((this_leaf->type == CACHE_TYPE_NOCACHE) && (valid_flags == 6))
+		switch (found_cache->attributes & ACPI_PPTT_MASK_CACHE_TYPE) {
+		    case ACPI_PPTT_CACHE_TYPE_DATA:
+			    this_leaf->type = CACHE_TYPE_DATA;
+			    break;
+		    case ACPI_PPTT_CACHE_TYPE_INSTR:
+			    this_leaf->type = CACHE_TYPE_INST;
+			    break;
+		    case ACPI_PPTT_CACHE_TYPE_UNIFIED:
+		    case ACPI_PPTT_CACHE_TYPE_UNIFIED_ALT:
+			    this_leaf->type = CACHE_TYPE_UNIFIED;
+			    break;
 		}
 }
 
