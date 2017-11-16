@@ -1,0 +1,122 @@
+[
+    {
+        "PublicDescription": "Attributable Level 1 data cache access, read",
+        "EventCode": "0x40",
+        "EventName": "L1D_CACHE_RD",
+        "BriefDescription": "L1D cache access, read",
+    },
+    {
+        "PublicDescription": "Attributable Level 1 data cache access, write",
+        "EventCode": "0x41",
+        "EventName": "L1D_CACHE_WR",
+        "BriefDescription": "L1D cache access, write",
+    },
+    {
+        "PublicDescription": "Attributable Level 1 data cache refill, read",
+        "EventCode": "0x42",
+        "EventName": "L1D_CACHE_REFILL_RD",
+        "BriefDescription": "L1D cache refill, read",
+    },
+    {
+        "PublicDescription": "Attributable Level 1 data cache refill, write",
+        "EventCode": "0x43",
+        "EventName": "L1D_CACHE_REFILL_WR",
+        "BriefDescription": "L1D cache refill, write",
+    },
+    {
+        "PublicDescription": "Attributable Level 1 data cache Write-Back, victim",
+        "EventCode": "0x46",
+        "EventName": "L1D_CACHE_WB_VICTIM",
+        "BriefDescription": "L1D cache Write-Back, victim",
+    },
+    {
+        "PublicDescription": "Level 1 data cache Write-Back, cleaning and coherency",
+        "EventCode": "0x47",
+        "EventName": "L1D_CACHE_WB_CLEAN",
+        "BriefDescription": "L1D cache Write-Back, cleaning and coherency",
+    },
+    {
+        "PublicDescription": "Attributable Level 1 data cache invalidate",
+        "EventCode": "0x48",
+        "EventName": "L1D_CACHE_INVAL",
+        "BriefDescription": "L1D cache invalidate",
+    },
+    {
+        "PublicDescription": "Attributable Level 1 data TLB refill, read",
+        "EventCode": "0x4C",
+        "EventName": "L1D_TLB_REFILL_RD",
+        "BriefDescription": "L1D tlb refill, read",
+    },
+    {
+        "PublicDescription": "Attributable Level 1 data TLB refill, write",
+        "EventCode": "0x4D",
+        "EventName": "L1D_TLB_REFILL_WR",
+        "BriefDescription": "L1D tlb refill, write",
+    },
+    {
+        "PublicDescription": "Attributable Level 1 data or unified TLB access, read",
+        "EventCode": "0x4E",
+        "EventName": "L1D_TLB_RD",
+        "BriefDescription": "L1D tlb access, read",
+    },
+    {
+        "PublicDescription": "Attributable Level 1 data or unified TLB access, write",
+        "EventCode": "0x4F",
+        "EventName": "L1D_TLB_WR",
+        "BriefDescription": "L1D tlb access, write",
+    },
+    {
+        "PublicDescription": "Attributable Level 2 data cache access, read",
+        "EventCode": "0x50",
+        "EventName": "L2D_CACHE_RD",
+        "BriefDescription": "L2D cache access, read",
+    },
+    {
+        "PublicDescription": "Attributable Level 2 data cache access, write",
+        "EventCode": "0x51",
+        "EventName": "L2D_CACHE_WR",
+        "BriefDescription": "L2D cache access, write",
+    },
+    {
+        "PublicDescription": "Attributable Level 2 data cache refill, read",
+        "EventCode": "0x52",
+        "EventName": "L2D_CACHE_REFILL_RD",
+        "BriefDescription": "L2D cache refill, read",
+    },
+    {
+        "PublicDescription": "Attributable Level 2 data cache refill, write",
+        "EventCode": "0x53",
+        "EventName": "L2D_CACHE_REFILL_WR",
+        "BriefDescription": "L2D cache refill, write",
+    },
+    {
+        "PublicDescription": "Attributable Level 2 data cache Write-Back, victim",
+        "EventCode": "0x56",
+        "EventName": "L2D_CACHE_WB_VICTIM",
+        "BriefDescription": "L2D cache Write-Back, victim",
+    },
+    {
+        "PublicDescription": "Level 2 data cache Write-Back, cleaning and coherency",
+        "EventCode": "0x57",
+        "EventName": "L2D_CACHE_WB_CLEAN",
+        "BriefDescription": "L2D cache Write-Back, cleaning and coherency",
+    },
+    {
+        "PublicDescription": "Attributable Level 2 data cache invalidate",
+        "EventCode": "0x58",
+        "EventName": "L2D_CACHE_INVAL",
+        "BriefDescription": "L2D cache invalidate",
+    },
+    {
+        "PublicDescription": "Bus access read",
+        "EventCode": "0x60",
+        "EventName": "bus_access_rd",
+        "BriefDescription": "Bus access read",
+   },
+   {
+        "PublicDescription": "Bus access write",
+        "EventCode": "0x61",
+        "EventName": "bus_access_wr",
+        "BriefDescription": "Bus access write",
+   }
+]
