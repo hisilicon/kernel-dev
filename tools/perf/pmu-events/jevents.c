@@ -356,30 +356,15 @@ static int save_recommended_events(void *data, char *name, char *event,
 	static int count = 0;
 	char temp[1024];
 	struct event_struct *es;
+	struct stat *sb = data;
 	int len = 0;
 	char *strings;
 
-	/* Find the size we require for storing the strings */
-	if (name)
-		len += strlen(name) + 1;
-	if (event)
-		len += strlen(event) + 1;
-	if (desc)
-		len += strlen(desc) + 1;
-	if (long_desc)
-		len += strlen(long_desc) + 1;
-	if (pmu)
-		len += strlen(pmu) + 1;
-	if (unit)
-		len += strlen(unit) + 1;
-	if (perpkg)
-		len += strlen(perpkg) + 1;
-	if (metric_expr)
-		len += strlen(metric_expr) + 1;
-	if (metric_name)
-		len += strlen(metric_name) + 1;
-	if (metric_group)
-		len += strlen(metric_group) + 1;
+	/*
+	 * Lazily allocate size of the json file to hold the
+	 * strings, which would be more than large enough.
+	 */
+	len = sb->st_size;
 
 	es = malloc(sizeof(*es) + len);
 	if (!es)
@@ -391,43 +376,43 @@ static int save_recommended_events(void *data, char *name, char *event,
 
 	if (name) {
 		es->name = strings;
-		strings += snprintf(strings, 1024, "%s", name) + 1;
+		strings += snprintf(strings, len, "%s", name) + 1;
 	}
 	if (event) {
 		es->event = strings;
-		strings += snprintf(strings, 1024, "%s", event) + 1;
+		strings += snprintf(strings, len, "%s", event) + 1;
 	}
 	if (desc) {
 		es->desc = strings;
-		strings += snprintf(strings, 1024, "%s", desc) + 1;
+		strings += snprintf(strings, len, "%s", desc) + 1;
 	}
 	if (long_desc) {
 		es->long_desc = strings;
-		strings += snprintf(strings, 1024, "%s", long_desc) + 1;
+		strings += snprintf(strings, len, "%s", long_desc) + 1;
 	}
 	if (pmu) {
 		es->pmu = strings;
-		strings += snprintf(strings, 1024, "%s", pmu) + 1;
+		strings += snprintf(strings, len, "%s", pmu) + 1;
 	}
 	if (unit) {
 		es->unit = strings;
-		strings += snprintf(strings, 1024, "%s", unit) + 1;
+		strings += snprintf(strings, len, "%s", unit) + 1;
 	}
 	if (perpkg) {
 		es->perpkg = strings;
-		strings += snprintf(strings, 1024, "%s", perpkg) + 1;
+		strings += snprintf(strings, len, "%s", perpkg) + 1;
 	}
 	if (metric_expr) {
 		es->metric_expr = strings;
-		strings += snprintf(strings, 1024, "%s", metric_expr) + 1;
+		strings += snprintf(strings, len, "%s", metric_expr) + 1;
 	}
 	if (metric_name) {
 		es->metric_name = strings;
-		strings += snprintf(strings, 1024, "%s", metric_name) + 1;
+		strings += snprintf(strings, len, "%s", metric_name) + 1;
 	}
 	if (metric_group) {
 		es->metric_group = strings;
-		strings += snprintf(strings, 1024, "%s", metric_group) + 1;
+		strings += snprintf(strings, len, "%s", metric_group) + 1;
 	}
 
 	return 0;
@@ -922,7 +907,7 @@ static int preprocess_level0_files(const char *fpath, const struct stat *sb,
 	int is_file = typeflag == FTW_F;
 
 	if (level == 1 && is_file && isJsonFile(fpath))
-		return json_events(fpath, save_recommended_events, NULL);
+		return json_events(fpath, save_recommended_events, (void *)sb);
 
 	return 0;
 }
