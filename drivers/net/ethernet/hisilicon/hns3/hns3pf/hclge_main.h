@@ -545,4 +545,6 @@ int hclge_set_vf_vlan_common(struct hclge_dev *vport, int vfid,
 
 int hclge_buffer_alloc(struct hclge_dev *hdev);
 int hclge_rss_init_hw(struct hclge_dev *hdev);
+
+int hclge_cfg_flowctrl(struct hclge_dev *hdev);
 #endif
