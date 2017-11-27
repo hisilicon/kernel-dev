@@ -92,6 +92,12 @@ struct vfio_group {
 	struct list_head	next;
 };
 
+struct vfio_iova_region {
+	struct list_head        list;
+	phys_addr_t             start;
+	size_t                  length;
+};
+
 /*
  * Guest RAM pinning working set or DMA target
  */
@@ -1537,6 +1543,126 @@ static int vfio_domains_have_iommu_cache(struct vfio_iommu *iommu)
 	return ret;
 }
 
+static int add_iova_range(struct vfio_info_cap *caps, u64 start, u64 end)
+{
+	struct vfio_iommu_type1_info_cap_iova_range *cap;
+	struct vfio_info_cap_header *header;
+
+	header = vfio_info_cap_add(caps, sizeof(*cap),
+			VFIO_IOMMU_TYPE1_INFO_CAP_IOVA_RANGE, 1);
+	if (IS_ERR(header))
+		return PTR_ERR(header);
+
+	cap = container_of(header,
+			   struct vfio_iommu_type1_info_cap_iova_range,
+			   header);
+
+	cap->start = start;
+	cap->end = end;
+	return 0;
+}
+
+static int insert_iova_region(phys_addr_t start, size_t len,
+						struct list_head *head)
+{
+	struct vfio_iova_region *region;
+
+	region = kzalloc(sizeof(*region), GFP_KERNEL);
+	if (!region)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&region->list);
+	region->start = start;
+	region->length = len;
+
+	list_add_tail(&region->list, head);
+	return 0;
+}
+
+static int update_iova_region(struct iommu_resv_region *new,
+				 struct list_head *iova)
+{
+	struct vfio_iova_region *node;
+	phys_addr_t a, b;
+	phys_addr_t start = new->start;
+	phys_addr_t end = new->start + new->length - 1;
+	int ret = 0;
+
+	if (list_empty(iova))
+		return -ENODEV;
+
+	node = list_last_entry(iova, struct vfio_iova_region, list);
+	a = node->start;
+	b = node->start + node->length - 1;
+
+	if ((start > b) || (end < a)) {
+		return 0;
+	} else if ((start >= a) && (end <= b)) {
+		if (start > a)
+			ret = insert_iova_region(a, start - a, &node->list);
+		if (!ret && end < b)
+			ret = insert_iova_region(end + 1, b - end, &node->list);
+	} else if ((start < a) && (end < b)) {
+		ret = insert_iova_region(end + 1, b - end, &node->list);
+	} else if ((start > a) && (end >= b)) {
+		ret = insert_iova_region(a, start - a, &node->list);
+	}
+
+	list_del(&node->list);
+	kfree(node);
+
+	return ret;
+}
+
+static int build_iova_range_caps(struct vfio_iommu *iommu,
+				struct vfio_info_cap *caps)
+{
+	struct iommu_resv_region *resv, *resv_next;
+	struct vfio_iova_region *iova, *iova_next;
+	struct list_head group_resv_regions, vfio_iova_regions;
+	struct vfio_domain *domain;
+	struct vfio_group *g;
+	phys_addr_t start, end;
+	int ret = 0;
+
+	domain = list_first_entry(&iommu->domain_list,
+				  struct vfio_domain, next);
+	/*Get the default iova range supported*/
+	start = domain->domain->geometry.aperture_start;
+	end = domain->domain->geometry.aperture_end;
+	INIT_LIST_HEAD(&vfio_iova_regions);
+	insert_iova_region(start, end - start + 1, &vfio_iova_regions);
+
+	/*Get reserved regions if any*/
+	INIT_LIST_HEAD(&group_resv_regions);
+	list_for_each_entry(g, &domain->group_list, next)
+		iommu_get_group_resv_regions(g->iommu_group,
+						&group_resv_regions);
+
+	/*Update iova ranges excluding reserved regions*/
+	list_for_each_entry(resv, &group_resv_regions, list) {
+		ret = update_iova_region(resv, &vfio_iova_regions);
+		if (ret)
+			goto done;
+	}
+
+	list_for_each_entry(iova, &vfio_iova_regions, list) {
+		ret = add_iova_range(caps, iova->start,
+				iova->start + iova->length - 1);
+		if (ret)
+			goto done;
+	}
+
+done:
+	list_for_each_entry_safe(resv, resv_next, &group_resv_regions, list)
+		kfree(resv);
+
+	list_for_each_entry_safe(iova, iova_next, &vfio_iova_regions, list)
+		kfree(iova);
+
+	return ret;
+}
+
 static long vfio_iommu_type1_ioctl(void *iommu_data,
 				   unsigned int cmd, unsigned long arg)
 {
@@ -1558,8 +1684,10 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 		}
 	} else if (cmd == VFIO_IOMMU_GET_INFO) {
 		struct vfio_iommu_type1_info info;
+		struct vfio_info_cap caps = { .buf = NULL, .size = 0 };
+		int ret;
 
-		minsz = offsetofend(struct vfio_iommu_type1_info, iova_pgsizes);
+		minsz = offsetofend(struct vfio_iommu_type1_info, cap_offset);
 
 		if (copy_from_user(&info, (void __user *)arg, minsz))
 			return -EFAULT;
@@ -1568,8 +1696,30 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 			return -EINVAL;
 
 		info.flags = VFIO_IOMMU_INFO_PGSIZES;
-
 		info.iova_pgsizes = vfio_pgsize_bitmap(iommu);
+
+		ret = build_iova_range_caps(iommu, &caps);
+		if (ret)
+			return ret;
+
+		if (caps.size) {
+			info.flags |= VFIO_IOMMU_INFO_CAPS;
+			if (info.argsz < sizeof(info) + caps.size) {
+				info.argsz = sizeof(info) + caps.size;
+				info.cap_offset = 0;
+			} else {
+				vfio_info_cap_shift(&caps, sizeof(info));
+				if (copy_to_user((void __user *)arg +
+						sizeof(info), caps.buf,
+						caps.size)) {
+					kfree(caps.buf);
+					return -EFAULT;
+				}
+				info.cap_offset = sizeof(info);
+			}
+
+			kfree(caps.buf);
+		}
 
 		return copy_to_user((void __user *)arg, &info, minsz) ?
 			-EFAULT : 0;
