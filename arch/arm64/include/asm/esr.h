@@ -122,6 +122,10 @@
 #define ESR_ELx_CM 		(UL(1) << ESR_ELx_CM_SHIFT)
 
 /* ISS field definitions for SError interrupt */
+#define ESR_ELx_IDS            (UL(1) << 24)
+#define ESR_ELx_DFSC_SEI               (0x11)
+#define ESR_ELx_DFSC_UNCATEGORIZED     (0)
+
 #define ESR_ELx_AET_SHIFT	(10)
 #define ESR_ELx_AET		(UL(0x7) << ESR_ELx_AET_SHIFT)
 /* Uncontainable error */
