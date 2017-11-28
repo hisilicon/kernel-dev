@@ -51,6 +51,19 @@ static void set_data_seg_v2(struct hns_roce_v2_wqe_data_seg *dseg,
 	dseg->len  = cpu_to_le32(sg->length);
 }
 
+static __be32 send_ieth_v2(struct ib_send_wr *wr)
+{
+	switch (wr->opcode) {
+	case IB_WR_SEND_WITH_IMM:
+	case IB_WR_RDMA_WRITE_WITH_IMM:
+		return wr->ex.imm_data;
+	case IB_WR_SEND_WITH_INV:
+		return cpu_to_le32(wr->ex.invalidate_rkey);
+	default:
+		return 0;
+	}
+}
+
 static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				 struct ib_send_wr **bad_wr)
 {
@@ -111,7 +124,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		for (i = 0; i < wr->num_sge; i++)
 			rc_sq_wqe->msg_len += wr->sg_list[i].length;
 
-		rc_sq_wqe->inv_key_immtdata = send_ieth(wr);
+		rc_sq_wqe->inv_key_immtdata = send_ieth_v2(wr);
 
 		roce_set_bit(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_FENCE_S,
 			    (wr->send_flags & IB_SEND_FENCE) ? 1 : 0);
@@ -1663,7 +1676,7 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 		case HNS_ROCE_V2_OPCODE_RDMA_WRITE_IMM:
 			wc->opcode = IB_WC_RECV_RDMA_WITH_IMM;
 			wc->wc_flags = IB_WC_WITH_IMM;
-			wc->ex.imm_data = le32_to_cpu(cqe->rkey_immtdata);
+			wc->ex.imm_data = be32_to_cpu(cqe->rkey_immtdata);
 			break;
 		case HNS_ROCE_V2_OPCODE_SEND:
 			wc->opcode = IB_WC_RECV;
@@ -1672,7 +1685,7 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 		case HNS_ROCE_V2_OPCODE_SEND_WITH_IMM:
 			wc->opcode = IB_WC_RECV;
 			wc->wc_flags = IB_WC_WITH_IMM;
-			wc->ex.imm_data = le32_to_cpu(cqe->rkey_immtdata);
+			wc->ex.imm_data = be32_to_cpu(cqe->rkey_immtdata);
 			break;
 		case HNS_ROCE_V2_OPCODE_SEND_WITH_INV:
 			wc->opcode = IB_WC_RECV;

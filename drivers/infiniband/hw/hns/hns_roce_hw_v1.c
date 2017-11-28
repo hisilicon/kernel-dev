@@ -58,6 +58,17 @@ static void set_raddr_seg(struct hns_roce_wqe_raddr_seg *rseg, u64 remote_addr,
 	rseg->len   = 0;
 }
 
+static __be32 send_ieth_v1(struct ib_send_wr *wr)
+{
+	switch (wr->opcode) {
+	case IB_WR_SEND_WITH_IMM:
+	case IB_WR_RDMA_WRITE_WITH_IMM:
+		return cpu_to_le32(wr->ex.imm_data);
+	default:
+		return 0;
+	}
+}
+
 static int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				 struct ib_send_wr **bad_wr)
 {
@@ -211,7 +222,7 @@ static int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 			ctrl->sgl_pa_h = 0;
 			ctrl->flag = 0;
-			ctrl->imm_data = send_ieth(wr);
+			ctrl->imm_data = send_ieth_v1(wr);
 
 			/*Ctrl field, ctrl set type: sig, solic, imm, fence */
 			/* SO wait for conforming application scenarios */
@@ -240,7 +251,6 @@ static int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 					      rdma_wr(wr)->rkey);
 				break;
 			case IB_WR_SEND:
-			case IB_WR_SEND_WITH_INV:
 			case IB_WR_SEND_WITH_IMM:
 				ps_opcode = HNS_ROCE_WQE_OPCODE_SEND;
 				break;
