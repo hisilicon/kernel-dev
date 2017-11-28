@@ -1364,7 +1364,7 @@ static int hclgevf_pci_init(struct hclgevf_dev *hdev)
 	pci_set_master(pdev);
 	hw = &hdev->hw;
 	hw->back = hdev;
-	hw->io_base = pcim_iomap(pdev, 2, 0);
+	hw->io_base = pci_ioremap_bar(pdev, 2);
 	if (!hw->io_base) {
 		dev_err(&pdev->dev, "Can't map configuration register space\n");
 		ret = -ENOMEM;
@@ -1387,6 +1387,7 @@ static void hclgevf_pci_uninit(struct hclgevf_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 
+	iounmap(hdev->hw.io_base);
 	pci_clear_master(pdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
