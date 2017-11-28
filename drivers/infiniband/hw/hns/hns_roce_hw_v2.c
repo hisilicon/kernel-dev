@@ -4681,6 +4681,22 @@ static const struct pci_device_id hns_roce_hw_v2_pci_tbl[] = {
 	{0, }
 };
 
+static void hns_roce_get_guid(u8 *dev_addr, u8 *guid)
+{
+	u8 mac[ETH_ALEN];
+
+	/* MAC-48 to EUI-64 mapping */
+	memcpy(mac, dev_addr, ETH_ALEN);
+	guid[0] = mac[0] ^ 2;
+	guid[1] = mac[1];
+	guid[2] = mac[2];
+	guid[3] = 0xff;
+	guid[4] = 0xfe;
+	guid[5] = mac[3];
+	guid[6] = mac[4];
+	guid[7] = mac[5];
+}
+
 static int hns_roce_hw_v2_get_cfg(struct hns_roce_dev *hr_dev,
 				  struct hnae3_handle *handle)
 {
@@ -4702,6 +4718,9 @@ static int hns_roce_hw_v2_get_cfg(struct hns_roce_dev *hr_dev,
 	hr_dev->caps.num_ports = 1;
 	hr_dev->iboe.netdevs[0] = handle->rinfo.netdev;
 	hr_dev->iboe.phy_port[0] = 0;
+
+	hns_roce_get_guid(hr_dev->iboe.netdevs[0]->dev_addr,
+			  (u8 *)&hr_dev->ib_dev.node_guid);
 
 	for (i = 0; i < HNS_ROCE_V2_MAX_IRQ_NUM; i++)
 		hr_dev->irq[i] = pci_irq_vector(handle->pdev,
