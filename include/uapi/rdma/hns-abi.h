@@ -50,6 +50,11 @@ struct hns_roce_ib_create_qp {
 	__u8    reserved[5];
 };
 
+struct hns_roce_ib_modify_qp {
+	__u32	sq_head;
+	__u32	rq_head;
+};
+
 struct hns_roce_ib_alloc_ucontext_resp {
 	__u32	qp_tab_size;
 };
