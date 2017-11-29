@@ -376,6 +376,7 @@ struct hns_roce_cq_buf {
 
 struct hns_roce_cq {
 	struct ib_cq			ib_cq;
+	struct hns_roce_db		db;
 	struct hns_roce_cq_buf		hr_buf;
 	spinlock_t			lock;
 	struct ib_umem			*umem;

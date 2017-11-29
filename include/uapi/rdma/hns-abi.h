@@ -38,6 +38,7 @@
 
 struct hns_roce_ib_create_cq {
 	__u64   buf_addr;
+	__u64	db_addr;
 };
 
 struct hns_roce_ib_create_qp {
