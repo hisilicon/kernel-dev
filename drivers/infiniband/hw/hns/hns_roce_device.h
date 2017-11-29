@@ -178,12 +178,17 @@ enum {
 enum {
 	HNS_ROCE_CAP_FLAG_REREG_MR		= BIT(0),
 	HNS_ROCE_CAP_FLAG_ROCE_V1_V2		= BIT(1),
-	HNS_ROCE_CAP_FLAG_RQ_INLINE		= BIT(2)
+	HNS_ROCE_CAP_FLAG_RQ_INLINE		= BIT(2),
+	HNS_ROCE_CAP_FLAG_RECORD_DB		= BIT(3)
 };
 
 enum hns_roce_mtt_type {
 	MTT_TYPE_WQE,
 	MTT_TYPE_CQE,
+};
+
+enum {
+	HNS_ROCE_DB_PER_PAGE = PAGE_SIZE / 4
 };
 
 #define HNS_ROCE_CMD_SUCCESS			1
@@ -203,6 +208,8 @@ struct hns_roce_uar {
 struct hns_roce_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct hns_roce_uar	uar;
+	struct list_head	db_page_list;
+	struct mutex		db_page_mutex;
 };
 
 struct hns_roce_pd {
@@ -335,6 +342,33 @@ struct hns_roce_buf {
 	int				page_shift;
 };
 
+struct hns_roce_db_pgdir {
+	struct list_head	list;
+	DECLARE_BITMAP(order0, HNS_ROCE_DB_PER_PAGE);
+	DECLARE_BITMAP(order1, HNS_ROCE_DB_PER_PAGE / 2);
+	unsigned long		*bits[2];
+	u32			*db_page;
+	dma_addr_t		db_dma;
+};
+
+struct hns_roce_user_db_page {
+	struct list_head	list;
+	struct ib_umem		*umem;
+	unsigned long		user_virt;
+	int			refcnt;
+};
+
+struct hns_roce_db {
+	u32		*db_record;
+	union {
+		struct hns_roce_db_pgdir *pgdir;
+		struct hns_roce_user_db_page *user_page;
+	} u;
+	dma_addr_t	dma;
+	int		index;
+	int		order;
+};
+
 struct hns_roce_cq_buf {
 	struct hns_roce_buf hr_buf;
 	struct hns_roce_mtt hr_mtt;
@@ -465,6 +499,7 @@ struct hns_roce_rinl_buf {
 struct hns_roce_qp {
 	struct ib_qp		ibqp;
 	struct hns_roce_buf	hr_buf;
+	struct hns_roce_db	rdb;
 	struct hns_roce_wq	rq;
 	__le64			doorbell_qpn;
 	__le32			sq_signal_bits;
@@ -930,6 +965,10 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 int hns_roce_ib_destroy_cq(struct ib_cq *ib_cq);
 void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq);
 
+int hns_roce_db_map_user(struct hns_roce_ucontext *context, unsigned long virt,
+			 struct hns_roce_db *db);
+void hns_roce_db_unmap_user(struct hns_roce_ucontext *context,
+			    struct hns_roce_db *db);
 void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn);
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type);
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type);

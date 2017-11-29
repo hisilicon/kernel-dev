@@ -489,6 +489,15 @@ static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
+static int hns_roce_qp_has_rq(struct ib_qp_init_attr *attr)
+{
+	if (attr->qp_type == IB_QPT_XRC_INI ||
+	    attr->qp_type == IB_QPT_XRC_TGT || attr->srq)
+		return 0;
+
+	return 1;
+}
+
 static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				     struct ib_pd *ib_pd,
 				     struct ib_qp_init_attr *init_attr,
@@ -596,6 +605,17 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 			dev_err(dev, "hns_roce_ib_umem_write_mtt error for create qp\n");
 			goto err_mtt;
 		}
+
+		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
+		    hns_roce_qp_has_rq(init_attr)) {
+			ret = hns_roce_db_map_user(
+					to_hr_ucontext(ib_pd->uobject->context),
+					ucmd.db_addr, &hr_qp->rdb);
+			if (ret) {
+				dev_err(dev, "rp record doorbell map failed!\n");
+				goto err_mtt;
+			}
+		}
 	} else {
 		if (init_attr->create_flags &
 		    IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK) {
@@ -701,8 +721,16 @@ err_qpn:
 		hns_roce_release_range_qp(hr_dev, qpn, 1);
 
 err_wrid:
-	kfree(hr_qp->sq.wrid);
-	kfree(hr_qp->rq.wrid);
+	if (ib_pd->uobject) {
+		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
+		    hns_roce_qp_has_rq(init_attr))
+			hns_roce_db_unmap_user(
+					to_hr_ucontext(ib_pd->uobject->context),
+					&hr_qp->rdb);
+	} else {
+		kfree(hr_qp->sq.wrid);
+		kfree(hr_qp->rq.wrid);
+	}
 
 err_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
