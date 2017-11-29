@@ -7,16 +7,18 @@
 struct cpu_topology {
 	int thread_id;
 	int core_id;
+	int cluster_id;
 	int physical_id;
 	cpumask_t thread_sibling;
 	cpumask_t core_sibling;
+	cpumask_t cluster_sibling;
 };
 
 extern struct cpu_topology cpu_topology[NR_CPUS];
 
 #define topology_physical_package_id(cpu)	(cpu_topology[cpu].physical_id)
 #define topology_core_id(cpu)		(cpu_topology[cpu].core_id)
-#define topology_core_cpumask(cpu)	(&cpu_topology[cpu].core_sibling)
+#define topology_core_cpumask(cpu)	(&cpu_topology[cpu].cluster_sibling)
 #define topology_sibling_cpumask(cpu)	(&cpu_topology[cpu].thread_sibling)
 
 void init_cpu_topology(void);
