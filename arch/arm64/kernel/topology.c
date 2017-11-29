@@ -66,6 +66,7 @@ static int __init parse_core(struct device_node *core, int physical_id,
 			cpu = get_cpu_for_node(t);
 			if (cpu >= 0) {
 				cpu_topology[cpu].physical_id = physical_id;
+				cpu_topology[cpu].cluster_id = physical_id;
 				cpu_topology[cpu].core_id = core_id;
 				cpu_topology[cpu].thread_id = i;
 			} else {
@@ -88,6 +89,7 @@ static int __init parse_core(struct device_node *core, int physical_id,
 		}
 
 		cpu_topology[cpu].physical_id = physical_id;
+		cpu_topology[cpu].cluster_id = physical_id;
 		cpu_topology[cpu].core_id = core_id;
 	} else if (leaf) {
 		pr_err("%pOF: Can't get CPU for leaf core\n", core);
@@ -229,6 +231,13 @@ static void update_siblings_masks(unsigned int cpuid)
 		if (cpuid_topo->physical_id != cpu_topo->physical_id)
 			continue;
 
+		cpumask_set_cpu(cpuid, &cpu_topo->cluster_sibling);
+		if (cpu != cpuid)
+			cpumask_set_cpu(cpu, &cpuid_topo->cluster_sibling);
+
+		if (cpuid_topo->cluster_id != cpu_topo->cluster_id)
+			continue;
+
 		cpumask_set_cpu(cpuid, &cpu_topo->core_sibling);
 		if (cpu != cpuid)
 			cpumask_set_cpu(cpu, &cpuid_topo->core_sibling);
@@ -271,6 +280,7 @@ void store_cpu_topology(unsigned int cpuid)
 					 MPIDR_AFFINITY_LEVEL(mpidr, 2) << 8 |
 					 MPIDR_AFFINITY_LEVEL(mpidr, 3) << 16;
 	}
+	cpuid_topo->cluster_id = cpuid_topo->physical_id;
 
 	pr_debug("CPU%u: cluster %d core %d thread %d mpidr %#016llx\n",
 		 cpuid, cpuid_topo->physical_id, cpuid_topo->core_id,
@@ -320,11 +330,15 @@ static int __init parse_acpi_topology(void)
 			cpu_topology[cpu].thread_id = topology_id;
 			topology_id = find_acpi_cpu_topology(cpu, 1);
 			cpu_topology[cpu].core_id   = topology_id;
+			topology_id = find_acpi_cpu_topology(cpu, 2);
+			cpu_topology[cpu].cluster_id   = topology_id;
 			topology_id = find_acpi_cpu_topology_package(cpu);
 			cpu_topology[cpu].physical_id = topology_id;
 		} else {
 			cpu_topology[cpu].thread_id  = -1;
 			cpu_topology[cpu].core_id    = topology_id;
+			topology_id = find_acpi_cpu_topology(cpu, 1);
+			cpu_topology[cpu].cluster_id   = topology_id;
 			topology_id = find_acpi_cpu_topology_package(cpu);
 			cpu_topology[cpu].physical_id = topology_id;
 		}
