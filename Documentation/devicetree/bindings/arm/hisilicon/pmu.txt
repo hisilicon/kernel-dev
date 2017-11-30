@@ -1,0 +1,93 @@
+Hisilicon SoC HiP05/06/07 ARMv8 PMU
+===================================
+
+The Hisilicon SoC chips like HiP05/06/07 etc. consist of various independent
+system device PMUs such as L3 cache (L3C) and Miscellaneous Nodes(MN). These
+PMU devices are independent and have hardware logic to gather statistics and
+performance information.
+
+HiSilicon SoC chip is encapsulated by multiple CPU and IO dies. The CPU die
+is called as Super CPU cluster (SCCL) which includes 16 cpu-cores. Every SCCL
+in HiP05/06/07 chips are further grouped as CPU clusters (CCL) which includes
+4 cpu-cores each.
+e.g. In the case of HiP05/06/07, each SCCL has 1 L3 cache and 1 MN PMU device.
+The L3 cache is further grouped as 4 L3 cache banks in a SCCL.
+
+The Hisilicon SoC PMU DT node bindings for uncore PMU devices are as below.
+For PMU devices like L3 cache. MN etc. which are accessed using the djtag,
+the parent node will be the djtag node of the corresponding CPU die (SCCL).
+
+L3 cache
+---------
+The L3 cache is dedicated for each SCCL. Each SCCL in HiP05/06/07 chips have 4
+L3 cache banks. Each L3 cache bank have separate DT nodes.
+
+Required properties:
+
+	- compatible : This value should be as follows
+		(a) "hisilicon,hip05-pmu-l3c-v1" for v1 hw in HiP05 chipset
+		(b) "hisilicon,hip06-pmu-l3c-v1" for v1 hw in HiP06 chipset
+		(c) "hisilicon,hip07-pmu-l3c-v2" for v2 hw in HiP07 chipset
+
+	- hisilicon,module-id : This property is the module identifier for djtag.
+		In v1 hw, this value is 0x04 for all L3 cache instances. But
+		in v2 hw, this value is unique for each L3 cache instance.
+
+	- hisilicon,instance-id : This property will identify the L3 cache instance
+		or bank in djtag. In v1 hw, this value is unique for each L3 cache
+		instance. But in v2 hw, it is 0x01 for all L3 cache instances.
+
+	*The counter overflow IRQ is not supported in v1, v2 hardware (HiP05/06/07).
+
+Miscellaneous Node
+------------------
+The MN is dedicated for each SCCL and hence there are separate DT nodes for MN
+for each SCCL.
+
+Required properties:
+
+	- compatible : This value should be as follows
+		(a) "hisilicon,hip05-pmu-mn-v1" for v1 hw in HiP05 chipset
+		(b) "hisilicon,hip06-pmu-mn-v1" for v1 hw in HiP06 chipset
+		(c) "hisilicon,hip07-pmu-mn-v2" for v2 hw in HiP07 chipset
+
+	- hisilicon,module-id : Module ID to input for djtag.
+
+	*The counter overflow IRQ is not supported in v1, v2 hardware (HiP05/06/07).
+
+Example:
+
+	djtag0: djtag@60010000 {
+		compatible = "hisilicon,hip07-cpu-djtag-v2";
+		reg = <0x0 0x60010000 0x0 0x10000>;
+		hisilicon,scl-id = <0x03>;
+
+		pmul3c0 {
+			compatible = "hisilicon,hip07-pmu-l3c-v2";
+			hisilicon,module-id = <0x01>;
+			hisilicon,instance-id = <0x01>;
+		};
+
+		pmul3c1 {
+			compatible = "hisilicon,hip07-pmu-l3c-v2";
+			hisilicon,module-id = <0x02>;
+			hisilicon,instance-id = <0x01>;
+		};
+
+		pmul3c2 {
+			compatible = "hisilicon,hip07-pmu-l3c-v2";
+			hisilicon,module-id = <0x03>;
+			hisilicon,instance-id = <0x01>;
+		};
+
+		pmul3c3 {
+			compatible = "hisilicon,hip07-pmu-l3c-v2";
+			hisilicon,module-id = <0x04>;
+			hisilicon,instance-id = <0x01>;
+		};
+
+		pmumn0 {
+			compatible = "hisilicon,hip07-pmu-mn-v2";
+			hisilicon,module-id = <0x21>;
+		};
+	};
