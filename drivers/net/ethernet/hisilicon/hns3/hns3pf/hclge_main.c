@@ -1064,6 +1064,7 @@ static int hclge_configure(struct hclge_dev *hdev)
 	hdev->num_vmdq_vport = cfg.vmdq_vport_num;
 	hdev->base_tqp_pid = 0;
 	hdev->rss_size_max = cfg.rss_size_max;
+	hdev->rss_size_max = 16;
 	hdev->rx_buf_len = cfg.rx_buf_len;
 	ether_addr_copy(hdev->hw.mac.mac_addr, cfg.mac_addr);
 	hdev->hw.mac.media_type = cfg.media_type;
