@@ -1565,18 +1565,59 @@ void hns_roce_v2_exit(struct hns_roce_dev *hr_dev)
 	hns_roce_v2_tsq_free(hr_dev);
 }
 
+static int hns_roce_query_mbox_status(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_cmq_desc desc;
+	struct hns_roce_query_mb_st *mb_st =
+				       (struct hns_roce_query_mb_st *)desc.data;
+	int ret;
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_QUERY_MB_STATUS,
+				      true);
+	ret = hns_roce_cmq_send(hr_dev, &desc, 1);
+	if (ret)
+		return ret;
+
+	return mb_st->vf_mb_status_rsv_hw_run;
+}
+
 static int hns_roce_v2_cmd_pending(struct hns_roce_dev *hr_dev)
 {
-	u32 status = readl(hr_dev->reg_base + ROCEE_VF_MB_STATUS_REG);
+	u32 status = hns_roce_query_mbox_status(hr_dev);
 
 	return status >> HNS_ROCE_HW_RUN_BIT_SHIFT;
 }
 
 static int hns_roce_v2_cmd_complete(struct hns_roce_dev *hr_dev)
 {
-	u32 status = readl(hr_dev->reg_base + ROCEE_VF_MB_STATUS_REG);
+	u32 status = hns_roce_query_mbox_status(hr_dev);
 
 	return status & HNS_ROCE_HW_MB_STATUS_MASK;
+}
+
+static int hns_roce_mbox_post(struct hns_roce_dev *hr_dev, u64 in_param,
+			  u64 out_param, u32 in_modifier, u8 op_modifier,
+			  u16 op, u16 token, int event)
+{
+	struct hns_roce_cmq_desc desc;
+	struct hns_roce_post_mb *mb = (struct hns_roce_post_mb *)desc.data;
+	int ret;
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_POST_MB, false);
+
+	memset(mb, 0, sizeof(*mb));
+	mb->vf_mb_in_param_l = cpu_to_le64(in_param);
+	mb->vf_mb_in_param_h = cpu_to_le64(in_param) >> 32;
+	mb->vf_mb_out_param_l = cpu_to_le64(out_param);
+	mb->vf_mb_out_param_h = cpu_to_le64(out_param) >> 32;
+	mb->vf_mb_cmd_tag = in_modifier << 8 | op;
+	mb->vf_mb_token_event_en_rsv = event << 30 | token;
+
+	ret = hns_roce_cmq_send(hr_dev, &desc, 1);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static int hns_roce_v2_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
@@ -1584,11 +1625,8 @@ static int hns_roce_v2_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
 				 u16 op, u16 token, int event)
 {
 	struct device *dev = hr_dev->dev;
-	u32 __iomem *hcr = (u32 __iomem *)(hr_dev->reg_base +
-					   ROCEE_VF_MB_CFG0_REG);
 	unsigned long end;
-	u32 val0 = 0;
-	u32 val1 = 0;
+	int ret = -EAGAIN;
 
 	end = msecs_to_jiffies(HNS_ROCE_V2_GO_BIT_TIMEOUT_MSECS) + jiffies;
 	while (hns_roce_v2_cmd_pending(hr_dev)) {
@@ -1600,27 +1638,12 @@ static int hns_roce_v2_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
 		cond_resched();
 	}
 
-	roce_set_field(val0, HNS_ROCE_VF_MB4_TAG_MASK,
-		       HNS_ROCE_VF_MB4_TAG_SHIFT, in_modifier);
-	roce_set_field(val0, HNS_ROCE_VF_MB4_CMD_MASK,
-		       HNS_ROCE_VF_MB4_CMD_SHIFT, op);
-	roce_set_field(val1, HNS_ROCE_VF_MB5_EVENT_MASK,
-		       HNS_ROCE_VF_MB5_EVENT_SHIFT, event);
-	roce_set_field(val1, HNS_ROCE_VF_MB5_TOKEN_MASK,
-		       HNS_ROCE_VF_MB5_TOKEN_SHIFT, token);
+	ret = hns_roce_mbox_post(hr_dev, in_param, out_param, in_modifier,
+				op_modifier, op, token, event);
+	if (ret)
+		dev_err(dev, "Post mailbox fail(%d)\n", ret);
 
-	__raw_writeq(cpu_to_le64(in_param), hcr + 0);
-	__raw_writeq(cpu_to_le64(out_param), hcr + 2);
-
-	/* Memory barrier */
-	wmb();
-
-	__raw_writel(cpu_to_le32(val0), hcr + 4);
-	__raw_writel(cpu_to_le32(val1), hcr + 5);
-
-	mmiowb();
-
-	return 0;
+	return ret;
 }
 
 static int hns_roce_v2_chk_mbox(struct hns_roce_dev *hr_dev,
