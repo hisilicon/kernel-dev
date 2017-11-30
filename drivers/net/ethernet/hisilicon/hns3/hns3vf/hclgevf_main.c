@@ -1148,8 +1148,7 @@ static void hclgevf_state_init(struct hclgevf_dev *hdev)
 	clear_bit(HCLGEVF_STATE_MBX_HANDLING, &hdev->state);
 
 	/* setup tasks for service timer */
-	setup_timer(&hdev->service_timer, hclgevf_service_timer,
-		    (unsigned long)hdev);
+	timer_setup(&hdev->service_timer, hclgevf_service_timer, 0);
 
 	INIT_WORK(&hdev->service_task, hclgevf_service_task);
 	clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
@@ -1164,8 +1163,6 @@ static void hclgevf_state_uninit(struct hclgevf_dev *hdev)
 {
 	set_bit(HCLGEVF_STATE_DOWN, &hdev->state);
 
-	if (hdev->service_timer.data)
-		del_timer_sync(&hdev->service_timer);
 	if (hdev->service_task.func)
 		cancel_work_sync(&hdev->service_task);
 	if (hdev->mbx_service_task.func)
