@@ -21,6 +21,7 @@
 #include "hclge_cmd.h"
 #include "hclge_dcb.h"
 #include "hclge_main.h"
+#include "hclge_mbx.h"
 #include "hclge_mdio.h"
 #include "hclge_tm.h"
 #include "hnae3.h"
@@ -3227,49 +3228,46 @@ err:
 	return ret;
 }
 
-int hclge_map_vport_ring_to_vector(struct hclge_vport *vport, int vector_id,
-				   struct hnae3_ring_chain_node *ring_chain)
+int hclge_bind_ring_with_vector(struct hclge_vport *vport,
+				int vector_id, bool en,
+				struct hnae3_ring_chain_node *ring_chain)
 {
 	struct hclge_dev *hdev = vport->back;
-	struct hclge_ctrl_vector_chain_cmd *req;
 	struct hnae3_ring_chain_node *node;
 	struct hclge_desc desc;
-	int ret;
+	struct hclge_ctrl_vector_chain_cmd *req
+		= (struct hclge_ctrl_vector_chain_cmd *)desc.data;
+	enum hclge_cmd_status status;
+	enum hclge_opcode_type op;
 	int i;
 
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_ADD_RING_TO_VECTOR, false);
-
-	req = (struct hclge_ctrl_vector_chain_cmd *)desc.data;
+	op = en ? HCLGE_OPC_ADD_RING_TO_VECTOR : HCLGE_OPC_DEL_RING_TO_VECTOR;
+	hclge_cmd_setup_basic_desc(&desc, op, false);
 	req->int_vector_id = vector_id;
 
 	i = 0;
 	for (node = ring_chain; node; node = node->next) {
-		u16 type_and_id = 0;
-
-		hnae_set_field(type_and_id, HCLGE_INT_TYPE_M, HCLGE_INT_TYPE_S,
+		hnae_set_field(req->tqp_type_and_id[i], HCLGE_INT_TYPE_M,
+			       HCLGE_INT_TYPE_S,
 			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
-		hnae_set_field(type_and_id, HCLGE_TQP_ID_M, HCLGE_TQP_ID_S,
-			       node->tqp_index);
-		hnae_set_field(type_and_id, HCLGE_INT_GL_IDX_M,
-			       HCLGE_INT_GL_IDX_S,
-			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
-		req->tqp_type_and_id[i] = cpu_to_le16(type_and_id);
-		req->vfid = vport->vport_id;
-
+		hnae_set_field(req->tqp_type_and_id[i], HCLGE_TQP_ID_M,
+			       HCLGE_TQP_ID_S,	node->tqp_index);
+		req->tqp_type_and_id[i] = cpu_to_le16(req->tqp_type_and_id[i]);
 		if (++i >= HCLGE_VECTOR_ELEMENTS_PER_CMD) {
 			req->int_cause_num = HCLGE_VECTOR_ELEMENTS_PER_CMD;
+			req->vfid = vport->vport_id;
 
-			ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-			if (ret) {
+			status = hclge_cmd_send(&hdev->hw, &desc, 1);
+			if (status) {
 				dev_err(&hdev->pdev->dev,
 					"Map TQP fail, status is %d.\n",
-					ret);
-				return ret;
+					status);
+				return -EIO;
 			}
 			i = 0;
 
 			hclge_cmd_setup_basic_desc(&desc,
-						   HCLGE_OPC_ADD_RING_TO_VECTOR,
+						   op,
 						   false);
 			req->int_vector_id = vector_id;
 		}
@@ -3277,21 +3275,21 @@ int hclge_map_vport_ring_to_vector(struct hclge_vport *vport, int vector_id,
 
 	if (i > 0) {
 		req->int_cause_num = i;
-
-		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-		if (ret) {
+		req->vfid = vport->vport_id;
+		status = hclge_cmd_send(&hdev->hw, &desc, 1);
+		if (status) {
 			dev_err(&hdev->pdev->dev,
-				"Map TQP fail, status is %d.\n", ret);
-			return ret;
+				"Map TQP fail, status is %d.\n", status);
+			return -EIO;
 		}
 	}
 
 	return 0;
 }
 
-static int hclge_map_handle_ring_to_vector(
-		struct hnae3_handle *handle, int vector,
-		struct hnae3_ring_chain_node *ring_chain)
+static int hclge_map_ring_to_vector(struct hnae3_handle *handle,
+				    int vector,
+				    struct hnae3_ring_chain_node *ring_chain)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
@@ -3300,24 +3298,20 @@ static int hclge_map_handle_ring_to_vector(
 	vector_id = hclge_get_vector_index(hdev, vector);
 	if (vector_id < 0) {
 		dev_err(&hdev->pdev->dev,
-			"Get vector index fail. ret =%d\n", vector_id);
+			"Get vector index fail. vector_id =%d\n", vector_id);
 		return vector_id;
 	}
 
-	return hclge_map_vport_ring_to_vector(vport, vector_id, ring_chain);
+	return hclge_bind_ring_with_vector(vport, vector_id, true, ring_chain);
 }
 
-static int hclge_unmap_ring_from_vector(
-	struct hnae3_handle *handle, int vector,
-	struct hnae3_ring_chain_node *ring_chain)
+static int hclge_unmap_ring_frm_vector(struct hnae3_handle *handle,
+				       int vector,
+				       struct hnae3_ring_chain_node *ring_chain)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	struct hclge_ctrl_vector_chain_cmd *req;
-	struct hnae3_ring_chain_node *node;
-	struct hclge_desc desc;
-	int i, vector_id;
-	int ret;
+	int vector_id, ret;
 
 	vector_id = hclge_get_vector_index(hdev, vector);
 	if (vector_id < 0) {
@@ -3326,54 +3320,17 @@ static int hclge_unmap_ring_from_vector(
 		return vector_id;
 	}
 
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_DEL_RING_TO_VECTOR, false);
-
-	req = (struct hclge_ctrl_vector_chain_cmd *)desc.data;
-	req->int_vector_id = vector_id;
-
-	i = 0;
-	for (node = ring_chain; node; node = node->next) {
-		u16 type_and_id = 0;
-
-		hnae_set_field(type_and_id, HCLGE_INT_TYPE_M, HCLGE_INT_TYPE_S,
-			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
-		hnae_set_field(type_and_id, HCLGE_TQP_ID_M, HCLGE_TQP_ID_S,
-			       node->tqp_index);
-		hnae_set_field(type_and_id, HCLGE_INT_GL_IDX_M,
-			       HCLGE_INT_GL_IDX_S,
-			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
-
-		req->tqp_type_and_id[i] = cpu_to_le16(type_and_id);
-		req->vfid = vport->vport_id;
-
-		if (++i >= HCLGE_VECTOR_ELEMENTS_PER_CMD) {
-			req->int_cause_num = HCLGE_VECTOR_ELEMENTS_PER_CMD;
-
-			ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-			if (ret) {
-				dev_err(&hdev->pdev->dev,
-					"Unmap TQP fail, status is %d.\n",
-					ret);
-				return ret;
-			}
-			i = 0;
-			hclge_cmd_setup_basic_desc(&desc,
-						   HCLGE_OPC_DEL_RING_TO_VECTOR,
-						   false);
-			req->int_vector_id = vector_id;
-		}
+	ret = hclge_bind_ring_with_vector(vport, vector_id, false, ring_chain);
+	if (ret) {
+		dev_err(&handle->pdev->dev,
+			"Unmap ring from vector fail. vectorid=%d, ret =%d\n",
+			vector_id,
+			ret);
+		return ret;
 	}
 
-	if (i > 0) {
-		req->int_cause_num = i;
-
-		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-		if (ret) {
-			dev_err(&hdev->pdev->dev,
-				"Unmap TQP fail, status is %d.\n", ret);
-			return ret;
-		}
-	}
+	/* Free this MSIX or MSI vector */
+	hclge_free_vector(hdev, vector_id);
 
 	return 0;
 }
@@ -4246,6 +4203,92 @@ int hclge_set_vf_vlan_common(struct hclge_dev *hdev, int vfid,
 	return -EIO;
 }
 
+int hclge_set_vlan_tx_offload_cfg(struct hclge_vport *vport)
+{
+#define HCLGE_VF_NUM_PER_CMD	64
+#define HCLGE_VF_NUM_PER_BYTE	8
+	struct hclge_desc desc;
+	struct hclge_vport_vtag_tx_cfg *req =
+		(struct hclge_vport_vtag_tx_cfg *)&desc.data[0];
+	struct hclge_tx_vtag_cfg *vcfg = &vport->txvlan_cfg;
+	struct hclge_dev *hdev = vport->back;
+	enum hclge_cmd_status status;
+	u8 byte_val;
+	u8 byte_off;
+
+	hclge_cmd_setup_basic_desc(&desc,
+				   HCLGE_OPC_VLAN_PORT_TX_CFG, false);
+
+	req->def_vlan_tag1 = vcfg->default_tag1;
+	req->def_vlan_tag2 = vcfg->default_tag2;
+	hnae_set_bit(req->vport_vlan_cfg,
+		     HCLGE_ACCEPT_TAG_B, vcfg->accept_tag);
+	hnae_set_bit(req->vport_vlan_cfg,
+		     HCLGE_ACCEPT_UNTAG_B, vcfg->accept_untag);
+	hnae_set_bit(req->vport_vlan_cfg,
+		     HCLGE_PORT_INS_TAG1_EN_B, vcfg->insert_tag1_en);
+	hnae_set_bit(req->vport_vlan_cfg,
+		     HCLGE_PORT_INS_TAG2_EN_B, vcfg->insert_tag2_en);
+	hnae_set_bit(req->vport_vlan_cfg,
+		     HCLGE_CFG_NIC_ROCE_SEL_B, 0);
+
+	req->vf_offset = vport->vport_id / HCLGE_VF_NUM_PER_CMD;
+	byte_off = vport->vport_id / HCLGE_VF_NUM_PER_BYTE;
+	byte_val = 1 << (vport->vport_id % HCLGE_VF_NUM_PER_BYTE);
+	req->vf_bitmap[byte_off] = byte_val;
+
+	status = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (status) {
+		dev_err(&hdev->pdev->dev,
+			"Send port txvlan cfg command fail, ret =%d.\n",
+			status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int hclge_set_vlan_rx_offload_cfg(struct hclge_vport *vport)
+{
+#define HCLGE_RXVF_NUM_PER_CMD  64
+#define HCLGE_RXVF_NUM_PER_BYTE 8
+	struct hclge_desc desc;
+	struct hclge_vport_vtag_rx_cfg *req =
+		(struct hclge_vport_vtag_rx_cfg *)&desc.data[0];
+	struct hclge_rx_vtag_cfg *vcfg = &vport->rxvlan_cfg;
+	struct hclge_dev *hdev = vport->back;
+	enum hclge_cmd_status status;
+	u8 byte_val;
+	u8 byte_off;
+
+	hclge_cmd_setup_basic_desc(&desc,
+				   HCLGE_OPC_VLAN_PORT_RX_CFG, false);
+
+	hnae_set_bit(req->vport_vlan_cfg,
+		     HCLGE_REM_TAG1_EN_B, vcfg->strip_tag1_en);
+	hnae_set_bit(req->vport_vlan_cfg,
+		     HCLGE_REM_TAG2_EN_B, vcfg->strip_tag2_en);
+	hnae_set_bit(req->vport_vlan_cfg,
+		     HCLGE_SHOW_TAG1_EN_B, vcfg->vlan1_vlan_prionly);
+	hnae_set_bit(req->vport_vlan_cfg,
+		     HCLGE_SHOW_TAG2_EN_B, vcfg->vlan2_vlan_prionly);
+
+	req->vf_offset = vport->vport_id / HCLGE_RXVF_NUM_PER_CMD;
+	byte_off = vport->vport_id / HCLGE_RXVF_NUM_PER_BYTE;
+	byte_val = 1 << (vport->vport_id % HCLGE_RXVF_NUM_PER_BYTE);
+	req->vf_bitmap[byte_off] = byte_val;
+
+	status = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (status) {
+		dev_err(&hdev->pdev->dev,
+			"Send port rxvlan cfg command fail, ret =%d.\n",
+			status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int hclge_set_port_vlan_filter(struct hnae3_handle *handle,
 				      __be16 proto, u16 vlan_id,
 				      bool is_kill)
@@ -4394,7 +4437,7 @@ static int hclge_get_reset_status(struct hclge_dev *hdev, u16 queue_id)
 	return hnae_get_bit(req->ready_to_reset, HCLGE_TQP_RESET_B);
 }
 
-static void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
+void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
@@ -5226,8 +5269,8 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.uninit_ae_dev = hclge_uninit_ae_dev,
 	.init_client_instance = hclge_init_client_instance,
 	.uninit_client_instance = hclge_uninit_client_instance,
-	.map_ring_to_vector = hclge_map_handle_ring_to_vector,
-	.unmap_ring_from_vector = hclge_unmap_ring_from_vector,
+	.map_ring_to_vector = hclge_map_ring_to_vector,
+	.unmap_ring_from_vector = hclge_unmap_ring_frm_vector,
 	.get_vector = hclge_get_vector,
 	.set_promisc_mode = hclge_set_promisc_mode,
 	.set_loopback = hclge_set_loopback,

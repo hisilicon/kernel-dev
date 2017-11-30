@@ -506,6 +506,24 @@ struct hclge_dev {
 	bool accept_mta_mc; /* Whether accept mta filter multicast */
 };
 
+/* VPort level vlan tag configuration for TX direction */
+struct hclge_tx_vtag_cfg {
+	bool accept_tag;	/* Whether accept tagged packet from host */
+	bool accept_untag;	/* Whether accept untagged packet from host */
+	bool insert_tag1_en;	/* Whether insert inner vlan tag */
+	bool insert_tag2_en;	/* Whether insert outer vlan tag */
+	u16  default_tag1;	/* The default inner vlan tag to insert */
+	u16  default_tag2;	/* The default outer vlan tag to insert */
+};
+
+/* VPort level vlan tag configuration for RX direction */
+struct hclge_rx_vtag_cfg {
+	bool strip_tag1_en;	/* Whether strip inner vlan tag */
+	bool strip_tag2_en;	/* Whether strip outer vlan tag */
+	bool vlan1_vlan_prionly;/* Inner VLAN Tag up to descriptor Enable */
+	bool vlan2_vlan_prionly;/* Outer VLAN Tag up to descriptor Enable */
+};
+
 struct hclge_vport {
 	u16 alloc_tqps;	/* Allocated Tx/Rx queues */
 
@@ -517,6 +535,9 @@ struct hclge_vport {
 	u16 qs_offset;
 	u16 bw_limit;		/* VSI BW Limit (0 = disabled) */
 	u8  dwrr;
+
+	struct hclge_tx_vtag_cfg  txvlan_cfg;
+	struct hclge_rx_vtag_cfg  rxvlan_cfg;
 
 	int vport_id;
 	struct hclge_dev *back;  /* Back reference to associated dev */
@@ -540,8 +561,10 @@ int hclge_cfg_func_mta_filter(struct hclge_dev *hdev,
 			      u8 func_id,
 			      bool enable);
 struct hclge_vport *hclge_get_vport(struct hnae3_handle *handle);
-int hclge_map_vport_ring_to_vector(struct hclge_vport *vport, int vector,
-				   struct hnae3_ring_chain_node *ring_chain);
+int hclge_bind_ring_with_vector(struct hclge_vport *vport,
+				int vector_id, bool en,
+				struct hnae3_ring_chain_node *ring_chain);
+
 static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 {
 	struct hclge_tqp *tqp = container_of(queue, struct hclge_tqp, q);
@@ -553,8 +576,12 @@ int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex);
 int hclge_set_vf_vlan_common(struct hclge_dev *vport, int vfid,
 			     bool is_kill, u16 vlan, u8 qos, __be16 proto);
 
+int hclge_set_vlan_tx_offload_cfg(struct hclge_vport *vport);
+int hclge_set_vlan_rx_offload_cfg(struct hclge_vport *vport);
 int hclge_buffer_alloc(struct hclge_dev *hdev);
 int hclge_rss_init_hw(struct hclge_dev *hdev);
 
+void hclge_mbx_handler(struct hclge_dev *hdev);
+void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id);
 int hclge_cfg_flowctrl(struct hclge_dev *hdev);
 #endif
