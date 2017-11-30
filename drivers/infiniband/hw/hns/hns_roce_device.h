@@ -628,6 +628,10 @@ struct hns_roce_eq_table {
 	void __iomem		**eqc_base; /* only for hw v1 */
 };
 
+struct hns_roce_pf {
+	u32		qid_idx_sl_num;
+};
+
 struct hns_roce_caps {
 	u8		num_ports;
 	int		gid_table_len[HNS_ROCE_MAX_PORTS];
@@ -785,6 +789,7 @@ struct hns_roce_dev {
 	struct hns_roce_cq_table  cq_table;
 	struct hns_roce_qp_table  qp_table;
 	struct hns_roce_eq_table  eq_table;
+	struct hns_roce_pf	  pf_res;
 
 	int			cmd_mod;
 	int			loop_idc;
