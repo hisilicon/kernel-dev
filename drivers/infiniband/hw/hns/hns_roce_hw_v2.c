@@ -766,6 +766,7 @@ static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
 	struct hns_roce_v2_cmq_ring *csq = &priv->cmq.csq;
 	struct hns_roce_cmq_desc *desc_to_use;
+	unsigned long flags;
 	bool complete = false;
 	u32 timeout = 0;
 	int handle = 0;
@@ -773,10 +774,10 @@ static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	int ret = 0;
 	int ntc;
 
-	spin_lock_bh(&csq->lock);
+	spin_lock_irqsave(&csq->lock, flags);
 
 	if (num > hns_roce_cmq_space(csq)) {
-		spin_unlock_bh(&csq->lock);
+		spin_unlock_irqrestore(&csq->lock, flags);
 		return -EBUSY;
 	}
 
@@ -842,7 +843,7 @@ static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 		dev_warn(hr_dev->dev, "Cleaned %d, need to clean %d\n",
 			 handle, num);
 
-	spin_unlock_bh(&csq->lock);
+	spin_unlock_irqrestore(&csq->lock, flags);
 
 	return ret;
 }
@@ -1671,13 +1672,49 @@ static int hns_roce_v2_chk_mbox(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
+static int hns_roce_cfg_sgid_table(struct hns_roce_dev *hr_dev, int gid_index,
+				   union ib_gid *gid,
+				   enum hns_roce_sgid_type sgid_type)
+{
+	struct hns_roce_cmq_desc desc;
+	struct hns_roce_cfg_sgid_tb *sgid_tb =
+				    (struct hns_roce_cfg_sgid_tb *)desc.data;
+	int ret;
+	u32 *p;
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_CFG_SGID_TB, false);
+	memset(sgid_tb, 0, sizeof(*sgid_tb));
+
+	roce_set_field(sgid_tb->table_idx_rsv, CFG_SGID_TB_TABLE_IDX_RSV_M,
+		       CFG_SGID_TB_TABLE_IDX_RSV_S, gid_index);
+	roce_set_field(sgid_tb->vf_sgid_type_rsv,
+		       CFG_SGID_TB_VF_SGID_TYPE_RSV_M,
+		       CFG_SGID_TB_VF_SGID_TYPE_RSV_S, sgid_type);
+	p = (u32 *)&gid->raw[0];
+	sgid_tb->vf_sgid_l = cpu_to_le32(*p);
+
+	p = (u32 *)&gid->raw[4];
+	sgid_tb->vf_sgid_ml = cpu_to_le32(*p);
+
+	p = (u32 *)&gid->raw[8];
+	sgid_tb->vf_sgid_mh = cpu_to_le32(*p);
+
+	p = (u32 *)&gid->raw[0xc];
+	sgid_tb->vf_sgid_h = cpu_to_le32(*p);
+
+	ret = hns_roce_cmq_send(hr_dev, &desc, 1);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int hns_roce_v2_set_gid(struct hns_roce_dev *hr_dev, u8 port,
 			       int gid_index, union ib_gid *gid,
 			       const struct ib_gid_attr *attr)
 {
 	enum hns_roce_sgid_type sgid_type = GID_TYPE_FLAG_ROCE_V1;
-	u32 *p;
-	u32 val;
+	int ret;
 
 	if (!gid || !attr)
 		return -EINVAL;
@@ -1692,29 +1729,11 @@ static int hns_roce_v2_set_gid(struct hns_roce_dev *hr_dev, u8 port,
 			sgid_type = GID_TYPE_FLAG_ROCE_V2_IPV6;
 	}
 
-	p = (u32 *)&gid->raw[0];
-	roce_raw_write(*p, hr_dev->reg_base + ROCEE_VF_SGID_CFG0_REG +
-		       0x20 * gid_index);
+	ret = hns_roce_cfg_sgid_table(hr_dev, gid_index, gid, sgid_type);
+	if (ret)
+		dev_err(hr_dev->dev, "Configure sgid table fail(%d)!\n", ret);
 
-	p = (u32 *)&gid->raw[4];
-	roce_raw_write(*p, hr_dev->reg_base + ROCEE_VF_SGID_CFG1_REG +
-		       0x20 * gid_index);
-
-	p = (u32 *)&gid->raw[8];
-	roce_raw_write(*p, hr_dev->reg_base + ROCEE_VF_SGID_CFG2_REG +
-		       0x20 * gid_index);
-
-	p = (u32 *)&gid->raw[0xc];
-	roce_raw_write(*p, hr_dev->reg_base + ROCEE_VF_SGID_CFG3_REG +
-		       0x20 * gid_index);
-
-	val = roce_read(hr_dev, ROCEE_VF_SGID_CFG4_REG + 0x20 * gid_index);
-	roce_set_field(val, ROCEE_VF_SGID_CFG4_SGID_TYPE_M,
-		       ROCEE_VF_SGID_CFG4_SGID_TYPE_S, sgid_type);
-
-	roce_write(hr_dev, ROCEE_VF_SGID_CFG4_REG + 0x20 * gid_index, val);
-
-	return 0;
+	return ret;
 }
 
 static int hns_roce_v2_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,

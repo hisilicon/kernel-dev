@@ -204,6 +204,7 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_ALLOC_VF_RES			= 0x8401,
 	HNS_ROCE_OPC_CFG_EXT_LLM			= 0x8403,
 	HNS_ROCE_OPC_CFG_TMOUT_LLM			= 0x8404,
+	HNS_ROCE_OPC_CFG_SGID_TB			= 0x8500,
 	HNS_ROCE_OPC_POST_MB				= 0x8504,
 	HNS_ROCE_OPC_QUERY_MB_STATUS			= 0x8505,
 	HNS_ROCE_OPC_CFG_BT_ATTR			= 0x8506,
@@ -1256,6 +1257,20 @@ struct hns_roce_vf_res_b {
 
 #define ROCEE_VF_SGID_CFG4_SGID_TYPE_S 0
 #define ROCEE_VF_SGID_CFG4_SGID_TYPE_M GENMASK(1, 0)
+
+struct hns_roce_cfg_sgid_tb {
+	__le32	table_idx_rsv;
+	__le32	vf_sgid_l;
+	__le32	vf_sgid_ml;
+	__le32	vf_sgid_mh;
+	__le32	vf_sgid_h;
+	__le32	vf_sgid_type_rsv;
+};
+#define CFG_SGID_TB_TABLE_IDX_RSV_S 0
+#define CFG_SGID_TB_TABLE_IDX_RSV_M GENMASK(7, 0)
+
+#define CFG_SGID_TB_VF_SGID_TYPE_RSV_S 0
+#define CFG_SGID_TB_VF_SGID_TYPE_RSV_M GENMASK(1, 0)
 
 struct hns_roce_post_mb {
 	__le32	vf_mb_in_param_l;
