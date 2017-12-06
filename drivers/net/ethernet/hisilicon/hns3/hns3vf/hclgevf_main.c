@@ -919,9 +919,9 @@ static void hclgevf_task_schedule(struct hclgevf_dev *hdev)
 		schedule_work(&hdev->service_task);
 }
 
-static void hclgevf_service_timer(unsigned long data)
+static void hclgevf_service_timer(struct timer_list *t)
 {
-	struct hclgevf_dev *hdev = (struct hclgevf_dev *)data;
+	struct hclgevf_dev *hdev = from_timer(hdev, t, service_timer);
 
 	mod_timer(&hdev->service_timer, jiffies + 5 * HZ);
 
@@ -1163,6 +1163,8 @@ static void hclgevf_state_uninit(struct hclgevf_dev *hdev)
 {
 	set_bit(HCLGEVF_STATE_DOWN, &hdev->state);
 
+	if (hdev->service_timer.function)
+		del_timer_sync(&hdev->service_timer);
 	if (hdev->service_task.func)
 		cancel_work_sync(&hdev->service_task);
 	if (hdev->mbx_service_task.func)
