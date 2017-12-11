@@ -1993,16 +1993,12 @@ static int sas_discover_new(struct domain_device *dev, int phy_id)
 	return res;
 }
 
-static bool dev_type_flutter(enum sas_device_type new, enum sas_device_type old)
+static bool dev_type_flutter(enum sas_device_type new, struct ex_phy *phy)
 {
-	if (old == new)
-		return true;
+	if (phy->attached_sata_dev)
+		return false;
 
-	/* treat device directed resets as flutter, if we went
-	 * SAS_END_DEVICE to SAS_SATA_PENDING the link needs recovery
-	 */
-	if ((old == SAS_SATA_PENDING && new == SAS_END_DEVICE) ||
-	    (old == SAS_END_DEVICE && new == SAS_SATA_PENDING))
+	if (phy->attached_dev_type == new)
 		return true;
 
 	return false;
@@ -2042,16 +2038,10 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id, bool last)
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
 		return res;
 	} else if (SAS_ADDR(sas_addr) == SAS_ADDR(phy->attached_sas_addr) &&
-		   dev_type_flutter(type, phy->attached_dev_type)) {
-		struct domain_device *ata_dev = sas_ex_to_ata(dev, phy_id);
-		char *action = "";
-
+		   dev_type_flutter(type, phy)) {
 		sas_ex_phy_discover(dev, phy_id);
-
-		if (ata_dev && phy->attached_dev_type == SAS_SATA_PENDING)
-			action = ", needs recovery";
-		SAS_DPRINTK("ex %016llx phy 0x%x broadcast flutter%s\n",
-			    SAS_ADDR(dev->sas_addr), phy_id, action);
+		SAS_DPRINTK("ex %016llx phy 0x%x broadcast flutter\n",
+			    SAS_ADDR(dev->sas_addr), phy_id);
 		return res;
 	}
 
