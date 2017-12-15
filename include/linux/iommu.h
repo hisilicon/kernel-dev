@@ -56,6 +56,11 @@ struct notifier_block;
 typedef int (*iommu_fault_handler_t)(struct iommu_domain *,
 			struct device *, unsigned long, int, void *);
 
+/* Magic PASID value: all address spaces are being detached from this device */
+#define IOMMU_MM_EXIT_ALL			(-1)
+typedef int (*iommu_mm_exit_handler_t)(struct iommu_domain *,
+				       struct device *dev, int pasid, void *);
+
 struct iommu_domain_geometry {
 	dma_addr_t aperture_start; /* First address that can be mapped    */
 	dma_addr_t aperture_end;   /* Last address that can be mapped     */
@@ -92,6 +97,8 @@ struct iommu_domain {
 	unsigned long pgsize_bitmap;	/* Bitmap of page sizes in use */
 	iommu_fault_handler_t handler;
 	void *handler_token;
+	iommu_mm_exit_handler_t mm_exit;
+	void *mm_exit_token;
 	struct iommu_domain_geometry geometry;
 	void *iova_cookie;
 
@@ -744,6 +751,8 @@ extern int iommu_sva_bind_device(struct device *dev, struct mm_struct *mm,
 extern int iommu_sva_unbind_device(struct device *dev, int pasid);
 extern void __iommu_sva_unbind_dev_all(struct iommu_domain *domain,
 				       struct device *dev);
+extern void iommu_set_mm_exit_handler(struct device *dev,
+				      iommu_mm_exit_handler_t cb, void *token);
 #else /* CONFIG_IOMMU_SVA */
 static inline int iommu_sva_bind_device(struct device *dev,
 					struct mm_struct *mm, int *pasid,
@@ -759,6 +768,12 @@ static inline int iommu_sva_unbind_device(struct device *dev, int pasid)
 
 static inline void __iommu_sva_unbind_dev_all(struct iommu_domain *domain,
 					      struct device *dev)
+{
+}
+
+static inline void iommu_set_mm_exit_handler(struct device *dev,
+					     iommu_mm_exit_handler_t cb,
+					     void *token)
 {
 }
 #endif /* CONFIG_IOMMU_SVA */
