@@ -338,6 +338,15 @@
 #define CMDQ_PRI_1_RESP_FAIL		(1UL << CMDQ_PRI_1_RESP_SHIFT)
 #define CMDQ_PRI_1_RESP_SUCC		(2UL << CMDQ_PRI_1_RESP_SHIFT)
 
+#define CMDQ_RESUME_0_SID_SHIFT		32
+#define CMDQ_RESUME_0_SID_MASK		0xffffffffUL
+#define CMDQ_RESUME_0_ACTION_SHIFT	12
+#define CMDQ_RESUME_0_ACTION_TERM	(0UL << CMDQ_RESUME_0_ACTION_SHIFT)
+#define CMDQ_RESUME_0_ACTION_RETRY	(1UL << CMDQ_RESUME_0_ACTION_SHIFT)
+#define CMDQ_RESUME_0_ACTION_ABORT	(2UL << CMDQ_RESUME_0_ACTION_SHIFT)
+#define CMDQ_RESUME_1_STAG_SHIFT	0
+#define CMDQ_RESUME_1_STAG_MASK		0xffffUL
+
 #define CMDQ_SYNC_0_CS_SHIFT		12
 #define CMDQ_SYNC_0_CS_NONE		(0UL << CMDQ_SYNC_0_CS_SHIFT)
 #define CMDQ_SYNC_0_CS_IRQ		(1UL << CMDQ_SYNC_0_CS_SHIFT)
@@ -357,6 +366,31 @@
 
 #define EVTQ_0_ID_SHIFT			0
 #define EVTQ_0_ID_MASK			0xffUL
+
+#define EVT_ID_TRANSLATION_FAULT	0x10
+#define EVT_ID_ADDR_SIZE_FAULT		0x11
+#define EVT_ID_ACCESS_FAULT		0x12
+#define EVT_ID_PERMISSION_FAULT		0x13
+
+#define EVTQ_0_SSV			(1UL << 11)
+#define EVTQ_0_SSID_SHIFT		12
+#define EVTQ_0_SSID_MASK		0xfffffUL
+#define EVTQ_0_SID_SHIFT		32
+#define EVTQ_0_SID_MASK			0xffffffffUL
+#define EVTQ_1_STAG_SHIFT		0
+#define EVTQ_1_STAG_MASK		0xffffUL
+#define EVTQ_1_STALL			(1UL << 31)
+#define EVTQ_1_PRIV			(1UL << 33)
+#define EVTQ_1_EXEC			(1UL << 34)
+#define EVTQ_1_READ			(1UL << 35)
+#define EVTQ_1_S2			(1UL << 39)
+#define EVTQ_1_CLASS_SHIFT		40
+#define EVTQ_1_CLASS_MASK		0x3UL
+#define EVTQ_1_TT_READ			(1UL << 44)
+#define EVTQ_2_ADDR_SHIFT		0
+#define EVTQ_2_ADDR_MASK		0xffffffffffffffffUL
+#define EVTQ_3_IPA_SHIFT		12
+#define EVTQ_3_IPA_MASK			0xffffffffffUL
 
 /* PRI queue */
 #define PRIQ_ENT_DWORDS			2
@@ -385,6 +419,9 @@
 
 #define MSI_IOVA_BASE			0x8000000
 #define MSI_IOVA_LENGTH			0x100000
+
+/* Flags for iommu_data in iommu_fault */
+#define ARM_SMMU_FAULT_STALL		(1 << 0)
 
 static bool disable_bypass;
 module_param_named(disable_bypass, disable_bypass, bool, S_IRUGO);
@@ -472,6 +509,13 @@ struct arm_smmu_cmdq_ent {
 			enum pri_resp		resp;
 		} pri;
 
+		#define CMDQ_OP_RESUME		0x44
+		struct {
+			u32			sid;
+			u16			stag;
+			enum iommu_fault_status	resp;
+		} resume;
+
 		#define CMDQ_OP_CMD_SYNC	0x46
 		struct {
 			u32			msidata;
@@ -545,6 +589,8 @@ struct arm_smmu_strtab_ent {
 	bool				assigned;
 	struct arm_smmu_s1_cfg		*s1_cfg;
 	struct arm_smmu_s2_cfg		*s2_cfg;
+
+	bool				can_stall;
 };
 
 struct arm_smmu_strtab_cfg {
@@ -904,6 +950,21 @@ static int arm_smmu_cmdq_build_cmd(u64 *cmd, struct arm_smmu_cmdq_ent *ent)
 			return -EINVAL;
 		}
 		break;
+	case CMDQ_OP_RESUME:
+		switch (ent->resume.resp) {
+		case IOMMU_FAULT_STATUS_FAILURE:
+		case IOMMU_FAULT_STATUS_INVALID:
+			cmd[0] |= CMDQ_RESUME_0_ACTION_ABORT;
+			break;
+		case IOMMU_FAULT_STATUS_HANDLED:
+			cmd[0] |= CMDQ_RESUME_0_ACTION_RETRY;
+			break;
+		default:
+			return -EINVAL;
+		}
+		cmd[0] |= (u64)ent->resume.sid << CMDQ_RESUME_0_SID_SHIFT;
+		cmd[1] |= ent->resume.stag << CMDQ_RESUME_1_STAG_SHIFT;
+		break;
 	case CMDQ_OP_CMD_SYNC:
 		if (ent->sync.msiaddr)
 			cmd[0] |= CMDQ_SYNC_0_CS_IRQ;
@@ -1065,6 +1126,36 @@ static void arm_smmu_cmdq_issue_sync(struct arm_smmu_device *smmu)
 		dev_err_ratelimited(smmu->dev, "CMD_SYNC timeout\n");
 }
 
+static int arm_smmu_fault_response(struct iommu_domain *domain,
+				   struct device *dev,
+				   struct iommu_fault *fault,
+				   enum iommu_fault_status resp)
+{
+	int sid = dev->iommu_fwspec->ids[0];
+	struct arm_smmu_cmdq_ent cmd = {0};
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+
+	if (fault->iommu_data & ARM_SMMU_FAULT_STALL) {
+		cmd.opcode		= CMDQ_OP_RESUME;
+		cmd.resume.sid		= sid;
+		cmd.resume.stag		= fault->id;
+		cmd.resume.resp		= resp;
+	} else {
+		/* TODO: put PRI response here */
+		return -EINVAL;
+	}
+
+	arm_smmu_cmdq_issue_cmd(smmu_domain->smmu, &cmd);
+	/*
+	 * Don't send a SYNC, it doesn't do anything for RESUME or PRI_RESP.
+	 * RESUME consumption guarantees that the stalled transaction will be
+	 * terminated... at some point in the future. PRI_RESP is fire and
+	 * forget.
+	 */
+
+	return 0;
+}
+
 /* Stream table manipulation functions */
 static void
 arm_smmu_write_strtab_l1_desc(__le64 *dst, struct arm_smmu_strtab_l1_desc *desc)
@@ -1182,7 +1273,8 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
 			 STRTAB_STE_1_STRW_SHIFT);
 
 		if (smmu->features & ARM_SMMU_FEAT_STALLS &&
-		   !(smmu->features & ARM_SMMU_FEAT_STALL_FORCE))
+		   !(smmu->features & ARM_SMMU_FEAT_STALL_FORCE) &&
+		   !ste->can_stall)
 			dst[1] |= cpu_to_le64(STRTAB_STE_1_S1STALLD);
 
 		val |= (cfg->base & STRTAB_STE_0_S1CTXPTR_MASK
@@ -1329,10 +1421,72 @@ arm_smmu_find_master(struct arm_smmu_device *smmu, u32 sid)
 	return master;
 }
 
+static int arm_smmu_handle_evt(struct arm_smmu_device *smmu, u64 *evt)
+{
+	struct iommu_domain *domain;
+	struct arm_smmu_master_data *master;
+	u8 type = evt[0] >> EVTQ_0_ID_SHIFT & EVTQ_0_ID_MASK;
+	u32 sid = evt[0] >> EVTQ_0_SID_SHIFT & EVTQ_0_SID_MASK;
+
+	struct iommu_fault fault = {
+		.id		= evt[1] >> EVTQ_1_STAG_SHIFT & EVTQ_1_STAG_MASK,
+		.address	= evt[2] >> EVTQ_2_ADDR_SHIFT & EVTQ_2_ADDR_MASK,
+		.iommu_data	= ARM_SMMU_FAULT_STALL,
+	};
+
+	switch (type) {
+	case EVT_ID_TRANSLATION_FAULT:
+	case EVT_ID_ADDR_SIZE_FAULT:
+	case EVT_ID_ACCESS_FAULT:
+	case EVT_ID_PERMISSION_FAULT:
+		break;
+	default:
+		return -EFAULT;
+	}
+
+	/* Stage-2 is always pinned at the moment */
+	if (evt[1] & EVTQ_1_S2)
+		return -EFAULT;
+
+	master = arm_smmu_find_master(smmu, sid);
+	if (!master)
+		return -EINVAL;
+
+	/*
+	 * The domain is valid until the fault returns, because detach() flushes
+	 * the fault queue.
+	 */
+	domain = iommu_get_domain_for_dev(master->dev);
+	if (!domain)
+		return -EINVAL;
+
+	if (evt[1] & EVTQ_1_STALL)
+		fault.flags |= IOMMU_FAULT_RECOVERABLE;
+
+	if (evt[1] & EVTQ_1_READ)
+		fault.flags |= IOMMU_FAULT_READ;
+	else
+		fault.flags |= IOMMU_FAULT_WRITE;
+
+	if (evt[1] & EVTQ_1_EXEC)
+		fault.flags |= IOMMU_FAULT_EXEC;
+
+	if (evt[1] & EVTQ_1_PRIV)
+		fault.flags |= IOMMU_FAULT_PRIV;
+
+	if (evt[0] & EVTQ_0_SSV) {
+		fault.flags |= IOMMU_FAULT_PASID;
+		fault.pasid = evt[0] >> EVTQ_0_SSID_SHIFT & EVTQ_0_SSID_MASK;
+	}
+
+	/* Report to device driver or populate the page tables */
+	return handle_iommu_fault(domain, master->dev, &fault);
+}
+
 /* IRQ and event handlers */
 static irqreturn_t arm_smmu_evtq_thread(int irq, void *dev)
 {
-	int i;
+	int i, ret;
 	int num_handled = 0;
 	struct arm_smmu_device *smmu = dev;
 	struct arm_smmu_queue *q = &smmu->evtq.q;
@@ -1344,11 +1498,18 @@ static irqreturn_t arm_smmu_evtq_thread(int irq, void *dev)
 		while (!queue_remove_raw(q, evt)) {
 			u8 id = evt[0] >> EVTQ_0_ID_SHIFT & EVTQ_0_ID_MASK;
 
+			spin_unlock(&q->wq.lock);
+			ret = arm_smmu_handle_evt(smmu, evt);
+			spin_lock(&q->wq.lock);
+
 			if (++num_handled == queue_size) {
 				q->batch++;
 				wake_up_locked(&q->wq);
 				num_handled = 0;
 			}
+
+			if (!ret)
+				continue;
 
 			dev_info(smmu->dev, "event 0x%02x received:\n", id);
 			for (i = 0; i < ARRAY_SIZE(evt); ++i)
@@ -1485,7 +1646,9 @@ static int arm_smmu_flush_queues(struct notifier_block *nb,
 		master = dev->iommu_fwspec->iommu_priv;
 
 	if (master) {
-		/* TODO: add support for PRI and Stall */
+		if (master->ste.can_stall)
+			arm_smmu_flush_queue(smmu, &smmu->evtq.q, "evtq");
+		/* TODO: add support for PRI */
 		return 0;
 	}
 
@@ -1798,7 +1961,8 @@ static int arm_smmu_domain_finalise_s1(struct arm_smmu_domain *smmu_domain,
 		.order			= master->ssid_bits,
 		.sync			= &arm_smmu_ctx_sync,
 		.arm_smmu = {
-			.stall		= !!(smmu->features & ARM_SMMU_FEAT_STALL_FORCE),
+			.stall		= !!(smmu->features & ARM_SMMU_FEAT_STALL_FORCE) ||
+					  master->ste.can_stall,
 			.asid_bits	= smmu->asid_bits,
 			.hw_access	= !!(smmu->features & ARM_SMMU_FEAT_HA),
 			.hw_dirty	= !!(smmu->features & ARM_SMMU_FEAT_HD),
@@ -2334,6 +2498,11 @@ static int arm_smmu_add_device(struct device *dev)
 
 	master->ssid_bits = min(smmu->ssid_bits, fwspec->num_pasid_bits);
 
+	if (fwspec->can_stall && smmu->features & ARM_SMMU_FEAT_STALLS) {
+		master->can_fault = true;
+		master->ste.can_stall = true;
+	}
+
 	group = iommu_group_get_for_dev(dev);
 	if (!IS_ERR(group)) {
 		arm_smmu_insert_master(smmu, master);
@@ -2472,6 +2641,7 @@ static struct iommu_ops arm_smmu_ops = {
 	.mm_detach		= arm_smmu_mm_detach,
 	.mm_invalidate		= arm_smmu_mm_invalidate,
 	.mm_exit		= arm_smmu_mm_exit,
+	.fault_response		= arm_smmu_fault_response,
 	.map			= arm_smmu_map,
 	.unmap			= arm_smmu_unmap,
 	.map_sg			= default_iommu_map_sg,
