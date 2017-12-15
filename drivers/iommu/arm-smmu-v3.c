@@ -2468,11 +2468,12 @@ static void arm_smmu_mm_detach(struct iommu_domain *domain, struct device *dev,
 	struct arm_smmu_mm *smmu_mm = to_smmu_mm(io_mm);
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 	struct iommu_pasid_table_ops *ops = smmu_domain->s1_cfg.ops;
+	struct arm_smmu_master_data *master = dev->iommu_fwspec->iommu_priv;
 
 	if (last)
 		ops->clear_entry(ops, io_mm->pasid, smmu_mm->cd);
 
-	/* TODO: Invalidate ATC. */
+	arm_smmu_atc_inv_master_all(master, io_mm->pasid);
 	/* TODO: Invalidate all mappings if last and not DVM. */
 }
 
@@ -2480,8 +2481,9 @@ static void arm_smmu_mm_invalidate(struct iommu_domain *domain,
 				   struct io_mm *io_mm, unsigned long iova,
 				   size_t size)
 {
+	arm_smmu_atc_inv_domain(to_smmu_domain(domain), io_mm->pasid,
+				iova, size);
 	/*
-	 * TODO: Invalidate ATC.
 	 * TODO: Invalidate mapping if not DVM
 	 */
 }
@@ -2500,7 +2502,7 @@ static void arm_smmu_mm_exit(struct iommu_domain *domain, struct io_mm *io_mm)
 			domain->mm_exit(domain, master->dev, io_mm->pasid,
 					domain->mm_exit_token);
 
-		/* TODO: inval ATC */
+		arm_smmu_atc_inv_master_all(master, io_mm->pasid);
 	}
 	spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
 
