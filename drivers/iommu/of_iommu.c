@@ -204,6 +204,16 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 			if (err)
 				break;
 		}
+
+		if (!err && dev->iommu_fwspec) {
+			const __be32 *prop;
+			if (of_get_property(master_np, "dma-can-stall", NULL))
+				dev->iommu_fwspec->can_stall = true;
+
+			prop = of_get_property(master_np, "pasid-bits", NULL);
+			if (prop)
+				dev->iommu_fwspec->num_pasid_bits = be32_to_cpu(*prop);
+		}
 	}
 
 	/*
