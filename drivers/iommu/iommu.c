@@ -1234,6 +1234,8 @@ EXPORT_SYMBOL_GPL(iommu_capable);
  * This function should be used by IOMMU users which want to be notified
  * whenever an IOMMU fault happens.
  *
+ * Note that new users should use iommu_set_ext_fault_handler instead.
+ *
  * The fault handler itself should return 0 on success, and an appropriate
  * error code otherwise.
  */
@@ -1243,10 +1245,43 @@ void iommu_set_fault_handler(struct iommu_domain *domain,
 {
 	BUG_ON(!domain);
 
+	if (WARN_ON(domain->ext_handler))
+		return;
+
 	domain->handler = handler;
 	domain->handler_token = token;
 }
 EXPORT_SYMBOL_GPL(iommu_set_fault_handler);
+
+/**
+ * iommu_set_ext_fault_handler() - set a fault handler for a device
+ * @dev: the device
+ * @handler: fault handler
+ * @token: user data, will be passed back to the fault handler
+ * @flags: IOMMU_FAULT_HANDLER_* parameters.
+ *
+ * This function should be used by IOMMU users which want to be notified
+ * whenever an IOMMU fault happens.
+ *
+ * The fault handler itself should return 0 on success, and an appropriate
+ * error code otherwise.
+ */
+void iommu_set_ext_fault_handler(struct device *dev,
+				 iommu_ext_fault_handler_t handler,
+				 void *token, int flags)
+{
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
+
+	if (WARN_ON(!domain))
+		return;
+
+	if (WARN_ON(domain->handler || domain->ext_handler))
+		return;
+
+	domain->ext_handler = handler;
+	domain->handler_token = token;
+}
+EXPORT_SYMBOL_GPL(iommu_set_ext_fault_handler);
 
 static struct iommu_domain *__iommu_domain_alloc(struct bus_type *bus,
 						 unsigned type)
@@ -1785,6 +1820,10 @@ int report_iommu_fault(struct iommu_domain *domain, struct device *dev,
 		       unsigned long iova, int flags)
 {
 	int ret = -ENOSYS;
+	struct iommu_fault fault = {
+		.address	= iova,
+		.flags		= flags,
+	};
 
 	/*
 	 * if upper layers showed interest and installed a fault handler,
@@ -1793,6 +1832,9 @@ int report_iommu_fault(struct iommu_domain *domain, struct device *dev,
 	if (domain->handler)
 		ret = domain->handler(domain, dev, iova, flags,
 						domain->handler_token);
+	else if (domain->ext_handler)
+		ret = domain->ext_handler(domain, dev, &fault,
+					  domain->handler_token);
 
 	trace_io_page_fault(dev, iova, flags);
 	return ret;

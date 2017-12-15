@@ -57,6 +57,14 @@ struct notifier_block;
 typedef int (*iommu_fault_handler_t)(struct iommu_domain *,
 			struct device *, unsigned long, int, void *);
 
+struct iommu_fault {
+	unsigned long		address;
+	unsigned int		flags;
+};
+
+typedef int (*iommu_ext_fault_handler_t)(struct iommu_domain *, struct device *,
+					 struct iommu_fault *, void *);
+
 /* Magic PASID value: all address spaces are being detached from this device */
 #define IOMMU_MM_EXIT_ALL			(-1)
 typedef int (*iommu_mm_exit_handler_t)(struct iommu_domain *,
@@ -97,6 +105,7 @@ struct iommu_domain {
 	const struct iommu_ops *ops;
 	unsigned long pgsize_bitmap;	/* Bitmap of page sizes in use */
 	iommu_fault_handler_t handler;
+	iommu_ext_fault_handler_t ext_handler;
 	void *handler_token;
 	iommu_mm_exit_handler_t mm_exit;
 	void *mm_exit_token;
@@ -354,6 +363,9 @@ extern size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long io
 extern phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova);
 extern void iommu_set_fault_handler(struct iommu_domain *domain,
 			iommu_fault_handler_t handler, void *token);
+extern void iommu_set_ext_fault_handler(struct device *dev,
+					iommu_ext_fault_handler_t handler,
+					void *token, int flags);
 
 extern void iommu_get_resv_regions(struct device *dev, struct list_head *list);
 extern void iommu_put_resv_regions(struct device *dev, struct list_head *list);
@@ -564,6 +576,12 @@ static inline phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_ad
 
 static inline void iommu_set_fault_handler(struct iommu_domain *domain,
 				iommu_fault_handler_t handler, void *token)
+{
+}
+
+static inline void iommu_set_ext_fault_handler(struct device *dev,
+				 iommu_ext_fault_handler_t handler, void *token,
+				 int flags)
 {
 }
 
