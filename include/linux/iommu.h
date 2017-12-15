@@ -766,6 +766,7 @@ extern void __iommu_sva_unbind_dev_all(struct iommu_domain *domain,
 				       struct device *dev);
 extern void iommu_set_mm_exit_handler(struct device *dev,
 				      iommu_mm_exit_handler_t cb, void *token);
+extern struct mm_struct *iommu_sva_find(int pasid);
 #else /* CONFIG_IOMMU_SVA */
 static inline int iommu_sva_bind_device(struct device *dev,
 					struct mm_struct *mm, int *pasid,
@@ -788,6 +789,11 @@ static inline void iommu_set_mm_exit_handler(struct device *dev,
 					     iommu_mm_exit_handler_t cb,
 					     void *token)
 {
+}
+
+static inline struct mm_struct *iommu_sva_find(int pasid)
+{
+	return NULL;
 }
 #endif /* CONFIG_IOMMU_SVA */
 

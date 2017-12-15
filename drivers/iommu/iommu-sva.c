@@ -10,6 +10,7 @@
 #include <linux/idr.h>
 #include <linux/iommu.h>
 #include <linux/mmu_notifier.h>
+#include <linux/sched/mm.h>
 #include <linux/slab.h>
 #include <linux/sched/mm.h>
 #include <linux/spinlock.h>
@@ -478,6 +479,31 @@ void __iommu_sva_unbind_dev_all(struct iommu_domain *domain, struct device *dev)
 
 }
 EXPORT_SYMBOL_GPL(__iommu_sva_unbind_dev_all);
+
+/**
+ * iommu_sva_find - Find mm associated to the given PASID
+ *
+ * Returns the mm corresponding to this PASID, or NULL if not found. A reference
+ * to the mm is taken, and must be released with mmput.
+ */
+struct mm_struct *iommu_sva_find(int pasid)
+{
+	struct io_mm *io_mm;
+	struct mm_struct *mm = NULL;
+
+	spin_lock(&iommu_sva_lock);
+	io_mm = idr_find(&iommu_pasid_idr, pasid);
+	if (io_mm && io_mm_get_locked(io_mm)) {
+		if (mmget_not_zero(io_mm->mm))
+			mm = io_mm->mm;
+
+		io_mm_put_locked(io_mm);
+	}
+	spin_unlock(&iommu_sva_lock);
+
+	return mm;
+}
+EXPORT_SYMBOL_GPL(iommu_sva_find);
 
 /**
  * iommu_set_mm_exit_handler() - set a callback for stopping the use of PASID in
