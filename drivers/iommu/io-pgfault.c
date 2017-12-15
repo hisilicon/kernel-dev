@@ -21,6 +21,7 @@
 
 #include <linux/iommu.h>
 #include <linux/list.h>
+#include <linux/sched/mm.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 
@@ -83,8 +84,69 @@ static int iommu_fault_finish(struct iommu_domain *domain, struct device *dev,
 
 static int iommu_fault_handle_single(struct iommu_fault_context *fault)
 {
-	/* TODO */
-	return -ENODEV;
+	struct mm_struct *mm;
+	struct vm_area_struct *vma;
+	int ret = IOMMU_FAULT_STATUS_INVALID;
+	unsigned int access_flags = 0;
+	unsigned int fault_flags = FAULT_FLAG_REMOTE;
+	struct iommu_fault *params = &fault->params;
+
+	if (!(params->flags & IOMMU_FAULT_PASID))
+		return ret;
+
+	if ((params->flags & (IOMMU_FAULT_LAST | IOMMU_FAULT_READ |
+			      IOMMU_FAULT_WRITE)) == IOMMU_FAULT_LAST)
+		/* Special case: PASID Stop Marker doesn't require a response */
+		return IOMMU_FAULT_STATUS_IGNORE;
+
+	mm = iommu_sva_find(params->pasid);
+	if (!mm)
+		return ret;
+
+	down_read(&mm->mmap_sem);
+
+	vma = find_extend_vma(mm, params->address);
+	if (!vma)
+		/* Unmapped area */
+		goto out_put_mm;
+
+	if (params->flags & IOMMU_FAULT_READ)
+		access_flags |= VM_READ;
+
+	if (params->flags & IOMMU_FAULT_WRITE) {
+		access_flags |= VM_WRITE;
+		fault_flags |= FAULT_FLAG_WRITE;
+	}
+
+	if (params->flags & IOMMU_FAULT_EXEC) {
+		access_flags |= VM_EXEC;
+		fault_flags |= FAULT_FLAG_INSTRUCTION;
+	}
+
+	if (!(params->flags & IOMMU_FAULT_PRIV))
+		fault_flags |= FAULT_FLAG_USER;
+
+	if (access_flags & ~vma->vm_flags)
+		/* Access fault */
+		goto out_put_mm;
+
+	ret = handle_mm_fault(vma, params->address, fault_flags);
+	ret = ret & VM_FAULT_ERROR ? IOMMU_FAULT_STATUS_INVALID :
+		IOMMU_FAULT_STATUS_HANDLED;
+
+out_put_mm:
+	up_read(&mm->mmap_sem);
+
+	/*
+	 * If the process exits while we're handling the fault on its mm, we
+	 * can't do mmput. exit_mm would release the MMU notifier, calling
+	 * iommu_notifier_release, which has to flush the fault queue that we're
+	 * executing on... So mmput_async moves the release of the mm to another
+	 * thread, if we're the last user.
+	 */
+	mmput_async(mm);
+
+	return ret;
 }
 
 static void iommu_fault_handle_group(struct work_struct *work)
