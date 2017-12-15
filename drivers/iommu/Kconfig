@@ -60,6 +60,14 @@ config IOMMU_IO_PGTABLE_ARMV7S_SELFTEST
 
 endmenu
 
+menu "Generic PASID table support"
+
+# Selected by the actual PASID table implementations
+config IOMMU_PASID_TABLE
+	bool
+
+endmenu
+
 config IOMMU_IOVA
 	tristate
 
