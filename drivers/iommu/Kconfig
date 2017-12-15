@@ -85,6 +85,15 @@ config IOMMU_SVA
 
 	  If unsure, say N here.
 
+config IOMMU_FAULT
+	bool "Fault handler for the IOMMU API"
+	select IOMMU_API
+	help
+	  Enable the generic fault handler for the IOMMU API, that handles
+	  recoverable page faults or inject them into guests.
+
+	  If unsure, say N here.
+
 config FSL_PAMU
 	bool "Freescale IOMMU support"
 	depends on PCI

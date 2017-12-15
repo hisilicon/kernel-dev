@@ -51,15 +51,69 @@ struct iommu_domain;
 struct notifier_block;
 
 /* iommu fault flags */
-#define IOMMU_FAULT_READ	0x0
-#define IOMMU_FAULT_WRITE	0x1
+#define IOMMU_FAULT_READ		(1 << 0)
+#define IOMMU_FAULT_WRITE		(1 << 1)
+#define IOMMU_FAULT_EXEC		(1 << 2)
+#define IOMMU_FAULT_PRIV		(1 << 3)
+/*
+ * If a fault is recoverable, then it *must* be completed, once handled, with
+ * iommu_fault_response.
+ */
+#define IOMMU_FAULT_RECOVERABLE		(1 << 4)
+/* The PASID field is valid */
+#define IOMMU_FAULT_PASID		(1 << 5)
+/* Fault is part of a group (PCI PRG) */
+#define IOMMU_FAULT_GROUP		(1 << 6)
+/* Fault is last of its group */
+#define IOMMU_FAULT_LAST		(1 << 7)
+
+/**
+ * enum iommu_fault_status - Return status of fault handlers, telling the IOMMU
+ *	driver how to proceed with the fault.
+ *
+ * @IOMMU_FAULT_STATUS_NONE: Fault was not handled. Call the next handler, or
+ *	terminate.
+ * @IOMMU_FAULT_STATUS_FAILURE: General error. Drop all subsequent faults from
+ *	this device if possible. This is "Response Failure" in PCI PRI.
+ * @IOMMU_FAULT_STATUS_INVALID: Could not handle this fault, don't retry the
+ *	access. This is "Invalid Request" in PCI PRI.
+ * @IOMMU_FAULT_STATUS_HANDLED: Fault has been handled and the page tables
+ *	populated, retry the access.
+ * @IOMMU_FAULT_STATUS_IGNORE: Stop processing the fault, and do not send a
+ *	reply to the device.
+ *
+ * For unrecoverable faults, the only valid status is IOMMU_FAULT_STATUS_NONE
+ * For a recoverable fault, if no one handled the fault, treat as
+ * IOMMU_FAULT_STATUS_INVALID.
+ */
+enum iommu_fault_status {
+	IOMMU_FAULT_STATUS_NONE = 0,
+	IOMMU_FAULT_STATUS_FAILURE,
+	IOMMU_FAULT_STATUS_INVALID,
+	IOMMU_FAULT_STATUS_HANDLED,
+	IOMMU_FAULT_STATUS_IGNORE,
+};
 
 typedef int (*iommu_fault_handler_t)(struct iommu_domain *,
 			struct device *, unsigned long, int, void *);
 
 struct iommu_fault {
+	/* Faulting address */
 	unsigned long		address;
+	/* Fault flags */
 	unsigned int		flags;
+	/* Process address space ID (if IOMMU_FAULT_PASID is present) */
+	u32			pasid;
+	/*
+	 * For PCI PRI, 'id' is the PRG. For others, it's a tag identifying a
+	 * single fault.
+	 */
+	unsigned int		id;
+	/*
+	 * IOMMU vendor-specific things. This cannot be a private pointer
+	 * because the fault report might leave the kernel and into a guest.
+	 */
+	u64			iommu_data;
 };
 
 typedef int (*iommu_ext_fault_handler_t)(struct iommu_domain *, struct device *,
@@ -229,6 +283,7 @@ struct iommu_resv_region {
  * @domain_set_windows: Set the number of windows for a domain
  * @domain_get_windows: Return the number of windows for a domain
  * @of_xlate: add OF master IDs to iommu grouping
+ * @fault_reponse: complete a recoverable fault
  * @pgsize_bitmap: bitmap of all possible supported page sizes
  */
 struct iommu_ops {
@@ -288,6 +343,10 @@ struct iommu_ops {
 
 	int (*of_xlate)(struct device *dev, struct of_phandle_args *args);
 	bool (*is_attach_deferred)(struct iommu_domain *domain, struct device *dev);
+
+	int (*fault_response)(struct iommu_domain *domain, struct device *dev,
+			      struct iommu_fault *fault,
+			      enum iommu_fault_status status);
 
 	unsigned long pgsize_bitmap;
 };
@@ -814,5 +873,44 @@ static inline struct mm_struct *iommu_sva_find(int pasid)
 	return NULL;
 }
 #endif /* CONFIG_IOMMU_SVA */
+
+#ifdef CONFIG_IOMMU_FAULT
+extern int handle_iommu_fault(struct iommu_domain *domain, struct device *dev,
+			      struct iommu_fault *fault);
+extern int iommu_fault_response(struct iommu_domain *domain, struct device *dev,
+				struct iommu_fault *fault,
+				enum iommu_fault_status status);
+extern int iommu_fault_queue_register(struct notifier_block *flush_notifier);
+extern void iommu_fault_queue_flush(struct device *dev);
+extern void iommu_fault_queue_unregister(struct notifier_block *flush_notifier);
+#else /* CONFIG_IOMMU_FAULT */
+static inline int handle_iommu_fault(struct iommu_domain *domain,
+				     struct device *dev,
+				     struct iommu_fault *fault)
+{
+	return -ENODEV;
+}
+
+static inline int iommu_fault_response(struct iommu_domain *domain,
+				       struct device *dev,
+				       struct iommu_fault *fault,
+				       enum iommu_fault_status status)
+{
+	return -ENODEV;
+}
+
+static inline int iommu_fault_queue_register(struct notifier_block *flush_notifier)
+{
+	return -ENODEV;
+}
+
+static inline void iommu_fault_queue_flush(struct device *dev)
+{
+}
+
+static inline void iommu_fault_queue_unregister(struct notifier_block *flush_notifier)
+{
+}
+#endif /* CONFIG_IOMMU_FAULT */
 
 #endif /* __LINUX_IOMMU_H */
