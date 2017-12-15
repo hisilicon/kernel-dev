@@ -94,6 +94,19 @@ struct iommu_domain {
 	void *handler_token;
 	struct iommu_domain_geometry geometry;
 	void *iova_cookie;
+
+	unsigned int min_pasid, max_pasid;
+	struct list_head mm_list;
+};
+
+struct io_mm {
+	int			pasid;
+	struct list_head	domains;
+	struct kref		kref;
+	struct mm_struct	*mm;
+
+	/* Release callback for this mm */
+	void (*release)(struct io_mm *io_mm);
 };
 
 enum iommu_cap {
@@ -164,6 +177,11 @@ struct iommu_resv_region {
  * @domain_free: free iommu domain
  * @attach_dev: attach device to an iommu domain
  * @detach_dev: detach device from an iommu domain
+ * @mm_alloc: allocate io_mm
+ * @mm_free: free io_mm
+ * @mm_attach: attach io_mm to a domain
+ * @mm_detach: detach io_mm from a domain. Remove PASID entry and
+ *             flush associated TLB entries.
  * @map: map a physically contiguous memory region to an iommu domain
  * @unmap: unmap a physically contiguous memory region from an iommu domain
  * @map_sg: map a scatter-gather list of physically contiguous memory chunks
@@ -197,6 +215,13 @@ struct iommu_ops {
 
 	int (*attach_dev)(struct iommu_domain *domain, struct device *dev);
 	void (*detach_dev)(struct iommu_domain *domain, struct device *dev);
+	struct io_mm *(*mm_alloc)(struct iommu_domain *domain,
+				  struct mm_struct *mm);
+	void (*mm_free)(struct io_mm *io_mm);
+	int (*mm_attach)(struct iommu_domain *domain, struct device *dev,
+			 struct io_mm *io_mm, bool first);
+	void (*mm_detach)(struct iommu_domain *domain, struct device *dev,
+			  struct io_mm *io_mm, bool last);
 	int (*map)(struct iommu_domain *domain, unsigned long iova,
 		   phys_addr_t paddr, size_t size, int prot);
 	size_t (*unmap)(struct iommu_domain *domain, unsigned long iova,
