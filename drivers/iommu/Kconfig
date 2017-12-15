@@ -74,6 +74,16 @@ config IOMMU_DMA
 	select IOMMU_IOVA
 	select NEED_SG_DMA_LENGTH
 
+config IOMMU_SVA
+	bool "Shared Virtual Addressing API for the IOMMU"
+	select IOMMU_API
+	help
+	  Enable process address space management for the IOMMU API. In systems
+	  that support it, device drivers can bind processes address spaces to
+	  devices and share their page tables using this API.
+
+	  If unsure, say N here.
+
 config FSL_PAMU
 	bool "Freescale IOMMU support"
 	depends on PCI

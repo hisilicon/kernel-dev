@@ -411,6 +411,9 @@ int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode,
 void iommu_fwspec_free(struct device *dev);
 int iommu_fwspec_add_ids(struct device *dev, u32 *ids, int num_ids);
 const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode);
+extern int iommu_sva_bind_group(struct iommu_group *group,
+				struct mm_struct *mm, int *pasid, int flags);
+extern int iommu_sva_unbind_group(struct iommu_group *group, int pasid);
 
 #else /* CONFIG_IOMMU_API */
 
@@ -696,6 +699,43 @@ const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode)
 	return NULL;
 }
 
+static inline int iommu_sva_bind_group(struct iommu_group *group,
+				       struct mm_struct *mm, int *pasid,
+				       int flags)
+{
+	return -ENODEV;
+}
+
+static inline int iommu_sva_unbind_group(struct iommu_group *group, int pasid)
+{
+	return -ENODEV;
+}
+
 #endif /* CONFIG_IOMMU_API */
+
+#ifdef CONFIG_IOMMU_SVA
+extern int iommu_sva_bind_device(struct device *dev, struct mm_struct *mm,
+				int *pasid, int flags);
+extern int iommu_sva_unbind_device(struct device *dev, int pasid);
+extern void __iommu_sva_unbind_dev_all(struct iommu_domain *domain,
+				       struct device *dev);
+#else /* CONFIG_IOMMU_SVA */
+static inline int iommu_sva_bind_device(struct device *dev,
+					struct mm_struct *mm, int *pasid,
+					int flags)
+{
+	return -ENODEV;
+}
+
+static inline int iommu_sva_unbind_device(struct device *dev, int pasid)
+{
+	return -ENODEV;
+}
+
+static inline void __iommu_sva_unbind_dev_all(struct iommu_domain *domain,
+					      struct device *dev)
+{
+}
+#endif /* CONFIG_IOMMU_SVA */
 
 #endif /* __LINUX_IOMMU_H */
