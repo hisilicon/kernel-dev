@@ -90,6 +90,15 @@ static int iommu_fault_handle_single(struct iommu_fault_context *fault)
 	unsigned int access_flags = 0;
 	unsigned int fault_flags = FAULT_FLAG_REMOTE;
 	struct iommu_fault *params = &fault->params;
+	struct iommu_domain *domain = fault->domain;
+
+	if (domain->ext_handler &&
+	    (domain->handler_flags & IOMMU_FAULT_HANDLER_BLOCKING)) {
+		ret = domain->ext_handler(domain, fault->dev, &fault->params,
+					  domain->handler_token);
+		if (ret != IOMMU_FAULT_STATUS_NONE)
+			return ret;
+	}
 
 	if (!(params->flags & IOMMU_FAULT_PASID))
 		return ret;
@@ -257,7 +266,9 @@ int handle_iommu_fault(struct iommu_domain *domain, struct device *dev,
 	 * if upper layers showed interest and installed a fault handler,
 	 * invoke it.
 	 */
-	if (domain->ext_handler) {
+	if (domain->ext_handler &&
+	    (domain->handler_flags & IOMMU_FAULT_HANDLER_ATOMIC)) {
+		fault->flags |= IOMMU_FAULT_ATOMIC;
 		ret = domain->ext_handler(domain, dev, fault,
 					  domain->handler_token);
 
@@ -273,8 +284,12 @@ int handle_iommu_fault(struct iommu_domain *domain, struct device *dev,
 	}
 
 	/* If the handler is blocking, handle fault in the workqueue */
-	if (fault->flags & IOMMU_FAULT_RECOVERABLE)
+	if ((fault->flags & IOMMU_FAULT_RECOVERABLE) ||
+	    (domain->ext_handler &&
+	     (domain->handler_flags & IOMMU_FAULT_HANDLER_BLOCKING))) {
+		fault->flags &= ~IOMMU_FAULT_ATOMIC;
 		ret = iommu_queue_fault(domain, dev, fault);
+	}
 
 	return iommu_fault_finish(domain, dev, fault, ret);
 }

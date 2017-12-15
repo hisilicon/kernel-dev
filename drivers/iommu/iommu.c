@@ -1258,7 +1258,9 @@ EXPORT_SYMBOL_GPL(iommu_set_fault_handler);
  * @dev: the device
  * @handler: fault handler
  * @token: user data, will be passed back to the fault handler
- * @flags: IOMMU_FAULT_HANDLER_* parameters.
+ * @flags: IOMMU_FAULT_HANDLER_* parameters. Allows the driver to tell when it
+ * wants to be notified. By default the handler will only be called from atomic
+ * context.
  *
  * This function should be used by IOMMU users which want to be notified
  * whenever an IOMMU fault happens.
@@ -1275,11 +1277,15 @@ void iommu_set_ext_fault_handler(struct device *dev,
 	if (WARN_ON(!domain))
 		return;
 
+	if (!flags)
+		flags |= IOMMU_FAULT_HANDLER_ATOMIC;
+
 	if (WARN_ON(domain->handler || domain->ext_handler))
 		return;
 
 	domain->ext_handler = handler;
 	domain->handler_token = token;
+	domain->handler_flags = flags;
 }
 EXPORT_SYMBOL_GPL(iommu_set_ext_fault_handler);
 
@@ -1822,7 +1828,7 @@ int report_iommu_fault(struct iommu_domain *domain, struct device *dev,
 	int ret = -ENOSYS;
 	struct iommu_fault fault = {
 		.address	= iova,
-		.flags		= flags,
+		.flags		= flags | IOMMU_FAULT_ATOMIC,
 	};
 
 	/*
@@ -1832,7 +1838,8 @@ int report_iommu_fault(struct iommu_domain *domain, struct device *dev,
 	if (domain->handler)
 		ret = domain->handler(domain, dev, iova, flags,
 						domain->handler_token);
-	else if (domain->ext_handler)
+	else if (domain->ext_handler &&
+		 (domain->handler_flags & IOMMU_FAULT_HANDLER_ATOMIC))
 		ret = domain->ext_handler(domain, dev, &fault,
 					  domain->handler_token);
 

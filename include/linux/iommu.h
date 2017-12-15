@@ -66,6 +66,8 @@ struct notifier_block;
 #define IOMMU_FAULT_GROUP		(1 << 6)
 /* Fault is last of its group */
 #define IOMMU_FAULT_LAST		(1 << 7)
+/* The fault handler is being called from atomic context */
+#define IOMMU_FAULT_ATOMIC		(1 << 8)
 
 /**
  * enum iommu_fault_status - Return status of fault handlers, telling the IOMMU
@@ -96,6 +98,21 @@ enum iommu_fault_status {
 
 typedef int (*iommu_fault_handler_t)(struct iommu_domain *,
 			struct device *, unsigned long, int, void *);
+
+/*
+ * IOMMU_FAULT_HANDLER_ATOMIC: Notify device driver from within atomic context
+ * (IRQ handler). The callback is not allowed to sleep. If the fault is
+ * recoverable, the driver must either return a fault status telling the IOMMU
+ * driver how to complete the fault (FAILURE, INVALID, HANDLED) or complete the
+ * fault later with iommu_fault_response.
+ */
+#define IOMMU_FAULT_HANDLER_ATOMIC	(1 << 0)
+/*
+ * IOMMU_FAULT_HANDLER_BLOCKING: Notify device driver from a thread. If the fault
+ * is recoverable, the driver must return a fault status telling the IOMMU
+ * driver how to complete the fault (FAILURE, INVALID, HANDLED)
+ */
+#define IOMMU_FAULT_HANDLER_BLOCKING	(1 << 1)
 
 struct iommu_fault {
 	/* Faulting address */
@@ -161,6 +178,7 @@ struct iommu_domain {
 	iommu_fault_handler_t handler;
 	iommu_ext_fault_handler_t ext_handler;
 	void *handler_token;
+	int handler_flags;
 	iommu_mm_exit_handler_t mm_exit;
 	void *mm_exit_token;
 	struct iommu_domain_geometry geometry;
@@ -634,7 +652,7 @@ static inline phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_ad
 }
 
 static inline void iommu_set_fault_handler(struct iommu_domain *domain,
-				iommu_fault_handler_t handler, void *token)
+				iommu_fault_handler_t handler, void *token, int flags)
 {
 }
 
