@@ -37,6 +37,10 @@ static DEFINE_PER_CPU(atomic64_t, active_asids);
 static DEFINE_PER_CPU(u64, reserved_asids);
 static cpumask_t tlb_flush_pending;
 
+static unsigned long max_pinned_asids;
+static unsigned long nr_pinned_asids;
+static unsigned long *pinned_asid_map;
+
 #define ASID_MASK		(~GENMASK(asid_bits - 1, 0))
 #define ASID_FIRST_VERSION	(1UL << asid_bits)
 #define NUM_USER_ASIDS		ASID_FIRST_VERSION
@@ -92,7 +96,7 @@ static void flush_context(unsigned int cpu)
 	u64 asid;
 
 	/* Update the list of reserved ASIDs and the ASID bitmap. */
-	bitmap_clear(asid_map, 0, NUM_USER_ASIDS);
+	bitmap_copy(asid_map, pinned_asid_map, NUM_USER_ASIDS);
 
 	set_reserved_asid_bits();
 
@@ -153,6 +157,10 @@ static u64 new_context(struct mm_struct *mm, unsigned int cpu)
 
 	if (asid != 0) {
 		u64 newasid = generation | (asid & ~ASID_MASK);
+
+		/* That ASID is pinned for us, we're good to go. */
+		if (mm->context.refcount)
+			return newasid;
 
 		/*
 		 * If our current ASID was active during a rollover, we
@@ -235,6 +243,63 @@ switch_mm_fastpath:
 		cpu_switch_mm(mm->pgd, mm);
 }
 
+unsigned long mm_context_get(struct mm_struct *mm)
+{
+	unsigned long flags;
+	u64 asid;
+
+	raw_spin_lock_irqsave(&cpu_asid_lock, flags);
+
+	asid = atomic64_read(&mm->context.id);
+
+	if (mm->context.refcount) {
+		mm->context.refcount++;
+		asid &= ~ASID_MASK;
+		goto out_unlock;
+	}
+
+	if (nr_pinned_asids >= max_pinned_asids) {
+		asid = 0;
+		goto out_unlock;
+	}
+
+	if (((asid ^ atomic64_read(&asid_generation)) >> asid_bits)) {
+		/*
+		 * We went through one or more rollover since that ASID was
+		 * used. Ensure that it is still valid, or generate a new one.
+		 * The cpu argument isn't used by new_context.
+		 */
+		asid = new_context(mm, 0);
+		atomic64_set(&mm->context.id, asid);
+	}
+
+	asid &= ~ASID_MASK;
+
+	nr_pinned_asids++;
+	__set_bit(asid, pinned_asid_map);
+	mm->context.refcount++;
+
+out_unlock:
+	raw_spin_unlock_irqrestore(&cpu_asid_lock, flags);
+
+	return asid;
+}
+
+void mm_context_put(struct mm_struct *mm)
+{
+	unsigned long flags;
+	u64 asid = atomic64_read(&mm->context.id) & ~ASID_MASK;
+
+	raw_spin_lock_irqsave(&cpu_asid_lock, flags);
+
+	if (--mm->context.refcount == 0) {
+		__clear_bit(asid, pinned_asid_map);
+		nr_pinned_asids--;
+	}
+
+	raw_spin_unlock_irqrestore(&cpu_asid_lock, flags);
+}
+
 static int asids_init(void)
 {
 	asid_bits = get_cpu_asid_bits();
@@ -251,6 +316,19 @@ static int asids_init(void)
 		      NUM_USER_ASIDS);
 
 	set_reserved_asid_bits();
+
+	pinned_asid_map = kzalloc(BITS_TO_LONGS(NUM_USER_ASIDS)
+				  * sizeof(*pinned_asid_map), GFP_KERNEL);
+	if (!pinned_asid_map)
+		panic("Failed to allocate pinned bitmap\n");
+
+	/*
+	 * We assume that an ASID is always available after a rollback. This
+	 * means that even if all CPUs have a reserved ASID, there still is at
+	 * least one slot available in the asid_bitmap.
+	 */
+	max_pinned_asids = NUM_USER_ASIDS - num_possible_cpus() - 2;
+	nr_pinned_asids = 0;
 
 	pr_info("ASID allocator initialised with %lu entries\n", NUM_USER_ASIDS);
 	return 0;
