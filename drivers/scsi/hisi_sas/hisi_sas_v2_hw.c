@@ -1622,7 +1622,6 @@ static void phy_set_linkrate_v2_hw(struct hisi_hba *hisi_hba, int phy_no,
 	sas_phy->phy->maximum_linkrate = max;
 	sas_phy->phy->minimum_linkrate = min;
 
-	min -= SAS_LINK_RATE_1_5_GBPS;
 	max -= SAS_LINK_RATE_1_5_GBPS;
 
 	for (i = 0; i <= max; i++)

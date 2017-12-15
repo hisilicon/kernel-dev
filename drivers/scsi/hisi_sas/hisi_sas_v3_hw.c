@@ -341,12 +341,6 @@ struct hisi_sas_err_record_v3 {
 #define HISI_SAS_COMMAND_ENTRIES_V3_HW 4096
 #define HISI_SAS_MSI_COUNT_V3_HW 32
 
-enum {
-	HISI_SAS_PHY_PHY_UPDOWN,
-	HISI_SAS_PHY_CHNL_INT,
-	HISI_SAS_PHY_INT_NR
-};
-
 #define DIR_NO_DATA 0
 #define DIR_TO_INI 1
 #define DIR_TO_DEVICE 2
@@ -1863,7 +1857,6 @@ static void phy_set_linkrate_v3_hw(struct hisi_hba *hisi_hba, int phy_no,
 	sas_phy->phy->maximum_linkrate = max;
 	sas_phy->phy->minimum_linkrate = min;
 
-	min -= SAS_LINK_RATE_1_5_GBPS;
 	max -= SAS_LINK_RATE_1_5_GBPS;
 
 	for (i = 0; i <= max; i++)
