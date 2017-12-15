@@ -62,7 +62,16 @@
 #define ARM64_TCR_TBI0_SHIFT		37
 #define ARM64_TCR_TBI0_MASK		0x1UL
 
+#define ARM64_TCR_HA_SHIFT		39
+#define ARM64_TCR_HA_MASK		0x1UL
+#define ARM64_TCR_HD_SHIFT		40
+#define ARM64_TCR_HD_MASK		0x1UL
+
 #define CTXDESC_CD_0_AA64		(1UL << 41)
+#define CTXDESC_CD_0_TCR_HD_SHIFT	42
+#define CTXDESC_CD_0_TCR_HA_SHIFT	43
+#define CTXDESC_CD_0_HD			(1UL << CTXDESC_CD_0_TCR_HD_SHIFT)
+#define CTXDESC_CD_0_HA			(1UL << CTXDESC_CD_0_TCR_HA_SHIFT)
 #define CTXDESC_CD_0_S			(1UL << 44)
 #define CTXDESC_CD_0_R			(1UL << 45)
 #define CTXDESC_CD_0_A			(1UL << 46)
@@ -195,7 +204,7 @@ static __le64 *arm_smmu_get_cd_ptr(struct arm_smmu_cd_tables *tbl, u32 ssid)
 	return l1_desc->ptr + idx * CTXDESC_CD_DWORDS;
 }
 
-static u64 arm_smmu_cpu_tcr_to_cd(u64 tcr)
+static u64 arm_smmu_cpu_tcr_to_cd(struct arm_smmu_context_cfg *cfg, u64 tcr)
 {
 	u64 val = 0;
 
@@ -209,6 +218,12 @@ static u64 arm_smmu_cpu_tcr_to_cd(u64 tcr)
 	val |= ARM_SMMU_TCR2CD(tcr, EPD1);
 	val |= ARM_SMMU_TCR2CD(tcr, IPS);
 	val |= ARM_SMMU_TCR2CD(tcr, TBI0);
+
+	if (cfg->hw_access)
+		val |= ARM_SMMU_TCR2CD(tcr, HA);
+
+	if (cfg->hw_dirty)
+		val |= ARM_SMMU_TCR2CD(tcr, HD);
 
 	return val;
 }
@@ -266,7 +281,7 @@ static int __arm_smmu_write_ctx_desc(struct arm_smmu_cd_tables *tbl, int ssid,
 		iommu_pasid_flush(&tbl->pasid, ssid, true);
 
 
-		val = arm_smmu_cpu_tcr_to_cd(cd->tcr) |
+		val = arm_smmu_cpu_tcr_to_cd(cfg, cd->tcr) |
 #ifdef __BIG_ENDIAN
 		      CTXDESC_CD_0_ENDI |
 #endif
@@ -453,6 +468,7 @@ arm_smmu_alloc_shared_cd(struct iommu_pasid_table_ops *ops, struct mm_struct *mm
 	reg = read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
 	par = cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR0_PARANGE_SHIFT);
 	tcr |= par << ARM_LPAE_TCR_IPS_SHIFT;
+	tcr |= TCR_HA | TCR_HD;
 
 	cd->ttbr	= virt_to_phys(mm->pgd);
 	cd->tcr		= tcr;
