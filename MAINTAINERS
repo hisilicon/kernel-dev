@@ -1083,6 +1083,7 @@ S:	Maintained
 F:	drivers/iommu/arm-smmu.c
 F:	drivers/iommu/arm-smmu-v3.c
 F:	drivers/iommu/io-pgtable-arm.c
+F:	drivers/iommu/io-pgtable-arm.h
 F:	drivers/iommu/io-pgtable-arm-v7s.c
 
 ARM SUB-ARCHITECTURES
