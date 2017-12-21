@@ -1515,8 +1515,9 @@ EXPORT_SYMBOL_GPL(iommu_detach_group);
  * On success, 0 is returned and @pasid contains a valid ID. Otherwise, an error
  * is returned.
  */
-int iommu_sva_bind_group(struct iommu_group *group, struct mm_struct *mm,
-			     int *pasid, int flags)
+static int __iommu_sva_bind_group(struct iommu_group *group,
+				  struct mm_struct *mm,
+				  int *pasid, int flags)
 {
 	struct group_device *device;
 	int ret = -ENODEV;
@@ -1542,7 +1543,22 @@ int iommu_sva_bind_group(struct iommu_group *group, struct mm_struct *mm,
 
 	return ret;
 }
+
+int iommu_sva_bind_group(struct iommu_group *group, struct mm_struct *mm,
+			     int *pasid, int flags)
+{
+	return __iommu_sva_bind_group(group, mm, pasid,
+			flags | IOMMU_SVA_BIND_SHARE);
+}
 EXPORT_SYMBOL_GPL(iommu_sva_bind_group);
+
+int iommu_sva_attach_group(struct iommu_group *group, struct mm_struct *mm,
+			     int *pasid, int flags)
+{
+	return __iommu_sva_bind_group(group, mm, pasid,
+			flags | IOMMU_SVA_BIND_PRIVATE);
+}
+EXPORT_SYMBOL_GPL(iommu_sva_attach_group);
 
 /**
  * iommu_sva_unbind_group - Remove a bond created with iommu_sva_bind_group

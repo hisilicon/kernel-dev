@@ -570,6 +570,9 @@ const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode);
 extern int iommu_sva_bind_group(struct iommu_group *group,
 				struct mm_struct *mm, int *pasid, int flags);
 extern int iommu_sva_unbind_group(struct iommu_group *group, int pasid);
+extern int iommu_sva_attach_group(struct iommu_group *group,
+				struct mm_struct *mm,
+				int *pasid, int flags);
 
 #else /* CONFIG_IOMMU_API */
 
@@ -886,7 +889,15 @@ static inline int iommu_sva_unbind_group(struct iommu_group *group, int pasid)
 	return -ENODEV;
 }
 
+static inline int iommu_sva_attach_group(struct iommu_group *group,
+				struct mm_struct *mm,
+				int *pasid, int flags)
+{
+	return -ENODEV;
+}
 #endif /* CONFIG_IOMMU_API */
+
+#define iommu_sva_detach_group	iommu_sva_unbind_group
 
 /* Device share the page table with process and can support fault */
 #define IOMMU_SVA_BIND_SHARE		(1 << 0)
