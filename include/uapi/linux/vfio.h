@@ -544,8 +544,11 @@ struct vfio_iommu_type1_info_cap_iova_range {
 struct vfio_iommu_type1_dma_map {
 	__u32	argsz;
 	__u32	flags;
+	__u32	pasid;
+	__u32	resv;
 #define VFIO_DMA_MAP_FLAG_READ (1 << 0)		/* readable from device */
 #define VFIO_DMA_MAP_FLAG_WRITE (1 << 1)	/* writable from device */
+#define VFIO_DMA_MAP_FLAG_PASID (1 << 2)	/* mapping based on pasid */
 	__u64	vaddr;				/* Process virtual address */
 	__u64	iova;				/* IO virtual address */
 	__u64	size;				/* Size of mapping (bytes) */
@@ -566,6 +569,9 @@ struct vfio_iommu_type1_dma_map {
 struct vfio_iommu_type1_dma_unmap {
 	__u32	argsz;
 	__u32	flags;
+	__u32	pasid;
+	__u32	resv;
+#define VFIO_DMA_UNMAP_FLAG_PASID (1 << 0)	/* unmapping based on pasid */
 	__u64	iova;				/* IO virtual address */
 	__u64	size;				/* Size of mapping (bytes) */
 };
@@ -617,6 +623,7 @@ struct vfio_iommu_type1_bind {
 	__u32	argsz;
 	__u32	mode;
 #define VFIO_IOMMU_BIND_PROCESS		(1 << 0)
+#define VFIO_IOMMU_ATTACH_PROCESS	(1 << 1)
 	__u8	data[];
 };
 
@@ -647,6 +654,10 @@ struct vfio_iommu_type1_bind {
  * Undo what was done by the corresponding VFIO_IOMMU_BIND ioctl.
  */
 #define VFIO_IOMMU_UNBIND	_IO(VFIO_TYPE, VFIO_BASE + 23)
+
+
+#define VFIO_IOMMU_ATTACH	_IO(VFIO_TYPE, VFIO_BASE + 24)
+#define VFIO_IOMMU_DETACH	_IO(VFIO_TYPE, VFIO_BASE + 25)
 
 /* -------- Additional API for SPAPR TCE (Server POWERPC) IOMMU -------- */
 
