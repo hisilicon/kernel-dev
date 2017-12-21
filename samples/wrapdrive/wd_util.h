@@ -51,14 +51,14 @@ static inline int _get_attr_value(const char *path, const char *attr_name)
 {
 	char attr_path[PATH_STR_SIZE];
 	int fd, ret;
-	char value[SYS_VAL_SIZE];
+	char value[PATH_STR_SIZE];
 
 	(void)sprintf(attr_path, "%s/%s", path, attr_name);
 	fd = open(attr_path, O_RDONLY);
 	if (fd < 0)
 		return fd;
-	memset(value, 0, SYS_VAL_SIZE);
-	ret = read(fd, value, SYS_VAL_SIZE);
+	memset(value, 0, PATH_STR_SIZE);
+	ret = read(fd, value, PATH_STR_SIZE);
 	if (ret > 0) {
 		close(fd);
 		return atoi(value);
@@ -78,7 +78,7 @@ static inline int _set_attr_value(const char *path, const char *attr_name, char 
 	if (fd < 0)
 		return fd;
 
-	ret = write(fd, value, SYS_VAL_SIZE);
+	ret = write(fd, value, PATH_STR_SIZE);
 	if (ret >= 0) {
 		close(fd);
 		return 0;
