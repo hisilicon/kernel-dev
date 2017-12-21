@@ -1604,8 +1604,8 @@ static size_t iommu_pgsize(struct iommu_domain *domain,
 	return pgsize;
 }
 
-int iommu_map(struct iommu_domain *domain, unsigned long iova,
-	      phys_addr_t paddr, size_t size, int prot)
+int __iommu_map(struct iommu_domain *domain, unsigned long iova,
+	      phys_addr_t paddr, size_t size, int prot, struct io_mm *io_mm)
 {
 	unsigned long orig_iova = iova;
 	unsigned int min_pagesz;
@@ -1613,8 +1613,7 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	phys_addr_t orig_paddr = paddr;
 	int ret = 0;
 
-	if (unlikely(domain->ops->map == NULL ||
-		     domain->pgsize_bitmap == 0UL))
+	if (unlikely(domain->pgsize_bitmap == 0UL))
 		return -ENODEV;
 
 	if (unlikely(!(domain->type & __IOMMU_DOMAIN_PAGING)))
@@ -1642,7 +1641,12 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 		pr_debug("mapping: iova 0x%lx pa %pa pgsize 0x%zx\n",
 			 iova, &paddr, pgsize);
 
-		ret = domain->ops->map(domain, iova, paddr, pgsize, prot);
+		if (io_mm)
+			ret = domain->ops->sva_map(domain, io_mm, iova,
+						   paddr, pgsize, prot);
+		else
+			ret = domain->ops->map(domain, iova, paddr,
+					       pgsize, prot);
 		if (ret)
 			break;
 
@@ -1653,25 +1657,33 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 
 	/* unroll mapping in case something went wrong */
 	if (ret)
-		iommu_unmap(domain, orig_iova, orig_size - size);
+		__iommu_unmap(domain, orig_iova, orig_size - size, true, io_mm);
 	else
 		trace_map(orig_iova, orig_paddr, orig_size);
 
 	return ret;
 }
+
+int iommu_map(struct iommu_domain *domain, unsigned long iova,
+	      phys_addr_t paddr, size_t size, int prot)
+{
+	if (unlikely(domain->ops->map == NULL))
+		return -ENODEV;
+
+	return __iommu_map(domain, iova, paddr, size, prot, NULL);
+}
 EXPORT_SYMBOL_GPL(iommu_map);
 
-static size_t __iommu_unmap(struct iommu_domain *domain,
+size_t __iommu_unmap(struct iommu_domain *domain,
 			    unsigned long iova, size_t size,
-			    bool sync)
+			    bool sync, struct io_mm *io_mm)
 {
 	const struct iommu_ops *ops = domain->ops;
 	size_t unmapped_page, unmapped = 0;
 	unsigned long orig_iova = iova;
 	unsigned int min_pagesz;
 
-	if (unlikely(ops->unmap == NULL ||
-		     domain->pgsize_bitmap == 0UL))
+	if (unlikely(domain->pgsize_bitmap == 0UL))
 		return -ENODEV;
 
 	if (unlikely(!(domain->type & __IOMMU_DOMAIN_PAGING)))
@@ -1700,7 +1712,11 @@ static size_t __iommu_unmap(struct iommu_domain *domain,
 	while (unmapped < size) {
 		size_t pgsize = iommu_pgsize(domain, iova, size - unmapped);
 
-		unmapped_page = ops->unmap(domain, iova, pgsize);
+		if (io_mm)
+			unmapped_page = ops->sva_unmap(domain, io_mm,
+							iova, pgsize);
+		else
+			unmapped_page = ops->unmap(domain, iova, pgsize);
 		if (!unmapped_page)
 			break;
 
@@ -1724,14 +1740,20 @@ static size_t __iommu_unmap(struct iommu_domain *domain,
 size_t iommu_unmap(struct iommu_domain *domain,
 		   unsigned long iova, size_t size)
 {
-	return __iommu_unmap(domain, iova, size, true);
+	if (unlikely(domain->ops->unmap == NULL))
+		return -ENODEV;
+
+	return __iommu_unmap(domain, iova, size, true, NULL);
 }
 EXPORT_SYMBOL_GPL(iommu_unmap);
 
 size_t iommu_unmap_fast(struct iommu_domain *domain,
 			unsigned long iova, size_t size)
 {
-	return __iommu_unmap(domain, iova, size, false);
+	if (unlikely(domain->ops->unmap == NULL))
+		return -ENODEV;
+
+	return __iommu_unmap(domain, iova, size, false, NULL);
 }
 EXPORT_SYMBOL_GPL(iommu_unmap_fast);
 

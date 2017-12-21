@@ -44,7 +44,7 @@ static DEFINE_SPINLOCK(iommu_sva_lock);
 static struct mmu_notifier_ops iommu_mmu_notifier;
 
 static struct io_mm *
-io_mm_alloc(struct iommu_domain *domain, struct mm_struct *mm)
+io_mm_alloc(struct iommu_domain *domain, struct mm_struct *mm, int flags)
 {
 	int err;
 	int pasid;
@@ -53,14 +53,14 @@ io_mm_alloc(struct iommu_domain *domain, struct mm_struct *mm)
 	if (WARN_ON(!domain->ops->mm_alloc || !domain->ops->mm_free))
 		return ERR_PTR(-ENODEV);
 
-	io_mm = domain->ops->mm_alloc(domain, mm);
+	io_mm = domain->ops->mm_alloc(domain, mm, flags);
 	if (IS_ERR(io_mm))
 		return io_mm;
 	if (!io_mm)
 		return ERR_PTR(-ENOMEM);
 
 	io_mm->mm		= mm;
-	io_mm->notifier.ops	= &iommu_mmu_notifier;
+	io_mm->flags		= flags;
 	io_mm->release		= domain->ops->mm_free;
 	INIT_LIST_HEAD(&io_mm->domains);
 
@@ -77,20 +77,24 @@ io_mm_alloc(struct iommu_domain *domain, struct mm_struct *mm)
 		goto err_free_mm;
 	}
 
-	err = mmu_notifier_register(&io_mm->notifier, mm);
-	if (err)
-		goto err_free_pasid;
+	/* When user private mode, caller should ensure release ? */
+	if (flags & IOMMU_SVA_BIND_SHARE) {
+		io_mm->notifier.ops	= &iommu_mmu_notifier;
+		err = mmu_notifier_register(&io_mm->notifier, mm);
+		if (err)
+			goto err_free_pasid;
 
-	/*
-	 * Now that the MMU notifier is valid, we can allow users to grab this
-	 * io_mm by setting a valid refcount. Before that it was accessible in
-	 * the IDR but invalid.
-	 *
-	 * The following barrier ensures that users, who obtain the io_mm with
-	 * kref_get_unless_zero, don't read uninitialized fields in the
-	 * structure.
-	 */
-	smp_wmb();
+		/*
+		 * Now that the MMU notifier is valid, we can allow users
+		 * to grab this io_mm by setting a valid refcount. Before
+		 * that it was accessible in the IDR but invalid.
+		 *
+		 * The following barrier ensures that users, who obtain the
+		 * io_mm with kref_get_unless_zero, don't read uninitialized
+		 * fields in the structure.
+		 */
+		smp_wmb();
+	}
 	kref_init(&io_mm->kref);
 
 	return io_mm;
@@ -172,11 +176,24 @@ static void io_mm_put_locked(struct io_mm *io_mm)
 	kref_put(&io_mm->kref, io_mm_release);
 }
 
-static void io_mm_put(struct io_mm *io_mm)
+void io_mm_put(struct io_mm *io_mm)
 {
 	spin_lock(&iommu_sva_lock);
 	io_mm_put_locked(io_mm);
 	spin_unlock(&iommu_sva_lock);
+}
+EXPORT_SYMBOL_GPL(io_mm_put);
+
+static struct io_mm *io_mm_find(int pasid)
+{
+	struct io_mm *io_mm;
+
+	spin_lock(&iommu_sva_lock);
+	io_mm = idr_find(&iommu_pasid_idr, pasid);
+	io_mm_get_locked(io_mm);
+	spin_unlock(&iommu_sva_lock);
+
+	return io_mm;
 }
 
 static int io_mm_attach(struct iommu_domain *domain, struct device *dev,
@@ -396,7 +413,7 @@ int iommu_sva_bind_device(struct device *dev, struct mm_struct *mm, int *pasid,
 		return err;
 
 	if (!io_mm) {
-		io_mm = io_mm_alloc(domain, mm);
+		io_mm = io_mm_alloc(domain, mm, flags);
 		if (IS_ERR(io_mm))
 			return PTR_ERR(io_mm);
 		*pasid = io_mm->pasid;
@@ -532,3 +549,70 @@ void iommu_set_mm_exit_handler(struct device *dev,
 	domain->mm_exit_token = token;
 }
 EXPORT_SYMBOL_GPL(iommu_set_mm_exit_handler);
+
+int iommu_sva_map(struct iommu_domain *domain, unsigned long iova,
+	      phys_addr_t paddr, size_t size, int prot, int pasid)
+{
+	int ret;
+	struct io_mm *io_mm = io_mm_find(pasid);
+
+	if (!io_mm)
+		return -ESRCH;
+
+	if (unlikely(domain->ops->sva_map == NULL))
+		return -ENODEV;
+
+	ret = __iommu_map(domain, iova, paddr, size, prot, io_mm);
+	io_mm_put(io_mm);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iommu_sva_map);
+
+static size_t __iommu_sva_unmap(struct iommu_domain *domain,
+		unsigned long iova, size_t size, bool sync, int pasid)
+{
+	int ret;
+	struct io_mm *io_mm = io_mm_find(pasid);
+
+	if (!io_mm)
+		return -ESRCH;
+
+	if (unlikely(domain->ops->sva_unmap == NULL))
+		return -ENODEV;
+
+	ret =  __iommu_unmap(domain, iova, size, sync, io_mm);
+	io_mm_put(io_mm);
+
+	return ret;
+}
+
+size_t iommu_sva_unmap(struct iommu_domain *domain,
+		unsigned long iova, size_t size, int pasid)
+{
+	return __iommu_sva_unmap(domain, iova, size, true, pasid);
+}
+EXPORT_SYMBOL_GPL(iommu_sva_unmap);
+
+size_t iommu_sva_unmap_fast(struct iommu_domain *domain,
+		unsigned long iova, size_t size, int pasid)
+{
+	return __iommu_sva_unmap(domain, iova, size, false, pasid);
+}
+EXPORT_SYMBOL_GPL(iommu_sva_unmap_fast);
+
+/* Really need this function ? Maybe can use MM API for it is SVA? */
+phys_addr_t iommu_sva_iova_to_phys(struct iommu_domain *domain,
+		dma_addr_t iova, int pasid)
+{
+	struct io_mm *io_mm = io_mm_find(pasid);
+
+	if (!io_mm)
+		return 0;
+
+	if (unlikely(domain->ops->iova_to_phys == NULL))
+		return 0;
+
+	return domain->ops->sva_iova_to_phys(domain, io_mm, iova);
+}
+EXPORT_SYMBOL_GPL(iommu_sva_iova_to_phys);
