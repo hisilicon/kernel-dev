@@ -39,3 +39,13 @@ config CRYPTO_DEV_HISI_HAC_TEST
 	help
 	  Support for testing algorithms of HAC Enging of Hisilicon.
 	  This module should not be included in releasing.
+
+config CRYPTO_DEV_HISI_ZIP
+	tristate "Support for HISI ZIP Driver"
+	select CRYPTO_DEV_HISILICON
+	depends on CRYPTO_DEV_WD_COMMON && ARM64
+	help
+	  Support for HISI ZIP Driver
+
+	  To compile this as a module, choose M here: the module
+	  will be called wd_dummy.

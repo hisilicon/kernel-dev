@@ -7,7 +7,8 @@ libwd_la_SOURCES=wd.c wd_util.c wd_adapter.c wd.h wd_adapter.h\
 		 wd_cipher.c wd_cipher.h \
 		 wd_dummy.c wd_dummy.h \
 		 drv/hisi_sec_udrv_v1.c drv/hisi_sec_udrv_v1.h \
-		 drv/dummy_drv.c drv/dummy_drv.h
+		 drv/dummy_drv.c drv/dummy_drv.h \
+		 drv/hisi_zip_udrv.c drv/hisi_zip_udrv.h
 
 bin_PROGRAMS=wd_clean
 wd_clean_SOURCES=wd_clean.c
