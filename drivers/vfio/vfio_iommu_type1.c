@@ -687,7 +687,7 @@ static long vfio_unmap_unpin(struct vfio_iommu *iommu, int pasid, struct vfio_dm
 
 	list_for_each_entry_continue(d, &iommu->domain_list, next) {
 		if (pasid > 0)
-			;//iommu_sva_unmap(d->domain, pasid, dma->iova, dma->size);
+			iommu_sva_unmap(d->domain, dma->iova, dma->size, pasid);
 		else
 			iommu_unmap(d->domain, dma->iova, dma->size);
 		cond_resched();
@@ -698,7 +698,7 @@ static long vfio_unmap_unpin(struct vfio_iommu *iommu, int pasid, struct vfio_dm
 		phys_addr_t phys, next;
 
 		if (pasid > 0)
-			;//phys = iommu_sva_iova_to_phys(domain->domain, pasid, iova);
+			phys = iommu_sva_iova_to_phys(domain->domain, iova, pasid);
 		else
 			phys = iommu_iova_to_phys(domain->domain, iova);
 		if (WARN_ON(!phys)) {
@@ -714,7 +714,7 @@ static long vfio_unmap_unpin(struct vfio_iommu *iommu, int pasid, struct vfio_dm
 		for (len = PAGE_SIZE;
 		     !domain->fgsp && iova + len < end; len += PAGE_SIZE) {
 			if (pasid > 0)
-				;//next = iommu_sva_iova_to_phys(domain->domain, pasid, iova + len);
+				next = iommu_sva_iova_to_phys(domain->domain, iova + len, pasid);
 			else
 				next = iommu_iova_to_phys(domain->domain, iova + len);
 			if (next != phys + len)
@@ -722,7 +722,7 @@ static long vfio_unmap_unpin(struct vfio_iommu *iommu, int pasid, struct vfio_dm
 		}
 
 		if (pasid > 0)
-			;//unmaped = iommu_sva_unmap(d->domain, pasid, iova, len);
+			unmapped = iommu_sva_unmap(d->domain, iova, len, pasid);
 		else
 			unmapped = iommu_unmap(domain->domain, iova, len);
 		if (WARN_ON(!unmapped))
@@ -929,9 +929,9 @@ static int vfio_iommu_map(struct vfio_iommu *iommu, int pasid, dma_addr_t iova,
 
 	list_for_each_entry(d, &iommu->domain_list, next) {
 		if (pasid > 0) {
-			//ret = iommu_sva_map(d->domain, pasid, iova,
-				//(phys_addr_t)pfn << PAGE_SHIFT,
-				//npage << PAGE_SHIFT, prot | d->prot);
+			ret = iommu_sva_map(d->domain, iova,
+				(phys_addr_t)pfn << PAGE_SHIFT,
+				npage << PAGE_SHIFT, prot | d->prot, pasid);
 			if (!ret)
 				continue;
 			else
@@ -953,7 +953,7 @@ static int vfio_iommu_map(struct vfio_iommu *iommu, int pasid, dma_addr_t iova,
 unwind:
 	list_for_each_entry_continue_reverse(d, &iommu->domain_list, next) {
 		if (pasid > 0)
-			;//iommu_sva_unmap(d->domain, pasid, iova, npage << PAGE_SHIFT);
+			iommu_sva_unmap(d->domain, iova, npage << PAGE_SHIFT, pasid);
 		else
 			iommu_unmap(d->domain, iova, npage << PAGE_SHIFT);
 	}
@@ -2026,9 +2026,10 @@ static long vfio_iommu_type1_attach_process(struct vfio_iommu *iommu,
 
 	list_for_each_entry(domain, &iommu->domain_list, next) {
 		list_for_each_entry(group, &domain->group_list, next) {
+
 			/* After this attach, all the page tables should be created */
-			//ret = iommu_sva_attach_group(group->iommu_group, mm,
-						  // &params.pasid, 0);
+			ret = iommu_sva_attach_group(group->iommu_group, mm,
+						     &params.pasid, 0);
 			if (ret)
 				break;
 		}
@@ -2086,8 +2087,8 @@ static long vfio_iommu_type1_detach_process(struct vfio_iommu *iommu,
 
 		list_for_each_entry(domain, &iommu->domain_list, next)
 			list_for_each_entry(group, &domain->group_list, next)
-				//iommu_sva_detach_group(group->iommu_group,
-						      // process->pasid);
+				iommu_sva_detach_group(group->iommu_group,
+						       process->pasid);
 
 		put_pid(process->pid);
 		list_del(&process->next);
