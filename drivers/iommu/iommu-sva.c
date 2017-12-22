@@ -135,22 +135,28 @@ static void io_mm_release(struct kref *kref)
 
 	idr_remove(&iommu_pasid_idr, io_mm->pasid);
 
-	/*
-	 * If we're being released from mm exit, the notifier callback ->release
-	 * has already been called. Otherwise we don't need ->release, the io_mm
-	 * isn't attached to anything anymore. Hence no_release.
-	 */
-	mmu_notifier_unregister_no_release(&io_mm->notifier, io_mm->mm);
+	if (io_mm->flags & IOMMU_SVA_BIND_SHARE) {
+		/*
+		 * If we're being released from mm exit, the notifier callback
+		 * ->release has already been called. Otherwise we don't need
+		 * ->release, the io_mm isn't attached to anything anymore.
+		 *  Hence no_release.
+		 */
+		mmu_notifier_unregister_no_release(&io_mm->notifier, io_mm->mm);
 
-	/*
-	 * We can't free the structure here, because if mm exits right after
-	 * unbind(), then ->release might be attempting to grab the io_mm
-	 * concurrently. And in the other case, if ->release is calling
-	 * io_mm_release, then __mmu_notifier_release expects to still have a
-	 * valid mn when returning. So free the structure when it's safe, after
-	 * the RCU grace period elapsed.
-	 */
-	mmu_notifier_call_srcu(&io_mm->rcu, io_mm_free);
+		/*
+		 * We can't free the structure here, because if mm exits right
+		 * after unbind(), then ->release might be attempting to grab
+		 * the io_mm concurrently. And in the other case, if ->release
+		 * is calling io_mm_release, then __mmu_notifier_release expects
+		 * to still have a valid mn when returning. So free the
+		 * structure when it's safe, after the RCU grace period elapsed.
+		 */
+		mmu_notifier_call_srcu(&io_mm->rcu, io_mm_free);
+	} else {
+		/* We do not have register mmu_notifier so can just free now */
+		io_mm_free(&io_mm->rcu);
+	}
 }
 
 /*
