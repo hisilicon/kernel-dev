@@ -23,6 +23,8 @@ static struct wd_drv_dio_if hw_dio_tbl[] = { {
 		.recv = hisi_sec_v1_recv,
 		.share = NULL,
 		.unshare = NULL,
+		.set_pasid = NULL,
+		.unset_pasid = NULL,
 	}, {
 		.hw_type = DUMMY_WD,
 		.open = dummy_set_queue_dio,
@@ -76,6 +78,18 @@ int drv_share(struct wd_queue *q, const void *addr, size_t size, int flags)
 void drv_unshare(struct wd_queue *q, const void *addr, size_t size)
 {
 	hw_dio_tbl[q->hw_type_id].unshare(q, addr, size);
+}
+
+void drv_set_pasid(struct wd_queue *q)
+{
+	if (hw_dio_tbl[q->hw_type_id].set_pasid)
+		hw_dio_tbl[q->hw_type_id].set_pasid(q);
+}
+
+void drv_unset_pasid(struct wd_queue *q)
+{
+	if (hw_dio_tbl[q->hw_type_id].unset_pasid)
+		hw_dio_tbl[q->hw_type_id].unset_pasid(q);
 }
 
 bool drv_can_do_mem_share(struct wd_queue *q)

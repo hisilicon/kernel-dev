@@ -28,6 +28,8 @@ struct wd_drv_dio_if {
 	char *hw_type;
 	int (*open)(struct wd_queue *q);
 	int (*close)(struct wd_queue *q);
+	int (*set_pasid)(struct wd_queue *q);
+	int (*unset_pasid)(struct wd_queue *q);
 	int (*send)(struct wd_queue *q, void *req);
 	int (*recv)(struct wd_queue *q, void **req);
 	void (*flush)(struct wd_queue *q);
@@ -38,6 +40,8 @@ struct wd_drv_dio_if {
 
 extern int drv_open(struct wd_queue *q);
 extern int drv_close(struct wd_queue *q);
+extern void drv_set_pasid(struct wd_queue *q);
+extern void drv_unset_pasid(struct wd_queue *q);
 extern int drv_send(struct wd_queue *q, void *req);
 extern int drv_recv(struct wd_queue *q, void **req);
 extern void drv_flush(struct wd_queue *q);

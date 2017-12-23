@@ -575,7 +575,7 @@ void wd_release_queue(struct wd_queue *q)
 	_destroy_algo_mdev(q);
 }
 
-static int _wd_mem_share_type1(int container, const void *addr,
+static int _wd_mem_share_type1(struct wd_queue *q, const void *addr,
 				size_t size, int flags)
 {
 	struct vfio_iommu_type1_dma_map dma_map;
@@ -585,20 +585,28 @@ static int _wd_mem_share_type1(int container, const void *addr,
 	dma_map.iova = (__u64)addr;
 	dma_map.flags =
 		VFIO_DMA_MAP_FLAG_READ | VFIO_DMA_MAP_FLAG_WRITE | flags;
+	if (flags & WD_MULTIPLE_PROC_DMA_MAP)
+		dma_map.pasid = q->pasid;
 	dma_map.argsz = sizeof(dma_map);
 
-	return ioctl(container, VFIO_IOMMU_MAP_DMA, &dma_map);
+	return ioctl(q->container, VFIO_IOMMU_MAP_DMA, &dma_map);
 }
 
-static void _wd_mem_unshare_type1(int container, const void *addr, size_t size)
+static void _wd_mem_unshare_type1(struct wd_queue *q, const void *addr, size_t size)
 {
 	struct vfio_iommu_type1_dma_unmap dma_unmap;
 
 	dma_unmap.iova = (__u64)addr;
-	dma_unmap.flags = 0;
+	if (q->pasid > 0) {
+		dma_unmap.pasid = q->pasid;
+		dma_unmap.flags = VFIO_DMA_UNMAP_FLAG_PASID;
+	} else {
+		dma_unmap.pasid = 0;
+		dma_unmap.flags = 0;
+	}
 	dma_unmap.size = size;
 	dma_unmap.argsz = sizeof(dma_unmap);
-	ioctl(container, VFIO_IOMMU_UNMAP_DMA, &dma_unmap);
+	ioctl(q->container, VFIO_IOMMU_UNMAP_DMA, &dma_unmap);
 }
 
 int wd_mem_share(struct wd_queue *q, const void *addr, size_t size, int flags)
@@ -606,7 +614,7 @@ int wd_mem_share(struct wd_queue *q, const void *addr, size_t size, int flags)
 	if (drv_can_do_mem_share(q))
 		return drv_share(q, addr, size, flags);
 	else
-		return _wd_mem_share_type1(q->container, addr, size, flags);
+		return _wd_mem_share_type1(q, addr, size, flags);
 }
 
 void wd_mem_unshare(struct wd_queue *q, const void *addr, size_t size)
@@ -614,5 +622,39 @@ void wd_mem_unshare(struct wd_queue *q, const void *addr, size_t size)
 	if (drv_can_do_mem_share(q))
 		drv_unshare(q, addr, size);
 	else
-		_wd_mem_unshare_type1(q->container, addr, size);
+		_wd_mem_unshare_type1(q, addr, size);
+}
+
+int wd_set_pasid(struct wd_queue *q)
+{
+	struct bind_data {
+		struct vfio_iommu_type1_bind_process data;
+		struct vfio_iommu_type1_bind bind;
+	} wd_bind;
+	int ret;
+
+	wd_bind.bind.mode = VFIO_IOMMU_ATTACH_PROCESS;
+	wd_bind.bind.argsz = sizeof(wd_bind);
+	ret = ioctl(q->container, VFIO_IOMMU_ATTACH, &wd_bind);
+	if (ret)
+		return ret;
+	q->pasid = wd_bind.data.pasid;
+	drv_set_pasid(q);
+
+	return ret;
+}
+
+int wd_unset_pasid(struct wd_queue *q)
+{
+	struct bind_data {
+		struct vfio_iommu_type1_bind_process data;
+		struct vfio_iommu_type1_bind bind;
+	} wd_bind;
+
+	wd_bind.bind.mode = VFIO_IOMMU_ATTACH_PROCESS;
+	wd_bind.data.pasid = q->pasid;
+	wd_bind.bind.argsz = sizeof(wd_bind);
+	drv_unset_pasid(q);
+
+	return ioctl(q->container, VFIO_IOMMU_DETACH, &wd_bind);
 }

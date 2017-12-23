@@ -73,6 +73,7 @@ struct wd_capa {
 #define alloc_obj(objp) (objp = malloc(sizeof(*objp)))
 #define free_obj(objp) if (objp)free(objp)
 #define WD_ERR(format, args...) printf(format, ##args)
+#define WD_MULTIPLE_PROC_DMA_MAP VFIO_DMA_MAP_FLAG_PASID
 
 struct wd_queue {
 	char dev_name[WD_NAME_SIZE];
@@ -83,6 +84,7 @@ struct wd_queue {
 	int container;
 	int group;
 	int device;
+	int pasid;
 	void *alg_info;
 	//char dev_path[PATH_STR_SIZE];
 	char mdev_path[PATH_STR_SIZE];
