@@ -1662,6 +1662,8 @@ static void vfio_iommu_type1_release(void *iommu_data)
 {
 	struct vfio_iommu *iommu = iommu_data;
 	struct vfio_domain *domain, *domain_tmp;
+	struct vfio_process *process, *process_tmp;
+	struct vfio_group *group, *group_tmp;
 
 	if (iommu->external_domain) {
 		vfio_release_domain(iommu->external_domain, true);
@@ -1674,6 +1676,16 @@ static void vfio_iommu_type1_release(void *iommu_data)
 
 	list_for_each_entry_safe(domain, domain_tmp,
 				 &iommu->domain_list, next) {
+		list_for_each_entry_safe(process, process_tmp,
+				         &iommu->process_list, next) {
+			list_for_each_entry_safe(group, group_tmp,
+					         &domain->group_list, next)
+				iommu_sva_detach_group(group->iommu_group,
+						       process->pasid);
+			put_pid(process->pid);
+			list_del(&process->next);
+			kfree(process);
+		}
 		vfio_release_domain(domain, false);
 		list_del(&domain->next);
 		kfree(domain);
