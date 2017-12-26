@@ -104,6 +104,8 @@ extern int wd_recv_sync(struct wd_queue *q, void **resp, int ms);
 extern int wd_mem_share(struct wd_queue *q, const void *addr,
 			size_t size, int flags);
 extern void wd_mem_unshare(struct wd_queue *q, const void *addr, size_t size);
+extern int wd_set_pasid(struct wd_queue *q);
+extern int wd_unset_pasid(struct wd_queue *q);
 
 /* for debug only */
 extern int wd_dump_all_algos(void);
