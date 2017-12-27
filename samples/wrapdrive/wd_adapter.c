@@ -14,6 +14,7 @@
 #include "wd_adapter.h"
 #include "./drv/hisi_sec_udrv_v1.h"
 #include "./drv/dummy_drv.h"
+#include "./drv/hisi_zip_udrv.h"
 
 static struct wd_drv_dio_if hw_dio_tbl[] = { {
 		.hw_type = HISI_SEC_DRV_NAME,
@@ -31,6 +32,16 @@ static struct wd_drv_dio_if hw_dio_tbl[] = { {
 		.close = dummy_unset_queue_dio,
 		.send = dummy_add_to_dio_q,
 		.recv = dummy_get_from_dio_q,
+	}, {
+		.hw_type = "hisi_zip",
+		.open = hisi_zip_set_queue_dio,
+		.close = hisi_zip_unset_queue_dio,
+		.send = hisi_zip_add_to_dio_q,
+		.recv = hisi_zip_get_from_dio_q,
+		.share = NULL,
+		.unshare = NULL,
+                .set_pasid = NULL,
+                .unset_pasid = NULL,
 	},
 
 	/* Add other drivers direct IO operations here */

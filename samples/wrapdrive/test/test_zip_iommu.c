@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
 	a = mmap(0, ASIZE,
 		 PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
 	memset(a, 0, ASIZE);
-	ret = wd_mem_share(&q, a, ASIZE, 0, pasid);
+	ret = wd_mem_share(&q, a, ASIZE, 0);
 	SYS_ERR_COND(ret, "wd_mem_share err\n");
 	printf("WD dma map VA=IOVA=%p successfully!\n", a);
 
