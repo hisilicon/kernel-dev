@@ -262,8 +262,8 @@ static int hisi_zip_init_zip(struct hisi_zip *hisi_zip)
 	/* user domain configurations */
 	hisi_zip_write(hisi_zip, 0x40000070, HZIP_BD_RUSER_32_63);
 	hisi_zip_write(hisi_zip, 0x40001070, HZIP_SGL_RUSER_32_63);
-	hisi_zip_write(hisi_zip, 0x40001070, HZIP_DATA_RUSER_32_63);
-	hisi_zip_write(hisi_zip, 0x40001070, HZIP_DATA_WUSER_32_63);
+	hisi_zip_write(hisi_zip, 0x40001071, HZIP_DATA_RUSER_32_63);
+	hisi_zip_write(hisi_zip, 0x40001071, HZIP_DATA_WUSER_32_63);
 	hisi_zip_write(hisi_zip, 0x40000070, HZIP_BD_WUSER_32_63);
 
 	/* fsm count */	
