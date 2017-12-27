@@ -48,5 +48,7 @@ int hisi_zip_set_queue_dio(struct wd_queue *q);
 int hisi_zip_unset_queue_dio(struct wd_queue *q);
 int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req);
 int hisi_zip_get_from_dio_q(struct wd_queue *q, void **resp);
+int hisi_zip_set_pasid(struct wd_queue *q);
+int hisi_zip_unset_pasid(struct wd_queue *q);
 
 #endif

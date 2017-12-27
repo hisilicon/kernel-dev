@@ -147,3 +147,29 @@ int hisi_zip_get_from_dio_q(struct wd_queue *q, void **resp)
 {
 	return 0;
 }
+
+int hisi_zip_set_pasid(struct wd_queue *q)
+{
+        int ret;
+
+	ret = ioctl(q->device, HACC_QM_SET_PASID, q->pasid);
+        if (ret == -1) {
+		printf("HACC_QM_SET_PASID ioctl fail!\n");
+                return -1;
+        }
+
+	return 0;
+}
+
+int hisi_zip_unset_pasid(struct wd_queue *q)
+{
+        int ret;
+
+	ret = ioctl(q->device, HACC_QM_SET_PASID, 0);
+        if (ret == -1) {
+		printf("HACC_QM_SET_PASID(unset) ioctl fail!\n");
+                return -1;
+        }
+
+	return 0;
+}

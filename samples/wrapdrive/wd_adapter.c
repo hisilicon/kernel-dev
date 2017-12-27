@@ -40,8 +40,8 @@ static struct wd_drv_dio_if hw_dio_tbl[] = { {
 		.recv = hisi_zip_get_from_dio_q,
 		.share = NULL,
 		.unshare = NULL,
-                .set_pasid = NULL,
-                .unset_pasid = NULL,
+                .set_pasid = hisi_zip_set_pasid,
+                .unset_pasid = hisi_zip_unset_pasid,
 	},
 
 	/* Add other drivers direct IO operations here */
