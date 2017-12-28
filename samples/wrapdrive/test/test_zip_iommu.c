@@ -99,13 +99,17 @@ int main(int argc, char *argv[])
 	FILE *fp;
 	/* add your pasid here */
 	unsigned long pasid = 0;
-
+	
+	memset(&q, 0, sizeof(q));
+	memset(&capa, 0, sizeof(capa));
 	capa.alg = "zlib";
 	capa.throughput = 10;
 	capa.latency = 10;
 
 	ret = wd_request_queue(&q, &capa);
 	SYS_ERR_COND(ret, "wd_request_queue");
+	ret = wd_set_pasid(&q);
+	SYS_ERR_COND(ret, "wd_set_pasid");
 
 	/* Allocate some space and setup a DMA mapping */
 	a = mmap(0, ASIZE,
@@ -155,6 +159,10 @@ int main(int argc, char *argv[])
 	free(msg);
 	wd_mem_unshare(&q, a, ASIZE);
 	munmap(a, ASIZE);
+
+	ret = wd_unset_pasid(&q);
+	SYS_ERR_COND(ret, "wd_unset_pasid");
+
 	wd_release_queue(&q);
 
 	return EXIT_SUCCESS;
