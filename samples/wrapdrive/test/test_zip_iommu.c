@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
 	FILE *fp;
 	/* add your pasid here */
 	unsigned long pasid = 0;
-	
+
 	memset(&q, 0, sizeof(q));
 	memset(&capa, 0, sizeof(capa));
 	capa.alg = "zlib";

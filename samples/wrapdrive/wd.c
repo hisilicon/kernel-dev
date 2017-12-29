@@ -628,8 +628,8 @@ void wd_mem_unshare(struct wd_queue *q, const void *addr, size_t size)
 int wd_set_pasid(struct wd_queue *q)
 {
 	struct bind_data {
-		struct vfio_iommu_type1_bind_process data;
 		struct vfio_iommu_type1_bind bind;
+		struct vfio_iommu_type1_bind_process data;
 	} wd_bind;
 	int ret;
 
@@ -647,8 +647,8 @@ int wd_set_pasid(struct wd_queue *q)
 int wd_unset_pasid(struct wd_queue *q)
 {
 	struct bind_data {
-		struct vfio_iommu_type1_bind_process data;
 		struct vfio_iommu_type1_bind bind;
+		struct vfio_iommu_type1_bind_process data;
 	} wd_bind;
 
 	wd_bind.bind.mode = VFIO_IOMMU_ATTACH_PROCESS;
