@@ -653,6 +653,7 @@ int wd_unset_pasid(struct wd_queue *q)
 
 	wd_bind.bind.mode = VFIO_IOMMU_ATTACH_PROCESS;
 	wd_bind.data.pasid = q->pasid;
+	wd_bind.data.flags = 0;
 	wd_bind.bind.argsz = sizeof(wd_bind);
 	drv_unset_pasid(q);
 

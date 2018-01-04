@@ -2533,8 +2533,10 @@ static int arm_smmu_mm_attach(struct iommu_domain *domain, struct device *dev,
 	if (smmu_domain->stage != ARM_SMMU_DOMAIN_S1)
 		return -EINVAL;
 
+#if 0
 	if (!(master->smmu->features & ARM_SMMU_FEAT_SVM))
 		return -ENODEV;
+#endif
 
 	/* TODO: io_mm->no_pasid */
 	if (io_mm->pasid >= (1 << master->ssid_bits))

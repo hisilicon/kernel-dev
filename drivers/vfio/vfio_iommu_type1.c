@@ -91,6 +91,7 @@ struct vfio_dma {
 
 struct vfio_group {
 	struct iommu_group	*iommu_group;
+	struct iommu_group	*parent_group;
 	struct list_head	next;
 };
 
@@ -1258,8 +1259,8 @@ static bool vfio_iommu_has_sw_msi(struct iommu_group *group, phys_addr_t *base)
 
 static int vfio_mdev_type(struct device *dev, void *data)
 {
-	struct iommu_domain **domain = data;
-	struct iommu_domain *pdomain;
+	struct iommu_group **group = data;
+	struct iommu_group *pgroup;
 	int ret = 0;
 	struct device *(*mdev_parent)(struct mdev_device *mdev);
 	struct mdev_device *(*dev_to_mdev)(struct device *dev);
@@ -1287,13 +1288,15 @@ static int vfio_mdev_type(struct device *dev, void *data)
 		ret = -ENODEV;
 		goto get_exit;
 	}
-	pdomain = iommu_get_domain_for_dev(pdev);
-	if (*domain && *domain != pdomain) {
+	pgroup = iommu_group_get(pdev);
+	if (*group && *group != pgroup) {
+		iommu_group_put(pgroup);
 		pr_err("Bus of devs in this group is not matching!\n");
 		ret = -ENODEV;
 		goto get_exit;
 	}
-	*domain = pdomain;
+	*group = pgroup;
+	iommu_group_put(pgroup);
 get_exit:
 	symbol_put(mdev_parent_dev);
 	symbol_put(mdev_from_dev);
@@ -1310,7 +1313,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	int ret;
 	bool resv_msi, msi_remap;
 	phys_addr_t resv_msi_base;
-	struct iommu_domain *pdomain;
+	struct iommu_group *pgroup;
 
 	mutex_lock(&iommu->lock);
 
@@ -1347,13 +1350,14 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	if (mdev_bus) {
 		if ((bus == mdev_bus) && !iommu_present(bus)) {
 			symbol_put(mdev_bus_type);
-			pdomain = NULL;
-			ret = iommu_group_for_each_dev(iommu_group, &pdomain,
+			pgroup = NULL;
+			ret = iommu_group_for_each_dev(iommu_group, &pgroup,
 						vfio_mdev_type);
 			if (ret < 0)
 				goto out_free;
 			else if (!ret) {
-				domain->domain = pdomain;
+				domain->domain = iommu_group_default_domain(pgroup);
+				group->parent_group = pgroup;
 				INIT_LIST_HEAD(&domain->group_list);
 				list_add(&group->next, &domain->group_list);
 				list_add(&domain->next, &iommu->domain_list);
@@ -1544,7 +1548,7 @@ static void vfio_iommu_type1_detach_group(void *iommu_data,
 	struct vfio_iommu *iommu = iommu_data;
 	struct vfio_domain *domain;
 	struct vfio_group *group;
-	struct iommu_domain *pdomain;
+	struct iommu_domain *pgroup;
 	int ret;
 
 	mutex_lock(&iommu->lock);
@@ -1572,8 +1576,8 @@ static void vfio_iommu_type1_detach_group(void *iommu_data,
 		group = find_iommu_group(domain, iommu_group);
 		if (!group)
 			continue;
-		pdomain = NULL;
-		ret = iommu_group_for_each_dev(iommu_group, &pdomain,
+		pgroup = NULL;
+		ret = iommu_group_for_each_dev(iommu_group, &pgroup,
 						vfio_mdev_type);
 		if (!ret) {
 			list_del(&group->next);
@@ -2040,7 +2044,7 @@ static long vfio_iommu_type1_attach_process(struct vfio_iommu *iommu,
 		list_for_each_entry(group, &domain->group_list, next) {
 
 			/* After this attach, all the page tables should be created */
-			ret = iommu_sva_attach_group(group->iommu_group, mm,
+			ret = iommu_sva_attach_group(group->parent_group, mm,
 						     &params.pasid, 0);
 			if (ret)
 				break;
@@ -2099,7 +2103,7 @@ static long vfio_iommu_type1_detach_process(struct vfio_iommu *iommu,
 
 		list_for_each_entry(domain, &iommu->domain_list, next)
 			list_for_each_entry(group, &domain->group_list, next)
-				iommu_sva_detach_group(group->iommu_group,
+				iommu_sva_detach_group(group->parent_group,
 						       process->pasid);
 
 		put_pid(process->pid);
@@ -2213,7 +2217,8 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 	} else if (cmd == VFIO_IOMMU_MAP_DMA) {
 		struct vfio_iommu_type1_dma_map map;
 		uint32_t mask = VFIO_DMA_MAP_FLAG_READ |
-				VFIO_DMA_MAP_FLAG_WRITE;
+				VFIO_DMA_MAP_FLAG_WRITE |
+				VFIO_DMA_MAP_FLAG_PASID;
 
 		minsz = offsetofend(struct vfio_iommu_type1_dma_map, size);
 

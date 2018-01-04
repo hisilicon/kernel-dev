@@ -149,7 +149,6 @@ static int hisi_zip_sqe_handler(struct qm_info *qm_info, char *cqe)
 
 static int hisi_zip_init_qm(struct hisi_zip *hisi_zip)
 {
-	pr_err("in %s\n", __FUNCTION__);
 	u64 tmp = 0;
 	u64 i;
 	u32 val;
@@ -178,7 +177,6 @@ static int hisi_zip_init_qm(struct hisi_zip *hisi_zip)
 
 	/* fix: init sq number for each pf and vf */
 	hisi_zip_check(hisi_zip, QM_VFT_CFG_RDY, 0);
-//	for (i = 0; i <= HZIP_VF_NUM; i++) {	
 	for (i = 0; i <= 0; i++) {	
 		hisi_zip_write(hisi_zip, 0x0, QM_VFT_CFG_OP_WR);
 		hisi_zip_write(hisi_zip, QM_SQC_VFT, QM_VFT_CFG_TYPE);
@@ -192,9 +190,6 @@ static int hisi_zip_init_qm(struct hisi_zip *hisi_zip)
 		      QM_SQC_VFT_VALID			|
 		      i * HZIP_FUN_QUEUE_NUM << QM_SQC_VFT_START_SQN_SHIFT;
 
-		pr_err("in sq %llx\n", tmp);
-		pr_err("in sl %llx\n", tmp & 0xffffffff);
-		pr_err("in sh %llx\n", tmp >> 32);
 
 		hisi_zip_write(hisi_zip, tmp & 0xffffffff, QM_VFT_CFG_DATA_L);
 		hisi_zip_write(hisi_zip, tmp >> 32, QM_VFT_CFG_DATA_H);
@@ -213,9 +208,7 @@ static int hisi_zip_init_qm(struct hisi_zip *hisi_zip)
 		hisi_zip_write(hisi_zip, i, QM_VFT_CFG_ADDRESS);
 		
 		tmp = hisi_zip_read(hisi_zip, QM_VFT_CFG_DATA_L);
-		pr_err("dump sqc vftl: %llx\n", tmp);
 		tmp = hisi_zip_read(hisi_zip, QM_VFT_CFG_DATA_H);
-		pr_err("dump sqc vfth: %llx\n", tmp);
 
 		hisi_zip_write(hisi_zip, 0x0, QM_VFT_CFG_RDY);
 		hisi_zip_write(hisi_zip, 0x1, QM_VFT_CFG_OP_ENABLE);
@@ -225,7 +218,6 @@ static int hisi_zip_init_qm(struct hisi_zip *hisi_zip)
 	tmp = 0;
 
 	/* fix: init cq number for each pf and vf */
-//	for (i = 0; i <= HZIP_VF_NUM; i++) {	
 	for (i = 0; i <= 0; i++) {	
 		hisi_zip_write(hisi_zip, 0x0, QM_VFT_CFG_OP_WR);
 		hisi_zip_write(hisi_zip, QM_CQC_VFT, QM_VFT_CFG_TYPE);
@@ -237,7 +229,6 @@ static int hisi_zip_init_qm(struct hisi_zip *hisi_zip)
 		      i << QM_CQC_VFT_BT_INDEX_SHIFT	|
 		      QM_CQC_VFT_VALID;
 
-		pr_err("in cq %llx\n", tmp);
 
 		hisi_zip_write(hisi_zip, tmp & 0xffffffff, QM_VFT_CFG_DATA_L);
 		hisi_zip_write(hisi_zip, tmp >> 32, QM_VFT_CFG_DATA_H);
@@ -252,7 +243,6 @@ static int hisi_zip_init_qm(struct hisi_zip *hisi_zip)
 
 static int hisi_zip_init_zip(struct hisi_zip *hisi_zip)
 {
-	pr_err("in %s\n", __FUNCTION__);
 	/* to do: init zip user domain and cache */
 	/* cache */
 	hisi_zip_write(hisi_zip, 0xffffffff, HZIP_PORT_ARCA_CHE_0);
@@ -324,9 +314,6 @@ static int hisi_zip_init_queue(struct hisi_zip *hisi_zip)
 	unsigned long sqc_bt;
 	hacc_mb(qm, MAILBOX_CMD_SQC_BT, virt_to_phys(&sqc_bt),
 		0, 1, 0);
-	pr_err("in %s: sqc_btl: %lx\n", __FUNCTION__, hisi_zip_read(hisi_zip, MAILBOX_CMD_SEND_BASE + 4)
-);
-	pr_err("in %s: sqc_bth: %lx\n", __FUNCTION__, hisi_zip_read(hisi_zip, MAILBOX_CMD_SEND_BASE + 8));
 
 	/* Init cqc_bt */
 	qm->cqc_cache = kzalloc(QM_CQC_SIZE * HZIP_FUN_QUEUE_NUM, GFP_KERNEL);
@@ -694,7 +681,6 @@ static int hzip_mmap(struct wd_queue *q, struct vm_area_struct *vma)
 	unsigned long size = HZIP_SQE_SIZE * SQ_DEPTH;
 	char *sq = qp->sq;
 
-	pr_err("in %s: sq base: %p\n", __FUNCTION__, sq);
 
 	vma->vm_flags |= (VM_IO | VM_LOCKED | VM_DONTEXPAND | VM_DONTDUMP);
 
@@ -730,7 +716,6 @@ static long hzip_ioctl(struct wd_queue *q, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	/* we can offer sq doorbell */
 	case HACC_QM_DB_SQ:
-		pr_err(" in db_sq\n");
 		if (copy_from_user(&qm_db, (void __user *)arg,
 				   sizeof(struct hacc_qm_db)))
 			return -EFAULT;
@@ -742,7 +727,6 @@ static long hzip_ioctl(struct wd_queue *q, unsigned int cmd, unsigned long arg)
 		break;
 	/* user to read the data in SQC cache */
 	case HACC_QM_MB_SQC:
-		pr_err(" in mb_sqc\n");
 		qm_sqc.sq_head_index = 0xffff & *((u32 *)qp->sqc);
 		qm_sqc.sq_tail_index = 0xffff & (*((u32 *)qp->sqc) >> 16);
 		qm_sqc.sqn = qp->queue_id;
@@ -751,7 +735,6 @@ static long hzip_ioctl(struct wd_queue *q, unsigned int cmd, unsigned long arg)
                         return -EFAULT;
 		break;
 	case HACC_QM_SET_PASID:
-		pr_err(" in mb_sqc_pasid\n");
 
 		*((u32 *)sqc + 5) &= 0xffff0000;
 		*((u32 *)sqc + 5) |= arg & 0xffff;

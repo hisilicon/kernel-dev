@@ -21,7 +21,7 @@
 #ifndef dma_addr_t
 #define dma_addr_t __u64
 #endif
-
+#include "../../include/uapi/linux/vfio.h"
 #include "../../drivers/crypto/hisilicon/wd/wd_usr_if.h"
 
 typedef int bool;

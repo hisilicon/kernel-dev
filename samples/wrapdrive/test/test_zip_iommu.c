@@ -86,7 +86,7 @@ static inline int check_result(void *result)
 
 	return 0;
 }
-
+#define COMP_FILE	"/root/compress_data"
 int main(int argc, char *argv[])
 {
 	struct wd_capa capa;
@@ -99,7 +99,17 @@ int main(int argc, char *argv[])
 	FILE *fp;
 	/* add your pasid here */
 	unsigned long pasid = 0;
+	int proc_tag;
+	char file[64];
 
+	if (argv[1])
+		proc_tag = strtoul(argv[1], NULL, 10);
+	else
+		proc_tag = 0;
+	if (proc_tag)
+		sprintf(file, COMP_FILE"%d", proc_tag);
+	else
+		sprintf(file, COMP_FILE);
 	memset(&q, 0, sizeof(q));
 	memset(&capa, 0, sizeof(capa));
 	capa.alg = "zlib";
@@ -110,12 +120,14 @@ int main(int argc, char *argv[])
 	SYS_ERR_COND(ret, "wd_request_queue");
 	ret = wd_set_pasid(&q);
 	SYS_ERR_COND(ret, "wd_set_pasid");
+	printf("\npasid=%d",q.pasid);
 
 	/* Allocate some space and setup a DMA mapping */
 	a = mmap(0, ASIZE,
 		 PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
 	memset(a, 0, ASIZE);
-	ret = wd_mem_share(&q, a, ASIZE, 0);
+	sleep(5);
+	ret = wd_mem_share(&q, a, ASIZE, WD_MULTIPLE_PROC_DMA_MAP);
 	SYS_ERR_COND(ret, "wd_mem_share err\n");
 	printf("WD dma map VA=IOVA=%p successfully!\n", a);
 
@@ -128,16 +140,17 @@ int main(int argc, char *argv[])
 	msg->src = (__u64)src;
 	msg->dst = (__u64)dst;
 	msg->size = 244;
+
 	/* now we only support pbuffer */
 	msg->aflags = 0;
-
+	sleep(5);
 	ret = wd_send(&q, msg); // fix me: input zlib info in second parameter.
 	SYS_ERR_COND(ret, "send fail(release queue should be done auto)\n");
-	
+	sleep(5);
 	ret = wd_recv_sync(&q, 0, 0); //fix me
 	SYS_ERR_COND(ret, "recv fail(release queue should be done auto)\n");
 	printf("here\n");
-	sleep(10);
+	sleep(5);
 
 	/* add zlib compress head and write head + compressed date to a file */
 	sq = ((struct hzip_queue_info *)q.priv)->sq_base;
@@ -145,17 +158,17 @@ int main(int argc, char *argv[])
 	printf("output_num: %d\n", output_num);
 	char zip_head[2] = {0x78, 0x9c};
 
-	fp = fopen("/root/compress_date", "wb");
+	fp = fopen(file, "wb");
 
 	fwrite(zip_head, 1, 2, fp);
 	fwrite(dst, 1, output_num, fp);
 
 	fclose(fp);
-
+#if 0
 	ret = check_result(dst);
 	if (ret)
 		printf("zlib fail!\n");
-
+#endif
 	free(msg);
 	wd_mem_unshare(&q, a, ASIZE);
 	munmap(a, ASIZE);
