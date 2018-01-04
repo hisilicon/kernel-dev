@@ -1257,7 +1257,7 @@ static bool vfio_iommu_has_sw_msi(struct iommu_group *group, phys_addr_t *base)
 	return ret;
 }
 
-static int vfio_mdev_type(struct device *dev, void *data)
+static int vfio_wdev_type(struct device *dev, void *data)
 {
 	struct iommu_group **group = data;
 	struct iommu_group *pgroup;
@@ -1352,7 +1352,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 			symbol_put(mdev_bus_type);
 			pgroup = NULL;
 			ret = iommu_group_for_each_dev(iommu_group, &pgroup,
-						vfio_mdev_type);
+						vfio_wdev_type);
 			if (ret < 0)
 				goto out_free;
 			else if (!ret) {
@@ -1578,7 +1578,7 @@ static void vfio_iommu_type1_detach_group(void *iommu_data,
 			continue;
 		pgroup = NULL;
 		ret = iommu_group_for_each_dev(iommu_group, &pgroup,
-						vfio_mdev_type);
+						vfio_wdev_type);
 		if (!ret) {
 			list_del(&group->next);
 			kfree(group);
