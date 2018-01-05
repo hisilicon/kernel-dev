@@ -130,19 +130,22 @@ static int _get_wd_dev_info(struct wd_dev_info *wd_info)
 		if (!strncmp(attr_file->d_name, WDPAN_NODE_ID,
 		     strlen(WDPAN_NODE_ID))) {
 			val = _get_attr_value(attr_path, WDPAN_NODE_ID);
-			wd_info->node_id = val;
+			if (val >= 0)
+				wd_info->node_id = val;
 			continue;
 		}
 		if (!strncmp(attr_file->d_name, WDPAN_IOMMU_TYPE,
 		     strlen(WDPAN_IOMMU_TYPE))) {
 			val = _get_attr_value(attr_path, WDPAN_IOMMU_TYPE);
-			wd_info->iommu_type = val;
+			if (val >= 0)
+				wd_info->iommu_type = val;
 			continue;
 		}
 		if (!strncmp(attr_file->d_name, WDPAN_DMA_FLAG,
 		     strlen(WDPAN_DMA_FLAG))) {
 			val = _get_attr_value(attr_path, WDPAN_DMA_FLAG);
-			wd_info->dma_flag = val;
+			if (val >= 0)
+				wd_info->dma_flag = val;
 			continue;
 		}
 	}

@@ -137,6 +137,7 @@ static struct attribute *wd_dev_attrs[] = {
 	&dev_attr_node_id.attr,
 	&dev_attr_priority.attr,
 	&dev_attr_iommu_type.attr,
+	&dev_attr_dma_flag.attr,
 	NULL,
 };
 
