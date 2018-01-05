@@ -11,7 +11,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include "../wd.h"
-#include "../wd_zip.h"
+#include "../wd_comp.h"
 #include "../drv/hisi_zip_udrv.h"
 
 #define ASIZE (4096)
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 {
 	struct wd_capa capa;
 	struct wd_queue q;
-	struct wd_zip_msg *msg;
+	struct wd_comp_msg *msg;
 	void *a, *src, *dst, *sq;
 	int ret;
 	int output_num;
@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
 	dst = (char *)a + 2048;
 	memcpy(src, zlib_test, 244);
 
-	msg = (struct wd_zip_msg *)malloc(sizeof(struct wd_zip_msg));
+	msg = (struct wd_comp_msg *)malloc(sizeof(struct wd_comp_msg));
 	msg->src = (__u64)src;
 	msg->dst = (__u64)dst;
 	msg->size = 244;

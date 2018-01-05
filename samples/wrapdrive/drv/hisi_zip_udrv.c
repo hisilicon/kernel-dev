@@ -13,7 +13,7 @@
 
 #include "./hisi_zip_udrv.h"
 #include "../wd_util.h"
-#include "../wd_zip.h"
+#include "../wd_comp.h"
 
 /* fix me */
 struct hisi_zip_q_priv {
@@ -56,7 +56,7 @@ int hisi_zip_unset_pasid(struct wd_queue *q)
 }
 
 /* user date: msg, sq date: info, sqe offet: i */
-static int hisi_zip_fill_sqe(struct wd_zip_msg *msg,
+static int hisi_zip_fill_sqe(struct wd_comp_msg *msg,
 			     struct hzip_queue_info *info, __u16 i)
 {
 	__u64 src = msg->src;
@@ -125,7 +125,7 @@ int hisi_zip_unset_queue_dio(struct wd_queue *q)
 int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 {
 	printf("in send\n");
-	struct wd_zip_msg *msg = (struct wd_zip_msg *)req;
+	struct wd_comp_msg *msg = (struct wd_comp_msg *)req;
 	struct hisi_acc_qm_db qm_db;
 	struct hisi_acc_qm_sqc qm_sqc;
 	int ret;
