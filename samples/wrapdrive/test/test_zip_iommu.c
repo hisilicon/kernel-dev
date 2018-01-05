@@ -97,8 +97,6 @@ int main(int argc, char *argv[])
 	int output_num;
 	int fd;
 	FILE *fp;
-	/* add your pasid here */
-	unsigned long pasid = 0;
 	int proc_tag;
 	char file[64];
 
@@ -118,8 +116,6 @@ int main(int argc, char *argv[])
 
 	ret = wd_request_queue(&q, &capa);
 	SYS_ERR_COND(ret, "wd_request_queue");
-	ret = wd_set_pasid(&q);
-	SYS_ERR_COND(ret, "wd_set_pasid");
 	printf("\npasid=%d",q.pasid);
 
 	/* Allocate some space and setup a DMA mapping */
@@ -172,10 +168,6 @@ int main(int argc, char *argv[])
 	free(msg);
 	wd_mem_unshare(&q, a, ASIZE);
 	munmap(a, ASIZE);
-
-	ret = wd_unset_pasid(&q);
-	SYS_ERR_COND(ret, "wd_unset_pasid");
-
 	wd_release_queue(&q);
 
 	return EXIT_SUCCESS;

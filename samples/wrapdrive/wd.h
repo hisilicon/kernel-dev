@@ -79,6 +79,7 @@ struct wd_queue {
 	char dev_name[WD_NAME_SIZE];
 	char *hw_type;
 	int hw_type_id;
+	int dma_flag;
 	struct wd_capa capa;
 	void *priv; /* private data used by the drv layer */
 	int container;
@@ -86,7 +87,6 @@ struct wd_queue {
 	int device;
 	int pasid;
 	void *alg_info;
-	//char dev_path[PATH_STR_SIZE];
 	char mdev_path[PATH_STR_SIZE];
 	char iommu_lpath[PATH_STR_SIZE];
 	char iommu_fpath[PATH_STR_SIZE];

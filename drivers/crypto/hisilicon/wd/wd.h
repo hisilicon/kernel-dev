@@ -102,6 +102,7 @@ struct wd_dev {
 	struct device cls_dev;
 	bool is_vf;
 	u32 iommu_type;
+	u32 dma_flag;
 	u32 dev_id;
 	void *priv;
 	int node_id;

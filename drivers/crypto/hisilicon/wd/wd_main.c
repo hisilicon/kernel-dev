@@ -119,6 +119,19 @@ static ssize_t iommu_type_show(struct device *dev,
 
 static DEVICE_ATTR_RO(iommu_type);
 
+static ssize_t dma_flag_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct wd_dev *wdev = dev->driver_data;
+
+	if (!wdev)
+		return -ENODEV;
+
+	return sprintf(buf, "%d\n", wdev->dma_flag);
+}
+
+static DEVICE_ATTR_RO(dma_flag);
+
 /* The following attributions will be showed in the parent device directory. */
 static struct attribute *wd_dev_attrs[] = {
 	&dev_attr_node_id.attr,

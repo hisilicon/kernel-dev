@@ -29,19 +29,42 @@ struct hisi_zip_q_priv {
 	struct hisi_zip_hw_queue_reg *reg;
 };
 
+int hisi_zip_set_pasid(struct wd_queue *q)
+{
+        int ret;
+
+	ret = ioctl(q->device, HACC_QM_SET_PASID, q->pasid);
+        if (ret == -1) {
+		printf("HACC_QM_SET_PASID ioctl fail!\n");
+                return -1;
+        }
+
+	return 0;
+}
+
+int hisi_zip_unset_pasid(struct wd_queue *q)
+{
+        int ret;
+
+	ret = ioctl(q->device, HACC_QM_SET_PASID, 0);
+        if (ret == -1) {
+		printf("HACC_QM_SET_PASID(unset) ioctl fail!\n");
+                return -1;
+        }
+
+	return 0;
+}
+
 /* user date: msg, sq date: info, sqe offet: i */
 static int hisi_zip_fill_sqe(struct wd_zip_msg *msg,
 			     struct hzip_queue_info *info, __u16 i)
 {
-	printf("in fill\n");
-
 	__u64 src = msg->src;
 	__u64 dst = msg->dst;
 	__u32 aflags = msg->aflags;
 	__u32 size = msg->size;
 	void *sqe = info->sq_base + HZIP_SQE_SIZE * i;
 
-	printf("in fill: sqe: %p\n", sqe);
 
 	*((__u32 *)sqe + 4) = size;   // input date length
 	*((__u32 *)sqe + 9) = 2; // request type 8bit
@@ -66,7 +89,6 @@ static int hisi_zip_fill_sqe(struct wd_zip_msg *msg,
 
 int hisi_zip_set_queue_dio(struct wd_queue *q)
 {
-	printf("begin open\n");
 	struct hzip_queue_info *info;
 	void *vaddr;
 
@@ -83,11 +105,10 @@ int hisi_zip_set_queue_dio(struct wd_queue *q)
 		return -EIO;
 
 	info->sq_base = vaddr;
-	printf("sq_base: %p\n", vaddr);
 
 	/* to do: get sq number ? */
 
-	return 0;
+	return hisi_zip_set_pasid(q);
 }
 
 int hisi_zip_unset_queue_dio(struct wd_queue *q)
@@ -98,7 +119,7 @@ int hisi_zip_unset_queue_dio(struct wd_queue *q)
 	free(info);
 	q->priv = NULL;
 
-	return 0;
+	return hisi_zip_unset_pasid(q);
 }
 
 int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
@@ -138,38 +159,10 @@ int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 		return -1;
 	}
 
-	printf("out send\n");
-
 	return 0;
 }
 
 int hisi_zip_get_from_dio_q(struct wd_queue *q, void **resp)
 {
-	return 0;
-}
-
-int hisi_zip_set_pasid(struct wd_queue *q)
-{
-        int ret;
-
-	ret = ioctl(q->device, HACC_QM_SET_PASID, q->pasid);
-        if (ret == -1) {
-		printf("HACC_QM_SET_PASID ioctl fail!\n");
-                return -1;
-        }
-
-	return 0;
-}
-
-int hisi_zip_unset_pasid(struct wd_queue *q)
-{
-        int ret;
-
-	ret = ioctl(q->device, HACC_QM_SET_PASID, 0);
-        if (ret == -1) {
-		printf("HACC_QM_SET_PASID(unset) ioctl fail!\n");
-                return -1;
-        }
-
 	return 0;
 }

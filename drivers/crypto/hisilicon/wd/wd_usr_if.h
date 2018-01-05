@@ -29,7 +29,23 @@
 #define WDPAN_PRIORITY		"priority"
 #define WDPAN_NODE_ID		"node_id"
 #define WDPAN_IOMMU_TYPE	"iommu_type"
+#define WDPAN_DMA_FLAG		"dma_flag"
 
+enum wd_dma_flags {
+	WD_DMA_INVALID = 0,
+
+	/* While IOMMU or device cannot support PASID */
+	WD_DMA_SINGLE_PROC_MAP = 1,
+
+	/* While IOMMU support PASID and device support PASID */
+	WD_DMA_MULTI_PROC_MAP = 2,
+
+	/* While IOMMU support SVM and device support page fault */
+	WD_DMA_SVM = 4,
+
+	/* While IOMMU support SVM but device cannot support page fault */
+	WD_DMA_SVM_NO_FAULT = 8,
+};
 
 /* Notes: The throughput and delay of queue as it doing the corresponding
  * algorithm.The standard value is based on mainstream X86 CPU throughput,

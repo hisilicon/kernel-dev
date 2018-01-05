@@ -35,6 +35,7 @@ struct wd_dev_info {
 	int node_id;
 	int priority;
 	int iommu_type;
+	int dma_flag;
 	char dev_root[PATH_STR_SIZE];
 	char name[WD_NAME_SIZE];
 	struct wd_algo_info *alg_list;
@@ -57,6 +58,41 @@ TAILQ_HEAD(wd_dev_list, wd_dev_info);
 static struct wd_dev_list wd_dev_cache_list =
 	TAILQ_HEAD_INITIALIZER(wd_dev_cache_list);
 
+
+static int _wd_alloc_pasid(struct wd_queue *q)
+{
+	struct bind_data {
+		struct vfio_iommu_type1_bind bind;
+		struct vfio_iommu_type1_bind_process data;
+	} wd_bind;
+	int ret;
+
+	wd_bind.bind.mode = VFIO_IOMMU_ATTACH_PROCESS;
+	wd_bind.bind.argsz = sizeof(wd_bind);
+	ret = ioctl(q->container, VFIO_IOMMU_ATTACH, &wd_bind);
+	if (ret)
+		return ret;
+	q->pasid = wd_bind.data.pasid;
+	//drv_set_pasid(q);
+
+	return ret;
+}
+
+static int _wd_free_pasid(struct wd_queue *q)
+{
+	struct bind_data {
+		struct vfio_iommu_type1_bind bind;
+		struct vfio_iommu_type1_bind_process data;
+	} wd_bind;
+
+	wd_bind.bind.mode = VFIO_IOMMU_ATTACH_PROCESS;
+	wd_bind.data.pasid = q->pasid;
+	wd_bind.data.flags = 0;
+	wd_bind.bind.argsz = sizeof(wd_bind);
+	//drv_unset_pasid(q);
+
+	return ioctl(q->container, VFIO_IOMMU_DETACH, &wd_bind);
+}
 
 static int _get_wd_dev_info(struct wd_dev_info *wd_info)
 {
@@ -101,6 +137,12 @@ static int _get_wd_dev_info(struct wd_dev_info *wd_info)
 		     strlen(WDPAN_IOMMU_TYPE))) {
 			val = _get_attr_value(attr_path, WDPAN_IOMMU_TYPE);
 			wd_info->iommu_type = val;
+			continue;
+		}
+		if (!strncmp(attr_file->d_name, WDPAN_DMA_FLAG,
+		     strlen(WDPAN_DMA_FLAG))) {
+			val = _get_attr_value(attr_path, WDPAN_DMA_FLAG);
+			wd_info->dma_flag = val;
 			continue;
 		}
 	}
@@ -461,6 +503,14 @@ static int _get_vfio_facility(struct wd_queue *q)
 		ret = q->device;
 		goto out_with_group;
 	}
+	if (q->dma_flag & WD_DMA_MULTI_PROC_MAP) {
+		ret = _wd_alloc_pasid(q);
+		if (ret) {
+			WD_ERR("VFIO fails to alloc pasid!\n");
+			goto out_with_group;
+
+		}
+	}
 
 	return 0;
 
@@ -473,6 +523,20 @@ out_with_container:
 
 static void _put_vfio_facility(struct wd_queue *q)
 {
+	int ret;
+
+	if (q->dma_flag & WD_DMA_MULTI_PROC_MAP) {
+		if (q->pasid <= 0) {
+			WD_ERR("Wd queue pasid err! pasid=%d\n", q->pasid);
+			return;
+		}
+		ret = _wd_free_pasid(q);
+		if (ret) {
+			WD_ERR("VFIO fails to free pasid!\n");
+			return;
+		}
+	}
+
 	assert(q->device > 0);
 	close(q->device);
 
@@ -625,37 +689,3 @@ void wd_mem_unshare(struct wd_queue *q, const void *addr, size_t size)
 		_wd_mem_unshare_type1(q, addr, size);
 }
 
-int wd_set_pasid(struct wd_queue *q)
-{
-	struct bind_data {
-		struct vfio_iommu_type1_bind bind;
-		struct vfio_iommu_type1_bind_process data;
-	} wd_bind;
-	int ret;
-
-	wd_bind.bind.mode = VFIO_IOMMU_ATTACH_PROCESS;
-	wd_bind.bind.argsz = sizeof(wd_bind);
-	ret = ioctl(q->container, VFIO_IOMMU_ATTACH, &wd_bind);
-	if (ret)
-		return ret;
-	q->pasid = wd_bind.data.pasid;
-	drv_set_pasid(q);
-
-	return ret;
-}
-
-int wd_unset_pasid(struct wd_queue *q)
-{
-	struct bind_data {
-		struct vfio_iommu_type1_bind bind;
-		struct vfio_iommu_type1_bind_process data;
-	} wd_bind;
-
-	wd_bind.bind.mode = VFIO_IOMMU_ATTACH_PROCESS;
-	wd_bind.data.pasid = q->pasid;
-	wd_bind.data.flags = 0;
-	wd_bind.bind.argsz = sizeof(wd_bind);
-	drv_unset_pasid(q);
-
-	return ioctl(q->container, VFIO_IOMMU_DETACH, &wd_bind);
-}
