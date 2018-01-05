@@ -55,8 +55,10 @@ static inline int _get_attr_value(const char *path, const char *attr_name)
 
 	(void)sprintf(attr_path, "%s/%s", path, attr_name);
 	fd = open(attr_path, O_RDONLY);
-	if (fd < 0)
+	if (fd < 0) {
+		WD_ERR("open %s fail\n", attr_path);
 		return fd;
+	}
 	memset(value, 0, PATH_STR_SIZE);
 	ret = read(fd, value, PATH_STR_SIZE);
 	if (ret > 0) {
@@ -65,6 +67,7 @@ static inline int _get_attr_value(const char *path, const char *attr_name)
 	}
 	close(fd);
 
+	WD_ERR("read nothing from %s\n", attr_path);
 	return ret;
 }
 
@@ -75,8 +78,10 @@ static inline int _set_attr_value(const char *path, const char *attr_name, char 
 
 	(void)sprintf(attr_path, "%s/%s",  path, attr_name);
 	fd = open(attr_path, O_WRONLY);
-	if (fd < 0)
+	if (fd < 0) {
+		WD_ERR("open %s fail\n", attr_path);
 		return fd;
+	}
 
 	ret = write(fd, value, PATH_STR_SIZE);
 	if (ret >= 0) {

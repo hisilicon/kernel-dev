@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
 
 	ret = wd_request_queue(&q, &capa);
 	SYS_ERR_COND(ret, "wd_request_queue");
-	printf("\npasid=%d",q.pasid);
+	printf("\npasid=%d, dma_flag=%d",q.pasid, q.dma_flag);
 
 	/* Allocate some space and setup a DMA mapping */
 	a = mmap(0, ASIZE,

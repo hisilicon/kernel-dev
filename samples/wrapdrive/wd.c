@@ -73,8 +73,6 @@ static int _wd_alloc_pasid(struct wd_queue *q)
 	if (ret)
 		return ret;
 	q->pasid = wd_bind.data.pasid;
-	//drv_set_pasid(q);
-
 	return ret;
 }
 
@@ -89,7 +87,6 @@ static int _wd_free_pasid(struct wd_queue *q)
 	wd_bind.data.pasid = q->pasid;
 	wd_bind.data.flags = 0;
 	wd_bind.bind.argsz = sizeof(wd_bind);
-	//drv_unset_pasid(q);
 
 	return ioctl(q->container, VFIO_IOMMU_DETACH, &wd_bind);
 }
@@ -506,6 +503,7 @@ static int _get_vfio_facility(struct wd_queue *q)
 		ret = q->device;
 		goto out_with_group;
 	}
+	q->dma_flag = ((struct wd_algo_info *)q->alg_info)->dinfo->dma_flag;
 	if (q->dma_flag & WD_DMA_MULTI_PROC_MAP) {
 		ret = _wd_alloc_pasid(q);
 		if (ret) {
