@@ -62,7 +62,7 @@ static int hisi_zip_fill_sqe(struct wd_comp_msg *msg,
 	__u64 src = msg->src;
 	__u64 dst = msg->dst;
 	__u32 aflags = msg->aflags;
-	__u32 size = msg->size;
+	__u32 size = msg->in_bytes;
 	void *sqe = info->sq_base + HZIP_SQE_SIZE * i;
 
 

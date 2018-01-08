@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
 		sprintf(file, COMP_FILE);
 	memset(&q, 0, sizeof(q));
 	memset(&capa, 0, sizeof(capa));
-	capa.alg = "zlib";
+	capa.alg = zlib;
 	capa.throughput = 10;
 	capa.latency = 10;
 
@@ -133,12 +133,14 @@ int main(int argc, char *argv[])
 	memcpy(src, zlib_test, 244);
 
 	msg = (struct wd_comp_msg *)malloc(sizeof(struct wd_comp_msg));
+	memset(msg, 0, sizeof(*msg));
+	msg->alg = zlib;
 	msg->src = (__u64)src;
 	msg->dst = (__u64)dst;
-	msg->size = 244;
+	msg->in_bytes = 244;
 
 	/* now we only support pbuffer */
-	msg->aflags = 0;
+	msg->aflags |= _WD_AATTR_IOVA;
 	sleep(5);
 	ret = wd_send(&q, msg); // fix me: input zlib info in second parameter.
 	SYS_ERR_COND(ret, "send fail(release queue should be done auto)\n");
