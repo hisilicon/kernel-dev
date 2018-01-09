@@ -30,6 +30,16 @@ enum wd_comp_flush {
 	WD_FINISH,
 };
 
+struct wd_comp_ctx_setup {
+	char  *alg;
+	__u32 win_size;
+	__u32 aflags;
+	__u8 op_type;
+	__u8 humm_type;
+	__u8 comp_lv;
+	__u8 file_type;
+};
+
 struct wd_comp_msg {
 
 	/* First 8 bytes of the message must indicate algorithm */
@@ -59,4 +69,10 @@ struct wd_comp_msg {
 	__u64 resv2;
 };
 
+void *wd_create_comp_ctx(struct wd_queue *q, struct wd_comp_ctx_setup *setup);
+
+int wd_do_comp(void *ctx, __u32 *cflush, char *in, int in_bytes,
+		         int *comsumed, char *out, int *out_bytes);
+
+void wd_del_comp_ctx(void *ctx);
 #endif
