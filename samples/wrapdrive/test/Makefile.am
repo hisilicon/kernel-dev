@@ -14,7 +14,7 @@ test_cipher_sync_SOURCES=test_cipher_common.h test_cipher_sync.c
 
 test_cipher_sync_LDADD=../.libs/libwd.a
 
-test_dummy_SOURCES=test_comp_iommu.c ../wd_comp.h
+test_comp_iommu_SOURCES=test_comp_iommu.c ../wd_comp.h
 
-test_dummy_LDADD=../.libs/libwd.a
+test_comp_iommu_LDADD=../.libs/libwd.a
 
