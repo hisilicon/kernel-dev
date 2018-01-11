@@ -109,7 +109,7 @@ MODULE_DEVICE_TABLE(pci, zip_dev_ids);
 
 static irqreturn_t hisi_zip_irq(int irq, void *data)
 {
-	pr_err("in %s\n", __FUNCTION__);
+//	pr_err("in %s\n", __FUNCTION__);
 	struct qm_info *qm_info = (struct qm_info *)data;
 	struct hisi_zip *hzip = qm_info->priv;
 	u32 int_source;
@@ -720,7 +720,7 @@ static long hzip_ioctl(struct wd_queue *q, unsigned int cmd, unsigned long arg)
 				   sizeof(struct hacc_qm_db)))
 			return -EFAULT;
 
-		dump_sqe(qp->sq + (qm_db.index - 1) * HZIP_SQE_SIZE);
+		//dump_sqe(qp->sq + (qm_db.index - 1) * HZIP_SQE_SIZE);
 
 		hacc_db(qm, qm_db.tag, qm_db.cmd, qm_db.index, qm_db.priority);
 		qp->status = HZIP_QUEUE_USING;

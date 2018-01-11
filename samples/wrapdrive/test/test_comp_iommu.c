@@ -128,8 +128,9 @@ int main(int argc, char *argv[])
 	printf("WD dma map VA=IOVA=%p successfully!\n", a);
 
 	src = a;
-	dst = (char *)a + (ASIZE/2);
-	memcpy(src, zlib_test, 244);
+	dst = (char *)a + (ASIZE / 2);
+	for (i = 0; i < 128; i++)
+		memcpy(src + i * 256, zlib_test, 244);
 	msg = malloc(sizeof(*msg));
 	if (!msg) {
 		printf("\nalloc msg fail!");

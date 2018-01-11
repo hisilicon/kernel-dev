@@ -83,8 +83,8 @@ int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue, bool op,
 int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 {
 	/* fix me: check input params */
-	pr_err("in %s: qn: %d, cmd: %d, index: %d, priority: %d", __FUNCTION__,
-			qn, cmd, index, priority);
+	//pr_err("in %s: qn: %d, cmd: %d, index: %d, priority: %d", __FUNCTION__,
+			//qn, cmd, index, priority);
 
 	void *base = qm->fun_base;
 	u64 doorbell = 0;
@@ -92,7 +92,7 @@ int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 	doorbell = (u64)qn | ((u64)cmd << 16);
 	doorbell |= ((u64)index | ((u64)priority << 16)) << 32;
 
-	pr_err("in %llx\n", doorbell);
+	//pr_err("in %llx\n", doorbell);
 
 	/* to do: start doorbell, fix me */
 	writeq(doorbell, base + DOORBELL_CMD_SEND_BASE);
@@ -102,7 +102,7 @@ int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 
 irqreturn_t hacc_irq_thread(int irq, void *data)
 {
-	pr_err("in %s\n", __FUNCTION__);
+	//pr_err("in %s\n", __FUNCTION__);
 
 	struct qm_info *qm_info = (struct qm_info *)data;
 	char *eqc = qm_info->eqc_cache;

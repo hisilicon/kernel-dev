@@ -74,7 +74,7 @@ static int hisi_zip_fill_sqe(struct wd_comp_msg *msg,
 	*((__u32 *)sqe + 19) = src >> 32;
 	*((__u32 *)sqe + 20) = dst & 0xffffffff;     // dst
 	*((__u32 *)sqe + 21) = dst >> 32;
-
+#if 0
 	printf("in fill: dump sqe:\n");
 	printf("         sqe base: %p\n", sqe);
 	printf("         sqe  [4]: %lx\n", *((__u32 *)sqe + 4));
@@ -83,7 +83,7 @@ static int hisi_zip_fill_sqe(struct wd_comp_msg *msg,
 	printf("         sqe [19]: %lx\n", *((__u32 *)sqe + 19));
 	printf("         sqe [20]: %lx\n", *((__u32 *)sqe + 20));
 	printf("         sqe [21]: %lx\n", *((__u32 *)sqe + 21));
-
+#endif
 	return 0;
 }
 
@@ -134,7 +134,7 @@ int hisi_zip_unset_queue_dio(struct wd_queue *q)
 
 int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 {
-	printf("in send\n");
+	//printf("in send\n");
 	struct wd_comp_msg *msg = (struct wd_comp_msg *)req;
 	struct hzip_queue_info *info = (struct hzip_queue_info *)q->priv;
 	struct hisi_acc_qm_db qm_db;
@@ -146,7 +146,7 @@ int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 	/* to do: fill sqe */
 	hisi_zip_fill_sqe(msg, q->priv, i);
 
-	printf("in send: tag: %d, cmd: %d, index: %d\n", info->sqn, DOORBELL_CMD_SQ, i);
+	//printf("in send: tag: %d, cmd: %d, index: %d\n", info->sqn, DOORBELL_CMD_SQ, i);
 
 	/* fill doorbell struct */
 	qm_db.tag = info->sqn;
