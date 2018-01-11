@@ -151,7 +151,7 @@ int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 	/* fill doorbell struct */
 	qm_db.tag = info->sqn;
 	qm_db.cmd = DOORBELL_CMD_SQ;
-	qm_db.index = i;
+	qm_db.index = ++i;
 	qm_db.priority = 0;
 
 	/* to do: ioctl to trigger sq doorbell */
@@ -161,7 +161,7 @@ int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 		return -1;
 	}
 
-        info->sq_tail_index = ++i;
+        info->sq_tail_index = i;
 
 	return 0;
 }
