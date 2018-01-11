@@ -14,7 +14,7 @@
 #include "../wd_comp.h"
 #include "../drv/hisi_zip_udrv.h"
 
-#define ASIZE (4096)
+#define ASIZE (16*4096)
 
 #define SYS_ERR_COND(cond, msg)		\
 do {					\
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
 	struct wd_queue q;
 	struct wd_comp_msg *msg;
 	void *a, *src, *dst, *sq;
-	int ret;
+	int ret, i;
 	int output_num;
 	int fd;
 	FILE *fp;
@@ -127,39 +127,40 @@ int main(int argc, char *argv[])
 	SYS_ERR_COND(ret, "wd_mem_share err\n");
 	printf("WD dma map VA=IOVA=%p successfully!\n", a);
 
-
 	src = a;
-	dst = (char *)a + 2048;
+	dst = (char *)a + (ASIZE/2);
 	memcpy(src, zlib_test, 244);
+	msg = malloc(sizeof(*msg));
+	if (!msg) {
+		printf("\nalloc msg fail!");
+		goto alloc_msg_fail;
+	}
+	memset((void *)msg, 0, sizeof(*msg));
+	for (i = 0; i < 128; i++) {
+		msg->alg = zlib;
+		msg->src = (__u64)src + i * 256;
+		msg->dst = (__u64)dst + i * 256;
+		msg->in_bytes = 244;
 
-	msg = (struct wd_comp_msg *)malloc(sizeof(struct wd_comp_msg));
-	memset(msg, 0, sizeof(*msg));
-	msg->alg = zlib;
-	msg->src = (__u64)src;
-	msg->dst = (__u64)dst;
-	msg->in_bytes = 244;
+		/* now we only support pbuffer */
+		msg->aflags |= _WD_AATTR_IOVA;
+		ret = wd_send(&q, msg);
+		SYS_ERR_COND(ret, "send fail(release queue should be done auto)\n");
+		sleep(1);
+		ret = wd_recv_sync(&q, 0, 0);
+		SYS_ERR_COND(ret, "recv fail(release queue should be done auto)\n");
 
-	/* now we only support pbuffer */
-	msg->aflags |= _WD_AATTR_IOVA;
-	sleep(5);
-	ret = wd_send(&q, msg); // fix me: input zlib info in second parameter.
-	SYS_ERR_COND(ret, "send fail(release queue should be done auto)\n");
-	sleep(5);
-	ret = wd_recv_sync(&q, 0, 0); //fix me
-	SYS_ERR_COND(ret, "recv fail(release queue should be done auto)\n");
-	printf("here\n");
-	sleep(5);
-
-	/* add zlib compress head and write head + compressed date to a file */
-	sq = ((struct hzip_queue_info *)q.priv)->sq_base;
-	output_num = *((__u32 *)sq + 1);
-	printf("output_num: %d\n", output_num);
+		/* add zlib compress head and write head + compressed date to a file */
+		sq = ((struct hzip_queue_info *)q.priv)->sq_base;
+		output_num = *((__u32 *)sq + 32 * i + 1);
+		printf("output_num: %d\n", output_num);
+	}
 	char zip_head[2] = {0x78, 0x9c};
 
 	fp = fopen(file, "wb");
 
 	fwrite(zip_head, 1, 2, fp);
-	fwrite(dst, 1, output_num, fp);
+	fwrite((char *)msg->dst, 1, output_num, fp);
 
 	fclose(fp);
 #if 0
@@ -168,6 +169,7 @@ int main(int argc, char *argv[])
 		printf("zlib fail!\n");
 #endif
 	free(msg);
+alloc_msg_fail:
 	wd_mem_unshare(&q, a, ASIZE);
 	munmap(a, ASIZE);
 	wd_release_queue(&q);
