@@ -90,7 +90,9 @@ static int hisi_zip_fill_sqe(struct wd_comp_msg *msg,
 int hisi_zip_set_queue_dio(struct wd_queue *q)
 {
 	struct hzip_queue_info *info;
+	struct hisi_acc_qm_sqc qm_sqc;
 	void *vaddr;
+        int ret;
 
 	info = malloc(sizeof(struct hzip_queue_info));
 	if (!info)
@@ -105,8 +107,16 @@ int hisi_zip_set_queue_dio(struct wd_queue *q)
 		return -EIO;
 
 	info->sq_base = vaddr;
+        info->sq_tail_index = 0;
 
-	/* to do: get sq number ? */
+	ret = ioctl(q->device, HACC_QM_MB_SQC, &qm_sqc);
+	if (ret == -1) {
+		printf("open erro: %s\n", strerror(errno));
+		printf("HACC_QM_MB_SQC ioctl fail!\n");
+		return -1;
+	}
+
+        info->sqn = qm_sqc.sqn;
 
 	return hisi_zip_set_pasid(q);
 }
@@ -126,30 +136,22 @@ int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 {
 	printf("in send\n");
 	struct wd_comp_msg *msg = (struct wd_comp_msg *)req;
+	struct hzip_queue_info *info = (struct hzip_queue_info *)q->priv;
 	struct hisi_acc_qm_db qm_db;
-	struct hisi_acc_qm_sqc qm_sqc;
 	int ret;
 	__u16 i;
 
-	/* to do: get sqc status now */
-	ret = ioctl(q->device, HACC_QM_MB_SQC, &qm_sqc);
-	if (ret == -1) {
-		printf("open erro: %s\n", strerror(errno));
-		printf("HACC_QM_MB_SQC ioctl fail!\n");
-		return -1;
-	}
-
-	i = qm_sqc.sq_tail_index;
+	i = info->sq_tail_index;
 
 	/* to do: fill sqe */
 	hisi_zip_fill_sqe(msg, q->priv, i);
 
-	printf("in send: tag: %d, cmd: %d, index: %d\n", qm_sqc.sqn, DOORBELL_CMD_SQ, i);
+	printf("in send: tag: %d, cmd: %d, index: %d\n", info->sqn, DOORBELL_CMD_SQ, i);
 
 	/* fill doorbell struct */
-	qm_db.tag = qm_sqc.sqn;
+	qm_db.tag = info->sqn;
 	qm_db.cmd = DOORBELL_CMD_SQ;
-	qm_db.index = ++i;
+	qm_db.index = i;
 	qm_db.priority = 0;
 
 	/* to do: ioctl to trigger sq doorbell */
@@ -158,6 +160,8 @@ int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 		printf("HACC_QM_DB_SQ ioctl fail!\n");
 		return -1;
 	}
+
+        info->sq_tail_index = ++i;
 
 	return 0;
 }

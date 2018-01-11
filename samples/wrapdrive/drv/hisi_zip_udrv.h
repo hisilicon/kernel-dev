@@ -19,6 +19,8 @@
 /* add as private date in wd_queue of user space */
 struct hzip_queue_info {
 	void *sq_base;
+        __u16 sq_tail_index;
+	__u16 sqn;
 };
 
 struct hisi_acc_qm_db {
