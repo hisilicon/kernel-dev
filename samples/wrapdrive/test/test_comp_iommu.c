@@ -119,8 +119,12 @@ int main(int argc, char *argv[])
 	printf("\npasid=%d, dma_flag=%d",q.pasid, q.dma_flag);
 
 	/* Allocate some space and setup a DMA mapping */
-	a = mmap(0, ASIZE,
-		 PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+	a = mmap((void *)0xffffa9001000, ASIZE,
+		 PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, 0, 0);
+	if (a != (void *)0xffffa9001000) {
+		printf("\nmmap fail!");
+		goto release_q;
+	}
 	memset(a, 0, ASIZE);
 	sleep(5);
 	ret = wd_mem_share(&q, a, ASIZE, WD_MULTIPLE_PROC_DMA_MAP);
@@ -128,19 +132,21 @@ int main(int argc, char *argv[])
 	printf("WD dma map VA=IOVA=%p successfully!\n", a);
 
 	src = a;
-	dst = (char *)a + (ASIZE / 2);
+	dst = (char *)a + (ASIZE/2);
+
 	for (i = 0; i < 128; i++)
 		memcpy(src + i * 256, zlib_test, 244);
+
 	msg = malloc(sizeof(*msg));
 	if (!msg) {
 		printf("\nalloc msg fail!");
 		goto alloc_msg_fail;
 	}
 	memset((void *)msg, 0, sizeof(*msg));
-	for (i = 0; i < 128; i++) {
+	for (i = 0; i < 1024; i++) {
 		msg->alg = zlib;
-		msg->src = (__u64)src + i * 256;
-		msg->dst = (__u64)dst + i * 256;
+		msg->src = (__u64)src + ( i % 128) * 256;
+		msg->dst = (__u64)dst + ( i % 128) * 256;
 		msg->in_bytes = 244;
 
 		/* now we only support pbuffer */
@@ -173,6 +179,7 @@ int main(int argc, char *argv[])
 alloc_msg_fail:
 	wd_mem_unshare(&q, a, ASIZE);
 	munmap(a, ASIZE);
+release_q:
 	wd_release_queue(&q);
 
 	return EXIT_SUCCESS;
