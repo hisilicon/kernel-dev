@@ -694,13 +694,15 @@ static int _wd_mem_share_type1(struct wd_queue *q, const void *addr,
 {
 	struct vfio_iommu_type1_dma_map dma_map;
 
+	if (flags & WD_SVM_NO_FAULT_PIN)
+		return mlock(addr, size);
+	else if (flags & WD_MULTIPLE_PROC_DMA_MAP)
+		dma_map.pasid = q->pasid;
 	dma_map.vaddr = (__u64)addr;
 	dma_map.size = size;
 	dma_map.iova = (__u64)addr;
 	dma_map.flags =
 		VFIO_DMA_MAP_FLAG_READ | VFIO_DMA_MAP_FLAG_WRITE | flags;
-	if (flags & WD_MULTIPLE_PROC_DMA_MAP)
-		dma_map.pasid = q->pasid;
 	dma_map.argsz = sizeof(dma_map);
 
 	return ioctl(q->container, VFIO_IOMMU_MAP_DMA, &dma_map);
@@ -710,6 +712,10 @@ static void _wd_mem_unshare_type1(struct wd_queue *q, const void *addr, size_t s
 {
 	struct vfio_iommu_type1_dma_unmap dma_unmap;
 
+	if (q->dma_flag & WD_DMA_SVM_NO_FAULT){
+		(void)munlock(addr, size);
+		return;
+	}
 	dma_unmap.iova = (__u64)addr;
 	if (q->pasid > 0) {
 		dma_unmap.pasid = q->pasid;

@@ -95,7 +95,6 @@ int main(int argc, char *argv[])
 	void *a, *src, *dst, *sq;
 	int ret, i;
 	int output_num;
-	int fd;
 	FILE *fp;
 	int proc_tag;
 	char file[64];

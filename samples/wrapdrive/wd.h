@@ -74,6 +74,7 @@ struct wd_capa {
 #define free_obj(objp) if (objp)free(objp)
 #define WD_ERR(format, args...) printf(format, ##args)
 #define WD_MULTIPLE_PROC_DMA_MAP VFIO_DMA_MAP_FLAG_PASID
+#define WD_SVM_NO_FAULT_PIN (VFIO_DMA_MAP_FLAG_PASID << 1)
 
 struct wd_queue {
 	char dev_name[WD_NAME_SIZE];
