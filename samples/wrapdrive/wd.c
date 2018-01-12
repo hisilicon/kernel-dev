@@ -91,6 +91,38 @@ static int _wd_free_pasid(struct wd_queue *q)
 	return ioctl(q->container, VFIO_IOMMU_DETACH, &wd_bind);
 }
 
+static int _wd_bind_process(struct wd_queue *q)
+{
+	struct bind_data {
+		struct vfio_iommu_type1_bind bind;
+		struct vfio_iommu_type1_bind_process data;
+	} wd_bind;
+	int ret;
+	wd_bind.data.flags = 0;
+	wd_bind.bind.mode = VFIO_IOMMU_BIND_PROCESS;
+	wd_bind.bind.argsz = sizeof(wd_bind);
+	ret = ioctl(q->container, VFIO_IOMMU_BIND, &wd_bind);
+	if (ret)
+		return ret;
+	q->pasid = wd_bind.data.pasid;
+	return ret;
+}
+
+static int _wd_unbind_process(struct wd_queue *q)
+{
+	struct bind_data {
+		struct vfio_iommu_type1_bind bind;
+		struct vfio_iommu_type1_bind_process data;
+	} wd_bind;
+
+	wd_bind.bind.mode = VFIO_IOMMU_BIND_PROCESS;
+	wd_bind.data.pasid = q->pasid;
+	wd_bind.data.flags = 0;
+	wd_bind.bind.argsz = sizeof(wd_bind);
+
+	return ioctl(q->container, VFIO_IOMMU_UNBIND, &wd_bind);
+}
+
 static int _get_wd_dev_info(struct wd_dev_info *wd_info)
 {
 	DIR *wdev;
@@ -511,6 +543,13 @@ static int _get_vfio_facility(struct wd_queue *q)
 			goto out_with_group;
 
 		}
+	} else if (q->dma_flag & WD_DMA_SVM_NO_FAULT) {
+		ret = _wd_bind_process(q);
+		if (ret) {
+			WD_ERR("VFIO fails to bind process!\n");
+			goto out_with_group;
+
+		}
 	}
 
 	return 0;
@@ -534,6 +573,16 @@ static void _put_vfio_facility(struct wd_queue *q)
 		ret = _wd_free_pasid(q);
 		if (ret) {
 			WD_ERR("VFIO fails to free pasid!\n");
+			return;
+		}
+	} else if (q->dma_flag & WD_DMA_SVM_NO_FAULT) {
+		if (q->pasid <= 0) {
+			WD_ERR("Wd queue pasid err! pasid=%d\n", q->pasid);
+			return;
+		}
+		ret = _wd_unbind_process(q);
+		if (ret) {
+			WD_ERR("VFIO fails to unbind process!\n");
 			return;
 		}
 	}
