@@ -1684,7 +1684,11 @@ static void vfio_iommu_type1_release(void *iommu_data)
 				         &iommu->process_list, next) {
 			list_for_each_entry_safe(group, group_tmp,
 					         &domain->group_list, next)
-				iommu_sva_detach_group(group->iommu_group,
+				if (group->parent_group)
+					iommu_sva_detach_group(group->parent_group,
+						       process->pasid);
+				else
+					iommu_sva_detach_group(group->iommu_group,
 						       process->pasid);
 			put_pid(process->pid);
 			list_del(&process->next);
@@ -1918,8 +1922,14 @@ static long vfio_iommu_type1_bind_process(struct vfio_iommu *iommu,
 
 	list_for_each_entry(domain, &iommu->domain_list, next) {
 		list_for_each_entry(group, &domain->group_list, next) {
-			ret = iommu_sva_bind_group(group->iommu_group, mm,
-						   &params.pasid, 0);
+			if (group->parent_group) {
+				ret = iommu_sva_bind_group(group->parent_group, mm,
+						     &params.pasid, 0);
+			}
+			else
+				ret = iommu_sva_bind_group(group->iommu_group, mm,
+						     &params.pasid, 0);
+
 			if (ret)
 				break;
 		}
@@ -1977,7 +1987,11 @@ static long vfio_iommu_type1_unbind_process(struct vfio_iommu *iommu,
 
 		list_for_each_entry(domain, &iommu->domain_list, next)
 			list_for_each_entry(group, &domain->group_list, next)
-				iommu_sva_unbind_group(group->iommu_group,
+				if (group->parent_group)
+					iommu_sva_unbind_group(group->parent_group,
+						       process->pasid);
+				else
+					iommu_sva_unbind_group(group->iommu_group,
 						       process->pasid);
 
 		put_pid(process->pid);
@@ -2044,8 +2058,13 @@ static long vfio_iommu_type1_attach_process(struct vfio_iommu *iommu,
 		list_for_each_entry(group, &domain->group_list, next) {
 
 			/* After this attach, all the page tables should be created */
-			ret = iommu_sva_attach_group(group->parent_group, mm,
+			if (group->parent_group)
+				ret = iommu_sva_attach_group(group->parent_group, mm,
 						     &params.pasid, 0);
+			else
+				ret = iommu_sva_attach_group(group->iommu_group, mm,
+						     &params.pasid, 0);
+
 			if (ret)
 				break;
 		}
@@ -2103,7 +2122,11 @@ static long vfio_iommu_type1_detach_process(struct vfio_iommu *iommu,
 
 		list_for_each_entry(domain, &iommu->domain_list, next)
 			list_for_each_entry(group, &domain->group_list, next)
-				iommu_sva_detach_group(group->parent_group,
+				if (group->parent_group)
+					iommu_sva_detach_group(group->parent_group,
+						       process->pasid);
+				else
+					iommu_sva_detach_group(group->iommu_group,
 						       process->pasid);
 
 		put_pid(process->pid);

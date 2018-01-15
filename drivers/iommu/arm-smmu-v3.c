@@ -2546,7 +2546,8 @@ static int arm_smmu_mm_attach(struct iommu_domain *domain, struct device *dev,
 	 * If want bind fault , master should also can_fault,
 	 * or driver/vfio should pin everything
 	 */
-	if (!(io_mm->flags & (IOMMU_SVA_BIND_NOFAULT | IOMMU_SVA_BIND_PRIVATE))
+	if (!(io_mm->flags & (IOMMU_SVA_BIND_NOFAULT | IOMMU_SVA_BIND_PRIVATE |
+	    IOMMU_SVA_BIND_SHARE))
 	    && !master->can_fault)
 		return -ENODEV;
 
