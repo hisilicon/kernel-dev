@@ -126,8 +126,7 @@ int main(int argc, char *argv[])
 	}
 	memset(a, 0, ASIZE);
 	sleep(5);
-	//ret = wd_mem_share(&q, a, ASIZE, WD_MULTIPLE_PROC_DMA_MAP);
-	ret = wd_mem_share(&q, a, ASIZE, WD_SVM_NO_FAULT_PIN);
+	ret = wd_mem_share(&q, a, ASIZE, 0);
 	SYS_ERR_COND(ret, "wd_mem_share err\n");
 	printf("WD dma map VA=IOVA=%p successfully!\n", a);
 

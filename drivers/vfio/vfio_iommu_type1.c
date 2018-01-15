@@ -797,8 +797,10 @@ static int vfio_dma_do_unmap(struct vfio_iommu *iommu,
 	if (unmap->iova + unmap->size < unmap->iova ||
 	    unmap->size > SIZE_MAX)
 		return -EINVAL;
-	if (unmap->flags & VFIO_DMA_UNMAP_FLAG_PASID)
+	if (unmap->pasid > 0)
 		pasid = unmap->pasid;
+	else
+		return -EINVAL;
 
 	WARN_ON(mask & PAGE_MASK);
 again:
@@ -1028,9 +1030,10 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 		prot |= IOMMU_WRITE;
 	if (map->flags & VFIO_DMA_MAP_FLAG_READ)
 		prot |= IOMMU_READ;
-	if (map->flags & VFIO_DMA_MAP_FLAG_PASID)
+	if (map->pasid > 0)
 		pasid = map->pasid;
-
+	else
+		return -EINVAL;
 	if (!prot || !size || (size | iova | vaddr) & mask)
 		return -EINVAL;
 
@@ -2240,8 +2243,7 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 	} else if (cmd == VFIO_IOMMU_MAP_DMA) {
 		struct vfio_iommu_type1_dma_map map;
 		uint32_t mask = VFIO_DMA_MAP_FLAG_READ |
-				VFIO_DMA_MAP_FLAG_WRITE |
-				VFIO_DMA_MAP_FLAG_PASID;
+				VFIO_DMA_MAP_FLAG_WRITE;
 
 		minsz = offsetofend(struct vfio_iommu_type1_dma_map, size);
 

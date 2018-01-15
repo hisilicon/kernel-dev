@@ -861,8 +861,8 @@ static int zip_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, wdev);
 
 	wdev->iommu_type = VFIO_TYPE1_IOMMU;
-	//wdev->dma_flag = WD_DMA_MULTI_PROC_MAP;
-	wdev->dma_flag = WD_DMA_SVM_NO_FAULT;
+	wdev->dma_flag = WD_DMA_MULTI_PROC_MAP;
+	//wdev->dma_flag = WD_DMA_SVM_NO_FAULT;
 	wdev->owner = THIS_MODULE;
 	wdev->name = hisi_zip_name;
 	wdev->dev = &pdev->dev;
