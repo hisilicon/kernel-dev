@@ -52,10 +52,12 @@ struct hzip_qp {
 	/* 128B x 1024 = 32 4k pages, will map this sq to user space */
 	char *sq;
 	char *sqc;
+	char *cqc;
 	/* all through cq is same for all QM based acc, here we still copy a
 	 * point of cq to indicate the cq in one zip function queue pair
 	 */
 	char *cq;
+	char *cqe;
 
 	enum hisi_zip_queue_status status;
 
@@ -541,6 +543,8 @@ static int hisi_zip_create_qp(struct hisi_zip *hisi_zip,
 	if (!vadd)
 		return -ENOMEM;
 	hisi_zip->qp[q_num].cq = vadd;
+	hisi_zip->qp[q_num].cqe = vadd;
+	hisi_zip->qp[q_num].cqc = cqc;
 
 	/* to fill cqc mb format */
 	((u32 *)cqc)[0] = 0 << CQ_HEAD_SHIFT | 0 << CQ_TAIL_SHIFI;
@@ -665,13 +669,13 @@ static int hzip_close_queue(struct wd_queue *q)
 static int hzip_is_q_updated(struct wd_queue *q)
 {
 	struct hzip_qp *qp = (struct hzip_qp *)q->priv;
-	/* to do: one q is updated, update related flag, here we check if
-	 * this flag is updated.
-	 *
-	 * user process will sleep to wait queue to updated.
-	 */
 
-	return (qp->status == HZIP_QUEUE_IDEL) ? 1 : 0;
+        if (CQE_PHASE(qp->cqe) == CQC_PHASE(qp->cqc)) {
+                qp->cqe += QM_CQE_SIZE;
+                return 1;
+        } else {
+                return 0;
+        }
 }
 
 /* map sq to user space. doorbell register also to user space? */
