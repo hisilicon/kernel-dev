@@ -69,6 +69,7 @@ struct hzip_qp {
 struct hisi_zip {
 	struct pci_dev *pdev;
 	void __iomem *io_base;
+        resource_size_t size;
 
 	struct qm_info *qm_info;
 	struct wd_dev *wdev;
@@ -684,6 +685,7 @@ static int hzip_mmap(struct wd_queue *q, struct vm_area_struct *vma)
 	struct hzip_qp *qp = (struct hzip_qp *)q->priv;
 	unsigned long size = HZIP_SQE_SIZE * SQ_DEPTH;
 	char *sq = qp->sq;
+        int ret;
 
 
 	vma->vm_flags |= (VM_IO | VM_LOCKED | VM_DONTEXPAND | VM_DONTDUMP);
@@ -692,8 +694,14 @@ static int hzip_mmap(struct wd_queue *q, struct vm_area_struct *vma)
 	if (vma->vm_pgoff != 0)
 		return -EINVAL;
 
-	return remap_pfn_range(vma, vma->vm_start, __pa(sq)>>PAGE_SHIFT,
-			       size, PAGE_SHARED);
+        ret = remap_pfn_range(vma, vma->vm_start, __pa(sq) >> PAGE_SHIFT,
+			      size, PAGE_SHARED);
+        if (ret < 0)
+                return ret;
+
+        return remap_pfn_range(vma, vma->vm_start + size,
+                               __pa(qp->hzip->io_base) >> PAGE_SHIFT,
+			       qp->hzip->size, PAGE_SHARED);
 }
 
 static void dump_sqe(void *sqe)
@@ -807,6 +815,7 @@ static int zip_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 		ret = -EIO;;
 		goto err_pci_reg;
 	}
+        hisi_zip->size = size;
 	hisi_zip->pdev = pdev;
         spin_lock_init(&hisi_zip->qp_lock);
 
