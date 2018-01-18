@@ -254,7 +254,7 @@ static void sec_alg_ablkcipher_com_init(struct sec_alg_ablkcipher_ctx *ctx,
 	req->c_width  = (alg >> 0)  & 0x3;
 	req->seq = SEC_SEQ_CIPHER_AUTH;
 	req->cipher_key_addr = ADDR_L(ctx->enc_pkey);
-	req->cipher_destin_addr_hi = ADDR_H(ctx->enc_pkey);
+	req->cipher_key_addr_hi = ADDR_H(ctx->enc_pkey);
 }
 
 static void sec_alg_ablkcipher_init_enc(struct sec_alg_ablkcipher_ctx *ctx,
