@@ -723,7 +723,7 @@ static long vfio_unmap_unpin(struct vfio_iommu *iommu, int pasid, struct vfio_dm
 		}
 
 		if (pasid > 0)
-			unmapped = iommu_sva_unmap(d->domain, iova, len, pasid);
+			unmapped = iommu_sva_unmap(domain->domain, iova, len, pasid);
 		else
 			unmapped = iommu_unmap(domain->domain, iova, len);
 		if (WARN_ON(!unmapped))

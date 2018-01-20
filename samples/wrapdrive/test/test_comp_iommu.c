@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
 		msg->aflags |= _WD_AATTR_IOVA;
 		ret = wd_send(&q, msg);
 		SYS_ERR_COND(ret, "send fail(release queue should be done auto)\n");
-		sleep(1);
+		usleep(10000);
 		ret = wd_recv_sync(&q, 0, 0);
 		SYS_ERR_COND(ret, "recv fail(release queue should be done auto)\n");
 
