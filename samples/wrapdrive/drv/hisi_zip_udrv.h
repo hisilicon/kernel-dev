@@ -15,18 +15,12 @@
 
 #define HZIP_SQE_SIZE		128
 #define QM_EQ_DEPTH		1024
-#define HZIP_BAR2_SIZE          (64 * 1024)
-
-#define HZIP_DOORBELL_OFFSET    0x340;
-
-#define DOORBELL_CMD_SQ			0
 
 /* add as private date in wd_queue of user space */
 struct hzip_queue_info {
 	void *sq_base;
         __u16 sq_tail_index;
 	__u16 sqn;
-        void *doorbell_base;
 };
 
 struct hisi_acc_qm_db {

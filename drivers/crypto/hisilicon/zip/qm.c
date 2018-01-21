@@ -71,8 +71,21 @@ int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue, bool op,
 	return 0;
 }
 
+/**
+ * hacc_db - Send HiSilicon accelarator doorbell command.
+ * @qm:
+ * @qn:
+ * @cmd:
+ * @index:
+ * @prority:
+ */
+/* we may remove db to user space */
 int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 {
+	/* fix me: check input params */
+	//pr_err("in %s: qn: %d, cmd: %d, index: %d, priority: %d", __FUNCTION__,
+			//qn, cmd, index, priority);
+
 	void *base = qm->fun_base;
 	u64 doorbell = 0;
 
