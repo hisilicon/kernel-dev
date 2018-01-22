@@ -50,5 +50,6 @@ struct hisi_acc_qm_sqc {
 #define HACC_QM_DB_SQ		_IOW('d', 0, unsigned long)
 #define HACC_QM_MB_SQC		_IOR('d', 1, struct hisi_acc_qm_sqc *)
 #define HACC_QM_SET_PASID	_IOW('d', 2, unsigned long)
+#define HACC_QM_DB_CQ		_IOW('d', 3, unsigned long)
 
 #endif

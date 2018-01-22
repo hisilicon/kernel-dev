@@ -755,6 +755,13 @@ static long hzip_ioctl(struct wd_queue *q, unsigned int cmd, unsigned long arg)
 
 		qp->status = HZIP_QUEUE_IDEL;
 		break;
+	case HACC_QM_DB_CQ:
+		if (copy_from_user(&qm_db, (void __user *)arg,
+				   sizeof(struct hacc_qm_db)))
+			return -EFAULT;
+
+		hacc_db(qm, qm_db.tag, qm_db.cmd, qm_db.index, qm_db.priority);
+		break;
 	default:
 		return -EINVAL;
 	}
