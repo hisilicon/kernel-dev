@@ -14,13 +14,22 @@
 #include "../wd.h"
 
 #define HZIP_SQE_SIZE		128
+#define QM_CQE_SIZE		16
 #define QM_EQ_DEPTH		1024
+
+/* cqe shift */
+#define CQE_PHASE(cq)			(((*((__u32 *)(cq) + 3)) >> 16) & 0x1)
+#define CQE_SQ_NUM(cq)			((*((__u32 *)(cq) + 2)) >> 16)
+#define CQE_SQ_HEAD_INDEX(cq)		((*((__u32 *)(cq) + 2)) & 0xffff)
 
 /* add as private date in wd_queue of user space */
 struct hzip_queue_info {
 	void *sq_base;
+	void *cq_base;
         __u16 sq_tail_index;
+        __u16 cq_head_index;
 	__u16 sqn;
+        bool cqc_phase;
 };
 
 struct hisi_acc_qm_db {
@@ -42,9 +51,11 @@ struct hisi_acc_qm_sqc {
 #define HACC_QM_DB_SQ		_IOW('d', 0, unsigned long)
 #define HACC_QM_MB_SQC		_IOR('d', 1, struct hisi_acc_qm_sqc *)
 #define HACC_QM_SET_PASID	_IOW('d', 2, unsigned long)
+#define HACC_QM_DB_CQ		_IOW('d', 3, unsigned long)
 
 /* fix me */
 #define DOORBELL_CMD_SQ 	0
+#define DOORBELL_CMD_CQ 	1
 
 int hisi_zip_set_queue_dio(struct wd_queue *q);
 int hisi_zip_unset_queue_dio(struct wd_queue *q);
