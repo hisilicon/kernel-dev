@@ -29,6 +29,21 @@ struct hisi_zip_q_priv {
 	struct hisi_zip_hw_queue_reg *reg;
 };
 
+int hacc_db(struct hzip_queue_info *q, __u8 cmd, __u16 index, __u8 priority)
+{
+	void *base = q->doorbell_base;
+        __u16 sqn = q->sqn;
+	__u64 doorbell = 0;
+
+	doorbell = (__u64)sqn | ((__u64)cmd << 16);
+	doorbell |= ((__u64)index | ((__u64)priority << 16)) << 32;
+
+        *((__u64 *)base) = doorbell;
+
+	return 0;
+}
+
+
 int hisi_zip_set_pasid(struct wd_queue *q)
 {
         int ret;
@@ -102,13 +117,15 @@ int hisi_zip_set_queue_dio(struct wd_queue *q)
 
 	/* mmap hisi zip sq and cq to user space */
 	vaddr = mmap(NULL,
-                     HZIP_SQE_SIZE * QM_EQ_DEPTH + QM_CQE_SIZE * QM_EQ_DEPTH,
+                     HZIP_SQE_SIZE * QM_EQ_DEPTH + QM_CQE_SIZE * QM_EQ_DEPTH + HZIP_BAR2_SIZE,
                      PROT_READ | PROT_WRITE, MAP_SHARED, q->device, 0);
 	if (vaddr == MAP_FAILED || vaddr == NULL)
 		return -EIO;
 
 	info->sq_base = vaddr;
 	info->cq_base = vaddr + HZIP_SQE_SIZE * QM_EQ_DEPTH;
+        info->doorbell_base = info->cq_base + QM_CQE_SIZE * QM_EQ_DEPTH +
+                              HZIP_DOORBELL_OFFSET;
         info->sq_tail_index = 0;
         info->cq_head_index = 0;
         info->cqc_phase = 1;
@@ -129,7 +146,8 @@ int hisi_zip_unset_queue_dio(struct wd_queue *q)
 {
 	struct hzip_queue_info *info = (struct hzip_queue_info *)q->priv;
 
-	munmap(info->sq_base, HZIP_SQE_SIZE * QM_EQ_DEPTH + QM_CQE_SIZE * QM_EQ_DEPTH);
+	munmap(info->sq_base, HZIP_SQE_SIZE * QM_EQ_DEPTH +
+               QM_CQE_SIZE * QM_EQ_DEPTH + HZIP_BAR2_SIZE);
 	free(info);
 	q->priv = NULL;
 
@@ -150,20 +168,7 @@ int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 	/* to do: fill sqe */
 	hisi_zip_fill_sqe(msg, q->priv, i);
 
-	//printf("in send: tag: %d, cmd: %d, index: %d\n", info->sqn, DOORBELL_CMD_SQ, i);
-
-	/* fill doorbell struct */
-	qm_db.tag = info->sqn;
-	qm_db.cmd = DOORBELL_CMD_SQ;
-	qm_db.index = ++i;
-	qm_db.priority = 0;
-
-	/* to do: ioctl to trigger sq doorbell */
-	ret = ioctl(q->device, HACC_QM_DB_SQ, &qm_db);
-	if (ret == -1) {
-		printf("HACC_QM_DB_SQ ioctl fail!\n");
-		return -1;
-	}
+        hacc_db(info, DOORBELL_CMD_SQ, ++i, 0);
 
         info->sq_tail_index = i;
 
@@ -194,17 +199,7 @@ int hisi_zip_get_from_dio_q(struct wd_queue *q, void **resp)
                 i++;
         }
 
-        qm_db.tag = info->sqn;
-        qm_db.cmd = DOORBELL_CMD_CQ;
-        qm_db.index = i;
-        qm_db.priority = 0;
-
-        /* ioctl to trigger cq doorbell */
-        ret = ioctl(q->device, HACC_QM_DB_CQ, &qm_db);
-        if (ret == -1) {
-                printf("HACC_QM_DB_CQ ioctl fail!\n");
-                return -1;
-        }
+        hacc_db(info, DOORBELL_CMD_CQ, i, 0);
 
         info->cq_head_index = i;
 
