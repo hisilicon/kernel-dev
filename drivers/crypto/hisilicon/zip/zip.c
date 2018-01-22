@@ -678,9 +678,11 @@ static int hzip_is_q_updated(struct wd_queue *q)
 static int hzip_mmap(struct wd_queue *q, struct vm_area_struct *vma)
 {
 	struct hzip_qp *qp = (struct hzip_qp *)q->priv;
-	unsigned long size = HZIP_SQE_SIZE * SQ_DEPTH;
+	unsigned long sq_size = HZIP_SQE_SIZE * SQ_DEPTH;
+	unsigned long cq_size = QM_CQE_SIZE * QM_EQ_DEPTH;
 	char *sq = qp->sq;
-
+	char *cq = qp->cq;
+        int ret;
 
 	vma->vm_flags |= (VM_IO | VM_LOCKED | VM_DONTEXPAND | VM_DONTDUMP);
 
@@ -688,8 +690,17 @@ static int hzip_mmap(struct wd_queue *q, struct vm_area_struct *vma)
 	if (vma->vm_pgoff != 0)
 		return -EINVAL;
 
-	return remap_pfn_range(vma, vma->vm_start, __pa(sq)>>PAGE_SHIFT,
-			       size, PAGE_SHARED);
+        /* map sq */
+        ret = remap_pfn_range(vma, vma->vm_start, __pa(sq) >> PAGE_SHIFT,
+			      sq_size, PAGE_SHARED);
+        if (ret < 0)
+                return ret;
+
+        /* map cq */
+        return remap_pfn_range(vma, vma->vm_start + sq_size,
+                               __pa(cq) >> PAGE_SHIFT,
+			       cq_size, PAGE_SHARED);
+
 }
 
 static void dump_sqe(void *sqe)
