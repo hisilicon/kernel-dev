@@ -86,6 +86,7 @@ struct wd_queue {
 	int device;
 	int pasid;
 	void *alg_info;
+	void *ctx;
 	char mdev_path[PATH_STR_SIZE];
 	char iommu_lpath[PATH_STR_SIZE];
 	char iommu_fpath[PATH_STR_SIZE];

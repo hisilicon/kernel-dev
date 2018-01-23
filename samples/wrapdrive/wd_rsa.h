@@ -1,0 +1,120 @@
+/*
+ * Copyright (c) 2017. Hisilicon Tech Co. Ltd. All Rights Reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+#ifndef __WD_RSA_H
+#define __WD_RSA_H
+
+#include <stdlib.h>
+#include <errno.h>
+
+#include "../../drivers/crypto/hisilicon/wd/wd_usr_if.h"
+#include "../../drivers/crypto/hisilicon/wd/wd_rsa_usr_if.h"
+
+enum wd_rsa_op {
+	WD_RSA_INVALID,
+	WD_RSA_SIGN,
+	WD_RSA_VERIFY,
+	WD_RSA_GENKEY,
+};
+
+enum wd_rsa_prikey_type {
+	WD_RSA_PRIKEY1 = 1,
+	WD_RSA_PRIKEY2 = 2,
+};
+
+typedef void (*wd_rsa_cb)(void *tag, int status,  void *opdata);
+
+struct wd_rsa_ctx_setup {
+	char  *alg;
+	wd_rsa_cb cb;
+	enum wd_rsa_op op_type;
+	__u16 aflags;
+};
+
+struct wd_rsa_pubkey {
+	__u8 *n;
+	__u8 *e;
+	__u32 n_bytes;
+	__u32 e_bytes;
+};
+
+struct wd_rsa_prikey1 {
+	__u8 *n;
+	__u8 *d;
+	__u32 n_bytes;
+	__u32 d_bytes;
+};
+
+struct wd_rsa_prikey2 {
+	__u8 *p;
+	__u8 *q;
+	__u8 *dp;
+	__u8 *dq;
+	__u8 *qinv;
+	__u32 p_bytes;
+	__u32 q_bytes;
+	__u32 dp_bytes;
+	__u32 dq_bytes;
+	__u32 qinv_bytes;
+};
+
+struct wd_rsa_op_data {
+	__u8 *p;
+	__u8 *q;
+	__u8 *e;
+	__u32 n_bytes;
+	enum wd_rsa_op op_type;
+	enum wd_rsa_prikey_type type;
+	void *prikey;
+	struct wd_rsa_pubkey *pubkey;
+	void *in;
+	void *out;
+	__u32 in_bytes;
+	__u32 *out_bytes;
+};
+
+struct wd_rsa_msg {
+
+	/* First 8 bytes of the message must indicate algorithm */
+	union {
+		char  *alg;
+		__u64 pading;
+	};
+
+	/* address type */
+	__u16 aflags;
+	__u8 op_type;
+	__u8 prikey_type;
+	__u32 status;
+
+	__u64 in;
+	__u64 out;
+	__u64 pubkey;
+
+	/* private key */
+	__u64 prikey;
+
+	__u16 nbytes;
+	__u16 inbytes;
+	__u16 outbytes;
+	__u16 resv;
+
+	__u64 udata;
+};
+
+void *wd_create_rsa_ctx(struct wd_queue *q, struct wd_rsa_ctx_setup *setup);
+
+/* this is a synchronous mode RSA API */
+int wd_do_rsa(void *ctx, struct wd_rsa_op_data *opdata);
+
+/* this is a pair of asynchronous mode RSA APIs */
+int wd_rsa_op(void *ctx, struct wd_rsa_op_data *opdata, void *tag);
+int wd_rsa_poll(struct wd_queue *q, int num);
+
+void wd_del_rsa_ctx(void *ctx);
+#endif

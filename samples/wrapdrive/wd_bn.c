@@ -19,29 +19,27 @@
 #include <sys/mman.h>
 
 #include "wd.h"
-#include "wd_comp.h"
+#include "wd_bn.h"
 #include "wd_util.h"
 
 
-struct wd_comp_udata {
+struct wd_bn_udata {
 	void *tag;
-	__u32 *cflush;
-	 int *out_bytes;
-	 int *comsumed;
+	struct wd_bn_op_data *opdata;
 };
 
-struct wd_comp_ctx {
-	struct wd_comp_msg cache_msg;
+struct wd_bn_ctx {
+	struct wd_bn_msg cache_msg;
 	struct wd_queue *q;
-	wd_comp_cb cb;
+	wd_bn_cb cb;
 	char  alg[32];
 };
 
 
 /* Before initiate this context, we should get a queue from WD */
-void *wd_create_comp_ctx(struct wd_queue *q, struct wd_comp_ctx_setup *setup)
+void *wd_create_bn_ctx(struct wd_queue *q, struct wd_bn_ctx_setup *setup)
 {
-	struct wd_comp_ctx *ctx;
+	struct wd_bn_ctx *ctx;
 
 	if (!q || !setup) {
 		WD_ERR("%s(): input param err!\n", __func__);
@@ -56,10 +54,7 @@ void *wd_create_comp_ctx(struct wd_queue *q, struct wd_comp_ctx_setup *setup)
 	ctx->q = q;
 	strncpy(ctx->alg, q->capa.alg, strlen(q->capa.alg));
 	ctx->cache_msg.aflags = setup->aflags;
-	ctx->cache_msg.comp_lv = setup->comp_lv;
-	ctx->cache_msg.humm_type = setup->humm_type;
-	ctx->cache_msg.win_size = setup->win_size;
-	ctx->cache_msg.file_type = setup->file_type;
+
 	ctx->cache_msg.alg = ctx->alg;
 	ctx->cb = setup->cb;
 	q->ctx = ctx;
@@ -67,17 +62,24 @@ void *wd_create_comp_ctx(struct wd_queue *q, struct wd_comp_ctx_setup *setup)
 	return ctx;
 }
 
-int wd_do_comp(void *ctx, __u32 *cflush, char *in, int in_bytes,
-		         int *comsumed, char *out, int *out_bytes)
+int wd_do_bn(void *ctx, struct wd_bn_op_data *opdata)
 {
-	struct wd_comp_ctx *ctxt = ctx;
-	struct wd_comp_msg *resp;
+	struct wd_bn_ctx *ctxt = ctx;
+	struct wd_bn_msg *resp;
 	int ret;
 
-	ctxt->cache_msg.cflags = *cflush;
-	ctxt->cache_msg.src = (__u64)in;
-	ctxt->cache_msg.dst = (__u64)out;
-	ctxt->cache_msg.in_bytes = (__u32)in_bytes;
+	if (!ctx || !opdata) {
+		WD_ERR("%s(): input param err!\n", __func__);
+		return -1;
+	}
+	ctxt->cache_msg.m = (__u64)opdata->m;
+	ctxt->cache_msg.mbytes= (__u16)opdata->mbytes;
+	ctxt->cache_msg.e = (__u64)opdata->e;
+	ctxt->cache_msg.ebytes= (__u16)opdata->ebytes;
+	ctxt->cache_msg.b = (__u64)opdata->b;
+	ctxt->cache_msg.bbytes= (__u16)opdata->bbytes;
+	ctxt->cache_msg.r = (__u64)opdata->r;
+	ctxt->cache_msg.op_type = (__u8)opdata->op_type;
 
 	ret = wd_send(ctxt->q, &ctxt->cache_msg);
 	if (ret) {
@@ -89,26 +91,32 @@ int wd_do_comp(void *ctx, __u32 *cflush, char *in, int in_bytes,
 		WD_ERR("%s():wd_recv_sync err!ret=%d\n", __func__, ret);
 		return ret;
 	} else {
-		*out_bytes = resp->out_bytes;
-		*comsumed = resp->in_coms;
-		*cflush = resp->cflags;
+		*(opdata->rbytes) = resp->rbytes;
 	}
 
 	return 0;
 }
 
-int wd_comp_op(void *ctx, __u32 *cflush, char *in, int in_bytes,
-		         int *comsumed, char *out, int *out_bytes, void *tag)
+int wd_bn_op(void *ctx, struct wd_bn_op_data *opdata, void *tag)
 {
-	struct wd_comp_ctx *context = ctx;
-	struct wd_comp_msg *msg = &context->cache_msg;
+	struct wd_bn_ctx *context = ctx;
+	struct wd_bn_msg *msg = &context->cache_msg;
 	int ret;
-	struct wd_comp_udata *udata;
+	struct wd_bn_udata *udata;
 
-	msg->cflags = *cflush;
-	msg->src = (__u64)in;
-	msg->dst = (__u64)out;
-	msg->in_bytes = (__u32)in_bytes;
+	if (!ctx || !opdata) {
+		WD_ERR("%s(): input param err!\n", __func__);
+		return -1;
+	}
+	msg->m = (__u64)opdata->m;
+	msg->mbytes= (__u16)opdata->mbytes;
+	msg->e = (__u64)opdata->e;
+	msg->ebytes= (__u16)opdata->ebytes;
+	msg->b = (__u64)opdata->b;
+	msg->bbytes= (__u16)opdata->bbytes;
+	msg->r = (__u64)opdata->r;
+	msg->op_type = (__u8)opdata->op_type;
+	msg->status = 0;
 
 	/* malloc now, as need performance we should rewrite mem management */
 	udata = malloc(sizeof(*udata));
@@ -117,9 +125,7 @@ int wd_comp_op(void *ctx, __u32 *cflush, char *in, int in_bytes,
 		return -1;
 	}
 	udata->tag = tag;
-	udata->cflush = cflush;
-	udata->comsumed = comsumed;
-	udata->out_bytes = out_bytes;
+
 
 	msg->udata = (__u64)udata;
 	ret = wd_send(context->q, (void *)msg);
@@ -131,13 +137,13 @@ int wd_comp_op(void *ctx, __u32 *cflush, char *in, int in_bytes,
 	return 0;
 }
 
-int wd_comp_poll(struct wd_queue *q, int num)
+int wd_bn_poll(struct wd_queue *q, int num)
 {
 	int ret, count = 0;
-	struct wd_comp_msg *resp;
-	struct wd_comp_ctx *ctx = q->ctx;
+	struct wd_bn_msg *resp;
+	struct wd_bn_ctx *ctx = q->ctx;
 	unsigned int status;
-	struct wd_comp_udata *udata;
+	struct wd_bn_udata *udata;
 
 	do {
 		ret = wd_recv(q, (void **)&resp);
@@ -145,18 +151,16 @@ int wd_comp_poll(struct wd_queue *q, int num)
 			break;
 		count++;
 		udata = (void *)resp->udata;
-		*(udata->cflush) = resp->cflags;
-		*(udata->out_bytes) = resp->out_bytes;
-		*(udata->comsumed) = resp->in_coms;
-		status = resp->cflags;
-		ctx->cb(udata->tag, status, (void *)resp->dst);
+		*(udata->opdata->rbytes) = (int)resp->rbytes;
+		status = resp->status;
+		ctx->cb(udata->tag, status, (void *)udata->opdata);
 		free(udata);
 	} while (--num);
 
 	return count;
 }
 
-void wd_del_comp_ctx(void *ctx)
+void wd_del_bn_ctx(void *ctx)
 {
 	if (ctx)
 		free(ctx);

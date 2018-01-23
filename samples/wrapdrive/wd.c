@@ -722,7 +722,7 @@ static void _wd_mem_unshare_type1(struct wd_queue *q, const void *addr, size_t s
 	if ((q->dma_flag & WD_DMA_MULTI_PROC_MAP) && (q->pasid > 0))
 		dma_unmap.pasid = q->pasid;
 	else
-		return -1;
+		return;
 	dma_unmap.flags = 0;
 	dma_unmap.size = size;
 	dma_unmap.argsz = sizeof(dma_unmap);
