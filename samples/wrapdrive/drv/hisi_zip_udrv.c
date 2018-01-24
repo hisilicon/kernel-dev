@@ -168,7 +168,12 @@ int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 	/* to do: fill sqe */
 	hisi_zip_fill_sqe(msg, q->priv, i);
 
-        hacc_db(info, DOORBELL_CMD_SQ, ++i, 0);
+        if (i == (QM_EQ_DEPTH - 1))
+                i = 0;
+        else
+                i++;
+
+        hacc_db(info, DOORBELL_CMD_SQ, i, 0);
 
         info->sq_tail_index = i;
 
