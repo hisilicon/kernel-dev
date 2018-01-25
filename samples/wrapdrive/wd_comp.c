@@ -25,9 +25,7 @@
 
 struct wd_comp_udata {
 	void *tag;
-	__u32 *cflush;
-	 int *out_bytes;
-	 int *comsumed;
+	struct wd_comp_opdata *opdata;
 };
 
 struct wd_comp_ctx {
@@ -67,17 +65,20 @@ void *wd_create_comp_ctx(struct wd_queue *q, struct wd_comp_ctx_setup *setup)
 	return ctx;
 }
 
-int wd_do_comp(void *ctx, __u32 *cflush, char *in, int in_bytes,
-		         int *comsumed, char *out, int *out_bytes)
+int wd_do_comp(void *ctx, struct wd_comp_opdata *opdata)
 {
 	struct wd_comp_ctx *ctxt = ctx;
 	struct wd_comp_msg *resp;
 	int ret;
 
-	ctxt->cache_msg.cflags = *cflush;
-	ctxt->cache_msg.src = (__u64)in;
-	ctxt->cache_msg.dst = (__u64)out;
-	ctxt->cache_msg.in_bytes = (__u32)in_bytes;
+	if (!ctx || !opdata){
+		WD_ERR("%s(): input param err!\n", __func__);
+		return -1;
+	}
+	ctxt->cache_msg.cflags = *(opdata->cflush);
+	ctxt->cache_msg.src = (__u64)opdata->in;
+	ctxt->cache_msg.dst = (__u64)opdata->out;
+	ctxt->cache_msg.in_bytes = (__u32)opdata->in_bytes;
 
 	ret = wd_send(ctxt->q, &ctxt->cache_msg);
 	if (ret) {
@@ -89,26 +90,30 @@ int wd_do_comp(void *ctx, __u32 *cflush, char *in, int in_bytes,
 		WD_ERR("%s():wd_recv_sync err!ret=%d\n", __func__, ret);
 		return ret;
 	} else {
-		*out_bytes = resp->out_bytes;
-		*comsumed = resp->in_coms;
-		*cflush = resp->cflags;
+		*(opdata->out_bytes) = resp->out_bytes;
+		*(opdata->comsumed) = resp->in_coms;
+		*(opdata->cflush) = resp->cflags;
 	}
 
 	return 0;
 }
 
-int wd_comp_op(void *ctx, __u32 *cflush, char *in, int in_bytes,
-		         int *comsumed, char *out, int *out_bytes, void *tag)
+int wd_comp_op(void *ctx,struct wd_comp_opdata *opdata, void *tag)
 {
 	struct wd_comp_ctx *context = ctx;
 	struct wd_comp_msg *msg = &context->cache_msg;
 	int ret;
 	struct wd_comp_udata *udata;
 
-	msg->cflags = *cflush;
-	msg->src = (__u64)in;
-	msg->dst = (__u64)out;
-	msg->in_bytes = (__u32)in_bytes;
+	if (!ctx || !opdata){
+		WD_ERR("%s(): input param err!\n", __func__);
+		return -1;
+	}
+
+	msg->cflags = *(opdata->cflush);
+	msg->src = (__u64)opdata->in;
+	msg->dst = (__u64)opdata->out;
+	msg->in_bytes = (__u32)opdata->in_bytes;
 
 	/* malloc now, as need performance we should rewrite mem management */
 	udata = malloc(sizeof(*udata));
@@ -117,9 +122,7 @@ int wd_comp_op(void *ctx, __u32 *cflush, char *in, int in_bytes,
 		return -1;
 	}
 	udata->tag = tag;
-	udata->cflush = cflush;
-	udata->comsumed = comsumed;
-	udata->out_bytes = out_bytes;
+	udata->opdata = opdata;
 
 	msg->udata = (__u64)udata;
 	ret = wd_send(context->q, (void *)msg);
@@ -133,10 +136,9 @@ int wd_comp_op(void *ctx, __u32 *cflush, char *in, int in_bytes,
 
 int wd_comp_poll(struct wd_queue *q, int num)
 {
-	int ret, count = 0;
+	int ret, count = 0, status = 0;
 	struct wd_comp_msg *resp;
 	struct wd_comp_ctx *ctx = q->ctx;
-	unsigned int status;
 	struct wd_comp_udata *udata;
 
 	do {
@@ -145,11 +147,11 @@ int wd_comp_poll(struct wd_queue *q, int num)
 			break;
 		count++;
 		udata = (void *)resp->udata;
-		*(udata->cflush) = resp->cflags;
-		*(udata->out_bytes) = resp->out_bytes;
-		*(udata->comsumed) = resp->in_coms;
-		status = resp->cflags;
-		ctx->cb(udata->tag, status, (void *)resp->dst);
+		status = (int)resp->status;
+		*(udata->opdata->cflush) = resp->cflags;
+		*(udata->opdata->out_bytes) = resp->out_bytes;
+		*(udata->opdata->comsumed) = resp->in_coms;
+		ctx->cb(udata->tag, status, (void *)opdata);
 		free(udata);
 	} while (--num);
 

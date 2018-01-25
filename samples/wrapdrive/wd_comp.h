@@ -30,7 +30,7 @@ enum wd_comp_flush {
 	WD_FINISH,
 };
 
-typedef void (*wd_comp_cb)(void *tag, int status,  void *out);
+typedef void (*wd_comp_cb)(void *tag, int status, void *opdata);
 
 struct wd_comp_ctx_setup {
 	char  *alg;
@@ -41,6 +41,15 @@ struct wd_comp_ctx_setup {
 	__u8 humm_type;
 	__u8 comp_lv;
 	__u8 file_type;
+};
+
+struct wd_comp_opdata {
+	__u32 *cflush;
+	__u8 *in;
+	__u32 in_bytes;
+	__u32 *comsumed;
+	__u8 *out;
+	__u32 *out_bytes;
 };
 
 struct wd_comp_msg {
@@ -68,16 +77,14 @@ struct wd_comp_msg {
 
 	/* This flag indicates the output mode, from enum wd_comp_flush */
 	__u32 cflags;
-	__u32 resv1;
+	__u32 status;
 	__u64 udata;
 };
 
 void *wd_create_comp_ctx(struct wd_queue *q, struct wd_comp_ctx_setup *setup);
 
-int wd_do_comp(void *ctx, __u32 *cflush, char *in, int in_bytes,
-		         int *comsumed, char *out, int *out_bytes);
-int wd_comp_op(void *ctx, __u32 *cflush, char *in, int in_bytes,
-		         int *comsumed, char *out, int *out_bytes, void *tag);
+int wd_do_comp(void *ctx, struct wd_comp_opdata *opdata);
+int wd_comp_op(void *ctx, struct wd_comp_opdata *opdata, void *tag);
 int wd_comp_poll(struct wd_queue *q, int num);
 void wd_del_comp_ctx(void *ctx);
 #endif
