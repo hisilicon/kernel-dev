@@ -1,0 +1,499 @@
+HiSilicon Hi1620 ZIP accelerator design
+=======================================
+
+-v1.0 wangzhou 2017/12/23 init
+-v2.0 wangzhou 2017/1/25  add qm irq model, add sync async interface
+
+This document helps to show the Hi1620 zip driver design.
+Before reading this doc, please firstly have a look at Hi1620 ACC QM FS and ZIP
+FS to get the hardware details.
+
+0. User cases
+-------------
+
+ I. Scenaries:
+
+    - PF in host
+
+      Processes in host can get a queue from PF.
+      Processes in host can get multiple queues from PF.
+
+    - VF in host
+
+      Processes in host can get a queue from VF.
+      Processes in host can get multiple queues from VF.
+
+    - VF in guest
+
+      One VF can be assigned to one VM by PCIe pass through, then processes in
+      guest can get a queue from VF in guest.
+
+      One VF can be assigned to one VM by PCIe pass through, then processes in
+      guest can get multiple queues from VF in guest.
+
+      Multiple VFs can be assigned to one VM by PCIe pass through, then processes
+      in guest can get one/multiple queues from each VF in guest.
+
+    - PF/VF in kernel
+
+      PF/VF resources can be used in host/guest kernel.
+ 
+ II. User interface:
+  
+    - Offer /sys/pf_device_patch/queue_num to configure how many QPs(queue pair)
+      PF has(1~4096). A default value of 64 will be assigned to PF.
+
+    - Use /sys/pf_device_path/sriov_numvfs to trigger VFs(max = 63), assign same
+      number of QPs to each VF from (4096 - PF_queue_num). After this,
+      Functions and QPs are all fixed, otherwise resetting is needed to reassign
+      VFs and QPs. Each VF will be assigned (4096 - PF_queue_num) / VF_num.
+
+    - libwrapdrive APIs will be used in user space to do queue related work.
+      For details, please refer to Documentation/wrapdrive/readme.rst.
+
+    - kernel API should be offered to help to use ZIP in kernel. For kernel API,
+      crypto interfaces will be used, which means ZIP driver will also register
+      into crypto subsystem in kernel.
+
+
+1. class diagram
+----------------
+
+ QM in Hi1620 hardware is a set of registers, which offers mailbox/doorbell to
+ configure queues and to move queues' head/tails. One function one hardware QM.
+ 
+ So in software, we offer a struct qm_info as a resource pool for queues in one
+ function.
+ 
+ Hi1620 ZIP controller has 4096 SQ, 4096 CQ, 64 EQ, 64 AEQ, and SQ/CQ can be
+ assigned to PF/VF. So in software, once a qm_info has been created, related
+ queue resource will be assigned to it.
+
+ One SQ, one CQ, one EQ, one AEQ can support a specific algorithm, so we define
+ a struce hisi_acc_qp for this unit(we will call it qp). A qp can be created
+ from a qm_info and resources in qp can be released to the qm_info. A qp will be
+ exporsed to WD or crypto subsystem as a queue in logic.
+
+                 +------+                  +--------+
+                 |  WD  |                  | Crypto |
+                 +------+                  +--------+
+                          \              /
+                           \            /
+                            \          /
+                             \        /
+                            +----------+
+                            |    QP    |
+                            +----------+
+                                  | *
+                                  | 
+                                  | 
+                                  | 1
+                    create  +-----------+
+                   -------> |  qm_info  |
+                            +-----------+
+
+ Logic to assign queues into qm_info will be PF configurations. Related
+ defination is showed in above "User interface" 
+
+
+2. Files
+--------
+
+ Kernel: qm.c, qm.h, zip.c, zip.h
+ User space: hisi_zip_udrv.c, hisi_zip_udrv.h, test_comp_iommu.c
+
+ Zip driver will be PCIe based, we will have a zip driver in kernel to support
+ zip device(PF/VF) in host and guest, as the operations for PF/VF are quiet
+ same.
+
+ Same driver for PF/VF will lead driver be loaded after triggering VFs. 
+
+ PF zip driver will be registered in kernel WD subsystem, and also be registered
+ in crypto subsystem to offer kernal API and as a comparation to WD in user
+ space.
+
+ Queue management related operations are same for different accelarators in
+ Hi1620 SoC, so related code will be put in qm.c/qm.h.
+
+ - qm.c
+
+   List to collect all qm_info, parsing this list can pick proper functions
+   e.g. pick up function in current NUMA node.
+   
+   	static LIST_HEAD(hisi_qm_list);
+
+   One struct qm_info can be embedded in accelarator struct(e.g. struct hisi_zip)
+   to store QM(queue mamagement) related resource:
+
+	struct qm_info {
+		void __iomem * fun_base;
+
+		u32 qp_base;
+		u32 qp_num;
+
+		struct eq *eq;
+		struct aeq *aeq;
+
+                /* one qp one bit */
+		unsigned long *bitmap;
+		/* numa id */
+		int node_id;
+                /* queue pair number is fixed: 1 */
+                bool qpn_fixed;
+
+		/* used queue pair list*/
+		struct list_head queue;
+
+		/* sqc mb can be triggered in create function from user space */
+		spinlock_t mailbox_lock;
+	};
+
+   Detail logic of qp_num:
+   	
+	1. A default qp_num is set for PF.
+
+	2. It can be modified through sysfs.
+
+	3. After first doorbell of PF is triggered, qp_num is fixed.
+
+	4. After number of working VFs is fixed, qp_num for its releted PF is
+	   fixed. And qp_num for each VF is fixed.(the rest of queues will be
+	   assigned to VFs equally)
+
+   Operations for qm_info:
+
+   	create qm_info: hisi_acc_qm_info_create()
+
+	add queue to qm_info:
+		hisi_acc_qm_info_add_queue(struct qm_info, u32 base, u32 number)
+
+   	release qm_info: hisi_acc_qm_info_release()
+
+
+   Struct hisi_acc_qp will be the queue pair which is used as a virtual device,
+   which can support an independent algrithm. Only create below struct for used
+   qp.
+
+	struct hisi_acc_qp {
+		/* sq number in this function */
+		u32 queue_id;
+		u32 alg_type;
+
+		/*
+		 * sq for acc
+		 *
+		 * e.g. for zip 128B x 1024 = 32 4k pages will be mapped to user
+		 * space in wd
+		 *
+		 */
+		void *sq;
+		struct cq *cq;
+		
+		u32 sq_tail;
+		u32 cq_head;
+
+		struct qm_info *parent;
+		/* add into list queue in qm_info */
+		struct list_head node;
+	};
+   
+   The operations for QP:
+
+	/* let qp to do related job */
+
+   	create qp: hisi_acc_create_qp(struct qm_info)
+
+	release qp: hisi_acc_release_qp(struct qm_info, struct hisi_acc_qp)
+
+	set pasid: hisi_acc_set_pasid(struct hisi_acc_qp, u32 pasid)
+
+	unset pasid: hisi_acc_unset_pasid(struct hisi_acc_qp)
+
+	get sq tail: hisi_acc_get_sq_tail(struct hisi_acc_qp)(if needed?)
+
+	send to qp: hisi_acc_send(struct hisi_acc_qp, u16 sq_tail, void *priv)
+
+	receive for a sqe: hisi_acc_receive(struct hisi_acc_qp, void *priv);
+
+	/* OK, I want resource, please let me controll the queue */
+	In WD, after it got hisi_acc_qp, related resources will be map to user
+	space, we can do above operations in user space.
+
+   Interrupt handler flow is same for different accelarators, so we can
+   offer a unified interrupt handler:
+
+   	irqreturn_t hisi_acc_irq_handle(int irq, void *data);
+
+   The model of interrupt handler can be seen in qm_irq_model.
+
+   The only difference is operation for specific sqe, so kernel async callback
+   may need call accelerator specific callback.
+
+   low level mailbox sending, doobell sending will be offered as:
+
+   int hisi_acc_send_mb(struct qm_info *qm, struct hacc_mb *mb)
+   int hisi_acc_send_db(struct qm_info *qm, struct hacc_db *db)
+
+ - zip.c
+
+   One processor has one ZIP controller(1 PF + 63 VFs), so Hi1620 4P system will
+   have 4 ZIP controllers. In software, we do not exporse the concept of
+   controller in driver, but PF/VF.
+
+   Base struct will be struct hisi_zip, one struct qm_info will be embedded in
+   struct hisi_zip. Both PF and VF will use below struct.
+
+	struct hisi_zip {
+		struct pci_dev *pdev;
+		void __iomem *io_base;
+
+		struct qm_info *qm_info;
+		struct wd_dev *wdev;
+	};
+
+   Driver(same driver as PF) for VF(no matter running in host and guest) must
+   get queue numbers for related VF, after this, SQC_BT, CQC_BT, SQC, CQC... for
+   VF can be configured. Now we can not get this information in VF in Hi1620 ES.
+   Hi620 CS will add a SQC_VFT mailbox to let VF get the queue number itself in
+   VM.
+
+   SQC_VFT/CQC_VFT/SQC/CQC/EQC/AEQC are in chip. SQ/CQ/EQ/AEQ, data are in DDR.
+
+   User domain and cache attribute can be configured to control if bypass SMMU
+   when accessing above SQ/CQ/EQ, data in DDR. User domain and cache are set in
+   each ZIP controller, which means all functions under one ZIP controller will
+   be configured to same user domain and cache attribute.
+   
+   Considering data will be provided user space, accessing data should pass
+   SMMU. when ZIP VF works in PCIe pass through, SQ/CQ/EQ/AEQ will be
+   allocated in VM address space, which needs accessing SQ/CQ/EQ/AEQ 
+   pass SMMU.
+
+   So we should configure pass SMMU for both SQ/CQ/EQ/AEQ and data.
+
+   1. for WD subsystem:
+
+   The definitions of callbacks in wd_dev_ops:
+
+	get_queue: hisi_acc_create_qp(struct qm_info)
+
+		   find a unused queue in bitmap of struct qm_info, and create
+		   related qp(sqc/cqc mb).
+		   (algorithm in ZIP is sqe based and one sqe can be configured
+		   to all algorithms, so alg parameter here is useless(fix WD)).
+
+	put_queue: hisi_acc_release_qp(struct qm_info, struct hisi_acc_qp)
+
+		   release related resources(sq, cq). set relate bit in bitmap
+		   to 0.
+
+	is_q_updated: hisi_acc_get_queue_status(struct hisi_acc_qp)
+
+		      as analysis in sync_async_interface, this function is only
+		      used in WD sync interface. a cq head can be set/check in
+		      a page which is mapped to user space in this function.
+		      (there is no way for hardware to get cq head :( )
+		   
+	mask_notification: NULL. alway update q status.
+
+	mmap: map sq/cq/doorbell/page to user space, let sqe been filled in user
+	      space. (sq already been created in get_queue by sqc mb)
+
+	      Now multiple queues use one doorbell, map doorbell to user space
+	      will bring safty problem (hardware need fix!)
+
+	open: (to do)
+	close: (to do)
+	reset: NA
+	reset_queue: NA
+	ioctl:
+	    1. set pasid for one queue.
+	    2. get queue information, e.g. queue status, sq tail index, sq number
+	       (we expect to maintain the queue status both in kernel and user
+	       space, so for user space, we will get the queue information
+	       firstly and maintain it during its liftime)
+
+   Mdev interface
+
+	No more interface.
+
+   mdev_supported_types interface
+
+	deflate
+	zlib
+	gzip
+	(to do: add more here)
+
+   2. for crypto subsystem:
+
+   problem: in multiple processor system, there are some ZIP controllers, same
+            algrithm will be loaded many times, which will lead an error in
+	    crypto_register_alg!? now crypto system does not consider multiple
+	    devices will do the same thing :(
+
+   Here we do not consider to adapt to scomp_alg and acomp_alg interface.(to do)
+
+   The definitions of callbacks in struct crypto_alg:
+
+   A algrithm context should be passed to crypto API, it can be defined as:
+
+	/* include input parameters, and store queue status in qp */
+	struct hisi_zip_cxt {
+		/* address type. to do: support SGL and PRP */
+		__u32 aflags;
+		__u64 private_compress_head;
+
+		/* if using pbuffer, set NULL for sgl_info and prp_info */
+		struct wd_zip_sgl_info *sgl_info;
+		struct wd_zip_prp_info *prp_info;
+
+		struct hisi_acc_qp *qp;
+	};
+
+        cra_ctxsize: sizeof(struct hisi_zip_cxt)
+   	
+	cra_init: find proper function to do algrithm, parse hisi_qm_list to
+		  pick up the function under same NUMA node. Then create a qp.
+
+	cra_exit: release related resources. set relate bit in bitmap
+		  to 0.
+
+	coa_compress: do compress. update queue status. to do
+
+	coa_decompress: do compress. update queue status. to do
+ 
+
+   PASID configuration: as discussion above, we should enable PASID for queue
+   			under WD, however, we should not enable PASID for queue
+			under crypto. PASID enable is set for ZIP controller, so
+			it is hard to support WD and crypto at same time.
+			However, hardware guy says we can enable PASID for ZIP
+			controller, but setting PASID = 0 for queue under crypto.
+
+
+ - hisi_zip_udrv.c:(in user space)
+
+   struct wd_comp_msg will store the information used by wd_send, wd_comp_msg is
+   the insterface between user and WD API. Pbuffer/SGL/PRP memory should be
+   prepared by user, who should tell related information to fill zip sqe.
+
+	struct wd_comp_msg {
+		char *alg;
+
+		/* address type. to do: support SGL and PRP */
+		__u32 aflags;
+		__u32 input_size;
+		__u32 output_size;
+		__u64 src;
+		__u64 dst;
+		__u64 private_compress_head;
+
+		/* if using pbuffer, set NULL for sgl_info and prp_info */
+		struct wd_zip_sgl_info *sgl_info;
+		struct wd_zip_prp_info *prp_info;
+	};
+
+	struct wd_zip_sgl_info {
+		__u32 in_sge_data_offset;
+		__u32 out_sge_data_offset;
+	}
+
+	struct wd_zip_prp_info {
+		
+	}
+
+   struct hisi_acc_queue_info will maintain the information of queue in user
+   space. When opening a queue, information of queue will be got and store in
+   this struct. sq base, cq base, sq tail, cq head, sqn
+   (this sq number in related function)will be got and maintained in user space.
+
+   this represent a queue in wd system in user space.
+
+	struct hisi_acc_queue_info {
+		void *sq_base;
+		void *cq_base;
+		__u16 sq_tail;
+		__u16 cq_head;
+		__u16 sq_num;
+	};
+   
+   The definitions of callbacks in wd_drv_dio_if
+
+	open: mmap to get sq base, cq base, doorbell base and cq head space.
+	      ioctl to get queue information: sq_tail, sq_num, store them in
+	      struct hisi_acc_queue_info.
+
+	close: nummap sq, free related resource.
+
+	send: 1. hisi_acc_fill_sqe(struct wd_queue *q, __u16 sqe_tail, void *priv)
+		 (e.g. void *priv = struct wd_comp_msg *msg)
+	      2. update sq doorbell to push sqe to zip core.
+	      3. update sq tail.
+
+	recv: 1. check cqe status.
+	      2. receive.
+	      3. update cq doorbell.
+	      3. update cq head.
+	flush: NA
+	share: NA
+	unshare: NA
+
+3. user space interface
+-----------------------
+
+ - sysfs
+
+   queue_number, sriov_numvfs, mdev, parent device, mdev_supported_types.
+
+ - mmap
+  
+   each mdev's sq, cq, doorbell and a page been mapped to user space.
+
+ - ioctl
+
+   use ioctl to set pasid.
+   use ioctl to get initial sqc.
+
+
+4. virtualization
+-----------------
+
+ ZIP support PCIe SRIOV.
+
+ So we can pass through one VF to guest(e.g.). Each VF has some queues, so we
+ should also use WD subsystem to assign each queue in one VF to each process in
+ one guest. ZIP VF driver should also register crypto subsystem
+
+ WD subsystem in VM will depond on vSMMU(to do ...)
+
+
+5. PM
+-----
+
+ In fact, PM status showed in FS are all not implemented in ES hardware :(
+ (to do: check CS hardware design)
+
+ Reset:
+ 
+   - FRL design is not finished in CS hardware :(
+
+   - ES hardware uses registers in a sperate subcontrol register range to reset
+     ZIP controller, which means we need add configuration in ACPI table and
+     parsing code in driver to get subcontrol base :(. Better to put reset
+     register also in BAR in CS hardware design...
+
+   - Above reset will reset both PHE and ZIP controller, but it is hard to
+     configure PHE(hardware module to support ZIP to show as a PCIe device) in
+     kernel, which means once there is a fatal error(2bit ECC error) in ZIP
+     controller, we can not reset ZIP controller... :(
+
+6. RAS
+------
+
+ No FS support(to do ...)
+
+
+7. locks
+--------
+ 
+ - multiple processes can operate different queues but in one function.(to do)

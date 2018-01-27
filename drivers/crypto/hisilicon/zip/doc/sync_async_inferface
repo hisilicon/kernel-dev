@@ -1,0 +1,84 @@
+sync and async interface
+------------------------
+
+-v0.1 2018.1.9  wangzhou init
+-v0.2 2018.1.25 wangzhou add sync and async interface analysis
+
+
+First show the hardware order model, then show how to implement sync and async
+interface in WD and crypto based on order model.
+
+we have strong order or relax order for a sq/cq to handle sqe.
+
+1. strong order:
+
+	+---+---+---+---+----
+	|sqe|sqe|sqe|sqe|    
+	+---+---+---+---+----
+          |   |  ...
+          v   v
+	+---+---+---+---+----
+	|cqe|cqe|cqe|cqe|    
+	+---+---+---+---+----
+	      ^       ^      
+	      |       |      
+	     head    tail    
+
+2. relax order:
+
+        +---+---+---+---+----
+        |sqe|sqe|sqe|sqe|    
+        +---+---+---+---+----
+          |   /
+          |  /
+ write    | / <- hardware write cqe
+ back ->  |/
+          |
+        +---+---+---+---+----
+        |cqe|cqe|cqe|cqe|    
+        +---+---+---+---+----
+              ^       ^      
+              |       |      
+             head    tail    
+
+From the view of user API, there are synchronized IO and asynchronized IO. Let
+us have a full picture about all use cases:
+
+we only consider Relax order here, as hardware will be configured to ro.
+
+1. Strong order
+
+   ...
+
+2. Relax order(we will configure hardware as ro)
+
+	1. wd sync
+
+	   map sq, cq, doorbell and a page to user space.
+
+	   send.
+
+	   receive(update cq head in above page).
+
+	   	if not finished, wait until wake up in irq
+		(use cq head in above page to check if q is updated, as there
+		 is no proper way to get cq head from hardware :( )
+
+	   receive(update cq head in above page).
+
+	2. wd async
+
+	   send.
+
+	   receive(poll and call callback in higher software layer).
+
+	3. kernel sync
+
+	   send.
+
+	   receive(to do: wait provided in kernel?).
+
+	4. kernel async
+
+	   send(call callback in irq handler).
+	   

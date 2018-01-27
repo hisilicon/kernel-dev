@@ -1,0 +1,63 @@
+zip debug
+---------
+
+v0.1 2018.1.2 WangZhou init
+
+This doc helps to offer a use guide to test guys.
+It includes: 1. how to compile zip driver; 2. how to run basic test case.
+
+
+1. compile
+----------
+
+  a. WD
+
+     For kernel driver: CRYPTO_DEV_HISI_ZIP should be set Y/M.
+
+     For user space driver:
+
+	now it is in kernel/samples/wrapdrive/*, which includes 2 parts, one is
+	wrapdrive lib, another is test code in kernel/samples/wrapdrive/test/test_zip_smmu.c.
+
+	So we should firstly compile wrapdrive lib:
+
+	cd kernel/samples/wrapdrive
+	./autogen.sh
+	./configure
+	make
+
+	After this, wrapdrive libs will be compiled and put in samples/wrapdrive/.libs
+
+	Then we compile test code:
+
+	cd kernel/samples/wrapdrive/test
+	gcc test_zip_iommu.c -static -L../.libs -lwd -luuid
+
+	a.out will be static test binary, which can be run directly.
+
+     note:
+
+        1. I compile the user space driver in ARM64 machine.
+	2. Maybe some auto building tools need be installed ahead.
+
+  b. crypto
+
+     (to do)
+
+
+2. test case
+------------
+
+  a. WD
+
+     /* fix me */
+     Now test_zip_iommu.c only supports zlib compress. We add a zlib compress
+     head to compressed data, and write the data into a file named /root/compress_date
+     in test_zip_iommu.c.
+
+     So we can use zpipe software tool to decompress /root/compress_date to check
+     if above zlib compress result is correct.
+
+  b. crypto
+
+     (to do)
