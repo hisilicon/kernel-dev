@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) 2018 HiSilicon Limited.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ */
+
 #ifndef HISI_ACC_QM_H
 #define HISI_ACC_QM_H
 
@@ -5,50 +15,110 @@
 #include <linux/irqreturn.h>
 #include <linux/kernel.h>
 
+struct cqe {
+	__le32 rsvd0;
+	__le16 cmd_id;
+	__le16 rsvd1;
+	__le16 sq_head;
+	__le16 sq_num;
+	__le16 rsvd2;
+	__le16 w7;
+};
+
+struct eqe {
+	__le32 dw0;
+};
+
+struct aeqe {
+	__le32 dw0;
+};
+
 struct sqc {
-	u32 content[8];
-} __attribute__ ((aligned(32)));
+	__le16 sq_head;
+	__le16 sq_tail;
+	__le32 sq_base_l;
+	__le32 sq_base_h;
+        __le16 w6; /* sqe_size */
+	__le16 rsvd0;
+        __le16 qes;
+	__le16 rsvd1;
+        __le16 pasid;
+        __le16 w11; /* tail_idx_sig, head_idx_sig, burst_cnt_shift */
+        __le16 cq_num;
+        __le16 w13; /* type, order, priority */
+	__le32 rsvd2;
+};
 
 struct cqc {
-	u32 content[8];
-} __attribute__ ((aligned(32)));
+	__le16 cq_head;
+	__le16 cq_tail;
+	__le32 cq_base_l;
+	__le32 cq_base_h;
+        __le16 w6; /* cqe_size */
+	__le16 rsvd0;
+        __le16 qes;
+	__le16 rsvd1;
+        __le16 pasid;
+        __le16 w11; /* tail_idx_sig, head_idx_sig */
+        __le32 dw6; /* c_flag, phase */
+	__le32 rsvd2;
+};
 
 struct eqc {
-	u32 content[8];
-} __attribute__ ((aligned(32)));
+	__le16 eq_head;
+	__le16 eq_tail;
+	__le32 eq_base_l;
+	__le32 eq_base_h;
+	__le32 rsvd[3];
+	__le32 dw6; /* qes, phase */
+};
+
+struct aeqc {
+	__le16 aeq_head;
+	__le16 aeq_tail;
+	__le32 aeq_base_l;
+	__le32 aeq_base_h;
+	__le32 rsvd[3];
+	__le32 dw6; /* qes, phase */
+};
+
+struct mailbox {
+	__le16 w0; /* op_type, busy, status, event, cmd */
+	__le16 queue_num;
+	__le32 mb_base_l;
+	__le32 mb_base_h;
+	__le32 rsvd;
+};
+
+struct doorbell {
+	__le16 queue_num;
+	__le16 cmd;
+	__le16 index;
+	__le16 priority;
+};
 
 struct qm_info {
 	void __iomem * fun_base;
-
-	u32 sqn_base;
-	u32 sqn_num;
-	u32 cqn_base;
-	u32 cqn_num;
-
-	char *sqc_cache;
-	char *cqc_cache;
-	char *eqc_cache;
-	char *eq;
-	char *aeqc_cache;
-	char *aeq;
-
-	/* sqc mb can be triggered in create function from user space */
+	u32 qp_base;
+	u32 qp_num;
+	struct *eq;
+	struct *aeq;
+        u16 *bitmap;
+        int node_id;
+        bool qpn_fixed;
 	spinlock_t mailbox_lock;
-
 	void *priv;
-
 	int (*sqe_handler)(struct qm_info *qm_info, char *cqe);
 };
 
 #define QM_SQC_SIZE			32
 #define QM_CQC_SIZE			32
-#define QM_CQE_SIZE			16
 #define QM_EQC_SIZE			28
-#define QM_EQE_SIZE			4
 #define QM_AEQC_SIZE			32
+#define QM_CQE_SIZE			16
+#define QM_EQE_SIZE			4
 #define QM_AEQE_SIZE			12
 
-/* qm 0x0000: mailbox, doorbell, irq */
 /* eq/aeq irq enable */
 #define QM_VF_AEQ_INT_SOURCE		0x0
 #define QM_VF_AEQ_INT_MASK		0x4
@@ -107,15 +177,8 @@ struct qm_info {
 
 #define CQC_HEAD_INDEX(cqc)		((*(u32 *)(cqc)) & 0xffff)
 #define CQC_PHASE(cqc)			((*((u32 *)(cqc) + 6)) & 0x1)
-#define CQC_CQ_ADDRESS(cqc)		(((u64)(*((u32 *)(cqc) + 2)) << 32) |    \
+#define CQC_CQ_ADDRESS(cqc)		(((u64)(*((u32 *)(cqc) + 2)) << 32) | \
 					 (*((u32 *)(cqc) + 1)))
-
-/* cqe shift */
-#define CQE_PHASE(cq)			(((*((u32 *)(cq) + 3)) >> 16) & 0x1)
-#define CQE_SQ_NUM(cq)			((*((u32 *)(cq) + 2)) >> 16)
-#define CQE_SQ_HEAD_INDEX(cq)		((*((u32 *)(cq) + 2)) & 0xffff)
-
-
 /* eqc shift */
 #define MB_EQC_EQE_SHIFT		12
 #define MB_EQC_PHASE_SHIFT		16
@@ -124,14 +187,18 @@ struct qm_info {
 #define EQC_TAIL_INDEX(eqc) 		((*(u32 *)(eqc)) >> 16)
 #define EQC_PHASE(eqc)			((*((u32 *)(eqc) + 6)) >> 16 & 0x1)
 
-/* eqe shift */
-
-#define EQE_PHASE(eq)			((*(u32 *)(eq)) >> 16 & 0x1)
-#define EQE_CQN(eq)			((*(u32 *)(eq)) & 0xffff)
-
 /* aeqc shift */
 #define MB_AEQC_AEQE_SHIFT		12
 #define MB_AEQC_PHASE_SHIFT		16
+
+/* cqe shift */
+#define CQE_PHASE(cq)			(((*((u32 *)(cq) + 3)) >> 16) & 0x1)
+#define CQE_SQ_NUM(cq)			((*((u32 *)(cq) + 2)) >> 16)
+#define CQE_SQ_HEAD_INDEX(cq)		((*((u32 *)(cq) + 2)) & 0xffff)
+
+/* eqe shift */
+#define EQE_PHASE(eq)			((*(u32 *)(eq)) >> 16 & 0x1)
+#define EQE_CQN(eq)			((*(u32 *)(eq)) & 0xffff)
 
 /* aeqe shift */
 
@@ -146,17 +213,10 @@ int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 num, bool rw, bool ev
 
 #define DOORBELL_CMD_SEND_BASE		0x340
 
-/* user space interface */
-struct hacc_qm_db {
-	__u16 tag;
-	__u8 cmd;
-	__u16 index;
-	__u8 priority;
-};
-
 int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority);
 
-#define QM_EQ_DEPTH			1024
+#define QM_Q_DEPTH			1024
+
 /* qm 0x100000: cfg registers */
 #define QM_MEM_START_INIT		0x100040
 #define QM_MEM_INIT_DONE		0x100044
@@ -170,17 +230,17 @@ int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority);
 
 #define QM_VFT_CFG_DATA_L		0x100064
 #define QM_VFT_CFG_DATA_H		0x100068
-#define QM_SQC_VFT_BUF_SIZE		0x7 << 8
-#define QM_SQC_VFT_SQC_SIZE		0x5 << 12
-#define QM_SQC_VFT_INDEX_NUMBER		0x1 << 16
+#define QM_SQC_VFT_BUF_SIZE		(0x7 << 8)
+#define QM_SQC_VFT_SQC_SIZE		(0x5 << 12)
+#define QM_SQC_VFT_INDEX_NUMBER		(0x1 << 16)
 #define QM_SQC_VFT_BT_INDEX_SHIFT	22
 #define QM_SQC_VFT_START_SQN_SHIFT	28
-#define QM_SQC_VFT_VALID		(u64)0x1 << 44
-#define QM_CQC_VFT_BUF_SIZE		0x7 << 8
-#define QM_CQC_VFT_SQC_SIZE		0x5 << 12
-#define QM_CQC_VFT_INDEX_NUMBER		0x1 << 16
+#define QM_SQC_VFT_VALID		((u64)0x1 << 44)
+#define QM_CQC_VFT_BUF_SIZE		(0x7 << 8)
+#define QM_CQC_VFT_SQC_SIZE		(0x5 << 12)
+#define QM_CQC_VFT_INDEX_NUMBER		(0x1 << 16)
 #define QM_CQC_VFT_BT_INDEX_SHIFT	22
-#define QM_CQC_VFT_VALID            	0x1 << 28
+#define QM_CQC_VFT_VALID            	(0x1 << 28)
 
 /* qm user domain */
 #define QM_ARUSER_M_CFG_1		0x100088
@@ -192,7 +252,6 @@ int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority);
 #define QM_AXI_M_CFG			0x1000ac
 #define QM_AXI_M_CFG_ENABLE		0x1000b0
 #define QM_PEH_AXUSER_CFG_ENABLE	0x1000d0
-
 
 irqreturn_t hacc_irq_thread(int irq, void *data);
 
