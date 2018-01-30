@@ -26,7 +26,6 @@
 
 #define HZIP_DOORBELL_OFFSET    0x340
 
-/* add as private date in wd_queue of user space */
 struct hzip_queue_info {
 	void *sq_base;
 	void *cq_base;
@@ -38,28 +37,13 @@ struct hzip_queue_info {
         void *recv;
 };
 
-struct hisi_acc_qm_db {
-	__u16 tag;
-	__u8 cmd;
-	__u16 index;
-	__u8 priority;
-};
-
 struct hisi_acc_qm_sqc {
-	__u16 sq_head_index;
-	__u16 sq_tail_index;
-
 	__u16 sqn;
-
-	/* now we don't export other info in sqc */
 };
 
-#define HACC_QM_DB_SQ		_IOW('d', 0, unsigned long)
 #define HACC_QM_MB_SQC		_IOR('d', 1, struct hisi_acc_qm_sqc *)
 #define HACC_QM_SET_PASID	_IOW('d', 2, unsigned long)
-#define HACC_QM_DB_CQ		_IOW('d', 3, unsigned long)
 
-/* fix me */
 #define DOORBELL_CMD_SQ 	0
 #define DOORBELL_CMD_CQ 	1
 

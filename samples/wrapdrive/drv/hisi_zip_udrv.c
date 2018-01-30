@@ -21,20 +21,6 @@ char *hzip_request_type[] = {
         "zlib_comp",            /* 0x02 */
 };
 
-/* fix me */
-struct hisi_zip_q_priv {
-	/* local mirror of the register space */
-	int head;		/* queue head */
-	int resp_tail;		/* resp tail in the queue */
-	/* so in the user side: when add to queue, head++ but don't exceed
-	 * resp_tail. when get back from the queue, resp_tail++ but don't
-	 * exceed tail. in the kernel side: when get from queue,
-	 * tail++ but don't exceed head-1
-	 */
-
-	struct hisi_zip_hw_queue_reg *reg;
-};
-
 int hacc_db(struct hzip_queue_info *q, __u8 cmd, __u16 index, __u8 priority)
 {
 	void *base = q->doorbell_base;
@@ -76,35 +62,22 @@ int hisi_zip_unset_pasid(struct wd_queue *q)
 	return 0;
 }
 
-/* user date: msg, sq date: info, sqe offet: i */
 static int hisi_zip_fill_sqe(struct wd_comp_msg *msg,
 			     struct hzip_queue_info *info, __u16 i)
 {
 	__u64 src = msg->src;
 	__u64 dst = msg->dst;
-	__u32 aflags = msg->aflags;
 	__u32 size = msg->in_bytes;
 	void *sqe = info->sq_base + HZIP_SQE_SIZE * i;
 
-
-	*((__u32 *)sqe + 4) = size;   // input date length
-	*((__u32 *)sqe + 9) = 2; // request type 8bit
-	//*((__u32 *)sqe + 9) = 0;      // buffer type 4bit
-	*((__u32 *)sqe + 14) = 0x800; // define out buffer size, 2k now
-	*((__u32 *)sqe + 18) = src & 0xffffffff;     // src
+	*((__u32 *)sqe + 4) = size;
+	*((__u32 *)sqe + 9) = 2;
+	*((__u32 *)sqe + 14) = 0x800;
+	*((__u32 *)sqe + 18) = src & 0xffffffff;
 	*((__u32 *)sqe + 19) = src >> 32;
-	*((__u32 *)sqe + 20) = dst & 0xffffffff;     // dst
+	*((__u32 *)sqe + 20) = dst & 0xffffffff;
 	*((__u32 *)sqe + 21) = dst >> 32;
-#if 0
-	printf("in fill: dump sqe:\n");
-	printf("         sqe base: %p\n", sqe);
-	printf("         sqe  [4]: %lx\n", *((__u32 *)sqe + 4));
-	printf("         sqe  [9]: %lx\n", *((__u32 *)sqe + 9));
-	printf("         sqe [18]: %lx\n", *((__u32 *)sqe + 18));
-	printf("         sqe [19]: %lx\n", *((__u32 *)sqe + 19));
-	printf("         sqe [20]: %lx\n", *((__u32 *)sqe + 20));
-	printf("         sqe [21]: %lx\n", *((__u32 *)sqe + 21));
-#endif
+
 	return 0;
 }
 
@@ -167,7 +140,6 @@ int hisi_zip_set_queue_dio(struct wd_queue *q)
 
 	ret = ioctl(q->device, HACC_QM_MB_SQC, &qm_sqc);
 	if (ret == -1) {
-		printf("open erro: %s\n", strerror(errno));
 		printf("HACC_QM_MB_SQC ioctl fail!\n");
 		return -1;
 	}
@@ -196,16 +168,13 @@ int hisi_zip_unset_queue_dio(struct wd_queue *q)
 
 int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 {
-	//printf("in send\n");
 	struct wd_comp_msg *msg = (struct wd_comp_msg *)req;
 	struct hzip_queue_info *info = (struct hzip_queue_info *)q->priv;
-	struct hisi_acc_qm_db qm_db;
 	int ret;
 	__u16 i;
 
 	i = info->sq_tail_index;
 
-	/* to do: fill sqe */
 	hisi_zip_fill_sqe(msg, q->priv, i);
 
         if (i == (QM_EQ_DEPTH - 1))
@@ -230,7 +199,6 @@ int hisi_zip_get_from_dio_q(struct wd_queue *q, void **resp)
         char *sqe = sq_base + CQE_SQ_HEAD_INDEX(cqe) * HZIP_SQE_SIZE;
         struct wd_comp_msg *recv_msg = info->recv +
                                        i * sizeof(struct wd_comp_msg);
-	struct hisi_acc_qm_db qm_db;
 	int ret;
 
         if (info->cqc_phase == CQE_PHASE(cqe)) {
