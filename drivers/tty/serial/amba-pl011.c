@@ -1488,9 +1488,7 @@ static irqreturn_t pl011_int(int irq, void *dev_id)
 		do {
 			check_apply_cts_event_workaround(uap);
 
-			pl011_write(status & ~(UART011_TXIS|UART011_RTIS|
-					       UART011_RXIS),
-				    uap, REG_ICR);
+			pl011_write(status & ~UART011_TXIS, uap, REG_ICR);
 
 			if (status & (UART011_RTIS|UART011_RXIS)) {
 				if (pl011_dma_rx_running(uap))
@@ -1670,9 +1668,8 @@ static int pl011_hwinit(struct uart_port *port)
 
 	uap->port.uartclk = clk_get_rate(uap->clk);
 
-	/* Clear pending error and receive interrupts */
-	pl011_write(UART011_OEIS | UART011_BEIS | UART011_PEIS |
-		    UART011_FEIS | UART011_RTIS | UART011_RXIS,
+	/* Clear pending error interrupts */
+	pl011_write(UART011_OEIS | UART011_BEIS | UART011_PEIS | UART011_FEIS,
 		    uap, REG_ICR);
 
 	/*
@@ -1729,8 +1726,6 @@ static void pl011_enable_interrupts(struct uart_amba_port *uap)
 {
 	spin_lock_irq(&uap->port.lock);
 
-	/* Clear out any spuriously appearing RX interrupts */
-	pl011_write(UART011_RTIS | UART011_RXIS, uap, REG_ICR);
 	uap->im = UART011_RTIM;
 	if (!pl011_dma_rx_running(uap))
 		uap->im |= UART011_RXIM;
