@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) 2018 HiSilicon Limited.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ */
+
 #include <asm/io.h>
 #include "qm.h"
 
@@ -154,3 +164,35 @@ irqreturn_t hacc_irq_thread(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
+
+struct qm_info *hisi_acc_qm_info_create()
+{
+        
+}
+
+int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number)
+{
+
+}
+
+void hisi_acc_qm_info_release(struct qm_info *qm)
+{
+
+}
+
+int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp *qp)
+
+int hisi_acc_release_qp(struct qm_info *qm, struct hisi_acc_qp *qp)
+
+int hisi_acc_set_pasid(struct hisi_acc_qp *qp, u16 pasid)
+
+int hisi_acc_unset_pasid(struct hisi_acc_qp *qp)
+
+int hisi_acc_get_sq_tail(struct hisi_acc_qp *qp)
+
+int hisi_acc_send(struct hisi_acc_qp *qp, u16 sq_tail, void *priv)
+
+int hisi_acc_receive(struct hisi_acc_qp, void *priv)
+
+
+

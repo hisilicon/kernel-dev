@@ -22,15 +22,15 @@ struct cqe {
 	__le16 sq_head;
 	__le16 sq_num;
 	__le16 rsvd2;
-	__le16 w7;
+	__le16 w7; /* phase, status */
 };
 
 struct eqe {
-	__le32 dw0;
+	__le32 dw0; /* cqn, phase */
 };
 
 struct aeqe {
-	__le32 dw0;
+	__le32 dw0; /* qn, phase, type */
 };
 
 struct sqc {
@@ -98,17 +98,34 @@ struct doorbell {
 };
 
 struct qm_info {
-	void __iomem * fun_base;
+	void __iomem *fun_base;
 	u32 qp_base;
 	u32 qp_num;
-	struct *eq;
-	struct *aeq;
+        struct sqc *sqc;
+        struct cqc *cqc;
+        struct eqc *eqc;
+        struct aeqc *aeqc;
+	struct eq *eq_base;
+	struct aeq *aeq_base;
         u16 *bitmap;
         int node_id;
         bool qpn_fixed;
 	spinlock_t mailbox_lock;
 	void *priv;
 	int (*sqe_handler)(struct qm_info *qm_info, char *cqe);
+	struct list_head qm;
+};
+
+struct hisi_acc_qp {
+        /* sq number in this function */
+        u32 queue_id;
+        u32 alg_type;
+        void *sq;
+        struct cqe *cq_base;
+        u32 sq_tail;
+        u32 cq_head;
+        struct qm_info *parent;
+        struct list_head node;
 };
 
 #define QM_SQC_SIZE			32

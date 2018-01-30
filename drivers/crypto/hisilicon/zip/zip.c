@@ -23,14 +23,6 @@
 
 #define HZIP_FSM_MAX_CNT		0x301008
 #define HZIP_CONTROL			0x30100c /* not use */
-#define SGE_OFFSET_REG_VAL 0x0
-#define ZIP_SGL_CONTROL 0x0
-#define PRP_PAGE_SIZE 0x0
-#define ZIP_PAGE_CONTROL 0x0
-#define T10_DIF_CRC_INITIAL 0x0
-#define ZIP_DIF_CRC_INIT 0x0
-#define STORE_COMP_HEAD_LEN 0x0
-#define ZIP_COM_HEAD_LENGTH 0x0
 
 #define HZIP_PORT_ARCA_CHE_0		0x301040
 #define HZIP_PORT_ARCA_CHE_1		0x301044
@@ -45,6 +37,8 @@
 
 #define HZIP_SQE_STATUS(sqe)		((*((u32 *)(sqe) + 3)) & 0xff)
 #define HZIP_SQC_PASID(sqc)		((*((u32 *)(sqc) + 5)) & 0xffff)
+
+#define HZIP_PF_DEF_Q_NUM               64
 
 struct hzip_qp {
 	u32 queue_id;
@@ -72,7 +66,6 @@ struct hisi_zip {
 
 	struct qm_info *qm_info;
 	struct wd_dev *wdev;
-	struct hzip_qp qp[HZIP_FUN_QUEUE_NUM];
 	spinlock_t qp_lock;
 };
 
@@ -101,13 +94,13 @@ char hisi_zip_name[] = "hisi_zip";
 #define to_hisi_zip(p_wdev) container_of(p_wdev, struct hisi_zip, wdev)
 #define to_hisi_zip_qp(p_wdq) container_of(p_wdq, struct hzip_qp, wdq)
 
-static struct pci_device_id zip_dev_ids[] = {
+static struct pci_device_id hisi_zip_dev_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, 0xa250) },
 	/* we plan to reuse zip.c for vf */
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, 0xa251) },
 	{ 0, }
 };
-MODULE_DEVICE_TABLE(pci, zip_dev_ids);
+MODULE_DEVICE_TABLE(pci, hisi_zip_dev_ids);
 
 static irqreturn_t hisi_zip_irq(int irq, void *data)
 {
@@ -789,12 +782,10 @@ static const struct wd_dev_ops hzip_ops = {
 };
 
 
-static int zip_probe (struct pci_dev *pdev, const struct pci_device_id *id)
+static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct hisi_zip *hisi_zip;
 	struct wd_dev *wdev;
-	resource_size_t base;
-	resource_size_t size;
 	int ret;
 	u16 ecam_val16;
 
@@ -823,15 +814,13 @@ static int zip_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_pci_reg;
 	}
 
-	base = pci_resource_start(pdev, 2);
-	size = pci_resource_len(pdev, 2);
-	hisi_zip->io_base = devm_ioremap(&pdev->dev, base, size);
+	hisi_zip->phys_base = pci_resource_start(pdev, 2);
+	hisi_zip->size = pci_resource_len(pdev, 2);
+	hisi_zip->io_base = devm_ioremap(&pdev->dev, hisi_zip->phys_base, size);
 	if (!hisi_zip->io_base) {
 		ret = -EIO;;
 		goto err_pci_reg;
 	}
-        hisi_zip->size = size;
-        hisi_zip->phys_base = base;
 	hisi_zip->pdev = pdev;
         spin_lock_init(&hisi_zip->qp_lock);
 
@@ -848,8 +837,6 @@ static int zip_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 			goto err_pci_reg;
 	}
 
-	/* to do: exception irq handler register */
-	
 	if (pdev->is_physfn) {
 		/* to do: init zip's QM */
 		ret = hisi_zip_init_qm(hisi_zip);
@@ -875,9 +862,12 @@ static int zip_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = devm_request_threaded_irq(&pdev->dev, pci_irq_vector(pdev, 0),
 					hisi_zip_irq, hacc_irq_thread,
-					IRQF_SHARED, hisi_zip_name, hisi_zip->qm_info);
+					IRQF_SHARED, hisi_zip_name,
+                                        hisi_zip->qm_info);
 	if (ret)
 		goto err_pci_irq;
+
+	/* to do: exception irq handler register */
 
 	/* to do: init wd related structure */
 	wdev = devm_kzalloc(&pdev->dev, sizeof(struct wd_dev), GFP_KERNEL);
@@ -924,44 +914,44 @@ err_pci_reg:
 	return ret;
 }
 
-static void zip_remove(struct pci_dev *pdev)
+static void hisi_zip_remove(struct pci_dev *pdev)
 {
 	struct wd_dev *wdev = pci_get_drvdata(pdev);
 
 	wd_dev_unregister(wdev);
 }
 
-static int zip_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
+static int hisi_zip_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	return 0;
 }
 
-static struct pci_driver zip_pci_driver = {
+static struct pci_driver hisi_zip_pci_driver = {
 	.name 		= "hisi_zip",
-	.id_table 	= zip_dev_ids,
-	.probe 		= zip_probe,
-	.remove 	= zip_remove,
-	.sriov_configure = zip_pci_sriov_configure
+	.id_table 	= hisi_zip_dev_ids,
+	.probe 		= hisi_zip_probe,
+	.remove 	= hisi_zip_remove,
+	.sriov_configure = hisi_zip_pci_sriov_configure
 };
 
-static int __init zip_init(void)
+static int __init hisi_zip_init(void)
 {
 	int ret;
 
-	ret = pci_register_driver(&zip_pci_driver);
+	ret = pci_register_driver(&hisi_zip_pci_driver);
 	if (ret < 0)
 		pr_err("zip: can't register hisi zip driver.\n");
 
 	return ret;
 }
 
-static void __exit zip_exit(void)
+static void __exit hisi_zip_exit(void)
 {
-	pci_unregister_driver(&zip_pci_driver);
+	pci_unregister_driver(&hisi_zip_pci_driver);
 }
 
-module_init(zip_init);
-module_exit(zip_exit);
+module_init(hisi_zip_init);
+module_exit(hisi_zip_exit);
 
 MODULE_DESCRIPTION("Driver for HiSilicon ZIP accelerator");
 MODULE_AUTHOR("Zhou Wang <wangzhou1@hisilicon.com>");
