@@ -24,8 +24,7 @@
 
 #define HZIP_BAR2_SIZE          (4 * 1024 * 1024)
 
-#define HZIP_DOORBELL_OFFSET    0x340;
-
+#define HZIP_DOORBELL_OFFSET    0x340
 
 /* add as private date in wd_queue of user space */
 struct hzip_queue_info {
@@ -36,6 +35,7 @@ struct hzip_queue_info {
         __u16 cq_head_index;
 	__u16 sqn;
         bool cqc_phase;
+        void *recv;
 };
 
 struct hisi_acc_qm_db {

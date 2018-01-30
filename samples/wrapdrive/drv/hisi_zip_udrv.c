@@ -15,6 +15,12 @@
 #include "../wd_util.h"
 #include "../wd_comp.h"
 
+char *hzip_request_type[] = {
+        "none",
+        "resv",                 /* 0x01 */
+        "zlib_comp",            /* 0x02 */
+};
+
 /* fix me */
 struct hisi_zip_q_priv {
 	/* local mirror of the register space */
@@ -102,6 +108,35 @@ static int hisi_zip_fill_sqe(struct wd_comp_msg *msg,
 	return 0;
 }
 
+int hisi_zip_recv_sqe(char *sqe, struct wd_comp_msg *recv_msg)
+{
+        int status = *((__u32 *)sqe + 3) & 0xff;
+        int type = *((__u32 *)sqe + 9) & 0xff;
+
+        if (status != 0) {
+                printf("hisi zip %s fail!\n", hzip_request_type[type]);
+                return -1;
+        }
+
+        recv_msg->alg = hzip_request_type[type];
+        recv_msg->aflags = 0;
+        recv_msg->in_coms = *(__u32 *)sqe;
+        recv_msg->in_bytes = *((__u32 *)sqe + 4);
+        recv_msg->out_bytes = *((__u32 *)sqe + 1);
+        recv_msg->src = ((__u64)*((__u32 *)sqe + 19) << 32) | *((__u32 *)sqe + 18);
+        recv_msg->dst = ((__u64)*((__u32 *)sqe + 21) << 32) | *((__u32 *)sqe + 20);
+        recv_msg->comp_lv = 0;
+        recv_msg->file_type = 0;
+        recv_msg->humm_type = 0;
+        recv_msg->op_type = 0;
+        recv_msg->win_size = 0;
+        recv_msg->cflags = 0;
+        recv_msg->status = status;
+        recv_msg->udata = 0;
+
+        return 0;
+}
+
 int hisi_zip_set_queue_dio(struct wd_queue *q)
 {
 	struct hzip_queue_info *info;
@@ -139,6 +174,10 @@ int hisi_zip_set_queue_dio(struct wd_queue *q)
 
         info->sqn = qm_sqc.sqn;
 
+	info->recv = malloc(sizeof(struct wd_comp_msg) * QM_EQ_DEPTH);
+	if (!info->recv)
+		return -1;
+
 	return hisi_zip_set_pasid(q);
 }
 
@@ -148,6 +187,7 @@ int hisi_zip_unset_queue_dio(struct wd_queue *q)
 
 	munmap(info->sq_base, HZIP_SQE_SIZE * QM_EQ_DEPTH +
                QM_CQE_SIZE * QM_EQ_DEPTH + HZIP_BAR2_SIZE);
+        free(info->recv);
 	free(info);
 	q->priv = NULL;
 
@@ -188,11 +228,15 @@ int hisi_zip_get_from_dio_q(struct wd_queue *q, void **resp)
 	void *sq_base = info->sq_base;
         char *cqe = cq_base + i * QM_CQE_SIZE;
         char *sqe = sq_base + CQE_SQ_HEAD_INDEX(cqe) * HZIP_SQE_SIZE;
+        struct wd_comp_msg *recv_msg = info->recv +
+                                       i * sizeof(struct wd_comp_msg);
 	struct hisi_acc_qm_db qm_db;
 	int ret;
 
         if (info->cqc_phase == CQE_PHASE(cqe)) {
-                /* to do: handle_sqe(sqe); */
+                ret = hisi_zip_recv_sqe(sqe, recv_msg);
+                if (ret != 0)
+                        return -EIO;
         } else {
                 return -EBUSY;
         }

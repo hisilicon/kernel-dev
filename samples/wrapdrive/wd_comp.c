@@ -151,7 +151,7 @@ int wd_comp_poll(struct wd_queue *q, int num)
 		*(udata->opdata->cflush) = resp->cflags;
 		*(udata->opdata->out_bytes) = resp->out_bytes;
 		*(udata->opdata->comsumed) = resp->in_coms;
-		ctx->cb(udata->tag, status, (void *)opdata);
+		ctx->cb(udata->tag, status, (void *)udata->opdata);
 		free(udata);
 	} while (--num);
 
