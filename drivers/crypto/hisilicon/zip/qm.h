@@ -38,15 +38,14 @@ struct sqc {
 	__le16 sq_tail;
 	__le32 sq_base_l;
 	__le32 sq_base_h;
-        __le16 w6; /* sqe_size */
-	__le16 rsvd0;
+        __le32 dw3; /* v1: v2: sqe_size */
         __le16 qes;
-	__le16 rsvd1;
+	__le16 rsvd0;
         __le16 pasid;
         __le16 w11; /* tail_idx_sig, head_idx_sig, burst_cnt_shift */
         __le16 cq_num;
         __le16 w13; /* type, order, priority */
-	__le32 rsvd2;
+	__le32 rsvd1;
 };
 
 struct cqc {
@@ -54,14 +53,13 @@ struct cqc {
 	__le16 cq_tail;
 	__le32 cq_base_l;
 	__le32 cq_base_h;
-        __le16 w6; /* cqe_size */
-	__le16 rsvd0;
+        __le32 dw3; /* v1: v2: cqe_size */
         __le16 qes;
-	__le16 rsvd1;
+	__le16 rsvd0;
         __le16 pasid;
         __le16 w11; /* tail_idx_sig, head_idx_sig */
         __le32 dw6; /* c_flag, phase */
-	__le32 rsvd2;
+	__le32 rsvd1;
 };
 
 struct eqc {
@@ -69,7 +67,8 @@ struct eqc {
 	__le16 eq_tail;
 	__le32 eq_base_l;
 	__le32 eq_base_h;
-	__le32 rsvd[3];
+	__le32 dw3; /* v1: v2: */
+	__le32 rsvd[2];
 	__le32 dw6; /* qes, phase */
 };
 
@@ -101,12 +100,12 @@ struct qm_info {
 	void __iomem *fun_base;
 	u32 qp_base;
 	u32 qp_num;
-        struct sqc *sqc;
-        struct cqc *cqc;
+        struct sqc *sqc_base;
+        struct cqc *cqc_base;
         struct eqc *eqc;
         struct aeqc *aeqc;
-	struct eq *eq_base;
-	struct aeq *aeq_base;
+	struct eqe *eq_base;
+	struct aeqe *aeq_base;
         u16 *bitmap;
         int node_id;
         bool qpn_fixed;
@@ -165,13 +164,12 @@ struct hisi_acc_qp {
 #define SQ_BUF_SIZE_SHIFT		8
 #define SQ_SQE_SIZE_SHIFT		12
 #define SQ_DEPTH			1024
-#define SQ_PASID			0 //
 #define SQ_HEAD_IDX_SIG_SHIFT		0 //
 #define SQ_TAIL_IDX_SIG_SHIFT		0 //
 #define SQ_CQN_SHIFT			0 //
-#define SQ_PRIORITY_SHIFT		16//
-#define SQ_ORDERS_SHIFT			20//
-#define SQ_TYPE_SHIFT			24// #
+#define SQ_PRIORITY_SHIFT		0//
+#define SQ_ORDERS_SHIFT			4//
+#define SQ_TYPE_SHIFT			8// #
 
 /* cqc shift */
 #define CQ_HEAD_SHIFT			0
@@ -192,17 +190,18 @@ struct hisi_acc_qp {
 #define CQ_PHASE_SHIFT			0
 #define CQ_FLAG_SHIFT			1
 
-#define CQC_HEAD_INDEX(cqc)		((*(u32 *)(cqc)) & 0xffff)
-#define CQC_PHASE(cqc)			((*((u32 *)(cqc) + 6)) & 0x1)
-#define CQC_CQ_ADDRESS(cqc)		(((u64)(*((u32 *)(cqc) + 2)) << 32) | \
-					 (*((u32 *)(cqc) + 1)))
+#define CQC_HEAD_INDEX(cqc)		((cqc)->cq_head)
+#define CQC_PHASE(cqc)			(((cqc)->dw6) & 0x1)
+#define CQC_CQ_ADDRESS(cqc)		(((u64)((cqc)->cq_base_h) << 32) | \
+                                         ((cqc)->cq_base_l))
+
 /* eqc shift */
 #define MB_EQC_EQE_SHIFT		12
 #define MB_EQC_PHASE_SHIFT		16
 
-#define EQC_HEAD_INDEX(eqc) 		((*(u32 *)(eqc)) & 0xffff)
-#define EQC_TAIL_INDEX(eqc) 		((*(u32 *)(eqc)) >> 16)
-#define EQC_PHASE(eqc)			((*((u32 *)(eqc) + 6)) >> 16 & 0x1)
+#define EQC_HEAD_INDEX(eqc) 		((eqc)->eq_head)
+#define EQC_TAIL_INDEX(eqc) 		((eqc)->eq_tail)
+#define EQC_PHASE(eqc)			((((eqc)->dw6) >> 16) & 0x1)
 
 /* aeqc shift */
 #define MB_AEQC_AEQE_SHIFT		12
@@ -214,8 +213,8 @@ struct hisi_acc_qp {
 #define CQE_SQ_HEAD_INDEX(cq)		((*((u32 *)(cq) + 2)) & 0xffff)
 
 /* eqe shift */
-#define EQE_PHASE(eq)			((*(u32 *)(eq)) >> 16 & 0x1)
-#define EQE_CQN(eq)			((*(u32 *)(eq)) & 0xffff)
+#define EQE_PHASE(eqe)			(((eqe)->dw0 >> 16) & 0x1)
+#define EQE_CQN(eqe)			(((eqe)->dw0) & 0xffff)
 
 /* aeqe shift */
 

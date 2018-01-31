@@ -36,7 +36,6 @@
 #define HZIP_BD_WUSER_32_63		0x301140
 
 #define HZIP_SQE_STATUS(sqe)		((*((u32 *)(sqe) + 3)) & 0xff)
-#define HZIP_SQC_PASID(sqc)		((*((u32 *)(sqc) + 5)) & 0xffff)
 
 #define HZIP_PF_DEF_Q_NUM               64
 
@@ -45,7 +44,7 @@ struct hzip_qp {
 	u32 alg_type;
 	/* 128B x 1024 = 32 4k pages, will map this sq to user space */
 	char *sq;
-	char *sqc;
+	struct sqc *sqc;
 	/* all through cq is same for all QM based acc, here we still copy a
 	 * point of cq to indicate the cq in one zip function queue pair
 	 */
@@ -66,6 +65,7 @@ struct hisi_zip {
 
 	struct qm_info *qm_info;
 	struct wd_dev *wdev;
+	struct hzip_qp qp[HZIP_FUN_QUEUE_NUM];
 	spinlock_t qp_lock;
 };
 
@@ -283,6 +283,7 @@ static int hisi_zip_init_queue(struct hisi_zip *hisi_zip)
 	struct device *dev = &hisi_zip->pdev->dev;
 	struct qm_info *qm;
 	void *vadd;
+	unsigned long sqc_bt;
 
 	qm = devm_kzalloc(dev, sizeof(struct qm_info), GFP_KERNEL);
 	if (!qm)
@@ -290,70 +291,68 @@ static int hisi_zip_init_queue(struct hisi_zip *hisi_zip)
 
 	hisi_zip->qm_info = qm;
 	qm->fun_base = hisi_zip->io_base;
-	qm->sqn_base = 0;
-	qm->sqn_num = 64;
-	qm->cqn_base = 0;
-	qm->cqn_num = 64;
+	qm->qp_base = 0;
+	qm->qp_num = 64;
 	qm->sqe_handler = hisi_zip_sqe_handler;
 	qm->priv = hisi_zip;
         spin_lock_init(&qm->mailbox_lock);
 
 	/* Init sqc_bt */
-	qm->sqc_cache = kzalloc(QM_SQC_SIZE * HZIP_FUN_QUEUE_NUM, GFP_KERNEL);
-	if (!qm->sqc_cache)
+	qm->sqc_base = kzalloc(QM_SQC_SIZE * HZIP_FUN_QUEUE_NUM, GFP_KERNEL);
+	if (!qm->sqc_base)
 		return -ENOMEM;
 	/* here we configure sqc_bt for PF, so queue = 0 */
-	hacc_mb(qm, MAILBOX_CMD_SQC_BT, virt_to_phys(qm->sqc_cache),
+	hacc_mb(qm, MAILBOX_CMD_SQC_BT, virt_to_phys(qm->sqc_base),
 		0, 0, 0);
 
-	unsigned long sqc_bt;
 	hacc_mb(qm, MAILBOX_CMD_SQC_BT, virt_to_phys(&sqc_bt),
 		0, 1, 0);
 
 	/* Init cqc_bt */
-	qm->cqc_cache = kzalloc(QM_CQC_SIZE * HZIP_FUN_QUEUE_NUM, GFP_KERNEL);
-	if (!qm->cqc_cache)
+	qm->cqc_base = kzalloc(QM_CQC_SIZE * HZIP_FUN_QUEUE_NUM, GFP_KERNEL);
+	if (!qm->cqc_base)
 		return -ENOMEM;
 	/* here we configure cqc_bt for PF, so queue = 0 */
-	hacc_mb(qm, MAILBOX_CMD_CQC_BT, virt_to_phys(qm->cqc_cache),
+	hacc_mb(qm, MAILBOX_CMD_CQC_BT, virt_to_phys(qm->cqc_base),
 		0, 0, 0);
 
 	/* to do: queue status? */
 
 	/* Init eqc */
-	qm->eqc_cache = kzalloc(QM_EQC_SIZE, GFP_KERNEL);
-	if (!qm->eqc_cache)
+	qm->eqc = (struct eqc *)kzalloc(sizeof(struct eqc), GFP_KERNEL);
+	if (!qm->eqc)
 		return -ENOMEM;
+	memset(qm->eqc, 0, sizeof(struct eqc));
 
-	vadd = kzalloc(QM_EQE_SIZE * QM_EQ_DEPTH, GFP_KERNEL);
+	vadd = (struct eqe *)kzalloc(sizeof(struct eqe) * QM_Q_DEPTH, GFP_KERNEL);
 	if (!vadd)
 		return -ENOMEM;
-	qm->eq = vadd;
+	qm->eq_base = vadd;
 
-	((u32 *)qm->eqc_cache)[1] =  lower_32_bits(virt_to_phys(vadd));
-	((u32 *)qm->eqc_cache)[2] =  upper_32_bits(virt_to_phys(vadd));
-	((u32 *)qm->eqc_cache)[3] =  2 << MB_EQC_EQE_SHIFT;
-	((u32 *)qm->eqc_cache)[6] =  (QM_EQ_DEPTH - 1) |
-				     (1 << MB_EQC_PHASE_SHIFT);
-	hacc_mb(qm, MAILBOX_CMD_EQC, virt_to_phys(qm->eqc_cache), QM_EQ_DEPTH,
+        qm->eqc->eq_base_l = lower_32_bits(virt_to_phys(vadd));
+        qm->eqc->eq_base_h = upper_32_bits(virt_to_phys(vadd));
+        qm->eqc->dw3 = 2 << MB_EQC_EQE_SHIFT;
+        qm->eqc->dw6 = (QM_Q_DEPTH - 1) | (1 << MB_EQC_PHASE_SHIFT);
+
+	hacc_mb(qm, MAILBOX_CMD_EQC, virt_to_phys(qm->eqc), QM_Q_DEPTH,
 		0, 0);
 #if 0   /* ES version does not support aeqc */
 	/* Init aeqc */
-	qm->aeqc_cache  = devm_kzalloc(dev, QM_AEQC_SIZE, GFP_KERNEL);
-	if (!qm->aeqc_cache)
+	qm->aeqc  = devm_kzalloc(dev, QM_AEQC_SIZE, GFP_KERNEL);
+	if (!qm->aeqc)
 		return -ENOMEM;
 
-	vadd = devm_kzalloc(dev, QM_AEQE_SIZE * QM_EQ_DEPTH, GFP_KERNEL);
+	vadd = devm_kzalloc(dev, QM_AEQE_SIZE * QM_Q_DEPTH, GFP_KERNEL);
 	if (!vadd)
 		return -ENOMEM;
 	qm->aeq = vadd;
 
-	((u32 *)qm->aeqc_cache)[1] =  lower_32_bits(virt_to_phys(vadd));
-	((u32 *)qm->aeqc_cache)[2] =  upper_32_bits(virt_to_phys(vadd));
-	((u32 *)qm->aeqc_cache)[3] =  2 << MB_AEQC_AEQE_SHIFT;
-	((u32 *)qm->aeqc_cache)[6] =  (QM_EQ_DEPTH - 1) |
+	((u32 *)qm->aeqc)[1] =  lower_32_bits(virt_to_phys(vadd));
+	((u32 *)qm->aeqc)[2] =  upper_32_bits(virt_to_phys(vadd));
+	((u32 *)qm->aeqc)[3] =  2 << MB_AEQC_AEQE_SHIFT;
+	((u32 *)qm->aeqc)[6] =  (QM_Q_DEPTH - 1) |
 				      (1 << MB_AEQC_PHASE_SHIFT);
-	hacc_mb(qm, MAILBOX_CMD_AEQC, virt_to_phys(qm->aeqc_cache), QM_EQ_DEPTH,
+	hacc_mb(qm, MAILBOX_CMD_AEQC, virt_to_phys(qm->aeqc), QM_Q_DEPTH,
 		0, 0);
 #endif
 	/* for what? */
@@ -367,9 +366,9 @@ pasid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct wd_queue *q = wd_queue(dev);
 	struct hzip_qp *qp = (struct hzip_qp *)q->priv;
-	char *sqc = qp->sqc;
+	struct sqc *sqc = qp->sqc;
 
-	return sprintf(buf, "%d\n", HZIP_SQC_PASID(sqc));
+	return sprintf(buf, "%d\n", sqc->pasid);
 }
 
 static ssize_t
@@ -380,7 +379,7 @@ pasid_store(struct device *dev, struct device_attribute *attr, const char *buf,
 	struct hzip_qp *qp = (struct hzip_qp *)q->priv;
 	struct wd_dev *wdev = q->wdev;
 	struct hisi_zip *hzip = (struct hisi_zip *)wdev->priv;
-	char *sqc = qp->sqc;
+	struct sqc *sqc = qp->sqc;
 	long value;
 	int ret;
 
@@ -388,8 +387,7 @@ pasid_store(struct device *dev, struct device_attribute *attr, const char *buf,
 	if (ret)
 		return -EINVAL;
 
-	*((u32 *)sqc + 5) &= 0xffff0000;
-	*((u32 *)sqc + 5) |= value & 0xffff;
+        sqc->pasid = cpu_to_le16((u16)value);
 
 	hacc_mb(hzip->qm_info, MAILBOX_CMD_SQC, virt_to_phys(sqc),
 		qp->queue_id, 0, 0);
@@ -470,10 +468,10 @@ static struct attribute_group *mdev_type_groups[] = {
 };
 
 static int hisi_zip_create_qp(struct hisi_zip *hisi_zip,
-			      enum hisi_zip_alg_type alg_type, int q_num)
+			      enum hisi_zip_alg_type alg_type, u16 q_num)
 {
-	char *sqc = hisi_zip->qm_info->sqc_cache + QM_SQC_SIZE * q_num;
-	char *cqc = hisi_zip->qm_info->cqc_cache + QM_CQC_SIZE * q_num;
+	struct sqc *sqc = hisi_zip->qm_info->sqc_base + q_num;
+	struct cqc *cqc = hisi_zip->qm_info->cqc_base + q_num;
 	void *vadd;
 
 	hisi_zip->qp[q_num].queue_id = q_num;
@@ -487,29 +485,31 @@ static int hisi_zip_create_qp(struct hisi_zip *hisi_zip,
 	hisi_zip->qp[q_num].wdq->wdev = hisi_zip->wdev;
 
 	/* will map to user space */
-	vadd = __get_free_pages(GFP_KERNEL, get_order(HZIP_SQE_SIZE * QM_EQ_DEPTH));
+	vadd = __get_free_pages(GFP_KERNEL, get_order(HZIP_SQE_SIZE * QM_Q_DEPTH));
 	if (!vadd)
 		return -ENOMEM;
-	memset(vadd, 0, PAGE_SIZE << get_order(HZIP_SQE_SIZE * QM_EQ_DEPTH));
+	memset(vadd, 0, PAGE_SIZE << get_order(HZIP_SQE_SIZE * QM_Q_DEPTH));
 	hisi_zip->qp[q_num].sq = vadd;
 
 	pr_err("in %s: sq base: %p\n", __FUNCTION__, vadd);
 
 	/* to fill sqc mb format, how to add lock? */
-	((u32 *)sqc)[0] = 0 << SQ_HEAD_SHIFT | 0 << SQ_TAIL_SHIFI;
-	((u32 *)sqc)[1] = lower_32_bits(virt_to_phys(vadd));
-	((u32 *)sqc)[2] = upper_32_bits(virt_to_phys(vadd));
-	((u32 *)sqc)[3] = (0 << SQ_HOP_NUM_SHIFT)	|
-		          (0 << SQ_PAGE_SIZE_SHIFT)	|
-		          (0 << SQ_BUF_SIZE_SHIFT)	|
-		          (7 << SQ_SQE_SIZE_SHIFT);
-	((u32 *)sqc)[4] = SQ_DEPTH - 1;
-	((u32 *)sqc)[5] = 0; //SQ_PASID, need add interface ?
-	((u32 *)sqc)[6] = q_num				|
-		          0 << SQ_PRIORITY_SHIFT	|
-		          1 << SQ_ORDERS_SHIFT		|
-		          alg_type << SQ_TYPE_SHIFT;
-	((u32 *)sqc)[7] = 0;
+        sqc->sq_head = 0;
+        sqc->sq_tail = 0;
+        sqc->sq_base_l = lower_32_bits(virt_to_phys(vadd));
+        sqc->sq_base_h = upper_32_bits(virt_to_phys(vadd));
+        sqc->dw3 = (0 << SQ_HOP_NUM_SHIFT)      |
+                   (0 << SQ_PAGE_SIZE_SHIFT)    | 
+                   (0 << SQ_BUF_SIZE_SHIFT)     | 
+                   (7 << SQ_SQE_SIZE_SHIFT);
+        sqc->qes = SQ_DEPTH - 1;
+        sqc->pasid = 0;
+        sqc->w11 = 0; /* fix me */
+        sqc->cq_num = q_num;
+        sqc->w13 = 0 << SQ_PRIORITY_SHIFT	|
+		   1 << SQ_ORDERS_SHIFT		|
+		   alg_type << SQ_TYPE_SHIFT;
+        sqc->rsvd1 = 0;
 
 	hacc_mb(hisi_zip->qm_info, MAILBOX_CMD_SQC, virt_to_phys(sqc),
 		q_num, 0, 0);
@@ -522,33 +522,35 @@ static int hisi_zip_create_qp(struct hisi_zip *hisi_zip,
 	pr_err("in %s: sqc basep: %p\n", __FUNCTION__, virt_to_phys(sqc_dump));
 	hacc_mb(hisi_zip->qm_info, MAILBOX_CMD_SQC, virt_to_phys(sqc_dump),
 		q_num, 1, 0);
-	pr_err("in %s: dump sqc: 0: %lx\n", __FUNCTION__, ((u32 *)sqc_dump)[0]);
-	pr_err("in %s: dump sqc: 1: %lx\n", __FUNCTION__, ((u32 *)sqc_dump)[1]);
-	pr_err("in %s: dump sqc: 2: %lx\n", __FUNCTION__, ((u32 *)sqc_dump)[2]);
-	pr_err("in %s: dump sqc: 3: %lx\n", __FUNCTION__, ((u32 *)sqc_dump)[3]);
-	pr_err("in %s: dump sqc: 4: %lx\n", __FUNCTION__, ((u32 *)sqc_dump)[4]);
-	pr_err("in %s: dump sqc: 5: %lx\n", __FUNCTION__, ((u32 *)sqc_dump)[5]);
-	pr_err("in %s: dump sqc: 6: %lx\n", __FUNCTION__, ((u32 *)sqc_dump)[6]);
-	pr_err("in %s: dump sqc: 7: %lx\n", __FUNCTION__, ((u32 *)sqc_dump)[7]);
+	pr_err("in %s: dump sqc: 0: %x\n", __FUNCTION__, ((u32 *)sqc_dump)[0]);
+	pr_err("in %s: dump sqc: 1: %x\n", __FUNCTION__, ((u32 *)sqc_dump)[1]);
+	pr_err("in %s: dump sqc: 2: %x\n", __FUNCTION__, ((u32 *)sqc_dump)[2]);
+	pr_err("in %s: dump sqc: 3: %x\n", __FUNCTION__, ((u32 *)sqc_dump)[3]);
+	pr_err("in %s: dump sqc: 4: %x\n", __FUNCTION__, ((u32 *)sqc_dump)[4]);
+	pr_err("in %s: dump sqc: 5: %x\n", __FUNCTION__, ((u32 *)sqc_dump)[5]);
+	pr_err("in %s: dump sqc: 6: %x\n", __FUNCTION__, ((u32 *)sqc_dump)[6]);
+	pr_err("in %s: dump sqc: 7: %x\n", __FUNCTION__, ((u32 *)sqc_dump)[7]);
 
 	/* better to page align? */
-	vadd = kzalloc(QM_CQE_SIZE * QM_EQ_DEPTH, GFP_KERNEL);
+	vadd = kzalloc(QM_CQE_SIZE * QM_Q_DEPTH, GFP_KERNEL);
 	if (!vadd)
 		return -ENOMEM;
 	hisi_zip->qp[q_num].cq = vadd;
 
 	/* to fill cqc mb format */
-	((u32 *)cqc)[0] = 0 << CQ_HEAD_SHIFT | 0 << CQ_TAIL_SHIFI;
-	((u32 *)cqc)[1] = lower_32_bits(virt_to_phys(vadd));
-	((u32 *)cqc)[2] = upper_32_bits(virt_to_phys(vadd));
-	((u32 *)cqc)[3] = (0 << CQ_HOP_NUM_SHIFT)	|
-		          (0 << CQ_PAGE_SIZE_SHIFT)	|
-		          (0 << CQ_BUF_SIZE_SHIFT)	|
-		          (4 << CQ_SQE_SIZE_SHIFT);
-	((u32 *)cqc)[4] = CQ_DEPTH - 1;
-	((u32 *)cqc)[5] = 0; //CQ_PASID, need add interface ?
-	((u32 *)cqc)[6] = 1 << CQ_PHASE_SHIFT | 1 << CQ_FLAG_SHIFT;
-	((u32 *)cqc)[7] =  0;
+        cqc->cq_head = 0;
+        cqc->cq_tail = 0;
+        cqc->cq_base_l = lower_32_bits(virt_to_phys(vadd));
+        cqc->cq_base_h = upper_32_bits(virt_to_phys(vadd));
+        cqc->dw3 = (0 << CQ_HOP_NUM_SHIFT)      |
+                   (0 << CQ_PAGE_SIZE_SHIFT)    | 
+                   (0 << CQ_BUF_SIZE_SHIFT)     | 
+                   (4 << CQ_SQE_SIZE_SHIFT);
+        cqc->qes = CQ_DEPTH - 1;
+        cqc->pasid = 0;
+        cqc->w11 = 0; /* fix me */
+        cqc->dw6 = 1 << CQ_PHASE_SHIFT | 1 << CQ_FLAG_SHIFT;
+        cqc->rsvd1 = 0;
 
 	hacc_mb(hisi_zip->qm_info, MAILBOX_CMD_CQC, virt_to_phys(cqc),
 		q_num, 0, 0);
@@ -578,8 +580,7 @@ static int hzip_get_queue(struct wd_dev *wdev, const char *devalgo_name,
 	/* how about adding a para to pass pasid to hardware */
 
 	struct hisi_zip *hzip = (struct hisi_zip *)wdev->priv;
-	unsigned long flags;
-	int i;
+	u16 i;
 
 	// 1. parse qp to find a NULL wd_queue
 	// 2. allocate memory and mb to create sq and cq
@@ -625,7 +626,7 @@ static int hzip_put_queue(struct wd_queue *q)
 
 	// 1. stop queue first or return fail, hardware can not be stopped in ES :(
 	// 2. free sq and cq
-	free_pages((unsigned long)qp->sq, get_order(HZIP_SQE_SIZE * QM_EQ_DEPTH));
+	free_pages((unsigned long)qp->sq, get_order(HZIP_SQE_SIZE * QM_Q_DEPTH));
 	kfree(qp->cq);
 	kfree(qp->wdq);
 
@@ -674,7 +675,7 @@ static int hzip_mmap(struct wd_queue *q, struct vm_area_struct *vma)
 {
 	struct hzip_qp *qp = (struct hzip_qp *)q->priv;
 	unsigned long sq_size = HZIP_SQE_SIZE * SQ_DEPTH;
-	unsigned long cq_size = QM_CQE_SIZE * QM_EQ_DEPTH;
+	unsigned long cq_size = QM_CQE_SIZE * QM_Q_DEPTH;
 	char *sq = qp->sq;
 	char *cq = qp->cq;
         int ret;
@@ -709,12 +710,12 @@ static void dump_sqe(void *sqe)
 {
 	pr_err("in %s\n", __FUNCTION__);
 	pr_err("         sqe base: %p\n", sqe);
-	pr_err("         sqe  [4]: %lx\n", *((__u32 *)sqe + 4));
-	pr_err("         sqe  [9]: %lx\n", *((__u32 *)sqe + 9));
-	pr_err("         sqe [18]: %lx\n", *((__u32 *)sqe + 18));
-	pr_err("         sqe [19]: %lx\n", *((__u32 *)sqe + 19));
-	pr_err("         sqe [20]: %lx\n", *((__u32 *)sqe + 20));
-	pr_err("         sqe [21]: %lx\n", *((__u32 *)sqe + 21));
+	pr_err("         sqe  [4]: %x\n", *((__u32 *)sqe + 4));
+	pr_err("         sqe  [9]: %x\n", *((__u32 *)sqe + 9));
+	pr_err("         sqe [18]: %x\n", *((__u32 *)sqe + 18));
+	pr_err("         sqe [19]: %x\n", *((__u32 *)sqe + 19));
+	pr_err("         sqe [20]: %x\n", *((__u32 *)sqe + 20));
+	pr_err("         sqe [21]: %x\n", *((__u32 *)sqe + 21));
 
 }
 
@@ -723,46 +724,23 @@ static long hzip_ioctl(struct wd_queue *q, unsigned int cmd, unsigned long arg)
 	struct hzip_qp *qp = (struct hzip_qp *)q->priv;
 	struct qm_info *qm = qp->hzip->qm_info;
 	struct hisi_acc_qm_sqc qm_sqc;
-	struct hacc_qm_db qm_db;
-	char *sqc = qp->sqc;
+	struct sqc *sqc = qp->sqc;
 
 	switch (cmd) {
-	/* we can offer sq doorbell */
-	case HACC_QM_DB_SQ:
-		if (copy_from_user(&qm_db, (void __user *)arg,
-				   sizeof(struct hacc_qm_db)))
-			return -EFAULT;
-
-		//dump_sqe(qp->sq + (qm_db.index - 1) * HZIP_SQE_SIZE);
-
-		hacc_db(qm, qm_db.tag, qm_db.cmd, qm_db.index, qm_db.priority);
-		qp->status = HZIP_QUEUE_USING;
-		break;
 	/* user to read the data in SQC cache */
 	case HACC_QM_MB_SQC:
-		qm_sqc.sq_head_index = 0xffff & *((u32 *)qp->sqc);
-		qm_sqc.sq_tail_index = 0xffff & (*((u32 *)qp->sqc) >> 16);
+		qm_sqc.sq_head_index = sqc->sq_head;
+		qm_sqc.sq_tail_index = sqc->sq_tail;
 		qm_sqc.sqn = qp->queue_id;
                 if (copy_to_user((struct hisi_acc_qm_sqc *)arg, &qm_sqc,
 				 sizeof(struct hisi_acc_qm_sqc)))
                         return -EFAULT;
 		break;
 	case HACC_QM_SET_PASID:
-
-		*((u32 *)sqc + 5) &= 0xffff0000;
-		*((u32 *)sqc + 5) |= arg & 0xffff;
-
+                sqc->pasid = (u16)(arg & 0xffff);
 		hacc_mb(qm, MAILBOX_CMD_SQC, virt_to_phys(sqc),
 			qp->queue_id, 0, 0);
-
 		qp->status = HZIP_QUEUE_IDEL;
-		break;
-	case HACC_QM_DB_CQ:
-		if (copy_from_user(&qm_db, (void __user *)arg,
-				   sizeof(struct hacc_qm_db)))
-			return -EFAULT;
-
-		hacc_db(qm, qm_db.tag, qm_db.cmd, qm_db.index, qm_db.priority);
 		break;
 	default:
 		return -EINVAL;
@@ -816,7 +794,8 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	hisi_zip->phys_base = pci_resource_start(pdev, 2);
 	hisi_zip->size = pci_resource_len(pdev, 2);
-	hisi_zip->io_base = devm_ioremap(&pdev->dev, hisi_zip->phys_base, size);
+	hisi_zip->io_base = devm_ioremap(&pdev->dev, hisi_zip->phys_base,
+                                         hisi_zip->size);
 	if (!hisi_zip->io_base) {
 		ret = -EIO;;
 		goto err_pci_reg;

@@ -115,22 +115,23 @@ irqreturn_t hacc_irq_thread(int irq, void *data)
 	//pr_err("in %s\n", __FUNCTION__);
 
 	struct qm_info *qm_info = (struct qm_info *)data;
-	char *eqc = qm_info->eqc_cache;
-	char *cqc = qm_info->cqc_cache;
-	char *eq = qm_info->eq;
-	char *eqe_h = eq + EQC_HEAD_INDEX(eqc) * QM_EQE_SIZE;
-	char *cqe_h, *cq, *cqc_current;
-	u32 eq_index = EQC_HEAD_INDEX(eqc);
-	u32 cq_index;
+	struct eqc *eqc = qm_info->eqc;
+	struct cqc *cqc = qm_info->cqc_base;
+	struct eqe *eq = qm_info->eq_base;
+	struct eqe *eqe_h = eq + EQC_HEAD_INDEX(eqc);
+	char *cqe_h, *cq;
+        struct cqc *cqc_current;
+	u16 eq_index = EQC_HEAD_INDEX(eqc);
+	u16 cq_index;
 
 	/* to do: if no new eqe, there is no irq, do nothing or reture error */
 
 	/* handle all eqs from eqe_h */
 	while (EQE_PHASE(eqe_h) == EQC_PHASE(eqc)) {
 
-		cqc_current = cqc + QM_CQC_SIZE * EQE_CQN(eqe_h);
+		cqc_current = cqc + EQE_CQN(eqe_h);
 		cq = phys_to_virt(CQC_CQ_ADDRESS(cqc_current));
-		cq_index = CQC_HEAD_INDEX(cqc_current);
+		cq_index = CQC_HEAD_INDEX(cqc_current); /* fix me: wrong here */
 		cqe_h = cq + cq_index * QM_CQE_SIZE;
 
 		/* for each eqe, handle related cqs */
@@ -147,32 +148,30 @@ irqreturn_t hacc_irq_thread(int irq, void *data)
 		}
 
 		/* update cached cqc head index */
-		*(u32 *)cqc_current &= 0xffff0000;
-		*(u32 *)cqc_current |= cq_index & 0xffff;
+                cqc_current->cq_head = cq_index;
 		hacc_db(qm_info, EQE_CQN(eqe_h), DOORBELL_CMD_CQ, cq_index, 0);
 		/* set c_flag */
 		hacc_db(qm_info, EQE_CQN(eqe_h), DOORBELL_CMD_CQ, cq_index, 1);
 
-		eqe_h += QM_EQE_SIZE;
+		eqe_h++;
 		eq_index++;
 	}
 
 	/* update cached eqc head index */
-	*(u32 *)eqc &= 0xffff0000;
-	*(u32 *)eqc |= eq_index & 0xffff;
+        eqc->eq_head = eq_index;
 	hacc_db(qm_info, 0, DOORBELL_CMD_EQ, eq_index, 0);
 
 	return IRQ_HANDLED;
 }
 
-struct qm_info *hisi_acc_qm_info_create()
+struct qm_info *hisi_acc_qm_info_create(void)
 {
-        
+        return NULL;
 }
 
 int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number)
 {
-
+        return 0;
 }
 
 void hisi_acc_qm_info_release(struct qm_info *qm)
@@ -181,18 +180,36 @@ void hisi_acc_qm_info_release(struct qm_info *qm)
 }
 
 int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp *qp)
+{
+        return 0;
+}
 
 int hisi_acc_release_qp(struct qm_info *qm, struct hisi_acc_qp *qp)
+{
+        return 0;
+}
 
 int hisi_acc_set_pasid(struct hisi_acc_qp *qp, u16 pasid)
+{
+        return 0;
+}
 
 int hisi_acc_unset_pasid(struct hisi_acc_qp *qp)
+{
+        return 0;
+}
 
 int hisi_acc_get_sq_tail(struct hisi_acc_qp *qp)
+{
+        return 0;
+}
 
 int hisi_acc_send(struct hisi_acc_qp *qp, u16 sq_tail, void *priv)
+{
+        return 0;
+}
 
-int hisi_acc_receive(struct hisi_acc_qp, void *priv)
-
-
-
+int hisi_acc_receive(struct hisi_acc_qp *qp, void *priv)
+{
+        return 0;
+}
