@@ -201,8 +201,6 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 
 	if (task) {
 		struct device *dev = hisi_hba->dev;
-		struct domain_device *device = task->dev;
-		struct hisi_sas_device *sas_dev = device->lldd_dev;
 
 		if (!task->lldd_task)
 			return;
@@ -214,9 +212,6 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 				dma_unmap_sg(dev, task->scatter,
 					     task->num_scatter,
 					     task->data_dir);
-
-		if (sas_dev)
-			atomic64_dec(&sas_dev->running_req);
 	}
 
 	if (slot->buf)
@@ -471,7 +466,6 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 	task->task_state_flags |= SAS_TASK_AT_INITIATOR;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-	atomic64_inc(&sas_dev->running_req);
 	++(*pass);
 	slot->ready = 1;
 
@@ -1599,7 +1593,6 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 	slot->ready = 1;
-	atomic64_inc(&sas_dev->running_req);
 
 	/* send abort command to the chip */
 	spin_lock_irqsave(&dq->lock, flags);
