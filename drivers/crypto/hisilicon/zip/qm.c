@@ -167,44 +167,210 @@ irqreturn_t hacc_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-struct qm_info *hisi_acc_qm_info_create(struct hisi_acc_qm_hw_ops *ops)
+/* v2 qm hw ops */
+static int alloc_aeqc_v2() {} /* v1 = NULL */
+static int add_queue_v2(struct qm_info *qm, u32 base, u32 number) {}
+
+struct qm_info *hisi_acc_qm_info_create(struct device *dev, void __iomem *base,
+                                        struct hisi_acc_qm_hw_ops *ops)
 {
-        return NULL;
+        struct qm_info *qm;
+        int size;
+
+        qm = (struct qm_info *)devm_kzalloc(dev, sizeof(*qm), GFP_KERNEL);
+	if (!qm)
+		return -ENOMEM;
+        
+        /* if qm is in pf, fix me: if qm is in vf */
+        qm->qp_base = 0;
+        qm->qp_num = QM_DEF_Q_NUM;
+
+        size = BITS_TO_LONGS(QM_DEF_Q_NUM) * sizeof(long);
+	qm->qp_bitmap = kzalloc(size, GFP_KERNEL);
+        if (!qm->qp_bitmap)
+		return -ENOMEM;
+        spin_lock_init(&qm->qp_bitmap_lock);
+
+        qm->fun_base = base;
+        qm->node_id = dev->numa_node;
+        qm->ops = ops;
+        spin_lock_init(&qm->mailbox_lock);
+
+	qm->eqc = (struct eqc *)devm_kzalloc(sizeof(struct eqc), GFP_KERNEL);
+	if (!qm->eqc)
+		return -ENOMEM;
+
+	qm->eq_base = (struct eqe *)devm_kzalloc(sizeof(struct eq) * QM_Q_DEPTH,
+                                                 GFP_KERNEL);
+	if (!qm->eq_base)
+		return -ENOMEM;
+
+        qm->eqc->eq_base_l = lower_32_bits(virt_to_phys(qm->eq_base));
+        qm->eqc->eq_base_h = upper_32_bits(virt_to_phys(qm->eq_base));
+        qm->eqc->dw3 = 2 << MB_EQC_EQE_SHIFT;
+        qm->eqc->dw6 = (QM_Q_DEPTH - 1) | (1 << MB_EQC_PHASE_SHIFT);
+
+	hacc_mb(qm, MAILBOX_CMD_EQC, virt_to_phys(qm->eqc), QM_Q_DEPTH, 0, 0);
+
+        /* fix me: qm->alloc_aeqc(); */
+
+        return qm;
 }
 
 int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number)
 {
+        int size, ret;
+
+        if (!number)
+                return -EINVAL;
+
+        if (qm->qp_bitmap)
+                free(qm->qp_bitmap);
+
+        size = BITS_TO_LONGS(number) * sizeof(long);
+	qm->qp_bitmap = kzalloc(size, GFP_KERNEL);
+
+        qm->qp_base = base;
+        qm->num = number;
+
+        ret = qm->add_queue(qm, base, number);
+        if (ret)
+		return -EPERM;
+
+	/* Init sqc_bt */
+	qm->sqc_base = kzalloc(QM_SQC_SIZE * HZIP_FUN_QUEUE_NUM, GFP_KERNEL);
+	if (!qm->sqc_base)
+		return -ENOMEM;
+	hacc_mb(qm, MAILBOX_CMD_SQC_BT, virt_to_phys(qm->sqc_base), 0, 0, 0);
+
+	/* Init cqc_bt */
+	qm->cqc_base = kzalloc(QM_CQC_SIZE * HZIP_FUN_QUEUE_NUM, GFP_KERNEL);
+	if (!qm->cqc_base)
+		return -ENOMEM;
+	hacc_mb(qm, MAILBOX_CMD_CQC_BT, virt_to_phys(qm->cqc_base), 0, 0, 0);
+
+        qm->qpn_fixed = true;
+
         return 0;
 }
 
 void hisi_acc_qm_info_release(struct qm_info *qm)
 {
-
+        free(qm->qp_bitmap);
 }
 
-int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp *qp)
+int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp *qp, u32 sqe_size)
 {
-        return 0;
+        struct hisi_acc_qp *qp;
+        struct sqc *sqc;
+        struct cqc *cqc;
+        struct cqe *cq_base;
+        void *sq_base;
+        int qp_index;
+
+	spin_lock(&qm->qp_bitmap_lock);
+        qp_index = bitmap_find_next_zero_area(qm->qp_bitmap, qm->qp_num,
+                                              0, 1, 0);
+        bitmap_set(qm->qp_bitmap, qp_index, 1);
+    	spin_unlock(&qm->qp_bitmap_lock);
+
+        qp = (struct hisi_acc_qp *)devm_kzalloc(dev, sizeof(*qp), GFP_KERNEL);
+	if (!qp)
+		return -ENOMEM;
+        qp->queue_id = qp_index;
+        qp->sq_tail = 0;
+        qp->cq_head = 0;
+        qp->parent = qm;
+
+        sqc = qm->sqc_base + qp_index;
+        
+	/* will map to user space */
+	sq_base = __get_free_pages(GFP_KERNEL, get_order(sqe_size * QM_Q_DEPTH));
+	if (!sq_base)
+		return -ENOMEM;
+	memset(sq_base, 0, PAGE_SIZE << get_order(sqe_size * QM_Q_DEPTH));
+
+        sqc->sq_head = 0;
+        sqc->sq_tail = 0;
+        sqc->sq_base_l = lower_32_bits(virt_to_phys(sq_base));
+        sqc->sq_base_h = upper_32_bits(virt_to_phys(sq_base));
+        sqc->dw3 = (0 << SQ_HOP_NUM_SHIFT)      |
+                   (0 << SQ_PAGE_SIZE_SHIFT)    | 
+                   (0 << SQ_BUF_SIZE_SHIFT)     | 
+                   (7 << SQ_SQE_SIZE_SHIFT);
+        sqc->qes = SQ_DEPTH - 1;
+        sqc->pasid = 0;
+        sqc->w11 = 0; /* fix me */
+        sqc->cq_num = qp_index;
+        sqc->w13 = 0 << SQ_PRIORITY_SHIFT	|
+		   1 << SQ_ORDERS_SHIFT		|
+		   alg_type << SQ_TYPE_SHIFT;
+        sqc->rsvd1 = 0;
+
+	hacc_mb(qm, MAILBOX_CMD_SQC, virt_to_phys(sqc), qp_index, 0, 0);
+        qp->sq_base = sq_base;
+
+        cqc = qm->cqc_base + qp_index;
+	cq_base = kzalloc(QM_CQE_SIZE * QM_Q_DEPTH, GFP_KERNEL);
+	if (!cq_base)
+		return -ENOMEM;
+
+        cqc->cq_head = 0;
+        cqc->cq_tail = 0;
+        cqc->cq_base_l = lower_32_bits(virt_to_phys(vadd));
+        cqc->cq_base_h = upper_32_bits(virt_to_phys(vadd));
+        cqc->dw3 = (0 << CQ_HOP_NUM_SHIFT)      |
+                   (0 << CQ_PAGE_SIZE_SHIFT)    | 
+                   (0 << CQ_BUF_SIZE_SHIFT)     | 
+                   (4 << CQ_SQE_SIZE_SHIFT);
+        cqc->qes = CQ_DEPTH - 1;
+        cqc->pasid = 0;
+        cqc->w11 = 0; /* fix me */
+        cqc->dw6 = 1 << CQ_PHASE_SHIFT | 1 << CQ_FLAG_SHIFT;
+        cqc->rsvd1 = 0;
+
+	hacc_mb(hisi_zip->qm_info, MAILBOX_CMD_CQC, virt_to_phys(cqc),
+		q_num, 0, 0);
+
+        qp->cq_base = cq_base;
+
+        return qp;
 }
 
 int hisi_acc_release_qp(struct qm_info *qm, struct hisi_acc_qp *qp)
 {
+        release resource;
+
+	spin_lock(&qm->qp_bitmap_lock);
+        bitmap_clear(qm->qp_bitmap, qp->queue_id, 1);
+    	spin_unlock(&qm->qp_bitmap_lock);
+
         return 0;
 }
 
 int hisi_acc_set_pasid(struct hisi_acc_qp *qp, u16 pasid)
 {
+        qp->sqc->pasid = pasid;
+
+	hacc_mb(qp->parent, MAILBOX_CMD_SQC, virt_to_phys(qp->sqc),
+                qp->queue_id, 0, 0);
+
         return 0;
 }
 
 int hisi_acc_unset_pasid(struct hisi_acc_qp *qp)
 {
+        qp->sqc->pasid = 0;
+
+	hacc_mb(qp->parent, MAILBOX_CMD_SQC, virt_to_phys(qp->sqc),
+                qp->queue_id, 0, 0);
+
         return 0;
 }
 
-int hisi_acc_get_sq_tail(struct hisi_acc_qp *qp)
+u16 hisi_acc_get_sq_tail(struct hisi_acc_qp *qp)
 {
-        return 0;
+        return qp->sqc->sq_tail;
 }
 
 int hisi_acc_send(struct hisi_acc_qp *qp, u16 sq_tail, void *priv)

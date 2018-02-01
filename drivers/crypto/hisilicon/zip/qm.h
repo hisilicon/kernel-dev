@@ -93,7 +93,7 @@ struct doorbell {
 };
 
 struct hisi_acc_qm_hw_ops {
-
+        int (*add_queue)(struct qm_info *qm, u32 base, u32 number);
 };
 
 struct qm_info {
@@ -106,7 +106,8 @@ struct qm_info {
         struct aeqc *aeqc;
 	struct eqe *eq_base;
 	struct aeqe *aeq_base;
-        u16 *bitmap;
+        unsigned long *qp_bitmap;
+	spinlock_t qp_bitmap_lock;
         int node_id;
         bool qpn_fixed;
 	spinlock_t mailbox_lock;
@@ -127,6 +128,8 @@ struct hisi_acc_qp {
         struct qm_info *parent;
         struct list_head node;
 };
+
+#define QM_DEF_Q_NUM                    128
 
 #define QM_SQC_SIZE			32
 #define QM_CQC_SIZE			32
