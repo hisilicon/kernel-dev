@@ -140,6 +140,7 @@
 #define TX_HARDRST_MSK          (0x1 << TX_HARDRST_OFF)
 #define RX_IDAF_DWORD0			(PORT_BASE + 0xc4)
 #define RXOP_CHECK_CFG_H		(PORT_BASE + 0xfc)
+#define DONE_RECEVIED_TIME		(PORT_BASE + 0x11c)
 #define STP_LINK_TIMER			(PORT_BASE + 0x120)
 #define STP_LINK_TIMEOUT_STATE		(PORT_BASE + 0x124)
 #define CON_CFG_DRIVER			(PORT_BASE + 0x130)
@@ -459,6 +460,9 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 
 		/* disable stp link timer */
 		hisi_sas_phy_write32(hisi_hba, i, STP_LINK_TIMER, 0x2710);
+
+		/* only for FPGA */
+		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME, 0x100);
 	}
 	for (i = 0; i < hisi_hba->queue_count; i++) {
 		/* Delivery queue */
