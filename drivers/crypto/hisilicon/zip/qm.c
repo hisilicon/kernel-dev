@@ -52,28 +52,30 @@ static inline void mb_write(struct qm_info *qm, void *src)
 int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue, bool op,
 	    bool event)
 {
-	u32 mailbox[4] = {0};
+        struct mailbox mailbox;
+
+        memset(&mailbox, 0, sizeof(struct mailbox));
 
 	/* to do: prepare mb date */
-	mailbox[0] = cmd |
+	mailbox.w0 = cmd |
 		     (event ? 0x1 << MAILBOX_EVENT_SHIFT : 0) |
 		     (op ? 0x1 << MAILBOX_OP_SHIFT : 0) |
-		     (queue << MAILBOX_QUEUE_SHIFT) |
 		     (0x1 << MAILBOX_BUSY_SHIFT);
-	mailbox[1] = lower_32_bits(phys_addr);
-	mailbox[2] = upper_32_bits(phys_addr);
-	mailbox[3] = 0;
+        mailbox.queue_num = queue;
+	mailbox.mb_base_l = lower_32_bits(phys_addr);
+	mailbox.mb_base_h = upper_32_bits(phys_addr);
+	mailbox.rsvd = 0;
 
 	pr_err("in %s\n", __FUNCTION__);
-	pr_err("in %x\n", mailbox[0]);
-	pr_err("in %x\n", mailbox[1]);
-	pr_err("in %x\n", mailbox[2]);
-	pr_err("in %x\n", mailbox[3]);
+	pr_err("in %x\n", mailbox.queue_num);
+	pr_err("in %x\n", mailbox.mb_base_l);
+	pr_err("in %x\n", mailbox.mb_base_h);
+	pr_err("in %x\n", mailbox.rsvd);
 
 	spin_lock(&qm->mailbox_lock);
 
 	while(hacc_qm_mb_is_busy(qm));
-	mb_write(qm, mailbox);
+	mb_write(qm, &mailbox);
 	while(hacc_qm_mb_is_busy(qm));
 
     	spin_unlock(&qm->mailbox_lock);
