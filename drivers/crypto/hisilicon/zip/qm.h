@@ -11,10 +11,6 @@
 #ifndef HISI_ACC_QM_H
 #define HISI_ACC_QM_H
 
-#include <linux/init.h>
-#include <linux/irqreturn.h>
-#include <linux/kernel.h>
-
 struct cqe {
 	__le32 rsvd0;
 	__le16 cmd_id;

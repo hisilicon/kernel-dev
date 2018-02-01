@@ -9,6 +9,7 @@
  */
 
 #include <asm/io.h>
+#include <linux/irqreturn.h>
 #include "qm.h"
 
 /**
