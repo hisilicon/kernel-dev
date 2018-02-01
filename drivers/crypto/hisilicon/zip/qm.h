@@ -96,6 +96,10 @@ struct doorbell {
 	__le16 priority;
 };
 
+struct hisi_acc_qm_hw_ops {
+
+};
+
 struct qm_info {
 	void __iomem *fun_base;
 	u32 qp_base;
@@ -113,6 +117,7 @@ struct qm_info {
 	void *priv;
 	int (*sqe_handler)(struct qm_info *qm_info, char *cqe);
 	struct list_head qm;
+        struct hisi_acc_qm_hw_ops *ops;
 };
 
 struct hisi_acc_qp {

@@ -164,7 +164,7 @@ irqreturn_t hacc_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-struct qm_info *hisi_acc_qm_info_create(void)
+struct qm_info *hisi_acc_qm_info_create(struct hisi_acc_qm_hw_ops *ops)
 {
         return NULL;
 }
