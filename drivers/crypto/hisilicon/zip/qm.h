@@ -93,7 +93,7 @@ struct doorbell {
 };
 
 struct hisi_acc_qm_hw_ops {
-        int (*add_queue)(struct qm_info *qm, u32 base, u32 number);
+        int (*vft_config)(struct qm_info *qm, u32 base, u32 number);
 };
 
 struct qm_info {
@@ -130,6 +130,10 @@ struct hisi_acc_qp {
 };
 
 #define QM_DEF_Q_NUM                    128
+
+#define QM_IN_PF_MASK                   0x1
+#define QM_IN_PF                        0x1
+#define QM_IN_VF                        0
 
 #define QM_SQC_SIZE			32
 #define QM_CQC_SIZE			32

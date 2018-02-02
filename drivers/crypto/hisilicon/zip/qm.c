@@ -50,8 +50,8 @@ static inline void mb_write(struct qm_info *qm, void *src)
  * @event: 0 for polling mode, 1 for event mode
  */
 /* fix: how to do read mb */
-int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue, bool op,
-	    bool event)
+static int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue,
+                   bool op, bool event)
 {
         struct mailbox mailbox;
 
@@ -92,8 +92,7 @@ int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue, bool op,
  * @index:
  * @prority:
  */
-/* we may remove db to user space */
-int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority)
+static int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 {
 	/* fix me: check input params */
 	//pr_err("in %s: qn: %d, cmd: %d, index: %d, priority: %d", __FUNCTION__,
@@ -169,41 +168,36 @@ irqreturn_t hacc_irq_thread(int irq, void *data)
 
 /* v2 qm hw ops */
 static int alloc_aeqc_v2() {} /* v1 = NULL */
-static int add_queue_v2(struct qm_info *qm, u32 base, u32 number) {}
+static int vft_config_v2(struct qm_info *qm, u32 base, u32 number) {}
 
-struct qm_info *hisi_acc_qm_info_create(struct device *dev, void __iomem *base,
-                                        struct hisi_acc_qm_hw_ops *ops)
+int hisi_acc_qm_info_create(struct device *dev, void __iomem *base,
+                            struct hisi_acc_qm_hw_ops *ops,
+                            struct qm_info **res)
 {
         struct qm_info *qm;
-        int size;
+        int ret;
 
         qm = (struct qm_info *)devm_kzalloc(dev, sizeof(*qm), GFP_KERNEL);
 	if (!qm)
-		return -ENOMEM;
+		ret = -ENOME;
         
-        /* if qm is in pf, fix me: if qm is in vf */
-        qm->qp_base = 0;
-        qm->qp_num = QM_DEF_Q_NUM;
-
-        size = BITS_TO_LONGS(QM_DEF_Q_NUM) * sizeof(long);
-	qm->qp_bitmap = kzalloc(size, GFP_KERNEL);
-        if (!qm->qp_bitmap)
-		return -ENOMEM;
-        spin_lock_init(&qm->qp_bitmap_lock);
-
         qm->fun_base = base;
         qm->node_id = dev->numa_node;
         qm->ops = ops;
         spin_lock_init(&qm->mailbox_lock);
 
-	qm->eqc = (struct eqc *)devm_kzalloc(sizeof(struct eqc), GFP_KERNEL);
-	if (!qm->eqc)
-		return -ENOMEM;
+	qm->eqc = (struct eqc *)kzalloc(sizeof(struct eqc), GFP_KERNEL);
+	if (!qm->eqc) {
+		ret = -ENOME;
+                return ret;
+        }
 
-	qm->eq_base = (struct eqe *)devm_kzalloc(sizeof(struct eq) * QM_Q_DEPTH,
-                                                 GFP_KERNEL);
-	if (!qm->eq_base)
-		return -ENOMEM;
+	qm->eq_base = (struct eqe *)kzalloc(sizeof(struct eq) * QM_Q_DEPTH,
+                                            GFP_KERNEL);
+	if (!qm->eq_base) {
+		ret = -ENOME;
+                goto err_eq;
+        }
 
         qm->eqc->eq_base_l = lower_32_bits(virt_to_phys(qm->eq_base));
         qm->eqc->eq_base_h = upper_32_bits(virt_to_phys(qm->eq_base));
@@ -214,7 +208,11 @@ struct qm_info *hisi_acc_qm_info_create(struct device *dev, void __iomem *base,
 
         /* fix me: qm->alloc_aeqc(); */
 
-        return qm;
+        *res = qm;
+	return 0;
+err_eq:
+        kfree(qm->eqc);
+        return ret;
 }
 
 int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number)
@@ -225,41 +223,60 @@ int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number)
                 return -EINVAL;
 
         if (qm->qp_bitmap)
-                free(qm->qp_bitmap);
+                kfree(qm->qp_bitmap);
 
         size = BITS_TO_LONGS(number) * sizeof(long);
-	qm->qp_bitmap = kzalloc(size, GFP_KERNEL);
+	qm->qp_bitmap = (unsigned long *)kzalloc(size, GFP_KERNEL);
 
         qm->qp_base = base;
         qm->num = number;
 
-        ret = qm->add_queue(qm, base, number);
+        ret = qm->ops->vft_config(qm, base, number);
         if (ret)
-		return -EPERM;
+		goto err_vft_config;
 
 	/* Init sqc_bt */
 	qm->sqc_base = kzalloc(QM_SQC_SIZE * HZIP_FUN_QUEUE_NUM, GFP_KERNEL);
-	if (!qm->sqc_base)
-		return -ENOMEM;
+	if (!qm->sqc_base) {
+		ret = -ENOMEM;
+                goto err_vft_config;
+        }
 	hacc_mb(qm, MAILBOX_CMD_SQC_BT, virt_to_phys(qm->sqc_base), 0, 0, 0);
 
 	/* Init cqc_bt */
 	qm->cqc_base = kzalloc(QM_CQC_SIZE * HZIP_FUN_QUEUE_NUM, GFP_KERNEL);
-	if (!qm->cqc_base)
-		return -ENOMEM;
+	if (!qm->cqc_base) {
+		ret = -ENOMEM;
+                goto err_cqc;
+        }
 	hacc_mb(qm, MAILBOX_CMD_CQC_BT, virt_to_phys(qm->cqc_base), 0, 0, 0);
 
-        qm->qpn_fixed = true;
-
         return 0;
+
+err_cqc:
+        kfree(qm->sqc_base);
+err_vft_config:
+        kfree(qm->qp_bitmap);
+        return ret;
 }
 
 void hisi_acc_qm_info_release(struct qm_info *qm)
 {
-        free(qm->qp_bitmap);
+        kfree(qm->eqc);
+        kfree(qm->eq_base);
+
+        if (qm->qp_bitmap)
+                kfree(qm->qp_bitmap);
+        if (qm->sqc_base)
+                kfree(qm->sqc_base);
+        if (qm->cqc_base)
+                kfree(qm->cqc_base);
+
+        kfree(qm);
 }
 
-int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp *qp, u32 sqe_size)
+int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
+                       u32 sqe_size)
 {
         struct hisi_acc_qp *qp;
         struct sqc *sqc;
@@ -269,9 +286,8 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp *qp, u32 sqe_size)
         int qp_index;
 
 	spin_lock(&qm->qp_bitmap_lock);
-        qp_index = bitmap_find_next_zero_area(qm->qp_bitmap, qm->qp_num,
-                                              0, 1, 0);
-        bitmap_set(qm->qp_bitmap, qp_index, 1);
+        qp_index = find_first_zero_bit(qm->qp_bitmap, qm->qp_num);
+        set_bits(qp_index, qm->qp_bitmap);
     	spin_unlock(&qm->qp_bitmap_lock);
 
         qp = (struct hisi_acc_qp *)devm_kzalloc(dev, sizeof(*qp), GFP_KERNEL);
@@ -334,16 +350,21 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp *qp, u32 sqe_size)
 
         qp->cq_base = cq_base;
 
-        return qp;
+        *res = qp;
+
+        return 0;
 }
 
 int hisi_acc_release_qp(struct qm_info *qm, struct hisi_acc_qp *qp)
 {
-        release resource;
+        kfree(qp->sq_base);
+        kfree(qp->cq_base);
 
 	spin_lock(&qm->qp_bitmap_lock);
         bitmap_clear(qm->qp_bitmap, qp->queue_id, 1);
     	spin_unlock(&qm->qp_bitmap_lock);
+
+        kfree(qp);
 
         return 0;
 }
@@ -370,14 +391,20 @@ int hisi_acc_unset_pasid(struct hisi_acc_qp *qp)
 
 u16 hisi_acc_get_sq_tail(struct hisi_acc_qp *qp)
 {
-        return qp->sqc->sq_tail;
+        return qp->sq_tail;
 }
 
+/* fix me */
 int hisi_acc_send(struct hisi_acc_qp *qp, u16 sq_tail, void *priv)
 {
+        hacc_db(qp->parent, qp->qp_num, DOORBELL_CMD_SQ, sq_tail, 0);
+
+        qp->sq_tail++; /* fix me: wrap */
+
         return 0;
 }
 
+/* fix me */
 int hisi_acc_receive(struct hisi_acc_qp *qp, void *priv)
 {
         return 0;
