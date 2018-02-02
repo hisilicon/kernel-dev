@@ -166,7 +166,7 @@ struct hisi_sas_cq {
 
 struct hisi_sas_dq {
 	struct hisi_hba *hisi_hba;
-	struct hisi_sas_slot	*slot_prep;
+	struct list_head list;
 	spinlock_t lock;
 	int	wr_point;
 	int	id;
@@ -188,6 +188,7 @@ struct hisi_sas_device {
 
 struct hisi_sas_slot {
 	struct list_head entry;
+	struct list_head delivery;
 	struct sas_task *task;
 	struct hisi_sas_port	*port;
 	u64	n_elem;
@@ -197,6 +198,7 @@ struct hisi_sas_slot {
 	int	cmplt_queue_slot;
 	int	idx;
 	int	abort;
+	int	ready;
 	void	*buf;
 	dma_addr_t buf_dma;
 	void	*cmd_hdr;
