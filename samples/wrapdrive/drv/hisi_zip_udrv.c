@@ -170,7 +170,6 @@ int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 {
 	struct wd_comp_msg *msg = (struct wd_comp_msg *)req;
 	struct hzip_queue_info *info = (struct hzip_queue_info *)q->priv;
-	int ret;
 	__u16 i;
 
 	i = info->sq_tail_index;
@@ -211,7 +210,6 @@ int hisi_zip_get_from_dio_q(struct wd_queue *q, void **resp)
 
         if (i == (QM_EQ_DEPTH - 1)) {
                 i = 0;
-                info->cqc_phase != (info->cqc_phase);
         } else {
                 i++;
         }

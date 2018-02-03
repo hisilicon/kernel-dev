@@ -12,7 +12,6 @@
 #include <unistd.h>
 #include "../wd.h"
 #include "../wd_comp.h"
-#include "../drv/hisi_zip_udrv.h"
 
 #define ASIZE (16*4096)
 
@@ -91,8 +90,8 @@ int main(int argc, char *argv[])
 {
 	struct wd_capa capa;
 	struct wd_queue q;
-	struct wd_comp_msg *msg;
-	void *a, *src, *dst, *sq;
+	struct wd_comp_msg *msg, *recv_msg;
+	void *a, *src, *dst;
 	int ret, i;
 	int output_num;
 	FILE *fp;
@@ -152,13 +151,16 @@ int main(int argc, char *argv[])
 		msg->aflags |= _WD_AATTR_IOVA;
 		ret = wd_send(&q, msg);
 		SYS_ERR_COND(ret, "send fail(release queue should be done auto)\n");
-		usleep(10000);
-		ret = wd_recv_sync(&q, 0, 0);
-		SYS_ERR_COND(ret, "recv fail(release queue should be done auto)\n");
-
+		usleep(1);
+recv_again:
+		ret = wd_recv(&q, (void **)&recv_msg);
+		if (ret < 0) {
+			printf("\n wd_recv fail!");
+			goto alloc_msg_fail;
+		} else if (ret == 0)
+			goto recv_again;
 		/* add zlib compress head and write head + compressed date to a file */
-		sq = ((struct hzip_queue_info *)q.priv)->sq_base;
-		output_num = *((__u32 *)sq + 32 * i + 1);
+		output_num = recv_msg->out_bytes;
 		printf("output_num: %d\n", output_num);
 	}
 	char zip_head[2] = {0x78, 0x9c};
