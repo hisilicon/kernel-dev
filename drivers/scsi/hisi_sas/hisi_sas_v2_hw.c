@@ -2430,9 +2430,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	if (unlikely(aborted)) {
 		dev_dbg(dev, "slot_complete: task(%p) aborted\n", task);
 		ts->stat = SAS_ABORTED_TASK;
-		spin_lock_irqsave(&hisi_hba->lock, flags);
 		hisi_sas_slot_task_free(hisi_hba, task, slot);
-		spin_unlock_irqrestore(&hisi_hba->lock, flags);
 		return -1;
 	}
 
@@ -2549,9 +2547,7 @@ out:
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
-	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_slot_task_free(hisi_hba, task, slot);
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 	sts = ts->stat;
 
 	if (task->task_done)
