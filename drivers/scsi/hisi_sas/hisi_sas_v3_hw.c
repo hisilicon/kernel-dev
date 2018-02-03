@@ -1560,9 +1560,7 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	if (unlikely(aborted)) {
 		dev_dbg(dev, "slot complete: task(%p) aborted\n", task);
 		ts->stat = SAS_ABORTED_TASK;
-		spin_lock_irqsave(&hisi_hba->lock, flags);
 		hisi_sas_slot_task_free(hisi_hba, task, slot);
-		spin_unlock_irqrestore(&hisi_hba->lock, flags);
 		return -1;
 	}
 
@@ -1665,9 +1663,7 @@ out:
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
-	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_slot_task_free(hisi_hba, task, slot);
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 	sts = ts->stat;
 
 	if (task->task_done)
@@ -2289,7 +2285,6 @@ static int hisi_sas_v3_suspend(struct pci_dev *pdev, pm_message_t state)
 	u32 device_state, status;
 	int rc;
 	u32 reg_val;
-	unsigned long flags;
 
 	if (!pdev->pm_cap) {
 		dev_err(dev, "PCI PM not supported\n");
@@ -2333,9 +2328,7 @@ static int hisi_sas_v3_suspend(struct pci_dev *pdev, pm_message_t state)
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, device_state);
 
-	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_release_tasks(hisi_hba);
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 
 	sas_suspend_ha(sha);
 	return 0;
