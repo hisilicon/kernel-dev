@@ -11,6 +11,8 @@
 #ifndef HISI_ACC_QM_H
 #define HISI_ACC_QM_H
 
+#include <linux/dmapool.h>
+
 struct cqe {
 	__le32 rsvd0;
 	__le16 cmd_id;
@@ -98,34 +100,73 @@ struct hisi_acc_qm_hw_ops {
 
 struct qm_info {
 	void __iomem *fun_base;
+
 	u32 qp_base;
 	u32 qp_num;
+
         struct sqc *sqc_base;
+	dma_addr_t sqc_base_dma;
+
         struct cqc *cqc_base;
+	dma_addr_t cqc_base_dma;
+
         struct eqc *eqc;
-        struct aeqc *aeqc;
+	dma_addr_t eqc_dma;
+
 	struct eqe *eq_base;
+	dma_addr_t eq_base_dma;
+        u32 eq_head;
+
+        struct aeqc *aeqc;
 	struct aeqe *aeq_base;
+
         unsigned long *qp_bitmap;
 	spinlock_t qp_bitmap_lock;
+
         int node_id;
+
         bool qpn_fixed;
+
 	spinlock_t mailbox_lock;
+
 	void *priv;
+
 	int (*sqe_handler)(struct qm_info *qm_info, char *cqe);
+
 	struct list_head qm;
+
         struct hisi_acc_qm_hw_ops *ops;
+
+	struct dma_pool *eqc_aeqc_pool;
+
+        struct device *dev;
+};
+
+enum queue_type {
+	CRYPTO_QUEUE = 0,
+	WD_QUEUE,
 };
 
 struct hisi_acc_qp {
         /* sq number in this function */
         u32 queue_id;
         u32 alg_type;
+
         void *sq;
         struct cqe *cq_base;
+        
+        struct sqc *sqc;
+        struct cqc *cqc;
+
         u32 sq_tail;
         u32 cq_head;
+
+        u32 sqe_size;
+
+        enum queue_type type;
+
         struct qm_info *parent;
+
         struct list_head node;
 };
 
