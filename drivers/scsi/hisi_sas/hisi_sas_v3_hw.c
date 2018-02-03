@@ -1101,7 +1101,7 @@ static void prep_abort_v3_hw(struct hisi_hba *hisi_hba,
 static int phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 {
 	int i, res = 0;
-	u32 context, port_id, link_rate, hard_phy_linkrate;
+	u32 context, port_id, link_rate;
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct device *dev = hisi_hba->dev;
@@ -1119,10 +1119,6 @@ static int phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 		goto end;
 	}
 	sas_phy->linkrate = link_rate;
-	hard_phy_linkrate = hisi_sas_phy_read32(hisi_hba, phy_no,
-						HARD_PHY_LINKRATE);
-	phy->maximum_linkrate = hard_phy_linkrate & 0xf;
-	phy->minimum_linkrate = (hard_phy_linkrate >> 4) & 0xf;
 	phy->phy_type &= ~(PORT_TYPE_SAS | PORT_TYPE_SATA);
 
 	/* Check for SATA dev */
