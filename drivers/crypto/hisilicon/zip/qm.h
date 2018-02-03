@@ -100,6 +100,7 @@ struct hisi_acc_qm_hw_ops {
 
 struct qm_info {
 	void __iomem *fun_base;
+        u32 fun_num;
 
 	u32 qp_base;
 	u32 qp_num;

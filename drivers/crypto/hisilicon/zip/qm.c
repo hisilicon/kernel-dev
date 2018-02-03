@@ -179,7 +179,8 @@ irqreturn_t hacc_irq_thread(int irq, void *data)
 }
 
 /* v1 qm hw ops */
-static int vft_config_v1(struct qm_info *qm, u32 base, u32 number) {
+static int vft_config_v1(struct qm_info *qm, u32 base, u32 number)
+{
 	/* fix: init qm memory */
 	hisi_zip_write(hisi_zip, 0x1, QM_MEM_START_INIT);
 	hisi_zip_check(hisi_zip, QM_MEM_INIT_DONE, 0);
@@ -192,7 +193,7 @@ static int vft_config_v1(struct qm_info *qm, u32 base, u32 number) {
 		hisi_zip_write(hisi_zip, i, QM_VFT_CFG_ADDRESS);
 		
 		/* 64(queus) x 32B(sqc size) = 2048B */
-		tmp = QM_SQC_VFT_BUF_SIZE		|   //
+		tmp = QM_SQC_VFT_BUF_SIZE		|
 		      QM_SQC_VFT_SQC_SIZE		|
 		      QM_SQC_VFT_INDEX_NUMBER		|
 		      i << QM_SQC_VFT_BT_INDEX_SHIFT	|
@@ -248,7 +249,7 @@ struct hisi_acc_qm_hw_ops qm_hw_ops_v2 = {
 
 
 int hisi_acc_qm_info_create(struct device *dev, void __iomem *base,
-                            struct hisi_acc_qm_hw_ops *ops,
+                            struct hisi_acc_qm_hw_ops *ops, u32 number,
                             struct qm_info **res)
 {
         struct qm_info *qm;
@@ -262,6 +263,7 @@ int hisi_acc_qm_info_create(struct device *dev, void __iomem *base,
         }
         
         qm->fun_base = base;
+        qm->fun_num = number;
         qm->eq_head = 0;
         qm->node_id = dev->numa_node;
         qm->ops = ops;
@@ -306,6 +308,7 @@ err_out:
         return ret;
 }
 
+/* only can be called in PF */
 int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number)
 {
         int ret;
