@@ -112,125 +112,140 @@ static int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 	return 0;
 }
 
+static struct hisi_acc_qp *qp to_hisi_acc_qp(struct eqe *eqe)
+{}
+
 irqreturn_t hacc_irq_thread(int irq, void *data)
 {
-	struct qm_info *qm_info = (struct qm_info *)data;
-        struct eqc *eqc = qm_info->eqc;
-	struct cqc *cqc_base = qm_info->cqc_base;
-	struct eqe *eq_base = qm_info->eq_base;
-	struct eqe *eqe = eq + qm_info->eq_head;
-	char *cqe_h, *cq;
+	struct qm_info *qm = (struct qm_info *)data;
+        struct eqc *eqc = qm->eqc;
+	struct eqe *eq_base = qm->eq_base;
+	struct eqe *eqe = eq + qm->eq_head;
+	struct cqc *cqc_base = qm->cqc_base;
         struct cqc *cqc;
-	u16 eq_index = EQC_HEAD_INDEX(eqc);
-	u16 cq_index;
+        struct cqe *cqe;
+        struct hisi_acc_qp *qp;
 
 	/* to do: if no new eqe, there is no irq, do nothing or reture error */
 
-	/* handle all eqs from eqe_h */
 	while (eqe->phase == eqc->phase) {
 
-                qp = find_hisi_acc_qp;
+                qp = to_hisi_acc_qp(eqe);
 
-                if (qp->type == CRYPTO_QUEUE)
+                if (qp->type == CRYPTO_QUEUE) {
 
-                        cqc = cqc_base + eqe_to_cqn;
-                        cq = phys_to_virt(CQC_CQ_ADDRESS(cqc_current));
-                        cq_index = CQC_HEAD_INDEX(cqc_current); /* fix me: wrong here */
-                        cqe_h = cq + cq_index * QM_CQE_SIZE;
+                        cqe = to_cqe(qp);
 
-                        cqe = find_cqe;
-
-                        update cq;
-                        if sync: wakeup sync receive interface;
-                        if async: call async callback;
-
-                        /* for each eqe, handle related cqs */
-                        while (CQE_PHASE(cqe_h) == CQC_PHASE(cqc_current)) {
+                        while (cqe->phase == cqc->phase) {/* fix me */
                                 /* ? */
                                 dma_rmb();
 
-                                /* handle each cqe */
-                                qm_info->sqe_handler(qm_info, cqe_h);
-                                /* irq error report */
+                                /* crypto sync interface: wakeup */
+                                /* crypto async interface: callback */
 
-                                cqe_h += QM_CQE_SIZE;
-                                cq_index++;
+                                /* handle each cqe */
+                                qp->sqe_handler(qm, cqe);
+
+                                if (qp->cq_head == QM_Q_DEPTH - 1) {
+                                        /* fix me: cqc->phase; */
+                                        cqe = cq_base;
+                                        qp->cq_head = 0;
+                                } else {
+                                        cqe++;
+                                        qp->cq_head++;
+                                }
                         }
 
-                        /* update cached cqc head index */
-                        cqc_current->cq_head = cq_index;
-                        hacc_db(qm_info, EQE_CQN(eqe_h), DOORBELL_CMD_CQ, cq_index, 0);
+                        hacc_db(qm, EQE_CQN(eqe_h), DOORBELL_CMD_CQ, qp->cq_head, 0);
                         /* set c_flag */
-                        hacc_db(qm_info, EQE_CQN(eqe_h), DOORBELL_CMD_CQ, cq_index, 1);
+                        hacc_db(qm, EQE_CQN(eqe_h), DOORBELL_CMD_CQ, qp->cq_head, 1);
+                }
 
-                if (qp->type == WD_QUEUE)
-                        do not update cq;
-                        wakeup
+                if (qp->type == WD_QUEUE) {
+                        /* wd sync interface: wakeup */
+                }
 
-		eqe_h++;
-		eq_index++;
+                if (qm->eq_head == QM_Q_DEPTH - 1) {
+                        /* fix me: eqc->phase; */
+                        eqe = qm->eq_base;
+                        qm->eq_head = 0;
+                } else {
+                        eqe++;
+		        qm->eq_head++;
+                }
 	}
 
-	/* update cached eqc head index */
-        eqc->eq_head = eq_index;
-	hacc_db(qm_info, 0, DOORBELL_CMD_EQ, eq_index, 0);
+	hacc_db(qm, 0, DOORBELL_CMD_EQ, qm->eq_head, 0);
 
 	return IRQ_HANDLED;
 }
 
+/* check if bit in regs is 1 */
+static inline void hisi_acc_check(struct qm_info *qm, u32 offset, u32 bit)
+{
+	int val;
+
+	do {
+                val = readl(qm->fun_base + offset);
+	} while ((BIT(bit) & val) == 0);
+}
+
+/* init qm memory will erase configure below */
+static int hisi_acc_init_qm_mem(struct qm_info *qm)
+{
+	writel(0x1, qm->fun_base + QM_MEM_START_INIT);
+        hisi_acc_check(qm, QM_MEM_INIT_DONE, 0);
+
+        return 0;
+}
+
 /* v1 qm hw ops */
+/* before call this at first time, please call hisi_acc_init_qm_mem */
 static int vft_config_v1(struct qm_info *qm, u32 base, u32 number)
 {
-	/* fix: init qm memory */
-	hisi_zip_write(hisi_zip, 0x1, QM_MEM_START_INIT);
-	hisi_zip_check(hisi_zip, QM_MEM_INIT_DONE, 0);
+        int ret;
+        u64 tmp;
 
-	/* fix: init sq number for each pf and vf */
-	hisi_zip_check(hisi_zip, QM_VFT_CFG_RDY, 0);
-	for (i = 0; i <= 0; i++) {	
-		hisi_zip_write(hisi_zip, 0x0, QM_VFT_CFG_OP_WR);
-		hisi_zip_write(hisi_zip, QM_SQC_VFT, QM_VFT_CFG_TYPE);
-		hisi_zip_write(hisi_zip, i, QM_VFT_CFG_ADDRESS);
-		
-		/* 64(queus) x 32B(sqc size) = 2048B */
-		tmp = QM_SQC_VFT_BUF_SIZE		|
-		      QM_SQC_VFT_SQC_SIZE		|
-		      QM_SQC_VFT_INDEX_NUMBER		|
-		      i << QM_SQC_VFT_BT_INDEX_SHIFT	|
-		      QM_SQC_VFT_VALID			|
-		      i * HZIP_FUN_QUEUE_NUM << QM_SQC_VFT_START_SQN_SHIFT;
+        hisi_acc_check(qm, QM_VFT_CFG_RDY, 0);
+
+	writel(0x0, qm->fun_base + QM_VFT_CFG_OP_WR);
+	writel(QM_SQC_VFT, qm->fun_base + QM_VFT_CFG_TYPE);
+	writel(qm->fun_num, qm->fun_base + QM_VFT_CFG_ADDRESS);
+
+	/* 64(queus) x 32B(sqc size) = 2048B */
+	tmp = QM_SQC_VFT_BUF_SIZE		        |
+	      QM_SQC_VFT_SQC_SIZE		        |
+	      QM_SQC_VFT_INDEX_NUMBER		        |
+	      qm->fun_num << QM_SQC_VFT_BT_INDEX_SHIFT	|
+	      QM_SQC_VFT_VALID			        |
+	      qm->fun_num * HZIP_FUN_QUEUE_NUM << QM_SQC_VFT_START_SQN_SHIFT;
 
 
-		hisi_zip_write(hisi_zip, tmp & 0xffffffff, QM_VFT_CFG_DATA_L);
-		hisi_zip_write(hisi_zip, tmp >> 32, QM_VFT_CFG_DATA_H);
+	writel(tmp & 0xffffffff, qm->fun_base + QM_VFT_CFG_DATA_L);
+	writel(tmp >> 32, qm->fun_base + QM_VFT_CFG_DATA_H);
 
-		hisi_zip_write(hisi_zip, 0x0, QM_VFT_CFG_RDY);
-		hisi_zip_write(hisi_zip, 0x1, QM_VFT_CFG_OP_ENABLE);
-		hisi_zip_check(hisi_zip, QM_VFT_CFG_RDY, 0);
-	}
+	writel(0x0, qm->fun_base + QM_VFT_CFG_RDY);
+	writel(0x1, qm->fun_base + QM_VFT_CFG_OP_ENABLE);
+        hisi_acc_check(qm, QM_VFT_CFG_RDY, 0);
 
 	tmp = 0;
 
-	/* fix: init cq number for each pf and vf */
-	for (i = 0; i <= 0; i++) {	
-		hisi_zip_write(hisi_zip, 0x0, QM_VFT_CFG_OP_WR);
-		hisi_zip_write(hisi_zip, QM_CQC_VFT, QM_VFT_CFG_TYPE);
-		hisi_zip_write(hisi_zip, i, QM_VFT_CFG_ADDRESS);
+	writel(0x0, qm->fun_base + QM_VFT_CFG_OP_WR);
+	writel(QM_CQC_VFT, qm->fun_base + QM_VFT_CFG_TYPE);
+	writel(qm->fun_num, qm->fun_base + QM_VFT_CFG_ADDRESS);
 
-		tmp = QM_CQC_VFT_BUF_SIZE		|
-		      QM_CQC_VFT_SQC_SIZE		|
-		      QM_CQC_VFT_INDEX_NUMBER		|
-		      i << QM_CQC_VFT_BT_INDEX_SHIFT	|
-		      QM_CQC_VFT_VALID;
+	tmp = QM_CQC_VFT_BUF_SIZE		        |
+	      QM_CQC_VFT_SQC_SIZE		        |
+	      QM_CQC_VFT_INDEX_NUMBER		        |
+	      qm->fun_num << QM_CQC_VFT_BT_INDEX_SHIFT	|
+	      QM_CQC_VFT_VALID;
 
+	writel(tmp & 0xffffffff, qm->fun_base + QM_VFT_CFG_DATA_L);
+	writel(tmp >> 32, qm->fun_base + QM_VFT_CFG_DATA_H);
 
-		hisi_zip_write(hisi_zip, tmp & 0xffffffff, QM_VFT_CFG_DATA_L);
-		hisi_zip_write(hisi_zip, tmp >> 32, QM_VFT_CFG_DATA_H);
-
-		hisi_zip_write(hisi_zip, 0x0, QM_VFT_CFG_RDY);
-		hisi_zip_write(hisi_zip, 0x1, QM_VFT_CFG_OP_ENABLE);
-		hisi_zip_check(hisi_zip, QM_VFT_CFG_RDY, 0);
-	}
+	writel(0x0, qm->fun_base + QM_VFT_CFG_RDY);
+	writel(0x1, qm->fun_base + QM_VFT_CFG_OP_ENABLE);
+        hisi_acc_check(qm, QM_VFT_CFG_RDY, 0);
 
 	return 0;
 }

@@ -132,8 +132,6 @@ struct qm_info {
 
 	void *priv;
 
-	int (*sqe_handler)(struct qm_info *qm_info, char *cqe);
-
 	struct list_head qm;
 
         struct hisi_acc_qm_hw_ops *ops;
@@ -167,6 +165,8 @@ struct hisi_acc_qp {
         enum queue_type type;
 
         struct qm_info *parent;
+
+	int (*sqe_handler)(struct hisi_acc_qp *qp, struct cqe *cqe);
 
         struct list_head node;
 };
