@@ -9,6 +9,9 @@
  */
 
 #include <asm/io.h>
+#include <linux/bitmap.h>
+#include <linux/dmapool.h>
+#include <linux/dma-mapping.h>
 #include <linux/irqreturn.h>
 #include "qm.h"
 
@@ -50,7 +53,7 @@ static inline void mb_write(struct qm_info *qm, void *src)
  * @event: 0 for polling mode, 1 for event mode
  */
 /* fix: how to do read mb */
-static int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue,
+int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue,
                    bool op, bool event)
 {
         struct mailbox mailbox;
@@ -92,7 +95,7 @@ static int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue,
  * @index:
  * @prority:
  */
-static int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority)
+int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 {
 	/* fix me: check input params */
 	//pr_err("in %s: qn: %d, cmd: %d, index: %d, priority: %d", __FUNCTION__,
@@ -112,31 +115,39 @@ static int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 	return 0;
 }
 
-static struct hisi_acc_qp *qp to_hisi_acc_qp(struct eqe *eqe)
-{}
+static inline struct hisi_acc_qp *to_hisi_acc_qp(struct qm_info *qm,
+                                                    struct eqe *eqe)
+{
+        u16 cqn = eqe->dw0 & QM_EQE_CQN_MASK;
+
+        return qm->qp_array[cqn];
+}
+
+static inline struct cqe *to_current_cqe(struct hisi_acc_qp *qp)
+{
+       return qp->cq_base + qp->cq_head; 
+}
 
 irqreturn_t hacc_irq_thread(int irq, void *data)
 {
 	struct qm_info *qm = (struct qm_info *)data;
         struct eqc *eqc = qm->eqc;
 	struct eqe *eq_base = qm->eq_base;
-	struct eqe *eqe = eq + qm->eq_head;
-	struct cqc *cqc_base = qm->cqc_base;
-        struct cqc *cqc;
+	struct eqe *eqe = eq_base + qm->eq_head;
         struct cqe *cqe;
         struct hisi_acc_qp *qp;
 
 	/* to do: if no new eqe, there is no irq, do nothing or reture error */
 
-	while (eqe->phase == eqc->phase) {
+	while (EQE_PHASE(eqe) == EQC_PHASE(eqc)) {
 
-                qp = to_hisi_acc_qp(eqe);
+                qp = to_hisi_acc_qp(qm, eqe);
 
                 if (qp->type == CRYPTO_QUEUE) {
 
-                        cqe = to_cqe(qp);
+                        cqe = to_current_cqe(qp);
 
-                        while (cqe->phase == cqc->phase) {/* fix me */
+                        while (CQE_PHASE(cqe) == CQC_PHASE(qp->cqc)) {
                                 /* ? */
                                 dma_rmb();
 
@@ -144,11 +155,11 @@ irqreturn_t hacc_irq_thread(int irq, void *data)
                                 /* crypto async interface: callback */
 
                                 /* handle each cqe */
-                                qp->sqe_handler(qm, cqe);
+                                qp->sqe_handler(qp, cqe);
 
                                 if (qp->cq_head == QM_Q_DEPTH - 1) {
-                                        /* fix me: cqc->phase; */
-                                        cqe = cq_base;
+                                        qp->cqc->dw6 = qp->cqc->dw6 ^ CQC_PHASE_BIT;
+                                        cqe = qp->cq_base;
                                         qp->cq_head = 0;
                                 } else {
                                         cqe++;
@@ -156,9 +167,9 @@ irqreturn_t hacc_irq_thread(int irq, void *data)
                                 }
                         }
 
-                        hacc_db(qm, EQE_CQN(eqe_h), DOORBELL_CMD_CQ, qp->cq_head, 0);
+                        hacc_db(qm, qp->queue_id, DOORBELL_CMD_CQ, qp->cq_head, 0);
                         /* set c_flag */
-                        hacc_db(qm, EQE_CQN(eqe_h), DOORBELL_CMD_CQ, qp->cq_head, 1);
+                        hacc_db(qm, qp->queue_id, DOORBELL_CMD_CQ, qp->cq_head, 1);
                 }
 
                 if (qp->type == WD_QUEUE) {
@@ -166,7 +177,7 @@ irqreturn_t hacc_irq_thread(int irq, void *data)
                 }
 
                 if (qm->eq_head == QM_Q_DEPTH - 1) {
-                        /* fix me: eqc->phase; */
+                        eqc->dw6 = eqc->dw6 ^ EQC_PHASE_BIT;
                         eqe = qm->eq_base;
                         qm->eq_head = 0;
                 } else {
@@ -191,7 +202,7 @@ static inline void hisi_acc_check(struct qm_info *qm, u32 offset, u32 bit)
 }
 
 /* init qm memory will erase configure below */
-static int hisi_acc_init_qm_mem(struct qm_info *qm)
+int hisi_acc_init_qm_mem(struct qm_info *qm)
 {
 	writel(0x1, qm->fun_base + QM_MEM_START_INIT);
         hisi_acc_check(qm, QM_MEM_INIT_DONE, 0);
@@ -201,9 +212,8 @@ static int hisi_acc_init_qm_mem(struct qm_info *qm)
 
 /* v1 qm hw ops */
 /* before call this at first time, please call hisi_acc_init_qm_mem */
-static int vft_config_v1(struct qm_info *qm, u32 base, u32 number)
+static int vft_config_v1(struct qm_info *qm, u16 base, u32 number)
 {
-        int ret;
         u64 tmp;
 
         hisi_acc_check(qm, QM_VFT_CFG_RDY, 0);
@@ -213,12 +223,10 @@ static int vft_config_v1(struct qm_info *qm, u32 base, u32 number)
 	writel(qm->fun_num, qm->fun_base + QM_VFT_CFG_ADDRESS);
 
 	/* 64(queus) x 32B(sqc size) = 2048B */
-	tmp = QM_SQC_VFT_BUF_SIZE		        |
-	      QM_SQC_VFT_SQC_SIZE		        |
+	tmp = QM_SQC_VFT_SQC_SIZE		        |
 	      QM_SQC_VFT_INDEX_NUMBER		        |
-	      qm->fun_num << QM_SQC_VFT_BT_INDEX_SHIFT	|
 	      QM_SQC_VFT_VALID			        |
-	      qm->fun_num * HZIP_FUN_QUEUE_NUM << QM_SQC_VFT_START_SQN_SHIFT;
+              (u64)base << QM_SQC_VFT_START_SQN_SHIFT;
 
 
 	writel(tmp & 0xffffffff, qm->fun_base + QM_VFT_CFG_DATA_L);
@@ -234,10 +242,8 @@ static int vft_config_v1(struct qm_info *qm, u32 base, u32 number)
 	writel(QM_CQC_VFT, qm->fun_base + QM_VFT_CFG_TYPE);
 	writel(qm->fun_num, qm->fun_base + QM_VFT_CFG_ADDRESS);
 
-	tmp = QM_CQC_VFT_BUF_SIZE		        |
-	      QM_CQC_VFT_SQC_SIZE		        |
+	tmp = QM_CQC_VFT_SQC_SIZE		        |
 	      QM_CQC_VFT_INDEX_NUMBER		        |
-	      qm->fun_num << QM_CQC_VFT_BT_INDEX_SHIFT	|
 	      QM_CQC_VFT_VALID;
 
 	writel(tmp & 0xffffffff, qm->fun_base + QM_VFT_CFG_DATA_L);
@@ -252,16 +258,17 @@ static int vft_config_v1(struct qm_info *qm, u32 base, u32 number)
 
 struct hisi_acc_qm_hw_ops qm_hw_ops_v1 = {
         .vft_config = vft_config_v1,
+        .aeq_config = NULL,
 };
 
 /* v2 qm hw ops */
-static int alloc_aeqc_v2() {} /* v1 = NULL */
-static int vft_config_v2(struct qm_info *qm, u32 base, u32 number) {}
+static int aeq_config_v2(struct qm_info *qm) {return 0;} /* v1 = NULL */
+static int vft_config_v2(struct qm_info *qm, u16 base, u32 number) {return 0;}
 
 struct hisi_acc_qm_hw_ops qm_hw_ops_v2 = {
         .vft_config = vft_config_v2,
+        .aeq_config = aeq_config_v2,
 };
-
 
 int hisi_acc_qm_info_create(struct device *dev, void __iomem *base,
                             struct hisi_acc_qm_hw_ops *ops, u32 number,
@@ -273,7 +280,7 @@ int hisi_acc_qm_info_create(struct device *dev, void __iomem *base,
 
         qm = (struct qm_info *)devm_kzalloc(dev, sizeof(*qm), GFP_KERNEL);
 	if (!qm) {
-		ret = -ENOME;
+		ret = -ENOMEM;
                 goto err_out;
         }
         
@@ -288,21 +295,21 @@ int hisi_acc_qm_info_create(struct device *dev, void __iomem *base,
         size = max_t(size_t, sizeof(struct eqc), sizeof(struct aeqc));
 	qm->eqc_aeqc_pool = dma_pool_create("eqc_aeqc", dev, size, 32, 0);
         if (!qm->eqc_aeqc_pool) {
-		ret = -ENOME;
+		ret = -ENOMEM;
                 goto err_out;
         }
 
 	qm->eqc = dma_pool_alloc(qm->eqc_aeqc_pool, GFP_ATOMIC, &qm->eqc_dma);
 	if (!qm->eqc) {
-		ret = -ENOME;
-                return err_out;
+		ret = -ENOMEM;
+                goto err_out;
         }
 
-        size = sizeof(struct eq) * QM_Q_DEPTH;
+        size = sizeof(struct eqe) * QM_Q_DEPTH;
 	qm->eq_base = dma_alloc_coherent(dev, size, &qm->eq_base_dma,
                                          GFP_KERNEL);
 	if (!qm->eq_base) {
-		ret = -ENOME;
+		ret = -ENOMEM;
                 goto err_eq;
         }
 
@@ -332,14 +339,21 @@ int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number)
         if (!number)
                 return -EINVAL;
 
-        if (qm->qp_bitmap)
+        if (qm->qp_bitmap && qm->qp_array) {
                 kfree(qm->qp_bitmap);
+                kfree(qm->qp_array);
+        }
 
         size = BITS_TO_LONGS(number) * sizeof(long);
 	qm->qp_bitmap = (unsigned long *)kzalloc(size, GFP_KERNEL);
+        /* fix me */
+
+        size = number * sizeof(struct hisi_acc_qp *);
+        qm->qp_array = (struct hisi_acc_qp **)kzalloc(size, GFP_KERNEL);
+        /* fix me */
 
         qm->qp_base = base;
-        qm->num = number;
+        qm->qp_num = number;
 
         ret = qm->ops->vft_config(qm, base, number);
         if (ret)
@@ -403,9 +417,11 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
         int qp_index;
         size_t size;
 
+        u8 alg_type = 0; /* wrong here, fix me */
+
 	spin_lock(&qm->qp_bitmap_lock);
         qp_index = find_first_zero_bit(qm->qp_bitmap, qm->qp_num);
-        set_bits(qp_index, qm->qp_bitmap);
+        set_bit(qp_index, qm->qp_bitmap);
     	spin_unlock(&qm->qp_bitmap_lock);
 
         qp = (struct hisi_acc_qp *)kzalloc(sizeof(*qp), GFP_KERNEL);
@@ -421,15 +437,15 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
         qp->sqc = sqc;
        
         size = sqe_size * QM_Q_DEPTH;
-	sq_base = dma_alloc_coherent(qm->dev, size, &qm->sq_base_dma,
+	sq_base = dma_alloc_coherent(qm->dev, size, &qp->sq_base_dma,
                                      GFP_KERNEL);
 	if (!sq_base)
 		return -ENOMEM;
 
         sqc->sq_head = 0;
         sqc->sq_tail = 0;
-        sqc->sq_base_l = lower_32_bits(qm->sq_base_dma);
-        sqc->sq_base_h = upper_32_bits(qm->sq_base_dma);
+        sqc->sq_base_l = lower_32_bits(qp->sq_base_dma);
+        sqc->sq_base_h = upper_32_bits(qp->sq_base_dma);
         sqc->dw3 = (0 << SQ_HOP_NUM_SHIFT)      |
                    (0 << SQ_PAGE_SIZE_SHIFT)    | 
                    (0 << SQ_BUF_SIZE_SHIFT)     | 
@@ -450,15 +466,15 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
         qp->cqc = cqc;
 
         size = sizeof(struct cqe) * QM_Q_DEPTH;
-	cq_base = dma_alloc_coherent(qm->dev, size, &qm->cq_base_dma,
+	cq_base = dma_alloc_coherent(qm->dev, size, &qp->cq_base_dma,
                                      GFP_KERNEL);
 	if (!cq_base)
 		return -ENOMEM;
 
         cqc->cq_head = 0;
         cqc->cq_tail = 0;
-        cqc->cq_base_l = lower_32_bits(virt_to_phys(vadd));
-        cqc->cq_base_h = upper_32_bits(virt_to_phys(vadd));
+        cqc->cq_base_l = lower_32_bits(qp->cq_base_dma);
+        cqc->cq_base_h = upper_32_bits(qp->cq_base_dma);
         cqc->dw3 = (0 << CQ_HOP_NUM_SHIFT)      |
                    (0 << CQ_PAGE_SIZE_SHIFT)    | 
                    (0 << CQ_BUF_SIZE_SHIFT)     | 
@@ -469,11 +485,11 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
         cqc->dw6 = 1 << CQ_PHASE_SHIFT | 1 << CQ_FLAG_SHIFT;
         cqc->rsvd1 = 0;
 
-	hacc_mb(hisi_zip->qm_info, MAILBOX_CMD_CQC, virt_to_phys(cqc),
-		q_num, 0, 0);
+	hacc_mb(qm, MAILBOX_CMD_CQC, virt_to_phys(cqc), qp_index, 0, 0);
 
         qp->cq_base = cq_base;
 
+        qm->qp_array[qp_index] = qp;
         *res = qp;
 
         return 0;
@@ -523,7 +539,7 @@ u16 hisi_acc_get_sq_tail(struct hisi_acc_qp *qp)
 /* fix me */
 int hisi_acc_send(struct hisi_acc_qp *qp, u16 sq_tail, void *priv)
 {
-        hacc_db(qp->parent, qp->qp_num, DOORBELL_CMD_SQ, sq_tail, 0);
+        hacc_db(qp->parent, qp->queue_id, DOORBELL_CMD_SQ, sq_tail, 0);
 
         qp->sq_tail++; /* fix me: wrap */
 

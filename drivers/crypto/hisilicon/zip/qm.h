@@ -94,8 +94,11 @@ struct doorbell {
 	__le16 priority;
 };
 
+struct qm_info;
+
 struct hisi_acc_qm_hw_ops {
-        int (*vft_config)(struct qm_info *qm, u32 base, u32 number);
+        int (*vft_config)(struct qm_info *qm, u16 base, u32 number);
+        int (*aeq_config)(struct qm_info *qm);
 };
 
 struct qm_info {
@@ -123,6 +126,7 @@ struct qm_info {
 
         unsigned long *qp_bitmap;
 	spinlock_t qp_bitmap_lock;
+        struct hisi_acc_qp **qp_array;
 
         int node_id;
 
@@ -151,8 +155,10 @@ struct hisi_acc_qp {
         u32 queue_id;
         u32 alg_type;
 
-        void *sq;
+        void *sq_base;
+        dma_addr_t sq_base_dma;
         struct cqe *cq_base;
+        dma_addr_t cq_base_dma;
         
         struct sqc *sqc;
         struct cqc *cqc;
@@ -167,8 +173,6 @@ struct hisi_acc_qp {
         struct qm_info *parent;
 
 	int (*sqe_handler)(struct hisi_acc_qp *qp, struct cqe *cqe);
-
-        struct list_head node;
 };
 
 #define QM_DEF_Q_NUM                    128
@@ -244,6 +248,7 @@ struct hisi_acc_qp {
 #define CQC_PHASE(cqc)			(((cqc)->dw6) & 0x1)
 #define CQC_CQ_ADDRESS(cqc)		(((u64)((cqc)->cq_base_h) << 32) | \
                                          ((cqc)->cq_base_l))
+#define CQC_PHASE_BIT			0x1
 
 /* eqc shift */
 #define MB_EQC_EQE_SHIFT		12
@@ -253,18 +258,22 @@ struct hisi_acc_qp {
 #define EQC_TAIL_INDEX(eqc) 		((eqc)->eq_tail)
 #define EQC_PHASE(eqc)			((((eqc)->dw6) >> 16) & 0x1)
 
+#define EQC_PHASE_BIT                   0x00010000
+
 /* aeqc shift */
 #define MB_AEQC_AEQE_SHIFT		12
 #define MB_AEQC_PHASE_SHIFT		16
 
 /* cqe shift */
-#define CQE_PHASE(cq)			(((*((u32 *)(cq) + 3)) >> 16) & 0x1)
+#define CQE_PHASE(cqe)			((cqe)->w7 & 0x1)
 #define CQE_SQ_NUM(cq)			((*((u32 *)(cq) + 2)) >> 16)
 #define CQE_SQ_HEAD_INDEX(cq)		((*((u32 *)(cq) + 2)) & 0xffff)
 
 /* eqe shift */
 #define EQE_PHASE(eqe)			(((eqe)->dw0 >> 16) & 0x1)
 #define EQE_CQN(eqe)			(((eqe)->dw0) & 0xffff)
+
+#define QM_EQE_CQN_MASK                 0xffff
 
 /* aeqe shift */
 
@@ -296,17 +305,17 @@ int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority);
 
 #define QM_VFT_CFG_DATA_L		0x100064
 #define QM_VFT_CFG_DATA_H		0x100068
-#define QM_SQC_VFT_BUF_SIZE		(0x7 << 8)
-#define QM_SQC_VFT_SQC_SIZE		(0x5 << 12)
-#define QM_SQC_VFT_INDEX_NUMBER		(0x1 << 16)
+#define QM_SQC_VFT_BUF_SIZE		(7ULL << 8)
+#define QM_SQC_VFT_SQC_SIZE		(5ULL << 12)
+#define QM_SQC_VFT_INDEX_NUMBER		(1ULL << 16)
 #define QM_SQC_VFT_BT_INDEX_SHIFT	22
 #define QM_SQC_VFT_START_SQN_SHIFT	28
-#define QM_SQC_VFT_VALID		((u64)0x1 << 44)
-#define QM_CQC_VFT_BUF_SIZE		(0x7 << 8)
-#define QM_CQC_VFT_SQC_SIZE		(0x5 << 12)
-#define QM_CQC_VFT_INDEX_NUMBER		(0x1 << 16)
+#define QM_SQC_VFT_VALID		(1ULL << 44)
+#define QM_CQC_VFT_BUF_SIZE		(7ULL << 8)
+#define QM_CQC_VFT_SQC_SIZE		(5ULL << 12)
+#define QM_CQC_VFT_INDEX_NUMBER		(1ULL << 16)
 #define QM_CQC_VFT_BT_INDEX_SHIFT	22
-#define QM_CQC_VFT_VALID            	(0x1 << 28)
+#define QM_CQC_VFT_VALID            	(1ULL << 28)
 
 /* qm user domain */
 #define QM_ARUSER_M_CFG_1		0x100088

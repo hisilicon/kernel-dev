@@ -293,7 +293,7 @@ static int hisi_zip_init_queue(struct hisi_zip *hisi_zip)
 	qm->fun_base = hisi_zip->io_base;
 	qm->qp_base = 0;
 	qm->qp_num = 64;
-	qm->sqe_handler = hisi_zip_sqe_handler;
+//	qm->sqe_handler = hisi_zip_sqe_handler;
 	qm->priv = hisi_zip;
         spin_lock_init(&qm->mailbox_lock);
 
