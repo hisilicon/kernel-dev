@@ -107,7 +107,7 @@ int hisi_zip_recv_sqe(char *sqe, struct wd_comp_msg *recv_msg)
         recv_msg->status = status;
         recv_msg->udata = 0;
 
-        return 0;
+        return 1;
 }
 
 int hisi_zip_set_queue_dio(struct wd_queue *q)
@@ -202,13 +202,14 @@ int hisi_zip_get_from_dio_q(struct wd_queue *q, void **resp)
 
         if (info->cqc_phase == CQE_PHASE(cqe)) {
                 ret = hisi_zip_recv_sqe(sqe, recv_msg);
-                if (ret != 0)
+                if (ret < 0)
                         return -EIO;
         } else {
-                return -EBUSY;
+                return 0;
         }
 
         if (i == (QM_EQ_DEPTH - 1)) {
+                info->cqc_phase = !(info->cqc_phase);
                 i = 0;
         } else {
                 i++;
@@ -218,5 +219,7 @@ int hisi_zip_get_from_dio_q(struct wd_queue *q, void **resp)
 
         info->cq_head_index = i;
 
-	return 0;
+        *resp = recv_msg;
+
+	return ret;
 }
