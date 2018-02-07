@@ -17,8 +17,8 @@
 #include "./zip.h"
 
 #define HZIP_VF_NUM			63
-#define HZIP_QUEUE_NUM			4096
-#define HZIP_FUN_QUEUE_NUM  (HZIP_QUEUE_NUM / (HZIP_VF_NUM + 1))
+#define HZIP_QUEUE_NUM_V1		4096
+#define HZIP_QUEUE_NUM_V2		1024
 
 #define HZIP_FSM_MAX_CNT		0x301008
 #define HZIP_CONTROL			0x30100c /* not use */
@@ -34,8 +34,6 @@
 #define HZIP_DATA_WUSER_32_63		0x301134
 #define HZIP_BD_WUSER_32_63		0x301140
 
-#define HZIP_SQE_STATUS(sqe)		((*((u32 *)(sqe) + 3)) & 0xff)
-
 #define HZIP_PF_DEF_Q_NUM               64
 #define HZIP_SQE_SIZE			128
 
@@ -50,26 +48,6 @@ struct hisi_zip {
 	struct wd_dev *wdev;
 };
 
-static inline void hisi_zip_write(struct hisi_zip *hzip, u32 val, u32 offset)
-{
-	writel(val, hzip->io_base + offset);
-}
-
-static inline u32 hisi_zip_read(struct hisi_zip *hzip, u32 offset)
-{
-	return readl(hzip->io_base + offset);
-}
-
-/* check if bit in regs is 1 */
-static inline void hisi_zip_check(struct hisi_zip *hzip, u32 offset, u32 bit)
-{
-	int val;
-
-	do {
-		val = hisi_zip_read(hzip, offset);
-	} while ((BIT(bit) & val) == 0);
-}
-
 char hisi_zip_name[] = "hisi_zip";
 
 static struct pci_device_id hisi_zip_dev_ids[] = {
@@ -81,20 +59,17 @@ MODULE_DEVICE_TABLE(pci, hisi_zip_dev_ids);
 
 static irqreturn_t hisi_zip_irq(int irq, void *data)
 {
-//	pr_err("in %s\n", __FUNCTION__);
 	struct qm_info *qm_info = (struct qm_info *)data;
 	struct hisi_zip *hzip = qm_info->priv;
 	u32 int_source;
 
 	/* There is an interrupt or not */
-	int_source = hisi_zip_read(hzip, QM_VF_EQ_INT_SOURCE);	
+	int_source = readl(hzip->io_base + QM_VF_EQ_INT_SOURCE);
 
 	if (int_source) {
-		pr_err("in %s a\n", __FUNCTION__);
 		return IRQ_WAKE_THREAD;
 	}
 	else {
-		pr_err("in %s a\n", __FUNCTION__);
 		return IRQ_HANDLED;
 	}
 }
@@ -120,19 +95,19 @@ static void hisi_zip_set_user_domain_and_cache(struct hisi_zip *hisi_zip)
 {
 	/* to do: init zip user domain and cache */
 	/* cache */
-	hisi_zip_write(hisi_zip, 0xffffffff, HZIP_PORT_ARCA_CHE_0);
-	hisi_zip_write(hisi_zip, 0xffffffff, HZIP_PORT_ARCA_CHE_1);
-	hisi_zip_write(hisi_zip, 0xffffffff, HZIP_PORT_AWCA_CHE_0);
-	hisi_zip_write(hisi_zip, 0xffffffff, HZIP_PORT_AWCA_CHE_1);
+	writel(0xffffffff, hisi_zip->io_base + HZIP_PORT_ARCA_CHE_0);
+	writel(0xffffffff, hisi_zip->io_base + HZIP_PORT_ARCA_CHE_1);
+	writel(0xffffffff, hisi_zip->io_base + HZIP_PORT_AWCA_CHE_0);
+	writel(0xffffffff, hisi_zip->io_base + HZIP_PORT_AWCA_CHE_1);
 	/* user domain configurations */
-	hisi_zip_write(hisi_zip, 0x40000070, HZIP_BD_RUSER_32_63);
-	hisi_zip_write(hisi_zip, 0x40001070, HZIP_SGL_RUSER_32_63);
-	hisi_zip_write(hisi_zip, 0x40001071, HZIP_DATA_RUSER_32_63);
-	hisi_zip_write(hisi_zip, 0x40001071, HZIP_DATA_WUSER_32_63);
-	hisi_zip_write(hisi_zip, 0x40000070, HZIP_BD_WUSER_32_63);
+	writel(0x40000070, hisi_zip->io_base + HZIP_BD_RUSER_32_63);
+	writel(0x40001070, hisi_zip->io_base + HZIP_SGL_RUSER_32_63);
+	writel(0x40001071, hisi_zip->io_base + HZIP_DATA_RUSER_32_63);
+	writel(0x40001071, hisi_zip->io_base + HZIP_DATA_WUSER_32_63);
+	writel(0x40000070, hisi_zip->io_base + HZIP_BD_WUSER_32_63);
 
 	/* fsm count */	
-	hisi_zip_write(hisi_zip, 0xfffffff, HZIP_FSM_MAX_CNT); 
+	writel(0xfffffff, hisi_zip->io_base + HZIP_FSM_MAX_CNT); 
 
 	/* to do: big/little endian configure: default: 32bit little */
 
@@ -149,7 +124,7 @@ static void hisi_zip_set_user_domain_and_cache(struct hisi_zip *hisi_zip)
 	/* hisi_zip_write(hisi_zip, STORE_COMP_HEAD_LEN, ZIP_COM_HEAD_LENGTH); */
 
 	/* to check: clock gating, core, decompress verify enable */
-	hisi_zip_write(hisi_zip, 0x10005, 0x301004);
+	writel(0x10005, hisi_zip->io_base + 0x301004);
 
 	/* to check: enable counters */
 
