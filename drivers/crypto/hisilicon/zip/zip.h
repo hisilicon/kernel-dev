@@ -10,32 +10,9 @@
 #ifndef HISI_ZIP_H
 #define HISI_ZIP_H
 
-#define HZIP_SQE_SIZE			128
-
 enum hisi_zip_alg_type {
 	HZIP_ZLIB = 0,
 	/* add more algorithm type here */
-};
-
-enum hisi_zip_queue_status {
-	/* queue does not exit */
-	HZIP_QUEUE_NONE = 0,
-	/* create queue pair: allocate sq/cq, pasid not set */
-	HZIP_QUEUE_INITED,
-	/*
-	 * now queue can be used at any time, just need a sq doorbell.
-	 * After Using status, queue also can enter idel status.
-	 */
-	HZIP_QUEUE_IDEL,
-	/* now queue is using */
-	HZIP_QUEUE_USING,
-};
-
-struct hisi_acc_qm_db {
-	__u16 tag;
-	__u8 cmd;
-	__u16 index;
-	__u8 priority;
 };
 
 struct hisi_acc_qm_sqc {

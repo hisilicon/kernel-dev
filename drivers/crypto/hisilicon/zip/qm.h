@@ -94,6 +94,11 @@ struct doorbell {
 	__le16 priority;
 };
 
+enum hw_version {
+	ES = 0,
+	CS,
+};
+
 struct qm_info;
 
 struct hisi_acc_qm_hw_ops {
@@ -330,5 +335,21 @@ int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority);
 #define QM_PEH_AXUSER_CFG_ENABLE	0x1000d0
 
 irqreturn_t hacc_irq_thread(int irq, void *data);
+
+int hisi_acc_init_qm_mem(struct qm_info *qm);
+void hisi_acc_set_user_domain(struct qm_info *qm);
+void hisi_acc_set_cache(struct qm_info *qm);
+int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
+                            enum hw_version hw_v, struct qm_info **res);
+int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number);
+void hisi_acc_qm_info_release(struct qm_info *qm);
+int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
+                       u32 sqe_size, u8 alg_type);
+int hisi_acc_release_qp(struct hisi_acc_qp *qp);
+int hisi_acc_set_pasid(struct hisi_acc_qp *qp, u16 pasid);
+int hisi_acc_unset_pasid(struct hisi_acc_qp *qp);
+u16 hisi_acc_get_sq_tail(struct hisi_acc_qp *qp);
+int hisi_acc_send(struct hisi_acc_qp *qp, u16 sq_tail, void *priv);
+int hisi_acc_receive(struct hisi_acc_qp *qp, void *priv);
 
 #endif

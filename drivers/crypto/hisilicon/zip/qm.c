@@ -212,6 +212,24 @@ int hisi_acc_init_qm_mem(struct qm_info *qm)
         return 0;
 }
 
+void hisi_acc_set_user_domain(struct qm_info *qm)
+{
+	/* user domain */
+	writel(0x40000070, qm->fun_base + QM_ARUSER_M_CFG_1);
+	writel(0xfffffffe, qm->fun_base + QM_ARUSER_M_CFG_ENABLE);
+	writel(0x40000070, qm->fun_base + QM_AWUSER_M_CFG_1);
+	writel(0xfffffffe, qm->fun_base + QM_AWUSER_M_CFG_ENABLE);
+	writel(0xffffffff, qm->fun_base + QM_WUSER_M_CFG_ENABLE);
+}
+
+void hisi_acc_set_cache(struct qm_info *qm)
+{
+        /* cache */
+	writel(0xffff,     qm->fun_base + QM_AXI_M_CFG);
+	writel(0xffffffff, qm->fun_base + QM_AXI_M_CFG_ENABLE);
+	writel(0xffffffff, qm->fun_base + QM_PEH_AXUSER_CFG_ENABLE);
+}
+
 /* v1 qm hw ops */
 /* before call this at first time, please call hisi_acc_init_qm_mem */
 static int vft_config_v1(struct qm_info *qm, u16 base, u32 number)
@@ -256,7 +274,7 @@ static int vft_config_v1(struct qm_info *qm, u16 base, u32 number)
 	return 0;
 }
 
-struct hisi_acc_qm_hw_ops qm_hw_ops_v1 = {
+static struct hisi_acc_qm_hw_ops qm_hw_ops_v1 = {
         .vft_config = vft_config_v1,
         .aeq_config = NULL,
 };
@@ -265,14 +283,13 @@ struct hisi_acc_qm_hw_ops qm_hw_ops_v1 = {
 static int aeq_config_v2(struct qm_info *qm) {return 0;} /* v1 = NULL */
 static int vft_config_v2(struct qm_info *qm, u16 base, u32 number) {return 0;}
 
-struct hisi_acc_qm_hw_ops qm_hw_ops_v2 = {
+static struct hisi_acc_qm_hw_ops qm_hw_ops_v2 = {
         .vft_config = vft_config_v2,
         .aeq_config = aeq_config_v2,
 };
 
 int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
-                            struct hisi_acc_qm_hw_ops *ops,
-                            struct qm_info **res)
+                            enum hw_version hw_v, struct qm_info **res)
 {
         struct qm_info *qm;
         size_t size;
@@ -285,9 +302,13 @@ int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
         qm->fun_num = number;
         qm->eq_head = 0;
         qm->node_id = dev->numa_node;
-        qm->ops = ops;
         qm->dev = dev;
         spin_lock_init(&qm->mailbox_lock);
+
+        if (hw_v == ES)
+                qm->ops = &qm_hw_ops_v1;
+        else
+                qm->ops = &qm_hw_ops_v2;
 
         size = max_t(size_t, sizeof(struct eqc), sizeof(struct aeqc));
 	qm->eqc_aeqc_pool = dma_pool_create("eqc_aeqc", dev, size, 32, 0);
@@ -417,7 +438,7 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
         size_t size;
 
 	spin_lock(&qm->qp_bitmap_lock);
-        qp_index = find_first_zero_bit(qm->qp_bitmap, qm->qp_num);
+        qp_index = find_first_zero_bit(qm->qp_bitmap, qm->qp_num); /* fix me: no q */
         set_bit(qp_index, qm->qp_bitmap);
     	spin_unlock(&qm->qp_bitmap_lock);
 
@@ -499,8 +520,10 @@ err_qp:
 	return -ENOMEM;
 }
 
-int hisi_acc_release_qp(struct qm_info *qm, struct hisi_acc_qp *qp)
+int hisi_acc_release_qp(struct hisi_acc_qp *qp)
 {
+        struct qm_info *qm = qp->parent;
+
 	dma_free_coherent(qm->dev, qp->sqe_size * QM_Q_DEPTH, qp->sq_base,
                           qp->sq_base_dma);
 	dma_free_coherent(qm->dev, sizeof(struct cqe) * QM_Q_DEPTH, qp->cq_base,
