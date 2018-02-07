@@ -224,6 +224,7 @@ struct hisi_acc_qp {
 #define SQ_PRIORITY_SHIFT		0//
 #define SQ_ORDERS_SHIFT			4//
 #define SQ_TYPE_SHIFT			8// #
+#define SQ_TYPE_MASK			0xf
 
 /* cqc shift */
 #define CQ_HEAD_SHIFT			0

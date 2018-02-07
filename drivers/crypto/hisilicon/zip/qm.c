@@ -406,7 +406,7 @@ void hisi_acc_qm_info_release(struct qm_info *qm)
 }
 
 int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
-                       u32 sqe_size)
+                       u32 sqe_size, u8 alg_type)
 {
         struct hisi_acc_qp *qp;
         struct sqc *sqc;
@@ -416,8 +416,6 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
         int qp_index;
         size_t size;
 
-        u8 alg_type = 0; /* wrong here, fix me */
-
 	spin_lock(&qm->qp_bitmap_lock);
         qp_index = find_first_zero_bit(qm->qp_bitmap, qm->qp_num);
         set_bit(qp_index, qm->qp_bitmap);
@@ -425,7 +423,7 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
 
         qp = (struct hisi_acc_qp *)kzalloc(sizeof(*qp), GFP_KERNEL);
 	if (!qp)
-		return -ENOMEM;
+                goto err_qp;
 
         qp->queue_id = qp_index;
         qp->sq_tail = 0;
@@ -440,7 +438,7 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
 	sq_base = dma_alloc_coherent(qm->dev, size, &qp->sq_base_dma,
                                      GFP_KERNEL);
 	if (!sq_base)
-		return -ENOMEM;
+                goto err_sq_base;
         qp->sq_base = sq_base;
 
         sqc->sq_head = 0;
@@ -457,7 +455,7 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
         sqc->cq_num = qp_index;
         sqc->w13 = 0 << SQ_PRIORITY_SHIFT	|
 		   1 << SQ_ORDERS_SHIFT		|
-		   alg_type << SQ_TYPE_SHIFT;
+		   (alg_type & SQ_TYPE_MASK) << SQ_TYPE_SHIFT;
         sqc->rsvd1 = 0;
 
 	hacc_mb(qm, MAILBOX_CMD_SQC, virt_to_phys(sqc), qp_index, 0, 0);
@@ -469,7 +467,7 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
 	cq_base = dma_alloc_coherent(qm->dev, size, &qp->cq_base_dma,
                                      GFP_KERNEL);
 	if (!cq_base)
-		return -ENOMEM;
+                goto err_cq_base;
         qp->cq_base = cq_base;
 
         cqc->cq_head = 0;
@@ -491,9 +489,14 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
         qm->qp_array[qp_index] = qp;
         *res = qp;
         
-        /* fix me: err handle */
-
         return 0;
+err_cq_base:
+	dma_free_coherent(qm->dev, qp->sqe_size * QM_Q_DEPTH, qp->sq_base,
+                          qp->sq_base_dma);
+err_sq_base:
+        kfree(qp);
+err_qp:
+	return -ENOMEM;
 }
 
 int hisi_acc_release_qp(struct qm_info *qm, struct hisi_acc_qp *qp)
