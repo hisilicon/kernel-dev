@@ -53,7 +53,7 @@ static inline void mb_write(struct qm_info *qm, void *src)
  * @event: 0 for polling mode, 1 for event mode
  */
 /* fix: how to do read mb */
-int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue,
+static int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue,
                    bool op, bool event)
 {
         struct mailbox mailbox;
@@ -95,7 +95,7 @@ int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue,
  * @index:
  * @prority:
  */
-int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority)
+static int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 {
 	/* fix me: check input params */
 	//pr_err("in %s: qn: %d, cmd: %d, index: %d, priority: %d", __FUNCTION__,
@@ -473,6 +473,7 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
 
         sqc = qm->sqc_base + qp_index;
         qp->sqc = sqc;
+        qp->sqc_dma = qm->sqc_base_dma + qp_index;
        
         size = sqe_size * QM_Q_DEPTH;
 	sq_base = dma_alloc_coherent(qm->dev, size, &qp->sq_base_dma,
@@ -498,10 +499,11 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
 		   (alg_type & SQ_TYPE_MASK) << SQ_TYPE_SHIFT;
         sqc->rsvd1 = 0;
 
-	hacc_mb(qm, MAILBOX_CMD_SQC, virt_to_phys(sqc), qp_index, 0, 0);
+	hacc_mb(qm, MAILBOX_CMD_SQC, qp->sqc_dma, qp_index, 0, 0);
 
         cqc = qm->cqc_base + qp_index;
         qp->cqc = cqc;
+        qp->cqc_dma = qm->cqc_base_dma + qp_index;
 
         size = sizeof(struct cqe) * QM_Q_DEPTH;
 	cq_base = dma_alloc_coherent(qm->dev, size, &qp->cq_base_dma,
@@ -524,7 +526,7 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
         cqc->dw6 = 1 << CQ_PHASE_SHIFT | 1 << CQ_FLAG_SHIFT;
         cqc->rsvd1 = 0;
 
-	hacc_mb(qm, MAILBOX_CMD_CQC, virt_to_phys(cqc), qp_index, 0, 0);
+	hacc_mb(qm, MAILBOX_CMD_CQC, qp->cqc_dma, qp_index, 0, 0);
 
         qm->qp_array[qp_index] = qp;
         *res = qp;
@@ -562,8 +564,7 @@ int hisi_acc_set_pasid(struct hisi_acc_qp *qp, u16 pasid)
         qp->sqc->pasid = pasid;
 
         /* to check */
-	hacc_mb(qp->parent, MAILBOX_CMD_SQC, virt_to_phys(qp->sqc),
-                qp->queue_id, 0, 0);
+	hacc_mb(qp->parent, MAILBOX_CMD_SQC, qp->sqc_dma, qp->queue_id, 0, 0);
 
         return 0;
 }
@@ -573,8 +574,7 @@ int hisi_acc_unset_pasid(struct hisi_acc_qp *qp)
         qp->sqc->pasid = 0;
 
         /* to check */
-	hacc_mb(qp->parent, MAILBOX_CMD_SQC, virt_to_phys(qp->sqc),
-                qp->queue_id, 0, 0);
+	hacc_mb(qp->parent, MAILBOX_CMD_SQC, qp->sqc_dma, qp->queue_id, 0, 0);
 
         return 0;
 }

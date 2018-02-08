@@ -167,7 +167,9 @@ struct hisi_acc_qp {
         dma_addr_t cq_base_dma;
         
         struct sqc *sqc;
+        dma_addr_t sqc_dma;
         struct cqc *cqc;
+        dma_addr_t cqc_dma;
 
         u32 sq_tail;
         u32 cq_head;
@@ -284,9 +286,6 @@ struct hisi_acc_qp {
 
 /* aeqe shift */
 
-int hacc_qm_mb_check_busy(struct qm_info *qm);
-int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 num, bool rw, bool event);
-
 /* doorbell */
 #define DOORBELL_CMD_SQ			0
 #define DOORBELL_CMD_CQ			1
@@ -294,9 +293,6 @@ int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 num, bool rw, bool ev
 #define DOORBELL_CMD_AEQ		3
 
 #define DOORBELL_CMD_SEND_BASE		0x340
-
-int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority);
-
 #define QM_Q_DEPTH			1024
 
 /* qm 0x100000: cfg registers */

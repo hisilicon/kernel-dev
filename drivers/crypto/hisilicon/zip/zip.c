@@ -147,9 +147,6 @@ pasid_store(struct device *dev, struct device_attribute *attr, const char *buf,
 {
 	struct wd_queue *q = wd_queue(dev);
         struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
-	struct wd_dev *wdev = q->wdev;
-	struct hisi_zip *hzip = (struct hisi_zip *)wdev->priv;
-	struct sqc *sqc = qp->sqc;
 	long value;
 	int ret;
 
@@ -157,10 +154,7 @@ pasid_store(struct device *dev, struct device_attribute *attr, const char *buf,
 	if (ret)
 		return -EINVAL;
 
-        sqc->pasid = cpu_to_le16((u16)value);
-
-	hacc_mb(hzip->qm_info, MAILBOX_CMD_SQC, virt_to_phys(sqc),
-		qp->queue_id, 0, 0);
+        hisi_acc_set_pasid(qp, cpu_to_le16((u16)value));
 
 	return len;
 }
@@ -340,9 +334,7 @@ static int hzip_mmap(struct wd_queue *q, struct vm_area_struct *vma)
 static long hzip_ioctl(struct wd_queue *q, unsigned int cmd, unsigned long arg)
 {
         struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
-	struct qm_info *qm = qp->parent;
 	struct hisi_acc_qm_sqc qm_sqc;
-	struct sqc *sqc = qp->sqc;
 
 	switch (cmd) {
 	/* user to read the data in SQC cache */
@@ -354,9 +346,7 @@ static long hzip_ioctl(struct wd_queue *q, unsigned int cmd, unsigned long arg)
                         return -EFAULT;
 		break;
 	case HACC_QM_SET_PASID:
-                sqc->pasid = (u16)(arg & 0xffff);
-		hacc_mb(qm, MAILBOX_CMD_SQC, virt_to_phys(sqc),
-			qp->queue_id, 0, 0);
+                hisi_acc_set_pasid(qp, (u16)(arg & 0xffff));
 		break;
 	default:
 		return -EINVAL;
