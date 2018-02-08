@@ -245,6 +245,7 @@ static int hzip_get_queue(struct wd_dev *wdev, const char *devalgo_name,
 		dev_err(wdev->dev, "Can't create zip queue pair!\n");
                 goto err_create_qp;
         }
+        qp->type = WD_QUEUE;
 
 	wd_q = kzalloc(sizeof(struct wd_queue), GFP_KERNEL);
 	if (!wd_q) {
