@@ -277,15 +277,18 @@ static int vft_config_v1(struct qm_info *qm, u16 base, u32 number)
 static struct hisi_acc_qm_hw_ops qm_hw_ops_v1 = {
         .vft_config = vft_config_v1,
         .aeq_config = NULL,
+        .get_vft_info = NULL,
 };
 
 /* v2 qm hw ops */
 static int aeq_config_v2(struct qm_info *qm) {return 0;} /* v1 = NULL */
 static int vft_config_v2(struct qm_info *qm, u16 base, u32 number) {return 0;}
+static int get_vft_info_v2(struct qm_info *qm, u32 *base, u32 *number) {return 0;}
 
 static struct hisi_acc_qm_hw_ops qm_hw_ops_v2 = {
         .vft_config = vft_config_v2,
         .aeq_config = aeq_config_v2,
+        .get_vft_info = get_vft_info_v2,
 };
 
 int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
@@ -343,7 +346,27 @@ err_out:
         return -ENOMEM;
 }
 
-/* only can be called in PF */
+int hisi_acc_get_vft_info(struct qm_info *qm, u32 *base, u32 *number)
+{
+        if (!base || !number)
+                return -EINVAL;
+
+        if (!qm->ops->get_vft_info) {
+		dev_err(qm->dev, "Don't support vft read!\n");
+                return -EINVAL;
+        }
+
+        return qm->ops->get_vft_info(qm, base, number);
+}
+
+int hisi_acc_qm_info_vft_config(struct qm_info *qm, u32 base, u32 number)
+{
+        if (!number)
+                return -EINVAL;
+
+        return qm->ops->vft_config(qm, base, number);
+}
+
 int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number)
 {
         size_t size;
@@ -370,10 +393,6 @@ int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number)
         qm->qp_base = base;
         qm->qp_num = number;
 
-        ret = qm->ops->vft_config(qm, base, number);
-        if (ret)
-		goto err_vft_config;
-        
 	/* Init sqc_bt */
         size = sizeof(struct sqc) * number;
 	qm->sqc_base = dma_alloc_coherent(qm->dev, size, &qm->sqc_base_dma,

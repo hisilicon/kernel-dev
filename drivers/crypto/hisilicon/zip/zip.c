@@ -21,7 +21,6 @@
 #define HZIP_QUEUE_NUM_V2		1024
 
 #define HZIP_FSM_MAX_CNT		0x301008
-#define HZIP_CONTROL			0x30100c /* not use */
 
 #define HZIP_PORT_ARCA_CHE_0		0x301040
 #define HZIP_PORT_ARCA_CHE_1		0x301044
@@ -35,6 +34,7 @@
 #define HZIP_BD_WUSER_32_63		0x301140
 
 #define HZIP_PF_DEF_Q_NUM               64
+#define HZIP_PF_DEF_Q_BASE              0
 #define HZIP_SQE_SIZE			128
 
 struct hisi_zip {
@@ -50,7 +50,7 @@ struct hisi_zip {
 
 char hisi_zip_name[] = "hisi_zip";
 
-static struct pci_device_id hisi_zip_dev_ids[] = {
+static const struct pci_device_id hisi_zip_dev_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, 0xa250) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, 0xa251) },
 	{ 0, }
@@ -238,22 +238,6 @@ static struct attribute_group *mdev_type_groups[] = {
 static int hzip_get_queue(struct wd_dev *wdev, const char *devalgo_name,
 			  struct wd_queue **q)
 {
-	/* the meaning of this inferface is to build a new virtual device, which
-	 * will be add to mdev_bus_type later. so we can use sqc/cqc mailbox to
-	 * create sq/cq
-	 */
-	/* when we are getting a queue, we can get a unused sqc and need to
-	 * create a queue; or there already has a queue used, but its status is
-	 * idle.
-	 *
-	 * seems in same process, we can use the idle queue, as we need not to
-	 * allocate a queue. but for different processes, we'd better get a new
-	 * queue with no sqe before we can see, otherwise, there is a safe risk.
-	 *
-	 */
-	/* get the alg type from devalo_name */
-	/* how about adding a para to pass pasid to hardware */
-
 	struct hisi_zip *hzip = (struct hisi_zip *)wdev->priv;
         struct qm_info *qm = hzip->qm_info;
         struct hisi_acc_qp *qp;
@@ -265,68 +249,55 @@ static int hzip_get_queue(struct wd_dev *wdev, const char *devalgo_name,
         ret = hisi_acc_create_qp(qm, &qp, HZIP_SQE_SIZE, alg_type);
         if (ret) {
 		dev_err(wdev->dev, "Can't create zip queue pair!\n");
+                goto err_create_qp;
         }
 
 	wd_q = kzalloc(sizeof(struct wd_queue), GFP_KERNEL);
-	if (!wd_q)
-		return -ENOMEM;
+	if (!wd_q) {
+                ret = -ENOMEM;
+                goto err_wd_q;
+        }
         wd_q->priv = qp;
+
+        *q = wd_q;
 
         return 0;
 
-        /* fix me: err handle */
+err_wd_q:
+        hisi_acc_release_qp(qp);
+err_create_qp:
+        return ret;
 }
 
-/* mdev_fops->remove */
 static int hzip_put_queue(struct wd_queue *q)
 {
-	/* the meaning of this inferface is to remove a new virtual device, so
-	 * free sq/cq related memory, update sqc and cq related info
-	 */
-	/* to do: sqc mailbox to release one queue? */
-
         struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
 
+        /* need first stop harware queue(don't support in ES), then release
+         * resources.
+         */
         hisi_acc_release_qp(qp);
-
-	// 1. stop queue first or return fail, hardware can not be stopped in ES :(
-	// 2. free sq and cq
 
 	kfree(q);
 
 	return 0;
 }
 
-/* mdev_fops->open */
 static int hzip_open_queue(struct wd_queue *q)
 {
-	/* to do: to start this queue, after this, at any time, you can send a
-	 * sqc doorbeel to put sqe to sq of zip
-	 */
 	/* after sending a sqc/cqc mb, hardware queue can work */
 	return 0;
 }
 
-/* mdev_fops->release */
 static int hzip_close_queue(struct wd_queue *q)
 {
-	/* to do: to stop operating the work of zip core? and clear sq/cq memory?
-	 * set sqc/cqc head
-	 */
-	/* hardware can not be closed :( */
-
-	/* to do: set qp status here */
-
+	/* hardware queue can not be closed in ES :( */
 	return 0;
 }
 
 static int hzip_is_q_updated(struct wd_queue *q)
 {
-	/* to do: one q is updated, update related flag, here we check if
-	 * this flag is updated.
-	 *
-	 * user process will sleep to wait queue to updated.
-	 */
+        /* to do: now we did not support wd sync interface yet */
 	return 0;
 }
 
@@ -347,13 +318,11 @@ static int hzip_mmap(struct wd_queue *q, struct vm_area_struct *vma)
 	if (vma->vm_pgoff != 0)
 		return -EINVAL;
 
-        /* map sq */
         ret = remap_pfn_range(vma, vma->vm_start, __pa(sq) >> PAGE_SHIFT,
 			      sq_size, vma->vm_page_prot);
         if (ret < 0)
                 return ret;
 
-        /* map cq */
         ret = remap_pfn_range(vma, vma->vm_start + sq_size,
                               __pa(cq) >> PAGE_SHIFT,
 			      cq_size, vma->vm_page_prot);
@@ -406,7 +375,6 @@ static const struct wd_dev_ops hzip_ops = {
 	.ioctl = hzip_ioctl,
 };
 
-
 static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct hisi_zip *hisi_zip;
@@ -414,6 +382,7 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct wd_dev *wdev;
 	int ret;
 	u16 ecam_val16;
+        u32 q_base, q_num;
 
 	pci_set_power_state(pdev, PCI_D0);
 	ecam_val16 = (PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY);
@@ -437,7 +406,7 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hisi_zip = devm_kzalloc(&pdev->dev, sizeof(*hisi_zip), GFP_KERNEL);
 	if (!hisi_zip) {
 		ret = -ENOMEM;
-		goto err_pci_reg;
+		goto err_hisi_zip;
 	}
 
 	hisi_zip->phys_base = pci_resource_start(pdev, 2);
@@ -446,7 +415,7 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
                                          hisi_zip->size);
 	if (!hisi_zip->io_base) {
 		ret = -EIO;;
-		goto err_pci_reg;
+		goto err_hisi_zip;
 	}
 	hisi_zip->pdev = pdev;
 
@@ -459,33 +428,40 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		if (ret > 0)
 			goto err_pci_irq;
 		else
-			goto err_pci_reg;
+			goto err_hisi_zip;
 	}
+
+        ret = hisi_acc_qm_info_create(&pdev->dev, hisi_zip->io_base,
+                                      pdev->devfn, ES, &qm);
+        if (ret) {
+		dev_err(&pdev->dev, "Fail to create QM!\n");
+		goto err_pci_irq;
+        }
 
 	if (pdev->is_physfn) {
-                ret = hisi_acc_qm_info_create(&pdev->dev, hisi_zip->io_base, 0,
-                                              ES, &qm);
-                if (ret) {
-			dev_err(&pdev->dev, "Fail to create QM!\n");
-			goto err_pci_irq;
-                }
-
                 hisi_acc_set_user_domain(qm);
                 hisi_acc_set_cache(qm);
-
                 hisi_acc_init_qm_mem(qm);
-
-                ret = hisi_acc_qm_info_add_queue(qm, 0, HZIP_PF_DEF_Q_NUM);
-                if (ret) {
-			dev_err(&pdev->dev, "Fail to add queue to QM!\n");
-			goto err_pci_irq;
-                }
-
-	        hisi_zip->qm_info = qm;
                 hisi_zip_set_user_domain_and_cache(hisi_zip);
 
-                qm->priv = hisi_zip;
-	}
+                q_base = HZIP_PF_DEF_Q_BASE;
+                q_num = HZIP_PF_DEF_Q_NUM;
+                hisi_acc_qm_info_vft_config(qm, q_base, q_num);
+	} else if (pdev->is_virtfn) {
+                /* get queue base and number, ES did not support to get this
+                 * from mailbox. so fix me...
+                 */
+                hisi_acc_get_vft_info(qm, &q_base, &q_num);
+        }
+
+        ret = hisi_acc_qm_info_add_queue(qm, q_base, q_num);
+        if (ret) {
+		dev_err(&pdev->dev, "Fail to add queue to QM!\n");
+		goto err_pci_irq;
+        }
+
+	hisi_zip->qm_info = qm;
+        qm->priv = hisi_zip;
 
 	ret = devm_request_threaded_irq(&pdev->dev, pci_irq_vector(pdev, 0),
 					hisi_zip_irq, hacc_irq_thread,
@@ -494,7 +470,7 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto err_pci_irq;
 
-	/* to do: exception irq handler register */
+	/* to do: exception irq handler register, ES did not support */
 
 	wdev = devm_kzalloc(&pdev->dev, sizeof(struct wd_dev), GFP_KERNEL);
 	if (!wdev) {
@@ -534,9 +510,11 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 err_pci_irq:
 	pci_free_irq_vectors(pdev);
+err_hisi_zip:
+        pci_release_mem_regions(pdev);
 err_pci_reg:
 	pci_disable_device(pdev);
-	/* release region? */
+
 	return ret;
 }
 
@@ -549,6 +527,8 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 
 static int hisi_zip_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
+        /* to do: set queue number for VFs */
+
 	return 0;
 }
 
