@@ -100,11 +100,11 @@ static void hisi_zip_set_user_domain_and_cache(struct hisi_zip *hisi_zip)
 	writel(0xffffffff, hisi_zip->io_base + HZIP_PORT_AWCA_CHE_0);
 	writel(0xffffffff, hisi_zip->io_base + HZIP_PORT_AWCA_CHE_1);
 	/* user domain configurations */
-	writel(0x40000070, hisi_zip->io_base + HZIP_BD_RUSER_32_63);
+	writel(0x40001070, hisi_zip->io_base + HZIP_BD_RUSER_32_63);
 	writel(0x40001070, hisi_zip->io_base + HZIP_SGL_RUSER_32_63);
 	writel(0x40001071, hisi_zip->io_base + HZIP_DATA_RUSER_32_63);
 	writel(0x40001071, hisi_zip->io_base + HZIP_DATA_WUSER_32_63);
-	writel(0x40000070, hisi_zip->io_base + HZIP_BD_WUSER_32_63);
+	writel(0x40001070, hisi_zip->io_base + HZIP_BD_WUSER_32_63);
 
 	/* fsm count */	
 	writel(0xfffffff, hisi_zip->io_base + HZIP_FSM_MAX_CNT); 

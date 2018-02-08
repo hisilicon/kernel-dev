@@ -215,9 +215,9 @@ int hisi_acc_init_qm_mem(struct qm_info *qm)
 void hisi_acc_set_user_domain(struct qm_info *qm)
 {
 	/* user domain */
-	writel(0x40000070, qm->fun_base + QM_ARUSER_M_CFG_1);
+	writel(0x40001070, qm->fun_base + QM_ARUSER_M_CFG_1);
 	writel(0xfffffffe, qm->fun_base + QM_ARUSER_M_CFG_ENABLE);
-	writel(0x40000070, qm->fun_base + QM_AWUSER_M_CFG_1);
+	writel(0x40001070, qm->fun_base + QM_AWUSER_M_CFG_1);
 	writel(0xfffffffe, qm->fun_base + QM_AWUSER_M_CFG_ENABLE);
 	writel(0xffffffff, qm->fun_base + QM_WUSER_M_CFG_ENABLE);
 }
