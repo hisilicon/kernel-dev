@@ -36,6 +36,27 @@ struct wd_mdev_state {
 
 static struct class *wd_class;
 
+static int __dev_exist(struct device *dev, void *data)
+{
+       return !strcmp(dev_name(dev), dev_name((struct device *)data));
+}
+
+int is_wdev(struct device *dev)
+{
+       struct mdev_device *mdev;
+       struct device *parent;
+
+       mdev = mdev_from_dev(dev);
+       if (!mdev)
+               return 0;
+       parent = mdev_parent_dev(mdev);
+       if (!parent)
+               return 0;
+       return class_for_each_device(wd_class, NULL, parent, __dev_exist);
+}
+EXPORT_SYMBOL(is_wdev);
+
+
 static struct wd_dev *mdev_wdev(struct mdev_device *mdev)
 {
 	return (struct wd_dev *)mdev_parent_dev(mdev)->driver_data;

@@ -118,7 +118,7 @@ int wd_dev_register(struct wd_dev *wdev);
 void wd_dev_unregister(struct wd_dev *wdev);
 struct wd_queue *wd_queue(struct device *dev);
 void wd_wake_up(struct wd_queue *q);
-
+int is_wdev(struct device *dev);
 extern struct device_attribute dev_attr_pid;
 #define WD_DEFAULT_MDEV_DEV_ATTRS \
 	&dev_attr_pid.attr,
