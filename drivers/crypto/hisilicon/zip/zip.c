@@ -445,6 +445,12 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
                 hisi_acc_get_vft_info(qm, &q_base, &q_num);
         }
 
+        ret = hisi_acc_qm_info_create_eq(qm);
+        if (ret) {
+		dev_err(&pdev->dev, "Fail to create eq!\n");
+		goto err_pci_irq;
+        }
+
         ret = hisi_acc_qm_info_add_queue(qm, q_base, q_num);
         if (ret) {
 		dev_err(&pdev->dev, "Fail to add queue to QM!\n");

@@ -338,6 +338,7 @@ void hisi_acc_set_user_domain(struct qm_info *qm);
 void hisi_acc_set_cache(struct qm_info *qm);
 int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
                             enum hw_version hw_v, struct qm_info **res);
+int hisi_acc_qm_info_create_eq(struct qm_info *qm);
 int hisi_acc_get_vft_info(struct qm_info *qm, u32 *base, u32 *number);
 int hisi_acc_qm_info_vft_config(struct qm_info *qm, u32 base, u32 number);
 int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number);

@@ -299,7 +299,7 @@ int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
 
         qm = (struct qm_info *)devm_kzalloc(dev, sizeof(*qm), GFP_KERNEL);
 	if (!qm)
-                goto err_out;
+                return -ENOMEM;
         
         qm->fun_base = base;
         qm->fun_num = number;
@@ -313,7 +313,16 @@ int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
         else
                 qm->ops = &qm_hw_ops_v2;
 
-        size = max_t(size_t, sizeof(struct eqc), sizeof(struct aeqc));
+        *res = qm;
+
+	return 0;
+}
+
+int hisi_acc_qm_info_create_eq(struct qm_info *qm)
+{
+        size_t size = max_t(size_t, sizeof(struct eqc), sizeof(struct aeqc));
+        struct device *dev = qm->dev;
+
 	qm->eqc_aeqc_pool = dma_pool_create("eqc_aeqc", dev, size, 32, 0);
         if (!qm->eqc_aeqc_pool)
                 goto err_out;
@@ -338,8 +347,6 @@ int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
 
         /* fix me: qm->alloc_aeqc(); */
 
-        *res = qm;
-	return 0;
 err_eq:
 	dma_pool_free(qm->eqc_aeqc_pool, qm->eqc, qm->eqc_dma);
 err_out:
