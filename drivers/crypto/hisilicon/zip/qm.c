@@ -347,6 +347,7 @@ int hisi_acc_qm_info_create_eq(struct qm_info *qm)
 
         /* fix me: qm->alloc_aeqc(); */
 
+        return 0;
 err_eq:
 	dma_pool_free(qm->eqc_aeqc_pool, qm->eqc, qm->eqc_dma);
 err_out:
