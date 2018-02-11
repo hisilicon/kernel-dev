@@ -1755,6 +1755,18 @@ void hisi_sas_kill_tasklets(struct hisi_hba *hisi_hba)
 }
 EXPORT_SYMBOL_GPL(hisi_sas_kill_tasklets);
 
+static int hisi_sas_host_reset(struct Scsi_Host *shost, int reset_type)
+{
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+
+	if (reset_type == SCSI_ADAPTER_RESET)
+		queue_work(hisi_hba->wq, &hisi_hba->rst_work);
+	else
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
 struct scsi_transport_template *hisi_sas_stt;
 EXPORT_SYMBOL_GPL(hisi_sas_stt);
 
@@ -1783,6 +1795,7 @@ static struct scsi_host_template _hisi_sas_sht = {
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
 	.shost_attrs		= host_attrs,
+	.host_reset		= hisi_sas_host_reset,
 };
 struct scsi_host_template *hisi_sas_sht = &_hisi_sas_sht;
 EXPORT_SYMBOL_GPL(hisi_sas_sht);
