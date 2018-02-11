@@ -295,7 +295,6 @@ int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
                             enum hw_version hw_v, struct qm_info **res)
 {
         struct qm_info *qm;
-        size_t size;
 
         qm = (struct qm_info *)devm_kzalloc(dev, sizeof(*qm), GFP_KERNEL);
 	if (!qm)
@@ -307,6 +306,7 @@ int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
         qm->node_id = dev->numa_node;
         qm->dev = dev;
         spin_lock_init(&qm->mailbox_lock);
+        spin_lock_init(&qm->qp_bitmap_lock);
 
         if (hw_v == ES)
                 qm->ops = &qm_hw_ops_v1;
@@ -343,7 +343,7 @@ int hisi_acc_qm_info_create_eq(struct qm_info *qm)
         qm->eqc->dw6 = (QM_Q_DEPTH - 1) | (1 << MB_EQC_PHASE_SHIFT);
 
         /* to check */
-	hacc_mb(qm, MAILBOX_CMD_EQC, qm->eqc_dma, QM_Q_DEPTH, 0, 0);
+	hacc_mb(qm, MAILBOX_CMD_EQC, qm->eqc_dma, 0, 0, 0);
 
         /* fix me: qm->alloc_aeqc(); */
 
@@ -419,7 +419,7 @@ int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number)
 		ret = -ENOMEM;
                 goto err_cqc;
         }
-	hacc_mb(qm, MAILBOX_CMD_SQC_BT, qm->cqc_base_dma, 0, 0, 0);
+	hacc_mb(qm, MAILBOX_CMD_CQC_BT, qm->cqc_base_dma, 0, 0, 0);
 
         return 0;
 err_cqc:
