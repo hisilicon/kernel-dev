@@ -352,4 +352,8 @@ u16 hisi_acc_get_sq_tail(struct hisi_acc_qp *qp);
 int hisi_acc_send(struct hisi_acc_qp *qp, u16 sq_tail, void *priv);
 int hisi_acc_receive(struct hisi_acc_qp *qp, void *priv);
 
+/* helper function to debug */
+u64 vft_read_v1(struct qm_info *qm);
+void hisi_acc_qm_read_sqc(struct hisi_acc_qp *qp);
+
 #endif

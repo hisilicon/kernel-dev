@@ -247,6 +247,11 @@ static int hzip_get_queue(struct wd_dev *wdev, const char *devalgo_name,
         }
         qp->type = WD_QUEUE;
 
+        /* debug: dump sqc */
+        hisi_acc_qm_read_sqc(qp);
+        pr_err("---> in %s: sq_base_l: %x\n", __FUNCTION__, qp->sqc->sq_base_l);
+        pr_err("---> in %s: sq_base_h: %x\n", __FUNCTION__, qp->sqc->sq_base_h);
+
 	wd_q = kzalloc(sizeof(struct wd_queue), GFP_KERNEL);
 	if (!wd_q) {
                 ret = -ENOMEM;
@@ -444,6 +449,11 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
                  */
                 hisi_acc_get_vft_info(qm, &q_base, &q_num);
         }
+
+        /* debug: see vft config */
+        u64 debug_vft;
+        debug_vft = vft_read_v1(qm);
+        pr_err("---> in %s: vft: %llx\n", __FUNCTION__, debug_vft);
 
         ret = hisi_acc_qm_info_create_eq(qm);
         if (ret) {

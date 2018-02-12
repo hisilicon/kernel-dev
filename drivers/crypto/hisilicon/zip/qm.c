@@ -71,6 +71,7 @@ static int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue,
 	mailbox.rsvd = 0;
 
 	pr_err("in %s\n", __FUNCTION__);
+	pr_err("in %x\n", mailbox.w0);
 	pr_err("in %x\n", mailbox.queue_num);
 	pr_err("in %x\n", mailbox.mb_base_l);
 	pr_err("in %x\n", mailbox.mb_base_h);
@@ -606,4 +607,27 @@ int hisi_acc_send(struct hisi_acc_qp *qp, u16 sq_tail, void *priv)
 int hisi_acc_receive(struct hisi_acc_qp *qp, void *priv)
 {
         return 0;
+}
+
+/* add this temporarily to dump sq vft, better to merge with vft_config_v1 */
+u64 vft_read_v1(struct qm_info *qm)
+{
+        u32 vft_l, vft_h;
+
+        hisi_acc_check(qm, QM_VFT_CFG_RDY, 0);
+
+	writel(0x1, qm->fun_base + QM_VFT_CFG_OP_WR);
+	writel(QM_SQC_VFT, qm->fun_base + QM_VFT_CFG_TYPE);
+	writel(qm->fun_num, qm->fun_base + QM_VFT_CFG_ADDRESS);
+
+	vft_l = readl(qm->fun_base + QM_VFT_CFG_DATA_L);
+	vft_h = readl(qm->fun_base + QM_VFT_CFG_DATA_H);
+
+        return ((u64)vft_h << 32 | vft_l);
+}
+
+/* add this temporarily to dump sqc */
+void hisi_acc_qm_read_sqc(struct hisi_acc_qp *qp)
+{
+	hacc_mb(qp->parent, MAILBOX_CMD_SQC, qp->sqc_dma, qp->queue_id, 1, 0);
 }
