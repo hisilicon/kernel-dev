@@ -705,9 +705,58 @@ bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned int esr)
 	}
 }
 
+#define ESR_SEI_IMPDEF_MASK 0x0F
+
+static const char * const esr_impdef_str[] = {
+	/* 0x00 - 0x03 */
+	"System SEI",
+	"System REI",
+	"Cacheable store/Device load encounter bus Data Error from SOC",
+	"Cacheable store/Device Store encounter bus Non-Data Error from SOC,"
+	"or Cacheable store encounter L2 Tag memory uncorrectable error.",
+
+	/* 0x04 - 0x07 */
+	"NC/Dev store encounter bus Data Error from SOC",
+	"NC/Dev store encounter bus Non-Data Error from SOC",
+	"ALU parity error, Dev load got poison error, Far atomic got poison error from SOC",
+	"L2 Eviction encounter Data Error from SOC",
+
+	/* 0x08 - 0x0b */
+	"L2 Eviction encounter Non-Data Error from SOC",
+	"CMO instruction encounter Data Error from SOC",
+	"CMO instruction encounter Non-Data Error from SOC",
+	"Stream write encounter L2 internal ECC error.",
+
+	/* 0x0c - 0x0f */
+	"CMO instruction encounter L2 internal ECC error.",
+	"Atomic Store encounter Data Error from SOC",
+	"Atomic Store encounter Non-Data Error from SOC",
+	"Unknown"
+};
+
+
 asmlinkage void do_serror(struct pt_regs *regs, unsigned int esr)
 {
+	u32 midr = read_cpuid_id();
+
 	nmi_enter();
+
+	if (((midr & MIDR_CPU_MODEL_MASK) == MIDR_HI_TAISHAN_V1) &&
+	    esr & ESR_ELx_IDS) {
+		/*
+		 * In TAISHAN_V1 esr is IMPLEMENTATION DEFINED, just decode
+		 * the error code and panic.
+		 */
+
+		int impdef = esr & ESR_SEI_IMPDEF_MASK;
+
+		pr_crit("SError Interrupt on CPU%d while in %s mode: code: 0x%08x -- %s\n",
+			smp_processor_id(), user_mode(regs) ? "user" : "kernel",
+			esr, esr_impdef_str[impdef]);
+	} else {
+		pr_crit("SError Interrupt on CPU%d, code 0x%08x -- %s\n",
+			smp_processor_id(), esr, esr_get_class_string(esr));
+	}
 
 	/* non-RAS errors are not containable */
 	if (!arm64_is_ras_serror(esr) || arm64_is_fatal_ras_serror(regs, esr))
