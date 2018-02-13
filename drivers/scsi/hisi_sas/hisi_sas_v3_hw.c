@@ -691,8 +691,10 @@ static int reset_hw_v3_hw(struct hisi_hba *hisi_hba)
 			dev_err(dev, "Reset failed\n");
 			return -EIO;
 		}
-	} else
+	} else {
 		dev_err(dev, "no reset method!\n");
+		return -EIO;
+	}
 
 	return 0;
 }
@@ -752,7 +754,7 @@ static void phy_hard_reset_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 	start_phy_v3_hw(hisi_hba, phy_no);
 }
 
-enum sas_linkrate phy_get_max_linkrate_v3_hw(void)
+static enum sas_linkrate phy_get_max_linkrate_v3_hw(void)
 {
 	return SAS_LINK_RATE_12_0_GBPS;
 }
@@ -1083,7 +1085,7 @@ static void prep_abort_v3_hw(struct hisi_hba *hisi_hba,
 	/* dw0 */
 	hdr->dw0 = cpu_to_le32((5 << CMD_HDR_CMD_OFF) | /*abort*/
 			       (port->id << CMD_HDR_PORT_OFF) |
-				   ((dev_is_sata(dev) ? 1:0)
+				   (dev_is_sata(dev)
 					<< CMD_HDR_ABORT_DEVICE_TYPE_OFF) |
 					(abort_flag
 					 << CMD_HDR_ABORT_FLAG_OFF));
@@ -1100,7 +1102,7 @@ static void prep_abort_v3_hw(struct hisi_hba *hisi_hba,
 
 static int phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 {
-	int i, res = 0;
+	int i, res;
 	u32 context, port_id, link_rate;
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
@@ -1172,7 +1174,7 @@ static int phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 	phy->port_id = port_id;
 	phy->phy_attached = 1;
 	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP);
-
+	res = IRQ_HANDLED;
 end:
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
 			     CHL_INT0_SL_PHY_ENABLE_MSK);
@@ -1203,7 +1205,7 @@ static int phy_down_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, CHL_INT0_NOT_RDY_MSK);
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 0);
 
-	return 0;
+	return IRQ_HANDLED;
 }
 
 static void phy_bcast_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
@@ -1557,7 +1559,7 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 		dev_dbg(dev, "slot complete: task(%p) aborted\n", task);
 		ts->stat = SAS_ABORTED_TASK;
 		hisi_sas_slot_task_free(hisi_hba, task, slot);
-		return -1;
+		return ts->stat;
 	}
 
 	if (unlikely(!sas_dev)) {

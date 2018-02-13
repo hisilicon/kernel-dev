@@ -1151,8 +1151,10 @@ static int reset_hw_v2_hw(struct hisi_hba *hisi_hba)
 			dev_err(dev, "SAS de-reset fail.\n");
 			return -EIO;
 		}
-	} else
-		dev_warn(dev, "no reset method\n");
+	} else {
+		dev_err(dev, "no reset method\n");
+		return -EIO;
+	}
 
 	return 0;
 }
@@ -2432,7 +2434,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 		dev_dbg(dev, "slot_complete: task(%p) aborted\n", task);
 		ts->stat = SAS_ABORTED_TASK;
 		hisi_sas_slot_task_free(hisi_hba, task, slot);
-		return -1;
+		return ts->stat;
 	}
 
 	if (unlikely(!sas_dev)) {
@@ -2684,7 +2686,7 @@ static void prep_abort_v2_hw(struct hisi_hba *hisi_hba,
 	/* dw0 */
 	hdr->dw0 = cpu_to_le32((5 << CMD_HDR_CMD_OFF) | /*abort*/
 			       (port->id << CMD_HDR_PORT_OFF) |
-			       ((dev_is_sata(dev) ? 1:0) <<
+			       (dev_is_sata(dev) <<
 				CMD_HDR_ABORT_DEVICE_TYPE_OFF) |
 			       (abort_flag << CMD_HDR_ABORT_FLAG_OFF));
 
