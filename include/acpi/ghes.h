@@ -29,6 +29,11 @@ struct ghes {
 		struct timer_list timer;
 		unsigned int irq;
 	};
+
+	spinlock_t *fixmap_lock;
+	raw_spinlock_t *nmi_fixmap_lock;
+
+	int fixmap_idx;
 };
 
 struct ghes_estatus_node {
