@@ -33,6 +33,8 @@
 
 #ifdef CONFIG_ACPI_APEI
 # include <linux/efi.h>
+# include <acpi/ghes.h>
+# include <asm/daifflags.h>
 # include <asm/pgtable.h>
 #endif
 
@@ -260,5 +262,33 @@ pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
 	if (attr & EFI_MEMORY_WC)
 		return __pgprot(PROT_NORMAL_NC);
 	return __pgprot(PROT_DEVICE_nGnRnE);
+}
+
+
+/*
+ * Claim Synchronous External Aborts as a firmware first notification.
+ *
+ * Used by KVM and the arch do_sea handler.
+ * @regs may be NULL when called from process context.
+ */
+int apei_claim_sea(struct pt_regs *regs)
+{
+	int err = -ENOENT;
+	unsigned long current_flags = arch_local_save_flags();
+
+	if (!IS_ENABLED(CONFIG_ACPI_APEI_SEA))
+		return err;
+
+	/*
+	 * APEI expects an NMI-like notification to always be called
+	 * in NMI context.
+	 */
+	local_daif_restore(DAIF_ERRCTX);
+	nmi_enter();
+	err = ghes_notify_sea();
+	nmi_exit();
+	local_daif_restore(current_flags);
+
+	return err;
 }
 #endif
