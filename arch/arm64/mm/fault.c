@@ -18,6 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/acpi.h>
 #include <linux/extable.h>
 #include <linux/signal.h>
 #include <linux/mm.h>
@@ -33,6 +34,7 @@
 #include <linux/preempt.h>
 #include <linux/hugetlb.h>
 
+#include <asm/acpi.h>
 #include <asm/bug.h>
 #include <asm/cmpxchg.h>
 #include <asm/cpufeature.h>
@@ -43,8 +45,6 @@
 #include <asm/system_misc.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
-
-#include <acpi/ghes.h>
 
 struct fault_info {
 	int	(*fn)(unsigned long addr, unsigned int esr,
@@ -579,19 +579,12 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 	pr_err("Synchronous External Abort: %s (0x%08x) at 0x%016lx\n",
 		inf->name, esr, addr);
 
-	/*
-	 * Synchronous aborts may interrupt code which had interrupts masked.
-	 * Before calling out into the wider kernel tell the interested
-	 * subsystems.
-	 */
 	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA)) {
-		if (interrupts_enabled(regs))
-			nmi_enter();
-
-		ghes_notify_sea();
-
-		if (interrupts_enabled(regs))
-			nmi_exit();
+		/*
+		 * Return value ignored as we rely on signal merging.
+		 * Future patches will make this more robust.
+		 */
+		apei_claim_sea(regs);
 	}
 
 	if (user_mode(regs)) {
@@ -683,16 +676,6 @@ static const struct fault_info fault_info[] = {
 	{ do_bad,		SIGBUS,  BUS_FIXME,	"page domain fault"		},
 	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 63"			},
 };
-
-int kvm_handle_guest_sea(phys_addr_t addr, unsigned int esr)
-{
-	int ret = -ENOENT;
-
-	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA))
-		ret = ghes_notify_sea();
-
-	return ret;
-}
 
 asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
 					 struct pt_regs *regs)
