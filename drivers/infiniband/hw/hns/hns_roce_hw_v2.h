@@ -204,6 +204,8 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_ALLOC_VF_RES			= 0x8401,
 	HNS_ROCE_OPC_CFG_EXT_LLM			= 0x8403,
 	HNS_ROCE_OPC_CFG_TMOUT_LLM			= 0x8404,
+	HNS_ROCE_OPC_POST_MB				= 0x8504,
+	HNS_ROCE_OPC_QUERY_MB_ST			= 0x8505,
 	HNS_ROCE_OPC_CFG_BT_ATTR			= 0x8506,
 };
 
@@ -1247,6 +1249,20 @@ struct hns_roce_vf_res_b {
 #define ROCEE_VF_SGID_CFG4_SGID_TYPE_S 0
 #define ROCEE_VF_SGID_CFG4_SGID_TYPE_M GENMASK(1, 0)
 
+struct hns_roce_post_mbox {
+	__le32	in_param_l;
+	__le32	in_param_h;
+	__le32	out_param_l;
+	__le32	out_param_h;
+	__le32	cmd_tag;
+	__le32	token_event_en;
+};
+
+struct hns_roce_mbox_status {
+	__le32	mb_status_hw_run;
+	__le32	rsv[5];
+};
+
 struct hns_roce_cfg_bt_attr {
 	__le32 vf_qpc_cfg;
 	__le32 vf_srqc_cfg;
@@ -1303,18 +1319,6 @@ struct hns_roce_cmq_desc {
 
 #define HNS_ROCE_HW_RUN_BIT_SHIFT	31
 #define HNS_ROCE_HW_MB_STATUS_MASK	0xFF
-
-#define HNS_ROCE_VF_MB4_TAG_MASK	0xFFFFFF00
-#define HNS_ROCE_VF_MB4_TAG_SHIFT	8
-
-#define HNS_ROCE_VF_MB4_CMD_MASK	0xFF
-#define HNS_ROCE_VF_MB4_CMD_SHIFT	0
-
-#define HNS_ROCE_VF_MB5_EVENT_MASK	0x10000
-#define HNS_ROCE_VF_MB5_EVENT_SHIFT	16
-
-#define HNS_ROCE_VF_MB5_TOKEN_MASK	0xFFFF
-#define HNS_ROCE_VF_MB5_TOKEN_SHIFT	0
 
 struct hns_roce_v2_cmq_ring {
 	dma_addr_t desc_dma_addr;
