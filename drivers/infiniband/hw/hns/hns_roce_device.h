@@ -109,6 +109,10 @@ enum {
 	HNS_ROCE_SUPPORT_RQ_RECORD_DB = 1 << 0,
 };
 
+enum {
+	HNS_ROCE_SUPPORT_CQ_RECORD_DB = 1 << 0,
+};
+
 enum hns_roce_qp_state {
 	HNS_ROCE_QP_STATE_RST,
 	HNS_ROCE_QP_STATE_INIT,
@@ -380,6 +384,8 @@ struct hns_roce_cq_buf {
 
 struct hns_roce_cq {
 	struct ib_cq			ib_cq;
+	struct hns_roce_db		db;
+	u8				db_en;
 	struct hns_roce_cq_buf		hr_buf;
 	spinlock_t			lock;
 	struct ib_umem			*umem;

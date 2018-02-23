@@ -315,6 +315,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_ib_create_cq ucmd;
+	struct hns_roce_ib_create_cq_resp resp;
 	struct hns_roce_cq *hr_cq = NULL;
 	struct hns_roce_uar *uar = NULL;
 	int vector = attr->comp_vector;
@@ -354,6 +355,15 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 			goto err_cq;
 		}
 
+		if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) {
+			ret = hns_roce_db_map_user(to_hr_ucontext(context),
+						   ucmd.db_addr, &hr_cq->db);
+			if (ret) {
+				dev_err(dev, "cq record doorbell map failed!\n");
+				goto err_mtt;
+			}
+		}
+
 		/* Get user space parameters */
 		uar = &to_hr_ucontext(context)->uar;
 	} else {
@@ -375,7 +385,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 				hr_cq, vector);
 	if (ret) {
 		dev_err(dev, "Creat CQ .Failed to cq_alloc.\n");
-		goto err_mtt;
+		goto err_dbmap;
 	}
 
 	/*
@@ -393,16 +403,28 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	hr_cq->cq_depth = cq_entries;
 
 	if (context) {
-		if (ib_copy_to_udata(udata, &hr_cq->cqn, sizeof(u64))) {
-			ret = -EFAULT;
+		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
+					(udata->outlen == sizeof(resp))) {
+			hr_cq->db_en = 1;
+			resp.cqn = hr_cq->cqn;
+			resp.cap_flags |= HNS_ROCE_SUPPORT_CQ_RECORD_DB;
+			ret = ib_copy_to_udata(udata, &resp, sizeof(resp));
+		} else
+			ret = ib_copy_to_udata(udata, &hr_cq->cqn, sizeof(u64));
+
+		if (ret)
 			goto err_cqc;
-		}
 	}
 
 	return &hr_cq->ib_cq;
 
 err_cqc:
 	hns_roce_free_cq(hr_dev, hr_cq);
+
+err_dbmap:
+	if (context && (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB))
+		hns_roce_db_unmap_user(to_hr_ucontext(context),
+				       &hr_cq->db);
 
 err_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
@@ -430,12 +452,18 @@ int hns_roce_ib_destroy_cq(struct ib_cq *ib_cq)
 		hns_roce_free_cq(hr_dev, hr_cq);
 		hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
 
-		if (ib_cq->uobject)
+		if (ib_cq->uobject) {
 			ib_umem_release(hr_cq->umem);
-		else
+
+			if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB)
+				hns_roce_db_unmap_user(
+					to_hr_ucontext(ib_cq->uobject->context),
+					&hr_cq->db);
+		} else {
 			/* Free the buff of stored cq */
 			hns_roce_ib_free_cq_buf(hr_dev, &hr_cq->hr_buf,
 						ib_cq->cqe);
+		}
 
 		kfree(hr_cq);
 	}
