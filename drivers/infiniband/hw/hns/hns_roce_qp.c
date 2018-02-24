@@ -885,6 +885,7 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
+	struct hns_roce_ib_modify_qp ucmd;
 	enum ib_qp_state cur_state, new_state;
 	struct device *dev = hr_dev->dev;
 	int ret = -EINVAL;
@@ -897,6 +898,17 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		    attr->cur_qp_state : (enum ib_qp_state)hr_qp->state;
 	new_state = attr_mask & IB_QP_STATE ?
 		    attr->qp_state : cur_state;
+
+	if (attr_mask & IB_QP_STATE && new_state == IB_QPS_ERR &&
+	    ibqp->pd->uobject) {
+		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
+			dev_err(dev, "ib_copy_from_udata error for modify qp\n");
+			ret = -EFAULT;
+			goto out;
+		}
+		hr_qp->sq.head = ucmd.sq_head;
+		hr_qp->rq.head = ucmd.rq_head;
+	}
 
 	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask,
 				IB_LINK_LAYER_ETHERNET)) {
