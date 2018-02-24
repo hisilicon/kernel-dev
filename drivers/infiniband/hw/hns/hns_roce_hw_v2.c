@@ -3758,6 +3758,11 @@ static int hns_roce_v2_destroy_qp_common(struct hns_roce_dev *hr_dev,
 	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
 
 	if (is_user) {
+		if (hr_qp->sq.wqe_cnt)
+			hns_roce_db_unmap_user(
+				to_hr_ucontext(hr_qp->ibqp.uobject->context),
+				&hr_qp->sdb);
+
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
 		    hr_qp->rq.wqe_cnt)
 			hns_roce_db_unmap_user(
@@ -3841,6 +3846,33 @@ static int hns_roce_v2_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 	return ret;
 }
 
+static void set_qp_state_to_err(struct hns_roce_dev *hr_dev, u32 qpn)
+{
+	struct device *dev = hr_dev->dev;
+	struct hns_roce_qp *qp;
+	struct ib_qp_attr attr;
+	int attr_mask;
+	int ret;
+
+	qp = __hns_roce_qp_lookup(hr_dev, qpn);
+	if (!qp) {
+		dev_warn(dev, "no qp can be found!\n");
+		return;
+	}
+
+	if (qp->ibqp.pd->uobject) {
+		qp->sq.head = *(int *)(qp->sdb.virt_addr);
+		qp->rq.head = *(int *)(qp->rdb.virt_addr);
+	}
+
+	attr_mask = IB_QP_STATE;
+	attr.qp_state = IB_QPS_ERR;
+	ret = hns_roce_v2_modify_qp(&qp->ibqp, &attr, attr_mask,
+				    qp->state, IB_QPS_ERR);
+	if (ret)
+		dev_err(dev, "failed to modify qp %d to err state.\n", qpn);
+}
+
 static void set_eq_cons_index_v2(struct hns_roce_eq *eq)
 {
 	u32 doorbell[2];
@@ -3880,6 +3912,8 @@ static void hns_roce_v2_wq_catas_err_handle(struct hns_roce_dev *hr_dev,
 	int sub_type;
 
 	dev_warn(dev, "Local work queue catastrophic error.\n");
+	set_qp_state_to_err(hr_dev, qpn);
+
 	sub_type = roce_get_field(aeqe->asyn, HNS_ROCE_V2_AEQE_SUB_TYPE_M,
 				  HNS_ROCE_V2_AEQE_SUB_TYPE_S);
 	switch (sub_type) {
@@ -3911,6 +3945,8 @@ static void hns_roce_v2_local_wq_access_err_handle(struct hns_roce_dev *hr_dev,
 	int sub_type;
 
 	dev_warn(dev, "Local access violation work queue error.\n");
+	set_qp_state_to_err(hr_dev, qpn);
+
 	sub_type = roce_get_field(aeqe->asyn, HNS_ROCE_V2_AEQE_SUB_TYPE_M,
 				  HNS_ROCE_V2_AEQE_SUB_TYPE_S);
 	switch (sub_type) {

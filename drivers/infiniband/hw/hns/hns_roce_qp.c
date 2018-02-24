@@ -489,6 +489,14 @@ static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
+static int hns_roce_qp_has_sq(struct ib_qp_init_attr *attr)
+{
+	if (attr->qp_type == IB_QPT_XRC_TGT || attr->srq)
+		return 0;
+
+	return 1;
+}
+
 static int hns_roce_qp_has_rq(struct ib_qp_init_attr *attr)
 {
 	if (attr->qp_type == IB_QPT_XRC_INI ||
@@ -614,13 +622,24 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		}
 
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
+		    hns_roce_qp_has_sq(init_attr)) {
+			ret = hns_roce_db_map_user(
+					to_hr_ucontext(ib_pd->uobject->context),
+					ucmd.sdb_addr, &hr_qp->sdb);
+			if (ret) {
+				dev_err(dev, "sq record doorbell map failed!\n");
+				goto err_mtt;
+			}
+		}
+
+		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
 		    hns_roce_qp_has_rq(init_attr)) {
 			ret = hns_roce_db_map_user(
 					to_hr_ucontext(ib_pd->uobject->context),
 					ucmd.db_addr, &hr_qp->rdb);
 			if (ret) {
 				dev_err(dev, "rp record doorbell map failed!\n");
-				goto err_mtt;
+				goto err_sq_dbmap;
 			}
 		}
 	} else {
@@ -764,6 +783,14 @@ err_wrid:
 		kfree(hr_qp->sq.wrid);
 		kfree(hr_qp->rq.wrid);
 	}
+
+err_sq_dbmap:
+	if (ib_pd->uobject)
+		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
+		    hns_roce_qp_has_sq(init_attr))
+			hns_roce_db_unmap_user(
+					to_hr_ucontext(ib_pd->uobject->context),
+					&hr_qp->sdb);
 
 err_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
