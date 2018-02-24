@@ -69,6 +69,8 @@ int hns_roce_db_map_user(struct hns_roce_ucontext *context, unsigned long virt,
 found:
 	db->dma = sg_dma_address(db_page->umem->sg_head.sgl) +
 		  (virt & ~PAGE_MASK);
+	db_page->umem->sg_head.sgl->offset = virt & ~PAGE_MASK;
+	db->virt_addr = sg_virt(db_page->umem->sg_head.sgl);
 	db->u.user_page = db_page;
 	++db_page->refcount_t;
 

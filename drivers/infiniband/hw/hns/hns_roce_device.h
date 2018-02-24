@@ -373,6 +373,7 @@ struct hns_roce_db {
 		struct hns_roce_user_db_page *user_page;
 	} u;
 	dma_addr_t	dma;
+	void		*virt_addr;
 	int		index;
 	int		order;
 };
@@ -511,6 +512,7 @@ struct hns_roce_qp {
 	struct ib_qp		ibqp;
 	struct hns_roce_buf	hr_buf;
 	struct hns_roce_db	rdb;
+	struct hns_roce_db	sdb;
 	u8			rdb_en;
 	struct hns_roce_wq	rq;
 	u32			doorbell_qpn;
