@@ -202,7 +202,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		owner_bit = ~(qp->sq.head >> ilog2(qp->sq.wqe_cnt)) & 0x1;
 
 		/* Corresponding to the QP type, wqe process separately */
-		if (ibqp->qp_type == IB_QPT_GSI) {
+		if (ibqp->qp_type == IB_QPT_GSI || ibqp->qp_type == IB_QPT_UD) {
 			ud_sq_wqe = wqe;
 			memset(ud_sq_wqe, 0, sizeof(*ud_sq_wqe));
 
@@ -234,7 +234,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			roce_set_field(ud_sq_wqe->byte_4,
 				       V2_UD_SEND_WQE_BYTE_4_OPCODE_M,
 				       V2_UD_SEND_WQE_BYTE_4_OPCODE_S,
-				       HNS_ROCE_V2_WQE_OP_SEND);
+				       wr->opcode);
 
 			for (i = 0; i < wr->num_sge; i++)
 				tmp_len += wr->sg_list[i].length;
@@ -302,19 +302,16 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			roce_set_field(ud_sq_wqe->byte_36,
 				       V2_UD_SEND_WQE_BYTE_36_TCLASS_M,
 				       V2_UD_SEND_WQE_BYTE_36_TCLASS_S,
-				       0);
-			roce_set_field(ud_sq_wqe->byte_36,
-				       V2_UD_SEND_WQE_BYTE_36_TCLASS_M,
-				       V2_UD_SEND_WQE_BYTE_36_TCLASS_S,
-				       0);
+				       ah->av.sl_tclass_flowlabel >> 20);
 			roce_set_field(ud_sq_wqe->byte_40,
 				       V2_UD_SEND_WQE_BYTE_40_FLOW_LABEL_M,
-				       V2_UD_SEND_WQE_BYTE_40_FLOW_LABEL_S, 0);
+				       V2_UD_SEND_WQE_BYTE_40_FLOW_LABEL_S,
+				       ah->av.sl_tclass_flowlabel);
 			roce_set_field(ud_sq_wqe->byte_40,
-				       V2_UD_SEND_WQE_BYTE_40_SL_M,
-				       V2_UD_SEND_WQE_BYTE_40_SL_S,
-				      le32_to_cpu(ah->av.sl_tclass_flowlabel) >>
-				      HNS_ROCE_SL_SHIFT);
+				     V2_UD_SEND_WQE_BYTE_40_SL_M,
+				     V2_UD_SEND_WQE_BYTE_40_SL_S,
+				     (le32_to_cpu(ah->av.sl_tclass_flowlabel) >>
+				     HNS_ROCE_SL_SHIFT) & 0x7);
 			roce_set_field(ud_sq_wqe->byte_40,
 				       V2_UD_SEND_WQE_BYTE_40_PORTN_M,
 				       V2_UD_SEND_WQE_BYTE_40_PORTN_S,
@@ -323,8 +320,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			roce_set_field(ud_sq_wqe->byte_48,
 				       V2_UD_SEND_WQE_BYTE_48_SGID_INDX_M,
 				       V2_UD_SEND_WQE_BYTE_48_SGID_INDX_S,
-				       hns_get_gid_index(hr_dev, qp->phy_port,
-							 ah->av.gid_index));
+				       ah->av.gid_index);
 
 			memcpy(&ud_sq_wqe->dgid[0], &ah->av.dgid[0],
 			       GID_LEN_V2);
@@ -2478,7 +2474,7 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_4_sqpn_tst, V2_QPC_BYTE_4_TST_M,
 		       V2_QPC_BYTE_4_TST_S, 0);
 
-	if (ibqp->qp_type == IB_QPT_GSI)
+	if (ibqp->qp_type == IB_QPT_GSI || ibqp->qp_type == IB_QPT_UD)
 		roce_set_field(context->byte_4_sqpn_tst,
 			       V2_QPC_BYTE_4_SGE_SHIFT_M,
 			       V2_QPC_BYTE_4_SGE_SHIFT_S,
@@ -2984,7 +2980,8 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	roce_set_field(context->byte_20_smac_sgid_idx,
 		       V2_QPC_BYTE_20_SGE_HOP_NUM_M,
 		       V2_QPC_BYTE_20_SGE_HOP_NUM_S,
-		       ((ibqp->qp_type == IB_QPT_GSI) || hr_qp->sq.max_gs > 2) ?
+		       (((ibqp->qp_type == IB_QPT_GSI) ||
+			  ibqp->qp_type == IB_QPT_UD) || hr_qp->sq.max_gs > 2) ?
 		       hr_dev->caps.mtt_hop_num : 0);
 	roce_set_field(qpc_mask->byte_20_smac_sgid_idx,
 		       V2_QPC_BYTE_20_SGE_HOP_NUM_M,
@@ -3246,14 +3243,16 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 		       V2_QPC_BYTE_168_SQ_CUR_BLK_ADDR_S, 0);
 
 	page_size = 1 << (hr_dev->caps.mtt_buf_pg_sz + PAGE_SHIFT);
-	context->sq_cur_sge_blk_addr =
-		       ((ibqp->qp_type == IB_QPT_GSI) || hr_qp->sq.max_gs > 2) ?
+	context->sq_cur_sge_blk_addr = ((ibqp->qp_type == IB_QPT_GSI ||
+					 ibqp->qp_type == IB_QPT_UD) ||
+					 hr_qp->sq.max_gs > 2) ?
 				      ((u32)(mtts[hr_qp->sge.offset / page_size]
 				      >> PAGE_ADDR_SHIFT)) : 0;
 	roce_set_field(context->byte_184_irrl_idx,
 		       V2_QPC_BYTE_184_SQ_CUR_SGE_BLK_ADDR_M,
 		       V2_QPC_BYTE_184_SQ_CUR_SGE_BLK_ADDR_S,
-		       ((ibqp->qp_type == IB_QPT_GSI) || hr_qp->sq.max_gs > 2) ?
+		       ((ibqp->qp_type == IB_QPT_GSI ||
+			 ibqp->qp_type == IB_QPT_UD) || hr_qp->sq.max_gs > 2) ?
 		       (mtts[hr_qp->sge.offset / page_size] >>
 		       (32 + PAGE_ADDR_SHIFT)) : 0);
 	qpc_mask->sq_cur_sge_blk_addr = 0;
