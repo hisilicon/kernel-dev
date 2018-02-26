@@ -96,8 +96,8 @@
 #define DB_REG_OFFSET				0x1000
 
 #define SERV_TYPE_RC				0
-#define SERV_TYPE_RD				1
-#define SERV_TYPE_UC				2
+#define SERV_TYPE_RD				2
+#define SERV_TYPE_UC				1
 #define SERV_TYPE_UD				3
 
 #define PAGES_SHIFT_8				8
