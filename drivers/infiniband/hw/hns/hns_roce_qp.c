@@ -829,6 +829,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 	int ret;
 
 	switch (init_attr->qp_type) {
+	case IB_QPT_UC:
 	case IB_QPT_RC: {
 		hr_qp = kzalloc(sizeof(*hr_qp), GFP_KERNEL);
 		if (!hr_qp)
