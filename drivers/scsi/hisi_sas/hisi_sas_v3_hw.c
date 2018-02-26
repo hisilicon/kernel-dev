@@ -446,6 +446,7 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, PHYCTRL_PHY_ENA_MSK, 0x0);
 		hisi_sas_phy_write32(hisi_hba, i, SL_RX_BCAST_CHK_MSK, 0x0);
 		hisi_sas_phy_write32(hisi_hba, i, PHYCTRL_OOB_RESTART_MSK, 0x1);
+		hisi_sas_phy_write32(hisi_hba, i, STP_LINK_TIMER, 0x7f7a120);
 
 		/* used for 12G negotiate */
 		hisi_sas_phy_write32(hisi_hba, i, COARSETUNE_TIME, 0x1e);
@@ -457,9 +458,6 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, SATA_TXDEEMPH_G2, 0x8d04);
 		hisi_sas_phy_write32(hisi_hba, i, SATA_TXDEEMPH_G3, 0x8d04);
 		hisi_sas_phy_write32(hisi_hba, i, SATA_TXDEEMPH_G4, 0x8d04);
-
-		/* disable stp link timer */
-		hisi_sas_phy_write32(hisi_hba, i, STP_LINK_TIMER, 0x2710);
 
 		/* only for FPGA */
 		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEVIED_TIME, 0x100);
