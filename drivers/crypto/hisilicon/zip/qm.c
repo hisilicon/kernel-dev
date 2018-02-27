@@ -71,6 +71,7 @@ static int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue,
 	mailbox.rsvd = 0;
 
 	pr_err("in %s\n", __FUNCTION__);
+	pr_err("in %x\n", mailbox.w0);
 	pr_err("in %x\n", mailbox.queue_num);
 	pr_err("in %x\n", mailbox.mb_base_l);
 	pr_err("in %x\n", mailbox.mb_base_h);
@@ -214,12 +215,20 @@ int hisi_acc_init_qm_mem(struct qm_info *qm)
 
 void hisi_acc_set_user_domain(struct qm_info *qm)
 {
+        u32 val;
+
 	/* user domain */
 	writel(0x40001070, qm->fun_base + QM_ARUSER_M_CFG_1);
 	writel(0xfffffffe, qm->fun_base + QM_ARUSER_M_CFG_ENABLE);
 	writel(0x40001070, qm->fun_base + QM_AWUSER_M_CFG_1);
 	writel(0xfffffffe, qm->fun_base + QM_AWUSER_M_CFG_ENABLE);
 	writel(0xffffffff, qm->fun_base + QM_WUSER_M_CFG_ENABLE);
+
+        writel(0x4893, qm->fun_base + QM_CACHE_CTL);
+
+        val = readl(qm->fun_base + QM_PEH_AXUSER_CFG);
+        val |= (1 << 11);
+        writel(val, qm->fun_base + QM_PEH_AXUSER_CFG);
 }
 
 void hisi_acc_set_cache(struct qm_info *qm)
@@ -242,7 +251,8 @@ static int vft_config_v1(struct qm_info *qm, u16 base, u32 number)
 	writel(QM_SQC_VFT, qm->fun_base + QM_VFT_CFG_TYPE);
 	writel(qm->fun_num, qm->fun_base + QM_VFT_CFG_ADDRESS);
 
-	tmp = QM_SQC_VFT_SQC_SIZE		        |
+	tmp = QM_SQC_VFT_BUF_SIZE                       |
+              QM_SQC_VFT_SQC_SIZE		        |
 	      QM_SQC_VFT_INDEX_NUMBER		        |
 	      QM_SQC_VFT_VALID			        |
               (u64)base << QM_SQC_VFT_START_SQN_SHIFT;
@@ -260,7 +270,8 @@ static int vft_config_v1(struct qm_info *qm, u16 base, u32 number)
 	writel(QM_CQC_VFT, qm->fun_base + QM_VFT_CFG_TYPE);
 	writel(qm->fun_num, qm->fun_base + QM_VFT_CFG_ADDRESS);
 
-	tmp = QM_CQC_VFT_SQC_SIZE		        |
+	tmp = QM_CQC_VFT_BUF_SIZE                       |
+              QM_CQC_VFT_SQC_SIZE		        |
 	      QM_CQC_VFT_INDEX_NUMBER		        |
 	      QM_CQC_VFT_VALID;
 
@@ -295,11 +306,10 @@ int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
                             enum hw_version hw_v, struct qm_info **res)
 {
         struct qm_info *qm;
-        size_t size;
 
         qm = (struct qm_info *)devm_kzalloc(dev, sizeof(*qm), GFP_KERNEL);
 	if (!qm)
-                goto err_out;
+                return -ENOMEM;
         
         qm->fun_base = base;
         qm->fun_num = number;
@@ -307,13 +317,23 @@ int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
         qm->node_id = dev->numa_node;
         qm->dev = dev;
         spin_lock_init(&qm->mailbox_lock);
+        spin_lock_init(&qm->qp_bitmap_lock);
 
         if (hw_v == ES)
                 qm->ops = &qm_hw_ops_v1;
         else
                 qm->ops = &qm_hw_ops_v2;
 
-        size = max_t(size_t, sizeof(struct eqc), sizeof(struct aeqc));
+        *res = qm;
+
+	return 0;
+}
+
+int hisi_acc_qm_info_create_eq(struct qm_info *qm)
+{
+        size_t size = max_t(size_t, sizeof(struct eqc), sizeof(struct aeqc));
+        struct device *dev = qm->dev;
+
 	qm->eqc_aeqc_pool = dma_pool_create("eqc_aeqc", dev, size, 32, 0);
         if (!qm->eqc_aeqc_pool)
                 goto err_out;
@@ -334,12 +354,11 @@ int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
         qm->eqc->dw6 = (QM_Q_DEPTH - 1) | (1 << MB_EQC_PHASE_SHIFT);
 
         /* to check */
-	hacc_mb(qm, MAILBOX_CMD_EQC, qm->eqc_dma, QM_Q_DEPTH, 0, 0);
+	hacc_mb(qm, MAILBOX_CMD_EQC, qm->eqc_dma, 0, 0, 0);
 
         /* fix me: qm->alloc_aeqc(); */
 
-        *res = qm;
-	return 0;
+        return 0;
 err_eq:
 	dma_pool_free(qm->eqc_aeqc_pool, qm->eqc, qm->eqc_dma);
 err_out:
@@ -411,7 +430,7 @@ int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number)
 		ret = -ENOMEM;
                 goto err_cqc;
         }
-	hacc_mb(qm, MAILBOX_CMD_SQC_BT, qm->cqc_base_dma, 0, 0, 0);
+	hacc_mb(qm, MAILBOX_CMD_CQC_BT, qm->cqc_base_dma, 0, 0, 0);
 
         return 0;
 err_cqc:
@@ -473,7 +492,7 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
 
         sqc = qm->sqc_base + qp_index;
         qp->sqc = sqc;
-        qp->sqc_dma = qm->sqc_base_dma + qp_index;
+        qp->sqc_dma = qm->sqc_base_dma + qp_index * sizeof(struct sqc);
        
         size = sqe_size * QM_Q_DEPTH;
 	sq_base = dma_alloc_coherent(qm->dev, size, &qp->sq_base_dma,
@@ -490,7 +509,7 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
                    (0 << SQ_PAGE_SIZE_SHIFT)    | 
                    (0 << SQ_BUF_SIZE_SHIFT)     | 
                    (7 << SQ_SQE_SIZE_SHIFT);
-        sqc->qes = SQ_DEPTH - 1;
+        sqc->qes = QM_Q_DEPTH - 1;
         sqc->pasid = 0;
         sqc->w11 = 0; /* fix me */
         sqc->cq_num = qp_index;
@@ -503,7 +522,7 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
 
         cqc = qm->cqc_base + qp_index;
         qp->cqc = cqc;
-        qp->cqc_dma = qm->cqc_base_dma + qp_index;
+        qp->cqc_dma = qm->cqc_base_dma + qp_index * sizeof(struct cqc);
 
         size = sizeof(struct cqe) * QM_Q_DEPTH;
 	cq_base = dma_alloc_coherent(qm->dev, size, &qp->cq_base_dma,
@@ -520,7 +539,7 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
                    (0 << CQ_PAGE_SIZE_SHIFT)    | 
                    (0 << CQ_BUF_SIZE_SHIFT)     | 
                    (4 << CQ_SQE_SIZE_SHIFT);
-        cqc->qes = CQ_DEPTH - 1;
+        cqc->qes = QM_Q_DEPTH - 1;
         cqc->pasid = 0;
         cqc->w11 = 0; /* fix me */
         cqc->dw6 = 1 << CQ_PHASE_SHIFT | 1 << CQ_FLAG_SHIFT;
@@ -598,4 +617,33 @@ int hisi_acc_send(struct hisi_acc_qp *qp, u16 sq_tail, void *priv)
 int hisi_acc_receive(struct hisi_acc_qp *qp, void *priv)
 {
         return 0;
+}
+
+/* add this temporarily to dump sq vft, better to merge with vft_config_v1 */
+u64 vft_read_v1(struct qm_info *qm)
+{
+        u32 vft_l, vft_h;
+
+        hisi_acc_check(qm, QM_VFT_CFG_RDY, 0);
+
+	writel(0x1, qm->fun_base + QM_VFT_CFG_OP_WR);
+	writel(QM_SQC_VFT, qm->fun_base + QM_VFT_CFG_TYPE);
+	writel(qm->fun_num, qm->fun_base + QM_VFT_CFG_ADDRESS);
+
+	writel(0x0, qm->fun_base + QM_VFT_CFG_RDY);
+	writel(0x1, qm->fun_base + QM_VFT_CFG_OP_ENABLE);
+        hisi_acc_check(qm, QM_VFT_CFG_RDY, 0);
+
+	vft_l = readl(qm->fun_base + QM_VFT_CFG_DATA_L);
+	vft_h = readl(qm->fun_base + QM_VFT_CFG_DATA_H);
+
+        return ((u64)vft_h << 32 | vft_l);
+}
+
+/* add this temporarily to dump sqc */
+void hisi_acc_qm_read_sqc(struct hisi_acc_qp *qp)
+{
+        memset(qp->sqc, 0, sizeof(struct sqc));
+
+	hacc_mb(qp->parent, MAILBOX_CMD_SQC, qp->sqc_dma, qp->queue_id, 1, 0);
 }

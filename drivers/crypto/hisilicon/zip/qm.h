@@ -184,6 +184,7 @@ struct hisi_acc_qp {
 };
 
 #define QM_DEF_Q_NUM                    128
+#define QM_Q_DEPTH			1024
 
 #define QM_IN_PF_MASK                   0x1
 #define QM_IN_PF                        0x1
@@ -225,7 +226,6 @@ struct hisi_acc_qp {
 #define SQ_PAGE_SIZE_SHIFT		4
 #define SQ_BUF_SIZE_SHIFT		8
 #define SQ_SQE_SIZE_SHIFT		12
-#define SQ_DEPTH			1024
 #define SQ_HEAD_IDX_SIG_SHIFT		0 //
 #define SQ_TAIL_IDX_SIG_SHIFT		0 //
 #define SQ_CQN_SHIFT			0 //
@@ -241,7 +241,6 @@ struct hisi_acc_qp {
 #define CQ_PAGE_SIZE_SHIFT		4
 #define CQ_BUF_SIZE_SHIFT		8
 #define CQ_SQE_SIZE_SHIFT		12
-#define CQ_DEPTH			1024
 #define CQ_PASID			0 //
 #define CQ_HEAD_IDX_SIG_SHIFT		0 //
 #define CQ_TAIL_IDX_SIG_SHIFT		0 //
@@ -258,6 +257,8 @@ struct hisi_acc_qp {
 #define CQC_CQ_ADDRESS(cqc)		(((u64)((cqc)->cq_base_h) << 32) | \
                                          ((cqc)->cq_base_l))
 #define CQC_PHASE_BIT			0x1
+
+#define QM_CQ_SIZE                      (QM_CQE_SIZE * QM_Q_DEPTH)
 
 /* eqc shift */
 #define MB_EQC_EQE_SHIFT		12
@@ -293,7 +294,6 @@ struct hisi_acc_qp {
 #define DOORBELL_CMD_AEQ		3
 
 #define DOORBELL_CMD_SEND_BASE		0x340
-#define QM_Q_DEPTH			1024
 
 /* qm 0x100000: cfg registers */
 #define QM_MEM_START_INIT		0x100040
@@ -327,8 +327,10 @@ struct hisi_acc_qp {
 #define QM_AWUSER_M_CFG_ENABLE		0x1000a0
 #define QM_WUSER_M_CFG_ENABLE		0x1000a8
 /* qm cache */
+#define QM_CACHE_CTL	        	0x100050
 #define QM_AXI_M_CFG			0x1000ac
 #define QM_AXI_M_CFG_ENABLE		0x1000b0
+#define QM_PEH_AXUSER_CFG               0x1000cc
 #define QM_PEH_AXUSER_CFG_ENABLE	0x1000d0
 
 irqreturn_t hacc_irq_thread(int irq, void *data);
@@ -338,6 +340,7 @@ void hisi_acc_set_user_domain(struct qm_info *qm);
 void hisi_acc_set_cache(struct qm_info *qm);
 int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
                             enum hw_version hw_v, struct qm_info **res);
+int hisi_acc_qm_info_create_eq(struct qm_info *qm);
 int hisi_acc_get_vft_info(struct qm_info *qm, u32 *base, u32 *number);
 int hisi_acc_qm_info_vft_config(struct qm_info *qm, u32 base, u32 number);
 int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number);
@@ -350,5 +353,9 @@ int hisi_acc_unset_pasid(struct hisi_acc_qp *qp);
 u16 hisi_acc_get_sq_tail(struct hisi_acc_qp *qp);
 int hisi_acc_send(struct hisi_acc_qp *qp, u16 sq_tail, void *priv);
 int hisi_acc_receive(struct hisi_acc_qp *qp, void *priv);
+
+/* helper function to debug */
+u64 vft_read_v1(struct qm_info *qm);
+void hisi_acc_qm_read_sqc(struct hisi_acc_qp *qp);
 
 #endif

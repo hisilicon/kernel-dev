@@ -16,9 +16,6 @@ enum hisi_zip_alg_type {
 };
 
 struct hisi_acc_qm_sqc {
-	__u16 sq_head_index;
-	__u16 sq_tail_index;
-
 	__u16 sqn;
 
 	/* now we don't export other info in sqc */
