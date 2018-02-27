@@ -274,7 +274,7 @@ static void sas_scsi_clear_queue_I_T(struct list_head *error_q,
 		struct domain_device *x = cmd_to_domain_dev(cmd);
 
 		if (x == dev)
-			sas_eh_finish_cmd(cmd);
+			sas_eh_defer_cmd(cmd);
 	}
 }
 
@@ -288,7 +288,7 @@ static void sas_scsi_clear_queue_port(struct list_head *error_q,
 		struct asd_sas_port *x = dev->port;
 
 		if (x == port)
-			sas_eh_finish_cmd(cmd);
+			sas_eh_defer_cmd(cmd);
 	}
 }
 
@@ -662,7 +662,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 				struct domain_device *dev = task->dev;
 				SAS_DPRINTK("I_T %016llx recovered\n",
 					    SAS_ADDR(task->dev->sas_addr));
-				sas_eh_finish_cmd(cmd);
+				sas_eh_defer_cmd(cmd);
 				sas_scsi_clear_queue_I_T(work_q, dev);
 				goto Again;
 			}
@@ -676,7 +676,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 				if (res == TMF_RESP_FUNC_COMPLETE) {
 					SAS_DPRINTK("clear nexus port:%d "
 						    "succeeded\n", port->id);
-					sas_eh_finish_cmd(cmd);
+					sas_eh_defer_cmd(cmd);
 					sas_scsi_clear_queue_port(work_q,
 								  port);
 					goto Again;
@@ -688,7 +688,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 				if (res == TMF_RESP_FUNC_COMPLETE) {
 					SAS_DPRINTK("clear nexus ha "
 						    "succeeded\n");
-					sas_eh_finish_cmd(cmd);
+					sas_eh_defer_cmd(cmd);
 					goto clear_q;
 				}
 			}
@@ -701,7 +701,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 				    SAS_ADDR(task->dev->sas_addr),
 				    cmd->device->lun);
 
-			sas_eh_finish_cmd(cmd);
+			sas_eh_defer_cmd(cmd);
 			goto clear_q;
 		}
 	}
@@ -713,7 +713,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
  clear_q:
 	SAS_DPRINTK("--- Exit %s -- clear_q\n", __func__);
 	list_for_each_entry_safe(cmd, n, work_q, eh_entry)
-		sas_eh_finish_cmd(cmd);
+		sas_eh_defer_cmd(cmd);
 	goto out;
 }
 
