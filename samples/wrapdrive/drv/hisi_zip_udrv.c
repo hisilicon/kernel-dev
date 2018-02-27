@@ -123,17 +123,26 @@ int hisi_zip_set_queue_dio(struct wd_queue *q)
 
 	q->priv = info;
 
-	/* mmap hisi zip sq and cq to user space */
-	vaddr = mmap(NULL,
-                     HZIP_SQE_SIZE * QM_EQ_DEPTH + QM_CQE_SIZE * QM_EQ_DEPTH + HZIP_BAR2_SIZE,
+        vaddr = mmap(NULL, HZIP_SQE_SIZE * QM_EQ_DEPTH,
                      PROT_READ | PROT_WRITE, MAP_SHARED, q->device, 0);
 	if (vaddr == MAP_FAILED || vaddr == NULL)
 		return -EIO;
-
 	info->sq_base = vaddr;
-	info->cq_base = vaddr + HZIP_SQE_SIZE * QM_EQ_DEPTH;
-        info->doorbell_base = info->cq_base + QM_CQE_SIZE * QM_EQ_DEPTH +
-                              HZIP_DOORBELL_OFFSET;
+
+        vaddr = mmap(NULL, QM_CQE_SIZE * QM_EQ_DEPTH,
+                     PROT_READ | PROT_WRITE, MAP_SHARED, q->device,
+                     HZIP_SQE_SIZE * QM_EQ_DEPTH);
+	if (vaddr == MAP_FAILED || vaddr == NULL)
+		return -EIO;
+	info->cq_base = vaddr;
+
+        vaddr = mmap(NULL, HZIP_BAR2_SIZE,
+                     PROT_READ | PROT_WRITE, MAP_SHARED, q->device,
+                     HZIP_SQE_SIZE * QM_EQ_DEPTH + QM_CQE_SIZE * QM_EQ_DEPTH);
+	if (vaddr == MAP_FAILED || vaddr == NULL)
+		return -EIO;
+        info->doorbell_base = vaddr + HZIP_DOORBELL_OFFSET;
+
         info->sq_tail_index = 0;
         info->cq_head_index = 0;
         info->cqc_phase = 1;
@@ -157,8 +166,10 @@ int hisi_zip_unset_queue_dio(struct wd_queue *q)
 {
 	struct hzip_queue_info *info = (struct hzip_queue_info *)q->priv;
 
-	munmap(info->sq_base, HZIP_SQE_SIZE * QM_EQ_DEPTH +
-               QM_CQE_SIZE * QM_EQ_DEPTH + HZIP_BAR2_SIZE);
+	munmap(info->sq_base, HZIP_SQE_SIZE * QM_EQ_DEPTH);
+	munmap(info->cq_base, QM_CQE_SIZE * QM_EQ_DEPTH);
+	munmap(info->doorbell_base - HZIP_DOORBELL_OFFSET, HZIP_BAR2_SIZE);
+
         free(info->recv);
 	free(info);
 	q->priv = NULL;
