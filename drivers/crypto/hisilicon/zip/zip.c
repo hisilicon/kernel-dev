@@ -37,6 +37,8 @@
 #define HZIP_PF_DEF_Q_BASE              0
 #define HZIP_SQE_SIZE			128
 
+#define HZIP_SQ_SIZE                    (HZIP_SQE_SIZE * QM_Q_DEPTH)
+
 struct hisi_zip {
 	struct pci_dev *pdev;
 
@@ -258,6 +260,7 @@ static int hzip_get_queue(struct wd_dev *wdev, const char *devalgo_name,
                 goto err_wd_q;
         }
         wd_q->priv = qp;
+        wd_q->wdev = hzip->wdev;
 
         *q = wd_q;
 
@@ -305,36 +308,29 @@ static int hzip_is_q_updated(struct wd_queue *q)
 static int hzip_mmap(struct wd_queue *q, struct vm_area_struct *vma)
 {
         struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
-	unsigned long sq_size = HZIP_SQE_SIZE * SQ_DEPTH;
-	unsigned long cq_size = QM_CQE_SIZE * QM_Q_DEPTH;
 	void *sq = qp->sq_base;
 	void *cq = qp->cq_base;
         struct hisi_zip *hzip = (struct hisi_zip *)qp->parent->priv;
-        int ret;
 
 	vma->vm_flags |= (VM_IO | VM_LOCKED | VM_DONTEXPAND | VM_DONTDUMP);
 
-	/* fix me */
-	if (vma->vm_pgoff != 0)
-		return -EINVAL;
-
-        ret = remap_pfn_range(vma, vma->vm_start, __pa(sq) >> PAGE_SHIFT,
-			      sq_size, vma->vm_page_prot);
-        if (ret < 0)
-                return ret;
-
-        ret = remap_pfn_range(vma, vma->vm_start + sq_size,
-                              __pa(cq) >> PAGE_SHIFT,
-			      cq_size, vma->vm_page_prot);
-        if (ret < 0) {
-                /* to do: unmap sq */
-                return ret;
+        switch (vma->vm_pgoff) {
+        case 0:
+                return dma_mmap_coherent(qp->parent->dev, vma, sq,
+                                         qp->sq_base_dma, HZIP_SQ_SIZE);
+        case HZIP_SQ_SIZE >> PAGE_SHIFT:
+                /* fix me */
+                vma->vm_pgoff = 0;
+                return dma_mmap_coherent(qp->parent->dev, vma, cq,
+                                         qp->cq_base_dma, QM_CQ_SIZE);
+        case (QM_CQ_SIZE + HZIP_SQ_SIZE) >> PAGE_SHIFT:
+                return remap_pfn_range(vma, vma->vm_start,
+                                       hzip->phys_base >> PAGE_SHIFT,
+                                       hzip->size,
+                                       pgprot_noncached(vma->vm_page_prot));
+        default:
+                return -EINVAL;
         }
-
-        return remap_pfn_range(vma, vma->vm_start + sq_size + cq_size,
-                               hzip->phys_base >> PAGE_SHIFT, hzip->size,
-                               pgprot_noncached(vma->vm_page_prot));
-        /* fix me: err handle */
 }
 
 static long hzip_ioctl(struct wd_queue *q, unsigned int cmd, unsigned long arg)
@@ -345,7 +341,6 @@ static long hzip_ioctl(struct wd_queue *q, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	/* user to read the data in SQC cache */
 	case HACC_QM_MB_SQC:
-		qm_sqc.sq_tail_index = qp->sq_tail;
 		qm_sqc.sqn = qp->queue_id;
                 if (copy_to_user((struct hisi_acc_qm_sqc *)arg, &qm_sqc,
 				 sizeof(struct hisi_acc_qm_sqc)))
@@ -449,11 +444,6 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
                  */
                 hisi_acc_get_vft_info(qm, &q_base, &q_num);
         }
-
-        /* debug: see vft config */
-        u64 debug_vft;
-        debug_vft = vft_read_v1(qm);
-        pr_err("---> in %s: vft: %llx\n", __FUNCTION__, debug_vft);
 
         ret = hisi_acc_qm_info_create_eq(qm);
         if (ret) {
