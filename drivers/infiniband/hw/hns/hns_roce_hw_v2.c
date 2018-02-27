@@ -2093,6 +2093,9 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 					     (*cur_qp)->state, IB_QPS_ERR);
 	}
 
+	if (wc->status == IB_WC_WR_FLUSH_ERR)
+		return 0;
+
 	if (is_send) {
 		wc->wc_flags = 0;
 		/* SQ corresponding to CQE */
