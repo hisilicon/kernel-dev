@@ -3783,7 +3783,8 @@ static int hns_roce_v2_destroy_qp_common(struct hns_roce_dev *hr_dev,
 	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
 
 	if (is_user) {
-		if (hr_qp->sq.wqe_cnt)
+		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
+		    hr_qp->sq.wqe_cnt)
 			hns_roce_db_unmap_user(
 				to_hr_ucontext(hr_qp->ibqp.uobject->context),
 				&hr_qp->sdb);
