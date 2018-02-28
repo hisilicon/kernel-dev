@@ -2,3 +2,4 @@ obj-$(CONFIG_CRYPTO_DEV_WD_COMMON) += wd/
 obj-$(CONFIG_CRYPTO_DEV_WD_DUMMY) += dummy_drv/
 obj-$(CONFIG_CRYPTO_DEV_HISI_HACV1) += hacv1/
 obj-$(CONFIG_CRYPTO_DEV_HISI_ZIP) += zip/
+obj-$(CONFIG_CRYPTO_DEV_HISI_QM) += zip/

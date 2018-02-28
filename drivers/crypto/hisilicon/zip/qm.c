@@ -382,6 +382,7 @@ u32 hisi_acc_get_irq_source(struct qm_info *qm)
 {
         return readl(qm->fun_base + QM_VF_EQ_INT_SOURCE);
 }
+EXPORT_SYMBOL_GPL(hisi_acc_get_irq_source);
 
 static inline struct hisi_acc_qp *to_hisi_acc_qp(struct qm_info *qm,
                                                     struct eqe *eqe)
@@ -461,6 +462,7 @@ irqreturn_t hacc_irq_thread(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_GPL(hacc_irq_thread);
 
 /* check if bit in regs is 1 */
 static inline void hisi_acc_check(struct qm_info *qm, u32 offset, u32 bit)
@@ -480,6 +482,7 @@ int hisi_acc_init_qm_mem(struct qm_info *qm)
 
         return 0;
 }
+EXPORT_SYMBOL_GPL(hisi_acc_init_qm_mem);
 
 void hisi_acc_set_user_domain(struct qm_info *qm)
 {
@@ -498,6 +501,7 @@ void hisi_acc_set_user_domain(struct qm_info *qm)
         val |= (1 << 11);
         writel(val, qm->fun_base + QM_PEH_AXUSER_CFG);
 }
+EXPORT_SYMBOL_GPL(hisi_acc_set_user_domain);
 
 void hisi_acc_set_cache(struct qm_info *qm)
 {
@@ -506,6 +510,7 @@ void hisi_acc_set_cache(struct qm_info *qm)
 	writel(0xffffffff, qm->fun_base + QM_AXI_M_CFG_ENABLE);
 	writel(0xffffffff, qm->fun_base + QM_PEH_AXUSER_CFG_ENABLE);
 }
+EXPORT_SYMBOL_GPL(hisi_acc_set_cache);
 
 /* v1 qm hw ops */
 /* before call this at first time, please call hisi_acc_init_qm_mem */
@@ -596,6 +601,7 @@ int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hisi_acc_qm_info_create);
 
 int hisi_acc_qm_info_create_eq(struct qm_info *qm)
 {
@@ -632,6 +638,7 @@ err_eq:
 err_out:
         return -ENOMEM;
 }
+EXPORT_SYMBOL_GPL(hisi_acc_qm_info_create_eq);
 
 int hisi_acc_get_vft_info(struct qm_info *qm, u32 *base, u32 *number)
 {
@@ -645,6 +652,7 @@ int hisi_acc_get_vft_info(struct qm_info *qm, u32 *base, u32 *number)
 
         return qm->ops->get_vft_info(qm, base, number);
 }
+EXPORT_SYMBOL_GPL(hisi_acc_get_vft_info);
 
 int hisi_acc_qm_info_vft_config(struct qm_info *qm, u32 base, u32 number)
 {
@@ -653,6 +661,7 @@ int hisi_acc_qm_info_vft_config(struct qm_info *qm, u32 base, u32 number)
 
         return qm->ops->vft_config(qm, base, number);
 }
+EXPORT_SYMBOL_GPL(hisi_acc_qm_info_vft_config);
 
 int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number)
 {
@@ -711,6 +720,7 @@ err_qp_array:
 err_bitmap:
         return ret;
 }
+EXPORT_SYMBOL_GPL(hisi_acc_qm_info_add_queue);
 
 void hisi_acc_qm_info_release(struct qm_info *qm)
 {
@@ -731,16 +741,19 @@ void hisi_acc_qm_info_release(struct qm_info *qm)
 	        dma_free_coherent(qm->dev, sizeof(struct cqc) * QM_Q_DEPTH,
                                   qm->cqc_base, qm->cqc_base_dma);
 }
+EXPORT_SYMBOL_GPL(hisi_acc_qm_info_release);
 
 void hisi_acc_qm_set_priv(struct qm_info *qm, void *priv)
 {
         qm->priv = priv;
 }
+EXPORT_SYMBOL_GPL(hisi_acc_qm_set_priv);
 
 void *hisi_acc_qm_get_priv(struct qm_info *qm)
 {
         return qm->priv;
 }
+EXPORT_SYMBOL_GPL(hisi_acc_qm_get_priv);
 
 int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
                        u32 sqe_size, u8 alg_type)
@@ -838,6 +851,7 @@ err_sq_base:
 err_qp:
 	return -ENOMEM;
 }
+EXPORT_SYMBOL_GPL(hisi_acc_create_qp);
 
 int hisi_acc_release_qp(struct hisi_acc_qp *qp)
 {
@@ -856,6 +870,7 @@ int hisi_acc_release_qp(struct hisi_acc_qp *qp)
 
         return 0;
 }
+EXPORT_SYMBOL_GPL(hisi_acc_release_qp);
 
 int hisi_acc_get_pasid(struct hisi_acc_qp *qp, u16 *pasid)
 {
@@ -865,6 +880,7 @@ int hisi_acc_get_pasid(struct hisi_acc_qp *qp, u16 *pasid)
 
         return 0;
 }
+EXPORT_SYMBOL_GPL(hisi_acc_get_pasid);
 
 int hisi_acc_set_pasid(struct hisi_acc_qp *qp, u16 pasid)
 {
@@ -875,6 +891,7 @@ int hisi_acc_set_pasid(struct hisi_acc_qp *qp, u16 pasid)
 
         return 0;
 }
+EXPORT_SYMBOL_GPL(hisi_acc_set_pasid);
 
 int hisi_acc_unset_pasid(struct hisi_acc_qp *qp)
 {
@@ -885,11 +902,13 @@ int hisi_acc_unset_pasid(struct hisi_acc_qp *qp)
 
         return 0;
 }
+EXPORT_SYMBOL_GPL(hisi_acc_unset_pasid);
 
 u16 hisi_acc_get_sq_tail(struct hisi_acc_qp *qp)
 {
         return qp->sq_tail;
 }
+EXPORT_SYMBOL_GPL(hisi_acc_get_sq_tail);
 
 /* fix me */
 int hisi_acc_send(struct hisi_acc_qp *qp, u16 sq_tail, void *priv)
@@ -900,15 +919,17 @@ int hisi_acc_send(struct hisi_acc_qp *qp, u16 sq_tail, void *priv)
 
         return 0;
 }
+EXPORT_SYMBOL_GPL(hisi_acc_send);
 
 /* fix me */
 int hisi_acc_receive(struct hisi_acc_qp *qp, void *priv)
 {
         return 0;
 }
+EXPORT_SYMBOL_GPL(hisi_acc_receive);
 
 /* add this temporarily to dump sq vft, better to merge with vft_config_v1 */
-u64 vft_read_v1(struct qm_info *qm)
+static u64 vft_read_v1(struct qm_info *qm)
 {
         u32 vft_l, vft_h;
 
@@ -935,3 +956,4 @@ void hisi_acc_qm_read_sqc(struct hisi_acc_qp *qp)
 
 	hacc_mb(qp->parent, MAILBOX_CMD_SQC, qp->sqc_dma, qp->queue_id, 1, 0);
 }
+EXPORT_SYMBOL_GPL(hisi_acc_qm_read_sqc);

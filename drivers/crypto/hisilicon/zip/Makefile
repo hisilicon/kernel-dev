@@ -1,2 +1,2 @@
-obj-$(CONFIG_CRYPTO_DEV_HISI_ZIP) += hisi_zip.o
-hisi_zip-objs = qm.o zip.o
+obj-$(CONFIG_CRYPTO_DEV_HISI_QM) += qm.o
+obj-$(CONFIG_CRYPTO_DEV_HISI_ZIP) += zip.o
