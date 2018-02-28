@@ -38,6 +38,7 @@
 #define HZIP_SQE_SIZE			128
 
 #define HZIP_SQ_SIZE                    (HZIP_SQE_SIZE * QM_Q_DEPTH)
+#define QM_CQ_SIZE                      (QM_CQE_SIZE * QM_Q_DEPTH)
 
 struct hisi_zip {
 	struct pci_dev *pdev;
@@ -61,12 +62,11 @@ MODULE_DEVICE_TABLE(pci, hisi_zip_dev_ids);
 
 static irqreturn_t hisi_zip_irq(int irq, void *data)
 {
-	struct qm_info *qm_info = (struct qm_info *)data;
-	struct hisi_zip *hzip = qm_info->priv;
+	struct qm_info *qm = (struct qm_info *)data;
 	u32 int_source;
 
 	/* There is an interrupt or not */
-	int_source = readl(hzip->io_base + QM_VF_EQ_INT_SOURCE);
+	int_source = hisi_acc_get_irq_source(qm);
 
 	if (int_source) {
 		return IRQ_WAKE_THREAD;
@@ -76,11 +76,10 @@ static irqreturn_t hisi_zip_irq(int irq, void *data)
 	}
 }
 
-static int hisi_zip_sqe_handler(struct hisi_acc_qp *qp, struct cqe *cqe)
+static int hisi_zip_sqe_handler(struct hisi_acc_qp *qp, void *sqe)
 {
-	struct hisi_zip_sqe *sqe = (struct hisi_zip_sqe *)qp->sq_base +
-                                   CQE_SQ_HEAD_INDEX(cqe);
-	u32 status = sqe->dw3 & 0xff;
+
+	u32 status = ((struct hisi_zip_sqe *)sqe)->dw3 & 0xff;
 
 	if (!status) {
                 /* fix me */
@@ -138,9 +137,11 @@ pasid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct wd_queue *q = wd_queue(dev);
         struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
-	struct sqc *sqc = qp->sqc;
+        u16 pasid;
 
-	return sprintf(buf, "%d\n", sqc->pasid);
+        hisi_acc_get_pasid(qp, &pasid);
+
+	return sprintf(buf, "%d\n", pasid);
 }
 
 static ssize_t
@@ -249,11 +250,6 @@ static int hzip_get_queue(struct wd_dev *wdev, const char *devalgo_name,
         }
         qp->type = WD_QUEUE;
 
-        /* debug: dump sqc */
-        hisi_acc_qm_read_sqc(qp);
-        pr_err("---> in %s: sq_base_l: %x\n", __FUNCTION__, qp->sqc->sq_base_l);
-        pr_err("---> in %s: sq_base_h: %x\n", __FUNCTION__, qp->sqc->sq_base_h);
-
 	wd_q = kzalloc(sizeof(struct wd_queue), GFP_KERNEL);
 	if (!wd_q) {
                 ret = -ENOMEM;
@@ -308,22 +304,24 @@ static int hzip_is_q_updated(struct wd_queue *q)
 static int hzip_mmap(struct wd_queue *q, struct vm_area_struct *vma)
 {
         struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
+        struct qm_info *qm = qp->parent;
 	void *sq = qp->sq_base;
 	void *cq = qp->cq_base;
-        struct hisi_zip *hzip = (struct hisi_zip *)qp->parent->priv;
+        struct hisi_zip *hzip = (struct hisi_zip *)hisi_acc_qm_get_priv(qm);
 
 	vma->vm_flags |= (VM_IO | VM_LOCKED | VM_DONTEXPAND | VM_DONTDUMP);
 
         switch (vma->vm_pgoff) {
         case 0:
-                return dma_mmap_coherent(qp->parent->dev, vma, sq,
+                return dma_mmap_coherent(qp->p_dev, vma, sq,
                                          qp->sq_base_dma, HZIP_SQ_SIZE);
         case HZIP_SQ_SIZE >> PAGE_SHIFT:
                 /* fix me */
                 vma->vm_pgoff = 0;
-                return dma_mmap_coherent(qp->parent->dev, vma, cq,
+                return dma_mmap_coherent(qp->p_dev, vma, cq,
                                          qp->cq_base_dma, QM_CQ_SIZE);
         case (QM_CQ_SIZE + HZIP_SQ_SIZE) >> PAGE_SHIFT:
+        /* fix me: this is not safe as multiple queues use the same doorbell */
                 return remap_pfn_range(vma, vma->vm_start,
                                        hzip->phys_base >> PAGE_SHIFT,
                                        hzip->size,
@@ -458,7 +456,7 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
         }
 
 	hisi_zip->qm_info = qm;
-        qm->priv = hisi_zip;
+        hisi_acc_qm_set_priv(qm, hisi_zip);
 
 	ret = devm_request_threaded_irq(&pdev->dev, pci_irq_vector(pdev, 0),
 					hisi_zip_irq, hacc_irq_thread,
