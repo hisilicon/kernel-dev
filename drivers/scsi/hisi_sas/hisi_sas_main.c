@@ -198,9 +198,7 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 			     struct hisi_sas_slot *slot)
 {
 	unsigned long flags;
-	struct domain_device *device = task->dev;
-	struct hisi_sas_device *sas_dev = device->lldd_dev;
-	struct hisi_sas_dq *dq = sas_dev->dq;
+	struct hisi_sas_dq *dq = &hisi_hba->dq[slot->dlvry_queue];
 
 	if (task) {
 		struct device *dev = hisi_hba->dev;
