@@ -15,6 +15,275 @@
 #include <linux/irqreturn.h>
 #include "qm.h"
 
+#define QM_DEF_Q_NUM                    128
+
+/* eq/aeq irq enable */
+#define QM_VF_AEQ_INT_SOURCE		0x0
+#define QM_VF_AEQ_INT_MASK		0x4
+#define QM_VF_EQ_INT_SOURCE		0x8
+#define QM_VF_EQ_INT_MASK		0xc
+
+/* mailbox */
+#define MAILBOX_CMD_SQC			0x0
+#define MAILBOX_CMD_CQC			0x1
+#define MAILBOX_CMD_EQC			0x2
+#define MAILBOX_CMD_AEQC		0x3
+#define MAILBOX_CMD_SQC_BT		0x4
+#define MAILBOX_CMD_CQC_BT		0x5
+
+#define MAILBOX_CMD_SEND_BASE		0x300
+#define MAILBOX_EVENT_SHIFT		8
+#define MAILBOX_STATUS_SHIFT		9
+#define MAILBOX_BUSY_SHIFT		13
+#define MAILBOX_OP_SHIFT		14
+#define MAILBOX_QUEUE_SHIFT		16
+
+/* sqc shift */
+#define SQ_HEAD_SHIFT			0
+#define SQ_TAIL_SHIFI			16
+#define SQ_HOP_NUM_SHIFT		0
+#define SQ_PAGE_SIZE_SHIFT		4
+#define SQ_BUF_SIZE_SHIFT		8
+#define SQ_SQE_SIZE_SHIFT		12
+#define SQ_HEAD_IDX_SIG_SHIFT		0//
+#define SQ_TAIL_IDX_SIG_SHIFT		0//
+#define SQ_CQN_SHIFT			0//
+#define SQ_PRIORITY_SHIFT		0//
+#define SQ_ORDERS_SHIFT			4//
+#define SQ_TYPE_SHIFT			8//
+
+#define SQ_TYPE_MASK			0xf
+
+/* cqc shift */
+#define CQ_HEAD_SHIFT			0
+#define CQ_TAIL_SHIFI			16
+#define CQ_HOP_NUM_SHIFT		0
+#define CQ_PAGE_SIZE_SHIFT		4
+#define CQ_BUF_SIZE_SHIFT		8
+#define CQ_SQE_SIZE_SHIFT		12
+#define CQ_PASID			0//
+#define CQ_HEAD_IDX_SIG_SHIFT		0//
+#define CQ_TAIL_IDX_SIG_SHIFT		0//
+#define CQ_CQN_SHIFT			0//
+#define CQ_PRIORITY_SHIFT		16//
+#define CQ_ORDERS_SHIFT			0//
+#define CQ_TYPE_SHIFT			0
+#define CQ_PHASE_SHIFT			0
+#define CQ_FLAG_SHIFT			1
+
+#define CQC_HEAD_INDEX(cqc)		((cqc)->cq_head)
+#define CQC_PHASE(cqc)			(((cqc)->dw6) & 0x1)
+#define CQC_CQ_ADDRESS(cqc)		(((u64)((cqc)->cq_base_h) << 32) | \
+                                         ((cqc)->cq_base_l))
+#define CQC_PHASE_BIT			0x1
+
+/* eqc shift */
+#define MB_EQC_EQE_SHIFT		12
+#define MB_EQC_PHASE_SHIFT		16
+
+#define EQC_HEAD_INDEX(eqc) 		((eqc)->eq_head)
+#define EQC_TAIL_INDEX(eqc) 		((eqc)->eq_tail)
+#define EQC_PHASE(eqc)			((((eqc)->dw6) >> 16) & 0x1)
+
+#define EQC_PHASE_BIT                   0x00010000
+
+/* aeqc shift */
+#define MB_AEQC_AEQE_SHIFT		12
+#define MB_AEQC_PHASE_SHIFT		16
+
+/* cqe shift */
+#define CQE_PHASE(cqe)			((cqe)->w7 & 0x1)
+#define CQE_SQ_NUM(cqe)			((cqe)->sq_num)
+#define CQE_SQ_HEAD_INDEX(cqe)		((cqe)->sq_head)
+
+/* eqe shift */
+#define EQE_PHASE(eqe)			(((eqe)->dw0 >> 16) & 0x1)
+#define EQE_CQN(eqe)			(((eqe)->dw0) & 0xffff)
+
+#define QM_EQE_CQN_MASK                 0xffff
+
+/* aeqe shift */
+
+/* doorbell */
+#define DOORBELL_CMD_SQ			0
+#define DOORBELL_CMD_CQ			1
+#define DOORBELL_CMD_EQ			2
+#define DOORBELL_CMD_AEQ		3
+
+#define DOORBELL_CMD_SEND_BASE		0x340
+
+/* qm 0x100000: cfg registers */
+#define QM_MEM_START_INIT		0x100040
+#define QM_MEM_INIT_DONE		0x100044
+#define QM_VFT_CFG_RDY			0x10006c
+#define QM_VFT_CFG_OP_WR		0x100058
+#define QM_VFT_CFG_TYPE			0x10005c
+#define QM_SQC_VFT			0x0
+#define QM_CQC_VFT			0x1
+#define QM_VFT_CFG_ADDRESS		0x100060
+#define QM_VFT_CFG_OP_ENABLE		0x100054
+
+#define QM_VFT_CFG_DATA_L		0x100064
+#define QM_VFT_CFG_DATA_H		0x100068
+#define QM_SQC_VFT_BUF_SIZE		(7ULL << 8)
+#define QM_SQC_VFT_SQC_SIZE		(5ULL << 12)
+#define QM_SQC_VFT_INDEX_NUMBER		(1ULL << 16)
+#define QM_SQC_VFT_BT_INDEX_SHIFT	22
+#define QM_SQC_VFT_START_SQN_SHIFT	28
+#define QM_SQC_VFT_VALID		(1ULL << 44)
+#define QM_CQC_VFT_BUF_SIZE		(7ULL << 8)
+#define QM_CQC_VFT_SQC_SIZE		(5ULL << 12)
+#define QM_CQC_VFT_INDEX_NUMBER		(1ULL << 16)
+#define QM_CQC_VFT_BT_INDEX_SHIFT	22
+#define QM_CQC_VFT_VALID            	(1ULL << 28)
+
+/* qm user domain */
+#define QM_ARUSER_M_CFG_1		0x100088
+#define QM_ARUSER_M_CFG_ENABLE		0x100090
+#define QM_AWUSER_M_CFG_1		0x100098
+#define QM_AWUSER_M_CFG_ENABLE		0x1000a0
+#define QM_WUSER_M_CFG_ENABLE		0x1000a8
+/* qm cache */
+#define QM_CACHE_CTL	        	0x100050
+#define QM_AXI_M_CFG			0x1000ac
+#define QM_AXI_M_CFG_ENABLE		0x1000b0
+#define QM_PEH_AXUSER_CFG               0x1000cc
+#define QM_PEH_AXUSER_CFG_ENABLE	0x1000d0
+
+struct cqe {
+	__le32 rsvd0;
+	__le16 cmd_id;
+	__le16 rsvd1;
+	__le16 sq_head;
+	__le16 sq_num;
+	__le16 rsvd2;
+	__le16 w7; /* phase, status */
+};
+
+struct eqe {
+	__le32 dw0; /* cqn, phase */
+};
+
+struct aeqe {
+	__le32 dw0; /* qn, phase, type */
+};
+
+struct sqc {
+	__le16 sq_head;
+	__le16 sq_tail;
+	__le32 sq_base_l;
+	__le32 sq_base_h;
+        __le32 dw3; /* v1: v2: sqe_size */
+        __le16 qes;
+	__le16 rsvd0;
+        __le16 pasid;
+        __le16 w11; /* tail_idx_sig, head_idx_sig, burst_cnt_shift */
+        __le16 cq_num;
+        __le16 w13; /* type, order, priority */
+	__le32 rsvd1;
+};
+
+struct cqc {
+	__le16 cq_head;
+	__le16 cq_tail;
+	__le32 cq_base_l;
+	__le32 cq_base_h;
+        __le32 dw3; /* v1: v2: cqe_size */
+        __le16 qes;
+	__le16 rsvd0;
+        __le16 pasid;
+        __le16 w11; /* tail_idx_sig, head_idx_sig */
+        __le32 dw6; /* c_flag, phase */
+	__le32 rsvd1;
+};
+
+struct eqc {
+	__le16 eq_head;
+	__le16 eq_tail;
+	__le32 eq_base_l;
+	__le32 eq_base_h;
+	__le32 dw3; /* v1: v2: */
+	__le32 rsvd[2];
+	__le32 dw6; /* qes, phase */
+};
+
+struct aeqc {
+	__le16 aeq_head;
+	__le16 aeq_tail;
+	__le32 aeq_base_l;
+	__le32 aeq_base_h;
+	__le32 rsvd[3];
+	__le32 dw6; /* qes, phase */
+};
+
+struct mailbox {
+	__le16 w0; /* op_type, busy, status, event, cmd */
+	__le16 queue_num;
+	__le32 mb_base_l;
+	__le32 mb_base_h;
+	__le32 rsvd;
+};
+
+struct doorbell {
+	__le16 queue_num;
+	__le16 cmd;
+	__le16 index;
+	__le16 priority;
+};
+
+struct qm_info;
+
+struct hisi_acc_qm_hw_ops {
+        int (*vft_config)(struct qm_info *qm, u16 base, u32 number);
+        int (*aeq_config)(struct qm_info *qm);
+        int (*get_vft_info)(struct qm_info *qm, u32 *base, u32 *number);
+};
+
+/* qm_info should be in qm.c as a private. */
+struct qm_info {
+	void __iomem *fun_base;
+        u32 fun_num;
+
+	u32 qp_base;
+	u32 qp_num;
+
+        struct sqc *sqc_base;
+	dma_addr_t sqc_base_dma;
+
+        struct cqc *cqc_base;
+	dma_addr_t cqc_base_dma;
+
+        struct eqc *eqc;
+	dma_addr_t eqc_dma;
+
+	struct eqe *eq_base;
+	dma_addr_t eq_base_dma;
+        u32 eq_head;
+
+        struct aeqc *aeqc;
+	struct aeqe *aeq_base;
+
+        unsigned long *qp_bitmap;
+	spinlock_t qp_bitmap_lock;
+        struct hisi_acc_qp **qp_array;
+
+        int node_id;
+
+        bool qpn_fixed;
+
+	spinlock_t mailbox_lock;
+
+	void *priv;
+
+	struct list_head qm;
+
+        struct hisi_acc_qm_hw_ops *ops;
+
+	struct dma_pool *eqc_aeqc_pool;
+
+        struct device *dev;
+};
+
 /**
  * true: busy
  * false: ready
@@ -22,9 +291,9 @@
 static inline bool hacc_qm_mb_is_busy(struct qm_info *qm)
 {
     u32 val;
-    void *base = qm->fun_base;
 
-    val = readl(base + MAILBOX_CMD_SEND_BASE);
+    val = readl(qm->fun_base + MAILBOX_CMD_SEND_BASE);
+
     return ((val >> MAILBOX_BUSY_SHIFT) & 0x1) ? true : false;
 }
 
@@ -98,22 +367,20 @@ static int hacc_mb(struct qm_info *qm, u8 cmd, u64 phys_addr, u16 queue,
  */
 static int hacc_db(struct qm_info *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 {
-	/* fix me: check input params */
-	//pr_err("in %s: qn: %d, cmd: %d, index: %d, priority: %d", __FUNCTION__,
-			//qn, cmd, index, priority);
-
 	void *base = qm->fun_base;
 	u64 doorbell = 0;
 
 	doorbell = (u64)qn | ((u64)cmd << 16);
 	doorbell |= ((u64)index | ((u64)priority << 16)) << 32;
 
-	//pr_err("in %llx\n", doorbell);
-
-	/* to do: start doorbell, fix me */
 	writeq(doorbell, base + DOORBELL_CMD_SEND_BASE);
 
 	return 0;
+}
+
+u32 hisi_acc_get_irq_source(struct qm_info *qm)
+{
+        return readl(qm->fun_base + QM_VF_EQ_INT_SOURCE);
 }
 
 static inline struct hisi_acc_qp *to_hisi_acc_qp(struct qm_info *qm,
@@ -155,7 +422,8 @@ irqreturn_t hacc_irq_thread(int irq, void *data)
 
                                 /* crypto async interface: callback */
                                 /* handle each cqe */
-                                qp->sqe_handler(qp, cqe);
+                                qp->sqe_handler(qp, qp->sq_base +
+                                                CQE_SQ_HEAD_INDEX(cqe));
 
                                 if (qp->cq_head == QM_Q_DEPTH - 1) {
                                         qp->cqc->dw6 = qp->cqc->dw6 ^ CQC_PHASE_BIT;
@@ -464,6 +732,16 @@ void hisi_acc_qm_info_release(struct qm_info *qm)
                                   qm->cqc_base, qm->cqc_base_dma);
 }
 
+void hisi_acc_qm_set_priv(struct qm_info *qm, void *priv)
+{
+        qm->priv = priv;
+}
+
+void *hisi_acc_qm_get_priv(struct qm_info *qm)
+{
+        return qm->priv;
+}
+
 int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
                        u32 sqe_size, u8 alg_type)
 {
@@ -489,6 +767,7 @@ int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
         qp->cq_head = 0;
         qp->sqe_size = sqe_size;
         qp->parent = qm;
+        qp->p_dev = qm->dev;
 
         sqc = qm->sqc_base + qp_index;
         qp->sqc = sqc;
@@ -574,6 +853,15 @@ int hisi_acc_release_qp(struct hisi_acc_qp *qp)
     	spin_unlock(&qm->qp_bitmap_lock);
 
         kfree(qp);
+
+        return 0;
+}
+
+int hisi_acc_get_pasid(struct hisi_acc_qp *qp, u16 *pasid)
+{
+	hacc_mb(qp->parent, MAILBOX_CMD_SQC, qp->sqc_dma, qp->queue_id, 1, 0);
+
+        *pasid = qp->sqc->pasid;
 
         return 0;
 }

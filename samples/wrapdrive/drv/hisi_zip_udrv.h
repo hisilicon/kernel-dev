@@ -26,6 +26,48 @@
 
 #define HZIP_DOORBELL_OFFSET    0x340
 
+struct cqe {
+	__le32 rsvd0;
+	__le16 cmd_id;
+	__le16 rsvd1;
+	__le16 sq_head;
+	__le16 sq_num;
+	__le16 rsvd2;
+	__le16 w7; /* phase, status */
+};
+
+struct hisi_zip_sqe {
+        __u32 consumed;
+        __u32 produced;
+        __u32 comp_date_length;
+        __u32 dw3;
+        __u32 input_date_length;
+        __u32 lba_l;
+        __u32 lba_h;
+        __u32 dw7; /* ... */
+        __u32 dw8; /* ... */
+        __u32 dw9; /* ... */
+        __u32 dw10; /* ... */
+        __u32 priv_info;
+        __u32 dw12; /* ... */
+        __u32 tag;
+        __u32 dest_avail_out;
+        __u32 rsvd0;
+        __u32 comp_head_addr_l;
+        __u32 comp_head_addr_h;
+        __u32 source_addr_l;
+        __u32 source_addr_h;
+        __u32 dest_addr_l;
+        __u32 dest_addr_h;
+        __u32 stream_ctx_addr_l;
+        __u32 stream_ctx_addr_h;
+        __u32 cipher_key1_addr_l;
+        __u32 cipher_key1_addr_h;
+        __u32 cipher_key2_addr_l;
+        __u32 cipher_key2_addr_h;
+        __u32 rsvd1[4];
+};
+
 struct hzip_queue_info {
 	void *sq_base;
 	void *cq_base;

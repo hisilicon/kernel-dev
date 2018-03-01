@@ -65,26 +65,25 @@ int hisi_zip_unset_pasid(struct wd_queue *q)
 static int hisi_zip_fill_sqe(struct wd_comp_msg *msg,
 			     struct hzip_queue_info *info, __u16 i)
 {
+        struct hisi_zip_sqe *sqe = (struct hisi_zip_sqe *)info->sq_base + i;
 	__u64 src = msg->src;
 	__u64 dst = msg->dst;
-	__u32 size = msg->in_bytes;
-	void *sqe = info->sq_base + HZIP_SQE_SIZE * i;
 
-	*((__u32 *)sqe + 4) = size;
-	*((__u32 *)sqe + 9) = 2;
-	*((__u32 *)sqe + 14) = 0x800;
-	*((__u32 *)sqe + 18) = src & 0xffffffff;
-	*((__u32 *)sqe + 19) = src >> 32;
-	*((__u32 *)sqe + 20) = dst & 0xffffffff;
-	*((__u32 *)sqe + 21) = dst >> 32;
+        sqe->input_date_length = msg->in_bytes;
+        sqe->dw9 = 2;
+        sqe->dest_avail_out = 0x800;
+        sqe->source_addr_l = src & 0xffffffff;
+        sqe->source_addr_h = src >> 32;
+        sqe->dest_addr_l = dst & 0xffffffff;
+        sqe->dest_addr_h = dst >> 32;
 
 	return 0;
 }
 
-int hisi_zip_recv_sqe(char *sqe, struct wd_comp_msg *recv_msg)
+int hisi_zip_recv_sqe(struct hisi_zip_sqe *sqe, struct wd_comp_msg *recv_msg)
 {
-        int status = *((__u32 *)sqe + 3) & 0xff;
-        int type = *((__u32 *)sqe + 9) & 0xff;
+        __u32 status = sqe->dw3 & 0xff;
+        __u32 type = sqe->dw9 & 0xff;
 
         if (status != 0) {
                 printf("hisi zip %s fail!\n", hzip_request_type[type]);
@@ -93,11 +92,13 @@ int hisi_zip_recv_sqe(char *sqe, struct wd_comp_msg *recv_msg)
 
         recv_msg->alg = hzip_request_type[type];
         recv_msg->aflags = 0;
-        recv_msg->in_coms = *(__u32 *)sqe;
-        recv_msg->in_bytes = *((__u32 *)sqe + 4);
-        recv_msg->out_bytes = *((__u32 *)sqe + 1);
-        recv_msg->src = ((__u64)*((__u32 *)sqe + 19) << 32) | *((__u32 *)sqe + 18);
-        recv_msg->dst = ((__u64)*((__u32 *)sqe + 21) << 32) | *((__u32 *)sqe + 20);
+        recv_msg->in_coms = sqe->consumed;
+        recv_msg->in_bytes = sqe->input_date_length;
+        recv_msg->out_bytes = sqe->produced;
+        recv_msg->src = ((__u64)(sqe->source_addr_h) << 32) |
+                        (sqe->source_addr_l);
+        recv_msg->dst = ((__u64)(sqe->dest_addr_h) << 32) |
+                        (sqe->source_addr_l);
         recv_msg->comp_lv = 0;
         recv_msg->file_type = 0;
         recv_msg->humm_type = 0;
@@ -203,10 +204,10 @@ int hisi_zip_get_from_dio_q(struct wd_queue *q, void **resp)
 {
 	struct hzip_queue_info *info = (struct hzip_queue_info *)q->priv;
 	__u16 i = info->cq_head_index;
-	void *cq_base = info->cq_base;
-	void *sq_base = info->sq_base;
-        char *cqe = cq_base + i * QM_CQE_SIZE;
-        char *sqe = sq_base + CQE_SQ_HEAD_INDEX(cqe) * HZIP_SQE_SIZE;
+	struct cqe *cq_base = info->cq_base;
+	struct hisi_zip_sqe *sq_base = info->sq_base;
+        struct cqe *cqe = cq_base + i;
+        struct hisi_zip_sqe *sqe = sq_base + CQE_SQ_HEAD_INDEX(cqe);
         struct wd_comp_msg *recv_msg = info->recv +
                                        i * sizeof(struct wd_comp_msg);
 	int ret;
