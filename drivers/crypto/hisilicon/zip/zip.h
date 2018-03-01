@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Hisilicon Limited.
+ * Copyright (c) 2018 Hisilicon Limited.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -9,6 +9,23 @@
 
 #ifndef HISI_ZIP_H
 #define HISI_ZIP_H
+
+#include "./qm.h"
+
+#define HZIP_SQE_SIZE			128
+#define HZIP_SQ_SIZE                    (HZIP_SQE_SIZE * QM_Q_DEPTH)
+#define QM_CQ_SIZE                      (QM_CQE_SIZE * QM_Q_DEPTH)
+
+struct hisi_zip {
+	struct pci_dev *pdev;
+
+	resource_size_t phys_base;
+	resource_size_t size;
+	void __iomem *io_base;
+
+	struct qm_info *qm_info;
+	struct wd_dev *wdev;
+};
 
 enum hisi_zip_alg_type {
 	HZIP_ZLIB = 0,
