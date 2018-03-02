@@ -6,7 +6,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -33,8 +33,8 @@
 #define HZIP_DATA_WUSER_32_63		0x301134
 #define HZIP_BD_WUSER_32_63		0x301140
 
-#define HZIP_PF_DEF_Q_NUM               64
-#define HZIP_PF_DEF_Q_BASE              0
+#define HZIP_PF_DEF_Q_NUM	       64
+#define HZIP_PF_DEF_Q_BASE	      0
 
 char hisi_zip_name[] = "hisi_zip";
 
@@ -52,12 +52,10 @@ static irqreturn_t hisi_zip_irq(int irq, void *data)
 	/* There is an interrupt or not */
 	int_source = hisi_acc_get_irq_source(qm);
 
-	if (int_source) {
+	if (int_source)
 		return IRQ_WAKE_THREAD;
-	}
-	else {
+	else
 		return IRQ_HANDLED;
-	}
 }
 
 static int hisi_zip_sqe_handler(struct hisi_acc_qp *qp, void *sqe)
@@ -66,14 +64,12 @@ static int hisi_zip_sqe_handler(struct hisi_acc_qp *qp, void *sqe)
 	u32 status = ((struct hisi_zip_sqe *)sqe)->dw3 & 0xff;
 
 	if (!status) {
-                /* fix me */
+		/* fix me */
 		return IRQ_HANDLED;
-	} else {
-		/* to handle err */
-		return -1;
 	}
-	
-	return 0;
+
+	/* to handle err */
+	return -1;
 }
 
 static void hisi_zip_set_user_domain_and_cache(struct hisi_zip *hisi_zip)
@@ -91,8 +87,8 @@ static void hisi_zip_set_user_domain_and_cache(struct hisi_zip *hisi_zip)
 	writel(0x40001071, hisi_zip->io_base + HZIP_DATA_WUSER_32_63);
 	writel(0x40001070, hisi_zip->io_base + HZIP_BD_WUSER_32_63);
 
-	/* fsm count */	
-	writel(0xfffffff, hisi_zip->io_base + HZIP_FSM_MAX_CNT); 
+	/* fsm count */
+	writel(0xfffffff, hisi_zip->io_base + HZIP_FSM_MAX_CNT);
 
 	/* to do: big/little endian configure: default: 32bit little */
 
@@ -106,7 +102,7 @@ static void hisi_zip_set_user_domain_and_cache(struct hisi_zip *hisi_zip)
 	/* hisi_zip_write(hisi_zip, T10_DIF_CRC_INITIAL, ZIP_DIF_CRC_INIT); */
 
 	/* Compress head length */
-	/* hisi_zip_write(hisi_zip, STORE_COMP_HEAD_LEN, ZIP_COM_HEAD_LENGTH); */
+	/* hisi_zip_write(hisi_zip, STORE_COMP_HEAD_LEN, ZIP_COM_HEAD_LENGTH);*/
 
 	/* to check: clock gating, core, decompress verify enable */
 	writel(0x10005, hisi_zip->io_base + 0x301004);
@@ -119,18 +115,18 @@ static void hisi_zip_set_user_domain_and_cache(struct hisi_zip *hisi_zip)
 static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct hisi_zip *hisi_zip;
-        struct qm_info *qm;
+	struct qm_info *qm;
 	int ret;
 	u16 ecam_val16;
-        u32 q_base, q_num;
+	u32 q_base, q_num;
 
 	pci_set_power_state(pdev, PCI_D0);
 	ecam_val16 = (PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY);
 	pci_write_config_word(pdev, PCI_COMMAND, ecam_val16);
 
 	ret = pci_enable_device_mem(pdev);
-	if(ret < 0) {
-        	dev_err(&pdev->dev, "Can't enable device mem!\n");
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Can't enable device mem!\n");
 		return ret;
 	}
 
@@ -152,9 +148,9 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hisi_zip->phys_base = pci_resource_start(pdev, 2);
 	hisi_zip->size = pci_resource_len(pdev, 2);
 	hisi_zip->io_base = devm_ioremap(&pdev->dev, hisi_zip->phys_base,
-                                         hisi_zip->size);
+					 hisi_zip->size);
 	if (!hisi_zip->io_base) {
-		ret = -EIO;;
+		ret = -EIO;
 		goto err_hisi_zip;
 	}
 	hisi_zip->pdev = pdev;
@@ -171,65 +167,65 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			goto err_hisi_zip;
 	}
 
-        ret = hisi_acc_qm_info_create(&pdev->dev, hisi_zip->io_base,
-                                      pdev->devfn, ES, &qm);
-        if (ret) {
+	ret = hisi_acc_qm_info_create(&pdev->dev, hisi_zip->io_base,
+				      pdev->devfn, ES, &qm);
+	if (ret) {
 		dev_err(&pdev->dev, "Fail to create QM!\n");
 		goto err_pci_irq;
-        }
+	}
 
 	if (pdev->is_physfn) {
-                hisi_acc_set_user_domain(qm);
-                hisi_acc_set_cache(qm);
-                hisi_acc_init_qm_mem(qm);
-                hisi_zip_set_user_domain_and_cache(hisi_zip);
+		hisi_acc_set_user_domain(qm);
+		hisi_acc_set_cache(qm);
+		hisi_acc_init_qm_mem(qm);
+		hisi_zip_set_user_domain_and_cache(hisi_zip);
 
-                q_base = HZIP_PF_DEF_Q_BASE;
-                q_num = HZIP_PF_DEF_Q_NUM;
-                hisi_acc_qm_info_vft_config(qm, q_base, q_num);
+		q_base = HZIP_PF_DEF_Q_BASE;
+		q_num = HZIP_PF_DEF_Q_NUM;
+		hisi_acc_qm_info_vft_config(qm, q_base, q_num);
 	} else if (pdev->is_virtfn) {
-                /* get queue base and number, ES did not support to get this
-                 * from mailbox. so fix me...
-                 */
-                hisi_acc_get_vft_info(qm, &q_base, &q_num);
-        }
+		/* get queue base and number, ES did not support to get this
+		 * from mailbox. so fix me...
+		 */
+		hisi_acc_get_vft_info(qm, &q_base, &q_num);
+	}
 
-        ret = hisi_acc_qm_info_create_eq(qm);
-        if (ret) {
+	ret = hisi_acc_qm_info_create_eq(qm);
+	if (ret) {
 		dev_err(&pdev->dev, "Fail to create eq!\n");
 		goto err_pci_irq;
-        }
+	}
 
-        ret = hisi_acc_qm_info_add_queue(qm, q_base, q_num);
-        if (ret) {
+	ret = hisi_acc_qm_info_add_queue(qm, q_base, q_num);
+	if (ret) {
 		dev_err(&pdev->dev, "Fail to add queue to QM!\n");
 		goto err_pci_irq;
-        }
+	}
 
 	hisi_zip->qm_info = qm;
-        hisi_acc_qm_set_priv(qm, hisi_zip);
+	hisi_acc_qm_set_priv(qm, hisi_zip);
 
 	ret = devm_request_threaded_irq(&pdev->dev, pci_irq_vector(pdev, 0),
 					hisi_zip_irq, hacc_irq_thread,
 					IRQF_SHARED, hisi_zip_name,
-                                        hisi_zip->qm_info);
+					hisi_zip->qm_info);
 	if (ret)
 		goto err_pci_irq;
 
 	/* to do: exception irq handler register, ES did not support */
 
-        ret = hisi_zip_register_to_wd(hisi_zip);
+	ret = hisi_zip_register_to_wd(hisi_zip);
 	if (ret)
 		goto err_pci_irq;
 
-        /* to do: register to crypto */
-        
+	/* to do: register to crypto */
+
 	return 0;
 
 err_pci_irq:
 	pci_free_irq_vectors(pdev);
 err_hisi_zip:
-        pci_release_mem_regions(pdev);
+	pci_release_mem_regions(pdev);
 err_pci_reg:
 	pci_disable_device(pdev);
 
@@ -245,16 +241,16 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 
 static int hisi_zip_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
-        /* to do: set queue number for VFs */
+	/* to do: set queue number for VFs */
 
 	return 0;
 }
 
 static struct pci_driver hisi_zip_pci_driver = {
-	.name 		= "hisi_zip",
-	.id_table 	= hisi_zip_dev_ids,
-	.probe 		= hisi_zip_probe,
-	.remove 	= hisi_zip_remove,
+	.name		= "hisi_zip",
+	.id_table	= hisi_zip_dev_ids,
+	.probe		= hisi_zip_probe,
+	.remove		= hisi_zip_remove,
 	.sriov_configure = hisi_zip_pci_sriov_configure
 };
 

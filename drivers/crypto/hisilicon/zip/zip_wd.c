@@ -17,10 +17,10 @@ static ssize_t
 pasid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct wd_queue *q = wd_queue(dev);
-        struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
-        u16 pasid;
+	struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
+	u16 pasid;
 
-        hisi_acc_get_pasid(qp, &pasid);
+	hisi_acc_get_pasid(qp, &pasid);
 
 	return sprintf(buf, "%d\n", pasid);
 }
@@ -30,7 +30,7 @@ pasid_store(struct device *dev, struct device_attribute *attr, const char *buf,
 	    size_t len)
 {
 	struct wd_queue *q = wd_queue(dev);
-        struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
+	struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
 	long value;
 	int ret;
 
@@ -38,7 +38,7 @@ pasid_store(struct device *dev, struct device_attribute *attr, const char *buf,
 	if (ret)
 		return -EINVAL;
 
-        hisi_acc_set_pasid(qp, cpu_to_le16((u16)value));
+	hisi_acc_set_pasid(qp, cpu_to_le16((u16)value));
 
 	return len;
 }
@@ -48,7 +48,7 @@ static ssize_t
 qid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct wd_queue *q = wd_queue(dev);
-        struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
+	struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
 
 	return sprintf(buf, "%d\n", qp->queue_id);
 }
@@ -93,7 +93,9 @@ available_instances_show(struct kobject *kobj, struct device *dev, char *buf)
 }
 MDEV_TYPE_ATTR_RO(available_instances);
 
-/* fix me: add zlib here. and why we add name, device_api, available_instances */
+/* fix me:
+ * add zlib here. and why we add name, device_api, available_instances
+ */
 static struct attribute *hzip_zlib_type_attrs[] = {
 	WD_DEFAULT_MDEV_TYPE_ATTRS
 	&mdev_type_attr_name.attr,
@@ -107,7 +109,9 @@ static struct attribute_group hzip_zlib_type_group = {
 	.attrs = hzip_zlib_type_attrs,
 };
 
-/* this will be showed under physical device's supported_type_groups directory */
+/* this will be showed under physical device's supported_type_groups
+ * directory
+ */
 static struct attribute_group *mdev_type_groups[] = {
 	&hzip_zlib_type_group,
 	NULL,
@@ -117,46 +121,46 @@ static int hzip_get_queue(struct wd_dev *wdev, const char *devalgo_name,
 			  struct wd_queue **q)
 {
 	struct hisi_zip *hzip = (struct hisi_zip *)wdev->priv;
-        struct qm_info *qm = hzip->qm_info;
-        struct hisi_acc_qp *qp;
-        struct wd_queue *wd_q;
-        int ret;
+	struct qm_info *qm = hzip->qm_info;
+	struct hisi_acc_qp *qp;
+	struct wd_queue *wd_q;
+	int ret;
 
-        u8 alg_type = 0; /* fix me here */
+	u8 alg_type = 0; /* fix me here */
 
-        ret = hisi_acc_create_qp(qm, &qp, HZIP_SQE_SIZE, alg_type);
-        if (ret) {
+	ret = hisi_acc_create_qp(qm, &qp, HZIP_SQE_SIZE, alg_type);
+	if (ret) {
 		dev_err(wdev->dev, "Can't create zip queue pair!\n");
-                goto err_create_qp;
-        }
-        qp->type = WD_QUEUE;
+		goto err_create_qp;
+	}
+	qp->type = WD_QUEUE;
 
 	wd_q = kzalloc(sizeof(struct wd_queue), GFP_KERNEL);
 	if (!wd_q) {
-                ret = -ENOMEM;
-                goto err_wd_q;
-        }
-        wd_q->priv = qp;
-        wd_q->wdev = hzip->wdev;
+		ret = -ENOMEM;
+		goto err_wd_q;
+	}
+	wd_q->priv = qp;
+	wd_q->wdev = hzip->wdev;
 
-        *q = wd_q;
+	*q = wd_q;
 
-        return 0;
+	return 0;
 
 err_wd_q:
-        hisi_acc_release_qp(qp);
+	hisi_acc_release_qp(qp);
 err_create_qp:
-        return ret;
+	return ret;
 }
 
 static int hzip_put_queue(struct wd_queue *q)
 {
-        struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
+	struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
 
-        /* need first stop harware queue(don't support in ES), then release
-         * resources.
-         */
-        hisi_acc_release_qp(qp);
+	/* need first stop harware queue(don't support in ES), then release
+	 * resources.
+	 */
+	hisi_acc_release_qp(qp);
 
 	kfree(q);
 
@@ -177,56 +181,56 @@ static int hzip_close_queue(struct wd_queue *q)
 
 static int hzip_is_q_updated(struct wd_queue *q)
 {
-        /* to do: now we did not support wd sync interface yet */
+	/* to do: now we did not support wd sync interface yet */
 	return 0;
 }
 
 /* map sq/cq/doorbell to user space */
 static int hzip_mmap(struct wd_queue *q, struct vm_area_struct *vma)
 {
-        struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
-        struct qm_info *qm = qp->parent;
+	struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
+	struct qm_info *qm = qp->parent;
 	void *sq = qp->sq_base;
 	void *cq = qp->cq_base;
-        struct hisi_zip *hzip = (struct hisi_zip *)hisi_acc_qm_get_priv(qm);
+	struct hisi_zip *hzip = (struct hisi_zip *)hisi_acc_qm_get_priv(qm);
 
 	vma->vm_flags |= (VM_IO | VM_LOCKED | VM_DONTEXPAND | VM_DONTDUMP);
 
-        switch (vma->vm_pgoff) {
-        case 0:
-                return dma_mmap_coherent(qp->p_dev, vma, sq,
-                                         qp->sq_base_dma, HZIP_SQ_SIZE);
-        case HZIP_SQ_SIZE >> PAGE_SHIFT:
-                /* fix me */
-                vma->vm_pgoff = 0;
-                return dma_mmap_coherent(qp->p_dev, vma, cq,
-                                         qp->cq_base_dma, QM_CQ_SIZE);
-        case (QM_CQ_SIZE + HZIP_SQ_SIZE) >> PAGE_SHIFT:
-        /* fix me: this is not safe as multiple queues use the same doorbell */
-                return remap_pfn_range(vma, vma->vm_start,
-                                       hzip->phys_base >> PAGE_SHIFT,
-                                       hzip->size,
-                                       pgprot_noncached(vma->vm_page_prot));
-        default:
-                return -EINVAL;
-        }
+	switch (vma->vm_pgoff) {
+	case 0:
+		return dma_mmap_coherent(qp->p_dev, vma, sq,
+					 qp->sq_base_dma, HZIP_SQ_SIZE);
+	case HZIP_SQ_SIZE >> PAGE_SHIFT:
+		/* fix me */
+		vma->vm_pgoff = 0;
+		return dma_mmap_coherent(qp->p_dev, vma, cq,
+					 qp->cq_base_dma, QM_CQ_SIZE);
+	case (QM_CQ_SIZE + HZIP_SQ_SIZE) >> PAGE_SHIFT:
+	/* fix me: this is not safe as multiple queues use the same doorbell */
+		return remap_pfn_range(vma, vma->vm_start,
+				       hzip->phys_base >> PAGE_SHIFT,
+				       hzip->size,
+				       pgprot_noncached(vma->vm_page_prot));
+	default:
+		return -EINVAL;
+	}
 }
 
 static long hzip_ioctl(struct wd_queue *q, unsigned int cmd, unsigned long arg)
 {
-        struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
+	struct hisi_acc_qp *qp = (struct hisi_acc_qp *)q->priv;
 	struct hisi_acc_qm_sqc qm_sqc;
 
 	switch (cmd) {
 	/* user to read the data in SQC cache */
 	case HACC_QM_MB_SQC:
 		qm_sqc.sqn = qp->queue_id;
-                if (copy_to_user((struct hisi_acc_qm_sqc *)arg, &qm_sqc,
+		if (copy_to_user((struct hisi_acc_qm_sqc *)arg, &qm_sqc,
 				 sizeof(struct hisi_acc_qm_sqc)))
-                        return -EFAULT;
+			return -EFAULT;
 		break;
 	case HACC_QM_SET_PASID:
-                hisi_acc_set_pasid(qp, (u16)(arg & 0xffff));
+		hisi_acc_set_pasid(qp, (u16)(arg & 0xffff));
 		break;
 	default:
 		return -EINVAL;
@@ -247,11 +251,11 @@ static const struct wd_dev_ops hzip_ops = {
 
 int hisi_zip_register_to_wd(struct hisi_zip *hisi_zip)
 {
-        struct pci_dev *pdev = hisi_zip->pdev;
+	struct pci_dev *pdev = hisi_zip->pdev;
 	struct wd_dev *wdev;
-        int ret;
+	int ret;
 
- 	wdev = devm_kzalloc(&pdev->dev, sizeof(struct wd_dev), GFP_KERNEL);
+	wdev = devm_kzalloc(&pdev->dev, sizeof(struct wd_dev), GFP_KERNEL);
 	if (!wdev) {
 		ret = -ENOMEM;
 		goto err_wdev_alloc;
@@ -284,9 +288,9 @@ int hisi_zip_register_to_wd(struct hisi_zip *hisi_zip)
 		goto err_wdev_alloc;
 	}
 
-        return 0;
+	return 0;
 
 err_wdev_alloc:
 
-        return ret;
+	return ret;
 }
