@@ -54,33 +54,33 @@ struct hisi_acc_qp {
 	int (*sqe_handler)(struct hisi_acc_qp *qp, void *sqe);
 };
 
-u32 hisi_acc_get_irq_source(struct qm_info *qm);
-irqreturn_t hacc_irq_thread(int irq, void *data);
+extern u32 hisi_acc_get_irq_source(struct qm_info *qm);
+extern irqreturn_t hacc_irq_thread(int irq, void *data);
 
-int hisi_acc_init_qm_mem(struct qm_info *qm);
-void hisi_acc_set_user_domain(struct qm_info *qm);
-void hisi_acc_set_cache(struct qm_info *qm);
-int hisi_acc_qm_info_create(struct device *dev, void __iomem *base, u32 number,
-                            enum hw_version hw_v, struct qm_info **res);
-int hisi_acc_qm_info_create_eq(struct qm_info *qm);
-int hisi_acc_get_vft_info(struct qm_info *qm, u32 *base, u32 *number);
-int hisi_acc_qm_info_vft_config(struct qm_info *qm, u32 base, u32 number);
-int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number);
-void hisi_acc_qm_info_release(struct qm_info *qm);
-void hisi_acc_qm_set_priv(struct qm_info *qm, void *priv);
-void *hisi_acc_qm_get_priv(struct qm_info *qm);
-int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
-                       u32 sqe_size, u8 alg_type);
-int hisi_acc_release_qp(struct hisi_acc_qp *qp);
-int hisi_acc_get_pasid(struct hisi_acc_qp *qp, u16 *pasid);
-int hisi_acc_set_pasid(struct hisi_acc_qp *qp, u16 pasid);
-int hisi_acc_unset_pasid(struct hisi_acc_qp *qp);
-u16 hisi_acc_get_sq_tail(struct hisi_acc_qp *qp);
-int hisi_acc_send(struct hisi_acc_qp *qp, u16 sq_tail, void *priv);
-int hisi_acc_receive(struct hisi_acc_qp *qp, void *priv);
+extern int hisi_acc_init_qm_mem(struct qm_info *qm);
+extern void hisi_acc_set_user_domain(struct qm_info *qm);
+extern void hisi_acc_set_cache(struct qm_info *qm);
+extern int hisi_acc_qm_info_create(struct device *dev, void __iomem *base,
+                                   u32 number, enum hw_version hw_v,
+                                   struct qm_info **res);
+extern int hisi_acc_qm_info_create_eq(struct qm_info *qm);
+extern int hisi_acc_get_vft_info(struct qm_info *qm, u32 *base, u32 *number);
+extern int hisi_acc_qm_info_vft_config(struct qm_info *qm, u32 base, u32 number);
+extern int hisi_acc_qm_info_add_queue(struct qm_info *qm, u32 base, u32 number);
+extern void hisi_acc_qm_info_release(struct qm_info *qm);
+extern void hisi_acc_qm_set_priv(struct qm_info *qm, void *priv);
+extern void *hisi_acc_qm_get_priv(struct qm_info *qm);
+extern int hisi_acc_create_qp(struct qm_info *qm, struct hisi_acc_qp **res,
+                              u32 sqe_size, u8 alg_type);
+extern int hisi_acc_release_qp(struct hisi_acc_qp *qp);
+extern int hisi_acc_get_pasid(struct hisi_acc_qp *qp, u16 *pasid);
+extern int hisi_acc_set_pasid(struct hisi_acc_qp *qp, u16 pasid);
+extern int hisi_acc_unset_pasid(struct hisi_acc_qp *qp);
+extern u16 hisi_acc_get_sq_tail(struct hisi_acc_qp *qp);
+extern int hisi_acc_send(struct hisi_acc_qp *qp, u16 sq_tail, void *priv);
+extern int hisi_acc_receive(struct hisi_acc_qp *qp, void *priv);
 
 /* helper function to debug */
-u64 vft_read_v1(struct qm_info *qm);
-void hisi_acc_qm_read_sqc(struct hisi_acc_qp *qp);
+extern void hisi_acc_qm_read_sqc(struct hisi_acc_qp *qp);
 
 #endif
