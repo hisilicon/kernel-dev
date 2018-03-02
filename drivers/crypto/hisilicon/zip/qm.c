@@ -957,3 +957,7 @@ void hisi_acc_qm_read_sqc(struct hisi_acc_qp *qp)
 	hacc_mb(qp->parent, MAILBOX_CMD_SQC, qp->sqc_dma, qp->queue_id, 1, 0);
 }
 EXPORT_SYMBOL_GPL(hisi_acc_qm_read_sqc);
+
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("Zhou Wang <wangzhou1@hisilicon.com>");
+MODULE_DESCRIPTION("HiSilicon Accelerator queue manager driver");

@@ -43,7 +43,6 @@ static const struct pci_device_id hisi_zip_dev_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, 0xa251) },
 	{ 0, }
 };
-MODULE_DEVICE_TABLE(pci, hisi_zip_dev_ids);
 
 static irqreturn_t hisi_zip_irq(int irq, void *data)
 {
@@ -278,6 +277,7 @@ static void __exit hisi_zip_exit(void)
 module_init(hisi_zip_init);
 module_exit(hisi_zip_exit);
 
-MODULE_DESCRIPTION("Driver for HiSilicon ZIP accelerator");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Zhou Wang <wangzhou1@hisilicon.com>");
-MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Driver for HiSilicon ZIP accelerator");
+MODULE_DEVICE_TABLE(pci, hisi_zip_dev_ids);
