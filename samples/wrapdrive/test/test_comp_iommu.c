@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include "../wd.h"
 #include "../wd_comp.h"
@@ -86,6 +87,7 @@ static inline int check_result(void *result)
 	return 0;
 }
 #define COMP_FILE	"/root/compress_data"
+#define OP_NUMBER	1024000
 int main(int argc, char *argv[])
 {
 	struct wd_capa capa;
@@ -97,6 +99,10 @@ int main(int argc, char *argv[])
 	FILE *fp;
 	int proc_tag;
 	char file[64];
+	struct timeval start_tval, end_tval;
+	float time, speed;
+	int data_size = 244;
+	int mode;
 
 	if (argv[1])
 		proc_tag = strtoul(argv[1], NULL, 10);
@@ -106,6 +112,10 @@ int main(int argc, char *argv[])
 		sprintf(file, COMP_FILE"%d", proc_tag);
 	else
 		sprintf(file, COMP_FILE);
+	if (argv[2])
+		mode = strtoul(argv[2], NULL, 10);
+	else
+		mode = 0;
 	memset(&q, 0, sizeof(q));
 	memset(&capa, 0, sizeof(capa));
 	capa.alg = zlib;
@@ -133,7 +143,7 @@ int main(int argc, char *argv[])
 	dst = (char *)a + (ASIZE/2);
 
 	for (i = 0; i < 128; i++)
-		memcpy(src + i * 256, zlib_test, 244);
+		memcpy(src + i * 256, zlib_test, data_size);
 
 	msg = malloc(sizeof(*msg));
 	if (!msg) {
@@ -141,28 +151,40 @@ int main(int argc, char *argv[])
 		goto alloc_msg_fail;
 	}
 	memset((void *)msg, 0, sizeof(*msg));
-	for (i = 0; i < 1024; i++) {
+	gettimeofday(&start_tval, NULL);
+	for (i = 0; i < OP_NUMBER; i++) {
 		msg->alg = zlib;
 		msg->src = (__u64)src + ( i % 128) * 256;
 		msg->dst = (__u64)dst + ( i % 128) * 256;
-		msg->in_bytes = 244;
+		msg->in_bytes = data_size;
 
 		/* now we only support pbuffer */
 		msg->aflags |= _WD_AATTR_IOVA;
 		ret = wd_send(&q, msg);
 		SYS_ERR_COND(ret, "send fail(release queue should be done auto)\n");
-		usleep(1);
 recv_again:
 		ret = wd_recv(&q, (void **)&recv_msg);
 		if (ret < 0) {
 			printf("\n wd_recv fail!");
 			goto alloc_msg_fail;
-		} else if (ret == 0)
+		/* synchronous mode, if get none, then get again */
+		} else if (ret == 0 && mode)
 			goto recv_again;
+		/* asynchronous mode, if get one then get again */
+		else if (ret == 1 && !mode)
+			goto recv_again;
+
 		/* add zlib compress head and write head + compressed date to a file */
 		output_num = recv_msg->out_bytes;
-		printf("output_num: %d\n", output_num);
+		/* printf("output_num: %d\n", output_num); */
 	}
+	gettimeofday(&end_tval, NULL);
+        time = (float)((end_tval.tv_sec-start_tval.tv_sec) * 1000000 +
+		end_tval.tv_usec -start_tval.tv_usec);
+	speed = 1 / (time /OP_NUMBER);
+	printf("\r\n%s compressing time %0.0f us, pkt len = %d bytes,"
+	       "%0.3f Mpps", "zlib", time, data_size, speed);
+
 	char zip_head[2] = {0x78, 0x9c};
 
 	fp = fopen(file, "wb");
