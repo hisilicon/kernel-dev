@@ -22,9 +22,9 @@
 #define CQE_SQ_NUM(cq)			((*((__u32 *)(cq) + 2)) >> 16)
 #define CQE_SQ_HEAD_INDEX(cq)		((*((__u32 *)(cq) + 2)) & 0xffff)
 
-#define HZIP_BAR2_SIZE          (4 * 1024 * 1024)
+#define HZIP_BAR2_SIZE			(4 * 1024 * 1024)
 
-#define HZIP_DOORBELL_OFFSET    0x340
+#define HZIP_DOORBELL_OFFSET		0x340
 
 struct cqe {
 	__le32 rsvd0;
@@ -37,46 +37,46 @@ struct cqe {
 };
 
 struct hisi_zip_sqe {
-        __u32 consumed;
-        __u32 produced;
-        __u32 comp_date_length;
-        __u32 dw3;
-        __u32 input_date_length;
-        __u32 lba_l;
-        __u32 lba_h;
-        __u32 dw7; /* ... */
-        __u32 dw8; /* ... */
-        __u32 dw9; /* ... */
-        __u32 dw10; /* ... */
-        __u32 priv_info;
-        __u32 dw12; /* ... */
-        __u32 tag;
-        __u32 dest_avail_out;
-        __u32 rsvd0;
-        __u32 comp_head_addr_l;
-        __u32 comp_head_addr_h;
-        __u32 source_addr_l;
-        __u32 source_addr_h;
-        __u32 dest_addr_l;
-        __u32 dest_addr_h;
-        __u32 stream_ctx_addr_l;
-        __u32 stream_ctx_addr_h;
-        __u32 cipher_key1_addr_l;
-        __u32 cipher_key1_addr_h;
-        __u32 cipher_key2_addr_l;
-        __u32 cipher_key2_addr_h;
-        __u32 rsvd1[4];
+	__u32 consumed;
+	__u32 produced;
+	__u32 comp_date_length;
+	__u32 dw3;
+	__u32 input_date_length;
+	__u32 lba_l;
+	__u32 lba_h;
+	__u32 dw7; /* ... */
+	__u32 dw8; /* ... */
+	__u32 dw9; /* ... */
+	__u32 dw10; /* ... */
+	__u32 priv_info;
+	__u32 dw12; /* ... */
+	__u32 tag;
+	__u32 dest_avail_out;
+	__u32 rsvd0;
+	__u32 comp_head_addr_l;
+	__u32 comp_head_addr_h;
+	__u32 source_addr_l;
+	__u32 source_addr_h;
+	__u32 dest_addr_l;
+	__u32 dest_addr_h;
+	__u32 stream_ctx_addr_l;
+	__u32 stream_ctx_addr_h;
+	__u32 cipher_key1_addr_l;
+	__u32 cipher_key1_addr_h;
+	__u32 cipher_key2_addr_l;
+	__u32 cipher_key2_addr_h;
+	__u32 rsvd1[4];
 };
 
 struct hzip_queue_info {
 	void *sq_base;
 	void *cq_base;
-        void *doorbell_base;
-        __u16 sq_tail_index;
-        __u16 cq_head_index;
+	void *doorbell_base;
+	__u16 sq_tail_index;
+	__u16 cq_head_index;
 	__u16 sqn;
-        bool cqc_phase;
-        void *recv;
+	bool cqc_phase;
+	void *recv;
 };
 
 struct hisi_acc_qm_sqc {
@@ -86,8 +86,8 @@ struct hisi_acc_qm_sqc {
 #define HACC_QM_MB_SQC		_IOR('d', 1, struct hisi_acc_qm_sqc *)
 #define HACC_QM_SET_PASID	_IOW('d', 2, unsigned long)
 
-#define DOORBELL_CMD_SQ 	0
-#define DOORBELL_CMD_CQ 	1
+#define DOORBELL_CMD_SQ		0
+#define DOORBELL_CMD_CQ		1
 
 int hisi_zip_set_queue_dio(struct wd_queue *q);
 int hisi_zip_unset_queue_dio(struct wd_queue *q);
