@@ -16,15 +16,8 @@ gen_config()
 	"d01")
 		make hisi_defconfig
 	;;
-	"d02"|"d03"|"d05")
-		echo "$board_type"
-		./scripts/kconfig/merge_config.sh -m arch/arm64/configs/defconfig arch/arm64/configs/common-config arch/arm64/configs/d05-config
-	;;
-	"d06")
-		./scripts/kconfig/merge_config.sh -m arch/arm64/configs/defconfig arch/arm64/configs/common-config arch/arm64/configs/d06-config
-	;;
 	*)
-	echo "Unsupported board_type $board_type, please try again."
+		./scripts/kconfig/merge_config.sh -m arch/arm64/configs/defconfig arch/arm64/configs/plinth-config
 	;;
 	esac
 	mv -f .config .merged.config
