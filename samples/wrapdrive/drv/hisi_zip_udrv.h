@@ -73,10 +73,13 @@ struct hzip_queue_info {
 	void *cq_base;
 	void *doorbell_base;
 	__u16 sq_tail_index;
+	__u16 sq_head_index;
 	__u16 cq_head_index;
 	__u16 sqn;
 	bool cqc_phase;
 	void *recv;
+
+	int is_sq_full;
 };
 
 struct hisi_acc_qm_sqc {

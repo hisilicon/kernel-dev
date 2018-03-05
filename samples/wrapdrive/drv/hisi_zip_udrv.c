@@ -145,8 +145,11 @@ int hisi_zip_set_queue_dio(struct wd_queue *q)
 	info->doorbell_base = vaddr + HZIP_DOORBELL_OFFSET;
 
 	info->sq_tail_index = 0;
+	info->sq_head_index = 0;
 	info->cq_head_index = 0;
 	info->cqc_phase = 1;
+
+	info->is_sq_full = 0;
 
 	ret = ioctl(q->device, HACC_QM_MB_SQC, &qm_sqc);
 	if (ret == -1) {
@@ -184,6 +187,9 @@ int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 	struct hzip_queue_info *info = (struct hzip_queue_info *)q->priv;
 	__u16 i;
 
+	if (info->is_sq_full)
+		return -EBUSY;
+
 	i = info->sq_tail_index;
 
 	hisi_zip_fill_sqe(msg, q->priv, i);
@@ -196,6 +202,9 @@ int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 	hacc_db(info, DOORBELL_CMD_SQ, i, 0);
 
 	info->sq_tail_index = i;
+
+	if (i == info->sq_head_index)
+		info->is_sq_full = 1;
 
 	return 0;
 }
@@ -216,6 +225,9 @@ int hisi_zip_get_from_dio_q(struct wd_queue *q, void **resp)
 		ret = hisi_zip_recv_sqe(sqe, recv_msg);
 		if (ret < 0)
 			return -EIO;
+
+		if (info->is_sq_full)
+			info->is_sq_full = 0;
 	} else {
 		return 0;
 	}
@@ -230,6 +242,7 @@ int hisi_zip_get_from_dio_q(struct wd_queue *q, void **resp)
 	hacc_db(info, DOORBELL_CMD_CQ, i, 0);
 
 	info->cq_head_index = i;
+	info->sq_head_index = i;
 
 	*resp = recv_msg;
 
