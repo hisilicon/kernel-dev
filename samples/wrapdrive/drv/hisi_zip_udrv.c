@@ -15,6 +15,8 @@
 #include "../wd_util.h"
 #include "../wd_comp.h"
 
+#define mb() asm volatile("dsb sy" : : : "memory")
+
 char *hzip_request_type[] = {
 	"none",
 	"resv",			/* 0x01 */
@@ -193,6 +195,8 @@ int hisi_zip_add_to_dio_q(struct wd_queue *q, void *req)
 	i = info->sq_tail_index;
 
 	hisi_zip_fill_sqe(msg, q->priv, i);
+
+	mb();
 
 	if (i == (QM_EQ_DEPTH - 1))
 		i = 0;
