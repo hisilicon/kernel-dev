@@ -133,10 +133,9 @@ recv_again:
 		/* asynchronous mode, if get one then get again */
 		else if (ret == 1 && !mode)
 			goto recv_again;
-
-		output_num = recv_msg->out_bytes;
-		/* printf("output_num: %d\n", output_num); */
 	}
+
+	output_num = recv_msg->out_bytes;
 	gettimeofday(&end_tval, NULL);
 	time = (float)((end_tval.tv_sec-start_tval.tv_sec) * 1000000 +
 		end_tval.tv_usec - start_tval.tv_usec);
