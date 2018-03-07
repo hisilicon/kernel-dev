@@ -255,6 +255,16 @@ static int hns3_nic_set_real_num_queue(struct net_device *netdev)
 	return 0;
 }
 
+static u16 hns3_get_max_available_channels(struct hnae3_handle *h)
+{
+	u16 free_tqps, max_rss_size, max_tqps;
+
+	h->ae_algo->ops->get_tqps_and_rss_info(h, &free_tqps, &max_rss_size);
+	max_tqps = h->kinfo.num_tc * max_rss_size;
+
+	return min_t(u16, max_tqps, (free_tqps + h->kinfo.num_tqps));
+}
+
 static int hns3_nic_net_up(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -3062,7 +3072,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	int ret;
 
 	netdev = alloc_etherdev_mq(sizeof(struct hns3_nic_priv),
-				   handle->kinfo.num_tqps);
+				   hns3_get_max_available_channels(handle));
 	if (!netdev)
 		return -ENOMEM;
 
@@ -3401,17 +3411,6 @@ static int hns3_reset_notify(struct hnae3_handle *handle,
 	return ret;
 }
 
-static u16 hns3_get_max_available_channels(struct net_device *netdev)
-{
-	struct hnae3_handle *h = hns3_get_handle(netdev);
-	u16 free_tqps, max_rss_size, max_tqps;
-
-	h->ae_algo->ops->get_tqps_and_rss_info(h, &free_tqps, &max_rss_size);
-	max_tqps = h->kinfo.num_tc * max_rss_size;
-
-	return min_t(u16, max_tqps, (free_tqps + h->kinfo.num_tqps));
-}
-
 static void hns3_restore_coal(struct hns3_nic_priv *priv,
 			      struct hns3_enet_coalesce *tx,
 			      struct hns3_enet_coalesce *rx)
@@ -3488,12 +3487,12 @@ int hns3_set_channels(struct net_device *netdev,
 	if (ch->rx_count || ch->tx_count)
 		return -EINVAL;
 
-	if (new_tqp_num > hns3_get_max_available_channels(netdev) ||
+	if (new_tqp_num > hns3_get_max_available_channels(h) ||
 	    new_tqp_num < kinfo->num_tc) {
 		dev_err(&netdev->dev,
 			"Change tqps fail, the tqp range is from %d to %d",
 			kinfo->num_tc,
-			hns3_get_max_available_channels(netdev));
+			hns3_get_max_available_channels(h));
 		return -EINVAL;
 	}
 
