@@ -35,6 +35,8 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <net/addrconf.h>
+#include <rdma/ib_addr.h>
+#include <rdma/ib_cache.h>
 #include <rdma/ib_umem.h>
 
 #include "hnae3.h"
@@ -3111,21 +3113,6 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_56_dqpn_err, V2_QPC_BYTE_56_LP_PKTN_INI_M,
 		       V2_QPC_BYTE_56_LP_PKTN_INI_S, 0);
 
-	roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_HOP_LIMIT_M,
-		       V2_QPC_BYTE_24_HOP_LIMIT_S, grh->hop_limit);
-	roce_set_field(qpc_mask->byte_24_mtu_tc, V2_QPC_BYTE_24_HOP_LIMIT_M,
-		       V2_QPC_BYTE_24_HOP_LIMIT_S, 0);
-
-	roce_set_field(context->byte_28_at_fl, V2_QPC_BYTE_28_FL_M,
-		       V2_QPC_BYTE_28_FL_S, grh->flow_label);
-	roce_set_field(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_FL_M,
-		       V2_QPC_BYTE_28_FL_S, 0);
-
-	roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_TC_M,
-		       V2_QPC_BYTE_24_TC_S, grh->traffic_class);
-	roce_set_field(qpc_mask->byte_24_mtu_tc, V2_QPC_BYTE_24_TC_M,
-		       V2_QPC_BYTE_24_TC_S, 0);
-
 	if (ibqp->qp_type == IB_QPT_GSI || ibqp->qp_type == IB_QPT_UD)
 		roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_MTU_M,
 			       V2_QPC_BYTE_24_MTU_S, IB_MTU_4096);
@@ -3135,9 +3122,6 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 
 	roce_set_field(qpc_mask->byte_24_mtu_tc, V2_QPC_BYTE_24_MTU_M,
 		       V2_QPC_BYTE_24_MTU_S, 0);
-
-	memcpy(context->dgid, grh->dgid.raw, sizeof(grh->dgid.raw));
-	memset(qpc_mask->dgid, 0, sizeof(grh->dgid.raw));
 
 	roce_set_field(context->byte_84_rq_ci_pi,
 		       V2_QPC_BYTE_84_RQ_PRODUCER_IDX_M,
@@ -3171,12 +3155,6 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_168_irrl_idx,
 		       V2_QPC_BYTE_168_LP_SGEN_INI_M,
 		       V2_QPC_BYTE_168_LP_SGEN_INI_S, 0);
-
-	roce_set_field(context->byte_28_at_fl, V2_QPC_BYTE_28_SL_M,
-		       V2_QPC_BYTE_28_SL_S, rdma_ah_get_sl(&attr->ah_attr));
-	roce_set_field(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_SL_M,
-		       V2_QPC_BYTE_28_SL_S, 0);
-	hr_qp->sl = rdma_ah_get_sl(&attr->ah_attr);
 
 	return 0;
 }
@@ -3293,13 +3271,6 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_212_lsn, V2_QPC_BYTE_212_LSN_M,
 		       V2_QPC_BYTE_212_LSN_S, 0);
 
-	roce_set_field(context->byte_28_at_fl, V2_QPC_BYTE_28_SL_M,
-		       V2_QPC_BYTE_28_SL_S,
-		       rdma_ah_get_sl(&attr->ah_attr));
-	roce_set_field(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_SL_M,
-		       V2_QPC_BYTE_28_SL_S, 0);
-	hr_qp->sl = rdma_ah_get_sl(&attr->ah_attr);
-
 	roce_set_field(qpc_mask->byte_196_sq_psn, V2_QPC_BYTE_196_IRRL_HEAD_M,
 		       V2_QPC_BYTE_196_IRRL_HEAD_S, 0);
 
@@ -3383,6 +3354,125 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		roce_set_field(qpc_mask->byte_84_rq_ci_pi,
 			       V2_QPC_BYTE_84_RQ_PRODUCER_IDX_M,
 			       V2_QPC_BYTE_84_RQ_PRODUCER_IDX_S, 0);
+	}
+
+	/* The AV component shall be modified for RoCEv2 */
+	if (attr_mask & IB_QP_AV) {
+		struct ib_gid_attr gid_attr = {.gid_type = IB_GID_TYPE_ROCE};
+		const struct ib_global_route *grh =
+					    rdma_ah_read_grh(&attr->ah_attr);
+		union ib_gid zgid = { {0} };
+		u8 src_mac[ETH_ALEN];
+		int is_roce_protocol;
+		u16 vlan = 0xffff;
+		union ib_gid gid;
+		int status = 0;
+		u8 ib_port;
+		u8 hr_port;
+
+		ib_port = (attr_mask & IB_QP_PORT) ? attr->port_num :
+			   hr_qp->port + 1;
+		hr_port = ib_port - 1;
+		is_roce_protocol = rdma_cap_eth_ah(&hr_dev->ib_dev, ib_port) &&
+			       rdma_ah_get_ah_flags(&attr->ah_attr) & IB_AH_GRH;
+
+		if (is_roce_protocol) {
+			int index = grh->sgid_index;
+
+			status = ib_get_cached_gid(ibqp->device, ib_port, index,
+						   &gid, &gid_attr);
+			if (!status && !memcmp(&gid, &zgid, sizeof(gid)))
+				status = -ENOENT;
+			if (!status && gid_attr.ndev) {
+				vlan = rdma_vlan_dev_vlan_id(gid_attr.ndev);
+				memcpy(src_mac, gid_attr.ndev->dev_addr,
+				       ETH_ALEN);
+				dev_put(gid_attr.ndev);
+			}
+		}
+
+		if (status) {
+			dev_err(hr_dev->dev,
+				"get gid during modifing QP failed\n");
+			ret = -EAGAIN;
+			goto out;
+		}
+
+		if (attr->ah_attr.ah_flags & IB_AH_GRH) {
+			if (grh->sgid_index >=
+				hr_dev->caps.gid_table_len[hr_port]) {
+				dev_err(hr_dev->dev,
+					"sgid_index(%u) too large. max is %d\n",
+					grh->sgid_index,
+					hr_dev->caps.gid_table_len[hr_port]);
+				ret = -EINVAL;
+				goto out;
+			}
+		}
+
+		if (attr->ah_attr.type != RDMA_AH_ATTR_TYPE_ROCE) {
+			dev_err(hr_dev->dev, "ah attr is not RDMA roce type\n");
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (!(attr->ah_attr.ah_flags & IB_AH_GRH)) {
+			dev_err(hr_dev->dev, "ah flag is not grh\n");
+			ret = -EINVAL;
+			goto out;
+		}
+
+		roce_set_field(context->byte_52_udpspn_dmac,
+			   V2_QPC_BYTE_52_UDPSPN_M, V2_QPC_BYTE_52_UDPSPN_S,
+			   (gid_attr.gid_type != IB_GID_TYPE_ROCE_UDP_ENCAP) ?
+			   0 : 0x12b7);
+
+		roce_set_field(qpc_mask->byte_52_udpspn_dmac,
+			       V2_QPC_BYTE_52_UDPSPN_M,
+			       V2_QPC_BYTE_52_UDPSPN_S, 0);
+
+		if (attr->ah_attr.ah_flags & IB_AH_GRH) {
+			roce_set_field(context->byte_20_smac_sgid_idx,
+				       V2_QPC_BYTE_20_SGID_IDX_M,
+				       V2_QPC_BYTE_20_SGID_IDX_S,
+				       grh->sgid_index);
+
+			roce_set_field(qpc_mask->byte_20_smac_sgid_idx,
+				       V2_QPC_BYTE_20_SGID_IDX_M,
+				       V2_QPC_BYTE_20_SGID_IDX_S, 0);
+
+			roce_set_field(context->byte_24_mtu_tc,
+				       V2_QPC_BYTE_24_HOP_LIMIT_M,
+				       V2_QPC_BYTE_24_HOP_LIMIT_S,
+				       grh->hop_limit);
+			roce_set_field(qpc_mask->byte_24_mtu_tc,
+				       V2_QPC_BYTE_24_HOP_LIMIT_M,
+				       V2_QPC_BYTE_24_HOP_LIMIT_S, 0);
+
+			roce_set_field(context->byte_24_mtu_tc,
+				       V2_QPC_BYTE_24_TC_M,
+				       V2_QPC_BYTE_24_TC_S, grh->traffic_class);
+			roce_set_field(qpc_mask->byte_24_mtu_tc,
+				       V2_QPC_BYTE_24_TC_M,
+				       V2_QPC_BYTE_24_TC_S, 0);
+			roce_set_field(context->byte_28_at_fl,
+				       V2_QPC_BYTE_28_FL_M,
+				       V2_QPC_BYTE_28_FL_S, grh->flow_label);
+			roce_set_field(qpc_mask->byte_28_at_fl,
+				       V2_QPC_BYTE_28_FL_M,
+				       V2_QPC_BYTE_28_FL_S, 0);
+			memcpy(context->dgid, grh->dgid.raw,
+			       sizeof(grh->dgid.raw));
+			memset(qpc_mask->dgid, 0, sizeof(grh->dgid.raw));
+			roce_set_field(context->byte_28_at_fl,
+				       V2_QPC_BYTE_28_SL_M,
+				       V2_QPC_BYTE_28_SL_S,
+				       rdma_ah_get_sl(&attr->ah_attr));
+			roce_set_field(qpc_mask->byte_28_at_fl,
+				       V2_QPC_BYTE_28_SL_M,
+				       V2_QPC_BYTE_28_SL_S, 0);
+			hr_qp->sl = rdma_ah_get_sl(&attr->ah_attr);
+		}
 	}
 
 	if (attr_mask & IB_QP_TIMEOUT) {
