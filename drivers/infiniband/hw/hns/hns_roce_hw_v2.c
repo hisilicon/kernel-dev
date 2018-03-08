@@ -2955,8 +2955,7 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 		return -EINVAL;
 	}
 
-	if ((attr_mask & IB_QP_ALT_PATH) || (attr_mask & IB_QP_ACCESS_FLAGS) ||
-	    (attr_mask & IB_QP_PKEY_INDEX) || (attr_mask & IB_QP_QKEY)) {
+	if (attr_mask & IB_QP_ALT_PATH) {
 		dev_err(dev, "INIT2RTR attr_mask (0x%x) error\n", attr_mask);
 		return -EINVAL;
 	}
@@ -3083,10 +3082,12 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 		roce_set_bit(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_LBI_S, 0);
 	}
 
-	roce_set_field(context->byte_56_dqpn_err, V2_QPC_BYTE_56_DQPN_M,
-		       V2_QPC_BYTE_56_DQPN_S, attr->dest_qp_num);
-	roce_set_field(qpc_mask->byte_56_dqpn_err, V2_QPC_BYTE_56_DQPN_M,
-		       V2_QPC_BYTE_56_DQPN_S, 0);
+	if (attr_mask & IB_QP_DEST_QPN) {
+		roce_set_field(context->byte_56_dqpn_err, V2_QPC_BYTE_56_DQPN_M,
+			       V2_QPC_BYTE_56_DQPN_S, attr->dest_qp_num);
+		roce_set_field(qpc_mask->byte_56_dqpn_err,
+			       V2_QPC_BYTE_56_DQPN_M, V2_QPC_BYTE_56_DQPN_S, 0);
+	}
 
 	/* Configure GID index */
 	port_num = rdma_ah_get_port_num(&attr->ah_attr);
@@ -3128,7 +3129,7 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	if (ibqp->qp_type == IB_QPT_GSI || ibqp->qp_type == IB_QPT_UD)
 		roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_MTU_M,
 			       V2_QPC_BYTE_24_MTU_S, IB_MTU_4096);
-	else
+	else if (attr_mask & IB_QP_PATH_MTU)
 		roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_MTU_M,
 			       V2_QPC_BYTE_24_MTU_S, attr->path_mtu);
 
