@@ -3201,10 +3201,9 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 		return -EINVAL;
 	}
 
-	/* If exist optional param, return error */
-	if ((attr_mask & IB_QP_ALT_PATH) || (attr_mask & IB_QP_ACCESS_FLAGS) ||
-	    (attr_mask & IB_QP_QKEY) || (attr_mask & IB_QP_PATH_MIG_STATE) ||
-	    (attr_mask & IB_QP_CUR_STATE)) {
+	/* Not support alternate path and path migration */
+	if ((attr_mask & IB_QP_ALT_PATH) ||
+	    (attr_mask & IB_QP_PATH_MIG_STATE)) {
 		dev_err(dev, "RTR2RTS attr_mask (0x%x)error\n", attr_mask);
 		return -EINVAL;
 	}
