@@ -46,6 +46,8 @@
 #include "hns_roce_hem.h"
 #include "hns_roce_hw_v2.h"
 
+static int loopback;
+
 static void set_data_seg_v2(struct hns_roce_v2_wqe_data_seg *dseg,
 			    struct ib_sge *sg)
 {
@@ -146,10 +148,8 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	unsigned int ind;
 	void *wqe = NULL;
 	u32 tmp_len = 0;
-	bool loopback;
 	int attr_mask;
 	int ret = 0;
-	u8 *smac;
 	int nreq;
 	int i;
 
@@ -225,13 +225,10 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				       V2_UD_SEND_WQE_BYTE_48_DMAC_5_S,
 				       ah->av.mac[5]);
 
-			/* MAC loopback */
-			smac = (u8 *)hr_dev->dev_addr[qp->port];
-			loopback = ether_addr_equal_unaligned(ah->av.mac,
-							      smac) ? 1 : 0;
-
+			/* When lbi is set, the roce port support loopback */
 			roce_set_bit(ud_sq_wqe->byte_40,
-				     V2_UD_SEND_WQE_BYTE_40_LBI_S, loopback);
+				     V2_UD_SEND_WQE_BYTE_40_LBI_S,
+				     hr_dev->loop_idc);
 
 			roce_set_field(ud_sq_wqe->byte_4,
 				       V2_UD_SEND_WQE_BYTE_4_OPCODE_M,
@@ -2930,7 +2927,6 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	u64 *mtts_2;
 	u64 *mtts;
 	u8 *dmac;
-	u8 *smac;
 	int port;
 
 	/* Search qp buf's mtts */
@@ -3076,11 +3072,12 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 
 	port = (attr_mask & IB_QP_PORT) ? (attr->port_num - 1) : hr_qp->port;
 
-	smac = (u8 *)hr_dev->dev_addr[port];
-	/* when dmac equals smac or loop_idc is 1, it should loopback */
-	if (ether_addr_equal_unaligned(dmac, smac) ||
-	    hr_dev->loop_idc == 0x1) {
-		roce_set_bit(context->byte_28_at_fl, V2_QPC_BYTE_28_LBI_S, 1);
+	/* when loop_idc is 1, it should loopback */
+	if (ibqp->qp_type == IB_QPT_UC || ibqp->qp_type == IB_QPT_RC ||
+	    ibqp->qp_type == IB_QPT_XRC_INI ||
+	    ibqp->qp_type == IB_QPT_XRC_TGT) {
+		roce_set_bit(context->byte_28_at_fl, V2_QPC_BYTE_28_LBI_S,
+			     hr_dev->loop_idc);
 		roce_set_bit(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_LBI_S, 0);
 	}
 
@@ -5202,7 +5199,7 @@ static int hns_roce_hw_v2_get_cfg(struct hns_roce_dev *hr_dev,
 
 	/* cmd issue mode: 0 is poll, 1 is event */
 	hr_dev->cmd_mod = 1;
-	hr_dev->loop_idc = 0;
+	hr_dev->loop_idc = loopback;
 
 	return 0;
 }
@@ -5296,3 +5293,5 @@ MODULE_AUTHOR("Wei Hu <xavier.huwei@huawei.com>");
 MODULE_AUTHOR("Lijun Ou <oulijun@huawei.com>");
 MODULE_AUTHOR("Shaobo Xu <xushaobo2@huawei.com>");
 MODULE_DESCRIPTION("Hisilicon Hip08 Family RoCE Driver");
+module_param(loopback, int, 0444);
+MODULE_PARM_DESC(loopback, "default: 0");

@@ -43,6 +43,8 @@
 #include "hns_roce_hem.h"
 #include "hns_roce_hw_v1.h"
 
+static int loopback;
+
 static void set_data_seg(struct hns_roce_wqe_data_seg *dseg, struct ib_sge *sg)
 {
 	dseg->lkey = cpu_to_le32(sg->lkey);
@@ -4873,7 +4875,7 @@ static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 
 	/* cmd issue mode: 0 is poll, 1 is event */
 	hr_dev->cmd_mod = 1;
-	hr_dev->loop_idc = 0;
+	hr_dev->loop_idc = loopback;
 	hr_dev->sdb_offset = ROCEE_DB_SQ_L_0_REG;
 	hr_dev->odb_offset = ROCEE_DB_OTHERS_L_0_REG;
 
@@ -4987,3 +4989,5 @@ MODULE_AUTHOR("Wei Hu <xavier.huwei@huawei.com>");
 MODULE_AUTHOR("Nenglong Zhao <zhaonenglong@hisilicon.com>");
 MODULE_AUTHOR("Lijun Ou <oulijun@huawei.com>");
 MODULE_DESCRIPTION("Hisilicon Hip06 Family RoCE Driver");
+module_param(loopback, int, 0444);
+MODULE_PARM_DESC(loopback, "default: 0");
