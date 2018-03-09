@@ -92,6 +92,9 @@ void kvm_timer_init_vhe(void);
 
 bool kvm_arch_timer_get_input_level(int vintid);
 
+void kvm_vtimer_irq_eoi(struct kvm_vcpu *vcpu);
+void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu);
+
 #define vcpu_vtimer(v)	(&(v)->arch.timer_cpu.vtimer)
 #define vcpu_ptimer(v)	(&(v)->arch.timer_cpu.ptimer)
 

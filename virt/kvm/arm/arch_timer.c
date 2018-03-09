@@ -31,6 +31,7 @@
 #include <kvm/arm_arch_timer.h>
 
 #include "trace.h"
+#include "vgic/vgic.h"
 
 static struct timecounter *timecounter;
 static unsigned int host_vtimer_irq;
@@ -98,6 +99,9 @@ static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
 	if (userspace_irqchip(vcpu->kvm) &&
 	    !static_branch_unlikely(&has_gic_active_state))
 		disable_percpu_irq(host_vtimer_irq);
+
+	if (needs_hisi_vtimer_quirk())
+		kvm_vtimer_mask();
 
 	return IRQ_HANDLED;
 }
@@ -288,6 +292,38 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 	}
 }
 
+static inline void set_vtimer_irq_phys_active(struct kvm_vcpu *vcpu,
+					      bool active);
+
+void kvm_vtimer_irq_eoi(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
+
+	kvm_timer_update_irq(vcpu, false, vtimer);
+	set_vtimer_irq_phys_active(vcpu, false);
+}
+
+void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
+{
+	bool hw_masked = kvm_vtimer_is_masked();
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
+
+	if (!needs_hisi_vtimer_quirk())
+		return;
+
+	if (hw_masked) {
+		struct vgic_irq *irq;
+
+		irq = vgic_get_irq(vcpu->kvm, vcpu, vtimer->irq.irq);
+		if (irq) {
+			if (irq->line_level)
+				set_vtimer_irq_phys_active(vcpu, true);
+		}
+
+		kvm_vtimer_unmask();
+	}
+}
+
 /* Schedule the background timer for the emulated timer. */
 static void phys_timer_emulate(struct kvm_vcpu *vcpu)
 {
@@ -460,6 +496,15 @@ static void kvm_timer_vcpu_load_gic(struct kvm_vcpu *vcpu)
 		phys_active = kvm_vgic_map_is_active(vcpu, vtimer->irq.irq);
 	else
 		phys_active = vtimer->irq.level;
+
+	if (needs_hisi_vtimer_quirk()) {
+		struct vgic_irq *irq;
+
+		irq = vgic_get_irq(vcpu->kvm, vcpu, vtimer->irq.irq);
+		if (irq)
+			phys_active = irq->line_level;
+	}
+
 	set_vtimer_irq_phys_active(vcpu, phys_active);
 }
 
@@ -759,11 +804,13 @@ int kvm_timer_hyp_init(bool has_gic)
 	}
 
 	if (has_gic) {
-		err = irq_set_vcpu_affinity(host_vtimer_irq,
-					    kvm_get_running_vcpus());
-		if (err) {
-			kvm_err("kvm_arch_timer: error setting vcpu affinity\n");
-			goto out_free_irq;
+		if (!needs_hisi_vtimer_quirk()) {
+			err = irq_set_vcpu_affinity(host_vtimer_irq,
+						    kvm_get_running_vcpus());
+			if (err) {
+				kvm_err("kvm_arch_timer: error setting vcpu affinity\n");
+				goto out_free_irq;
+			}
 		}
 
 		static_branch_enable(&has_gic_active_state);
@@ -787,7 +834,9 @@ void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu)
 
 	soft_timer_cancel(&timer->bg_timer, &timer->expired);
 	soft_timer_cancel(&timer->phys_timer, NULL);
-	kvm_vgic_unmap_phys_irq(vcpu, vtimer->irq.irq);
+
+	if (!needs_hisi_vtimer_quirk())
+		kvm_vgic_unmap_phys_irq(vcpu, vtimer->irq.irq);
 }
 
 static bool timer_irqs_are_valid(struct kvm_vcpu *vcpu)
@@ -848,10 +897,13 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 		return -EINVAL;
 	}
 
-	ret = kvm_vgic_map_phys_irq(vcpu, host_vtimer_irq, vtimer->irq.irq,
-				    kvm_arch_timer_get_input_level);
-	if (ret)
-		return ret;
+	if (!needs_hisi_vtimer_quirk()) {
+		ret = kvm_vgic_map_phys_irq(vcpu, host_vtimer_irq,
+					    vtimer->irq.irq,
+					    kvm_arch_timer_get_input_level);
+		if (ret)
+			return ret;
+	}
 
 no_vgic:
 	preempt_disable();

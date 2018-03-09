@@ -86,6 +86,11 @@ struct vgic_global {
 
 extern struct vgic_global kvm_vgic_global_state;
 
+/*HiSilicon quirk: vtimer irqmap not supported*/
+extern struct static_key_false hisi_vtimer_quirk_enabled;
+#define needs_hisi_vtimer_quirk() \
+	static_branch_unlikely(&hisi_vtimer_quirk_enabled)
+
 #define VGIC_V2_MAX_LRS		(1 << 6)
 #define VGIC_V3_MAX_LRS		16
 #define VGIC_V3_LR_INDEX(lr)	(VGIC_V3_MAX_LRS - 1 - lr)

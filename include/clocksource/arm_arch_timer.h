@@ -116,4 +116,7 @@ static inline bool arch_timer_evtstrm_available(void)
 
 #endif
 
+void kvm_vtimer_mask(void);
+void kvm_vtimer_unmask(void);
+bool kvm_vtimer_is_masked(void);
 #endif

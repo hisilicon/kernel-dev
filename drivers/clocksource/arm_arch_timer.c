@@ -576,6 +576,39 @@ static bool arch_timer_this_cpu_has_cntvct_wa(void)
 #define arch_timer_this_cpu_has_cntvct_wa()		({false;})
 #endif /* CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND */
 
+bool kvm_vtimer_is_masked(void)
+{
+	unsigned long ctrl;
+
+	ctrl = arch_timer_reg_read(ARCH_TIMER_VIRT_ACCESS,
+				   ARCH_TIMER_REG_CTRL, NULL);
+	return !!(ctrl & ARCH_TIMER_CTRL_IT_MASK);
+}
+
+void kvm_vtimer_unmask(void)
+{
+	unsigned long ctrl;
+
+	ctrl = arch_timer_reg_read(ARCH_TIMER_VIRT_ACCESS,
+				   ARCH_TIMER_REG_CTRL, NULL);
+	ctrl &= ~ARCH_TIMER_CTRL_IT_MASK;
+	arch_timer_reg_write(ARCH_TIMER_VIRT_ACCESS,
+			     ARCH_TIMER_REG_CTRL, ctrl, NULL);
+}
+
+void kvm_vtimer_mask(void)
+{
+	unsigned long ctrl;
+
+	ctrl = arch_timer_reg_read(ARCH_TIMER_VIRT_ACCESS,
+				   ARCH_TIMER_REG_CTRL, NULL);
+	if (ctrl & ARCH_TIMER_CTRL_IT_STAT) {
+		ctrl |= ARCH_TIMER_CTRL_IT_MASK;
+		arch_timer_reg_write(ARCH_TIMER_VIRT_ACCESS,
+				     ARCH_TIMER_REG_CTRL, ctrl, NULL);
+	}
+}
+
 static __always_inline irqreturn_t timer_handler(const int access,
 					struct clock_event_device *evt)
 {
