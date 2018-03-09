@@ -238,6 +238,7 @@
 		ranges;
 		interrupt-controller;
 		#redistributor-regions = <1>;
+		hisi-kvm-vtimer-quirk;
 		redistributor-stride = <0x0 0x30000>;
 		reg = <0x0 0x4d000000 0 0x10000>,	/* GICD */
 		      <0x0 0x4d100000 0 0x300000>,	/* GICR */
