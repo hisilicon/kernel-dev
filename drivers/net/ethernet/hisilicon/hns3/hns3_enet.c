@@ -1667,8 +1667,7 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
 	if (!(h->flags & HNAE3_SUPPORT_VF))
-		netdev->hw_features |=
-			NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_CTAG_RX;
+		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX;
 }
 
 static int hns3_alloc_buffer(struct hns3_enet_ring *ring,
