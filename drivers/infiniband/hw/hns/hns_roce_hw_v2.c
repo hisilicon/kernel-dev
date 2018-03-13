@@ -3962,15 +3962,19 @@ static int hns_roce_v2_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 	return ret;
 }
 
-static void set_qp_state_to_err(struct hns_roce_dev *hr_dev, u32 qpn)
+static void hns_roce_flush_cqe_handle(struct work_struct *work)
 {
-	struct device *dev = hr_dev->dev;
+	struct device *dev;
 	struct hns_roce_qp *qp;
+	struct hns_roce_eq *eq;
 	struct ib_qp_attr attr;
 	int attr_mask;
 	int ret;
 
-	qp = __hns_roce_qp_lookup(hr_dev, qpn);
+	eq = container_of(work, struct hns_roce_eq, work);
+	dev = eq->hr_dev->dev;
+
+	qp = __hns_roce_qp_lookup(eq->hr_dev, eq->qpn);
 	if (!qp) {
 		dev_warn(dev, "no qp can be found!\n");
 		return;
@@ -3986,7 +3990,7 @@ static void set_qp_state_to_err(struct hns_roce_dev *hr_dev, u32 qpn)
 	ret = hns_roce_v2_modify_qp(&qp->ibqp, &attr, attr_mask,
 				    qp->state, IB_QPS_ERR);
 	if (ret)
-		dev_err(dev, "failed to modify qp %d to err state.\n", qpn);
+		dev_err(dev, "failed to modify qp %d to err state.\n", eq->qpn);
 }
 
 static void set_eq_cons_index_v2(struct hns_roce_eq *eq)
@@ -4028,7 +4032,6 @@ static void hns_roce_v2_wq_catas_err_handle(struct hns_roce_dev *hr_dev,
 	int sub_type;
 
 	dev_warn(dev, "Local work queue catastrophic error.\n");
-	set_qp_state_to_err(hr_dev, qpn);
 
 	sub_type = roce_get_field(aeqe->asyn, HNS_ROCE_V2_AEQE_SUB_TYPE_M,
 				  HNS_ROCE_V2_AEQE_SUB_TYPE_S);
@@ -4061,7 +4064,6 @@ static void hns_roce_v2_local_wq_access_err_handle(struct hns_roce_dev *hr_dev,
 	int sub_type;
 
 	dev_warn(dev, "Local access violation work queue error.\n");
-	set_qp_state_to_err(hr_dev, qpn);
 
 	sub_type = roce_get_field(aeqe->asyn, HNS_ROCE_V2_AEQE_SUB_TYPE_M,
 				  HNS_ROCE_V2_AEQE_SUB_TYPE_S);
@@ -4095,14 +4097,9 @@ static void hns_roce_v2_local_wq_access_err_handle(struct hns_roce_dev *hr_dev,
 
 static void hns_roce_v2_qp_err_handle(struct hns_roce_dev *hr_dev,
 				      struct hns_roce_aeqe *aeqe,
-				      int event_type)
+				      int event_type, u32 qpn)
 {
 	struct device *dev = hr_dev->dev;
-	u32 qpn;
-
-	qpn = roce_get_field(aeqe->event.qp_event.qp,
-			     HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M,
-			     HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S);
 
 	switch (event_type) {
 	case HNS_ROCE_EVENT_TYPE_COMM_EST:
@@ -4225,7 +4222,14 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 		case HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR:
 		case HNS_ROCE_EVENT_TYPE_INV_REQ_LOCAL_WQ_ERROR:
 		case HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR:
-			hns_roce_v2_qp_err_handle(hr_dev, aeqe, event_type);
+			eq->qpn = roce_get_field(aeqe->event.qp_event.qp,
+					    HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M,
+					    HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S);
+			hns_roce_v2_qp_err_handle(hr_dev, aeqe, event_type,
+						  eq->qpn);
+			if (event_type == (HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR |
+			    HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR))
+				schedule_work(&eq->work);
 			break;
 		case HNS_ROCE_EVENT_TYPE_SRQ_LIMIT_REACH:
 		case HNS_ROCE_EVENT_TYPE_SRQ_LAST_WQE_REACH:
@@ -5040,6 +5044,8 @@ static int hns_roce_v2_init_eq_table(struct hns_roce_dev *hr_dev)
 			dev_err(dev, "eq create failed.\n");
 			goto err_create_eq_fail;
 		}
+
+		INIT_WORK(&eq->work, hns_roce_flush_cqe_handle);
 	}
 
 	/* enable irq */

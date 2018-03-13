@@ -631,6 +631,8 @@ struct hns_roce_eq {
 	int				shift;
 	dma_addr_t			cur_eqe_ba;
 	dma_addr_t			nxt_eqe_ba;
+	u32				qpn;
+	struct work_struct		work;
 };
 
 struct hns_roce_eq_table {
