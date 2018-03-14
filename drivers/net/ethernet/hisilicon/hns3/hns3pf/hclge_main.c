@@ -3602,6 +3602,9 @@ static int hclge_unmap_ring_frm_vector(struct hnae3_handle *handle,
 	struct hclge_dev *hdev = vport->back;
 	int vector_id, ret;
 
+	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
+		return 0;
+
 	vector_id = hclge_get_vector_index(hdev, vector);
 	if (vector_id < 0) {
 		dev_err(&handle->pdev->dev,
@@ -3799,12 +3802,15 @@ static int hclge_ae_start(struct hnae3_handle *handle)
 	clear_bit(HCLGE_STATE_DOWN, &hdev->state);
 	mod_timer(&hdev->service_timer, jiffies + HZ);
 
+	/* reset tqp stats */
+	hclge_reset_tqp_stats(handle);
+
+	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
+		return 0;
+
 	ret = hclge_mac_start_phy(hdev);
 	if (ret)
 		return ret;
-
-	/* reset tqp stats */
-	hclge_reset_tqp_stats(handle);
 
 	return 0;
 }
@@ -3814,6 +3820,12 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 	int i;
+
+	del_timer_sync(&hdev->service_timer);
+	cancel_work_sync(&hdev->service_task);
+
+	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
+		return;
 
 	for (i = 0; i < vport->alloc_tqps; i++)
 		hclge_tqp_enable(hdev, i, 0, false);
@@ -3825,8 +3837,6 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 
 	/* reset tqp stats */
 	hclge_reset_tqp_stats(handle);
-	del_timer_sync(&hdev->service_timer);
-	cancel_work_sync(&hdev->service_task);
 	hclge_update_link_status(hdev);
 }
 
@@ -4957,6 +4967,9 @@ void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 	int reset_status;
 	u16 queue_gid;
 	int ret;
+
+	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
+		return;
 
 	queue_gid = hclge_covert_handle_qid_global(handle, queue_id);
 
