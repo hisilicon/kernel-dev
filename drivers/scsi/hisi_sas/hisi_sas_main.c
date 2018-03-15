@@ -513,8 +513,12 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	struct device *dev = hisi_hba->dev;
 	struct hisi_sas_dq *dq = NULL;
 
-	if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags)))
-		return -EINVAL;
+	if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags))) {
+		dev_info(dev, "task exec: IO blocking\n");
+		down(&hisi_hba->sem);
+		up(&hisi_hba->sem);
+		dev_info(dev, "task exec: IO blocking ended\n");
+	}
 
 	/* protect task_prep and start_delivery sequence */
 	rc = hisi_sas_task_prep(task, &dq, is_tmf, tmf, &pass);
