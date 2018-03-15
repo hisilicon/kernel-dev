@@ -2755,7 +2755,8 @@ static int hclge_reset_wait(struct hclge_dev *hdev)
 	}
 
 	val = hclge_read_dev(&hdev->hw, reg);
-	while (hnae_get_bit(val, reg_bit) && cnt < HCLGE_RESET_WAIT_CNT) {
+	while (hnae_get_bit(val, reg_bit) && cnt < HCLGE_RESET_WAIT_CNT &&
+	       test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state)) {
 		msleep(HCLGE_RESET_WATI_MS);
 		val = hclge_read_dev(&hdev->hw, reg);
 		cnt++;
