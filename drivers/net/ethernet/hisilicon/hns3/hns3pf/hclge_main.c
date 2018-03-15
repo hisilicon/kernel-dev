@@ -2961,7 +2961,7 @@ static void hclge_service_task(struct work_struct *work)
 
 	hclge_update_speed_duplex(hdev);
 	hclge_update_link_status(hdev);
-	hclge_update_led_status(hdev);
+	/*hclge_update_led_status(hdev);*/
 	hclge_service_complete(hdev);
 }
 
