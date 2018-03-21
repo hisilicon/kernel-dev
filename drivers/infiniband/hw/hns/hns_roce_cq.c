@@ -362,6 +362,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 				dev_err(dev, "cq record doorbell map failed!\n");
 				goto err_mtt;
 			}
+			hr_cq->db_en = 1;
 		}
 
 		/* Get user space parameters */
@@ -414,7 +415,6 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	if (context) {
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
 					(udata->outlen == sizeof(resp))) {
-			hr_cq->db_en = 1;
 			resp.cqn = hr_cq->cqn;
 			resp.cap_flags |= HNS_ROCE_SUPPORT_CQ_RECORD_DB;
 			ret = ib_copy_to_udata(udata, &resp, sizeof(resp));
