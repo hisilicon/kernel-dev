@@ -15,6 +15,7 @@
 #include "./drv/hisi_sec_udrv_v1.h"
 #include "./drv/dummy_drv.h"
 #include "./drv/hisi_zip_udrv.h"
+#include "./drv/hisi_hpre_udrv.h"
 
 static struct wd_drv_dio_if hw_dio_tbl[] = { {
 		.hw_type = HISI_SEC_DRV_NAME,
@@ -36,6 +37,14 @@ static struct wd_drv_dio_if hw_dio_tbl[] = { {
 		.close = hisi_zip_unset_queue_dio,
 		.send = hisi_zip_add_to_dio_q,
 		.recv = hisi_zip_get_from_dio_q,
+		.share = NULL,
+		.unshare = NULL,
+	}, {
+		.hw_type = "hisi_hpre",
+		.open = hpre_set_queue_dio,
+		.close = hpre_unset_queue_dio,
+		.send = hpre_add_to_dio_q,
+		.recv = hpre_get_from_dio_q,
 		.share = NULL,
 		.unshare = NULL,
 	},

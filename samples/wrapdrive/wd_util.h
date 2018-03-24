@@ -107,5 +107,47 @@ static inline void wd_kill_mdev(char *dev_path)
 	fwrite("1", 1, 1, f);
 	fclose(f);
 }
+static inline void swap_endian(__u8 *ddr, __u64 n)
+{
+	__u32 i;
+	__u8 tmp;
 
+	for (i = 0; i < n / 2; i++) {
+		tmp = ddr[i];
+		ddr[i] = ddr[(n - 1) - i];
+		ddr[(n - 1) - i] = tmp;
+	}
+
+	return;
+}
+
+static inline void endian_swap_in_word(__u8 *ddr, __u64 n)
+{
+	__u32 i;
+
+	if (0 != n % 4) {
+		WD_ERR("in %s input para error!\n", __func__);
+		return;
+	}
+
+	for (i = 0; i < n; i += 4) 
+		swap_endian(ddr + i, 4UL);
+
+	return;
+}
+
+static inline void endian_swap_in_dword(__u8 *ddr, __u64 n)
+{
+	__u32 i;
+
+	if (0 != n % 8) {
+		WD_ERR("in %s input para error!\n", __func__);
+		return;
+	}
+
+	for (i = 0; i < n; i += 8) 
+		swap_endian(ddr + i, 8UL);
+
+	return;
+}
 #endif

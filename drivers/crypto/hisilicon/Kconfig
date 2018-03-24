@@ -53,3 +53,10 @@ config CRYPTO_DEV_HISI_ZIP
 	depends on CRYPTO_DEV_WD_COMMON && ARM64 && CRYPTO_DEV_HISI_QM
 	help
 	  Support for HiSilicon ZIP Driver
+
+config CRYPTO_DEV_HISI_HPRE
+	tristate "Support for HISI HPRE Driver"
+	select CRYPTO_DEV_HISILICON
+	depends on CRYPTO_DEV_WD_COMMON && ARM64 && CRYPTO_DEV_HISI_QM
+	help
+	  Support for HiSilicon HPRE Driver

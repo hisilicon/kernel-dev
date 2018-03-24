@@ -32,22 +32,23 @@ typedef void (*wd_rsa_cb)(void *tag, int status,  void *opdata);
 struct wd_rsa_ctx_setup {
 	char  *alg;
 	wd_rsa_cb cb;
-	enum wd_rsa_op op_type;
 	__u16 aflags;
+	__u16 key_bits;
+	__u32 is_crt;
 };
 
 struct wd_rsa_pubkey {
 	__u8 *n;
 	__u8 *e;
-	__u32 n_bytes;
-	__u32 e_bytes;
+	//__u32 n_bytes;
+	//__u32 e_bytes;
 };
 
 struct wd_rsa_prikey1 {
 	__u8 *n;
 	__u8 *d;
-	__u32 n_bytes;
-	__u32 d_bytes;
+	//__u32 n_bytes;
+	//__u32 d_bytes;
 };
 
 struct wd_rsa_prikey2 {
@@ -56,26 +57,27 @@ struct wd_rsa_prikey2 {
 	__u8 *dp;
 	__u8 *dq;
 	__u8 *qinv;
-	__u32 p_bytes;
-	__u32 q_bytes;
-	__u32 dp_bytes;
-	__u32 dq_bytes;
-	__u32 qinv_bytes;
+	//__u32 p_bytes;
+	//__u32 q_bytes;
+	//__u32 dp_bytes;
+	//__u32 dq_bytes;
+	//__u32 qinv_bytes;
 };
+typedef union _wd_rsa_prikey {
+	struct wd_rsa_prikey1 pkey1;
+	struct wd_rsa_prikey2 pkey2;
+} wd_rsa_prikey;
 
 struct wd_rsa_op_data {
-	__u8 *p;
-	__u8 *q;
-	__u8 *e;
-	__u32 n_bytes;
 	enum wd_rsa_op op_type;
-	enum wd_rsa_prikey_type type;
-	void *prikey;
-	struct wd_rsa_pubkey *pubkey;
+	int status;
+	//enum wd_rsa_prikey_type type;
+	//void *prikey;
+	//struct wd_rsa_pubkey *pubkey;
 	void *in;
 	void *out;
 	__u32 in_bytes;
-	__u32 *out_bytes;
+	__u32 out_bytes;
 };
 
 struct wd_rsa_msg {
@@ -107,7 +109,13 @@ struct wd_rsa_msg {
 	__u64 udata;
 };
 
+int wd_rsa_is_crt(void *ctx);
+int wd_rsa_key_bits(void *ctx);
 void *wd_create_rsa_ctx(struct wd_queue *q, struct wd_rsa_ctx_setup *setup);
+int wd_set_rsa_pubkey(void *ctx, struct wd_rsa_pubkey *pubkey);
+void wd_get_rsa_pubkey(void *ctx, struct wd_rsa_pubkey **pubkey);
+int wd_set_rsa_prikey(void *ctx, wd_rsa_prikey *prikey);
+void wd_get_rsa_prikey(void *ctx, wd_rsa_prikey **prikey);
 
 /* this is a synchronous mode RSA API */
 int wd_do_rsa(void *ctx, struct wd_rsa_op_data *opdata);
