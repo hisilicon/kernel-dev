@@ -1372,12 +1372,53 @@ static int hisi_sas_clear_aca(struct domain_device *device, u8 *lun)
 
 static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 {
-	struct sas_phy *phy = sas_get_local_phy(device);
+	struct sas_phy *local_phy = sas_get_local_phy(device);
 	int rc, reset_type = (device->dev_type == SAS_SATA_DEV ||
 			(device->tproto & SAS_PROTOCOL_STP)) ? 0 : 1;
-	rc = sas_phy_reset(phy, reset_type);
-	sas_put_local_phy(phy);
+	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
+	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
+	u32 phy_old_state = 0, phy_new_state = 0;
+	u8 phy_old_sas_addr[SAS_ADDR_SIZE] = {0};
+	u8 phy_new_sas_addr[SAS_ADDR_SIZE] = {0};
+	struct asd_sas_phy *sas_phy = sas_ha->sas_phy[local_phy->number];
+	struct hisi_sas_phy *phy = container_of(sas_phy,
+			struct hisi_sas_phy, sas_phy);
+
+	if (scsi_is_sas_phy_local(local_phy)) {
+		phy_old_state = hisi_hba->hw->get_phys_state(hisi_hba);
+		phy_old_state &= (1 << sas_phy->id);
+		memcpy(phy_old_sas_addr, sas_phy->attached_sas_addr,
+			SAS_ADDR_SIZE);
+		phy->is_flutter = 1;
+	}
+
+	rc = sas_phy_reset(local_phy, reset_type);
+	sas_put_local_phy(local_phy);
 	msleep(2000);
+
+	if (scsi_is_sas_phy_local(local_phy)) {
+		phy->is_flutter = 0;
+		phy_new_state = hisi_hba->hw->get_phys_state(hisi_hba);
+		phy_new_state &= (1 << sas_phy->id);
+		memcpy(phy_new_sas_addr, sas_phy->attached_sas_addr,
+			SAS_ADDR_SIZE);
+
+		if (phy_old_state == phy_new_state) {
+			if (SAS_ADDR(phy_old_sas_addr) !=
+					SAS_ADDR(phy_new_sas_addr)) {
+				/* disable and enable PHY */
+				hisi_hba->hw->phy_hard_reset(hisi_hba, sas_phy->id);
+			} else
+				goto out;
+		} else if (phy_new_state) {
+			/* enable PHY */
+		} else {
+			/* disable PHY */
+			hisi_sas_phy_down(hisi_hba, sas_phy->id, 0);
+		}
+	}
+
+out:
 	return rc;
 }
 
@@ -1726,6 +1767,7 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy)
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
+	struct device *dev = hisi_hba->dev;
 
 	if (rdy) {
 		/* Phy down but ready */
@@ -1734,6 +1776,10 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy)
 	} else {
 		struct hisi_sas_port *port  = phy->port;
 
+		if (phy->is_flutter) {
+			dev_info(dev, "ignore flutter phy%d down\n", phy_no);
+			return;
+		}
 		/* Phy down and not ready */
 		sas_ha->notify_phy_event(sas_phy, PHYE_LOSS_OF_SIGNAL);
 		sas_phy_disconnected(sas_phy);

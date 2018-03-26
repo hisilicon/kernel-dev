@@ -146,6 +146,7 @@ struct hisi_sas_phy {
 	u8		phy_attached;
 	u8		reserved[3];
 	u32		phy_type;
+	u8		is_flutter;
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate;
 };
