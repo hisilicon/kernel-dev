@@ -2412,7 +2412,6 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	struct hisi_sas_complete_v2_hdr *complete_hdr =
 			&complete_queue[slot->cmplt_queue_slot];
 	unsigned long flags;
-	int aborted;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return -EINVAL;
@@ -2422,20 +2421,12 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	sas_dev = device->lldd_dev;
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
-	aborted = task->task_state_flags & SAS_TASK_STATE_ABORTED;
 	task->task_state_flags &=
 		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 	memset(ts, 0, sizeof(*ts));
 	ts->resp = SAS_TASK_COMPLETE;
-
-	if (unlikely(aborted)) {
-		dev_dbg(dev, "slot_complete: task(%p) aborted\n", task);
-		ts->stat = SAS_ABORTED_TASK;
-		hisi_sas_slot_task_free(hisi_hba, task, slot);
-		return ts->stat;
-	}
 
 	if (unlikely(!sas_dev)) {
 		dev_dbg(dev, "slot complete: port has no device\n");
@@ -2547,11 +2538,16 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	}
 
 out:
-	spin_lock_irqsave(&task->task_state_lock, flags);
-	task->task_state_flags |= SAS_TASK_STATE_DONE;
-	spin_unlock_irqrestore(&task->task_state_lock, flags);
 	hisi_sas_slot_task_free(hisi_hba, task, slot);
 	sts = ts->stat;
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
+		spin_unlock_irqrestore(&task->task_state_lock, flags);
+		dev_info(dev, "slot complete: task(%p) aborted\n", task);
+		return SAS_ABORTED_TASK;
+	}
+	task->task_state_flags |= SAS_TASK_STATE_DONE;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 	if (task->task_done)
 		task->task_done(task);
