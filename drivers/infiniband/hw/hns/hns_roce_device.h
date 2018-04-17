@@ -632,7 +632,11 @@ struct hns_roce_eq {
 	dma_addr_t			cur_eqe_ba;
 	dma_addr_t			nxt_eqe_ba;
 	u32				qpn;
+	u32				cqn;
 	struct work_struct		work;
+	int				event_type;
+	int				sub_type;
+	struct work_struct		work_print;
 };
 
 struct hns_roce_eq_table {

@@ -3975,6 +3975,115 @@ static int hns_roce_v2_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 	return ret;
 }
 
+static void hns_roce_aeq_dev_warn(struct work_struct *work)
+{
+	struct device *dev;
+	struct hns_roce_eq *eq;
+
+	eq = container_of(work, struct hns_roce_eq, work_print);
+	dev = eq->hr_dev->dev;
+
+	switch (eq->event_type) {
+	case HNS_ROCE_EVENT_TYPE_PATH_MIG:
+		dev_warn(dev, "Path migrated succeeded.\n");
+		break;
+	case HNS_ROCE_EVENT_TYPE_PATH_MIG_FAILED:
+		dev_warn(dev, "Path migration failed.\n");
+		break;
+	case HNS_ROCE_EVENT_TYPE_COMM_EST:
+		dev_warn(dev, "Communication established.\n");
+		break;
+	case HNS_ROCE_EVENT_TYPE_SQ_DRAINED:
+		dev_warn(dev, "Send queue drained.\n");
+		break;
+	case HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR:
+		dev_warn(dev, "Local work queue catastrophic error.\n");
+		switch (eq->sub_type) {
+		case HNS_ROCE_LWQCE_QPC_ERROR:
+			dev_warn(dev, "QP %d, QPC error.\n", eq->qpn);
+			break;
+		case HNS_ROCE_LWQCE_MTU_ERROR:
+			dev_warn(dev, "QP %d, MTU error.\n", eq->qpn);
+			break;
+		case HNS_ROCE_LWQCE_WQE_BA_ADDR_ERROR:
+			dev_warn(dev, "QP %d, WQE BA addr error.\n", eq->qpn);
+			break;
+		case HNS_ROCE_LWQCE_WQE_ADDR_ERROR:
+			dev_warn(dev, "QP %d, WQE addr error.\n", eq->qpn);
+			break;
+		case HNS_ROCE_LWQCE_SQ_WQE_SHIFT_ERROR:
+			dev_warn(dev, "QP %d, WQE shift error.\n", eq->qpn);
+			break;
+		default:
+			dev_err(dev, "Unhandled sub_event type %d.\n",
+				eq->sub_type);
+			break;
+		}
+		break;
+	case HNS_ROCE_EVENT_TYPE_INV_REQ_LOCAL_WQ_ERROR:
+		dev_warn(dev, "Invalid request local work queue error.\n");
+		break;
+	case HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR:
+		dev_warn(dev, "Local access violation work queue error.\n");
+		switch (eq->sub_type) {
+		case HNS_ROCE_LAVWQE_R_KEY_VIOLATION:
+			dev_warn(dev, "QP %d, R_key violation.\n", eq->qpn);
+			break;
+		case HNS_ROCE_LAVWQE_LENGTH_ERROR:
+			dev_warn(dev, "QP %d, length error.\n", eq->qpn);
+			break;
+		case HNS_ROCE_LAVWQE_VA_ERROR:
+			dev_warn(dev, "QP %d, VA error.\n", eq->qpn);
+			break;
+		case HNS_ROCE_LAVWQE_PD_ERROR:
+			dev_err(dev, "QP %d, PD error.\n", eq->qpn);
+			break;
+		case HNS_ROCE_LAVWQE_RW_ACC_ERROR:
+			dev_warn(dev, "QP %d, rw acc error.\n", eq->qpn);
+			break;
+		case HNS_ROCE_LAVWQE_KEY_STATE_ERROR:
+			dev_warn(dev, "QP %d, key state error.\n", eq->qpn);
+			break;
+		case HNS_ROCE_LAVWQE_MR_OPERATION_ERROR:
+			dev_warn(dev, "QP %d, MR operation error.\n", eq->qpn);
+			break;
+		default:
+			dev_err(dev, "Unhandled sub_event type %d.\n",
+				eq->sub_type);
+			break;
+		}
+		break;
+	case HNS_ROCE_EVENT_TYPE_SRQ_LIMIT_REACH:
+		dev_warn(dev, "SRQ limit reached.\n");
+		break;
+	case HNS_ROCE_EVENT_TYPE_SRQ_LAST_WQE_REACH:
+		dev_warn(dev, "SRQ last wqe reached.\n");
+		break;
+	case HNS_ROCE_EVENT_TYPE_SRQ_CATAS_ERROR:
+		dev_warn(dev, "SRQ catas error.\n");
+		break;
+	case HNS_ROCE_EVENT_TYPE_CQ_ACCESS_ERROR:
+		dev_warn(dev, "CQ 0x%x access err.\n", eq->cqn);
+		break;
+	case HNS_ROCE_EVENT_TYPE_CQ_OVERFLOW:
+		dev_warn(dev, "CQ 0x%x overflow\n", eq->cqn);
+		break;
+	case HNS_ROCE_EVENT_TYPE_DB_OVERFLOW:
+		dev_warn(dev, "DB overflow.\n");
+		break;
+	case HNS_ROCE_EVENT_TYPE_MB:
+		break;
+	case HNS_ROCE_EVENT_TYPE_CEQ_OVERFLOW:
+		dev_warn(dev, "CEQ overflow.\n");
+		break;
+	case HNS_ROCE_EVENT_TYPE_FLR:
+		dev_warn(dev, "Function level reset.\n");
+		break;
+	default:
+		break;
+	}
+}
+
 static void hns_roce_flush_cqe_handle(struct work_struct *work)
 {
 	struct device *dev;
@@ -4035,131 +4144,6 @@ static void set_eq_cons_index_v2(struct hns_roce_eq *eq)
 		       (eq->cons_index & HNS_ROCE_V2_CONS_IDX_M));
 
 	hns_roce_write64_k(doorbell, eq->doorbell);
-}
-
-static void hns_roce_v2_wq_catas_err_handle(struct hns_roce_dev *hr_dev,
-						  struct hns_roce_aeqe *aeqe,
-						  u32 qpn)
-{
-	struct device *dev = hr_dev->dev;
-	int sub_type;
-
-	dev_warn(dev, "Local work queue catastrophic error.\n");
-
-	sub_type = roce_get_field(aeqe->asyn, HNS_ROCE_V2_AEQE_SUB_TYPE_M,
-				  HNS_ROCE_V2_AEQE_SUB_TYPE_S);
-	switch (sub_type) {
-	case HNS_ROCE_LWQCE_QPC_ERROR:
-		dev_warn(dev, "QP %d, QPC error.\n", qpn);
-		break;
-	case HNS_ROCE_LWQCE_MTU_ERROR:
-		dev_warn(dev, "QP %d, MTU error.\n", qpn);
-		break;
-	case HNS_ROCE_LWQCE_WQE_BA_ADDR_ERROR:
-		dev_warn(dev, "QP %d, WQE BA addr error.\n", qpn);
-		break;
-	case HNS_ROCE_LWQCE_WQE_ADDR_ERROR:
-		dev_warn(dev, "QP %d, WQE addr error.\n", qpn);
-		break;
-	case HNS_ROCE_LWQCE_SQ_WQE_SHIFT_ERROR:
-		dev_warn(dev, "QP %d, WQE shift error.\n", qpn);
-		break;
-	default:
-		dev_err(dev, "Unhandled sub_event type %d.\n", sub_type);
-		break;
-	}
-}
-
-static void hns_roce_v2_local_wq_access_err_handle(struct hns_roce_dev *hr_dev,
-					    struct hns_roce_aeqe *aeqe, u32 qpn)
-{
-	struct device *dev = hr_dev->dev;
-	int sub_type;
-
-	dev_warn(dev, "Local access violation work queue error.\n");
-
-	sub_type = roce_get_field(aeqe->asyn, HNS_ROCE_V2_AEQE_SUB_TYPE_M,
-				  HNS_ROCE_V2_AEQE_SUB_TYPE_S);
-	switch (sub_type) {
-	case HNS_ROCE_LAVWQE_R_KEY_VIOLATION:
-		dev_warn(dev, "QP %d, R_key violation.\n", qpn);
-		break;
-	case HNS_ROCE_LAVWQE_LENGTH_ERROR:
-		dev_warn(dev, "QP %d, length error.\n", qpn);
-		break;
-	case HNS_ROCE_LAVWQE_VA_ERROR:
-		dev_warn(dev, "QP %d, VA error.\n", qpn);
-		break;
-	case HNS_ROCE_LAVWQE_PD_ERROR:
-		dev_err(dev, "QP %d, PD error.\n", qpn);
-		break;
-	case HNS_ROCE_LAVWQE_RW_ACC_ERROR:
-		dev_warn(dev, "QP %d, rw acc error.\n", qpn);
-		break;
-	case HNS_ROCE_LAVWQE_KEY_STATE_ERROR:
-		dev_warn(dev, "QP %d, key state error.\n", qpn);
-		break;
-	case HNS_ROCE_LAVWQE_MR_OPERATION_ERROR:
-		dev_warn(dev, "QP %d, MR operation error.\n", qpn);
-		break;
-	default:
-		dev_err(dev, "Unhandled sub_event type %d.\n", sub_type);
-		break;
-	}
-}
-
-static void hns_roce_v2_qp_err_handle(struct hns_roce_dev *hr_dev,
-				      struct hns_roce_aeqe *aeqe,
-				      int event_type, u32 qpn)
-{
-	struct device *dev = hr_dev->dev;
-
-	switch (event_type) {
-	case HNS_ROCE_EVENT_TYPE_COMM_EST:
-		dev_warn(dev, "Communication established.\n");
-		break;
-	case HNS_ROCE_EVENT_TYPE_SQ_DRAINED:
-		dev_warn(dev, "Send queue drained.\n");
-		break;
-	case HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR:
-		hns_roce_v2_wq_catas_err_handle(hr_dev, aeqe, qpn);
-		break;
-	case HNS_ROCE_EVENT_TYPE_INV_REQ_LOCAL_WQ_ERROR:
-		dev_warn(dev, "Invalid request local work queue error.\n");
-		break;
-	case HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR:
-		hns_roce_v2_local_wq_access_err_handle(hr_dev, aeqe, qpn);
-		break;
-	default:
-		break;
-	}
-
-	hns_roce_qp_event(hr_dev, qpn, event_type);
-}
-
-static void hns_roce_v2_cq_err_handle(struct hns_roce_dev *hr_dev,
-				      struct hns_roce_aeqe *aeqe,
-				      int event_type)
-{
-	struct device *dev = hr_dev->dev;
-	u32 cqn;
-
-	cqn = roce_get_field(aeqe->event.cq_event.cq,
-			     HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M,
-			     HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S);
-
-	switch (event_type) {
-	case HNS_ROCE_EVENT_TYPE_CQ_ACCESS_ERROR:
-		dev_warn(dev, "CQ 0x%x access err.\n", cqn);
-		break;
-	case HNS_ROCE_EVENT_TYPE_CQ_OVERFLOW:
-		dev_warn(dev, "CQ 0x%x overflow\n", cqn);
-		break;
-	default:
-		break;
-	}
-
-	hns_roce_cq_event(hr_dev, cqn, event_type);
 }
 
 static struct hns_roce_aeqe *get_aeqe_v2(struct hns_roce_eq *eq, u32 entry)
@@ -4225,10 +4209,7 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 
 		switch (event_type) {
 		case HNS_ROCE_EVENT_TYPE_PATH_MIG:
-			dev_warn(dev, "Path migrated succeeded.\n");
-			break;
 		case HNS_ROCE_EVENT_TYPE_PATH_MIG_FAILED:
-			dev_warn(dev, "Path migration failed.\n");
 			break;
 		case HNS_ROCE_EVENT_TYPE_COMM_EST:
 		case HNS_ROCE_EVENT_TYPE_SQ_DRAINED:
@@ -4238,8 +4219,10 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 			eq->qpn = roce_get_field(aeqe->event.qp_event.qp,
 					    HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M,
 					    HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S);
-			hns_roce_v2_qp_err_handle(hr_dev, aeqe, event_type,
-						  eq->qpn);
+			eq->sub_type = roce_get_field(aeqe->asyn,
+						   HNS_ROCE_V2_AEQE_SUB_TYPE_M,
+						   HNS_ROCE_V2_AEQE_SUB_TYPE_S);
+			hns_roce_qp_event(hr_dev, eq->qpn, event_type);
 			if (event_type == (HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR |
 			    HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR))
 				schedule_work(&eq->work);
@@ -4247,14 +4230,15 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 		case HNS_ROCE_EVENT_TYPE_SRQ_LIMIT_REACH:
 		case HNS_ROCE_EVENT_TYPE_SRQ_LAST_WQE_REACH:
 		case HNS_ROCE_EVENT_TYPE_SRQ_CATAS_ERROR:
-			dev_warn(dev, "SRQ not support.\n");
 			break;
 		case HNS_ROCE_EVENT_TYPE_CQ_ACCESS_ERROR:
 		case HNS_ROCE_EVENT_TYPE_CQ_OVERFLOW:
-			hns_roce_v2_cq_err_handle(hr_dev, aeqe, event_type);
+			eq->cqn = roce_get_field(aeqe->event.cq_event.cq,
+					    HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M,
+					    HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S);
+			hns_roce_cq_event(hr_dev, eq->cqn, event_type);
 			break;
 		case HNS_ROCE_EVENT_TYPE_DB_OVERFLOW:
-			dev_warn(dev, "DB overflow.\n");
 			break;
 		case HNS_ROCE_EVENT_TYPE_MB:
 			hns_roce_cmd_event(hr_dev,
@@ -4263,10 +4247,8 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 					le64_to_cpu(aeqe->event.cmd.out_param));
 			break;
 		case HNS_ROCE_EVENT_TYPE_CEQ_OVERFLOW:
-			dev_warn(dev, "CEQ overflow.\n");
 			break;
 		case HNS_ROCE_EVENT_TYPE_FLR:
-			dev_warn(dev, "Function level reset.\n");
 			break;
 		default:
 			dev_err(dev, "Unhandled event %d on EQ %d at idx %u.\n",
@@ -4274,6 +4256,7 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 			break;
 		};
 
+		eq->event_type = event_type;
 		++eq->cons_index;
 		aeqe_found = 1;
 
@@ -4357,6 +4340,8 @@ static int hns_roce_v2_ceq_int(struct hns_roce_dev *hr_dev,
 			dev_warn(dev, "cons_index overflow, set back to 0.\n");
 			eq->cons_index = 0;
 		}
+
+		schedule_work(&eq->work_print);
 	}
 
 	set_eq_cons_index_v2(eq);
@@ -5059,6 +5044,7 @@ static int hns_roce_v2_init_eq_table(struct hns_roce_dev *hr_dev)
 		}
 
 		INIT_WORK(&eq->work, hns_roce_flush_cqe_handle);
+		INIT_WORK(&eq->work_print, hns_roce_aeq_dev_warn);
 	}
 
 	/* enable irq */
