@@ -29,9 +29,9 @@ static void vfio_platform_mask(struct vfio_platform_irq *irq_ctx)
 
 	spin_lock_irqsave(&irq_ctx->lock, flags);
 
-	if (!is_masked(irq_ctx)) {
+	if (!irq_ctx->masked) {
 		disable_irq_nosync(irq_ctx->hwirq);
-		irq_ctx->usermasked = true;
+		irq_ctx->masked = true;
 	}
 
 	spin_unlock_irqrestore(&irq_ctx->lock, flags);
@@ -89,10 +89,9 @@ static void vfio_platform_unmask(struct vfio_platform_irq *irq_ctx)
 
 	spin_lock_irqsave(&irq_ctx->lock, flags);
 
-	if (is_masked(irq_ctx)) {
+	if (irq_ctx->masked) {
 		enable_irq(irq_ctx->hwirq);
-		irq_ctx->usermasked = false;
-		irq_ctx->automasked = false;
+		irq_ctx->masked = false;
 	}
 
 	spin_unlock_irqrestore(&irq_ctx->lock, flags);
@@ -153,12 +152,12 @@ static irqreturn_t vfio_automasked_irq_handler(int irq, void *dev_id)
 
 	spin_lock_irqsave(&irq_ctx->lock, flags);
 
-	if (!is_masked(irq_ctx)) {
+	if (!irq_ctx->masked) {
 		ret = IRQ_HANDLED;
 
 		/* automask maskable interrupts */
 		disable_irq_nosync(irq_ctx->hwirq);
-		irq_ctx->automasked = true;
+		irq_ctx->masked = true;
 	}
 
 	spin_unlock_irqrestore(&irq_ctx->lock, flags);
@@ -218,7 +217,7 @@ static int vfio_set_trigger(struct vfio_platform_device *vdev, int index,
 		return ret;
 	}
 
-	if (!irq->usermasked)
+	if (!irq->masked)
 		enable_irq(irq->hwirq);
 
 	return 0;
@@ -315,8 +314,7 @@ int vfio_platform_irq_init(struct vfio_platform_device *vdev)
 
 		vdev->irqs[i].count = 1;
 		vdev->irqs[i].hwirq = hwirq;
-		vdev->irqs[i].usermasked = false;
-		vdev->irqs[i].automasked = false;
+		vdev->irqs[i].masked = false;
 	}
 
 	vdev->num_irqs = cnt;
