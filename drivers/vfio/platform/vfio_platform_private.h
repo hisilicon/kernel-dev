@@ -38,8 +38,6 @@ struct vfio_platform_irq {
 	spinlock_t		lock;
 	struct virqfd		*unmask;
 	struct virqfd		*mask;
-	bool			deoi;
-	irqreturn_t		(*handler)(int irq, void *dev_id);
 };
 
 struct vfio_platform_region {
