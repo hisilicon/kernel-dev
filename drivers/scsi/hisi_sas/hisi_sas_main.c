@@ -1226,6 +1226,7 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	dev_info(dev, "controller resetting...\n");
 	old_state = hisi_hba->hw->get_phys_state(hisi_hba);
 
+	set_bit(HISI_SAS_FLUTTER_BIT, &hisi_hba->flags);
 	scsi_block_requests(shost);
 	set_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 	rc = hisi_hba->hw->soft_reset(hisi_hba);
@@ -1234,6 +1235,7 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 		clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 		up(&hisi_hba->sem);
 		scsi_unblock_requests(shost);
+		clear_bit(HISI_SAS_FLUTTER_BIT, &hisi_hba->flags);
 		goto out;
 	}
 	hisi_sas_release_tasks(hisi_hba);
@@ -1245,6 +1247,7 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 	up(&hisi_hba->sem);
 	scsi_unblock_requests(shost);
+	clear_bit(HISI_SAS_FLUTTER_BIT, &hisi_hba->flags);
 
 	state = hisi_hba->hw->get_phys_state(hisi_hba);
 	hisi_sas_rescan_topology(hisi_hba, old_state, state);
@@ -1785,7 +1788,8 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy)
 	} else {
 		struct hisi_sas_port *port  = phy->port;
 
-		if (phy->is_flutter) {
+		if (test_bit(HISI_SAS_FLUTTER_BIT, &hisi_hba->flags) ||
+				phy->is_flutter) {
 			dev_info(dev, "ignore flutter phy%d down\n", phy_no);
 			return;
 		}
