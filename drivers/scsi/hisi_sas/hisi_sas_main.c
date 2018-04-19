@@ -1217,8 +1217,11 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 old_state,
 
 static void hisi_sas_reset_init_all_devices(struct hisi_hba *hisi_hba)
 {
+	void *bitmap = hisi_hba->slot_index_tags;
+	struct device *dev = hisi_hba->dev;
 	struct hisi_sas_device	*sas_dev;
 	struct domain_device *device;
+	int slot_num = 0;
 	int i;
 
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
@@ -1230,6 +1233,14 @@ static void hisi_sas_reset_init_all_devices(struct hisi_hba *hisi_hba)
 
 		hisi_sas_init_disk(device);
 	}
+
+	/* Check whether there are IPTT remains. */
+	for (i = 0; i < hisi_hba->slot_index_count; i++)
+		if (test_bit(i, bitmap))
+			slot_num++;
+
+	if (slot_num)
+		dev_warn(dev, "%d IPTT remains\n", slot_num);
 }
 
 static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
