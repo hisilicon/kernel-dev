@@ -69,6 +69,7 @@ config HISILICON_LPC
 	bool "Support for ISA I/O space on Hisilicon hip06/7"
 	depends on ARM64 && (ARCH_HISI || COMPILE_TEST)
 	select INDIRECT_PIO
+	select MFD_CORE if ACPI
 	help
 	  Driver needed for some legacy ISA devices attached to Low-Pin-Count
 	  on Hisilicon hip06/7 SoC.
