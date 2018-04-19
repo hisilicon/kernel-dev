@@ -1100,6 +1100,10 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 					     HISI_SAS_INT_ABT_DEV, 0, true);
 
 		hisi_sas_dereg_device(hisi_hba, device);
+		if (!list_empty(&sas_dev->list)) {
+			hisi_sas_release_task(hisi_hba, device);
+			dev_info(dev, "dev gone: release remain resources anyway.\n");
+		}
 
 		ret = hisi_hba->hw->clear_itct(hisi_hba, sas_dev);
 		device->lldd_dev = NULL;
