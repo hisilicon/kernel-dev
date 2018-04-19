@@ -24,6 +24,8 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 static int hisi_sas_softreset_ata_disk(struct domain_device *device);
 static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 				void *funcdata);
+static void hisi_sas_release_task(struct hisi_hba *hisi_hba,
+			struct domain_device *device);
 
 u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 {
@@ -620,6 +622,7 @@ static int hisi_sas_init_disk(struct domain_device *device)
 	struct scsi_lun lun;
 	struct hisi_sas_tmf_task tmf_task;
 	int retry = HISI_SAS_SRST_ATA_DISK_CNT;
+	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 
 	switch (device->dev_type) {
 	case SAS_END_DEVICE:
@@ -628,20 +631,19 @@ static int hisi_sas_init_disk(struct domain_device *device)
 		tmf_task.tmf = TMF_CLEAR_TASK_SET;
 		rc = hisi_sas_debug_issue_ssp_tmf(device, lun.scsi_lun,
 			&tmf_task);
+		if (rc == TMF_RESP_FUNC_COMPLETE)
+			hisi_sas_release_task(hisi_hba, device);
 		break;
 	case SAS_SATA_DEV:
 	case SAS_SATA_PM:
 	case SAS_SATA_PM_PORT:
 	case SAS_SATA_PENDING:
-		while (retry > 0) {
+		while (retry-- > 0) {
 			rc = hisi_sas_softreset_ata_disk(device);
 			if (!rc)
 				break;
-				retry--;
-			}
+		}
 		break;
-	case SAS_EDGE_EXPANDER_DEVICE:
-	case SAS_FANOUT_EXPANDER_DEVICE:
 	default:
 		break;
 	}
@@ -1209,6 +1211,23 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 old_state,
 	}
 }
 
+static void hisi_sas_reset_init_all_devices(struct hisi_hba *hisi_hba)
+{
+	struct hisi_sas_device	*sas_dev;
+	struct domain_device *device;
+	int i;
+
+	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
+		sas_dev = &hisi_hba->devices[i];
+		device = sas_dev->sas_device;
+
+		if ((sas_dev->dev_type == SAS_PHY_UNUSED) || !device)
+			continue;
+
+		hisi_sas_init_disk(device);
+	}
+}
+
 static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
@@ -1241,7 +1260,6 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 		clear_bit(HISI_SAS_FLUTTER_BIT, &hisi_hba->flags);
 		goto out;
 	}
-	hisi_sas_release_tasks(hisi_hba);
 
 	/* Init and wait for PHYs to come up and all libsas event finished. */
 	hisi_hba->hw->phys_init(hisi_hba);
@@ -1249,6 +1267,8 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	hisi_sas_refresh_port_id(hisi_hba);
 	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 	up(&hisi_hba->sem);
+
+	hisi_sas_reset_init_all_devices(hisi_hba);
 	scsi_unblock_requests(shost);
 	clear_bit(HISI_SAS_FLUTTER_BIT, &hisi_hba->flags);
 
