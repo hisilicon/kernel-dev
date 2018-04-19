@@ -1232,17 +1232,18 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	if (rc) {
 		dev_warn(dev, "controller reset failed (%d)\n", rc);
 		clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
+		up(&hisi_hba->sem);
 		scsi_unblock_requests(shost);
 		goto out;
 	}
 	hisi_sas_release_tasks(hisi_hba);
 
-	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
-
 	/* Init and wait for PHYs to come up and all libsas event finished. */
 	hisi_hba->hw->phys_init(hisi_hba);
 	msleep(1000);
 	hisi_sas_refresh_port_id(hisi_hba);
+	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
+	up(&hisi_hba->sem);
 	scsi_unblock_requests(shost);
 
 	state = hisi_hba->hw->get_phys_state(hisi_hba);
@@ -1250,7 +1251,6 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	dev_info(dev, "controller reset complete\n");
 
 out:
-	up(&hisi_hba->sem);
 	clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
 
 	return rc;
