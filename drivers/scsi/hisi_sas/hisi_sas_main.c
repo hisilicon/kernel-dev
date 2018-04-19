@@ -1228,6 +1228,9 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 
 	set_bit(HISI_SAS_FLUTTER_BIT, &hisi_hba->flags);
 	scsi_block_requests(shost);
+	if (timer_pending(&hisi_hba->timer))
+		del_timer_sync(&hisi_hba->timer);
+
 	set_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 	rc = hisi_hba->hw->soft_reset(hisi_hba);
 	if (rc) {
