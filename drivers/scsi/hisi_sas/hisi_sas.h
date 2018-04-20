@@ -474,4 +474,6 @@ extern void hisi_sas_kill_tasklets(struct hisi_hba *hisi_hba);
 extern bool hisi_sas_notify_phy_event(struct hisi_sas_phy *phy,
 				enum hisi_sas_phy_event event);
 extern void hisi_sas_release_tasks(struct hisi_hba *hisi_hba);
+extern void hisi_sas_get_prog_phy_link_rate(enum sas_linkrate max,
+			u32 *prog_phy_link_rate);
 #endif
