@@ -33,6 +33,9 @@
 #include <linux/acpi.h>
 #include <linux/of_platform.h>
 #include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_smi.h>
 #include <rdma/ib_user_verbs.h>
@@ -430,6 +433,38 @@ static int hns_roce_port_immutable(struct ib_device *ib_dev, u8 port_num,
 	return 0;
 }
 
+static void hns_roce_disassociate_ucontext(struct ib_ucontext *ibcontext)
+{
+	struct task_struct *process;
+	struct mm_struct   *mm;
+
+	process = get_pid_task(ibcontext->tgid, PIDTYPE_PID);
+	if (!process)
+		return;
+
+	mm = get_task_mm(process);
+	if (!mm) {
+		pr_info("no mm, disassociate ucontext is pending task termination\n");
+		while (1) {
+			put_task_struct(process);
+			usleep_range(1000, 2000);
+			process = get_pid_task(ibcontext->tgid, PIDTYPE_PID);
+			if (!process || process->state == TASK_DEAD) {
+				pr_info("disassociate ucontext done, task was terminated\n");
+				/* if task was dead, need to release the task
+				 * struct.
+				 */
+				if (process)
+					put_task_struct(process);
+				return;
+			}
+		}
+	}
+
+	mmput(mm);
+	put_task_struct(process);
+}
+
 static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_ib_iboe *iboe = &hr_dev->iboe;
@@ -525,6 +560,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 
 	/* OTHERS */
 	ib_dev->get_port_immutable	= hns_roce_port_immutable;
+	ib_dev->disassociate_ucontext	= hns_roce_disassociate_ucontext;
 
 	ret = ib_register_device(ib_dev, NULL);
 	if (ret) {
