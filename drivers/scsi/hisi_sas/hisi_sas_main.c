@@ -26,6 +26,7 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 				void *funcdata);
 static void hisi_sas_release_task(struct hisi_hba *hisi_hba,
 			struct domain_device *device);
+static void hisi_sas_dev_gone(struct domain_device *device);
 
 u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 {
@@ -671,6 +672,7 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	struct domain_device *parent_dev = device->parent;
 	struct hisi_sas_device *sas_dev;
 	struct device *dev = hisi_hba->dev;
+	int rc;
 
 	if (hisi_hba->hw->alloc_dev)
 		sas_dev = hisi_hba->hw->alloc_dev(device);
@@ -702,15 +704,23 @@ static int hisi_sas_dev_found(struct domain_device *device)
 				 "dev:%016llx at ex:%016llx\n",
 				 SAS_ADDR(device->sas_addr),
 				 SAS_ADDR(parent_dev->sas_addr));
-			return -EINVAL;
+			rc = -EINVAL;
+			goto err_out;
 		}
 	}
 
 	dev_info(dev, "dev[%d:%x] found\n",
 		sas_dev->device_id, sas_dev->dev_type);
 
-	hisi_sas_init_disk(device);
+	rc = hisi_sas_init_disk(device);
+	if (rc)
+		goto err_out;
+
 	return 0;
+
+err_out:
+	hisi_sas_dev_gone(device);
+	return rc;
 }
 
 static int hisi_sas_slave_configure(struct scsi_device *sdev)
