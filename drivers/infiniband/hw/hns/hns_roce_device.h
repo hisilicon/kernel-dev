@@ -781,6 +781,8 @@ struct hns_roce_dev {
 	const char		*irq_names[HNS_ROCE_MAX_IRQ_NUM];
 	spinlock_t		sm_lock;
 	spinlock_t		bt_cmd_lock;
+	bool			active;
+	bool			is_reset;
 	struct hns_roce_ib_iboe iboe;
 
 	struct list_head        pgdir_list;
@@ -807,7 +809,6 @@ struct hns_roce_dev {
 
 	int			cmd_mod;
 	int			loop_idc;
-	bool			is_reset;
 	u32			sdb_offset;
 	u32			odb_offset;
 	dma_addr_t		tptr_dma_addr; /*only for hw v1*/

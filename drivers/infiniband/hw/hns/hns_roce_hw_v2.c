@@ -801,6 +801,9 @@ static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	int ret = 0;
 	int ntc;
 
+	if (hr_dev->is_reset)
+		return 0;
+
 	spin_lock_bh(&csq->lock);
 
 	if (num > hns_roce_cmq_space(csq)) {
@@ -5219,33 +5222,25 @@ static int hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 	struct hns_roce_dev *hr_dev;
 	int ret;
 
-	if (!handle->rinfo.is_reset) {
-		hr_dev =
-			(struct hns_roce_dev *)ib_alloc_device(sizeof(*hr_dev));
-		if (!hr_dev)
-			return -ENOMEM;
+	hr_dev = (struct hns_roce_dev *)ib_alloc_device(sizeof(*hr_dev));
+	if (!hr_dev)
+		return -ENOMEM;
 
-		hr_dev->priv =
-			   kzalloc(sizeof(struct hns_roce_v2_priv), GFP_KERNEL);
-		if (!hr_dev->priv) {
-			ret = -ENOMEM;
-			goto error_failed_kzalloc;
-		}
-
-		hr_dev->pci_dev = handle->pdev;
-		hr_dev->dev = &handle->pdev->dev;
-		handle->priv = hr_dev;
-
-		ret = hns_roce_hw_v2_get_cfg(hr_dev, handle);
-		if (ret) {
-			dev_err(hr_dev->dev, "Get Configuration failed!\n");
-			goto error_failed_get_cfg;
-		}
-	} else {
-		hr_dev = (struct hns_roce_dev *)handle->priv;
+	hr_dev->priv = kzalloc(sizeof(struct hns_roce_v2_priv), GFP_KERNEL);
+	if (!hr_dev->priv) {
+		ret = -ENOMEM;
+		goto error_failed_kzalloc;
 	}
 
-	hr_dev->is_reset = handle->rinfo.is_reset;
+	hr_dev->pci_dev = handle->pdev;
+	hr_dev->dev = &handle->pdev->dev;
+	handle->priv = hr_dev;
+
+	ret = hns_roce_hw_v2_get_cfg(hr_dev, handle);
+	if (ret) {
+		dev_err(hr_dev->dev, "Get Configuration failed!\n");
+		goto error_failed_get_cfg;
+	}
 
 	ret = hns_roce_init(hr_dev);
 	if (ret) {
@@ -5274,9 +5269,71 @@ static void hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 	ib_dealloc_device(&hr_dev->ib_dev);
 }
 
+static void hns_roce_hw_v2_link_status_change(struct hnae3_handle *handle,
+					      bool linkup)
+{
+	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
+	struct ib_event event;
+
+	event.event = linkup ? IB_EVENT_PORT_ACTIVE : IB_EVENT_PORT_ERR;
+	event.device = &hr_dev->ib_dev;
+	event.element.port_num = 1;
+	ib_dispatch_event(&event);
+}
+
+static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
+{
+	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
+	struct ib_event event;
+
+	hr_dev->active = false;
+	hr_dev->is_reset = true;
+
+	event.event = IB_EVENT_PORT_ERR;
+	event.device = &hr_dev->ib_dev;
+	event.element.port_num = 1;
+	ib_dispatch_event(&event);
+
+	event.event = IB_EVENT_DEVICE_FATAL;
+	ib_dispatch_event(&event);
+
+	return 0;
+}
+
+static int hns_roce_hw_v2_reset_notify_uninit(struct hnae3_handle *handle)
+{
+	msleep(100);
+	hns_roce_hw_v2_uninit_instance(handle, false);
+	return 0;
+}
+
+static int hns_roce_hw_v2_reset_notify(struct hnae3_handle *handle,
+				       enum hnae3_reset_notify_type type)
+{
+	int ret = 0;
+
+	switch (type) {
+	case HNAE3_DOWN_CLIENT:
+		ret = hns_roce_hw_v2_reset_notify_down(handle);
+		break;
+	case HNAE3_INIT_CLIENT:
+		ret = hns_roce_hw_v2_init_instance(handle);
+		break;
+	case HNAE3_UNINIT_CLIENT:
+		ret = hns_roce_hw_v2_reset_notify_uninit(handle);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 static const struct hnae3_client_ops hns_roce_hw_v2_ops = {
 	.init_instance = hns_roce_hw_v2_init_instance,
 	.uninit_instance = hns_roce_hw_v2_uninit_instance,
+	.link_status_change = hns_roce_hw_v2_link_status_change,
+	.reset_notify = hns_roce_hw_v2_reset_notify,
 };
 
 static struct hnae3_client hns_roce_hw_v2_client = {
