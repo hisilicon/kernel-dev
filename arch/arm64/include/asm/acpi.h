@@ -16,6 +16,7 @@
 #include <linux/psci.h>
 
 #include <asm/cputype.h>
+#include <asm/ptrace.h>
 #include <asm/smp_plat.h>
 #include <asm/tlbflush.h>
 
@@ -93,7 +94,6 @@ static inline u32 get_acpi_id_for_cpu(unsigned int cpu)
 
 static inline void arch_fix_phys_package_id(int num, u32 slot) { }
 void __init acpi_init_cpus(void);
-
 #else
 static inline void acpi_init_cpus(void) { }
 #endif /* CONFIG_ACPI */
@@ -130,6 +130,9 @@ static inline const char *acpi_get_enable_method(int cpu)
  */
 #define acpi_disable_cmcff 1
 pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr);
+int apei_claim_sea(struct pt_regs *regs);
+#else
+static inline int apei_claim_sea(struct pt_regs *regs) { return -ENOENT; }
 #endif /* CONFIG_ACPI_APEI */
 
 #ifdef CONFIG_ACPI_NUMA
