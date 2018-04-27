@@ -1204,7 +1204,6 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 
 	caps->flags		= HNS_ROCE_CAP_FLAG_REREG_MR |
 				  HNS_ROCE_CAP_FLAG_ROCE_V1_V2 |
-				  HNS_ROCE_CAP_FLAG_RQ_INLINE |
 				  HNS_ROCE_CAP_FLAG_RECORD_DB;
 	caps->pkey_table_len[0] = 1;
 	caps->gid_table_len[0] = HNS_ROCE_V2_GID_INDEX_NUM;
