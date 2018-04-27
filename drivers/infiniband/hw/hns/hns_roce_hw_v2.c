@@ -2596,7 +2596,7 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 	context->rq_db_record_addr = hr_qp->rdb.dma >> 32;
 	qpc_mask->rq_db_record_addr = 0;
 
-	roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RQIE_S, 0);
+	roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RQIE_S, 1);
 	roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_RQIE_S, 0);
 
 	roce_set_field(context->byte_80_rnr_rx_cqn, V2_QPC_BYTE_80_RX_CQN_M,
