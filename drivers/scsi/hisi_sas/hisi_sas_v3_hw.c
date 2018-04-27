@@ -1224,7 +1224,7 @@ static int phy_down_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 	return IRQ_HANDLED;
 }
 
-static void phy_bcast_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
+static irqreturn_t phy_bcast_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 {
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
@@ -1236,6 +1236,8 @@ static void phy_bcast_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
 			     CHL_INT0_SL_RX_BCST_ACK_MSK);
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 0);
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t int_phy_up_down_bcast_v3_hw(int irq_no, void *p)
@@ -1262,7 +1264,9 @@ static irqreturn_t int_phy_up_down_bcast_v3_hw(int irq_no, void *p)
 						res = IRQ_HANDLED;
 				if (irq_value & CHL_INT0_SL_RX_BCST_ACK_MSK)
 					/* phy bcast */
-					phy_bcast_v3_hw(phy_no, hisi_hba);
+					if (phy_bcast_v3_hw(phy_no, hisi_hba)
+							== IRQ_HANDLED)
+						res = IRQ_HANDLED;
 			} else {
 				if (irq_value & CHL_INT0_NOT_RDY_MSK)
 					/* phy down */
