@@ -5289,12 +5289,9 @@ static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
 	hr_dev->active = false;
 	hr_dev->is_reset = true;
 
-	event.event = IB_EVENT_PORT_ERR;
+	event.event = IB_EVENT_DEVICE_FATAL;
 	event.device = &hr_dev->ib_dev;
 	event.element.port_num = 1;
-	ib_dispatch_event(&event);
-
-	event.event = IB_EVENT_DEVICE_FATAL;
 	ib_dispatch_event(&event);
 
 	return 0;
