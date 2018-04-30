@@ -371,6 +371,7 @@ static const struct mfd_cell_acpi_match hisi_lpc_mfd_acpi_match_ipmi = {
 
 struct hisi_lpc_mfd_cell {
 	struct mfd_cell mfd_cell;
+	int (*setup)(struct device *hostdev, struct mfd_cell *mfd_cell);
 } static const hisi_lpc_mfd_cells[] = {
 	/* ipmi */
 	{
@@ -512,6 +513,7 @@ static int hisi_lpc_acpi_probe(struct device *hostdev)
 	list_for_each_entry(child, &adev->children, node) {
 		struct mfd_cell *mfd_cell = &mfd_cells[count];
 		const struct mfd_cell *mfd_cell_ref;
+		struct hisi_lpc_mfd_cell *cell;
 
 		mfd_cell_ref = hisi_lpc_match_mfd_cell(acpi_device_hid(child));
 		if (!mfd_cell_ref)
@@ -525,6 +527,13 @@ static int hisi_lpc_acpi_probe(struct device *hostdev)
 		if (ret) {
 			dev_warn(&child->dev, "set resource fail(%d)\n", ret);
 			return ret;
+		}
+
+		cell = container_of(mfd_cell_ref, typeof(*cell), mfd_cell);
+		if (cell->setup) {
+			ret = cell->setup(hostdev, mfd_cell);
+			if (ret)
+				return ret;
 		}
 		count++;
 	}
