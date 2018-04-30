@@ -18,6 +18,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/pci.h>
+#include <linux/serial_8250.h>
 #include <linux/slab.h>
 
 #define DRV_NAME "hisi-lpc"
@@ -365,8 +366,36 @@ static int hisi_lpc_acpi_xlat_io_res(struct acpi_device *adev,
 	return 0;
 }
 
+static int hisi_lpc_acpi_uart_setup(struct device *hostdev,
+				    struct mfd_cell *mfd_cell)
+{
+	const struct resource * const resource = mfd_cell->resources;
+	struct plat_serial8250_port ref_port[] = {
+		{
+			.iobase = resource->start,
+			.uartclk = 1843200,
+			.iotype = UPIO_PORT,
+			.flags = UPF_BOOT_AUTOCONF,
+		},
+		{}
+	};
+
+	mfd_cell->platform_data = devm_kmemdup(hostdev, &ref_port,
+					       sizeof(ref_port), GFP_KERNEL);
+	if (!mfd_cell->platform_data)
+		return -ENOMEM;
+
+	mfd_cell->pdata_size = sizeof(ref_port);
+
+	return 0;
+}
+
 static const struct mfd_cell_acpi_match hisi_lpc_mfd_acpi_match_ipmi = {
 	.pnpid = "IPI0001",
+};
+
+static const struct mfd_cell_acpi_match hisi_lpc_mfd_acpi_match_uart = {
+	.pnpid = "HISI1031",
 };
 
 struct hisi_lpc_mfd_cell {
@@ -379,6 +408,14 @@ struct hisi_lpc_mfd_cell {
 			.name = "hisi-lpc-ipmi",
 			.acpi_match = &hisi_lpc_mfd_acpi_match_ipmi,
 		},
+	},
+	/* 8250-compatible uart */
+	{
+		.mfd_cell = {
+			.name = "serial8250",
+			.acpi_match = &hisi_lpc_mfd_acpi_match_uart,
+		},
+		.setup = hisi_lpc_acpi_uart_setup,
 	},
 	{}
 };
@@ -535,10 +572,12 @@ static int hisi_lpc_acpi_probe(struct device *hostdev)
 			if (ret)
 				return ret;
 		}
+
+		acpi_device_set_enumerated(child);
 		count++;
 	}
 
-	ret = mfd_add_devices(hostdev, PLATFORM_DEVID_NONE,
+	ret = mfd_add_devices(hostdev, PLATFORM_DEVID_AUTO,
 			      mfd_cells, cell_num, NULL, 0, NULL);
 	if (ret) {
 		dev_err(hostdev, "failed to add mfd cells (%d)\n", ret);
