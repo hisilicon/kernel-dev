@@ -1342,15 +1342,14 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 		u32 irq_value2 = hisi_sas_phy_read32(hisi_hba, phy_no,
 						     CHL_INT2);
 		u32 irq_msk1 = hisi_sas_phy_read32(hisi_hba, phy_no,
-							CHL_INT1_MSK);
+						   CHL_INT1_MSK);
 		u32 irq_msk2 = hisi_sas_phy_read32(hisi_hba, phy_no,
-							CHL_INT2_MSK);
+						   CHL_INT2_MSK);
 
 		irq_value1 &= ~irq_msk1;
 		irq_value2 &= ~irq_msk2;
 
-		if ((irq_msk & (4 << (phy_no * 4))) &&
-						irq_value1) {
+		if ((irq_msk & (4 << (phy_no * 4))) && irq_value1) {
 			int i;
 
 			for (i = 0; i < ARRAY_SIZE(port_axi_error); i++) {
@@ -1374,9 +1373,9 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 
 			if (irq_value2 & BIT(CHL_INT2_SL_IDAF_TOUT_CONF_OFF)) {
 				dev_warn(dev, "phy%d identify timeout\n",
-							phy_no);
+					 phy_no);
 				hisi_sas_notify_phy_event(phy,
-					HISI_PHYE_LINK_RESET);
+						HISI_PHYE_LINK_RESET);
 
 			}
 
@@ -1385,7 +1384,7 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 						phy_no, STP_LINK_TIMEOUT_STATE);
 
 				dev_warn(dev, "phy%d stp link timeout (0x%x)\n",
-							phy_no, reg_value);
+					 phy_no, reg_value);
 				if (reg_value & BIT(4))
 					hisi_sas_notify_phy_event(phy,
 						HISI_PHYE_LINK_RESET);
@@ -1395,19 +1394,16 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 					     CHL_INT2, irq_value2);
 
 			if ((irq_value2 & BIT(CHL_INT2_RX_INVLD_DW_OFF)) &&
-					(pdev->revision == 0x20)) {
+			    (pdev->revision == 0x20)) {
 				u32 reg_value;
-				int retry = 0;
+				int rc, bit = BIT(phy_no);
+				void __iomem *reg = hisi_hba->regs +
+						    HILINK_ERR_DFX;
 
-				do {
-					reg_value = hisi_sas_read32(hisi_hba,
-							HILINK_ERR_DFX);
-					if (!((reg_value >> 8) & BIT(phy_no)))
-						break;
-					mdelay(1);
-				} while (++retry < 10);
-
-				if (retry == 10) {
+				rc = readl_poll_timeout_atomic(reg, reg_value,
+					!((reg_value >> 8) & bit), 1000,
+					10000);
+				if (rc) {
 					disable_phy_v3_hw(hisi_hba, phy_no);
 					hisi_sas_phy_write32(hisi_hba, phy_no,
 						CHL_INT2,
