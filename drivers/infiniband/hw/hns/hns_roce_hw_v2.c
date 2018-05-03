@@ -174,18 +174,6 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		return -EINVAL;
 	}
 
-	if (qp->state == IB_QPS_ERR) {
-		attr_mask = IB_QP_STATE;
-		attr.qp_state = IB_QPS_ERR;
-
-		ret = hns_roce_v2_modify_qp(&qp->ibqp, &attr, attr_mask,
-					     qp->state, IB_QPS_ERR);
-		if (ret) {
-			*bad_wr = wr;
-			return ret;
-		}
-	}
-
 	spin_lock_irqsave(&qp->sq.lock, flags);
 	ind = qp->sq_next_wqe;
 	sge_ind = qp->next_sge;
@@ -484,6 +472,20 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 out:
 	if (likely(nreq)) {
 		qp->sq.head += nreq;
+
+		if (qp->state == IB_QPS_ERR) {
+			attr_mask = IB_QP_STATE;
+			attr.qp_state = IB_QPS_ERR;
+
+			ret = hns_roce_v2_modify_qp(&qp->ibqp, &attr, attr_mask,
+						    qp->state, IB_QPS_ERR);
+			if (ret) {
+				spin_unlock_irqrestore(&qp->sq.lock, flags);
+				*bad_wr = wr;
+				return ret;
+			}
+		}
+
 		/* Memory barrier */
 		wmb();
 
@@ -537,19 +539,6 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		return -EINVAL;
 	}
 
-	if (hr_qp->state == IB_QPS_ERR) {
-		attr_mask = IB_QP_STATE;
-		attr.qp_state = IB_QPS_ERR;
-
-		ret = hns_roce_v2_modify_qp(&hr_qp->ibqp, &attr, attr_mask,
-					     hr_qp->state, IB_QPS_ERR);
-		if (ret) {
-			spin_unlock_irqrestore(&hr_qp->rq.lock, flags);
-			*bad_wr = wr;
-			return ret;
-		}
-	}
-
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
 		if (hns_roce_wq_overflow(&hr_qp->rq, nreq,
 			hr_qp->ibqp.recv_cq)) {
@@ -600,6 +589,21 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 out:
 	if (likely(nreq)) {
 		hr_qp->rq.head += nreq;
+
+		if (hr_qp->state == IB_QPS_ERR) {
+			attr_mask = IB_QP_STATE;
+			attr.qp_state = IB_QPS_ERR;
+
+			ret = hns_roce_v2_modify_qp(&hr_qp->ibqp, &attr,
+						    attr_mask, hr_qp->state,
+						    IB_QPS_ERR);
+			if (ret) {
+				spin_unlock_irqrestore(&hr_qp->rq.lock, flags);
+				*bad_wr = wr;
+				return ret;
+			}
+		}
+
 		/* Memory barrier */
 		wmb();
 
