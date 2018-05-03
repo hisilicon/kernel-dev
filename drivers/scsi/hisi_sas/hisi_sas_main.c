@@ -329,7 +329,7 @@ static void hisi_sas_slot_abort(struct work_struct *work)
 }
 
 static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
-		**dq_pointer, int is_tmf, struct hisi_sas_tmf_task *tmf,
+		**dq_pointer, bool is_tmf, struct hisi_sas_tmf_task *tmf,
 		int *pass)
 {
 	struct domain_device *device = task->dev;
@@ -469,8 +469,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 	slot->task = task;
 	slot->port = port;
 	slot->tmf = tmf;
-	if (is_tmf)
-		slot->is_internal = true;
+	slot->is_internal = is_tmf;
 	task->lldd_task = slot;
 	INIT_WORK(&slot->abort_slot, hisi_sas_slot_abort);
 
@@ -534,7 +533,7 @@ prep_out:
 }
 
 static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
-			      int is_tmf, struct hisi_sas_tmf_task *tmf)
+			      bool is_tmf, struct hisi_sas_tmf_task *tmf)
 {
 	u32 rc;
 	u32 pass = 0;
