@@ -93,6 +93,7 @@
 #define SAS_ECC_INTR			0x1e8
 #define SAS_ECC_INTR_MSK		0x1ec
 #define HGC_ERR_STAT_EN			0x238
+#define CQE_SEND_CNT			0x248
 #define DLVRY_Q_0_BASE_ADDR_LO		0x260
 #define DLVRY_Q_0_BASE_ADDR_HI		0x264
 #define DLVRY_Q_0_DEPTH			0x268
@@ -333,6 +334,8 @@
 #define ITCT_HDR_INLT_MSK		(0xffffULL << ITCT_HDR_INLT_OFF)
 #define ITCT_HDR_RTOLT_OFF		48
 #define ITCT_HDR_RTOLT_MSK		(0xffffULL << ITCT_HDR_RTOLT_OFF)
+
+#define WAIT_IO_TIME_MAX	50
 
 struct hisi_sas_complete_v3_hdr {
 	__le32 dw0;
@@ -2008,6 +2011,23 @@ static int soft_reset_v3_hw(struct hisi_hba *hisi_hba)
 	return hw_init_v3_hw(hisi_hba);
 }
 
+static void try_wait_IO_done_v3_hw(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = hisi_hba->dev;
+	int i, entries, entries_old = 0;
+
+	for (i = 0; i < WAIT_IO_TIME_MAX; i++) {
+		entries = hisi_sas_read32(hisi_hba, CQE_SEND_CNT);
+		if (entries == entries_old)
+			break;
+
+		entries_old = entries;
+		msleep(100);
+	}
+
+	dev_dbg(dev, "wait IO done %dms\n", i*100);
+}
+
 static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.hw_init = hisi_sas_v3_init,
 	.setup_itct = setup_itct_v3_hw,
@@ -2033,6 +2053,7 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.soft_reset = soft_reset_v3_hw,
 	.get_phys_state = get_phys_state_v3_hw,
 	.get_events = phy_get_events_v3_hw,
+	.try_wait_IO_done = try_wait_IO_done_v3_hw,
 	.can_queue = HISI_SAS_COMMAND_ENTRIES_V3_HW,
 };
 

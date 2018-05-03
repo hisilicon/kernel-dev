@@ -252,6 +252,7 @@ struct hisi_sas_hw {
 	u32 (*get_phys_state)(struct hisi_hba *hisi_hba);
 	int (*write_gpio)(struct hisi_hba *hisi_hba, u8 reg_type,
 				u8 reg_index, u8 reg_count, u8 *write_data);
+	void (*try_wait_IO_done)(struct hisi_hba *hisi_hba);
 	int max_command_entries;
 	int can_queue;
 	int complete_hdr_size;

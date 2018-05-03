@@ -1344,6 +1344,8 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 
 	set_bit(HISI_SAS_FLUTTER_BIT, &hisi_hba->flags);
 	scsi_block_requests(shost);
+	hisi_hba->hw->try_wait_IO_done(hisi_hba);
+
 	if (timer_pending(&hisi_hba->timer))
 		del_timer_sync(&hisi_hba->timer);
 

@@ -144,6 +144,7 @@
 #define SAS_ECC_INTR_NCQ_MEM3_ECC_1B_OFF	19
 #define SAS_ECC_INTR_MSK		0x1ec
 #define HGC_ERR_STAT_EN			0x238
+#define CQE_SEND_CNT			0x248
 #define DLVRY_Q_0_BASE_ADDR_LO		0x260
 #define DLVRY_Q_0_BASE_ADDR_HI		0x264
 #define DLVRY_Q_0_DEPTH			0x268
@@ -383,6 +384,7 @@
 #define ITCT_HDR_RTOLT_MSK		(0xffffULL << ITCT_HDR_RTOLT_OFF)
 
 #define HISI_SAS_FATAL_INT_NR	2
+#define WAIT_IO_TIME_MAX	50
 
 #define HISI_SAS_ECC_ERR_HGC_DQE	BIT(0)
 #define HISI_SAS_ECC_ERR_HGC_IOST	BIT(1)
@@ -3656,6 +3658,23 @@ static int write_gpio_v2_hw(struct hisi_hba *hisi_hba, u8 reg_type,
 	return 0;
 }
 
+static void try_wait_IO_done_v2_hw(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = hisi_hba->dev;
+	int i, entries, entries_old = 0;
+
+	for (i = 0; i < WAIT_IO_TIME_MAX; i++) {
+		entries = hisi_sas_read32(hisi_hba, CQE_SEND_CNT);
+		if (entries == entries_old)
+			break;
+
+		entries_old = entries;
+		msleep(100);
+	}
+
+	dev_dbg(dev, "wait IO done %dms\n", i*100);
+}
+
 static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.hw_init = hisi_sas_v2_init,
 	.setup_itct = setup_itct_v2_hw,
@@ -3685,6 +3704,7 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.soft_reset = soft_reset_v2_hw,
 	.get_phys_state = get_phys_state_v2_hw,
 	.write_gpio = write_gpio_v2_hw,
+	.try_wait_IO_done = try_wait_IO_done_v2_hw,
 };
 
 static int hisi_sas_v2_probe(struct platform_device *pdev)
