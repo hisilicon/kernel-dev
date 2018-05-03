@@ -424,6 +424,7 @@ void ghes_edac_report_mem_error(struct ghes *ghes, int sev,
  */
 static struct acpi_platform_list plat_list[] = {
 	{"HPE   ", "Server  ", 0, ACPI_SIG_FADT, all_versions},
+	{"HISI  ", "HIP08   ", 0, ACPI_SIG_FADT, all_versions},
 	{ } /* End */
 };
 
