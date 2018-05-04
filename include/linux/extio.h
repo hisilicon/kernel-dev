@@ -20,7 +20,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/acpi.h>
 #include <linux/fwnode.h>
 
 struct extio_ops {
@@ -82,6 +81,7 @@ extio_translate(struct fwnode_handle *node, unsigned long bus_addr)
 #endif
 extern void register_extio(struct extio_node *node);
 
+struct acpi_device;
 extern int acpi_set_extio_resource(struct acpi_device *adev,
 		struct acpi_device *host);
 
