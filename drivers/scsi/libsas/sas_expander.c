@@ -2008,6 +2008,37 @@ static bool dev_type_flutter(enum sas_device_type new, enum sas_device_type old)
 	return false;
 }
 
+static bool sas_check_after_flutter(struct ex_phy *phy, struct domain_device *ata_dev,
+			      u8 *sas_addr)
+{
+	/* the phy attached address will be updated by sas_ex_phy_discover()
+	 * and sometimes become abnormal
+	 */
+	if (SAS_ADDR(phy->attached_sas_addr) != SAS_ADDR(sas_addr) ||
+	    SAS_ADDR(phy->attached_sas_addr) == 0) {
+		/* if attached_sas_addr become abnormal, we must set the
+		 * original address back so that the device can be unregistered
+		 */
+		memcpy(phy->attached_sas_addr, sas_addr, SAS_ADDR_SIZE);
+		SAS_DPRINTK("phy address(%016llx) abnormal, origin:%016llx\n",
+			    SAS_ADDR(phy->attached_sas_addr),
+			    SAS_ADDR(sas_addr));
+		return false;
+	}
+
+	if (ata_dev) {
+		struct ata_device *dev = sas_to_ata_dev(ata_dev);
+		unsigned int class = ata_dev->sata_dev.class;
+		u16 *id = ata_dev->sata_dev.id;
+
+		/* to see if the disk is replaced with another one */
+		if (!ata_dev_same_device(dev, class, id))
+			return false;
+	}
+
+	return true;
+}
+
 static int sas_rediscover_dev(struct domain_device *dev, int phy_id, bool last)
 {
 	struct expander_device *ex = &dev->ex_dev;
@@ -2052,7 +2083,12 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id, bool last)
 			action = ", needs recovery";
 		SAS_DPRINTK("ex %016llx phy 0x%x broadcast flutter%s\n",
 			    SAS_ADDR(dev->sas_addr), phy_id, action);
-		return res;
+
+		/* if we failed something, continue to unregister,
+		 * otherwise keep the device status
+		 */
+		if (sas_check_after_flutter(phy, ata_dev, sas_addr))
+			return res;
 	}
 
 	/* we always have to delete the old device when we went here */
