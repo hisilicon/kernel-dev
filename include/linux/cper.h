@@ -319,6 +319,11 @@ enum {
 #define CPER_ARM_ERR_ACCESS_MODE_SHIFT		43
 #define CPER_ARM_ERR_ACCESS_MODE_MASK		GENMASK(0,0)
 
+#define CPER_ARM_INFO_TYPE_CACHE		0
+#define CPER_ARM_INFO_TYPE_TLB			1
+#define CPER_ARM_INFO_TYPE_BUS			2
+#define CPER_ARM_INFO_TYPE_UARCH		3
+
 /*
  * All tables and structs must be byte-packed to match CPER
  * specification, since the tables are provided by the system BIOS
