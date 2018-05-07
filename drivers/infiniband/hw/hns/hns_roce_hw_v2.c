@@ -5271,6 +5271,7 @@ static void hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
 
 	hns_roce_exit(hr_dev);
+	handle->priv = NULL;
 	kfree(hr_dev->priv);
 	ib_dealloc_device(&hr_dev->ib_dev);
 }
@@ -5280,6 +5281,9 @@ static void hns_roce_hw_v2_link_status_change(struct hnae3_handle *handle,
 {
 	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
 	struct ib_event event;
+
+	if (!hr_dev)
+		return;
 
 	event.event = linkup ? IB_EVENT_PORT_ACTIVE : IB_EVENT_PORT_ERR;
 	event.device = &hr_dev->ib_dev;
