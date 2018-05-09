@@ -5257,6 +5257,7 @@ static int hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 	return 0;
 
 error_failed_get_cfg:
+	handle->priv = NULL;
 	kfree(hr_dev->priv);
 
 error_failed_kzalloc:
@@ -5269,6 +5270,9 @@ static void hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 					   bool reset)
 {
 	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
+
+	if (!hr_dev)
+		return;
 
 	hns_roce_exit(hr_dev);
 	handle->priv = NULL;
@@ -5295,6 +5299,9 @@ static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
 {
 	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
 	struct ib_event event;
+
+	if (!hr_dev)
+		return;
 
 	hr_dev->active = false;
 	hr_dev->is_reset = true;
