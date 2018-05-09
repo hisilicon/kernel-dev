@@ -267,6 +267,7 @@
 #define STRTAB_STE_1_STRW_SHIFT		30
 
 #define STRTAB_STE_1_SHCFG_INCOMING	1UL
+#define STRTAB_STE_1_SHCFG_ISH		3UL
 #define STRTAB_STE_1_SHCFG_SHIFT	44
 
 #define STRTAB_STE_2_S2VMID_SHIFT	0
@@ -423,6 +424,8 @@
 
 #define MSI_IOVA_BASE			0x8000000
 #define MSI_IOVA_LENGTH			0x100000
+
+#define UNKNOWN_SID			-1
 
 static bool disable_bypass;
 module_param_named(disable_bypass, disable_bypass, bool, S_IRUGO);
@@ -615,6 +618,7 @@ struct arm_smmu_device {
 
 #define ARM_SMMU_OPT_SKIP_PREFETCH	(1 << 0)
 #define ARM_SMMU_OPT_PAGE0_REGS_ONLY	(1 << 1)
+#define ARM_SMMU_OPT_STE_SHCFG_ISH	(1 << 2)
 	u32				options;
 
 	struct arm_smmu_cmdq		cmdq;
@@ -685,6 +689,7 @@ struct arm_smmu_option_prop {
 static struct arm_smmu_option_prop arm_smmu_options[] = {
 	{ ARM_SMMU_OPT_SKIP_PREFETCH, "hisilicon,broken-prefetch-cmd" },
 	{ ARM_SMMU_OPT_PAGE0_REGS_ONLY, "cavium,cn9900-broken-page1-regspace"},
+	{ ARM_SMMU_OPT_STE_SHCFG_ISH, "hisilicon,broken-ste-shcfg-incoming" },
 	{ 0, NULL},
 };
 
@@ -1179,20 +1184,24 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
 
 	/* Bypass/fault */
 	if (!ste->assigned || !(ste->s1_cfg || ste->s2_cfg)) {
+		u64 shcfg = STRTAB_STE_1_SHCFG_INCOMING;
+
+		if (smmu->options & ARM_SMMU_OPT_STE_SHCFG_ISH)
+			shcfg = STRTAB_STE_1_SHCFG_ISH;
+
 		if (!ste->assigned && disable_bypass)
 			val |= STRTAB_STE_0_CFG_ABORT;
 		else
 			val |= STRTAB_STE_0_CFG_BYPASS;
 
 		dst[0] = cpu_to_le64(val);
-		dst[1] = cpu_to_le64(STRTAB_STE_1_SHCFG_INCOMING
-			 << STRTAB_STE_1_SHCFG_SHIFT);
+		dst[1] = cpu_to_le64(shcfg << STRTAB_STE_1_SHCFG_SHIFT);
 		dst[2] = 0; /* Nuke the VMID */
 		/*
 		 * The SMMU can perform negative caching, so we must sync
 		 * the STE regardless of whether the old value was live.
 		 */
-		if (smmu)
+		if (sid != UNKNOWN_SID)
 			arm_smmu_sync_ste_for_sid(smmu, sid);
 		return;
 	}
@@ -1246,13 +1255,14 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
 		arm_smmu_cmdq_issue_cmd(smmu, &prefetch_cmd);
 }
 
-static void arm_smmu_init_bypass_stes(u64 *strtab, unsigned int nent)
+static void arm_smmu_init_bypass_stes(struct arm_smmu_device *smmu,
+				      u64 *strtab, unsigned int nent)
 {
 	unsigned int i;
 	struct arm_smmu_strtab_ent ste = { .assigned = false };
 
 	for (i = 0; i < nent; ++i) {
-		arm_smmu_write_strtab_ent(NULL, -1, strtab, &ste);
+		arm_smmu_write_strtab_ent(smmu, UNKNOWN_SID, strtab, &ste);
 		strtab += STRTAB_STE_DWORDS;
 	}
 }
@@ -1324,7 +1334,7 @@ static int arm_smmu_init_l2_strtab(struct arm_smmu_device *smmu, u32 sid)
 		return -ENOMEM;
 	}
 
-	arm_smmu_init_bypass_stes(desc->l2ptr, 1 << STRTAB_SPLIT);
+	arm_smmu_init_bypass_stes(smmu, desc->l2ptr, 1 << STRTAB_SPLIT);
 	arm_smmu_write_strtab_l1_desc(strtab, desc);
 	return 0;
 }
@@ -2266,7 +2276,7 @@ static int arm_smmu_init_strtab_linear(struct arm_smmu_device *smmu)
 		<< STRTAB_BASE_CFG_LOG2SIZE_SHIFT;
 	cfg->strtab_base_cfg = reg;
 
-	arm_smmu_init_bypass_stes(strtab, cfg->num_l1_ents);
+	arm_smmu_init_bypass_stes(smmu, strtab, cfg->num_l1_ents);
 	return 0;
 }
 
@@ -2809,6 +2819,10 @@ static void acpi_smmu_get_options(u32 model, struct arm_smmu_device *smmu)
 		break;
 	case ACPI_IORT_SMMU_V3_HISILICON_HI161X:
 		smmu->options |= ARM_SMMU_OPT_SKIP_PREFETCH;
+		smmu->options |= ARM_SMMU_OPT_STE_SHCFG_ISH;
+		break;
+	case ACPI_IORT_SMMU_V3_HISILICON_HI162X:
+		smmu->options |= ARM_SMMU_OPT_STE_SHCFG_ISH;
 		break;
 	}
 
