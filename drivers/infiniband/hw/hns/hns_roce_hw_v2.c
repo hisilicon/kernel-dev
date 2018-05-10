@@ -3424,6 +3424,13 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 			goto out;
 		}
 
+		roce_set_field(context->byte_24_mtu_tc,
+			       V2_QPC_BYTE_24_VLAN_IDX_M,
+			       V2_QPC_BYTE_24_VLAN_IDX_S, vlan);
+		roce_set_field(qpc_mask->byte_24_mtu_tc,
+			       V2_QPC_BYTE_24_VLAN_IDX_M,
+			       V2_QPC_BYTE_24_VLAN_IDX_S, 0);
+
 		if (attr->ah_attr.ah_flags & IB_AH_GRH) {
 			if (grh->sgid_index >=
 				hr_dev->caps.gid_table_len[hr_port]) {
