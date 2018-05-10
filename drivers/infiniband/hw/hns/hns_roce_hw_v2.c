@@ -2922,10 +2922,12 @@ static void modify_qp_init_to_init(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_4_sqpn_tst, V2_QPC_BYTE_4_SQPN_M,
 		       V2_QPC_BYTE_4_SQPN_S, 0);
 
-	roce_set_field(context->byte_56_dqpn_err, V2_QPC_BYTE_56_DQPN_M,
-		       V2_QPC_BYTE_56_DQPN_S, hr_qp->qpn);
-	roce_set_field(qpc_mask->byte_56_dqpn_err, V2_QPC_BYTE_56_DQPN_M,
-		       V2_QPC_BYTE_56_DQPN_S, 0);
+	if (attr_mask & IB_QP_DEST_QPN) {
+		roce_set_field(context->byte_56_dqpn_err, V2_QPC_BYTE_56_DQPN_M,
+			       V2_QPC_BYTE_56_DQPN_S, hr_qp->qpn);
+		roce_set_field(qpc_mask->byte_56_dqpn_err,
+			       V2_QPC_BYTE_56_DQPN_M, V2_QPC_BYTE_56_DQPN_S, 0);
+	}
 	roce_set_field(context->byte_168_irrl_idx,
 		       V2_QPC_BYTE_168_SQ_SHIFT_BAK_M,
 		       V2_QPC_BYTE_168_SQ_SHIFT_BAK_S,
