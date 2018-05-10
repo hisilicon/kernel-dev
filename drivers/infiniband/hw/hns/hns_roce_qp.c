@@ -780,10 +780,12 @@ err_qpn:
 		hns_roce_release_range_qp(hr_dev, qpn, 1);
 
 err_wrid:
-	if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
-	    ib_pd->uobject && hns_roce_qp_has_rq(init_attr)) {
-		hns_roce_db_unmap_user(to_hr_ucontext(ib_pd->uobject->context),
-				       &hr_qp->rdb);
+	if (ib_pd->uobject) {
+		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
+		    hns_roce_qp_has_rq(init_attr))
+			hns_roce_db_unmap_user(
+					to_hr_ucontext(ib_pd->uobject->context),
+					&hr_qp->rdb);
 	} else {
 		kfree(hr_qp->sq.wrid);
 		kfree(hr_qp->rq.wrid);
