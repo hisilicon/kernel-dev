@@ -20,6 +20,7 @@
 #include "hns3_enet.h"
 
 static void hns3_clear_all_ring(struct hnae3_handle *h);
+static void hns3_force_clear_all_rx_ring(struct hnae3_handle *h);
 
 static const char hns3_driver_name[] = "hns3";
 const char hns3_driver_version[] = VERMAGIC_STRING;
@@ -3128,6 +3129,8 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 
 	if (netdev->reg_state != NETREG_UNINITIALIZED)
 		unregister_netdev(netdev);
+
+	hns3_force_clear_all_rx_ring(handle);
 
 	ret = hns3_nic_uninit_vector_data(priv);
 	if (ret)
