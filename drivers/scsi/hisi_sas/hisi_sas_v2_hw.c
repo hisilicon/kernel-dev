@@ -3677,7 +3677,7 @@ static void try_wait_IO_done_v2_hw(struct hisi_hba *hisi_hba)
 	dev_dbg(dev, "wait IO done %dms\n", i*100);
 }
 
-static const struct hisi_sas_hw hisi_sas_v2_hw = {
+static struct hisi_sas_hw hisi_sas_v2_hw = {
 	.hw_init = hisi_sas_v2_init,
 	.setup_itct = setup_itct_v2_hw,
 	.slot_index_alloc = slot_index_alloc_quirk_v2_hw,
@@ -3760,7 +3760,34 @@ static struct platform_driver hisi_sas_v2_driver = {
 	},
 };
 
-module_platform_driver(hisi_sas_v2_driver);
+static __init int hisi_sas_v2_hw_init(void)
+{
+	struct scsi_host_template *hisi_sas_sht_v2;
+	int ret = 0;
+
+	hisi_sas_sht_v2 = kmemdup(hisi_sas_sht,
+				  sizeof(struct scsi_host_template),
+				  GFP_KERNEL);
+	if (!hisi_sas_sht_v2)
+		return -ENOMEM;
+	hisi_sas_sht_v2->module = THIS_MODULE;
+	hisi_sas_v2_hw.hisi_sas_sht = hisi_sas_sht_v2;
+
+	ret = platform_driver_register(&hisi_sas_v2_driver);
+	if (ret)
+		kfree(hisi_sas_sht_v2);
+
+	return ret;
+}
+
+static __exit void hisi_sas_v2_hw_exit(void)
+{
+	platform_driver_unregister(&hisi_sas_v2_driver);
+	kfree(hisi_sas_v2_hw.hisi_sas_sht);
+}
+
+module_init(hisi_sas_v2_hw_init);
+module_exit(hisi_sas_v2_hw_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("John Garry <john.garry@huawei.com>");

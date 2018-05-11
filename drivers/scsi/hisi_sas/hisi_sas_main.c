@@ -2023,7 +2023,6 @@ static struct device_attribute *host_attrs[] = {
 };
 
 static struct scsi_host_template _hisi_sas_sht = {
-	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.queuecommand		= sas_queuecommand,
 	.target_alloc		= sas_target_alloc,
@@ -2356,7 +2355,7 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	struct hisi_hba *hisi_hba;
 	struct device *dev = &pdev->dev;
 
-	shost = scsi_host_alloc(hisi_sas_sht, sizeof(*hisi_hba));
+	shost = scsi_host_alloc(hw->hisi_sas_sht, sizeof(*hisi_hba));
 	if (!shost) {
 		dev_err(dev, "scsi host alloc failed\n");
 		return NULL;
@@ -2406,7 +2405,7 @@ err_out:
 }
 
 int hisi_sas_probe(struct platform_device *pdev,
-			 const struct hisi_sas_hw *hw)
+			 struct hisi_sas_hw *hw)
 {
 	struct Scsi_Host *shost;
 	struct hisi_hba *hisi_hba;

@@ -2051,7 +2051,7 @@ static int write_gpio_v3_hw(struct hisi_hba *hisi_hba, u8 reg_type,
 	return 0;
 }
 
-static const struct hisi_sas_hw hisi_sas_v3_hw = {
+static struct hisi_sas_hw hisi_sas_v3_hw = {
 	.hw_init = hisi_sas_v3_init,
 	.setup_itct = setup_itct_v3_hw,
 	.max_command_entries = HISI_SAS_COMMAND_ENTRIES_V3_HW,
@@ -2088,7 +2088,7 @@ hisi_sas_shost_alloc_pci(struct pci_dev *pdev)
 	struct hisi_hba *hisi_hba;
 	struct device *dev = &pdev->dev;
 
-	shost = scsi_host_alloc(hisi_sas_sht, sizeof(*hisi_hba));
+	shost = scsi_host_alloc(hisi_sas_v3_hw.hisi_sas_sht, sizeof(*hisi_hba));
 	if (!shost) {
 		dev_err(dev, "shost alloc failed\n");
 		return NULL;
@@ -2538,7 +2538,34 @@ static struct pci_driver sas_v3_pci_driver = {
 	.err_handler	= &hisi_sas_err_handler,
 };
 
-module_pci_driver(sas_v3_pci_driver);
+static __init int hisi_sas_v3_hw_init(void)
+{
+	struct scsi_host_template *hisi_sas_sht_v3;
+	int ret;
+
+	hisi_sas_sht_v3 = kmemdup(hisi_sas_sht,
+				  sizeof(struct scsi_host_template),
+				  GFP_KERNEL);
+	if (!hisi_sas_sht_v3)
+		return -ENOMEM;
+	hisi_sas_sht_v3->module = THIS_MODULE;
+	hisi_sas_v3_hw.hisi_sas_sht = hisi_sas_sht_v3;
+
+	ret = pci_register_driver(&sas_v3_pci_driver);
+	if (ret)
+		kfree(hisi_sas_sht_v3);
+
+	return ret;
+}
+
+static __exit void hisi_sas_v3_hw_exit(void)
+{
+	pci_unregister_driver(&sas_v3_pci_driver);
+	kfree(hisi_sas_v3_hw.hisi_sas_sht);
+}
+
+module_init(hisi_sas_v3_hw_init);
+module_exit(hisi_sas_v3_hw_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("John Garry <john.garry@huawei.com>");
