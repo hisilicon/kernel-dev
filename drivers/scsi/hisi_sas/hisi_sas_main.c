@@ -27,11 +27,6 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 static void hisi_sas_release_task(struct hisi_hba *hisi_hba,
 			struct domain_device *device);
 static void hisi_sas_dev_gone(struct domain_device *device);
-static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
-					   void *parameter, u32 para_len,
-					   struct hisi_sas_tmf_task *tmf);
-static void hisi_sas_dereg_device(struct hisi_hba *hisi_hba,
-				struct domain_device *device);
 
 u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 {
@@ -640,40 +635,14 @@ static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
 	return sas_dev;
 }
 
-static int hisi_sas_read_native_max_address(struct domain_device *device)
-{
-	struct ata_port *ap = device->sata_dev.ap;
-	struct ata_link *link;
-	int s = sizeof(struct host_to_dev_fis);
-	int rc = TMF_RESP_FUNC_FAILED;
-	u8 fis[20] = {0};
-
-	ata_for_each_link(link, ap, EDGE) {
-		struct ata_taskfile tf;
-
-		ata_tf_init(link->device, &tf);
-		tf.ctl |= ATA_DRQ;
-		tf.command = ATA_CMD_READ_NATIVE_MAX_EXT;
-		tf.device = ATA_DEVICE_OBS | ATA_LBA;
-		ata_tf_to_fis(&tf, 0, 1, fis);
-
-		rc = hisi_sas_exec_internal_tmf_task(device, fis, s, NULL);
-		if (rc != TMF_RESP_FUNC_COMPLETE)
-			break;
-	}
-
-	return rc;
-}
-
 #define HISI_SAS_SRST_ATA_DISK_CNT 3
 static int hisi_sas_init_disk(struct domain_device *device)
 {
-	int rc = TMF_RESP_FUNC_COMPLETE;
+	int rc = TMF_RESP_FUNC_FAILED;
 	struct scsi_lun lun;
 	struct hisi_sas_tmf_task tmf_task;
 	int retry = HISI_SAS_SRST_ATA_DISK_CNT;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
-	struct device *dev = hisi_hba->dev;
 
 	switch (device->dev_type) {
 	case SAS_END_DEVICE:
@@ -694,37 +663,10 @@ static int hisi_sas_init_disk(struct domain_device *device)
 			if (!rc)
 				break;
 		}
-
-		if (rc)
-			break;
-
-		/*
-		 * The reason of sending the CMD here is that SAMSUNG SATA SSDs
-		 * need 3-5s to response it if the disk is just powered on. This
-		 * CMD may be used in process of ATA device probe. Will hold
-		 * time of SCSI EH. To workaroud this issue. We add the CMD,
-		 * and make the time waiting here.
-		 */
-		rc = hisi_sas_read_native_max_address(device);
-		if (!rc)
-			break;
-
-		dev_warn(dev, "init disk: read native max address failed\n");
-		rc = hisi_sas_internal_task_abort(hisi_hba, device,
-					HISI_SAS_INT_ABT_DEV, 0);
-		if (rc < 0) {
-			dev_err(dev, "init disk: internal abort failed\n");
-			break;
-		}
-		hisi_sas_dereg_device(hisi_hba, device);
-		rc = hisi_sas_softreset_ata_disk(device);
 		break;
 	default:
 		break;
 	}
-
-	if (rc != TMF_RESP_FUNC_COMPLETE)
-		dev_err(dev, "init disk: failed rc=%d\n", rc);
 
 	return rc;
 }
