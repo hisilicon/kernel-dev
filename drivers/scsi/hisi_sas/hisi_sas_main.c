@@ -883,6 +883,8 @@ static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_no)
 
 	for (i = 0; i < HISI_PHYES_NUM; i++)
 		INIT_WORK(&phy->works[i], hisi_sas_phye_fns[i]);
+
+	spin_lock_init(&phy->lock);
 }
 
 static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy)
@@ -1619,48 +1621,34 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 			(device->tproto & SAS_PROTOCOL_STP)) ? 0 : 1;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
-	u32 phy_old_state = 0, phy_new_state = 0;
-	u8 phy_old_sas_addr[SAS_ADDR_SIZE] = {0};
-	u8 phy_new_sas_addr[SAS_ADDR_SIZE] = {0};
 	struct asd_sas_phy *sas_phy = sas_ha->sas_phy[local_phy->number];
 	struct hisi_sas_phy *phy = container_of(sas_phy,
 			struct hisi_sas_phy, sas_phy);
+	DECLARE_COMPLETION_ONSTACK(phyreset);
 
 	if (scsi_is_sas_phy_local(local_phy)) {
-		phy_old_state = hisi_hba->hw->get_phys_state(hisi_hba);
-		phy_old_state &= (1 << sas_phy->id);
-		memcpy(phy_old_sas_addr, sas_phy->attached_sas_addr,
-			SAS_ADDR_SIZE);
 		phy->in_reset = 1;
+		phy->reset_completion = &phyreset;
 	}
 
 	rc = sas_phy_reset(local_phy, reset_type);
 	sas_put_local_phy(local_phy);
-	msleep(2000);
 
 	if (scsi_is_sas_phy_local(local_phy)) {
+		int ret = wait_for_completion_timeout(&phyreset, 2 * HZ);
+		unsigned long flags;
+
+		spin_lock_irqsave(&phy->lock, flags);
+		phy->reset_completion = NULL;
+		spin_unlock_irqrestore(&phy->lock, flags);
 		phy->in_reset = 0;
-		phy_new_state = hisi_hba->hw->get_phys_state(hisi_hba);
-		phy_new_state &= (1 << sas_phy->id);
-		memcpy(phy_new_sas_addr, sas_phy->attached_sas_addr,
-			SAS_ADDR_SIZE);
 
-		if (phy_old_state == phy_new_state) {
-			if (SAS_ADDR(phy_old_sas_addr) !=
-					SAS_ADDR(phy_new_sas_addr)) {
-				/* disable and enable PHY */
-				hisi_hba->hw->phy_hard_reset(hisi_hba, sas_phy->id);
-			} else
-				goto out;
-		} else if (phy_new_state) {
-			/* enable PHY */
-		} else {
-			/* disable PHY */
+		/* report PHY down if timed out */
+		if (!ret)
 			hisi_sas_phy_down(hisi_hba, sas_phy->id, 0);
-		}
-	}
+	} else
+		msleep(2000);
 
-out:
 	return rc;
 }
 
@@ -2037,7 +2025,7 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy)
 		struct hisi_sas_port *port  = phy->port;
 
 		if (test_bit(HISI_SAS_FLUTTER_BIT, &hisi_hba->flags) ||
-				phy->in_reset) {
+		    phy->in_reset) {
 			dev_info(dev, "ignore flutter phy%d down\n", phy_no);
 			return;
 		}

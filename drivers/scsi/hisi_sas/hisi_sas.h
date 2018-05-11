@@ -141,6 +141,8 @@ struct hisi_sas_phy {
 	struct hisi_sas_port	*port;
 	struct asd_sas_phy	sas_phy;
 	struct sas_identify	identify;
+	struct completion *reset_completion;
+	spinlock_t lock;
 	u64		port_id; /* from hw */
 	u64		frame_rcvd_size;
 	u8		frame_rcvd[32];
