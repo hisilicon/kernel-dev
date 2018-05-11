@@ -1631,7 +1631,7 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 		phy_old_state &= (1 << sas_phy->id);
 		memcpy(phy_old_sas_addr, sas_phy->attached_sas_addr,
 			SAS_ADDR_SIZE);
-		phy->is_flutter = 1;
+		phy->in_reset = 1;
 	}
 
 	rc = sas_phy_reset(local_phy, reset_type);
@@ -1639,7 +1639,7 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 	msleep(2000);
 
 	if (scsi_is_sas_phy_local(local_phy)) {
-		phy->is_flutter = 0;
+		phy->in_reset = 0;
 		phy_new_state = hisi_hba->hw->get_phys_state(hisi_hba);
 		phy_new_state &= (1 << sas_phy->id);
 		memcpy(phy_new_sas_addr, sas_phy->attached_sas_addr,
@@ -2037,7 +2037,7 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy)
 		struct hisi_sas_port *port  = phy->port;
 
 		if (test_bit(HISI_SAS_FLUTTER_BIT, &hisi_hba->flags) ||
-				phy->is_flutter) {
+				phy->in_reset) {
 			dev_info(dev, "ignore flutter phy%d down\n", phy_no);
 			return;
 		}
