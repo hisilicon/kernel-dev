@@ -5315,8 +5315,11 @@ static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
 	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
 	struct ib_event event;
 
-	if (!hr_dev)
-		return;
+	if (!hr_dev) {
+		dev_err(&handle->pdev->dev,
+			"Input parameter handle->priv is NULL!\n");
+		return -EINVAL;
+	}
 
 	hr_dev->active = false;
 	hr_dev->is_reset = true;
