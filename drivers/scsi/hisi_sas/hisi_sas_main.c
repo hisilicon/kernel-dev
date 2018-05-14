@@ -1583,8 +1583,8 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 
 		spin_lock_irqsave(&phy->lock, flags);
 		phy->reset_completion = NULL;
-		spin_unlock_irqrestore(&phy->lock, flags);
 		phy->in_reset = 0;
+		spin_unlock_irqrestore(&phy->lock, flags);
 
 		/* report PHY down if timed out */
 		if (!ret)

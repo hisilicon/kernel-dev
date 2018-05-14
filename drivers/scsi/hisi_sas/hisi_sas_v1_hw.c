@@ -1428,8 +1428,10 @@ static irqreturn_t int_phyup_v1_hw(int irq_no, void *p)
 	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP);
 
 	spin_lock_irqsave(&phy->lock, flags);
-	if (phy->reset_completion)
+	if (phy->reset_completion) {
+		phy->in_reset = 0;
 		complete(phy->reset_completion);
+	}
 	spin_unlock_irqrestore(&phy->lock, flags);
 
 end:
