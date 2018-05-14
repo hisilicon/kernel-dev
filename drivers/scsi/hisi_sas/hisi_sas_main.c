@@ -638,7 +638,7 @@ static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
 #define HISI_SAS_SRST_ATA_DISK_CNT 3
 static int hisi_sas_init_disk(struct domain_device *device)
 {
-	int rc = TMF_RESP_FUNC_FAILED;
+	int rc = TMF_RESP_FUNC_COMPLETE;
 	struct scsi_lun lun;
 	struct hisi_sas_tmf_task tmf_task;
 	int retry = HISI_SAS_SRST_ATA_DISK_CNT;
