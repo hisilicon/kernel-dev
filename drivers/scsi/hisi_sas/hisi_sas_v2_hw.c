@@ -3681,7 +3681,30 @@ static void try_wait_IO_done_v2_hw(struct hisi_hba *hisi_hba)
 	dev_dbg(dev, "wait IO done %dms\n", i*100);
 }
 
-static struct hisi_sas_hw hisi_sas_v2_hw = {
+static struct scsi_host_template sht_v2_hw = {
+	.name			= DRV_NAME,
+	.module			= THIS_MODULE,
+	.queuecommand		= sas_queuecommand,
+	.target_alloc		= sas_target_alloc,
+	.slave_configure	= hisi_sas_slave_configure,
+	.scan_finished		= hisi_sas_scan_finished,
+	.scan_start		= hisi_sas_scan_start,
+	.change_queue_depth	= sas_change_queue_depth,
+	.bios_param		= sas_bios_param,
+	.can_queue		= 1,
+	.this_id		= -1,
+	.sg_tablesize		= SG_ALL,
+	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
+	.use_clustering		= ENABLE_CLUSTERING,
+	.eh_device_reset_handler = sas_eh_device_reset_handler,
+	.eh_target_reset_handler = sas_eh_target_reset_handler,
+	.target_destroy		= sas_target_destroy,
+	.ioctl			= sas_ioctl,
+	.shost_attrs		= host_attrs,
+	.host_reset		= hisi_sas_host_reset,
+};
+
+static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.hw_init = hisi_sas_v2_init,
 	.setup_itct = setup_itct_v2_hw,
 	.slot_index_alloc = slot_index_alloc_quirk_v2_hw,
@@ -3711,6 +3734,7 @@ static struct hisi_sas_hw hisi_sas_v2_hw = {
 	.get_phys_state = get_phys_state_v2_hw,
 	.write_gpio = write_gpio_v2_hw,
 	.try_wait_IO_done = try_wait_IO_done_v2_hw,
+	.sht = &sht_v2_hw,
 };
 
 static int hisi_sas_v2_probe(struct platform_device *pdev)
@@ -3764,34 +3788,7 @@ static struct platform_driver hisi_sas_v2_driver = {
 	},
 };
 
-static __init int hisi_sas_v2_hw_init(void)
-{
-	struct scsi_host_template *hisi_sas_sht_v2;
-	int ret = 0;
-
-	hisi_sas_sht_v2 = kmemdup(hisi_sas_sht,
-				  sizeof(struct scsi_host_template),
-				  GFP_KERNEL);
-	if (!hisi_sas_sht_v2)
-		return -ENOMEM;
-	hisi_sas_sht_v2->module = THIS_MODULE;
-	hisi_sas_v2_hw.hisi_sas_sht = hisi_sas_sht_v2;
-
-	ret = platform_driver_register(&hisi_sas_v2_driver);
-	if (ret)
-		kfree(hisi_sas_sht_v2);
-
-	return ret;
-}
-
-static __exit void hisi_sas_v2_hw_exit(void)
-{
-	platform_driver_unregister(&hisi_sas_v2_driver);
-	kfree(hisi_sas_v2_hw.hisi_sas_sht);
-}
-
-module_init(hisi_sas_v2_hw_init);
-module_exit(hisi_sas_v2_hw_exit);
+module_platform_driver(hisi_sas_v2_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("John Garry <john.garry@huawei.com>");

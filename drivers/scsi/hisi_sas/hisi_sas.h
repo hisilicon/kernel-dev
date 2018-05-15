@@ -260,7 +260,7 @@ struct hisi_sas_hw {
 	int max_command_entries;
 	int can_queue;
 	int complete_hdr_size;
-	struct scsi_host_template *hisi_sas_sht;
+	struct scsi_host_template *sht;
 };
 
 struct hisi_hba {
@@ -454,22 +454,25 @@ struct hisi_sas_slot_buf_table {
 };
 
 extern struct scsi_transport_template *hisi_sas_stt;
-extern struct scsi_host_template *hisi_sas_sht;
-
 extern void hisi_sas_stop_phys(struct hisi_hba *hisi_hba);
 extern int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost);
 extern void hisi_sas_free(struct hisi_hba *hisi_hba);
 extern u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis,
-				int direction);
+				    int direction);
 extern struct hisi_sas_port *to_hisi_sas_port(struct asd_sas_port *sas_port);
 extern void hisi_sas_sata_done(struct sas_task *task,
-			    struct hisi_sas_slot *slot);
+			       struct hisi_sas_slot *slot);
 extern int hisi_sas_get_ncq_tag(struct sas_task *task, u32 *tag);
 extern int hisi_sas_get_fw_info(struct hisi_hba *hisi_hba);
 extern int hisi_sas_probe(struct platform_device *pdev,
-			  struct hisi_sas_hw *ops);
+			  const struct hisi_sas_hw *ops);
 extern int hisi_sas_remove(struct platform_device *pdev);
 
+extern int hisi_sas_slave_configure(struct scsi_device *sdev);
+extern int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
+extern void hisi_sas_scan_start(struct Scsi_Host *shost);
+extern struct device_attribute *host_attrs[];
+extern int hisi_sas_host_reset(struct Scsi_Host *shost, int reset_type);
 extern void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy);
 extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,
 				    struct sas_task *task,
@@ -479,7 +482,7 @@ extern void hisi_sas_rst_work_handler(struct work_struct *work);
 extern void hisi_sas_sync_rst_work_handler(struct work_struct *work);
 extern void hisi_sas_kill_tasklets(struct hisi_hba *hisi_hba);
 extern bool hisi_sas_notify_phy_event(struct hisi_sas_phy *phy,
-				enum hisi_sas_phy_event event);
+				      enum hisi_sas_phy_event event);
 extern void hisi_sas_release_tasks(struct hisi_hba *hisi_hba);
 extern u8 hisi_sas_get_prog_phy_linkrate_mask(enum sas_linkrate max);
 #endif
