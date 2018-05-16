@@ -29,10 +29,6 @@ struct ghes {
 		struct timer_list timer;
 		unsigned int irq;
 	};
-
-	/* If this ghes can be called in NMI contet, these must be populated. */
-	raw_spinlock_t *nmi_fixmap_lock;
-	int nmi_fixmap_idx;
 };
 
 struct ghes_estatus_node {
