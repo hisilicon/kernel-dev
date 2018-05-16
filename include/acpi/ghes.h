@@ -6,6 +6,20 @@
 #include <acpi/hed.h>
 
 /*
+ * Systems with multiple NMI-like notifications may need separate locks/fixmap
+ * entries.
+ */
+struct ghes_nmi_fixmap {
+	raw_spinlock_t	lock;
+	int		idx;
+};
+
+#define DEFINE_GHES_NMI_FIXMAP(name, slot)	struct ghes_nmi_fixmap name = {\
+	.lock = __RAW_SPIN_LOCK_INITIALIZER(lock),		\
+	.idx  = slot,						\
+}
+
+/*
  * One struct ghes is created for each generic hardware error source.
  * It provides the context for APEI hardware error timer/IRQ/SCI/NMI
  * handler.
@@ -29,6 +43,9 @@ struct ghes {
 		struct timer_list timer;
 		unsigned int irq;
 	};
+
+	/* If this ghes can be called in NMI contet, this must be populated. */
+	struct ghes_nmi_fixmap *nmi_fixmap;
 };
 
 struct ghes_estatus_node {
