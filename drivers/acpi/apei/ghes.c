@@ -25,7 +25,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/arm_sdei.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -60,7 +59,7 @@
 
 #define GHES_PFX	"GHES: "
 
-#if defined(CONFIG_HAVE_ACPI_APEI_NMI) || defined(CONFIG_ACPI_APEI_SEA) || defined(CONFIG_ARM_SDE_INTERFACE)
+#if defined(CONFIG_HAVE_ACPI_APEI_NMI) || defined(CONFIG_ACPI_APEI_SEA)
 #define WANT_NMI_ESTATUS_QUEUE	1
 #endif
 
@@ -768,7 +767,7 @@ static int _in_nmi_notify_one(struct ghes *ghes)
 	return 0;
 }
 
-static int __maybe_unused ghes_estatus_queue_notified(struct list_head *rcu_list)
+static int ghes_estatus_queue_notified(struct list_head *rcu_list)
 {
 	int ret = -ENOENT;
 	struct ghes *ghes;
@@ -1062,49 +1061,6 @@ static inline void ghes_nmi_add(struct ghes *ghes) { }
 static inline void ghes_nmi_remove(struct ghes *ghes) { }
 #endif /* CONFIG_HAVE_ACPI_APEI_NMI */
 
-static int ghes_sdei_callback(u32 event_num, struct pt_regs *regs, void *arg)
-{
-	struct ghes *ghes = arg;
-
-	if (!_in_nmi_notify_one(ghes)) {
-		if (IS_ENABLED(CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG))
-			irq_work_queue(&ghes_proc_irq_work);
-
-		return 0;
-	}
-
-	return -ENOENT;
-}
-
-static int apei_sdei_register_ghes(struct ghes *ghes)
-{
-	int err = -EINVAL;
-
-	if (IS_ENABLED(CONFIG_ARM_SDE_INTERFACE)) {
-		ghes_estatus_queue_grow_pool(ghes);
-
-		err = sdei_register_ghes(ghes, ghes_sdei_callback);
-		if (err)
-			ghes_estatus_queue_shrink_pool(ghes);
-	}
-
-	return err;
-}
-
-static int apei_sdei_unregister_ghes(struct ghes *ghes)
-{
-	int err = -EINVAL;
-
-	if (IS_ENABLED(CONFIG_ARM_SDE_INTERFACE)) {
-		err = sdei_unregister_ghes(ghes);
-
-		if (!err)
-			ghes_estatus_queue_shrink_pool(ghes);
-	}
-
-	return err;
-}
-
 static int ghes_probe(struct platform_device *ghes_dev)
 {
 	struct acpi_hest_generic *generic;
@@ -1135,13 +1091,6 @@ static int ghes_probe(struct platform_device *ghes_dev)
 	case ACPI_HEST_NOTIFY_NMI:
 		if (!IS_ENABLED(CONFIG_HAVE_ACPI_APEI_NMI)) {
 			pr_warn(GHES_PFX "Generic hardware error source: %d notified via NMI interrupt is not supported!\n",
-				generic->header.source_id);
-			goto err;
-		}
-		break;
-	case ACPI_HEST_NOTIFY_SOFTWARE_DELEGATED:
-		if (!IS_ENABLED(CONFIG_ARM_SDE_INTERFACE)) {
-			pr_warn(GHES_PFX "Generic hardware error source: %d notified via SDE Interface is not supported!\n",
 				generic->header.source_id);
 			goto err;
 		}
@@ -1213,11 +1162,6 @@ static int ghes_probe(struct platform_device *ghes_dev)
 	case ACPI_HEST_NOTIFY_NMI:
 		ghes_nmi_add(ghes);
 		break;
-	case ACPI_HEST_NOTIFY_SOFTWARE_DELEGATED:
-		rc = apei_sdei_register_ghes(ghes);
-		if (rc)
-			goto err_edac_unreg;
-		break;
 	default:
 		BUG();
 	}
@@ -1239,7 +1183,6 @@ err:
 
 static int ghes_remove(struct platform_device *ghes_dev)
 {
-	int rc;
 	struct ghes *ghes;
 	struct acpi_hest_generic *generic;
 
@@ -1271,11 +1214,6 @@ static int ghes_remove(struct platform_device *ghes_dev)
 		break;
 	case ACPI_HEST_NOTIFY_NMI:
 		ghes_nmi_remove(ghes);
-		break;
-	case ACPI_HEST_NOTIFY_SOFTWARE_DELEGATED:
-		rc = apei_sdei_unregister_ghes(ghes);
-		if (rc)
-			return rc;
 		break;
 	default:
 		BUG();
