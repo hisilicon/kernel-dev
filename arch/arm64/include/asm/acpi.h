@@ -16,7 +16,6 @@
 #include <linux/psci.h>
 
 #include <asm/cputype.h>
-#include <asm/ptrace.h>
 #include <asm/smp_plat.h>
 #include <asm/tlbflush.h>
 
@@ -98,8 +97,6 @@ void __init acpi_init_cpus(void);
 #else
 static inline void acpi_init_cpus(void) { }
 #endif /* CONFIG_ACPI */
-
-int apei_claim_sea(struct pt_regs *regs);
 
 #ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
 bool acpi_parking_protocol_valid(int cpu);
