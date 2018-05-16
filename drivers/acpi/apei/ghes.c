@@ -763,51 +763,6 @@ static void __process_error(struct ghes *ghes)
 #endif
 }
 
-static int _in_nmi_notify_one(struct ghes *ghes)
-{
-	int sev;
-
-	if (ghes_read_estatus(ghes, 1)) {
-		ghes_clear_estatus(ghes);
-		return -ENOENT;
-	}
-
-	sev = ghes_severity(ghes->estatus->error_severity);
-	if (sev >= GHES_SEV_PANIC) {
-#ifdef CONFIG_X86
-		oops_begin();
-#endif
-		ghes_print_queued_estatus();
-		__ghes_panic(ghes);
-	}
-
-	if (!(ghes->flags & GHES_TO_CLEAR))
-		return 0;
-
-	__process_error(ghes);
-	ghes_clear_estatus(ghes);
-
-	return 0;
-}
-
-static int ghes_estatus_queue_notified(struct list_head *rcu_list)
-{
-	int ret = -ENOENT;
-	struct ghes *ghes;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(ghes, rcu_list, list) {
-		if (!_in_nmi_notify_one(ghes))
-			ret = 0;
-	}
-	rcu_read_unlock();
-
-	if (IS_ENABLED(CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG) && ret == 0)
-		irq_work_queue(&ghes_proc_irq_work);
-
-	return ret;
-}
-
 static unsigned long ghes_esource_prealloc_size(
 	const struct acpi_hest_generic *generic)
 {
@@ -823,22 +778,9 @@ static unsigned long ghes_esource_prealloc_size(
 	return prealloc_size;
 }
 
-/* After removing a queue user, we can shrink the pool */
-static void ghes_estatus_queue_shrink_pool(struct ghes *ghes)
+static void ghes_estatus_pool_shrink(unsigned long len)
 {
-	unsigned long len;
-
-	len = ghes_esource_prealloc_size(ghes->generic);
 	ghes_estatus_pool_size_request -= PAGE_ALIGN(len);
-}
-
-/* Before adding a queue user, grow the pool */
-static void ghes_estatus_queue_grow_pool(struct ghes *ghes)
-{
-	unsigned long len;
-
-	len = ghes_esource_prealloc_size(ghes->generic);
-	ghes_estatus_pool_expand(len);
 }
 
 static void ghes_proc_in_irq(struct irq_work *irq_work)
@@ -1039,22 +981,48 @@ static LIST_HEAD(ghes_nmi);
 
 static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 {
-	int ret = NMI_DONE;
+	struct ghes *ghes;
+	int sev, ret = NMI_DONE;
 
 	if (!atomic_add_unless(&ghes_in_nmi, 1, 1))
 		return ret;
 
-	if (!ghes_estatus_queue_notified(&ghes_nmi))
-		ret = NMI_HANDLED;
+	list_for_each_entry_rcu(ghes, &ghes_nmi, list) {
+		if (ghes_read_estatus(ghes, 1)) {
+			ghes_clear_estatus(ghes);
+			continue;
+		} else {
+			ret = NMI_HANDLED;
+		}
 
+		sev = ghes_severity(ghes->estatus->error_severity);
+		if (sev >= GHES_SEV_PANIC) {
+			oops_begin();
+			ghes_print_queued_estatus();
+			__ghes_panic(ghes);
+		}
+
+		if (!(ghes->flags & GHES_TO_CLEAR))
+			continue;
+
+		__process_error(ghes);
+		ghes_clear_estatus(ghes);
+	}
+
+#ifdef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
+	if (ret == NMI_HANDLED)
+		irq_work_queue(&ghes_proc_irq_work);
+#endif
 	atomic_dec(&ghes_in_nmi);
 	return ret;
 }
 
 static void ghes_nmi_add(struct ghes *ghes)
 {
-	ghes_estatus_queue_grow_pool(ghes);
+	unsigned long len;
 
+	len = ghes_esource_prealloc_size(ghes->generic);
+	ghes_estatus_pool_expand(len);
 	mutex_lock(&ghes_list_mutex);
 	if (list_empty(&ghes_nmi))
 		register_nmi_handler(NMI_LOCAL, ghes_notify_nmi, 0, "ghes");
@@ -1064,6 +1032,8 @@ static void ghes_nmi_add(struct ghes *ghes)
 
 static void ghes_nmi_remove(struct ghes *ghes)
 {
+	unsigned long len;
+
 	mutex_lock(&ghes_list_mutex);
 	list_del_rcu(&ghes->list);
 	if (list_empty(&ghes_nmi))
@@ -1074,8 +1044,8 @@ static void ghes_nmi_remove(struct ghes *ghes)
 	 * freed after NMI handler finishes.
 	 */
 	synchronize_rcu();
-
-	ghes_estatus_queue_shrink_pool(ghes);
+	len = ghes_esource_prealloc_size(ghes->generic);
+	ghes_estatus_pool_shrink(len);
 }
 
 #else /* CONFIG_HAVE_ACPI_APEI_NMI */
