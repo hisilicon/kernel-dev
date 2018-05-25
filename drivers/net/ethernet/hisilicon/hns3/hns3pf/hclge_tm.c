@@ -312,22 +312,6 @@ static int hclge_tm_q_to_qs_map_cfg(struct hclge_dev *hdev,
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
-static int hclge_tm_tx_ring_to_tc_cfg(struct hclge_dev *hdev,
-				      u16 ring_id, u8 tc)
-{
-	struct hclge_tx_ring_to_tc_cmd *map;
-	struct hclge_desc desc;
-
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_TX_QUEUE_TC, false);
-
-	map = (struct hclge_tx_ring_to_tc_cmd *)desc.data;
-
-	map->ring_id = cpu_to_le16(ring_id);
-	map->tc = tc;
-
-	return hclge_cmd_send(&hdev->hw, &desc, 1);
-}
-
 static int hclge_tm_pg_weight_cfg(struct hclge_dev *hdev, u8 pg_id,
 				  u8 dwrr)
 {
@@ -760,32 +744,7 @@ static int hclge_vport_q_to_qs_map(struct hclge_dev *hdev,
 	return 0;
 }
 
-static int hclge_vport_tx_ring_to_tc_map(struct hclge_dev *hdev,
-					 struct hclge_vport *vport)
-{
-	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
-	struct hnae3_queue **tqp = kinfo->tqp;
-	struct hnae3_tc_info *v_tc_info;
-	u32 i, j;
-	int ret;
-
-	for (i = 0; i < kinfo->num_tc; i++) {
-		v_tc_info = &kinfo->tc_info[i];
-		for (j = 0; j < v_tc_info->tqp_count; j++) {
-			struct hnae3_queue *q = tqp[v_tc_info->tqp_offset + j];
-
-			ret = hclge_tm_tx_ring_to_tc_cfg(hdev,
-							 hclge_get_queue_id(q),
-							 i);
-			if (ret)
-				return ret;
-		}
-	}
-
-	return 0;
-}
-
-static int hclge_tm_tc_pri_q_qs_cfg(struct hclge_dev *hdev)
+static int hclge_tm_pri_q_qs_cfg(struct hclge_dev *hdev)
 {
 	struct hclge_vport *vport = hdev->vport;
 	int ret;
@@ -813,13 +772,9 @@ static int hclge_tm_tc_pri_q_qs_cfg(struct hclge_dev *hdev)
 		return -EINVAL;
 	}
 
-	/* Cfg q -> qs and ring -> tc mapping */
+	/* Cfg q -> qs mapping */
 	for (i = 0; i < hdev->num_alloc_vport; i++) {
 		ret = hclge_vport_q_to_qs_map(hdev, vport);
-		if (ret)
-			return ret;
-
-		ret = hclge_vport_tx_ring_to_tc_map(hdev, vport);
 		if (ret)
 			return ret;
 
@@ -1048,7 +1003,7 @@ int hclge_tm_map_cfg(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	return hclge_tm_tc_pri_q_qs_cfg(hdev);
+	return hclge_tm_pri_q_qs_cfg(hdev);
 }
 
 static int hclge_tm_shaper_cfg(struct hclge_dev *hdev)

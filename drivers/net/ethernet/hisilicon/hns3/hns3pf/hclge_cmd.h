@@ -142,7 +142,6 @@ enum hclge_opcode_type {
 	HCLGE_OPC_CFG_TX_QUEUE		= 0x0B01,
 	HCLGE_OPC_QUERY_TX_POINTER	= 0x0B02,
 	HCLGE_OPC_QUERY_TX_STATUS	= 0x0B03,
-	HCLGE_OPC_CFG_TX_QUEUE_TC	= 0x0B04,
 	HCLGE_OPC_CFG_RX_QUEUE		= 0x0B11,
 	HCLGE_OPC_QUERY_RX_POINTER	= 0x0B12,
 	HCLGE_OPC_QUERY_RX_STATUS	= 0x0B13,
@@ -769,13 +768,6 @@ struct hclge_reset_cmd {
 	u8 mac_func_reset;
 	u8 fun_reset_vfid;
 	u8 rsv[22];
-};
-
-struct hclge_tx_ring_to_tc_cmd {
-	__le16 ring_id;
-	__le16 rsv;
-	u8 tc;
-	u8 rsv1[19];
 };
 
 #define HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B	BIT(0)
