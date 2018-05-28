@@ -2301,6 +2301,8 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	ring->tqp_vector->rx_group.total_bytes += skb->len;
 
 	hns3_rx_checksum(ring, skb, desc);
+	skb_record_rx_queue(skb, ring->tqp->tqp_index);
+
 	return 0;
 }
 
