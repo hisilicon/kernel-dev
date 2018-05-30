@@ -496,6 +496,7 @@ struct hclge_fd_cfg {
 	u8 fd_mode;
 	u8 fd_en;
 	u16 max_key_length;
+	u32 proto_support;
 	u32 stage1_rule_entry_number;
 	u32 stage2_rule_entry_number;
 	u16 stage1_counter_number;

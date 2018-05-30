@@ -5331,9 +5331,24 @@ static int hclge_init_fd_config(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
+	switch (hdev->fd_cfg.fd_mode) {
+	case HCLGE_FD_MODE_DEPTH_2K_WIDTH_400B_STAGE_1:
+		hdev->fd_cfg.max_key_length = MAX_KEY_LENGTH;
+		break;
+	case HCLGE_FD_MODE_DEPTH_4K_WIDTH_200B_STAGE_1:
+		hdev->fd_cfg.max_key_length = MAX_KEY_LENGTH / 2;
+		break;
+	default:
+		dev_err(&hdev->pdev->dev,
+			"Unsupported flow director mode %d\n",
+			hdev->fd_cfg.fd_mode);
+		return -EOPNOTSUPP;
+	}
+
 	hdev->fd_cfg.fd_en = true;
-	hdev->fd_cfg.max_key_length =
-		hdev->fd_cfg.fd_mode > 1 ? MAX_KEY_LENGTH / 2 : MAX_KEY_LENGTH;
+	hdev->fd_cfg.proto_support =
+		TCP_V4_FLOW | UDP_V4_FLOW | SCTP_V4_FLOW | TCP_V6_FLOW |
+		UDP_V6_FLOW | SCTP_V6_FLOW | IPV4_USER_FLOW | IPV6_USER_FLOW;
 	key_cfg = &hdev->fd_cfg.key_cfg[HCLGE_FD_STAGE_1];
 	key_cfg->key_sel = HCLGE_FD_KEY_BASE_ON_TUPLE,
 	key_cfg->inner_sipv6_word_en = LOW_2_WORDS;
@@ -5341,11 +5356,18 @@ static int hclge_init_fd_config(struct hclge_dev *hdev)
 	key_cfg->outer_sipv6_word_en = 0;
 	key_cfg->outer_dipv6_word_en = 0;
 
-	key_cfg->tuple_active = BIT(INNER_DST_MAC) | BIT(INNER_SRC_MAC) |
-				BIT(INNER_VLAN_TAG_FST) | BIT(INNER_IP_PROTO) |
-				BIT(INNER_ETH_TYPE) | BIT(INNER_IP_TOS) |
+	key_cfg->tuple_active = BIT(INNER_DST_MAC) | BIT(INNER_VLAN_TAG_FST) |
+				BIT(INNER_IP_PROTO) | BIT(INNER_IP_TOS) |
 				BIT(INNER_SRC_IP) | BIT(INNER_DST_IP) |
 				BIT(INNER_SRC_PORT) | BIT(INNER_DST_PORT);
+
+	/* if use max 400bit key, we can support tuples for ether type */
+	if (hdev->fd_cfg.max_key_length == MAX_KEY_LENGTH) {
+		hdev->fd_cfg.proto_support |= ETHER_FLOW;
+		key_cfg->tuple_active |=
+				BIT(INNER_SRC_MAC) | BIT(INNER_ETH_TYPE);
+	}
+
 	key_cfg->tuple_length = 0;
 	for (i = 0; i < MAX_TUPLE; i++)
 		if (key_cfg->tuple_active & BIT(i))
@@ -5682,6 +5704,9 @@ static int hclge_fd_check_spec(struct hclge_dev *hdev,
 
 	if (fs->location >= hdev->fd_cfg.stage1_rule_entry_number)
 		return -EINVAL;
+
+	if (!(fs->flow_type & hdev->fd_cfg.proto_support))
+		return -EOPNOTSUPP;
 
 	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
 	case SCTP_V4_FLOW:
