@@ -1226,6 +1226,15 @@ static int hns3_nic_set_features(struct net_device *netdev,
 		}
 	}
 
+	if (changed & (NETIF_F_GRO_HW) && h->ae_algo->ops->set_gro_en) {
+		if (features & NETIF_F_GRO_HW)
+			ret = h->ae_algo->ops->set_gro_en(h, true);
+		else
+			ret = h->ae_algo->ops->set_gro_en(h, false);
+		if (ret)
+			return ret;
+	}
+
 	if ((changed & NETIF_F_HW_VLAN_CTAG_FILTER) &&
 	    h->ae_algo->ops->enable_vlan_filter) {
 		if (features & NETIF_F_HW_VLAN_CTAG_FILTER)

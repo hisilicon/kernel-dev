@@ -7593,6 +7593,14 @@ static void hclge_get_port_type(struct hnae3_handle *handle,
 	}
 }
 
+static int hclge_gro_en(struct hnae3_handle *handle, int enable)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	return hclge_config_gro(hdev, enable);
+}
+
 static const struct hnae3_ae_ops hclge_ops = {
 	.init_ae_dev = hclge_init_ae_dev,
 	.uninit_ae_dev = hclge_uninit_ae_dev,
@@ -7657,6 +7665,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_fd_rule_cnt = hclge_get_fd_rule_cnt,
 	.get_fd_rule_info = hclge_get_fd_rule_info,
 	.get_fd_all_rules = hclge_get_all_rules,
+	.set_gro_en = hclge_gro_en,
 };
 
 static struct hnae3_ae_algo ae_algo = {
