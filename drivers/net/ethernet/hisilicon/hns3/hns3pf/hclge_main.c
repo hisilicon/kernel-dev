@@ -4990,6 +4990,245 @@ int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
 	return hclge_set_vlan_rx_offload_cfg(vport);
 }
 
+static int hclge_set_fd_mode(struct hclge_dev *hdev, u8 mode, u8 enable)
+{
+	struct hclge_set_fd_mode_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_FD_MODE_CTRL, false);
+
+	req = (struct hclge_set_fd_mode_cmd *)desc.data;
+	req->mode = mode;
+	req->enable = enable;
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev, "set fd mode fail, ret =%d\n", ret);
+
+	return ret;
+}
+
+static int hclge_get_fd_allocation(struct hclge_dev *hdev,
+				   u32 *stage1_entry_num,
+				   u32 *stage2_entry_num,
+				   u16 *stage1_counter_num,
+				   u16 *stage2_counter_num)
+{
+	struct hclge_get_fd_allocation_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_FD_GET_ALLOCATION, true);
+
+	req = (struct hclge_get_fd_allocation_cmd *)desc.data;
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev, "query fd allocation fail, ret =%d\n",
+			ret);
+		return ret;
+	}
+
+	*stage1_entry_num = req->stage1_entry_num;
+	*stage2_entry_num = req->stage2_entry_num;
+	*stage1_counter_num = req->stage1_counter_num;
+	*stage2_counter_num = req->stage2_counter_num;
+
+	return ret;
+}
+
+static int hclge_set_fd_key_config(struct hclge_dev *hdev, int stage_num)
+{
+	struct hclge_set_fd_key_config_cmd *req;
+	struct hclge_fd_key_cfg *stage;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_FD_KEY_CONFIG, false);
+
+	req = (struct hclge_set_fd_key_config_cmd *)desc.data;
+	stage = &hdev->fd_cfg.key_cfg[stage_num];
+	req->stage = stage_num;
+	req->key_select = stage->key_sel;
+	req->inner_sipv6_word_en = stage->inner_sipv6_word_en;
+	req->inner_dipv6_word_en = stage->inner_dipv6_word_en;
+	req->outer_sipv6_word_en = stage->outer_sipv6_word_en;
+	req->outer_dipv6_word_en = stage->outer_dipv6_word_en;
+	req->tuple_mask = cpu_to_le32(~stage->tuple_active);
+	req->meta_data_mask = cpu_to_le32(~stage->meta_data_active);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev, "set fd key fail, ret =%d\n", ret);
+
+	return ret;
+}
+
+enum HCLGE_FD_STAGE {
+	HCLGE_FD_STAGE_1,
+	HCLGE_FD_STAGE_2,
+};
+
+/* OUTER_XXX indicates tuples in tunnle header of tunnel packet
+ * INNER_XXX indicate tuples in tunneled header of tunnel packet or
+ *           tuples of non-tunnel packet
+ */
+enum HCLGE_FD_TUPLE {
+	OUTER_DST_MAC,
+	OUTER_SRC_MAC,
+	OUTER_VLAN_TAG_FST,
+	OUTER_VLAN_TAG_SEC,
+	OUTER_ETH_TYPE,
+	OUTER_L2_RSV,
+	OUTER_IP_TOS,
+	OUTER_IP_PROTO,
+	OUTER_SRC_IP,
+	OUTER_DST_IP,
+	OUTER_L3_RSV,
+	OUTER_SRC_PORT,
+	OUTER_DST_PORT,
+	OUTER_L4_RSV,
+	OUTER_TUN_VNI,
+	OUTER_TUN_FLOW_ID,
+	INNER_DST_MAC,
+	INNER_SRC_MAC,
+	INNER_VLAN_TAG_FST,
+	INNER_VLAN_TAG_SEC,
+	INNER_ETH_TYPE,
+	INNER_L2_RSV,
+	INNER_IP_TOS,
+	INNER_IP_PROTO,
+	INNER_SRC_IP,
+	INNER_DST_IP,
+	INNER_L3_RSV,
+	INNER_SRC_PORT,
+	INNER_DST_PORT,
+	INNER_L4_RSV,
+	MAX_TUPLE,
+};
+
+enum HCLGE_FD_META_DATA {
+	PACKET_TYPE_ID,
+	IP_FRAGEMENT,
+	ROCEE_TYPE,
+	NEXT_KEY,
+	VLAN_NUMBER,
+	SRC_VPORT,
+	DST_VPORT,
+	TUNNEL_PACKET,
+	MAX_META_DATA,
+};
+
+struct key_info {
+	u8 key_type;
+	u8 key_length;
+};
+
+static const struct key_info meta_data_key_info[] = {
+	{ PACKET_TYPE_ID, 6},
+	{ IP_FRAGEMENT, 1},
+	{ ROCEE_TYPE, 1},
+	{ NEXT_KEY, 5},
+	{ VLAN_NUMBER, 2},
+	{ SRC_VPORT, 12},
+	{ DST_VPORT, 12},
+	{ TUNNEL_PACKET, 1},
+};
+
+static const struct key_info tuple_key_info[] = {
+	{ OUTER_DST_MAC, 48},
+	{ OUTER_SRC_MAC, 48},
+	{ OUTER_VLAN_TAG_FST, 16},
+	{ OUTER_VLAN_TAG_SEC, 16},
+	{ OUTER_ETH_TYPE, 16},
+	{ OUTER_L2_RSV, 16},
+	{ OUTER_IP_TOS, 8},
+	{ OUTER_IP_PROTO, 8},
+	{ OUTER_SRC_IP, 32},
+	{ OUTER_DST_IP, 32},
+	{ OUTER_L3_RSV, 16},
+	{ OUTER_SRC_PORT, 16},
+	{ OUTER_DST_PORT, 16},
+	{ OUTER_L4_RSV, 32},
+	{ OUTER_TUN_VNI, 24},
+	{ OUTER_TUN_FLOW_ID, 8},
+	{ INNER_DST_MAC, 48},
+	{ INNER_SRC_MAC, 48},
+	{ INNER_VLAN_TAG_FST, 16},
+	{ INNER_VLAN_TAG_SEC, 16},
+	{ INNER_ETH_TYPE, 16},
+	{ INNER_L2_RSV, 16},
+	{ INNER_IP_TOS, 8},
+	{ INNER_IP_PROTO, 8},
+	{ INNER_SRC_IP, 32},
+	{ INNER_DST_IP, 32},
+	{ INNER_L3_RSV, 16},
+	{ INNER_SRC_PORT, 16},
+	{ INNER_DST_PORT, 16},
+	{ INNER_L4_RSV, 32},
+};
+
+#define MAX_KEY_LENGTH	400
+#define MAX_KEY_DWORDS	DIV_ROUND_UP(MAX_KEY_LENGTH / 8, 4)
+#define MAX_KEY_BYTES	(MAX_KEY_DWORDS * 4)
+
+enum HCLGE_FD_PACKET_TYPE {
+	NIC_PACKET,
+	ROCE_PACKET,
+};
+
+enum HCLGE_FD_ACTION {
+	HCLGE_FD_ACTION_ACCEPT_PACKET,
+	HCLGE_FD_ACTION_DROP_PACKET,
+};
+
+static int hclge_init_fd_config(struct hclge_dev *hdev)
+{
+#define LOW_2_WORDS		0x03
+	struct hclge_fd_key_cfg *key_cfg;
+	int i, ret;
+
+	hdev->fd_cfg.fd_mode = HCLGE_FD_MODE_DEPTH_2K_WIDTH_400B_STAGE_1;
+	hdev->fd_cfg.fd_en = true;
+	hdev->fd_cfg.max_key_length =
+		hdev->fd_cfg.fd_mode > 1 ? MAX_KEY_LENGTH / 2 : MAX_KEY_LENGTH;
+	key_cfg = &hdev->fd_cfg.key_cfg[HCLGE_FD_STAGE_1];
+	key_cfg->key_sel = HCLGE_FD_KEY_BASE_ON_TUPLE,
+	key_cfg->inner_sipv6_word_en = LOW_2_WORDS;
+	key_cfg->inner_dipv6_word_en = LOW_2_WORDS;
+	key_cfg->outer_sipv6_word_en = 0;
+	key_cfg->outer_dipv6_word_en = 0;
+
+	key_cfg->tuple_active = BIT(INNER_DST_MAC) | BIT(INNER_SRC_MAC) |
+				BIT(INNER_VLAN_TAG_FST) | BIT(INNER_IP_PROTO) |
+				BIT(INNER_ETH_TYPE) | BIT(INNER_IP_TOS) |
+				BIT(INNER_SRC_IP) | BIT(INNER_DST_IP) |
+				BIT(INNER_SRC_PORT) | BIT(INNER_DST_PORT);
+	key_cfg->tuple_length = 0;
+	for (i = 0; i < MAX_TUPLE; i++)
+		if (key_cfg->tuple_active & BIT(i))
+			key_cfg->tuple_length += tuple_key_info[i].key_length;
+
+	key_cfg->meta_data_active = BIT(ROCEE_TYPE);
+	key_cfg->meta_data_length = meta_data_key_info[ROCEE_TYPE].key_length;
+	key_cfg->meta_data_key = NIC_PACKET;
+
+	ret = hclge_set_fd_mode(hdev, hdev->fd_cfg.fd_mode, hdev->fd_cfg.fd_en);
+	if (ret)
+		return ret;
+
+	ret = hclge_get_fd_allocation(hdev,
+				      &hdev->fd_cfg.stage1_rule_entry_number,
+				      &hdev->fd_cfg.stage2_rule_entry_number,
+				      &hdev->fd_cfg.stage1_counter_number,
+				      &hdev->fd_cfg.stage2_counter_number);
+	if (ret)
+		return ret;
+
+	return hclge_set_fd_key_config(hdev, HCLGE_FD_STAGE_1);
+}
+
 static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mtu)
 {
 	struct hclge_config_max_frm_size_cmd *req;
@@ -5738,6 +5977,12 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		goto err_mdiobus_unreg;
 	}
 
+	ret = hclge_init_fd_config(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "fd table init fail, ret =%d\n", ret);
+		goto err_mdiobus_unreg;
+	}
+
 	hclge_dcb_ops_set(hdev);
 
 	timer_setup(&hdev->service_timer, hclge_service_timer, 0);
@@ -5841,6 +6086,12 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclge_rss_init_hw(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Rss init fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	ret = hclge_init_fd_config(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "fd table init fail, ret =%d\n", ret);
 		return ret;
 	}
 

@@ -466,6 +466,42 @@ struct hclge_vlan_type_cfg {
 	u16 tx_in_vlan_type;
 };
 
+enum HCLGE_FD_MODE {
+	HCLGE_FD_MODE_DEPTH_2K_WIDTH_400B_STAGE_1,
+	HCLGE_FD_MODE_DEPTH_1K_WIDTH_400B_STAGE_2,
+	HCLGE_FD_MODE_DEPTH_4K_WIDTH_200B_STAGE_1,
+	HCLGE_FD_MODE_DEPTH_2K_WIDTH_200B_STAGE_2,
+};
+
+enum HCLGE_FD_KEY_TYPE {
+	HCLGE_FD_KEY_BASE_ON_PTYPE,
+	HCLGE_FD_KEY_BASE_ON_TUPLE,
+};
+
+struct hclge_fd_key_cfg {
+	u8 key_sel;
+	u8 inner_sipv6_word_en;
+	u8 inner_dipv6_word_en;
+	u8 outer_sipv6_word_en;
+	u8 outer_dipv6_word_en;
+	u16 tuple_length;
+	u16 meta_data_length;
+	u32 tuple_active;
+	u32 meta_data_active;
+	u64 meta_data_key;
+};
+
+struct hclge_fd_cfg {
+	u8 fd_mode;
+	u8 fd_en;
+	u16 max_key_length;
+	u32 stage1_rule_entry_number;
+	u32 stage2_rule_entry_number;
+	u16 stage1_counter_number;
+	u16 stage2_counter_number;
+	struct hclge_fd_key_cfg key_cfg[2];
+};
+
 #define HCLGE_VPORT_NUM 256
 struct hclge_dev {
 	struct pci_dev *pdev;
@@ -554,6 +590,8 @@ struct hclge_dev {
 	struct hclge_vlan_type_cfg vlan_type_cfg;
 
 	unsigned long vlan_table[VLAN_N_VID][BITS_TO_LONGS(HCLGE_VPORT_NUM)];
+
+	struct hclge_fd_cfg fd_cfg;
 };
 
 /* VPort level vlan tag configuration for TX direction */
