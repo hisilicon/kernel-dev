@@ -410,6 +410,10 @@ struct hnae3_ae_ops {
 			      unsigned long *advertising);
 	void (*get_port_type)(struct hnae3_handle *handle, u8 *port_type);
 	void (*enable_fd)(struct hnae3_handle *handle, bool enable);
+	int (*add_fd_entry)(struct hnae3_handle *handle,
+			    struct ethtool_rxnfc *cmd);
+	int (*del_fd_entry)(struct hnae3_handle *handle,
+			    struct ethtool_rxnfc *cmd);
 };
 
 struct hnae3_dcb_ops {
