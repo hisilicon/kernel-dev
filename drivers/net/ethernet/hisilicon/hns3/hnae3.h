@@ -409,6 +409,7 @@ struct hnae3_ae_ops {
 			      unsigned long *supported,
 			      unsigned long *advertising);
 	void (*get_port_type)(struct hnae3_handle *handle, u8 *port_type);
+	void (*enable_fd)(struct hnae3_handle *handle, bool enable);
 };
 
 struct hnae3_dcb_ops {

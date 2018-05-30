@@ -5229,6 +5229,15 @@ static int hclge_init_fd_config(struct hclge_dev *hdev)
 	return hclge_set_fd_key_config(hdev, HCLGE_FD_STAGE_1);
 }
 
+static void hclge_enable_fd(struct hnae3_handle *handle, bool enable)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	hdev->fd_cfg.fd_en = enable;
+	hclge_set_fd_mode(hdev, hdev->fd_cfg.fd_mode, enable);
+}
+
 static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mtu)
 {
 	struct hclge_config_max_frm_size_cmd *req;
@@ -6562,6 +6571,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_led_id = hclge_set_led_id,
 	.get_link_mode = hclge_get_link_mode,
 	.get_port_type = hclge_get_port_type,
+	.enable_fd = hclge_enable_fd,
 };
 
 static struct hnae3_ae_algo ae_algo = {
