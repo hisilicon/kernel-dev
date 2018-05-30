@@ -35,6 +35,7 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
 static int hclge_alloc_mac_vlan_tbl(struct hclge_dev *hdev, int space_size,
 				    bool is_alloc);
+static void hclge_del_all_entries(struct hclge_dev *hdev);
 
 static struct hnae3_ae_algo ae_algo;
 
@@ -5120,21 +5121,23 @@ int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
 	return hclge_set_vlan_rx_offload_cfg(vport);
 }
 
-static int hclge_set_fd_mode(struct hclge_dev *hdev, u8 mode, u8 enable)
+static int hclge_get_fd_mode(struct hclge_dev *hdev, u8 *fd_mode)
 {
 	struct hclge_set_fd_mode_cmd *req;
 	struct hclge_desc desc;
 	int ret;
 
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_FD_MODE_CTRL, false);
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_FD_MODE_CTRL, true);
 
 	req = (struct hclge_set_fd_mode_cmd *)desc.data;
-	req->mode = mode;
-	req->enable = enable;
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		dev_err(&hdev->pdev->dev, "set fd mode fail, ret =%d\n", ret);
+	if (ret) {
+		dev_err(&hdev->pdev->dev, "get fd mode fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	*fd_mode = req->mode;
 
 	return ret;
 }
@@ -5324,7 +5327,10 @@ static int hclge_init_fd_config(struct hclge_dev *hdev)
 
 	hnae3_set_bit(hdev->ae_dev->flag, HNAE3_DEV_SUPPORT_FD_B, 1);
 
-	hdev->fd_cfg.fd_mode = HCLGE_FD_MODE_DEPTH_2K_WIDTH_400B_STAGE_1;
+	ret = hclge_get_fd_mode(hdev, &hdev->fd_cfg.fd_mode);
+	if (ret)
+		return ret;
+
 	hdev->fd_cfg.fd_en = true;
 	hdev->fd_cfg.max_key_length =
 		hdev->fd_cfg.fd_mode > 1 ? MAX_KEY_LENGTH / 2 : MAX_KEY_LENGTH;
@@ -5349,10 +5355,6 @@ static int hclge_init_fd_config(struct hclge_dev *hdev)
 	key_cfg->meta_data_length = meta_data_key_info[ROCEE_TYPE].key_length;
 	key_cfg->meta_data_key = NIC_PACKET;
 
-	ret = hclge_set_fd_mode(hdev, hdev->fd_cfg.fd_mode, hdev->fd_cfg.fd_en);
-	if (ret)
-		return ret;
-
 	ret = hclge_get_fd_allocation(hdev,
 				      &hdev->fd_cfg.stage1_rule_entry_number,
 				      &hdev->fd_cfg.stage2_rule_entry_number,
@@ -5370,7 +5372,8 @@ static void hclge_enable_fd(struct hnae3_handle *handle, bool enable)
 	struct hclge_dev *hdev = vport->back;
 
 	hdev->fd_cfg.fd_en = enable;
-	hclge_set_fd_mode(hdev, hdev->fd_cfg.fd_mode, enable);
+	if (!enable)
+		hclge_del_all_entries(hdev);
 }
 
 static int hclge_fd_tcam_config(struct hclge_dev *hdev, u8 stage, bool sel_x,
@@ -6045,6 +6048,11 @@ static int hclge_add_fd_entry(struct hnae3_handle *handle,
 
 	if (!hnae3_dev_fd_supported(hdev))
 		return -EOPNOTSUPP;
+
+	if (!hdev->fd_cfg.fd_en) {
+		dev_info(&hdev->pdev->dev, "Please enable fd first\n");
+		return -EOPNOTSUPP;
+	}
 
 	fs = (struct ethtool_rx_flow_spec *)&cmd->fs;
 
