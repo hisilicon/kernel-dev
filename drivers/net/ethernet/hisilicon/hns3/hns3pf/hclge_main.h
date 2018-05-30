@@ -502,6 +502,44 @@ struct hclge_fd_cfg {
 	struct hclge_fd_key_cfg key_cfg[2];
 };
 
+struct hclge_fd_rule_tuples {
+	u8 src_mac[6];
+	u8 dst_mac[6];
+	u32 src_ip[4];
+	u32 dst_ip[4];
+	u16 src_port;
+	u16 dst_port;
+	u16 vlan_tag1;
+	u16 ether_proto;
+	u8 ip_tos;
+	u8 ip_proto;
+};
+
+struct hclge_fd_rule {
+	struct hlist_node rule_node;
+	struct hclge_fd_rule_tuples tuples;
+	struct hclge_fd_rule_tuples tuples_mask;
+	u32 unused_tuple;
+	u8 flow_type;
+	u8 action;
+	u16 vf_id;
+	u16 queue_id;
+	u16 location;
+};
+
+struct hclge_fd_ad_data {
+	u16 ad_id;
+	bool drop_packet;
+	bool forward_to_direct_queue;
+	bool use_counter;
+	bool use_next_stage;
+	bool write_rule_id_to_bd;
+	u16 queue_id;
+	u8 counter_id;
+	u8 next_input_key;
+	u16 rule_id;
+};
+
 #define HCLGE_VPORT_NUM 256
 struct hclge_dev {
 	struct pci_dev *pdev;

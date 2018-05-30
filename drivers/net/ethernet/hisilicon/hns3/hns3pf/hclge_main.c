@@ -5238,6 +5238,301 @@ static void hclge_enable_fd(struct hnae3_handle *handle, bool enable)
 	hclge_set_fd_mode(hdev, hdev->fd_cfg.fd_mode, enable);
 }
 
+static int hclge_fd_tcam_config(struct hclge_dev *hdev, u8 stage, bool sel_x,
+				int loc, u8 *key, bool is_add)
+{
+	struct hclge_fd_tcam_config_1_cmd *req1;
+	struct hclge_fd_tcam_config_2_cmd *req2;
+	struct hclge_fd_tcam_config_3_cmd *req3;
+	struct hclge_desc desc[3];
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_FD_TCAM_OP, false);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_FD_TCAM_OP, false);
+	desc[1].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[2], HCLGE_OPC_FD_TCAM_OP, false);
+
+	req1 = (struct hclge_fd_tcam_config_1_cmd *)desc[0].data;
+	req2 = (struct hclge_fd_tcam_config_2_cmd *)desc[1].data;
+	req3 = (struct hclge_fd_tcam_config_3_cmd *)desc[2].data;
+
+	req1->stage = stage;
+	req1->xy_sel = sel_x ? 1 : 0;
+	req1->index = cpu_to_le32(loc);
+	req1->entry_vld = sel_x ? is_add : 0;
+
+	if (key) {
+		memcpy(req1->tcam_data, &key[0], sizeof(req1->tcam_data));
+		memcpy(req2->tcam_data, &key[sizeof(req1->tcam_data)],
+		       sizeof(req2->tcam_data));
+		memcpy(req3->tcam_data, &key[sizeof(req1->tcam_data) +
+		       sizeof(req2->tcam_data)], sizeof(req3->tcam_data));
+	}
+
+	ret = hclge_cmd_send(&hdev->hw, desc, 3);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"config tcam key fail, ret = %d\n",
+			ret);
+
+	return ret;
+}
+
+static int hclge_fd_ad_config(struct hclge_dev *hdev, u8 stage, int loc,
+			      struct hclge_fd_ad_data *action)
+{
+	struct hclge_fd_ad_config_cmd *req;
+	struct hclge_desc desc;
+	u64 ad_data = 0;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_FD_AD_OP, false);
+
+	req = (struct hclge_fd_ad_config_cmd *)desc.data;
+	req->index = cpu_to_le32(loc);
+	req->stage = stage;
+
+	hnae3_set_bit(ad_data, HCLGE_FD_AD_WR_RULE_ID_B,
+		      action->write_rule_id_to_bd);
+	hnae3_set_field(ad_data, HCLGE_FD_AD_RULE_ID_M, HCLGE_FD_AD_RULE_ID_S,
+			action->rule_id);
+	ad_data <<= 32;
+	hnae3_set_bit(ad_data, HCLGE_FD_AD_DROP_B, action->drop_packet);
+	hnae3_set_bit(ad_data, HCLGE_FD_AD_DIRECT_QID_B,
+		      action->forward_to_direct_queue);
+	hnae3_set_field(ad_data, HCLGE_FD_AD_QID_M, HCLGE_FD_AD_QID_S,
+			action->queue_id);
+	hnae3_set_bit(ad_data, HCLGE_FD_AD_USE_COUNTER_B, action->use_counter);
+	hnae3_set_field(ad_data, HCLGE_FD_AD_COUNTER_NUM_M,
+			HCLGE_FD_AD_COUNTER_NUM_S, action->counter_id);
+	hnae3_set_bit(ad_data, HCLGE_FD_AD_NXT_STEP_B, action->use_next_stage);
+	hnae3_set_field(ad_data, HCLGE_FD_AD_NXT_KEY_M, HCLGE_FD_AD_NXT_KEY_S,
+			action->counter_id);
+
+	req->ad_data = cpu_to_le64(ad_data);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev, "fd ad config fail, ret = %d\n", ret);
+
+	return ret;
+}
+
+/* For each bit of TCAM entry, it uses a pair of 'x' and
+ * 'y' to indicate which value to match, like below:
+ * ----------------------------------
+ * | bit x | bit y |  search value  |
+ * ----------------------------------
+ * |   0   |   0   |   always hit   |
+ * ----------------------------------
+ * |   1   |   0   |   match '0'    |
+ * ----------------------------------
+ * |   0   |   1   |   match '1'    |
+ * ----------------------------------
+ * |   1   |   1   |   always miss  |
+ * ----------------------------------
+ * Then for input key(k) and mask(v), we can calculate the value by
+ * the formulae:
+ *	x = (~k) & v
+ *	y = (k ^ ~v) & k
+ */
+#define calc_x(x, k, v) ((x) = ((~k) & v))
+#define calc_y(y, k, v) \
+	do { \
+		const typeof(k) _k_ = (k); \
+		const typeof(v) _v_ = (v); \
+		(y) = (_k_ ^ ~_v_) & (_k_); \
+	} while (0)
+
+static bool hclge_fd_convert_tuple(u32 tuple_bit, u8 *key_x, u8 *key_y,
+				   struct hclge_fd_rule *rule)
+{
+	u16 tmp_x_s, tmp_y_s;
+	u32 tmp_x_l, tmp_y_l;
+	int i;
+
+	if (rule->unused_tuple & tuple_bit)
+		return true;
+
+	switch (tuple_bit) {
+	case 0:
+		return false;
+	case BIT(INNER_DST_MAC):
+		for (i = 0; i < 6; i++) {
+			calc_x(key_x[5 - i], rule->tuples.dst_mac[i],
+			       rule->tuples_mask.dst_mac[i]);
+			calc_y(key_y[5 - i], rule->tuples.dst_mac[i],
+			       rule->tuples_mask.dst_mac[i]);
+		}
+
+		return true;
+	case BIT(INNER_SRC_MAC):
+		for (i = 0; i < 6; i++) {
+			calc_x(key_x[5 - i], rule->tuples.src_mac[i],
+			       rule->tuples.src_mac[i]);
+			calc_y(key_y[5 - i], rule->tuples.src_mac[i],
+			       rule->tuples.src_mac[i]);
+		}
+
+		return true;
+	case BIT(INNER_VLAN_TAG_FST):
+		calc_x(tmp_x_s, rule->tuples.vlan_tag1,
+		       rule->tuples_mask.vlan_tag1);
+		calc_y(tmp_y_s, rule->tuples.vlan_tag1,
+		       rule->tuples_mask.vlan_tag1);
+		*(__le16 *)key_x = cpu_to_le16(tmp_x_s);
+		*(__le16 *)key_y = cpu_to_le16(tmp_y_s);
+
+		return true;
+	case BIT(INNER_ETH_TYPE):
+		calc_x(tmp_x_s, rule->tuples.ether_proto,
+		       rule->tuples_mask.ether_proto);
+		calc_y(tmp_y_s, rule->tuples.ether_proto,
+		       rule->tuples_mask.ether_proto);
+		*(__le16 *)key_x = cpu_to_le16(tmp_x_s);
+		*(__le16 *)key_y = cpu_to_le16(tmp_y_s);
+
+		return true;
+	case BIT(INNER_IP_TOS):
+		calc_x(*key_x, rule->tuples.ip_tos, rule->tuples_mask.ip_tos);
+		calc_y(*key_y, rule->tuples.ip_tos, rule->tuples_mask.ip_tos);
+
+		return true;
+	case BIT(INNER_IP_PROTO):
+		calc_x(*key_x, rule->tuples.ip_proto,
+		       rule->tuples_mask.ip_proto);
+		calc_y(*key_y, rule->tuples.ip_proto,
+		       rule->tuples_mask.ip_proto);
+
+		return true;
+	case BIT(INNER_SRC_IP):
+		calc_x(tmp_x_l, rule->tuples.src_ip[3],
+		       rule->tuples_mask.src_ip[3]);
+		calc_y(tmp_y_l, rule->tuples.src_ip[3],
+		       rule->tuples_mask.src_ip[3]);
+		*(__le32 *)key_x = cpu_to_le32(tmp_x_l);
+		*(__le32 *)key_y = cpu_to_le32(tmp_y_l);
+
+		return true;
+	case BIT(INNER_DST_IP):
+		calc_x(tmp_x_l, rule->tuples.dst_ip[3],
+		       rule->tuples_mask.dst_ip[3]);
+		calc_y(tmp_y_l, rule->tuples.dst_ip[3],
+		       rule->tuples_mask.dst_ip[3]);
+		*(__le32 *)key_x = cpu_to_le32(tmp_x_l);
+		*(__le32 *)key_y = cpu_to_le32(tmp_y_l);
+
+		return true;
+	case BIT(INNER_SRC_PORT):
+		calc_x(tmp_x_s, rule->tuples.src_port,
+		       rule->tuples_mask.src_port);
+		calc_y(tmp_y_s, rule->tuples.src_port,
+		       rule->tuples_mask.src_port);
+		*(__le16 *)key_x = cpu_to_le16(tmp_x_s);
+		*(__le16 *)key_y = cpu_to_le16(tmp_y_s);
+
+		return true;
+	case BIT(INNER_DST_PORT):
+		calc_x(tmp_x_s, rule->tuples.dst_port,
+		       rule->tuples_mask.dst_port);
+		calc_y(tmp_y_s, rule->tuples.dst_port,
+		       rule->tuples_mask.dst_port);
+		*(__le16 *)key_x = cpu_to_le16(tmp_x_s);
+		*(__le16 *)key_y = cpu_to_le16(tmp_y_s);
+
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int hclge_config_key(struct hclge_dev *hdev, u8 stage,
+			    struct hclge_fd_rule *rule)
+{
+	struct hclge_fd_key_cfg *key_cfg = &hdev->fd_cfg.key_cfg[stage];
+	u8 key_x[MAX_KEY_BYTES], key_y[MAX_KEY_BYTES];
+	u8 *cur_key_x, *cur_key_y;
+	int i, ret, tuple_size;
+
+	memset(key_x, 0, sizeof(key_x));
+	memset(key_y, 0, sizeof(key_y));
+	cur_key_x = key_x;
+	cur_key_y = key_y;
+
+	for (i = 0 ; i < MAX_TUPLE; i++) {
+		bool tuple_valid;
+		u32 check_tuple;
+
+		tuple_size = tuple_key_info[i].key_length / 8;
+		check_tuple = key_cfg->tuple_active & BIT(i);
+
+		tuple_valid = hclge_fd_convert_tuple(check_tuple, cur_key_x,
+						     cur_key_y, rule);
+		if (tuple_valid) {
+			cur_key_x += tuple_size;
+			cur_key_y += tuple_size;
+		}
+	}
+
+	if (key_cfg->meta_data_length) {
+		u8 start_index = (hdev->fd_cfg.max_key_length -
+			       key_cfg->meta_data_length) / 8;
+
+		cur_key_x = key_x + start_index;
+		*cur_key_x |= 0x80;
+	}
+
+	ret = hclge_fd_tcam_config(hdev, stage, true, rule->location, key_x,
+				   true);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"fd key_x config fail, loc = %d, ret = %d\n",
+			rule->queue_id, ret);
+		return ret;
+	}
+
+	ret = hclge_fd_tcam_config(hdev, stage, false, rule->location, key_y,
+				   true);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"fd key_y config fail, loc = %d, ret = %d\n",
+			rule->queue_id, ret);
+
+	return ret;
+}
+
+static int hclge_config_action(struct hclge_dev *hdev, u8 stage,
+			       struct hclge_fd_rule *rule)
+{
+	struct hclge_fd_ad_data ad_data;
+	struct hclge_vport *vport;
+
+	vport = &hdev->vport[rule->vf_id];
+
+	ad_data.ad_id = rule->location;
+
+	ad_data.drop_packet = (rule->action == HCLGE_FD_ACTION_DROP_PACKET) ?
+				true : false;
+	if (!ad_data.drop_packet) {
+		ad_data.forward_to_direct_queue = true;
+		ad_data.queue_id = rule->queue_id;
+	} else {
+		ad_data.forward_to_direct_queue = false;
+		ad_data.queue_id = 0;
+	}
+
+	ad_data.use_counter = false;
+	ad_data.counter_id = 0;
+
+	ad_data.use_next_stage = false;
+	ad_data.next_input_key = 0;
+
+	ad_data.write_rule_id_to_bd = true;
+	ad_data.rule_id = rule->location;
+
+	return hclge_fd_ad_config(vport->back, stage, ad_data.ad_id, &ad_data);
+}
+
 static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mtu)
 {
 	struct hclge_config_max_frm_size_cmd *req;
