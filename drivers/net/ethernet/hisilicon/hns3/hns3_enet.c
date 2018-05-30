@@ -453,8 +453,10 @@ static void hns3_nic_set_rx_mode(struct net_device *netdev)
 
 	new_flags = hns3_get_netdev_promisc_flags(netdev);
 
-	if (__dev_uc_sync(netdev, hns3_nic_uc_sync, hns3_nic_uc_unsync))
+	if (__dev_uc_sync(netdev, hns3_nic_uc_sync, hns3_nic_uc_unsync)) {
+		new_flags |= HNAE3_UPE;
 		netdev_err(netdev, "sync uc address fail\n");
+	}
 	if (netdev->flags & IFF_MULTICAST) {
 		if (__dev_mc_sync(netdev, hns3_nic_mc_sync, hns3_nic_mc_unsync))
 			netdev_err(netdev, "sync mc address fail\n");

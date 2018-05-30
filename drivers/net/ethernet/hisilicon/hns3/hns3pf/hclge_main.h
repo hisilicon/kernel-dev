@@ -240,6 +240,7 @@ struct hclge_cfg {
 	u8 default_speed;
 	u32 numa_node_map;
 	u8 speed_ability;
+	u16 umv_space;
 };
 
 struct hclge_tm_info {
@@ -632,6 +633,10 @@ struct hclge_dev {
 	struct hclge_fd_cfg fd_cfg;
 	struct hlist_head fd_rule_list;
 	u16 hclge_fd_rule_num;
+
+	u16 max_umc_size;
+	u16 priv_umc_size;
+	u16 share_umc_size;
 };
 
 /* VPort level vlan tag configuration for TX direction */
@@ -683,6 +688,8 @@ struct hclge_vport {
 
 	struct hclge_tx_vtag_cfg  txvlan_cfg;
 	struct hclge_rx_vtag_cfg  rxvlan_cfg;
+
+	u16 used_umc_num;
 
 	int vport_id;
 	struct hclge_dev *back;  /* Back reference to associated dev */

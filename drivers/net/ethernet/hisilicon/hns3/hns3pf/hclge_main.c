@@ -33,6 +33,8 @@ static int hclge_set_mta_filter_mode(struct hclge_dev *hdev,
 static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
+static int hclge_alloc_mac_vlan_tbl(struct hclge_dev *hdev, int space_size,
+				    bool is_alloc);
 
 static struct hnae3_ae_algo ae_algo;
 
@@ -1075,6 +1077,9 @@ static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 	cfg->speed_ability = hnae3_get_field(__le32_to_cpu(req->param[1]),
 					     HCLGE_CFG_SPEED_ABILITY_M,
 					     HCLGE_CFG_SPEED_ABILITY_S);
+	cfg->umv_space = hnae3_get_field(__le32_to_cpu(req->param[1]),
+					 HCLGE_CFG_UMV_TBL_SPACE_M,
+					 HCLGE_CFG_UMV_TBL_SPACE_S);
 }
 
 /* hclge_get_cfg: query the static parameter from flash
@@ -1134,7 +1139,7 @@ static int hclge_get_cap(struct hclge_dev *hdev)
 static int hclge_configure(struct hclge_dev *hdev)
 {
 	struct hclge_cfg cfg;
-	int ret, i;
+	int ret, retval, i;
 
 	ret = hclge_get_cfg(hdev, &cfg);
 	if (ret) {
@@ -1184,6 +1189,20 @@ static int hclge_configure(struct hclge_dev *hdev)
 		hnae3_set_bit(hdev->hw_tc_map, i, 1);
 
 	hdev->tx_sch_mode = HCLGE_FLAG_TC_BASE_SCH_MODE;
+
+	if (hdev->max_umc_size > 0)
+		hclge_alloc_mac_vlan_tbl(hdev, hdev->max_umc_size, false);
+
+	retval = hclge_alloc_mac_vlan_tbl(hdev, cfg.umv_space, true);
+	if (retval < cfg.umv_space)
+		dev_warn(&hdev->pdev->dev,
+			 "Alloc umv space failed, want %d, get %d\n",
+			 cfg.umv_space, retval);
+
+	hdev->max_umc_size = retval;
+	hdev->priv_umc_size = hdev->max_umc_size / (hdev->num_req_vfs + 2);
+	hdev->share_umc_size = hdev->priv_umc_size +
+			hdev->max_umc_size % (hdev->num_req_vfs + 2);
 
 	return ret;
 }
@@ -4292,6 +4311,53 @@ static int hclge_add_mac_vlan_tbl(struct hclge_vport *vport,
 	return cfg_status;
 }
 
+static int hclge_alloc_mac_vlan_tbl(struct hclge_dev *hdev, int space_size,
+				    bool is_alloc)
+{
+	struct hclge_mac_vlan_spc_alc_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	req = (struct hclge_mac_vlan_spc_alc_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_VLAN_ALLOCATE, false);
+	hnae3_set_bit(req->allocate, HCLGE_MAC_VLAN_SPC_ALC_B, !is_alloc);
+	req->space_size = le32_to_cpu(space_size);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"%s mac vlan space failed for cmd_send, ret =%d\n",
+			is_alloc ? "allocate" : "free", ret);
+
+	if (is_alloc)
+		return (ret < 0 ? 0 : le32_to_cpu(desc.data[1]));
+
+	return ret;
+}
+
+static bool hclge_is_umc_space_full(struct hclge_vport *vport)
+{
+	struct hclge_dev *hdev = vport->back;
+
+	return (vport->used_umc_num >= hdev->priv_umc_size &&
+		hdev->share_umc_size == 0);
+}
+
+static void hclge_update_umc_space(struct hclge_vport *vport, bool is_free)
+{
+	struct hclge_dev *hdev = vport->back;
+
+	if (is_free) {
+		if (vport->used_umc_num >= hdev->priv_umc_size)
+			hdev->share_umc_size++;
+		vport->used_umc_num--;
+	} else {
+		if (vport->used_umc_num >= hdev->priv_umc_size)
+			hdev->share_umc_size--;
+		vport->used_umc_num++;
+	}
+}
+
 static int hclge_add_uc_addr(struct hnae3_handle *handle,
 			     const unsigned char *addr)
 {
@@ -4337,8 +4403,15 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 	 * is not allowed in the mac vlan table.
 	 */
 	ret = hclge_lookup_mac_vlan_tbl(vport, &req, &desc, false);
-	if (ret == -ENOENT)
-		return hclge_add_mac_vlan_tbl(vport, &req, NULL);
+	if (ret == -ENOENT) {
+		if (!hclge_is_umc_space_full(vport)) {
+			ret = hclge_add_mac_vlan_tbl(vport, &req, NULL);
+			if (!ret)
+				hclge_update_umc_space(vport, false);
+			return ret;
+		}
+		return -ENOSPC;
+	}
 
 	/* check if we just hit the duplicate */
 	if (!ret)
@@ -4381,6 +4454,8 @@ int hclge_rm_uc_addr_common(struct hclge_vport *vport,
 	hnae3_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
 	hclge_prepare_mac_addr(&req, addr);
 	ret = hclge_remove_mac_vlan_tbl(vport, &req);
+	if (!ret)
+		hclge_update_umc_space(vport, true);
 
 	return ret;
 }
