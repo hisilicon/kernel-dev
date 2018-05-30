@@ -432,18 +432,27 @@ static int hns3_nic_mc_unsync(struct net_device *netdev,
 	return 0;
 }
 
+#define HNAE3_FLAGS_FORCE_UPDATE	0xFF
+#define HNAE3_UPE			BIT(0)	/* Unicast Promisc Enable*/
+#define HNAE3_MPE			BIT(1)	/* Mulitcast Promisc Enable*/
+
+u8 hns3_get_netdev_promisc_flags(struct net_device *netdev)
+{
+	if (netdev->flags & IFF_PROMISC)
+		return HNAE3_UPE | HNAE3_MPE;
+	else if (netdev->flags & IFF_ALLMULTI)
+		return HNAE3_MPE;
+
+	return 0;
+}
+
 static void hns3_nic_set_rx_mode(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+	u8 new_flags;
 
-	if (h->ae_algo->ops->set_promisc_mode) {
-		if (netdev->flags & IFF_PROMISC)
-			h->ae_algo->ops->set_promisc_mode(h, true, true);
-		else if (netdev->flags & IFF_ALLMULTI)
-			h->ae_algo->ops->set_promisc_mode(h, false, true);
-		else
-			h->ae_algo->ops->set_promisc_mode(h, false, false);
-	}
+	new_flags = hns3_get_netdev_promisc_flags(netdev);
+
 	if (__dev_uc_sync(netdev, hns3_nic_uc_sync, hns3_nic_uc_unsync))
 		netdev_err(netdev, "sync uc address fail\n");
 	if (netdev->flags & IFF_MULTICAST) {
@@ -452,6 +461,12 @@ static void hns3_nic_set_rx_mode(struct net_device *netdev)
 
 		if (h->ae_algo->ops->update_mta_status)
 			h->ae_algo->ops->update_mta_status(h);
+	}
+
+	if (new_flags != h->current_netdev_flags) {
+		h->ae_algo->ops->set_promisc_mode(h, new_flags & HNAE3_UPE,
+						  new_flags & HNAE3_MPE);
+		h->current_netdev_flags = new_flags;
 	}
 }
 
@@ -3186,6 +3201,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	priv->netdev = netdev;
 	priv->ae_handle = handle;
 	priv->ae_handle->last_reset_time = jiffies;
+	priv->ae_handle->current_netdev_flags = HNAE3_FLAGS_FORCE_UPDATE;
 	priv->tx_timeout_count = 0;
 
 	handle->kinfo.netdev = netdev;
