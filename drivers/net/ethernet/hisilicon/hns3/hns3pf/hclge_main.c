@@ -6008,6 +6008,234 @@ static int hclge_del_fd_entry(struct hnae3_handle *handle,
 					 false);
 }
 
+static int hclge_get_fd_rule_cnt(struct hnae3_handle *handle,
+				 struct ethtool_rxnfc *cmd)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	cmd->rule_cnt = hdev->hclge_fd_rule_num;
+	cmd->data = hdev->fd_cfg.stage1_rule_entry_number;
+
+	return 0;
+}
+
+static int hclge_get_fd_rule_info(struct hnae3_handle *handle,
+				  struct ethtool_rxnfc *cmd)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_fd_rule *rule = NULL, *parent = NULL;
+	struct hclge_dev *hdev = vport->back;
+	struct ethtool_rx_flow_spec *fs;
+	struct hlist_node *node2;
+
+	fs = (struct ethtool_rx_flow_spec *)&cmd->fs;
+
+	hlist_for_each_entry_safe(rule, node2, &hdev->fd_rule_list, rule_node) {
+		if (rule->location >= fs->location)
+			break;
+		parent = rule;
+	}
+
+	if (!rule || fs->location != rule->location)
+		return -ENOENT;
+
+	fs->flow_type = rule->flow_type;
+	switch (fs->flow_type) {
+	case SCTP_V4_FLOW:
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+		fs->h_u.tcp_ip4_spec.ip4src =
+				cpu_to_be32(rule->tuples.src_ip[3]);
+		fs->m_u.tcp_ip4_spec.ip4src =
+				rule->unused_tuple & BIT(INNER_SRC_IP) ?
+				0 : cpu_to_be32(rule->tuples_mask.src_ip[3]);
+
+		fs->h_u.tcp_ip4_spec.ip4dst =
+				cpu_to_be32(rule->tuples.dst_ip[3]);
+		fs->m_u.tcp_ip4_spec.ip4dst =
+				rule->unused_tuple & BIT(INNER_DST_IP) ?
+				0 : cpu_to_be32(rule->tuples_mask.dst_ip[3]);
+
+		fs->h_u.tcp_ip4_spec.psrc = cpu_to_be16(rule->tuples.src_port);
+		fs->m_u.tcp_ip4_spec.psrc =
+				rule->unused_tuple & BIT(INNER_SRC_PORT) ?
+				0 : cpu_to_be16(rule->tuples_mask.src_port);
+
+		fs->h_u.tcp_ip4_spec.pdst = cpu_to_be16(rule->tuples.dst_port);
+		fs->m_u.tcp_ip4_spec.pdst =
+				rule->unused_tuple & BIT(INNER_DST_PORT) ?
+				0 : cpu_to_be16(rule->tuples_mask.dst_port);
+
+		fs->h_u.tcp_ip4_spec.tos = rule->tuples.ip_tos;
+		fs->m_u.tcp_ip4_spec.tos =
+				rule->unused_tuple & BIT(INNER_IP_TOS) ?
+				0 : rule->tuples_mask.ip_tos;
+
+		break;
+	case IP_USER_FLOW:
+		fs->h_u.usr_ip4_spec.ip4src =
+				cpu_to_be32(rule->tuples.src_ip[3]);
+		fs->m_u.tcp_ip4_spec.ip4src =
+				rule->unused_tuple & BIT(INNER_SRC_IP) ?
+				0 : cpu_to_be32(rule->tuples_mask.src_ip[3]);
+
+		fs->h_u.usr_ip4_spec.ip4dst =
+				cpu_to_be32(rule->tuples.dst_ip[3]);
+		fs->m_u.usr_ip4_spec.ip4dst =
+				rule->unused_tuple & BIT(INNER_DST_IP) ?
+				0 : cpu_to_be32(rule->tuples_mask.dst_ip[3]);
+
+		fs->h_u.usr_ip4_spec.tos = rule->tuples.ip_tos;
+		fs->m_u.usr_ip4_spec.tos =
+				rule->unused_tuple & BIT(INNER_IP_TOS) ?
+				0 : rule->tuples_mask.ip_tos;
+
+		fs->h_u.usr_ip4_spec.proto = rule->tuples.ip_proto;
+		fs->m_u.usr_ip4_spec.proto =
+				rule->unused_tuple & BIT(INNER_IP_PROTO) ?
+				0 : rule->tuples_mask.ip_proto;
+
+		fs->h_u.usr_ip4_spec.ip_ver = ETH_RX_NFC_IP4;
+
+		break;
+	case SCTP_V6_FLOW:
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+		cpu_to_be32_array(fs->h_u.tcp_ip6_spec.ip6src,
+				  rule->tuples.src_ip, 4);
+		if (rule->unused_tuple & BIT(INNER_SRC_IP))
+			memset(fs->m_u.tcp_ip6_spec.ip6src, 0, sizeof(int) * 4);
+		else
+			cpu_to_be32_array(fs->m_u.tcp_ip6_spec.ip6src,
+					  rule->tuples_mask.src_ip, 4);
+
+		cpu_to_be32_array(fs->h_u.tcp_ip6_spec.ip6dst,
+				  rule->tuples.dst_ip, 4);
+		if (rule->unused_tuple & BIT(INNER_DST_IP))
+			memset(fs->m_u.tcp_ip6_spec.ip6dst, 0, sizeof(int) * 4);
+		else
+			cpu_to_be32_array(fs->m_u.tcp_ip6_spec.ip6dst,
+					  rule->tuples_mask.dst_ip, 4);
+
+		fs->h_u.tcp_ip6_spec.psrc = cpu_to_be16(rule->tuples.src_port);
+		fs->m_u.tcp_ip6_spec.psrc =
+				rule->unused_tuple & BIT(INNER_SRC_PORT) ?
+				0 : cpu_to_be16(rule->tuples_mask.src_port);
+
+		fs->h_u.tcp_ip6_spec.pdst = cpu_to_be16(rule->tuples.dst_port);
+		fs->m_u.tcp_ip6_spec.pdst =
+				rule->unused_tuple & BIT(INNER_DST_PORT) ?
+				0 : cpu_to_be16(rule->tuples_mask.dst_port);
+
+		break;
+	case IPV6_USER_FLOW:
+		cpu_to_be32_array(fs->h_u.usr_ip6_spec.ip6src,
+				  rule->tuples.src_ip, 4);
+		if (rule->unused_tuple & BIT(INNER_SRC_IP))
+			memset(fs->m_u.usr_ip6_spec.ip6src, 0, sizeof(int) * 4);
+		else
+			cpu_to_be32_array(fs->m_u.usr_ip6_spec.ip6src,
+					  rule->tuples_mask.src_ip, 4);
+
+		cpu_to_be32_array(fs->h_u.usr_ip6_spec.ip6dst,
+				  rule->tuples.dst_ip, 4);
+		if (rule->unused_tuple & BIT(INNER_DST_IP))
+			memset(fs->m_u.usr_ip6_spec.ip6dst, 0, sizeof(int) * 4);
+		else
+			cpu_to_be32_array(fs->m_u.usr_ip6_spec.ip6dst,
+					  rule->tuples_mask.dst_ip, 4);
+
+		fs->h_u.usr_ip6_spec.l4_proto = rule->tuples.ip_proto;
+		fs->m_u.usr_ip6_spec.l4_proto =
+				rule->unused_tuple & BIT(INNER_IP_PROTO) ?
+				0 : rule->tuples_mask.ip_proto;
+
+		break;
+	case ETHER_FLOW:
+		ether_addr_copy(fs->h_u.ether_spec.h_source,
+				rule->tuples.src_mac);
+		if (rule->unused_tuple & BIT(INNER_SRC_MAC))
+			eth_zero_addr(fs->m_u.ether_spec.h_source);
+		else
+			ether_addr_copy(fs->m_u.ether_spec.h_source,
+					rule->tuples_mask.src_mac);
+
+		ether_addr_copy(fs->h_u.ether_spec.h_dest,
+				rule->tuples.dst_mac);
+		if (rule->unused_tuple & BIT(INNER_DST_MAC))
+			eth_zero_addr(fs->m_u.ether_spec.h_dest);
+		else
+			ether_addr_copy(fs->m_u.ether_spec.h_dest,
+					rule->tuples_mask.dst_mac);
+
+		fs->h_u.ether_spec.h_proto =
+				cpu_to_be16(rule->tuples.ether_proto);
+		fs->m_u.ether_spec.h_proto =
+				rule->unused_tuple & BIT(INNER_ETH_TYPE) ?
+				0 : cpu_to_be16(rule->tuples_mask.ether_proto);
+
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if ((fs->flow_type & FLOW_EXT)) {
+		fs->h_ext.vlan_tci = cpu_to_be16(rule->tuples.vlan_tag1);
+		fs->m_ext.vlan_tci =
+				rule->unused_tuple & BIT(INNER_VLAN_TAG_FST) ?
+				cpu_to_be16(VLAN_VID_MASK) :
+				cpu_to_be16(rule->tuples_mask.vlan_tag1);
+	}
+
+	if (fs->flow_type & FLOW_MAC_EXT) {
+		ether_addr_copy(fs->h_ext.h_dest, rule->tuples_mask.dst_mac);
+		if (rule->unused_tuple & BIT(INNER_DST_MAC))
+			eth_zero_addr(fs->m_u.ether_spec.h_dest);
+		else
+			ether_addr_copy(fs->m_u.ether_spec.h_dest,
+					rule->tuples_mask.dst_mac);
+	}
+
+	if (rule->action == HCLGE_FD_ACTION_DROP_PACKET) {
+		fs->ring_cookie = RX_CLS_FLOW_DISC;
+	} else {
+		u64 vf_id;
+
+		fs->ring_cookie = rule->queue_id;
+		vf_id = rule->vf_id;
+		vf_id <<= ETHTOOL_RX_FLOW_SPEC_RING_VF_OFF;
+		fs->ring_cookie |= vf_id;
+	}
+
+	return 0;
+}
+
+static int hclge_get_all_rules(struct hnae3_handle *handle,
+			       struct ethtool_rxnfc *cmd, u32 *rule_locs)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_fd_rule *rule;
+	struct hlist_node *node2;
+	int cnt = 0;
+
+	cmd->data = hdev->fd_cfg.stage1_rule_entry_number;
+
+	hlist_for_each_entry_safe(rule, node2,
+				  &hdev->fd_rule_list, rule_node) {
+		if (cnt == cmd->rule_cnt)
+			return -EMSGSIZE;
+
+		rule_locs[cnt] = rule->location;
+		cnt++;
+	}
+
+	cmd->rule_cnt = cnt;
+
+	return 0;
+}
+
 static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mtu)
 {
 	struct hclge_config_max_frm_size_cmd *req;
@@ -7344,6 +7572,9 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.enable_fd = hclge_enable_fd,
 	.add_fd_entry = hclge_add_fd_entry,
 	.del_fd_entry = hclge_del_fd_entry,
+	.get_fd_rule_cnt = hclge_get_fd_rule_cnt,
+	.get_fd_rule_info = hclge_get_fd_rule_info,
+	.get_fd_all_rules = hclge_get_all_rules,
 };
 
 static struct hnae3_ae_algo ae_algo = {
