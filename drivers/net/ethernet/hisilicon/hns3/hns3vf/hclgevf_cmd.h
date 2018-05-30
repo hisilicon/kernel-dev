@@ -134,7 +134,8 @@ struct hclgevf_query_version_cmd {
 	__le32 firmware_rsv[5];
 };
 
-#define HCLGEVF_RSS_HASH_KEY_OFFSET	4
+#define HCLGEVF_RSS_DEFAULT_OUTPORT_B  4
+#define HCLGEVF_RSS_HASH_KEY_OFFSET_B  4
 #define HCLGEVF_RSS_HASH_KEY_NUM	16
 struct hclgevf_rss_config_cmd {
 	u8 hash_config;
