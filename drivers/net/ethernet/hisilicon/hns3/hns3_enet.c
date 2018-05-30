@@ -1716,7 +1716,7 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
 		NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
-	if (pdev->revision != 0x20) {
+	if (pdev->revision > HNAE3_REVISION_ID_20) {
 		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 		netdev->features |= NETIF_F_NTUPLE;
 		netdev->hw_features |= NETIF_F_NTUPLE;
@@ -2142,7 +2142,7 @@ static u16 hns3_parse_vlan_tag(struct hns3_enet_ring *ring,
 	struct pci_dev *pdev = ring->tqp->handle->pdev;
 	u16 vlan_tag;
 
-	if (pdev->revision == 0x20) {
+	if (pdev->revision == HNAE3_REVISION_ID_20) {
 		vlan_tag = le16_to_cpu(desc->rx.ot_vlan_tag);
 		if (!(vlan_tag & VLAN_VID_MASK))
 			vlan_tag = le16_to_cpu(desc->rx.vlan_tag);

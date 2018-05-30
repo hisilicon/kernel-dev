@@ -5189,7 +5189,7 @@ static int hclge_init_fd_config(struct hclge_dev *hdev)
 	struct hclge_fd_key_cfg *key_cfg;
 	int i, ret;
 
-	if (hdev->pdev->revision == 0x20)
+	if (hdev->pdev->revision == HNAE3_REVISION_ID_20)
 		return 0;
 
 	hnae3_set_bit(hdev->ae_dev->flag, HNAE3_DEV_SUPPORT_FD_B, 1);
