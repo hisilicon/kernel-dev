@@ -5189,6 +5189,11 @@ static int hclge_init_fd_config(struct hclge_dev *hdev)
 	struct hclge_fd_key_cfg *key_cfg;
 	int i, ret;
 
+	if (hdev->pdev->revision == 0x20)
+		return 0;
+
+	hnae3_set_bit(hdev->ae_dev->flag, HNAE3_DEV_SUPPORT_FD_B, 1);
+
 	hdev->fd_cfg.fd_mode = HCLGE_FD_MODE_DEPTH_2K_WIDTH_400B_STAGE_1;
 	hdev->fd_cfg.fd_en = true;
 	hdev->fd_cfg.max_key_length =
@@ -5908,6 +5913,9 @@ static int hclge_add_fd_entry(struct hnae3_handle *handle,
 	u8 action;
 	int ret;
 
+	if (!hnae3_dev_fd_supported(hdev))
+		return -EOPNOTSUPP;
+
 	fs = (struct ethtool_rx_flow_spec *)&cmd->fs;
 
 	ret = hclge_fd_check_spec(hdev, fs, &unused);
@@ -5987,6 +5995,9 @@ static int hclge_del_fd_entry(struct hnae3_handle *handle,
 	struct ethtool_rx_flow_spec *fs;
 	int ret;
 
+	if (!hnae3_dev_fd_supported(hdev))
+		return -EOPNOTSUPP;
+
 	fs = (struct ethtool_rx_flow_spec *)&cmd->fs;
 
 	if (fs->location >= hdev->fd_cfg.stage1_rule_entry_number)
@@ -6028,6 +6039,9 @@ static int hclge_get_fd_rule_cnt(struct hnae3_handle *handle,
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 
+	if (!hnae3_dev_fd_supported(hdev))
+		return -EOPNOTSUPP;
+
 	cmd->rule_cnt = hdev->hclge_fd_rule_num;
 	cmd->data = hdev->fd_cfg.stage1_rule_entry_number;
 
@@ -6042,6 +6056,9 @@ static int hclge_get_fd_rule_info(struct hnae3_handle *handle,
 	struct hclge_dev *hdev = vport->back;
 	struct ethtool_rx_flow_spec *fs;
 	struct hlist_node *node2;
+
+	if (!hnae3_dev_fd_supported(hdev))
+		return -EOPNOTSUPP;
 
 	fs = (struct ethtool_rx_flow_spec *)&cmd->fs;
 
@@ -6233,6 +6250,9 @@ static int hclge_get_all_rules(struct hnae3_handle *handle,
 	struct hclge_fd_rule *rule;
 	struct hlist_node *node2;
 	int cnt = 0;
+
+	if (!hnae3_dev_fd_supported(hdev))
+		return -EOPNOTSUPP;
 
 	cmd->data = hdev->fd_cfg.stage1_rule_entry_number;
 
@@ -7132,7 +7152,7 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	if (mac->phydev)
 		mdiobus_unregister(mac->mdio_bus);
 
-	if (hdev->hclge_fd_rule_num)
+	if (hnae3_dev_fd_supported(hdev) && hdev->hclge_fd_rule_num)
 		hclge_del_all_entries(hdev);
 
 	/* Disable MISC vector(vector0) */
