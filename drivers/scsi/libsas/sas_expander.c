@@ -2052,6 +2052,7 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id, bool last)
 		   dev_type_flutter(type, phy->attached_dev_type)) {
 		struct domain_device *ata_dev = sas_ex_to_ata(dev, phy_id);
 		char *action = "";
+		enum sas_linkrate linkrate = phy->linkrate;
 
 		sas_ex_phy_discover(dev, phy_id);
 
@@ -2075,6 +2076,8 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id, bool last)
 			goto unregister;
 		}
 
+		if (linkrate != phy->linkrate)
+			goto unregister;
 
 		if (ata_dev) {
 			struct ata_device *adev = sas_to_ata_dev(ata_dev);
@@ -2082,7 +2085,8 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id, bool last)
 			u16 *id = ata_dev->sata_dev.id;
 
 			/* to see if the disk is replaced with another one */
-			if (!ata_dev_same_device(adev, class, id))
+			if (!ata_dev_enabled(adev) ||
+			    !ata_dev_same_device(adev, class, id))
 				goto unregister;
 		}
 
