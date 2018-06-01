@@ -4431,6 +4431,7 @@ static void hns_roce_irq_work_handle(struct work_struct *work)
 		break;
 	case HNS_ROCE_EVENT_TYPE_INV_REQ_LOCAL_WQ_ERROR:
 		dev_err(dev, "Invalid request local work queue error.\n");
+		hns_roce_set_qps_to_err(irq_work->hr_dev, qpn);
 		break;
 	case HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR:
 		dev_err(dev, "Local access violation work queue error.\n");
