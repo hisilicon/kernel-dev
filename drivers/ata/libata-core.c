@@ -4228,7 +4228,7 @@ void ata_std_postreset(struct ata_link *link, unsigned int *classes)
  *	RETURNS:
  *	1 if @dev matches @new_class and @new_id, 0 otherwise.
  */
-int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
+static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 			       const u16 *new_id)
 {
 	const u16 *old_id = dev->id;
@@ -7335,4 +7335,3 @@ EXPORT_SYMBOL_GPL(ata_cable_80wire);
 EXPORT_SYMBOL_GPL(ata_cable_unknown);
 EXPORT_SYMBOL_GPL(ata_cable_ignore);
 EXPORT_SYMBOL_GPL(ata_cable_sata);
-EXPORT_SYMBOL_GPL(ata_dev_same_device);
