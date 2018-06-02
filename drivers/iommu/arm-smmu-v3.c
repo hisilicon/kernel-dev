@@ -1890,7 +1890,7 @@ arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
 	if (!ops)
 		return 0;
 
-	return ops->unmap(ops, iova, size);
+	return ops->unmap(ops, iova, size, IOMMU_STRICT);
 }
 
 static void arm_smmu_flush_iotlb_all(struct iommu_domain *domain)

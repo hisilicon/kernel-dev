@@ -86,6 +86,8 @@ struct iommu_domain_geometry {
 #define IOMMU_DOMAIN_DMA	(__IOMMU_DOMAIN_PAGING |	\
 				 __IOMMU_DOMAIN_DMA_API)
 
+#define IOMMU_STRICT		1
+
 struct iommu_domain {
 	unsigned type;
 	const struct iommu_ops *ops;
