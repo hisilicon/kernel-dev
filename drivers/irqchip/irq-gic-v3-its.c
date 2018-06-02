@@ -3380,7 +3380,7 @@ static int __init gic_acpi_parse_srat_its(struct acpi_subtable_header *header,
 
 	node = acpi_map_pxm_to_node(its_affinity->proximity_domain);
 
-	if (node == NUMA_NO_NODE || node >= MAX_NUMNODES) {
+	if (node == NUMA_NO_NODE || node >= MAX_NUMNODES || !node_online(node)) {
 		pr_err("SRAT: Invalid NUMA node %d in ITS affinity\n", node);
 		return 0;
 	}
