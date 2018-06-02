@@ -990,7 +990,12 @@ int dev_set_name(struct device *dev, const char *name, ...);
 #ifdef CONFIG_NUMA
 static inline int dev_to_node(struct device *dev)
 {
-	return dev->numa_node;
+	int node = dev->numa_node;
+
+	if (unlikely(node != NUMA_NO_NODE && !node_online(node)))
+		return NUMA_NO_NODE;
+
+	return node;
 }
 static inline void set_dev_node(struct device *dev, int node)
 {
