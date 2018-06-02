@@ -231,6 +231,9 @@ static int iova_reserve_iommu_regions(struct device *dev,
 	LIST_HEAD(resv_regions);
 	int ret = 0;
 
+	if (!dev)
+		return 0;
+
 	if (dev_is_pci(dev))
 		iova_reserve_pci_windows(to_pci_dev(dev), iovad);
 
@@ -246,11 +249,12 @@ static int iova_reserve_iommu_regions(struct device *dev,
 		hi = iova_pfn(iovad, region->start + region->length - 1);
 		reserve_iova(iovad, lo, hi);
 
-		if (region->type == IOMMU_RESV_MSI)
+		if (region->type == IOMMU_RESV_MSI) {
 			ret = cookie_init_hw_msi_region(cookie, region->start,
 					region->start + region->length);
-		if (ret)
-			break;
+			if (ret)
+				break;
+		}
 	}
 	iommu_put_resv_regions(dev, &resv_regions);
 
@@ -308,8 +312,6 @@ int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 	}
 
 	init_iova_domain(iovad, 1UL << order, base_pfn);
-	if (!dev)
-		return 0;
 
 	return iova_reserve_iommu_regions(dev, domain);
 }
