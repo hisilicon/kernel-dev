@@ -86,6 +86,10 @@ struct iommu_domain_geometry {
 #define IOMMU_DOMAIN_DMA	(__IOMMU_DOMAIN_PAGING |	\
 				 __IOMMU_DOMAIN_DMA_API)
 
+#define IOMMU_STRICT		1
+#define IOMMU_DOMAIN_IS_STRICT(domain)	\
+		(domain->type == IOMMU_DOMAIN_UNMANAGED)
+
 struct iommu_domain {
 	unsigned type;
 	const struct iommu_ops *ops;
@@ -101,6 +105,7 @@ enum iommu_cap {
 					   transactions */
 	IOMMU_CAP_INTR_REMAP,		/* IOMMU supports interrupt isolation */
 	IOMMU_CAP_NOEXEC,		/* IOMMU_NOEXEC flag */
+	IOMMU_CAP_NON_STRICT,		/* IOMMU supports non-strict mode */
 };
 
 /*

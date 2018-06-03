@@ -1249,7 +1249,7 @@ static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
 	if (!ops)
 		return 0;
 
-	return ops->unmap(ops, iova, size);
+	return ops->unmap(ops, iova, size, IOMMU_STRICT);
 }
 
 static void arm_smmu_iotlb_sync(struct iommu_domain *domain)

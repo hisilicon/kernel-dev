@@ -55,6 +55,7 @@ struct iommu_dma_cookie {
 	};
 	struct list_head		msi_page_list;
 	spinlock_t			msi_lock;
+	struct iommu_domain		*domain;
 };
 
 static inline size_t cookie_msi_granule(struct iommu_dma_cookie *cookie)
@@ -64,7 +65,8 @@ static inline size_t cookie_msi_granule(struct iommu_dma_cookie *cookie)
 	return PAGE_SIZE;
 }
 
-static struct iommu_dma_cookie *cookie_alloc(enum iommu_dma_cookie_type type)
+static struct iommu_dma_cookie *cookie_alloc(struct iommu_domain *domain,
+					     enum iommu_dma_cookie_type type)
 {
 	struct iommu_dma_cookie *cookie;
 
@@ -73,6 +75,7 @@ static struct iommu_dma_cookie *cookie_alloc(enum iommu_dma_cookie_type type)
 		spin_lock_init(&cookie->msi_lock);
 		INIT_LIST_HEAD(&cookie->msi_page_list);
 		cookie->type = type;
+		cookie->domain = domain;
 	}
 	return cookie;
 }
@@ -94,7 +97,7 @@ int iommu_get_dma_cookie(struct iommu_domain *domain)
 	if (domain->iova_cookie)
 		return -EEXIST;
 
-	domain->iova_cookie = cookie_alloc(IOMMU_DMA_IOVA_COOKIE);
+	domain->iova_cookie = cookie_alloc(domain, IOMMU_DMA_IOVA_COOKIE);
 	if (!domain->iova_cookie)
 		return -ENOMEM;
 
@@ -124,7 +127,7 @@ int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base)
 	if (domain->iova_cookie)
 		return -EEXIST;
 
-	cookie = cookie_alloc(IOMMU_DMA_MSI_COOKIE);
+	cookie = cookie_alloc(domain, IOMMU_DMA_MSI_COOKIE);
 	if (!cookie)
 		return -ENOMEM;
 
@@ -231,6 +234,9 @@ static int iova_reserve_iommu_regions(struct device *dev,
 	LIST_HEAD(resv_regions);
 	int ret = 0;
 
+	if (!dev)
+		return 0;
+
 	if (dev_is_pci(dev))
 		iova_reserve_pci_windows(to_pci_dev(dev), iovad);
 
@@ -246,15 +252,27 @@ static int iova_reserve_iommu_regions(struct device *dev,
 		hi = iova_pfn(iovad, region->start + region->length - 1);
 		reserve_iova(iovad, lo, hi);
 
-		if (region->type == IOMMU_RESV_MSI)
+		if (region->type == IOMMU_RESV_MSI) {
 			ret = cookie_init_hw_msi_region(cookie, region->start,
 					region->start + region->length);
-		if (ret)
-			break;
+			if (ret)
+				break;
+		}
 	}
 	iommu_put_resv_regions(dev, &resv_regions);
 
 	return ret;
+}
+
+static void iova_flush_iotlb_all(struct iova_domain *iovad)
+{
+	struct iommu_dma_cookie *cookie;
+	struct iommu_domain *domain;
+
+	cookie = container_of(iovad, struct iommu_dma_cookie, iovad);
+	domain = cookie->domain;
+
+	domain->ops->flush_iotlb_all(domain);
 }
 
 /**
@@ -272,6 +290,7 @@ static int iova_reserve_iommu_regions(struct device *dev,
 int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 		u64 size, struct device *dev)
 {
+	const struct iommu_ops *ops = domain->ops;
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iova_domain *iovad = &cookie->iovad;
 	unsigned long order, base_pfn, end_pfn;
@@ -308,8 +327,11 @@ int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 	}
 
 	init_iova_domain(iovad, 1UL << order, base_pfn);
-	if (!dev)
-		return 0;
+
+	if (ops->capable && ops->capable(IOMMU_CAP_NON_STRICT)) {
+		BUG_ON(!ops->flush_iotlb_all);
+		init_iova_flush_queue(iovad, iova_flush_iotlb_all, NULL);
+	}
 
 	return iova_reserve_iommu_regions(dev, domain);
 }
@@ -390,6 +412,9 @@ static void iommu_dma_free_iova(struct iommu_dma_cookie *cookie,
 	/* The MSI case is only ever cleaning up its most recent allocation */
 	if (cookie->type == IOMMU_DMA_MSI_COOKIE)
 		cookie->msi_iova -= size;
+	else if (!IOMMU_DOMAIN_IS_STRICT(cookie->domain) && iovad->flush_cb)
+		queue_iova(iovad, iova_pfn(iovad, iova),
+				size >> iova_shift(iovad), 0);
 	else
 		free_iova_fast(iovad, iova_pfn(iovad, iova),
 				size >> iova_shift(iovad));
