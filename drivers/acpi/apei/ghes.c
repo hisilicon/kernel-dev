@@ -408,7 +408,7 @@ static void ghes_handle_memory_failure(struct acpi_hest_generic_data *gdata, int
  * GHES_SEV_RECOVERABLE -> AER_NONFATAL
  * GHES_SEV_RECOVERABLE && CPER_SEC_RESET -> AER_FATAL
  *     These both need to be reported and recovered from by the AER driver.
- * GHES_SEV_FATAL does not make it to this handler
+ * GHES_SEV_FATAL -> AER_FATAL
  */
 static void ghes_handle_aer(struct acpi_hest_generic_data *gdata)
 {
@@ -693,6 +693,45 @@ static void ghes_estatus_cache_add(
 static struct llist_head ghes_estatus_llist;
 static struct irq_work ghes_proc_irq_work;
 
+/* PCIe AER errors are safe if AER section contains enough info. */
+static int ghes_pcie_has_safe_handler(struct acpi_hest_generic_data *gdata)
+{
+        struct cper_sec_pcie *pcie_err = acpi_hest_get_payload(gdata);
+
+        if (pcie_err->validation_bits & CPER_PCIE_VALID_DEVICE_ID &&
+                pcie_err->validation_bits & CPER_PCIE_VALID_AER_INFO &&
+                IS_ENABLED(CONFIG_ACPI_APEI_PCIEAER))
+                return true;
+
+        return false;
+}
+
+/*
+ * Do we have an error handler that we can safely reach? We're concerned with
+ * being able to notify an error handler by crossing the NMI/IRQ boundary,
+ * being able to schedule_work, and so forth.
+ */
+static int ghes_has_fatal_handler(struct ghes *ghes)
+{
+        int worst_sev, sec_sev;
+        bool safe = true;
+        struct acpi_hest_generic_data *gdata;
+        const guid_t *section_type;
+        const struct acpi_hest_generic_status *estatus = ghes->estatus;
+
+        apei_estatus_for_each_section(estatus, gdata) {
+                section_type = (guid_t *)gdata->section_type;
+
+                if (guid_equal(section_type, &CPER_SEC_PCIE))
+                        safe = ghes_pcie_has_safe_handler(gdata);
+
+                if (!safe)
+                        break;
+        }
+
+        return safe;
+}
+
 static void ghes_print_queued_estatus(void)
 {
 	struct llist_node *llnode;
@@ -752,7 +791,7 @@ static int _in_nmi_notify_one(struct ghes *ghes)
 	}
 
 	sev = ghes_cper_severity(ghes->estatus->error_severity);
-	if (sev >= GHES_SEV_FATAL) {
+	if ((sev >= GHES_SEV_FATAL) && !ghes_has_fatal_handler(ghes)) {
 		ghes_print_queued_estatus();
 		__ghes_panic(ghes);
 	}
