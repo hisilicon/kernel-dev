@@ -53,7 +53,7 @@ void apei_mce_report_mem_error(int severity, struct cper_sec_mem_err *mem_err)
 	if (severity >= GHES_SEV_RECOVERABLE)
 		m.status |= MCI_STATUS_UC;
 
-	if (severity >= GHES_SEV_PANIC) {
+	if (severity >= GHES_SEV_FATAL) {
 		m.status |= MCI_STATUS_PCC;
 		m.tsc = rdtsc();
 	}

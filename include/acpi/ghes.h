@@ -66,7 +66,7 @@ enum {
 	GHES_SEV_NO = 0x0,
 	GHES_SEV_CORRECTED = 0x1,
 	GHES_SEV_RECOVERABLE = 0x2,
-	GHES_SEV_PANIC = 0x3,
+	GHES_SEV_FATAL = 0x3,
 };
 
 /* From drivers/edac/ghes_edac.c */

@@ -265,10 +265,10 @@ static inline int ghes_severity(int severity)
 	case CPER_SEV_RECOVERABLE:
 		return GHES_SEV_RECOVERABLE;
 	case CPER_SEV_FATAL:
-		return GHES_SEV_PANIC;
+		return GHES_SEV_FATAL;
 	default:
 		/* Unknown, go panic */
-		return GHES_SEV_PANIC;
+		return GHES_SEV_FATAL;
 	}
 }
 
@@ -408,8 +408,7 @@ static void ghes_handle_memory_failure(struct acpi_hest_generic_data *gdata, int
  * GHES_SEV_RECOVERABLE -> AER_NONFATAL
  * GHES_SEV_RECOVERABLE && CPER_SEC_RESET -> AER_FATAL
  *     These both need to be reported and recovered from by the AER driver.
- * GHES_SEV_PANIC does not make it to this handling since the kernel must
- *     panic.
+ * GHES_SEV_FATAL does not make it to this handler
  */
 static void ghes_handle_aer(struct acpi_hest_generic_data *gdata)
 {
@@ -753,7 +752,7 @@ static int _in_nmi_notify_one(struct ghes *ghes)
 	}
 
 	sev = ghes_severity(ghes->estatus->error_severity);
-	if (sev >= GHES_SEV_PANIC) {
+	if (sev >= GHES_SEV_FATAL) {
 		ghes_print_queued_estatus();
 		__ghes_panic(ghes);
 	}
@@ -883,7 +882,7 @@ static int ghes_proc(struct ghes *ghes)
 	if (rc)
 		goto out;
 
-	if (ghes_severity(ghes->estatus->error_severity) >= GHES_SEV_PANIC) {
+	if (ghes_severity(ghes->estatus->error_severity) >= GHES_SEV_FATAL) {
 		__ghes_panic(ghes);
 	}
 

@@ -220,7 +220,7 @@ void ghes_edac_report_mem_error(struct ghes *ghes, int sev,
 	case GHES_SEV_RECOVERABLE:
 		type = HW_EVENT_ERR_UNCORRECTED;
 		break;
-	case GHES_SEV_PANIC:
+	case GHES_SEV_FATAL:
 		type = HW_EVENT_ERR_FATAL;
 		break;
 	default:
