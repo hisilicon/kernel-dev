@@ -255,7 +255,7 @@ static void ghes_fini(struct ghes *ghes)
 		unmap_gen_v2(ghes);
 }
 
-static inline int ghes_severity(int severity)
+static inline int ghes_cper_severity(int severity)
 {
 	switch (severity) {
 	case CPER_SEV_INFORMATIONAL:
@@ -371,7 +371,7 @@ static void ghes_handle_memory_failure(struct acpi_hest_generic_data *gdata, int
 #ifdef CONFIG_ACPI_APEI_MEMORY_FAILURE
 	unsigned long pfn;
 	int flags = -1;
-	int sec_sev = ghes_severity(gdata->error_severity);
+	int sec_sev = ghes_cper_severity(gdata->error_severity);
 	struct cper_sec_mem_err *mem_err = acpi_hest_get_payload(gdata);
 
 	if (!(mem_err->validation_bits & CPER_MEM_VALID_PA))
@@ -456,10 +456,10 @@ static void ghes_do_proc(struct ghes *ghes,
 	guid_t *fru_id = &NULL_UUID_LE;
 	char *fru_text = "";
 
-	sev = ghes_severity(estatus->error_severity);
+	sev = ghes_cper_severity(estatus->error_severity);
 	apei_estatus_for_each_section(estatus, gdata) {
 		sec_type = (guid_t *)gdata->section_type;
-		sec_sev = ghes_severity(gdata->error_severity);
+		sec_sev = ghes_cper_severity(gdata->error_severity);
 		if (gdata->validation_bits & CPER_SEC_VALID_FRU_ID)
 			fru_id = (guid_t *)gdata->fru_id;
 
@@ -507,7 +507,7 @@ static void __ghes_print_estatus(const char *pfx,
 	char pfx_seq[64];
 
 	if (pfx == NULL) {
-		if (ghes_severity(estatus->error_severity) <=
+		if (ghes_cper_severity(estatus->error_severity) <=
 		    GHES_SEV_CORRECTED)
 			pfx = KERN_WARNING;
 		else
@@ -529,7 +529,7 @@ static int ghes_print_estatus(const char *pfx,
 	static DEFINE_RATELIMIT_STATE(ratelimit_uncorrected, 5*HZ, 2);
 	struct ratelimit_state *ratelimit;
 
-	if (ghes_severity(estatus->error_severity) <= GHES_SEV_CORRECTED)
+	if (ghes_cper_severity(estatus->error_severity) <= GHES_SEV_CORRECTED)
 		ratelimit = &ratelimit_corrected;
 	else
 		ratelimit = &ratelimit_uncorrected;
@@ -751,7 +751,7 @@ static int _in_nmi_notify_one(struct ghes *ghes)
 		return -ENOENT;
 	}
 
-	sev = ghes_severity(ghes->estatus->error_severity);
+	sev = ghes_cper_severity(ghes->estatus->error_severity);
 	if (sev >= GHES_SEV_FATAL) {
 		ghes_print_queued_estatus();
 		__ghes_panic(ghes);
@@ -882,9 +882,8 @@ static int ghes_proc(struct ghes *ghes)
 	if (rc)
 		goto out;
 
-	if (ghes_severity(ghes->estatus->error_severity) >= GHES_SEV_FATAL) {
+	if (ghes_cper_severity(ghes->estatus->error_severity) >= GHES_SEV_FATAL)
 		__ghes_panic(ghes);
-	}
 
 	if (!ghes_estatus_cached(ghes->estatus)) {
 		if (ghes_print_estatus(NULL, ghes->generic, ghes->estatus))
