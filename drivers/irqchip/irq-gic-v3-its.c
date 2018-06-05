@@ -2315,7 +2315,9 @@ static int its_irq_domain_activate(struct irq_domain *domain,
 		cpu_mask = cpumask_of_node(its_dev->its->numa_node);
 
 	/* Bind the LPI to the first possible CPU */
-	cpu = cpumask_first(cpu_mask);
+	cpu = cpumask_first_and(cpu_mask, cpu_online_mask);
+	if (cpu >= nr_cpu_ids || !cpu_online(cpu))
+		cpu = cpumask_first(cpu_online_mask);
 	its_dev->event_map.col_map[event] = cpu;
 	irq_data_update_effective_affinity(d, cpumask_of(cpu));
 
@@ -2472,7 +2474,10 @@ static int its_vpe_set_affinity(struct irq_data *d,
 				bool force)
 {
 	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
-	int cpu = cpumask_first(mask_val);
+	int cpu = cpumask_first_and(mask_val, cpu_online_mask);
+
+	if (cpu >= nr_cpu_ids || !cpu_online(cpu))
+		cpu = cpumask_first(cpu_online_mask);
 
 	/*
 	 * Changing affinity is mega expensive, so let's be as lazy as
