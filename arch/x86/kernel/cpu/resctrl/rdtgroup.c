@@ -357,6 +357,14 @@ update_closid_rmid(const struct cpumask *cpu_mask, struct rdtgroup *r)
 	put_cpu();
 }
 
+static void resctrl_set_cpu_default_closid(int cpu, u32 closid)
+{
+	hw_closid_t c, d;
+
+	CDP_CLOSID_MAP_PAIR(closid, c, d);
+	resctrl_arch_set_cpu_default_closid(cpu, c, d);
+}
+
 static int cpus_mon_write(struct rdtgroup *rdtgrp, cpumask_var_t newmask,
 			  cpumask_var_t tmpmask)
 {
@@ -3013,7 +3021,8 @@ static int rdtgroup_rmdir_mon(struct kernfs_node *kn, struct rdtgroup *rdtgrp,
 
 	/* Update per cpu rmid of the moved CPUs first */
 	for_each_cpu(cpu, &rdtgrp->cpu_mask)
-		per_cpu(pqr_state.default_rmid, cpu) = prdtgrp->mon.rmid;
+		resctrl_arch_set_cpu_default_rmid(cpu, prdtgrp->mon.rmid);
+
 	/*
 	 * Update the MSR on moved CPUs and CPUs which have moved
 	 * task running on them.
@@ -3069,8 +3078,8 @@ static int rdtgroup_rmdir_ctrl(struct kernfs_node *kn, struct rdtgroup *rdtgrp,
 
 	/* Update per cpu closid and rmid of the moved CPUs first */
 	for_each_cpu(cpu, &rdtgrp->cpu_mask) {
-		per_cpu(pqr_state.default_closid, cpu) = rdtgroup_default.closid;
-		per_cpu(pqr_state.default_rmid, cpu) = rdtgroup_default.mon.rmid;
+		resctrl_set_cpu_default_closid(cpu, rdtgroup_default.closid);
+		resctrl_arch_set_cpu_default_rmid(cpu, rdtgroup_default.mon.rmid);
 	}
 
 	/*
