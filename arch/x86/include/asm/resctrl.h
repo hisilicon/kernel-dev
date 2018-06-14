@@ -6,6 +6,7 @@
 
 #include <linux/bug.h>
 #include <linux/jump_label.h>
+#include <linux/percpu.h>
 #include <linux/sched.h>
 
 #include <asm/processor.h>
@@ -31,6 +32,30 @@ DECLARE_STATIC_KEY_FALSE(rdt_mon_enable_key);
  */
 u32 resctrl_arch_system_num_closid(void);
 u32 resctrl_arch_system_num_rmid(void);
+
+/**
+ * struct resctrl_pqr_state - State cache for the PQR MSR
+ * @cur_rmid:		The cached Resource Monitoring ID
+ * @cur_closid:		The cached Class Of Service ID
+ * @default_rmid:	The user assigned Resource Monitoring ID
+ * @default_closid:	The user assigned cached Class Of Service ID
+ *
+ * The upper 32 bits of IA32_PQR_ASSOC contain closid and the
+ * lower 10 bits rmid. The update to IA32_PQR_ASSOC always
+ * contains both parts, so we need to cache them. This also
+ * stores the user configured per cpu CLOSID and RMID.
+ *
+ * The cache also helps to avoid pointless updates if the value does
+ * not change.
+ */
+struct resctrl_pqr_state {
+	u32			cur_rmid;
+	u32			cur_closid;
+	u32			default_rmid;
+	u32			default_closid;
+};
+
+DECLARE_PER_CPU(struct resctrl_pqr_state, pqr_state);
 
 static inline bool resctrl_arch_alloc_capable(void)
 {
@@ -112,4 +137,26 @@ static inline bool resctrl_arch_match_rmid(struct task_struct *tsk, u32 rmid)
 {
 	return tsk->rmid == rmid;
 }
+
+static inline void resctrl_arch_set_cpu_default_closid(int cpu,
+						       hw_closid_t closid_code,
+						       hw_closid_t closid_data)
+{
+	u32 c = hwclosid_val(closid_code);
+	u32 d = hwclosid_val(closid_data);
+
+	/* For CDP the code/data closid must be adjacent even/odd pairs */
+	if (c != d) {
+		WARN_ON_ONCE(d + 1 != c);
+		per_cpu(pqr_state.default_closid, cpu) = d >> 1;
+	} else {
+		per_cpu(pqr_state.default_closid, cpu) = d;
+	}
+}
+
+static inline void resctrl_arch_set_cpu_default_rmid(int cpu, u32 rmid)
+{
+	per_cpu(pqr_state.default_rmid, cpu) = rmid;
+}
+
 #endif /* _ASM_RESCTRL_H_ */
