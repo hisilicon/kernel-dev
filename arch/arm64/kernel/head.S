@@ -599,6 +599,21 @@ set_hcr:
 	msr_s	SYS_LORC_EL1, xzr
 1:
 
+#ifdef CONFIG_ARM64_MPAM
+	/* Memory Partioning And Monitoring: disable EL2 traps */
+	mrs	x1, id_aa64pfr0_el1
+	ubfx	x0, x1, #ID_AA64PFR0_MPAM_SHIFT, #4
+	cbz	x0, 1f				// skip if no MPAM
+	msr_s	SYS_MPAM0_EL1, xzr		// use the default partition..
+	msr_s	SYS_MPAM2_EL2, xzr		// ..and disable lower traps
+	cbnz	x2, 1f				// nothing more for VHE
+	msr_s	SYS_MPAM1_EL1, xzr
+	mrs_s	x0, SYS_MPAMIDR_EL1
+	tbz	x0, #17, 7f			// skip if no MPAMHCR reg
+	msr_s	SYS_MPAMHCR_EL2, xzr		// clear TRAP_MPAMIDR_EL1 -> EL2
+1:
+#endif /* CONFIG_ARM64_MPAM */
+
 	/* Stage-2 translation */
 	msr	vttbr_el2, xzr
 
