@@ -868,10 +868,12 @@ struct hclge_set_fd_key_config_cmd {
 	u8 rsv2[8];
 };
 
+#define HCLGE_FD_EPORT_SW_EN_B		0
 struct hclge_fd_tcam_config_1_cmd {
 	u8 stage;
 	u8 xy_sel;
-	u8 rsv1[2];
+	u8 port_info;
+	u8 rsv1[1];
 	__le32 index;
 	u8 entry_vld;
 	u8 rsv2[7];

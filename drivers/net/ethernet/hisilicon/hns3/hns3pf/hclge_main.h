@@ -81,6 +81,19 @@
 #define HCLGE_VF_NUM_PER_CMD           64
 #define HCLGE_VF_NUM_PER_BYTE          8
 
+enum HLCGE_PORT_TYPE {
+	HOST_PORT,
+	NETWORK_PORT
+};
+
+#define HCLGE_PF_ID_S			0
+#define HCLGE_PF_ID_M			GENMASK(2, 0)
+#define HCLGE_VF_ID_S			3
+#define HCLGE_VF_ID_M			GENMASK(10, 3)
+#define HCLGE_PORT_TYPE_B		11
+#define HCLGE_NETWORK_PORT_ID_S		0
+#define HCLGE_NETWORK_PORT_ID_M		GENMASK(3, 0)
+
 /* Reset related Registers */
 #define HCLGE_MISC_RESET_STS_REG	0x20700
 #define HCLGE_MISC_VECTOR_INT_STS	0x20800

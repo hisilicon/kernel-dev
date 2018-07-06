@@ -5035,6 +5035,7 @@ static const struct key_info tuple_key_info[] = {
 #define MAX_KEY_LENGTH	400
 #define MAX_KEY_DWORDS	DIV_ROUND_UP(MAX_KEY_LENGTH / 8, 4)
 #define MAX_KEY_BYTES	(MAX_KEY_DWORDS * 4)
+#define MAX_META_DATA_LENGTH	32
 
 enum HCLGE_FD_PACKET_TYPE {
 	NIC_PACKET,
@@ -5103,9 +5104,7 @@ static int hclge_init_fd_config(struct hclge_dev *hdev)
 		if (key_cfg->tuple_active & BIT(i))
 			key_cfg->tuple_length += tuple_key_info[i].key_length;
 
-	key_cfg->meta_data_active = BIT(ROCEE_TYPE);
-	key_cfg->meta_data_length = meta_data_key_info[ROCEE_TYPE].key_length;
-	key_cfg->meta_data_key = NIC_PACKET;
+	key_cfg->meta_data_active = BIT(ROCEE_TYPE) | BIT(DST_VPORT);
 
 	ret = hclge_get_fd_allocation(hdev,
 				      &hdev->fd_cfg.stage1_rule_entry_number,
@@ -5149,6 +5148,7 @@ static int hclge_fd_tcam_config(struct hclge_dev *hdev, u8 stage, bool sel_x,
 
 	req1->stage = stage;
 	req1->xy_sel = sel_x ? 1 : 0;
+	hnae3_set_bit(req1->port_info, HCLGE_FD_EPORT_SW_EN_B, 0);
 	req1->index = cpu_to_le32(loc);
 	req1->entry_vld = sel_x ? is_add : 0;
 
@@ -5336,6 +5336,77 @@ static bool hclge_fd_convert_tuple(u32 tuple_bit, u8 *key_x, u8 *key_y,
 	}
 }
 
+/* for host port
+ *  bit11: port type
+ *  bit10 ~ bit3: vf id (related to pf)
+ *  bit2 ~ bit0: pf id
+ * for network port
+ *  bit11: port type
+ *  bit10 ~ bit4: reserved
+ *  bit3 ~ bit0: network port id
+ */
+static u32 hclge_get_port_number(enum HLCGE_PORT_TYPE port_type, u8 pf_id,
+				 u8 vf_id, u8 network_port_id)
+{
+	u32 port_number = 0;
+
+	if (port_type == HOST_PORT) {
+		hnae3_set_field(port_number, HCLGE_PF_ID_M, HCLGE_PF_ID_S,
+				pf_id);
+		hnae3_set_field(port_number, HCLGE_VF_ID_M, HCLGE_VF_ID_S,
+				vf_id);
+		hnae3_set_bit(port_number, HCLGE_PORT_TYPE_B, HOST_PORT);
+	} else {
+		hnae3_set_field(port_number, HCLGE_NETWORK_PORT_ID_M,
+				HCLGE_NETWORK_PORT_ID_S, network_port_id);
+		hnae3_set_bit(port_number, HCLGE_PORT_TYPE_B, NETWORK_PORT);
+	}
+
+	return port_number;
+}
+
+static void hclge_fd_convert_meta_data(struct hclge_fd_key_cfg *key_cfg,
+				       __le32 *key_x, __le32 *key_y,
+				       struct hclge_fd_rule *rule)
+{
+	u32 tuple_bit, meta_data = 0, tmp_x, tmp_y, port_number;
+	u8 cur_pos = 0, tuple_size, shift_bits;
+	int i;
+
+	for (i = 0; i < MAX_META_DATA; i++) {
+		tuple_size = meta_data_key_info[i].key_length;
+		tuple_bit = key_cfg->meta_data_active & BIT(i);
+
+		switch (tuple_bit) {
+		case BIT(ROCEE_TYPE):
+			hnae3_set_bit(meta_data, cur_pos, NIC_PACKET);
+			cur_pos += tuple_size;
+			break;
+		case BIT(DST_VPORT):
+			port_number = hclge_get_port_number(HOST_PORT, 0,
+							    rule->vf_id, 0);
+			hnae3_set_field(meta_data,
+					GENMASK(cur_pos + tuple_size, cur_pos),
+					cur_pos, port_number);
+			cur_pos += tuple_size;
+			break;
+		default:
+			break;
+		}
+	}
+
+	calc_x(tmp_x, meta_data, 0xFFFFFFFF);
+	calc_y(tmp_y, meta_data, 0xFFFFFFFF);
+	shift_bits = sizeof(meta_data) * 8 - cur_pos;
+
+	*key_x = cpu_to_le32(tmp_x << shift_bits);
+	*key_y = cpu_to_le32(tmp_y << shift_bits);
+}
+
+/* A complete key is combined with meta data key and tuple key.
+ * Meta data key is stored at the MSB region, and tuple key is stored at
+ * the LSB region, unused bits will be filled 0.
+ */
 static int hclge_config_key(struct hclge_dev *hdev, u8 stage,
 			    struct hclge_fd_rule *rule)
 {
@@ -5343,6 +5414,7 @@ static int hclge_config_key(struct hclge_dev *hdev, u8 stage,
 	u8 key_x[MAX_KEY_BYTES], key_y[MAX_KEY_BYTES];
 	u8 *cur_key_x, *cur_key_y;
 	int i, ret, tuple_size;
+	u8 meta_data_region;
 
 	memset(key_x, 0, sizeof(key_x));
 	memset(key_y, 0, sizeof(key_y));
@@ -5364,13 +5436,13 @@ static int hclge_config_key(struct hclge_dev *hdev, u8 stage,
 		}
 	}
 
-	if (key_cfg->meta_data_length) {
-		u8 start_index = (hdev->fd_cfg.max_key_length -
-			       key_cfg->meta_data_length) / 8;
+	meta_data_region = hdev->fd_cfg.max_key_length / 8 -
+			MAX_META_DATA_LENGTH / 8;
 
-		cur_key_x = key_x + start_index;
-		*cur_key_x |= 0x80;
-	}
+	hclge_fd_convert_meta_data(key_cfg,
+				   (__le32 *)(key_x + meta_data_region),
+				   (__le32 *)(key_y + meta_data_region),
+				   rule);
 
 	ret = hclge_fd_tcam_config(hdev, stage, true, rule->location, key_x,
 				   true);
