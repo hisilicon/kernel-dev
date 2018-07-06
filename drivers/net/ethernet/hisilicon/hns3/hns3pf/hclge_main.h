@@ -417,7 +417,7 @@ struct hclge_fd_rule {
 	struct hclge_fd_rule_tuples tuples;
 	struct hclge_fd_rule_tuples tuples_mask;
 	u32 unused_tuple;
-	u8 flow_type;
+	u32 flow_type;
 	u8 action;
 	u16 vf_id;
 	u16 queue_id;

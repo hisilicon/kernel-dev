@@ -5853,7 +5853,7 @@ static int hclge_add_fd_entry(struct hnae3_handle *handle,
 	if (ret)
 		goto free_rule;
 
-	rule->flow_type = fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT);
+	rule->flow_type = fs->flow_type;
 
 	rule->location = fs->location;
 	rule->unused_tuple = unused;
@@ -5965,7 +5965,7 @@ static int hclge_get_fd_rule_info(struct hnae3_handle *handle,
 		return -ENOENT;
 
 	fs->flow_type = rule->flow_type;
-	switch (fs->flow_type) {
+	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
 	case SCTP_V4_FLOW:
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
@@ -6113,7 +6113,7 @@ static int hclge_get_fd_rule_info(struct hnae3_handle *handle,
 	}
 
 	if (fs->flow_type & FLOW_MAC_EXT) {
-		ether_addr_copy(fs->h_ext.h_dest, rule->tuples_mask.dst_mac);
+		ether_addr_copy(fs->h_ext.h_dest, rule->tuples.dst_mac);
 		if (rule->unused_tuple & BIT(INNER_DST_MAC))
 			eth_zero_addr(fs->m_u.ether_spec.h_dest);
 		else
