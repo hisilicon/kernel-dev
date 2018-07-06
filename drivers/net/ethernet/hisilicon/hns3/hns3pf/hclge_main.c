@@ -5444,20 +5444,20 @@ static int hclge_config_key(struct hclge_dev *hdev, u8 stage,
 				   (__le32 *)(key_y + meta_data_region),
 				   rule);
 
-	ret = hclge_fd_tcam_config(hdev, stage, true, rule->location, key_x,
+	ret = hclge_fd_tcam_config(hdev, stage, false, rule->location, key_y,
 				   true);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"fd key_x config fail, loc = %d, ret = %d\n",
+			"fd key_y config fail, loc = %d, ret = %d\n",
 			rule->queue_id, ret);
 		return ret;
 	}
 
-	ret = hclge_fd_tcam_config(hdev, stage, false, rule->location, key_y,
+	ret = hclge_fd_tcam_config(hdev, stage, true, rule->location, key_x,
 				   true);
 	if (ret)
 		dev_err(&hdev->pdev->dev,
-			"fd key_y config fail, loc = %d, ret = %d\n",
+			"fd key_x config fail, loc = %d, ret = %d\n",
 			rule->queue_id, ret);
 
 	return ret;
@@ -5933,11 +5933,11 @@ static int hclge_add_fd_entry(struct hnae3_handle *handle,
 	rule->queue_id = q_index;
 	rule->action = action;
 
-	ret = hclge_config_key(hdev, HCLGE_FD_STAGE_1, rule);
+	ret = hclge_config_action(hdev, HCLGE_FD_STAGE_1, rule);
 	if (ret)
 		goto free_rule;
 
-	ret = hclge_config_action(hdev, HCLGE_FD_STAGE_1, rule);
+	ret = hclge_config_key(hdev, HCLGE_FD_STAGE_1, rule);
 	if (ret)
 		goto free_rule;
 
