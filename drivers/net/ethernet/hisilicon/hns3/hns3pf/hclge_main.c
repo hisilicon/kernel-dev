@@ -5051,7 +5051,7 @@ static int hclge_init_fd_config(struct hclge_dev *hdev)
 {
 #define LOW_2_WORDS		0x03
 	struct hclge_fd_key_cfg *key_cfg;
-	int i, ret;
+	int ret;
 
 	if (hdev->pdev->revision == HNAE3_REVISION_ID_20)
 		return 0;
@@ -5098,11 +5098,6 @@ static int hclge_init_fd_config(struct hclge_dev *hdev)
 		key_cfg->tuple_active |=
 				BIT(INNER_SRC_MAC) | BIT(INNER_ETH_TYPE);
 	}
-
-	key_cfg->tuple_length = 0;
-	for (i = 0; i < MAX_TUPLE; i++)
-		if (key_cfg->tuple_active & BIT(i))
-			key_cfg->tuple_length += tuple_key_info[i].key_length;
 
 	key_cfg->meta_data_active = BIT(ROCEE_TYPE) | BIT(DST_VPORT);
 
@@ -5467,9 +5462,6 @@ static int hclge_config_action(struct hclge_dev *hdev, u8 stage,
 			       struct hclge_fd_rule *rule)
 {
 	struct hclge_fd_ad_data ad_data;
-	struct hclge_vport *vport;
-
-	vport = &hdev->vport[rule->vf_id];
 
 	ad_data.ad_id = rule->location;
 
@@ -5492,7 +5484,7 @@ static int hclge_config_action(struct hclge_dev *hdev, u8 stage,
 	ad_data.write_rule_id_to_bd = true;
 	ad_data.rule_id = rule->location;
 
-	return hclge_fd_ad_config(vport->back, stage, ad_data.ad_id, &ad_data);
+	return hclge_fd_ad_config(hdev, stage, ad_data.ad_id, &ad_data);
 }
 
 static int hclge_fd_check_spec(struct hclge_dev *hdev,
@@ -6176,7 +6168,7 @@ static int hclge_get_fd_rule_info(struct hnae3_handle *handle,
 		return -EOPNOTSUPP;
 	}
 
-	if ((fs->flow_type & FLOW_EXT)) {
+	if (fs->flow_type & FLOW_EXT) {
 		fs->h_ext.vlan_tci = cpu_to_be16(rule->tuples.vlan_tag1);
 		fs->m_ext.vlan_tci =
 				rule->unused_tuple & BIT(INNER_VLAN_TAG_FST) ?

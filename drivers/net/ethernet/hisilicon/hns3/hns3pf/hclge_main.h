@@ -393,11 +393,8 @@ struct hclge_fd_key_cfg {
 	u8 inner_dipv6_word_en;
 	u8 outer_sipv6_word_en;
 	u8 outer_dipv6_word_en;
-	u16 tuple_length;
-	u16 meta_data_length;
 	u32 tuple_active;
 	u32 meta_data_active;
-	u64 meta_data_key;
 };
 
 struct hclge_fd_cfg {
