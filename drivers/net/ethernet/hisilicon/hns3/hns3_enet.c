@@ -382,6 +382,10 @@ static int hns3_nic_net_open(struct net_device *netdev)
 	}
 
 	priv->ae_handle->last_reset_time = jiffies;
+
+	if (h->ae_algo->ops->enable_timer_task)
+		h->ae_algo->ops->enable_timer_task(priv->ae_handle, true);
+
 	return 0;
 }
 
@@ -411,6 +415,13 @@ static void hns3_nic_net_down(struct net_device *netdev)
 
 static int hns3_nic_net_stop(struct net_device *netdev)
 {
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	const struct hnae3_ae_ops *ops;
+
+	ops = priv->ae_handle->ae_algo->ops;
+	if (ops->enable_timer_task)
+		ops->enable_timer_task(priv->ae_handle, false);
+
 	netif_tx_stop_all_queues(netdev);
 	netif_carrier_off(netdev);
 

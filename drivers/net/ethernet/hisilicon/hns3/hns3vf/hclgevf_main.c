@@ -1695,6 +1695,19 @@ static int hclgevf_init_vlan_config(struct hclgevf_dev *hdev)
 				       false);
 }
 
+static void hclgevf_enable_timer_task(struct hnae3_handle *handle, bool enable)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	if (enable) {
+		mod_timer(&hdev->service_timer, jiffies + HZ);
+	} else {
+		del_timer_sync(&hdev->service_timer);
+		cancel_work_sync(&hdev->service_task);
+		clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
+	}
+}
+
 static int hclgevf_ae_start(struct hnae3_handle *handle)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
@@ -1719,7 +1732,6 @@ static int hclgevf_ae_start(struct hnae3_handle *handle)
 	hclgevf_request_link_info(hdev);
 
 	clear_bit(HCLGEVF_STATE_DOWN, &hdev->state);
-	mod_timer(&hdev->service_timer, jiffies + HZ);
 
 	return 0;
 }
@@ -1746,9 +1758,6 @@ static void hclgevf_ae_stop(struct hnae3_handle *handle)
 
 	/* reset tqp stats */
 	hclgevf_reset_tqp_stats(handle);
-	del_timer_sync(&hdev->service_timer);
-	cancel_work_sync(&hdev->service_task);
-	clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
 	hclgevf_update_link_status(hdev, 0);
 }
 
@@ -2345,6 +2354,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_status = hclgevf_get_status,
 	.get_ksettings_an_result = hclgevf_get_ksettings_an_result,
 	.set_gro_en = hclgevf_gro_en,
+	.enable_timer_task = hclgevf_enable_timer_task,
 };
 
 static struct hnae3_ae_algo ae_algovf = {

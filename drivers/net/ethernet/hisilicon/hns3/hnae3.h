@@ -432,6 +432,7 @@ struct hnae3_ae_ops {
 	int (*get_fd_all_rules)(struct hnae3_handle *handle,
 				struct ethtool_rxnfc *cmd, u32 *rule_locs);
 	int (*set_gro_en)(struct hnae3_handle *handle, int enable);
+	void (*enable_timer_task)(struct hnae3_handle *handle, bool enable);
 };
 
 struct hnae3_dcb_ops {
