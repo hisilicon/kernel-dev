@@ -1801,8 +1801,8 @@ static void hns3_set_default_feature(struct net_device *netdev)
 
 	if (pdev->revision > HNAE3_REVISION_ID_20) {
 		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
-		netdev->features |= NETIF_F_NTUPLE;
-		netdev->hw_features |= NETIF_F_NTUPLE;
+		netdev->features |= NETIF_F_NTUPLE | NETIF_F_GRO_HW;
+		netdev->hw_features |= NETIF_F_NTUPLE | NETIF_F_GRO_HW;
 	}
 }
 
