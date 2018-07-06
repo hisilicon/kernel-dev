@@ -6686,6 +6686,8 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 				goto clear_nic;
 			}
 
+			hnae3_set_client_init_flag(client, ae_dev, 1);
+
 			if (hdev->roce_client &&
 			    hnae3_dev_roce_supported(hdev)) {
 				struct hnae3_client *rc = hdev->roce_client;
@@ -6697,6 +6699,9 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 				ret = rc->ops->init_instance(&vport->roce);
 				if (ret)
 					goto clear_roce;
+
+				hnae3_set_client_init_flag(hdev->roce_client,
+							   ae_dev, 1);
 			}
 
 			break;
@@ -6707,6 +6712,8 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 			ret = client->ops->init_instance(&vport->nic);
 			if (ret)
 				goto clear_nic;
+
+			hnae3_set_client_init_flag(client, ae_dev, 1);
 
 			break;
 		case HNAE3_CLIENT_ROCE:
@@ -6723,6 +6730,8 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 				ret = client->ops->init_instance(&vport->roce);
 				if (ret)
 					goto clear_roce;
+
+				hnae3_set_client_init_flag(client, ae_dev, 1);
 			}
 		}
 	}
