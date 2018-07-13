@@ -7517,27 +7517,6 @@ static void hclge_get_link_mode(struct hnae3_handle *handle,
 	}
 }
 
-static void hclge_get_port_type(struct hnae3_handle *handle,
-				u8 *port_type)
-{
-	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct hclge_dev *hdev = vport->back;
-	u8 media_type = hdev->hw.mac.media_type;
-
-	switch (media_type) {
-	case HNAE3_MEDIA_TYPE_FIBER:
-		*port_type = PORT_FIBRE;
-		break;
-	case HNAE3_MEDIA_TYPE_COPPER:
-		*port_type = PORT_TP;
-		break;
-	case HNAE3_MEDIA_TYPE_UNKNOWN:
-	default:
-		*port_type = PORT_OTHER;
-		break;
-	}
-}
-
 static int hclge_gro_en(struct hnae3_handle *handle, int enable)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -7603,7 +7582,6 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_regs = hclge_get_regs,
 	.set_led_id = hclge_set_led_id,
 	.get_link_mode = hclge_get_link_mode,
-	.get_port_type = hclge_get_port_type,
 	.enable_fd = hclge_enable_fd,
 	.add_fd_entry = hclge_add_fd_entry,
 	.del_fd_entry = hclge_del_fd_entry,
