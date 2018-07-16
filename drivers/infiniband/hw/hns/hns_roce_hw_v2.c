@@ -2006,6 +2006,8 @@ static int hns_roce_v2_mw_write_mtpt(void *mb_buf, struct hns_roce_mw *mw,
 		     mw->ibmw.type == IB_MW_TYPE_1 ? 0 : 1);
 	mpt_entry->byte_12_mw_pa = cpu_to_le32(mpt_entry->byte_12_mw_pa);
 
+	mpt_entry->lkey = cpu_to_le32(mw->rkey);
+
 	return 0;
 }
 
