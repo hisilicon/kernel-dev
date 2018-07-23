@@ -1276,7 +1276,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 
 	/* CS RevisionID is 0x21 and B735 will not modified */
 	if (hr_dev->pci_dev->revision == 0x20)
-		caps->flags |= HNS_ROCE_CAP_FLAG_SRQ;
+		caps->flags |= (HNS_ROCE_CAP_FLAG_XRC | HNS_ROCE_CAP_FLAG_SRQ);
 
 	ret = hns_roce_v2_set_bt(hr_dev);
 	if (ret)
