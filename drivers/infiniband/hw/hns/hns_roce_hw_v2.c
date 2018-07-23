@@ -1931,6 +1931,20 @@ static void hns_roce_v2_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 	spin_unlock_irq(&hr_cq->lock);
 }
 
+static void hns_roce_free_srq_wqe(struct hns_roce_srq *srq, int wqe_index)
+{
+	struct hns_roce_wqe_srq_next *next;
+
+	/* always called with interrupts disabled. */
+	spin_lock(&srq->lock);
+
+	next = get_srq_wqe(srq, srq->tail);
+	next->wqe_idx = cpu_to_le16(wqe_index);
+	srq->tail = wqe_index;
+
+	spin_unlock(&srq->lock);
+}
+
 static void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
 				  struct hns_roce_cq *hr_cq, void *mb_buf,
 				  u64 *mtts, dma_addr_t dma_handle, int nent,
@@ -2076,6 +2090,7 @@ static int hns_roce_handle_recv_inl_wqe(struct hns_roce_v2_cqe *cqe,
 static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 				struct hns_roce_qp **cur_qp, struct ib_wc *wc)
 {
+	struct hns_roce_srq *srq = NULL;
 	struct hns_roce_dev *hr_dev;
 	struct hns_roce_v2_cqe *cqe;
 	struct hns_roce_qp *hr_qp;
@@ -2117,6 +2132,54 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 
 	wc->qp = &(*cur_qp)->ibqp;
 	wc->vendor_err = 0;
+
+	if (wc->qp->qp_type == IB_QPT_XRC_TGT) {
+		u32 srqn;
+
+		srqn = roce_get_field(cqe->byte_4, V2_CQE_BYTE_12_XRC_SRQN_M,
+				      V2_CQE_BYTE_12_XRC_SRQN_S);
+
+		srq = hns_roce_srq_lookup(to_hr_dev(hr_cq->ib_cq.device),
+					   srqn);
+	}
+
+	if (is_send) {
+		wq = &(*cur_qp)->sq;
+		if ((*cur_qp)->sq_signal_bits) {
+			/*
+			 * If sg_signal_bit is 1,
+			 * firstly tail pointer updated to wqe
+			 * which current cqe correspond to
+			 */
+			wqe_ctr = (u16)roce_get_field(cqe->byte_4,
+						      V2_CQE_BYTE_4_WQE_INDX_M,
+						      V2_CQE_BYTE_4_WQE_INDX_S);
+			wq->tail += (wqe_ctr - (u16)wq->tail) &
+				    (wq->wqe_cnt - 1);
+		}
+
+		wc->wr_id = wq->wrid[wq->tail & (wq->wqe_cnt - 1)];
+		++wq->tail;
+	} else if ((*cur_qp)->ibqp.srq) {
+		/* XRC SRQ */
+		srq = to_hr_srq((*cur_qp)->ibqp.srq);
+		wqe_ctr = le16_to_cpu(roce_get_field(cqe->byte_4,
+						     V2_CQE_BYTE_4_WQE_INDX_M,
+						     V2_CQE_BYTE_4_WQE_INDX_S));
+		wc->wr_id = srq->wrid[wqe_ctr];
+		hns_roce_free_srq_wqe(srq, wqe_ctr);
+	} else if (srq) {
+		wqe_ctr = le16_to_cpu(roce_get_field(cqe->byte_4,
+						     V2_CQE_BYTE_4_WQE_INDX_M,
+						     V2_CQE_BYTE_4_WQE_INDX_S));
+		wc->wr_id = srq->wrid[wqe_ctr];
+		hns_roce_free_srq_wqe(srq, wqe_ctr);
+	} else {
+		/* Update tail pointer, record wr_id */
+		wq = &(*cur_qp)->rq;
+		wc->wr_id = wq->wrid[wq->tail & (wq->wqe_cnt - 1)];
+		++wq->tail;
+	}
 
 	status = roce_get_field(cqe->byte_4, V2_CQE_BYTE_4_STATUS_M,
 				V2_CQE_BYTE_4_STATUS_S);
@@ -2237,23 +2300,6 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 			wc->status = IB_WC_GENERAL_ERR;
 			break;
 		}
-
-		wq = &(*cur_qp)->sq;
-		if ((*cur_qp)->sq_signal_bits) {
-			/*
-			 * If sg_signal_bit is 1,
-			 * firstly tail pointer updated to wqe
-			 * which current cqe correspond to
-			 */
-			wqe_ctr = (u16)roce_get_field(cqe->byte_4,
-						      V2_CQE_BYTE_4_WQE_INDX_M,
-						      V2_CQE_BYTE_4_WQE_INDX_S);
-			wq->tail += (wqe_ctr - (u16)wq->tail) &
-				    (wq->wqe_cnt - 1);
-		}
-
-		wc->wr_id = wq->wrid[wq->tail & (wq->wqe_cnt - 1)];
-		++wq->tail;
 	} else {
 		/* RQ correspond to CQE */
 		wc->byte_len = le32_to_cpu(cqe->byte_cnt);
@@ -2295,11 +2341,6 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 			if (ret)
 				return -EAGAIN;
 		}
-
-		/* Update tail pointer, record wr_id */
-		wq = &(*cur_qp)->rq;
-		wc->wr_id = wq->wrid[wq->tail & (wq->wqe_cnt - 1)];
-		++wq->tail;
 
 		wc->sl = (u8)roce_get_field(cqe->byte_32, V2_CQE_BYTE_32_SL_M,
 					    V2_CQE_BYTE_32_SL_S);

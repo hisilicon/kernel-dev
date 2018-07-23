@@ -420,3 +420,17 @@ int hns_roce_destroy_srq(struct ib_srq *ibsrq)
 
 	return 0;
 }
+
+struct hns_roce_srq *hns_roce_srq_lookup(struct hns_roce_dev *hr_dev, u32 srqn)
+{
+	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
+	struct hns_roce_srq *srq;
+
+	rcu_read_lock();
+	srq = radix_tree_lookup(&srq_table->tree,
+				srqn & (hr_dev->caps.max_srqs - 1));
+	rcu_read_unlock();
+
+	return srq;
+}
+EXPORT_SYMBOL_GPL(hns_roce_srq_lookup);
