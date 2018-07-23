@@ -605,6 +605,14 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->get_port_immutable	= hns_roce_port_immutable;
 	ib_dev->disassociate_ucontext	= hns_roce_disassociate_ucontext;
 
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC) {
+		ib_dev->alloc_xrcd	= hns_roce_ib_alloc_xrcd;
+		ib_dev->dealloc_xrcd	= hns_roce_ib_dealloc_xrcd;
+		ib_dev->uverbs_cmd_mask |=
+					(1ULL << IB_USER_VERBS_CMD_OPEN_XRCD) |
+					(1ULL << IB_USER_VERBS_CMD_CLOSE_XRCD);
+	}
+
 	ib_dev->driver_id = RDMA_DRIVER_HNS;
 	ret = ib_register_device(ib_dev, NULL);
 	if (ret) {
@@ -819,10 +827,18 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 		goto err_uar_alloc_free;
 	}
 
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC) {
+		ret = hns_roce_init_xrcd_table(hr_dev);
+		if (ret) {
+			dev_err(dev, "Failed to init protected domain table.\n");
+			goto err_pd_table_free;
+		}
+	}
+
 	ret = hns_roce_init_mr_table(hr_dev);
 	if (ret) {
 		dev_err(dev, "Failed to init memory region table.\n");
-		goto err_pd_table_free;
+		goto err_xrcd_table_free;
 	}
 
 	ret = hns_roce_init_cq_table(hr_dev);
@@ -857,6 +873,10 @@ err_cq_table_free:
 
 err_mr_table_free:
 	hns_roce_cleanup_mr_table(hr_dev);
+
+err_xrcd_table_free:
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC)
+		hns_roce_cleanup_xrcd_table(hr_dev);
 
 err_pd_table_free:
 	hns_roce_cleanup_pd_table(hr_dev);

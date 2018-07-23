@@ -746,6 +746,8 @@ struct hns_roce_caps {
 	int		reserved_uars;
 	int		num_pds;
 	int		reserved_pds;
+	int		num_xrcds;
+	int		reserved_xrcds;
 	u32		mtt_entry_sz;
 	u32		cq_entry_sz;
 	u32		page_size_cap;
@@ -894,6 +896,7 @@ struct hns_roce_dev {
 
 	struct hns_roce_cmdq	cmd;
 	struct hns_roce_bitmap    pd_bitmap;
+	struct hns_roce_bitmap    xrcd_bitmap;
 	struct hns_roce_uar_table uar_table;
 	struct hns_roce_mr_table  mr_table;
 	struct hns_roce_cq_table  cq_table;
@@ -1006,6 +1009,7 @@ int hns_roce_buf_write_mtt(struct hns_roce_dev *hr_dev,
 			   struct hns_roce_mtt *mtt, struct hns_roce_buf *buf);
 
 int hns_roce_init_pd_table(struct hns_roce_dev *hr_dev);
+int hns_roce_init_xrcd_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_eq_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_cq_table(struct hns_roce_dev *hr_dev);
@@ -1013,6 +1017,7 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_srq_table(struct hns_roce_dev *hr_dev);
 
 void hns_roce_cleanup_pd_table(struct hns_roce_dev *hr_dev);
+void hns_roce_cleanup_xrcd_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_mr_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_eq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_cq_table(struct hns_roce_dev *hr_dev);
@@ -1042,6 +1047,11 @@ struct ib_pd *hns_roce_alloc_pd(struct ib_device *ib_dev,
 				struct ib_ucontext *context,
 				struct ib_udata *udata);
 int hns_roce_dealloc_pd(struct ib_pd *pd);
+
+struct ib_xrcd *hns_roce_ib_alloc_xrcd(struct ib_device *ib_dev,
+				       struct ib_ucontext *context,
+				       struct ib_udata *udata);
+int hns_roce_ib_dealloc_xrcd(struct ib_xrcd *xrcd);
 
 struct ib_mr *hns_roce_get_dma_mr(struct ib_pd *pd, int acc);
 struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
