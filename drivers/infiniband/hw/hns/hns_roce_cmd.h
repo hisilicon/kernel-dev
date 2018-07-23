@@ -121,6 +121,7 @@ enum {
 	HNS_ROCE_CMD_2RST_QP		= 0x21,
 	HNS_ROCE_CMD_QUERY_QP		= 0x22,
 	HNS_ROCE_CMD_SW2HW_SRQ		= 0x70,
+	HNS_ROCE_CMD_MODIFY_SRQC	= 0x72,
 };
 
 int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,

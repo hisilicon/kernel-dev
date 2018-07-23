@@ -73,6 +73,13 @@ static int hns_roce_sw2hw_srq(struct hns_roce_dev *dev,
 				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
+static int hns_roce_arm_srq(struct hns_roce_dev *dev, int srq_num, int lm)
+{
+	return hns_roce_cmd_mbox(dev, lm, 0, srq_num, 0,
+				 HNS_ROCE_CMD_MODIFY_SRQC,
+				 HNS_ROCE_CMD_TIMEOUT_MSECS);
+}
+
 int hns_roce_srq_alloc(struct hns_roce_dev *hr_dev, u32 pdn, u32 cqn, u16 xrcd,
 		       struct hns_roce_mtt *hr_mtt, u64 db_rec_addr,
 		       struct hns_roce_srq *srq)
@@ -337,4 +344,27 @@ err_buf:
 err_srq:
 	kfree(srq);
 	return ERR_PTR(ret);
+}
+
+int hns_roce_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr,
+			enum ib_srq_attr_mask srq_attr_mask,
+			struct ib_udata *udata)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibsrq->device);
+	struct hns_roce_srq *srq = to_hr_srq(ibsrq);
+	int ret;
+
+	if (srq_attr_mask & IB_SRQ_LIMIT) {
+		if (srq_attr->srq_limit >= srq->max)
+			return -EINVAL;
+
+		mutex_lock(&srq->mutex);
+		ret = hns_roce_arm_srq(hr_dev, srq->srqn, srq_attr->srq_limit);
+		mutex_unlock(&srq->mutex);
+
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
