@@ -2622,6 +2622,25 @@ static inline enum hns_roce_v2_qp_state to_hns_roce_qp_st(
 	}
 }
 
+static void hns_roce_get_cqs(struct ib_qp *ibqp, struct hns_roce_cq **send_cq,
+			     struct hns_roce_cq **recv_cq)
+{
+	switch (ibqp->qp_type) {
+	case IB_QPT_XRC_TGT:
+		*send_cq = to_hr_cq(to_hr_xrcd(ibqp->xrcd)->cq);
+		*recv_cq = *send_cq;
+		break;
+	case IB_QPT_XRC_INI:
+		*send_cq = to_hr_cq(ibqp->send_cq);
+		*recv_cq = *send_cq;
+		break;
+	default:
+		*send_cq = to_hr_cq(ibqp->send_cq);
+		*recv_cq = to_hr_cq(ibqp->recv_cq);
+		break;
+	}
+}
+
 static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 				    const struct ib_qp_attr *attr,
 				    int attr_mask,
@@ -2630,7 +2649,9 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
+	struct hns_roce_cq *send_cq, *recv_cq;
 
+	hns_roce_get_cqs(ibqp, &send_cq, &recv_cq);
 	/*
 	 * In v2 engine, software pass context and context mask to hardware
 	 * when modifying qp. If software need modify some fields in context,
@@ -2726,6 +2747,11 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 	roce_set_bit(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_CNP_TX_FLAG_S, 0);
 	roce_set_bit(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_CE_FLAG_S, 0);
 
+	if (to_hr_qp_type(hr_qp->ibqp.qp_type) == SERV_TYPE_XRC) {
+		context->qkey_xrcd = hr_qp->xrcdn;
+		qpc_mask->qkey_xrcd = 0;
+	}
+
 	if (hr_qp->rdb_en) {
 		roce_set_bit(context->byte_68_rq_db,
 			     V2_QPC_BYTE_68_RQ_RECORD_EN_S, 1);
@@ -2748,7 +2774,7 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 	roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_RQIE_S, 0);
 
 	roce_set_field(context->byte_80_rnr_rx_cqn, V2_QPC_BYTE_80_RX_CQN_M,
-		       V2_QPC_BYTE_80_RX_CQN_S, to_hr_cq(ibqp->recv_cq)->cqn);
+		       V2_QPC_BYTE_80_RX_CQN_S, recv_cq->cqn);
 	roce_set_field(qpc_mask->byte_80_rnr_rx_cqn, V2_QPC_BYTE_80_RX_CQN_M,
 		       V2_QPC_BYTE_80_RX_CQN_S, 0);
 	if (ibqp->srq) {
@@ -2931,7 +2957,7 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 
 	hr_qp->access_flags = attr->qp_access_flags;
 	roce_set_field(context->byte_252_err_txcqn, V2_QPC_BYTE_252_TX_CQN_M,
-		       V2_QPC_BYTE_252_TX_CQN_S, to_hr_cq(ibqp->send_cq)->cqn);
+		       V2_QPC_BYTE_252_TX_CQN_S, send_cq->cqn);
 	roce_set_field(qpc_mask->byte_252_err_txcqn, V2_QPC_BYTE_252_TX_CQN_M,
 		       V2_QPC_BYTE_252_TX_CQN_S, 0);
 
@@ -2952,7 +2978,9 @@ static void modify_qp_init_to_init(struct ib_qp *ibqp,
 				   struct hns_roce_v2_qp_context *qpc_mask)
 {
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
+	struct hns_roce_cq *send_cq, *recv_cq;
 
+	hns_roce_get_cqs(ibqp, &send_cq, &recv_cq);
 	/*
 	 * In v2 engine, software pass context and context mask to hardware
 	 * when modifying qp. If software need modify some fields in context,
@@ -3035,12 +3063,12 @@ static void modify_qp_init_to_init(struct ib_qp *ibqp,
 		       V2_QPC_BYTE_16_PD_S, 0);
 
 	roce_set_field(context->byte_80_rnr_rx_cqn, V2_QPC_BYTE_80_RX_CQN_M,
-		       V2_QPC_BYTE_80_RX_CQN_S, to_hr_cq(ibqp->recv_cq)->cqn);
+		       V2_QPC_BYTE_80_RX_CQN_S, recv_cq->cqn);
 	roce_set_field(qpc_mask->byte_80_rnr_rx_cqn, V2_QPC_BYTE_80_RX_CQN_M,
 		       V2_QPC_BYTE_80_RX_CQN_S, 0);
 
 	roce_set_field(context->byte_252_err_txcqn, V2_QPC_BYTE_252_TX_CQN_M,
-		       V2_QPC_BYTE_252_TX_CQN_S, to_hr_cq(ibqp->send_cq)->cqn);
+		       V2_QPC_BYTE_252_TX_CQN_S, send_cq->cqn);
 	roce_set_field(qpc_mask->byte_252_err_txcqn, V2_QPC_BYTE_252_TX_CQN_M,
 		       V2_QPC_BYTE_252_TX_CQN_S, 0);
 
@@ -3828,11 +3856,13 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 	}
 
 	if (new_state == IB_QPS_RESET && !ibqp->uobject) {
-		hns_roce_v2_cq_clean(to_hr_cq(ibqp->recv_cq), hr_qp->qpn,
+		struct hns_roce_cq *send_cq, *recv_cq;
+
+		hns_roce_get_cqs(ibqp, &send_cq, &recv_cq);
+		hns_roce_v2_cq_clean(send_cq, hr_qp->qpn,
 				     ibqp->srq ? to_hr_srq(ibqp->srq) : NULL);
-		if (ibqp->send_cq != ibqp->recv_cq)
-			hns_roce_v2_cq_clean(to_hr_cq(ibqp->send_cq),
-					     hr_qp->qpn, NULL);
+		if (send_cq != recv_cq)
+			hns_roce_v2_cq_clean(send_cq, hr_qp->qpn, NULL);
 
 		hr_qp->rq.head = 0;
 		hr_qp->rq.tail = 0;
@@ -4026,8 +4056,7 @@ static int hns_roce_v2_destroy_qp_common(struct hns_roce_dev *hr_dev,
 		}
 	}
 
-	send_cq = to_hr_cq(hr_qp->ibqp.send_cq);
-	recv_cq = to_hr_cq(hr_qp->ibqp.recv_cq);
+	hns_roce_get_cqs(&hr_qp->ibqp, &send_cq, &recv_cq);
 
 	hns_roce_lock_cqs(send_cq, recv_cq);
 

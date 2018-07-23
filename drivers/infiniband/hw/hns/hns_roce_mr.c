@@ -184,12 +184,27 @@ static int hns_roce_alloc_mtt_range(struct hns_roce_dev *hr_dev, int order,
 	struct hns_roce_buddy *buddy;
 	int ret;
 
-	if (mtt_type == MTT_TYPE_WQE) {
+	switch (mtt_type) {
+	case MTT_TYPE_WQE:
 		buddy = &mr_table->mtt_buddy;
 		table = &mr_table->mtt_table;
-	} else {
+		break;
+	case MTT_TYPE_CQE:
 		buddy = &mr_table->mtt_cqe_buddy;
 		table = &mr_table->mtt_cqe_table;
+		break;
+	case MTT_TYPE_SRQWQE:
+		buddy = &mr_table->mtt_srqwqe_buddy;
+		table = &mr_table->mtt_srqwqe_table;
+		break;
+	case MTT_TYPE_IDX:
+		buddy = &mr_table->mtt_idx_buddy;
+		table = &mr_table->mtt_idx_table;
+		break;
+	default:
+		dev_err(hr_dev->dev, "Unsupport MTT table type: %d\n",
+			mtt_type);
+		return -EINVAL;
 	}
 
 	ret = hns_roce_buddy_alloc(buddy, order, seg);
@@ -711,10 +726,26 @@ static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
 	u32 bt_page_size;
 	u32 i;
 
-	if (mtt->mtt_type == MTT_TYPE_WQE)
+	switch (mtt->mtt_type) {
+	case MTT_TYPE_WQE:
+		table = &hr_dev->mr_table.mtt_table;
 		bt_page_size = 1 << (hr_dev->caps.mtt_ba_pg_sz + PAGE_SHIFT);
-	else
+		break;
+	case MTT_TYPE_CQE:
+		table = &hr_dev->mr_table.mtt_cqe_table;
 		bt_page_size = 1 << (hr_dev->caps.cqe_ba_pg_sz + PAGE_SHIFT);
+		break;
+	case MTT_TYPE_SRQWQE:
+		table = &hr_dev->mr_table.mtt_srqwqe_table;
+		bt_page_size = 1 << (hr_dev->caps.srqwqe_ba_pg_sz + PAGE_SHIFT);
+		break;
+	case MTT_TYPE_IDX:
+		table = &hr_dev->mr_table.mtt_idx_table;
+		bt_page_size = 1 << (hr_dev->caps.idx_ba_pg_sz + PAGE_SHIFT);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/* All MTTs must fit in the same page */
 	if (start_index / (bt_page_size / sizeof(u64)) !=
@@ -723,11 +754,6 @@ static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
 
 	if (start_index & (HNS_ROCE_MTT_ENTRY_PER_SEG - 1))
 		return -EINVAL;
-
-	if (mtt->mtt_type == MTT_TYPE_WQE)
-		table = &hr_dev->mr_table.mtt_table;
-	else
-		table = &hr_dev->mr_table.mtt_cqe_table;
 
 	mtts = hns_roce_table_find(hr_dev, table,
 				mtt->first_seg + s / hr_dev->caps.mtt_entry_sz,
@@ -757,10 +783,25 @@ static int hns_roce_write_mtt(struct hns_roce_dev *hr_dev,
 	if (mtt->order < 0)
 		return -EINVAL;
 
-	if (mtt->mtt_type == MTT_TYPE_WQE)
+	switch (mtt->mtt_type) {
+	case MTT_TYPE_WQE:
 		bt_page_size = 1 << (hr_dev->caps.mtt_ba_pg_sz + PAGE_SHIFT);
-	else
+		break;
+	case MTT_TYPE_CQE:
 		bt_page_size = 1 << (hr_dev->caps.cqe_ba_pg_sz + PAGE_SHIFT);
+		break;
+	case MTT_TYPE_SRQWQE:
+		bt_page_size = 1 << (hr_dev->caps.srqwqe_ba_pg_sz + PAGE_SHIFT);
+		break;
+	case MTT_TYPE_IDX:
+		bt_page_size = 1 << (hr_dev->caps.idx_ba_pg_sz + PAGE_SHIFT);
+		break;
+	default:
+		dev_err(hr_dev->dev,
+			"Unsupport mtt type %d, write mtt failed\n",
+			mtt->mtt_type);
+		return -EINVAL;
+	}
 
 	while (npages > 0) {
 		chunk = min_t(int, bt_page_size / sizeof(u64), npages);
@@ -826,7 +867,25 @@ int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev)
 		if (ret)
 			goto err_buddy_cqe;
 	}
+
+	ret = hns_roce_buddy_init(&mr_table->mtt_srqwqe_buddy,
+				  ilog2(hr_dev->caps.num_srqwqe_segs));
+	if (ret)
+		goto err_buddy_srqwqe;
+
+	ret = hns_roce_buddy_init(&mr_table->mtt_idx_buddy,
+				  ilog2(hr_dev->caps.num_idx_segs));
+	if (ret)
+		goto err_buddy_idx;
+
 	return 0;
+
+err_buddy_idx:
+	hns_roce_buddy_cleanup(&mr_table->mtt_srqwqe_buddy);
+
+err_buddy_srqwqe:
+	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
+		hns_roce_buddy_cleanup(&mr_table->mtt_cqe_buddy);
 
 err_buddy_cqe:
 	hns_roce_buddy_cleanup(&mr_table->mtt_buddy);
@@ -840,6 +899,8 @@ void hns_roce_cleanup_mr_table(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_mr_table *mr_table = &hr_dev->mr_table;
 
+	hns_roce_buddy_cleanup(&mr_table->mtt_idx_buddy);
+	hns_roce_buddy_cleanup(&mr_table->mtt_srqwqe_buddy);
 	hns_roce_buddy_cleanup(&mr_table->mtt_buddy);
 	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
 		hns_roce_buddy_cleanup(&mr_table->mtt_cqe_buddy);
@@ -893,8 +954,25 @@ int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 	u32 bt_page_size;
 	u32 n;
 
-	order = mtt->mtt_type == MTT_TYPE_WQE ? hr_dev->caps.mtt_ba_pg_sz :
-		hr_dev->caps.cqe_ba_pg_sz;
+	switch (mtt->mtt_type) {
+	case MTT_TYPE_WQE:
+		order = hr_dev->caps.mtt_ba_pg_sz;
+		break;
+	case MTT_TYPE_CQE:
+		order = hr_dev->caps.cqe_ba_pg_sz;
+		break;
+	case MTT_TYPE_SRQWQE:
+		order = hr_dev->caps.srqwqe_ba_pg_sz;
+		break;
+	case MTT_TYPE_IDX:
+		order = hr_dev->caps.idx_ba_pg_sz;
+		break;
+	default:
+		dev_err(dev, "Unsupport mtt type %d, write mtt failed\n",
+			mtt->mtt_type);
+		return -EINVAL;
+	}
+
 	bt_page_size = 1 << (order + PAGE_SHIFT);
 
 	pages = (u64 *) __get_free_pages(GFP_KERNEL, order);

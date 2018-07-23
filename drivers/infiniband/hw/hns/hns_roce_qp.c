@@ -840,7 +840,8 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 				 struct ib_qp_init_attr *init_attr,
 				 struct ib_udata *udata)
 {
-	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
+	struct hns_roce_dev *hr_dev = pd ? to_hr_dev(pd->device) :
+				      to_hr_dev(init_attr->xrcd->device);
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_sqp *hr_sqp;
 	struct hns_roce_qp *hr_qp;
