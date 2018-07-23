@@ -844,9 +844,14 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_sqp *hr_sqp;
 	struct hns_roce_qp *hr_qp;
+	u16 xrcdn = 0;
 	int ret;
 
 	switch (init_attr->qp_type) {
+	case IB_QPT_XRC_INI:
+		if (!(hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC))
+			return ERR_PTR(-EINVAL);
+		init_attr->recv_cq = init_attr->send_cq;
 	case IB_QPT_UD:
 	case IB_QPT_UC:
 	case IB_QPT_RC: {
@@ -863,7 +868,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 		}
 
 		hr_qp->ibqp.qp_num = hr_qp->qpn;
-
+		hr_qp->xrcdn = xrcdn;
 		break;
 	}
 	case IB_QPT_GSI: {

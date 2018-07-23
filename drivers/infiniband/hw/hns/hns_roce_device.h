@@ -591,6 +591,7 @@ struct hns_roce_qp {
 	struct hns_roce_mtt	mtt;
 	u32			buff_size;
 	struct mutex		mutex;
+	u16			xrcdn;
 	u8			port;
 	u8			phy_port;
 	u8			sl;
