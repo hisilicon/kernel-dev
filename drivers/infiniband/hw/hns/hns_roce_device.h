@@ -711,16 +711,18 @@ struct hns_roce_caps {
 	int		local_ca_ack_delay;
 	int		num_uars;
 	u32		phy_num_uars;
-	u32		max_sq_sg;	/* 2 */
+	u32		max_sq_sg;
 	u32		max_sq_inline;	/* 32 */
-	u32		max_rq_sg;	/* 2 */
-	int		num_qps;	/* 256k */
-	u32		max_wqes;	/* 16k */
+	u32		max_rq_sg;
+	int		num_qps;
+	u32		max_srq_sg;
+	int		num_srqs;
+	u32		max_wqes;
 	u32		max_srqs;
 	u32		max_srq_wrs;
 	u32		max_srq_sges;
-	u32		max_sq_desc_sz;	/* 64 */
-	u32		max_rq_desc_sz;	/* 64 */
+	u32		max_sq_desc_sz;
+	u32		max_rq_desc_sz;
 	u32		max_srq_desc_sz;
 	int		max_qp_init_rdma;
 	int		max_qp_dest_rdma;
@@ -729,7 +731,9 @@ struct hns_roce_caps {
 	int		min_cqes;
 	u32		min_wqes;
 	int		reserved_cqs;
-	int		num_aeq_vectors;	/* 1 */
+	int		reserved_srqs;
+	u32		max_srqwqes;
+	int		num_aeq_vectors;
 	int		num_comp_vectors;
 	int		num_other_vectors;
 	int		num_mtpts;
@@ -1005,12 +1009,14 @@ int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_eq_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_cq_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev);
+int hns_roce_init_srq_table(struct hns_roce_dev *hr_dev);
 
 void hns_roce_cleanup_pd_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_mr_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_eq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_cq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_qp_table(struct hns_roce_dev *hr_dev);
+void hns_roce_cleanup_srq_table(struct hns_roce_dev *hr_dev);
 
 int hns_roce_bitmap_alloc(struct hns_roce_bitmap *bitmap, unsigned long *obj);
 void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj,

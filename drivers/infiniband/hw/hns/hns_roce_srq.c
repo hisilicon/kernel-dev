@@ -434,3 +434,20 @@ struct hns_roce_srq *hns_roce_srq_lookup(struct hns_roce_dev *hr_dev, u32 srqn)
 	return srq;
 }
 EXPORT_SYMBOL_GPL(hns_roce_srq_lookup);
+
+int hns_roce_init_srq_table(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
+
+	spin_lock_init(&srq_table->lock);
+	INIT_RADIX_TREE(&srq_table->tree, GFP_ATOMIC);
+
+	return hns_roce_bitmap_init(&srq_table->bitmap, hr_dev->caps.num_srqs,
+				    hr_dev->caps.num_srqs - 1,
+				    hr_dev->caps.reserved_srqs, 0);
+}
+
+void hns_roce_cleanup_srq_table(struct hns_roce_dev *hr_dev)
+{
+	hns_roce_bitmap_cleanup(&hr_dev->srq_table.bitmap);
+}
