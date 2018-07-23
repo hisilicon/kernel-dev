@@ -2536,6 +2536,21 @@ static inline enum ib_qp_state to_ib_qp_st(enum hns_roce_v2_qp_state state)
 	}
 }
 
+static inline enum hns_roce_v2_qp_state to_hns_roce_qp_st(
+							 enum ib_qp_state state)
+{
+	switch (state) {
+	case IB_QPS_RESET:		return HNS_ROCE_QP_ST_RST;
+	case IB_QPS_INIT:		return HNS_ROCE_QP_ST_INIT;
+	case IB_QPS_RTR:		return HNS_ROCE_QP_ST_RTR;
+	case IB_QPS_RTS:		return HNS_ROCE_QP_ST_RTS;
+	case IB_QPS_SQD:		return HNS_ROCE_QP_ST_SQD;
+	case IB_QPS_SQE:		return HNS_ROCE_QP_ST_SQER;
+	case IB_QPS_ERR:		return HNS_ROCE_QP_ST_ERR;
+	default:			return -1;
+	}
+}
+
 static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 				    const struct ib_qp_attr *attr,
 				    int attr_mask,
@@ -3391,6 +3406,8 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		   (cur_state == IB_QPS_RTR && new_state == IB_QPS_RESET) ||
 		   (cur_state == IB_QPS_RTS && new_state == IB_QPS_RESET) ||
 		   (cur_state == IB_QPS_ERR && new_state == IB_QPS_RESET) ||
+		   (cur_state == IB_QPS_SQD && new_state == IB_QPS_RESET) ||
+		   (cur_state == IB_QPS_SQE && new_state == IB_QPS_RESET) ||
 		   (cur_state == IB_QPS_INIT && new_state == IB_QPS_ERR) ||
 		   (cur_state == IB_QPS_RTR && new_state == IB_QPS_ERR) ||
 		   (cur_state == IB_QPS_RTS && new_state == IB_QPS_ERR) ||
@@ -3691,13 +3708,15 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 
 	/* Every status migrate must change state */
 	roce_set_field(context->byte_60_qpst_mapid, V2_QPC_BYTE_60_QP_ST_M,
-		       V2_QPC_BYTE_60_QP_ST_S, new_state);
+		       V2_QPC_BYTE_60_QP_ST_S, to_hns_roce_qp_st(new_state));
 	roce_set_field(qpc_mask->byte_60_qpst_mapid, V2_QPC_BYTE_60_QP_ST_M,
 		       V2_QPC_BYTE_60_QP_ST_S, 0);
 
 	/* SW pass context to HW */
-	ret = hns_roce_v2_qp_modify(hr_dev, &hr_qp->mtt, to_ib_qp_st(cur_state),
-				    to_ib_qp_st(new_state), context, hr_qp);
+	ret = hns_roce_v2_qp_modify(hr_dev, &hr_qp->mtt,
+				    to_hns_roce_qp_st(cur_state),
+				    to_hns_roce_qp_st(new_state),
+				    context, hr_qp);
 	if (ret) {
 		dev_err(dev, "hns_roce_qp_modify failed(%d)\n", ret);
 		goto out;
