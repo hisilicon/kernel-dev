@@ -197,6 +197,7 @@ enum {
 	HNS_ROCE_CAP_FLAG_SQ_RECORD_DB		= BIT(4),
 	HNS_ROCE_CAP_FLAG_XRC			= BIT(6),
 	HNS_ROCE_CAP_FLAG_SRQ			= BIT(5),
+	HNS_ROCE_CAP_FLAG_ATOMIC		= BIT(10),
 };
 
 enum hns_roce_mtt_type {
