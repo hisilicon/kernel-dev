@@ -537,6 +537,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		(1ULL << IB_USER_VERBS_CMD_REG_MR) |
 		(1ULL << IB_USER_VERBS_CMD_DEREG_MR) |
 		(1ULL << IB_USER_VERBS_CMD_ALLOC_MW) |
+		(1ULL << IB_USER_VERBS_CMD_DEALLOC_MW) |
 		(1ULL << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL) |
 		(1ULL << IB_USER_VERBS_CMD_CREATE_CQ) |
 		(1ULL << IB_USER_VERBS_CMD_DESTROY_CQ) |
@@ -597,6 +598,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 
 	/* MW */
 	ib_dev->alloc_mw		= hns_roce_alloc_mw;
+	ib_dev->dealloc_mw              = hns_roce_dealloc_mw;
 
 	/* MR */
 	ib_dev->get_dma_mr		= hns_roce_get_dma_mr;

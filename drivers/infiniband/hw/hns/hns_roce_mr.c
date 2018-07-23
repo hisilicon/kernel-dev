@@ -1396,3 +1396,21 @@ err_bitmap:
 
 	return ERR_PTR(ret);
 }
+
+int hns_roce_dealloc_mw(struct ib_mw *ibmw)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibmw->device);
+	struct device *dev = hr_dev->dev;
+	struct hns_roce_mw *mw = to_hr_mw(ibmw);
+	int ret = 0;
+
+	ret = hns_roce_mw_free(hr_dev, mw);
+	if (ret) {
+		dev_err(dev, "hns roce dealloc mw failed!(%d)\n", ret);
+		return ret;
+	}
+
+	kfree(mw);
+
+	return ret;
+}
