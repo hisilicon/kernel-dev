@@ -348,6 +348,13 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 	srq->event = hns_roce_ib_srq_event;
 	srq->ibsrq.ext.xrc.srq_num = srq->srqn;
 
+	if (pd->uobject) {
+		if (ib_copy_to_udata(udata, &srq->srqn, sizeof(__u32))) {
+			ret = -EFAULT;
+			goto err_wrid;
+		}
+	}
+
 	return &srq->ibsrq;
 
 err_wrid:
@@ -402,6 +409,7 @@ int hns_roce_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr,
 
 int hns_roce_destroy_srq(struct ib_srq *ibsrq)
 {
+#if 0
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibsrq->device);
 	struct hns_roce_srq *srq = to_hr_srq(ibsrq);
 
@@ -409,6 +417,8 @@ int hns_roce_destroy_srq(struct ib_srq *ibsrq)
 	hns_roce_mtt_cleanup(hr_dev, &srq->mtt);
 
 	if (ibsrq->uobject) {
+		hns_roce_mtt_cleanup(hr_dev, &srq->idx_que.mtt);
+		ib_umem_release(srq->idx_que.umem);
 		ib_umem_release(srq->umem);
 	} else {
 		kvfree(srq->wrid);
@@ -417,7 +427,7 @@ int hns_roce_destroy_srq(struct ib_srq *ibsrq)
 	}
 
 	kfree(srq);
-
+#endif
 	return 0;
 }
 

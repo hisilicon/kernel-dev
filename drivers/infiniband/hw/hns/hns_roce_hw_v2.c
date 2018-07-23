@@ -4100,7 +4100,8 @@ static int hns_roce_v2_destroy_qp_common(struct hns_roce_dev *hr_dev,
 			hns_roce_free_db(hr_dev, &hr_qp->rdb);
 	}
 
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) {
+	if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) &&
+	     hr_qp->rq.wqe_cnt) {
 		kfree(hr_qp->rq_inl_buf.wqe_list[0].sg_list);
 		kfree(hr_qp->rq_inl_buf.wqe_list);
 	}
