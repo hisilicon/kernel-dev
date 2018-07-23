@@ -199,7 +199,9 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	if (unlikely(ibqp->qp_type != IB_QPT_RC &&
 		     ibqp->qp_type != IB_QPT_UC &&
 		     ibqp->qp_type != IB_QPT_GSI &&
-		     ibqp->qp_type != IB_QPT_UD)) {
+		     ibqp->qp_type != IB_QPT_UD) &&
+		     (ibqp->qp_type != IB_QPT_XRC_INI) &&
+		     (ibqp->qp_type != IB_QPT_XRC_TGT)) {
 		dev_err(dev, "Not supported QP(0x%x)type!\n", ibqp->qp_type);
 		*bad_wr = wr;
 		return -EOPNOTSUPP;
