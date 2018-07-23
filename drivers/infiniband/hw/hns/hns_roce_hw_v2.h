@@ -1666,4 +1666,9 @@ struct hns_roce_wqe_srq_next {
 	__le16	rsvd;
 };
 
+struct hns_roce_wqe_atomic_seg {
+	__le64          fetchadd_swap_data;
+	__le64          cmp_data;
+};
+
 #endif

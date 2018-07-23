@@ -57,6 +57,18 @@ static void set_data_seg_v2(struct hns_roce_v2_wqe_data_seg *dseg,
 	dseg->len  = cpu_to_le32(sg->length);
 }
 
+static void set_atomic_seg(struct hns_roce_wqe_atomic_seg *aseg,
+			   struct ib_atomic_wr *wr)
+{
+	if (wr->wr.opcode == IB_WR_ATOMIC_CMP_AND_SWP) {
+		aseg->fetchadd_swap_data = cpu_to_le64(wr->swap);
+		aseg->cmp_data  = cpu_to_le64(wr->compare_add);
+	} else {
+		aseg->fetchadd_swap_data = cpu_to_le64(wr->compare_add);
+		aseg->cmp_data  = 0;
+	}
+}
+
 static void set_extend_sge(struct hns_roce_qp *qp, struct ib_send_wr *wr,
 			   unsigned int *sge_ind)
 {
@@ -403,6 +415,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			roce_set_bit(rc_sq_wqe->byte_4,
 				     V2_RC_SEND_WQE_BYTE_4_OWNER_S, owner_bit);
 
+			wqe += sizeof(struct hns_roce_v2_rc_send_wqe);
 			switch (wr->opcode) {
 			case IB_WR_RDMA_READ:
 				roce_set_field(rc_sq_wqe->byte_4,
@@ -463,12 +476,24 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 					  V2_RC_SEND_WQE_BYTE_4_OPCODE_M,
 					  V2_RC_SEND_WQE_BYTE_4_OPCODE_S,
 					  HNS_ROCE_V2_WQE_OP_ATOM_CMP_AND_SWAP);
+				rc_sq_wqe->rkey =
+					cpu_to_le32(atomic_wr(wr)->rkey);
+				rc_sq_wqe->va =
+					cpu_to_le32(atomic_wr(wr)->remote_addr);
+				wqe += sizeof(struct hns_roce_v2_wqe_data_seg);
+				set_atomic_seg(wqe, atomic_wr(wr));
 				break;
 			case IB_WR_ATOMIC_FETCH_AND_ADD:
 				roce_set_field(rc_sq_wqe->byte_4,
 					 V2_RC_SEND_WQE_BYTE_4_OPCODE_M,
 					 V2_RC_SEND_WQE_BYTE_4_OPCODE_S,
 					 HNS_ROCE_V2_WQE_OP_ATOM_FETCH_AND_ADD);
+				rc_sq_wqe->rkey =
+					cpu_to_le32(atomic_wr(wr)->rkey);
+				rc_sq_wqe->va =
+					cpu_to_le32(atomic_wr(wr)->remote_addr);
+				wqe += sizeof(struct hns_roce_v2_wqe_data_seg);
+				set_atomic_seg(wqe, atomic_wr(wr));
 				break;
 			case IB_WR_MASKED_ATOMIC_CMP_AND_SWP:
 				roce_set_field(rc_sq_wqe->byte_4,
@@ -490,8 +515,12 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				break;
 			}
 
-			wqe += sizeof(struct hns_roce_v2_rc_send_wqe);
-			dseg = wqe;
+			if (wr->opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
+			    wr->opcode == IB_WR_ATOMIC_FETCH_AND_ADD)
+				dseg =
+				  wqe - sizeof(struct hns_roce_v2_wqe_data_seg);
+			else
+				dseg = wqe;
 
 			ret = set_rwqe_data_seg(ibqp, wr, rc_sq_wqe, wqe,
 						&sge_ind, bad_wr);
