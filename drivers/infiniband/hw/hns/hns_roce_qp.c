@@ -848,6 +848,12 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 	int ret;
 
 	switch (init_attr->qp_type) {
+	case IB_QPT_XRC_TGT:
+		if (!(hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC))
+			return ERR_PTR(-EINVAL);
+		pd = to_hr_xrcd(init_attr->xrcd)->pd;
+		xrcdn = to_hr_xrcd(init_attr->xrcd)->xrcdn;
+		init_attr->send_cq = to_hr_xrcd(init_attr->xrcd)->cq;
 	case IB_QPT_XRC_INI:
 		if (!(hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC))
 			return ERR_PTR(-EINVAL);
