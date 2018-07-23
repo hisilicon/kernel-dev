@@ -2522,6 +2522,21 @@ static void set_access_flags(struct hns_roce_qp *hr_qp,
 	roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_ATE_S, 0);
 }
 
+static inline enum ib_qp_state to_ib_qp_st(enum hns_roce_v2_qp_state state)
+{
+	switch (state) {
+	case HNS_ROCE_QP_ST_RST:	return IB_QPS_RESET;
+	case HNS_ROCE_QP_ST_INIT:	return IB_QPS_INIT;
+	case HNS_ROCE_QP_ST_RTR:	return IB_QPS_RTR;
+	case HNS_ROCE_QP_ST_RTS:	return IB_QPS_RTS;
+	case HNS_ROCE_QP_ST_SQ_DRAINING:
+	case HNS_ROCE_QP_ST_SQD:	return IB_QPS_SQD;
+	case HNS_ROCE_QP_ST_SQER:	return IB_QPS_SQE;
+	case HNS_ROCE_QP_ST_ERR:	return IB_QPS_ERR;
+	default:			return -1;
+	}
+}
+
 static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 				    const struct ib_qp_attr *attr,
 				    int attr_mask,
@@ -2617,12 +2632,6 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 		     0);
 	roce_set_bit(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_CNP_TX_FLAG_S, 0);
 	roce_set_bit(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_CE_FLAG_S, 0);
-
-	if (attr_mask & IB_QP_QKEY) {
-		context->qkey_xrcd = attr->qkey;
-		qpc_mask->qkey_xrcd = 0;
-		hr_qp->qkey = attr->qkey;
-	}
 
 	if (hr_qp->rdb_en) {
 		roce_set_bit(context->byte_68_rq_db,
@@ -2828,7 +2837,6 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 		     0);
 
 	hr_qp->access_flags = attr->qp_access_flags;
-	hr_qp->pkey_index = attr->pkey_index;
 	roce_set_field(context->byte_252_err_txcqn, V2_QPC_BYTE_252_TX_CQN_M,
 		       V2_QPC_BYTE_252_TX_CQN_S, to_hr_cq(ibqp->send_cq)->cqn);
 	roce_set_field(qpc_mask->byte_252_err_txcqn, V2_QPC_BYTE_252_TX_CQN_M,
@@ -2948,11 +2956,6 @@ static void modify_qp_init_to_init(struct ib_qp *ibqp,
 			       to_hr_srq(ibqp->srq)->srqn);
 		roce_set_field(qpc_mask->byte_76_srqn_op_en,
 			       V2_QPC_BYTE_76_SRQN_M, V2_QPC_BYTE_76_SRQN_S, 0);
-	}
-
-	if (attr_mask & IB_QP_QKEY) {
-		context->qkey_xrcd = attr->qkey;
-		qpc_mask->qkey_xrcd = 0;
 	}
 
 	roce_set_field(context->byte_4_sqpn_tst, V2_QPC_BYTE_4_SQPN_M,
@@ -3082,13 +3085,6 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 		       V2_QPC_BYTE_16_WQE_SGE_BUF_PG_SZ_M,
 		       V2_QPC_BYTE_16_WQE_SGE_BUF_PG_SZ_S, 0);
 
-	roce_set_field(context->byte_80_rnr_rx_cqn,
-		       V2_QPC_BYTE_80_MIN_RNR_TIME_M,
-		       V2_QPC_BYTE_80_MIN_RNR_TIME_S, attr->min_rnr_timer);
-	roce_set_field(qpc_mask->byte_80_rnr_rx_cqn,
-		       V2_QPC_BYTE_80_MIN_RNR_TIME_M,
-		       V2_QPC_BYTE_80_MIN_RNR_TIME_S, 0);
-
 	page_size = 1 << (hr_dev->caps.mtt_buf_pg_sz + PAGE_SHIFT);
 	context->rq_cur_blk_addr = (u32)(mtts[hr_qp->rq.offset / page_size]
 				    >> PAGE_ADDR_SHIFT);
@@ -3152,15 +3148,6 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	    hr_dev->loop_idc == 0x1) {
 		roce_set_bit(context->byte_28_at_fl, V2_QPC_BYTE_28_LBI_S, 1);
 		roce_set_bit(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_LBI_S, 0);
-	}
-
-	if ((attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) &&
-	     attr->max_dest_rd_atomic) {
-		roce_set_field(context->byte_140_raq, V2_QPC_BYTE_140_RR_MAX_M,
-			       V2_QPC_BYTE_140_RR_MAX_S,
-			       fls(attr->max_dest_rd_atomic - 1));
-		roce_set_field(qpc_mask->byte_140_raq, V2_QPC_BYTE_140_RR_MAX_M,
-			       V2_QPC_BYTE_140_RR_MAX_S, 0);
 	}
 
 	if (attr_mask & IB_QP_DEST_QPN) {
@@ -3295,13 +3282,6 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	 * we should set all bits of the relevant fields in context mask to
 	 * 0 at the same time, else set them to 0x1.
 	 */
-	roce_set_field(context->byte_60_qpst_mapid,
-		       V2_QPC_BYTE_60_RTY_NUM_INI_BAK_M,
-		       V2_QPC_BYTE_60_RTY_NUM_INI_BAK_S, attr->retry_cnt);
-	roce_set_field(qpc_mask->byte_60_qpst_mapid,
-		       V2_QPC_BYTE_60_RTY_NUM_INI_BAK_M,
-		       V2_QPC_BYTE_60_RTY_NUM_INI_BAK_S, 0);
-
 	context->sq_cur_blk_addr = (u32)(mtts[0] >> PAGE_ADDR_SHIFT);
 	roce_set_field(context->byte_168_irrl_idx,
 		       V2_QPC_BYTE_168_SQ_CUR_BLK_ADDR_M,
@@ -3376,39 +3356,10 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_212_lsn, V2_QPC_BYTE_212_CHECK_FLG_M,
 		       V2_QPC_BYTE_212_CHECK_FLG_S, 0);
 
-	roce_set_field(context->byte_212_lsn, V2_QPC_BYTE_212_RETRY_CNT_M,
-		       V2_QPC_BYTE_212_RETRY_CNT_S, attr->retry_cnt);
-	roce_set_field(qpc_mask->byte_212_lsn, V2_QPC_BYTE_212_RETRY_CNT_M,
-		       V2_QPC_BYTE_212_RETRY_CNT_S, 0);
-
-	roce_set_field(context->byte_212_lsn, V2_QPC_BYTE_212_RETRY_NUM_INIT_M,
-		       V2_QPC_BYTE_212_RETRY_NUM_INIT_S, attr->retry_cnt);
-	roce_set_field(qpc_mask->byte_212_lsn, V2_QPC_BYTE_212_RETRY_NUM_INIT_M,
-		       V2_QPC_BYTE_212_RETRY_NUM_INIT_S, 0);
-
-	roce_set_field(context->byte_244_rnr_rxack,
-		       V2_QPC_BYTE_244_RNR_NUM_INIT_M,
-		       V2_QPC_BYTE_244_RNR_NUM_INIT_S, attr->rnr_retry);
-	roce_set_field(qpc_mask->byte_244_rnr_rxack,
-		       V2_QPC_BYTE_244_RNR_NUM_INIT_M,
-		       V2_QPC_BYTE_244_RNR_NUM_INIT_S, 0);
-
-	roce_set_field(context->byte_244_rnr_rxack, V2_QPC_BYTE_244_RNR_CNT_M,
-		       V2_QPC_BYTE_244_RNR_CNT_S, attr->rnr_retry);
-	roce_set_field(qpc_mask->byte_244_rnr_rxack, V2_QPC_BYTE_244_RNR_CNT_M,
-		       V2_QPC_BYTE_244_RNR_CNT_S, 0);
-
 	roce_set_field(context->byte_212_lsn, V2_QPC_BYTE_212_LSN_M,
 		       V2_QPC_BYTE_212_LSN_S, 0x100);
 	roce_set_field(qpc_mask->byte_212_lsn, V2_QPC_BYTE_212_LSN_M,
 		       V2_QPC_BYTE_212_LSN_S, 0);
-
-	if (attr_mask & IB_QP_TIMEOUT) {
-		roce_set_field(context->byte_28_at_fl, V2_QPC_BYTE_28_AT_M,
-			       V2_QPC_BYTE_28_AT_S, attr->timeout);
-		roce_set_field(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_AT_M,
-			      V2_QPC_BYTE_28_AT_S, 0);
-	}
 
 	roce_set_field(context->byte_28_at_fl, V2_QPC_BYTE_28_SL_M,
 		       V2_QPC_BYTE_28_SL_S,
@@ -3420,14 +3371,6 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_196_sq_psn, V2_QPC_BYTE_196_IRRL_HEAD_M,
 		       V2_QPC_BYTE_196_IRRL_HEAD_S, 0);
 
-	if ((attr_mask & IB_QP_MAX_QP_RD_ATOMIC) && attr->max_rd_atomic) {
-		roce_set_field(context->byte_208_irrl, V2_QPC_BYTE_208_SR_MAX_M,
-			       V2_QPC_BYTE_208_SR_MAX_S,
-			       fls(attr->max_rd_atomic - 1));
-		roce_set_field(qpc_mask->byte_208_irrl,
-			       V2_QPC_BYTE_208_SR_MAX_M,
-			       V2_QPC_BYTE_208_SR_MAX_S, 0);
-	}
 	return 0;
 }
 
@@ -3511,6 +3454,55 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 			       V2_QPC_BYTE_84_RQ_PRODUCER_IDX_S, 0);
 	}
 
+	if (attr_mask & IB_QP_TIMEOUT) {
+		roce_set_field(context->byte_28_at_fl, V2_QPC_BYTE_28_AT_M,
+			       V2_QPC_BYTE_28_AT_S, attr->timeout);
+		roce_set_field(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_AT_M,
+			      V2_QPC_BYTE_28_AT_S, 0);
+	}
+
+	if (attr_mask & IB_QP_RETRY_CNT) {
+		roce_set_field(context->byte_60_qpst_mapid,
+			       V2_QPC_BYTE_60_RTY_NUM_INI_BAK_M,
+			       V2_QPC_BYTE_60_RTY_NUM_INI_BAK_S,
+			       attr->retry_cnt);
+		roce_set_field(qpc_mask->byte_60_qpst_mapid,
+			       V2_QPC_BYTE_60_RTY_NUM_INI_BAK_M,
+			       V2_QPC_BYTE_60_RTY_NUM_INI_BAK_S, 0);
+
+		roce_set_field(context->byte_212_lsn,
+			       V2_QPC_BYTE_212_RETRY_NUM_INIT_M,
+			       V2_QPC_BYTE_212_RETRY_NUM_INIT_S,
+			       attr->retry_cnt);
+		roce_set_field(qpc_mask->byte_212_lsn,
+			       V2_QPC_BYTE_212_RETRY_NUM_INIT_M,
+			       V2_QPC_BYTE_212_RETRY_NUM_INIT_S, 0);
+
+		roce_set_field(context->byte_212_lsn,
+			       V2_QPC_BYTE_212_RETRY_CNT_M,
+			       V2_QPC_BYTE_212_RETRY_CNT_S,
+			       attr->retry_cnt);
+		roce_set_field(qpc_mask->byte_212_lsn,
+			       V2_QPC_BYTE_212_RETRY_CNT_M,
+			       V2_QPC_BYTE_212_RETRY_CNT_S, 0);
+	}
+
+	if (attr_mask & IB_QP_RNR_RETRY) {
+		roce_set_field(context->byte_244_rnr_rxack,
+			       V2_QPC_BYTE_244_RNR_NUM_INIT_M,
+			       V2_QPC_BYTE_244_RNR_NUM_INIT_S, attr->rnr_retry);
+		roce_set_field(qpc_mask->byte_244_rnr_rxack,
+			       V2_QPC_BYTE_244_RNR_NUM_INIT_M,
+			       V2_QPC_BYTE_244_RNR_NUM_INIT_S, 0);
+
+		roce_set_field(context->byte_244_rnr_rxack,
+			       V2_QPC_BYTE_244_RNR_CNT_M,
+			       V2_QPC_BYTE_244_RNR_CNT_S, attr->rnr_retry);
+		roce_set_field(qpc_mask->byte_244_rnr_rxack,
+			       V2_QPC_BYTE_244_RNR_CNT_M,
+			       V2_QPC_BYTE_244_RNR_CNT_S, 0);
+	}
+
 	/* RC&UC&UD required attr */
 	if (attr_mask & IB_QP_SQ_PSN) {
 		roce_set_field(context->byte_172_sq_psn,
@@ -3558,8 +3550,36 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 			       V2_QPC_BYTE_244_RX_ACK_EPSN_S, 0);
 	}
 
+	if ((attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) &&
+	     attr->max_dest_rd_atomic) {
+		roce_set_field(context->byte_140_raq, V2_QPC_BYTE_140_RR_MAX_M,
+			       V2_QPC_BYTE_140_RR_MAX_S,
+			       fls(attr->max_dest_rd_atomic - 1));
+		roce_set_field(qpc_mask->byte_140_raq, V2_QPC_BYTE_140_RR_MAX_M,
+			       V2_QPC_BYTE_140_RR_MAX_S, 0);
+	}
+
+	if ((attr_mask & IB_QP_MAX_QP_RD_ATOMIC) && attr->max_rd_atomic) {
+		roce_set_field(context->byte_208_irrl, V2_QPC_BYTE_208_SR_MAX_M,
+			       V2_QPC_BYTE_208_SR_MAX_S,
+			       fls(attr->max_rd_atomic - 1));
+		roce_set_field(qpc_mask->byte_208_irrl,
+			       V2_QPC_BYTE_208_SR_MAX_M,
+			       V2_QPC_BYTE_208_SR_MAX_S, 0);
+	}
+
 	if (attr_mask & (IB_QP_ACCESS_FLAGS | IB_QP_MAX_DEST_RD_ATOMIC))
 		set_access_flags(hr_qp, context, qpc_mask, attr, attr_mask);
+
+	if (attr_mask & IB_QP_MIN_RNR_TIMER) {
+		roce_set_field(context->byte_80_rnr_rx_cqn,
+			       V2_QPC_BYTE_80_MIN_RNR_TIME_M,
+			       V2_QPC_BYTE_80_MIN_RNR_TIME_S,
+			       attr->min_rnr_timer);
+		roce_set_field(qpc_mask->byte_80_rnr_rx_cqn,
+			       V2_QPC_BYTE_80_MIN_RNR_TIME_M,
+			       V2_QPC_BYTE_80_MIN_RNR_TIME_S, 0);
+	}
 
 	/* RC&UC required attr */
 	if (attr_mask & IB_QP_RQ_PSN) {
@@ -3577,6 +3597,12 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 			       V2_QPC_BYTE_152_RAQ_PSN_S, 0);
 	}
 
+	if (attr_mask & IB_QP_QKEY) {
+		context->qkey_xrcd = attr->qkey;
+		qpc_mask->qkey_xrcd = 0;
+		hr_qp->qkey = attr->qkey;
+	}
+
 	/* Every status migrate must change state */
 	roce_set_field(context->byte_60_qpst_mapid, V2_QPC_BYTE_60_QP_ST_M,
 		       V2_QPC_BYTE_60_QP_ST_S, new_state);
@@ -3584,8 +3610,8 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		       V2_QPC_BYTE_60_QP_ST_S, 0);
 
 	/* SW pass context to HW */
-	ret = hns_roce_v2_qp_modify(hr_dev, &hr_qp->mtt, cur_state, new_state,
-				    context, hr_qp);
+	ret = hns_roce_v2_qp_modify(hr_dev, &hr_qp->mtt, to_ib_qp_st(cur_state),
+				    to_ib_qp_st(new_state), context, hr_qp);
 	if (ret) {
 		dev_err(dev, "hns_roce_qp_modify failed(%d)\n", ret);
 		goto out;
@@ -3623,21 +3649,6 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 out:
 	kfree(context);
 	return ret;
-}
-
-static inline enum ib_qp_state to_ib_qp_st(enum hns_roce_v2_qp_state state)
-{
-	switch (state) {
-	case HNS_ROCE_QP_ST_RST:	return IB_QPS_RESET;
-	case HNS_ROCE_QP_ST_INIT:	return IB_QPS_INIT;
-	case HNS_ROCE_QP_ST_RTR:	return IB_QPS_RTR;
-	case HNS_ROCE_QP_ST_RTS:	return IB_QPS_RTS;
-	case HNS_ROCE_QP_ST_SQ_DRAINING:
-	case HNS_ROCE_QP_ST_SQD:	return IB_QPS_SQD;
-	case HNS_ROCE_QP_ST_SQER:	return IB_QPS_SQE;
-	case HNS_ROCE_QP_ST_ERR:	return IB_QPS_ERR;
-	default:			return -1;
-	}
 }
 
 static int hns_roce_v2_query_qpc(struct hns_roce_dev *hr_dev,
@@ -3759,7 +3770,7 @@ static int hns_roce_v2_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	}
 
 	qp_attr->port_num = hr_qp->port + 1;
-	qp_attr->sq_draining = 0;
+	qp_attr->sq_draining = (state == HNS_ROCE_QP_ST_SQ_DRAINING);
 	qp_attr->max_rd_atomic = 1 << roce_get_field(context->byte_208_irrl,
 						     V2_QPC_BYTE_208_SR_MAX_M,
 						     V2_QPC_BYTE_208_SR_MAX_S);
