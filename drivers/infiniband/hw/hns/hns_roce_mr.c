@@ -1279,3 +1279,120 @@ int hns_roce_dereg_mr(struct ib_mr *ibmr)
 
 	return ret;
 }
+
+static int hns_roce_mw_free(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_mw *mw)
+{
+	struct device *dev = hr_dev->dev;
+	int ret = 0;
+
+	if (mw->enabled) {
+		ret = hns_roce_hw2sw_mpt(hr_dev, NULL, key_to_hw_index(mw->rkey)
+					 & (hr_dev->caps.num_mtpts - 1));
+		if (ret) {
+			dev_warn(dev, "MW HW2SW_MPT failed (%d)\n", ret);
+			return ret;
+		}
+	}
+
+	if (mw->enabled)
+		hns_roce_table_put(hr_dev, &hr_dev->mr_table.mtpt_table,
+				   key_to_hw_index(mw->rkey));
+
+	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap,
+			     key_to_hw_index(mw->rkey), BITMAP_NO_RR);
+
+	return ret;
+}
+
+static int hns_roce_mw_enable(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_mw *mw)
+{
+	unsigned long mtpt_idx = key_to_hw_index(mw->rkey);
+	struct device *dev = hr_dev->dev;
+	struct hns_roce_cmd_mailbox *mailbox;
+	struct hns_roce_mr_table *mr_table = &hr_dev->mr_table;
+	int ret;
+
+	/* prepare HEM entry memory */
+	ret = hns_roce_table_get(hr_dev, &mr_table->mtpt_table, mtpt_idx);
+	if (ret)
+		return ret;
+
+	/* allocate mailbox memory */
+	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
+	if (IS_ERR(mailbox)) {
+		ret = PTR_ERR(mailbox);
+		goto err_table;
+	}
+
+	ret = hr_dev->hw->mw_write_mtpt(mailbox->buf, mw, mtpt_idx);
+	if (ret) {
+		dev_err(dev, "MW write mtpt fail!\n");
+		goto err_page;
+	}
+
+	ret = hns_roce_sw2hw_mpt(hr_dev, mailbox,
+				 mtpt_idx & (hr_dev->caps.num_mtpts - 1));
+	if (ret) {
+		dev_err(dev, "MW sw2hw_mpt failed (%d)\n", ret);
+		goto err_page;
+	}
+
+	mw->enabled = 1;
+
+	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
+
+	return 0;
+
+err_page:
+	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
+
+err_table:
+	hns_roce_table_put(hr_dev, &mr_table->mtpt_table, mtpt_idx);
+
+	return ret;
+}
+
+struct ib_mw *hns_roce_alloc_mw(struct ib_pd *ib_pd, enum ib_mw_type type,
+				struct ib_udata *udata)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(ib_pd->device);
+	struct hns_roce_mw *mw;
+	unsigned long index = 0;
+	int ret;
+
+	mw = kmalloc(sizeof(*mw), GFP_KERNEL);
+	if (!mw)
+		return ERR_PTR(-ENOMEM);
+
+	/* Allocate a key for mw from bitmap */
+	ret = hns_roce_bitmap_alloc(&hr_dev->mr_table.mtpt_bitmap, &index);
+	if (ret)
+		goto err_bitmap;
+
+	mw->rkey = hw_index_to_key(index);
+
+	if (ib_pd->uobject) {
+		mw->ibmw.device = ib_pd->device;
+		mw->ibmw.pd = ib_pd;
+		mw->ibmw.uobject = ib_pd->uobject;
+		mw->ibmw.rkey = mw->rkey;
+		mw->ibmw.type = type;
+		mw->pdn = to_hr_pd(ib_pd)->pdn;
+
+		ret = hns_roce_mw_enable(hr_dev, mw);
+		if (ret)
+			goto err_mw;
+	}
+
+	return &mw->ibmw;
+
+err_mw:
+	hns_roce_mw_free(hr_dev, mw);
+
+err_bitmap:
+	kfree(mw);
+
+	return ERR_PTR(ret);
+}
