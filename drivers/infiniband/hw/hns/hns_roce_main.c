@@ -539,7 +539,8 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		(1ULL << IB_USER_VERBS_CMD_CREATE_QP) |
 		(1ULL << IB_USER_VERBS_CMD_MODIFY_QP) |
 		(1ULL << IB_USER_VERBS_CMD_QUERY_QP) |
-		(1ULL << IB_USER_VERBS_CMD_DESTROY_QP);
+		(1ULL << IB_USER_VERBS_CMD_DESTROY_QP) |
+		(1ULL << IB_USER_VERBS_CMD_CREATE_SRQ);
 
 	/* HCA||device||port */
 	ib_dev->modify_device		= hns_roce_modify_device;
@@ -563,6 +564,8 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->create_ah		= hns_roce_create_ah;
 	ib_dev->query_ah		= hns_roce_query_ah;
 	ib_dev->destroy_ah		= hns_roce_destroy_ah;
+	/* SRQ */
+	ib_dev->create_srq		= hns_roce_create_srq;
 
 	/* QP */
 	ib_dev->create_qp		= hns_roce_create_qp;

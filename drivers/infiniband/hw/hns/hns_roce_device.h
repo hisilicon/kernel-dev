@@ -108,6 +108,8 @@
 #define PAGES_SHIFT_24				24
 #define PAGES_SHIFT_32				32
 
+#define HNS_ROCE_IDX_QUE_ENTRY_SZ		4
+
 enum {
 	HNS_ROCE_SUPPORT_RQ_RECORD_DB = 1 << 0,
 	HNS_ROCE_SUPPORT_SQ_RECORD_DB = 1 << 1,
@@ -199,6 +201,8 @@ enum {
 enum hns_roce_mtt_type {
 	MTT_TYPE_WQE,
 	MTT_TYPE_CQE,
+	MTT_TYPE_SRQWQE,
+	MTT_TYPE_IDX
 };
 
 enum {
@@ -238,6 +242,13 @@ struct hns_roce_ucontext {
 struct hns_roce_pd {
 	struct ib_pd		ibpd;
 	unsigned long		pdn;
+};
+
+struct hns_roce_xrcd {
+	struct ib_xrcd		ibxrcd;
+	unsigned long		xrcdn;
+	struct ib_pd	       *pd;
+	struct ib_cq	       *cq;
 };
 
 struct hns_roce_bitmap {
@@ -331,6 +342,10 @@ struct hns_roce_mr_table {
 	struct hns_roce_hem_table	mtpt_table;
 	struct hns_roce_buddy		mtt_cqe_buddy;
 	struct hns_roce_hem_table	mtt_cqe_table;
+	struct hns_roce_buddy		mtt_srqwqe_buddy;
+	struct hns_roce_hem_table	mtt_srqwqe_table;
+	struct hns_roce_buddy		mtt_idx_buddy;
+	struct hns_roce_hem_table	mtt_idx_table;
 };
 
 struct hns_roce_wq {
@@ -421,9 +436,35 @@ struct hns_roce_cq {
 	struct completion		free;
 };
 
+struct hns_roce_idx_que {
+	int				entry_sz;
+	u32				buf_size;
+	struct ib_umem			*umem;
+	struct hns_roce_mtt		mtt;
+};
+
 struct hns_roce_srq {
 	struct ib_srq		ibsrq;
-	int			srqn;
+	void (*event)(struct hns_roce_srq *srq, enum hns_roce_event event);
+	unsigned long		srqn;
+	int			max;
+	int			max_gs;
+	int			wqe_shift;
+	void __iomem		*db_reg_l;
+
+	refcount_t		refcount;
+	struct completion	free;
+
+	struct hns_roce_buf	buf;
+	u64		       *wrid;
+	struct ib_umem	       *umem;
+	struct hns_roce_mtt	mtt;
+	struct hns_roce_idx_que idx_que;
+	spinlock_t		lock;
+	int			head;
+	int			tail;
+	u16			wqe_ctr;
+	struct mutex		mutex;
 };
 
 struct hns_roce_uar_table {
@@ -439,6 +480,13 @@ struct hns_roce_qp_table {
 };
 
 struct hns_roce_cq_table {
+	struct hns_roce_bitmap		bitmap;
+	spinlock_t			lock;
+	struct radix_tree_root		tree;
+	struct hns_roce_hem_table	table;
+};
+
+struct hns_roce_srq_table {
 	struct hns_roce_bitmap		bitmap;
 	spinlock_t			lock;
 	struct radix_tree_root		tree;
@@ -687,6 +735,8 @@ struct hns_roce_caps {
 	int		num_mtpts;
 	u32		num_mtt_segs;
 	u32		num_cqe_segs;
+	u32		num_srqwqe_segs;
+	u32		num_idx_segs;
 	int		reserved_mrws;
 	int		reserved_uars;
 	int		num_pds;
@@ -700,6 +750,7 @@ struct hns_roce_caps {
 	int		irrl_entry_sz;
 	int		trrl_entry_sz;
 	int		cqc_entry_sz;
+	int		srqc_entry_sz;
 	u32		pbl_ba_pg_sz;
 	u32		pbl_buf_pg_sz;
 	u32		pbl_hop_num;
@@ -728,6 +779,12 @@ struct hns_roce_caps {
 	u32		cqe_ba_pg_sz;
 	u32		cqe_buf_pg_sz;
 	u32		cqe_hop_num;
+	u32		srqwqe_ba_pg_sz;
+	u32		srqwqe_buf_pg_sz;
+	u32		srqwqe_hop_num;
+	u32		idx_ba_pg_sz;
+	u32		idx_buf_pg_sz;
+	u32		idx_hop_num;
 	u32		eqe_ba_pg_sz;
 	u32		eqe_buf_pg_sz;
 	u32		eqe_hop_num;
@@ -793,6 +850,11 @@ struct hns_roce_hw {
 	int (*modify_cq)(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 	int (*init_eq)(struct hns_roce_dev *hr_dev);
 	void (*cleanup_eq)(struct hns_roce_dev *hr_dev);
+	void (*write_srqc)(struct hns_roce_dev *hr_dev,
+			   struct hns_roce_srq *srq, u32 pdn, u16 xrcd, u32 cqn,
+			   void *mb_buf, u64 *mtts_wqe, u64 *mtts_idx,
+			   dma_addr_t dma_handle_wqe,
+			   dma_addr_t dma_handle_idx);
 };
 
 struct hns_roce_dev {
@@ -827,6 +889,7 @@ struct hns_roce_dev {
 	struct hns_roce_uar_table uar_table;
 	struct hns_roce_mr_table  mr_table;
 	struct hns_roce_cq_table  cq_table;
+	struct hns_roce_srq_table srq_table;
 	struct hns_roce_qp_table  qp_table;
 	struct hns_roce_eq_table  eq_table;
 
@@ -855,6 +918,11 @@ static inline struct hns_roce_ucontext
 static inline struct hns_roce_pd *to_hr_pd(struct ib_pd *ibpd)
 {
 	return container_of(ibpd, struct hns_roce_pd, ibpd);
+}
+
+static inline struct hns_roce_xrcd *to_hr_xrcd(struct ib_xrcd *ibxrcd)
+{
+	return container_of(ibxrcd, struct hns_roce_xrcd, ibxrcd);
 }
 
 static inline struct hns_roce_ah *to_hr_ah(struct ib_ah *ibah)
@@ -986,6 +1054,9 @@ int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_mtt *mtt, struct ib_umem *umem);
 
+struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
+				   struct ib_srq_init_attr *srq_init_attr,
+				   struct ib_udata *udata);
 struct ib_qp *hns_roce_create_qp(struct ib_pd *ib_pd,
 				 struct ib_qp_init_attr *init_attr,
 				 struct ib_udata *udata);
