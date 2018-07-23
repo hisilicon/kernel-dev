@@ -1257,6 +1257,14 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->local_ca_ack_delay = 0;
 	caps->max_mtu = IB_MTU_4096;
 
+	caps->max_srqs		= HNS_ROCE_V2_MAX_SRQ;
+	caps->max_srq_wrs	= HNS_ROCE_V2_MAX_SRQ_WR;
+	caps->max_srq_sges	= HNS_ROCE_V2_MAX_SRQ_SGE;
+
+	/* CS RevisionID is 0x21 and B735 will not modified */
+	if (hr_dev->pci_dev->revision == 0x20)
+		caps->flags |= HNS_ROCE_CAP_FLAG_SRQ;
+
 	ret = hns_roce_v2_set_bt(hr_dev);
 	if (ret)
 		dev_err(hr_dev->dev, "Configure bt attribute fail, ret = %d.\n",
