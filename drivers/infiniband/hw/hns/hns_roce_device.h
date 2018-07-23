@@ -99,7 +99,7 @@
 #define SERV_TYPE_RD				2
 #define SERV_TYPE_UC				1
 #define SERV_TYPE_UD				3
-
+#define SERV_TYPE_XRC				5
 /* Configure to HW for PAGE_SIZE larger than 4KB */
 #define PG_SHIFT_OFFSET				(PAGE_SHIFT - 12)
 

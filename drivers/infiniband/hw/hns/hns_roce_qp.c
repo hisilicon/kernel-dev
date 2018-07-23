@@ -931,6 +931,8 @@ int to_hr_qp_type(int qp_type)
 		transport_type = SERV_TYPE_UD;
 	else if (qp_type == IB_QPT_GSI)
 		transport_type = SERV_TYPE_UD;
+	else if (qp_type == IB_QPT_XRC_INI || qp_type == IB_QPT_XRC_TGT)
+		transport_type = SERV_TYPE_XRC;
 	else
 		transport_type = -1;
 
