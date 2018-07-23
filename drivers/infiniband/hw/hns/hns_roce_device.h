@@ -856,6 +856,8 @@ struct hns_roce_hw {
 			   dma_addr_t dma_handle_wqe,
 			   dma_addr_t dma_handle_idx);
 	int (*query_srq)(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
+	int (*post_srq_recv)(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
+			     struct ib_recv_wr **bad_wr);
 };
 
 struct hns_roce_dev {

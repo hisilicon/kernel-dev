@@ -1661,4 +1661,9 @@ struct hns_roce_eq_context {
 #define HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S 0
 #define HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M GENMASK(23, 0)
 
+struct hns_roce_wqe_srq_next {
+	__le16	wqe_idx;
+	__le16	rsvd;
+};
+
 #endif

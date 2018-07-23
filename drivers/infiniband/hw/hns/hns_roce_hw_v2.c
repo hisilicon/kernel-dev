@@ -1866,6 +1866,11 @@ static struct hns_roce_v2_cqe *next_cqe_sw_v2(struct hns_roce_cq *hr_cq)
 	return get_sw_cqe_v2(hr_cq, hr_cq->cons_index);
 }
 
+static void *get_srq_wqe(struct hns_roce_srq *srq, int n)
+{
+	return hns_roce_buf_offset(&srq->buf, n << srq->wqe_shift);
+}
+
 static void hns_roce_v2_cq_set_ci(struct hns_roce_cq *hr_cq, u32 cons_index)
 {
 	*hr_cq->set_ci_db = cons_index & 0xffffff;
@@ -5431,6 +5436,74 @@ out:
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 	return ret;
 }
+
+static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
+				     struct ib_recv_wr *wr,
+				     struct ib_recv_wr **bad_wr)
+{
+	struct hns_roce_srq *srq = to_hr_srq(ibsrq);
+	struct hns_roce_v2_wqe_data_seg *dseg;
+	struct hns_roce_wqe_srq_next *next;
+	struct hns_roce_v2_db srq_db;
+	unsigned long flags;
+	int nreq;
+	int ret = 0;
+	int i;
+
+	spin_lock_irqsave(&srq->lock, flags);
+	for (nreq = 0; wr; ++nreq, wr = wr->next) {
+		if (unlikely(wr->num_sge > srq->max_gs)) {
+			ret = -EINVAL;
+			*bad_wr = wr;
+			break;
+		}
+
+		if (unlikely(srq->head == srq->tail)) {
+			ret = -ENOMEM;
+			*bad_wr = wr;
+			break;
+		}
+
+		srq->wrid[srq->head] = wr->wr_id;
+
+		next      = get_srq_wqe(srq, srq->head);
+		srq->head = le16_to_cpu(next->wqe_idx);
+		dseg      = (struct hns_roce_v2_wqe_data_seg *) (next + 1);
+
+		for (i = 0; i < wr->num_sge; ++i) {
+			dseg[i].len	= cpu_to_le32(wr->sg_list[i].length);
+			dseg[i].lkey	= cpu_to_le32(wr->sg_list[i].lkey);
+			dseg[i].addr	= cpu_to_le64(wr->sg_list[i].addr);
+		}
+
+		if (i < srq->max_gs) {
+			dseg[i].len	= 0;
+			dseg[i].lkey	= cpu_to_le32(0x100);
+			dseg[i].addr	= 0;
+		}
+	}
+
+	if (likely(nreq)) {
+		srq->wqe_ctr += nreq;
+
+		/*
+		 * Make sure that descriptors are written before
+		 * doorbell record.
+		 */
+		wmb();
+
+		srq_db.byte_4 = HNS_ROCE_V2_SRQ_DB << 24 | srq->srqn;
+		srq_db.parameter = srq->wqe_ctr;
+
+		hns_roce_write64_k((__le32 *)&srq_db, srq->db_reg_l);
+
+	}
+
+	spin_unlock_irqrestore(&srq->lock, flags);
+
+	return ret;
+}
+
 static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.cmq_init = hns_roce_v2_cmq_init,
 	.cmq_exit = hns_roce_v2_cmq_exit,
@@ -5458,6 +5531,7 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.cleanup_eq = hns_roce_v2_cleanup_eq_table,
 	.write_srqc = hns_roce_v2_write_srqc,
 	.query_srq = hns_roce_v2_query_srq,
+	.post_srq_recv = hns_roce_v2_post_srq_recv,
 };
 
 static const struct pci_device_id hns_roce_hw_v2_pci_tbl[] = {
