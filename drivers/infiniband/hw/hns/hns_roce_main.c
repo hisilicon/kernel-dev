@@ -546,7 +546,8 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		(1ULL << IB_USER_VERBS_CMD_MODIFY_SRQ) |
 		(1ULL << IB_USER_VERBS_CMD_QUERY_SRQ) |
 		(1ULL << IB_USER_VERBS_CMD_DESTROY_SRQ) |
-		(1ULL << IB_USER_VERBS_CMD_POST_SRQ_RECV);
+		(1ULL << IB_USER_VERBS_CMD_POST_SRQ_RECV) |
+		(1ULL << IB_USER_VERBS_CMD_CREATE_XSRQ);
 
 	/* HCA||device||port */
 	ib_dev->modify_device		= hns_roce_modify_device;
