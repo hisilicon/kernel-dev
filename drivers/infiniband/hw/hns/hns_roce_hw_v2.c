@@ -476,7 +476,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				roce_set_bit(rc_sq_wqe->byte_4,
 					       V2_RC_SEND_WQE_BYTE_4_SO_S, 1);
 				rc_sq_wqe->inv_key =
-						cpu_to_le32(wr->ex.invalidate_rkey);
+					    cpu_to_le32(wr->ex.invalidate_rkey);
 				break;
 
 			case IB_WR_REG_MR:
