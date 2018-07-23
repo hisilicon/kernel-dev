@@ -1311,8 +1311,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->max_srq_wrs	= HNS_ROCE_V2_MAX_SRQ_WR;
 	caps->max_srq_sges	= HNS_ROCE_V2_MAX_SRQ_SGE;
 
-	/* CS RevisionID is 0x21 and B735 will not modified */
-	if (hr_dev->pci_dev->revision == 0x20)
+	if (hr_dev->pci_dev->revision == 0x21)
 		caps->flags |= (HNS_ROCE_CAP_FLAG_XRC | HNS_ROCE_CAP_FLAG_SRQ |
 				HNS_ROCE_CAP_FLAG_ATOMIC);
 
