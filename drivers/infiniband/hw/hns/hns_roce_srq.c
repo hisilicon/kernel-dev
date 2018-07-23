@@ -73,6 +73,15 @@ static int hns_roce_sw2hw_srq(struct hns_roce_dev *dev,
 				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
+static int hns_roce_hw2sw_srq(struct hns_roce_dev *dev,
+			     struct hns_roce_cmd_mailbox *mailbox,
+			     unsigned long srq_num)
+{
+	return hns_roce_cmd_mbox(dev, 0, mailbox ? mailbox->dma : 0, srq_num,
+				 mailbox ? 0 : 1, HNS_ROCE_CMD_HW2SW_SRQ,
+				 HNS_ROCE_CMD_TIMEOUT_MSECS);
+}
+
 static int hns_roce_arm_srq(struct hns_roce_dev *dev, int srq_num, int lm)
 {
 	return hns_roce_cmd_mbox(dev, lm, 0, srq_num, 0,
@@ -159,6 +168,28 @@ err_put:
 err_out:
 	hns_roce_bitmap_free(&srq_table->bitmap, srq->srqn, BITMAP_NO_RR);
 	return ret;
+}
+
+void hns_roce_srq_free(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
+{
+	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
+	int ret;
+
+	ret = hns_roce_hw2sw_srq(hr_dev, NULL, srq->srqn);
+	if (ret)
+		dev_err(hr_dev->dev, "HW2SW_SRQ failed (%d) for CQN %06lx\n",
+			ret, srq->srqn);
+
+	spin_lock_irq(&srq_table->lock);
+	radix_tree_delete(&srq_table->tree, srq->srqn);
+	spin_unlock_irq(&srq_table->lock);
+
+	if (refcount_dec_and_test(&srq->refcount))
+		complete(&srq->free);
+	wait_for_completion(&srq->free);
+
+	hns_roce_table_put(hr_dev, &srq_table->table, srq->srqn);
+	hns_roce_bitmap_free(&srq_table->bitmap, srq->srqn, BITMAP_NO_RR);
 }
 
 struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
@@ -365,6 +396,27 @@ int hns_roce_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr,
 		if (ret)
 			return ret;
 	}
+
+	return 0;
+}
+
+int hns_roce_destroy_srq(struct ib_srq *ibsrq)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibsrq->device);
+	struct hns_roce_srq *srq = to_hr_srq(ibsrq);
+
+	hns_roce_srq_free(hr_dev, srq);
+	hns_roce_mtt_cleanup(hr_dev, &srq->mtt);
+
+	if (ibsrq->uobject) {
+		ib_umem_release(srq->umem);
+	} else {
+		kvfree(srq->wrid);
+		hns_roce_buf_free(hr_dev, srq->max << srq->wqe_shift,
+				  &srq->buf);
+	}
+
+	kfree(srq);
 
 	return 0;
 }
