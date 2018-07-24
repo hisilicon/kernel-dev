@@ -2867,10 +2867,10 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 		       V2_QPC_BYTE_20_RQ_SHIFT_M, V2_QPC_BYTE_20_RQ_SHIFT_S, 0);
 
 	/* No VLAN need to set 0xFFF */
-	roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_VLAN_IDX_M,
-		       V2_QPC_BYTE_24_VLAN_IDX_S, 0xfff);
-	roce_set_field(qpc_mask->byte_24_mtu_tc, V2_QPC_BYTE_24_VLAN_IDX_M,
-		       V2_QPC_BYTE_24_VLAN_IDX_S, 0);
+	roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_VLAN_ID_M,
+		       V2_QPC_BYTE_24_VLAN_ID_S, 0xfff);
+	roce_set_field(qpc_mask->byte_24_mtu_tc, V2_QPC_BYTE_24_VLAN_ID_M,
+		       V2_QPC_BYTE_24_VLAN_ID_S, 0);
 
 	/*
 	 * Set some fields in context to zero, Because the default values
@@ -3751,11 +3751,11 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		}
 
 		roce_set_field(context->byte_24_mtu_tc,
-			       V2_QPC_BYTE_24_VLAN_IDX_M,
-			       V2_QPC_BYTE_24_VLAN_IDX_S, vlan);
+			       V2_QPC_BYTE_24_VLAN_ID_M,
+			       V2_QPC_BYTE_24_VLAN_ID_S, vlan);
 		roce_set_field(qpc_mask->byte_24_mtu_tc,
-			       V2_QPC_BYTE_24_VLAN_IDX_M,
-			       V2_QPC_BYTE_24_VLAN_IDX_S, 0);
+			       V2_QPC_BYTE_24_VLAN_ID_M,
+			       V2_QPC_BYTE_24_VLAN_ID_S, 0);
 
 		if (attr->ah_attr.ah_flags & IB_AH_GRH) {
 			if (grh->sgid_index >=
