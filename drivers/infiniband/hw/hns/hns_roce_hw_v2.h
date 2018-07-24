@@ -449,7 +449,7 @@ struct hns_roce_v2_qp_context {
 	__le32	dmac;
 	__le32	byte_52_udpspn_dmac;
 	__le32	byte_56_dqpn_err;
-	__le32	byte_60_qpst_mapid;
+	__le32	byte_60_qpst_tempid;
 	__le32	qkey_xrcd;
 	__le32	byte_68_rq_db;
 	__le32	rq_db_record_addr;
@@ -591,26 +591,15 @@ struct hns_roce_v2_qp_context {
 #define	V2_QPC_BYTE_56_LP_PKTN_INI_S 28
 #define V2_QPC_BYTE_56_LP_PKTN_INI_M GENMASK(31, 28)
 
-#define	V2_QPC_BYTE_60_MAPID_S 0
-#define V2_QPC_BYTE_60_MAPID_M GENMASK(12, 0)
+#define	V2_QPC_BYTE_60_TEMPID_S 0
+#define V2_QPC_BYTE_60_TEMPID_M GENMASK(7, 0)
 
-#define	V2_QPC_BYTE_60_INNER_MAP_IND_S 13
+#define V2_QPC_BYTE_60_SCC_TOKEN_S 8
+#define V2_QPC_BYTE_60_SCC_TOKEN_M GENMASK(26, 8)
 
-#define	V2_QPC_BYTE_60_SQ_MAP_IND_S 14
+#define	V2_QPC_BYTE_60_SQ_DB_DOING_S 27
 
-#define	V2_QPC_BYTE_60_RQ_MAP_IND_S 15
-
-#define	V2_QPC_BYTE_60_TEMPID_S 16
-#define V2_QPC_BYTE_60_TEMPID_M  GENMASK(22, 16)
-
-#define	V2_QPC_BYTE_60_EXT_MAP_IND_S 23
-
-#define	V2_QPC_BYTE_60_RTY_NUM_INI_BAK_S 24
-#define V2_QPC_BYTE_60_RTY_NUM_INI_BAK_M GENMASK(26, 24)
-
-#define V2_QPC_BYTE_60_SQ_RLS_IND_S 27
-
-#define	V2_QPC_BYTE_60_SQ_EXT_IND_S 28
+#define	V2_QPC_BYTE_60_RQ_DB_DOING_S 28
 
 #define	V2_QPC_BYTE_60_QP_ST_S 29
 #define V2_QPC_BYTE_60_QP_ST_M GENMASK(31, 29)

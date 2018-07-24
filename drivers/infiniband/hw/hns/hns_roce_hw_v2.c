@@ -2886,21 +2886,16 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 	roce_set_bit(qpc_mask->byte_56_dqpn_err, V2_QPC_BYTE_56_RQ_TX_ERR_S, 0);
 	roce_set_bit(qpc_mask->byte_56_dqpn_err, V2_QPC_BYTE_56_RQ_RX_ERR_S, 0);
 
-	roce_set_field(qpc_mask->byte_60_qpst_mapid, V2_QPC_BYTE_60_MAPID_M,
-		       V2_QPC_BYTE_60_MAPID_S, 0);
+	roce_set_field(qpc_mask->byte_60_qpst_tempid, V2_QPC_BYTE_60_TEMPID_M,
+		       V2_QPC_BYTE_60_TEMPID_S, 0);
 
-	roce_set_bit(qpc_mask->byte_60_qpst_mapid,
-		     V2_QPC_BYTE_60_INNER_MAP_IND_S, 0);
-	roce_set_bit(qpc_mask->byte_60_qpst_mapid, V2_QPC_BYTE_60_SQ_MAP_IND_S,
-		     0);
-	roce_set_bit(qpc_mask->byte_60_qpst_mapid, V2_QPC_BYTE_60_RQ_MAP_IND_S,
-		     0);
-	roce_set_bit(qpc_mask->byte_60_qpst_mapid, V2_QPC_BYTE_60_EXT_MAP_IND_S,
-		     0);
-	roce_set_bit(qpc_mask->byte_60_qpst_mapid, V2_QPC_BYTE_60_SQ_RLS_IND_S,
-		     0);
-	roce_set_bit(qpc_mask->byte_60_qpst_mapid, V2_QPC_BYTE_60_SQ_EXT_IND_S,
-		     0);
+	roce_set_field(qpc_mask->byte_60_qpst_tempid,
+		       V2_QPC_BYTE_60_SCC_TOKEN_M, V2_QPC_BYTE_60_SCC_TOKEN_S,
+		       0);
+	roce_set_bit(qpc_mask->byte_60_qpst_tempid,
+		     V2_QPC_BYTE_60_SQ_DB_DOING_S, 0);
+	roce_set_bit(qpc_mask->byte_60_qpst_tempid,
+		     V2_QPC_BYTE_60_RQ_DB_DOING_S, 0);
 	roce_set_bit(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_CNP_TX_FLAG_S, 0);
 	roce_set_bit(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_CE_FLAG_S, 0);
 
@@ -3852,14 +3847,6 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 	}
 
 	if (attr_mask & IB_QP_RETRY_CNT) {
-		roce_set_field(context->byte_60_qpst_mapid,
-			       V2_QPC_BYTE_60_RTY_NUM_INI_BAK_M,
-			       V2_QPC_BYTE_60_RTY_NUM_INI_BAK_S,
-			       attr->retry_cnt);
-		roce_set_field(qpc_mask->byte_60_qpst_mapid,
-			       V2_QPC_BYTE_60_RTY_NUM_INI_BAK_M,
-			       V2_QPC_BYTE_60_RTY_NUM_INI_BAK_S, 0);
-
 		roce_set_field(context->byte_212_lsn,
 			       V2_QPC_BYTE_212_RETRY_NUM_INIT_M,
 			       V2_QPC_BYTE_212_RETRY_NUM_INIT_S,
@@ -4003,9 +3990,9 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		     V2_QPC_BYTE_108_INV_CREDIT_S, 0);
 
 	/* Every status migrate must change state */
-	roce_set_field(context->byte_60_qpst_mapid, V2_QPC_BYTE_60_QP_ST_M,
+	roce_set_field(context->byte_60_qpst_tempid, V2_QPC_BYTE_60_QP_ST_M,
 		       V2_QPC_BYTE_60_QP_ST_S, to_hns_roce_qp_st(new_state));
-	roce_set_field(qpc_mask->byte_60_qpst_mapid, V2_QPC_BYTE_60_QP_ST_M,
+	roce_set_field(qpc_mask->byte_60_qpst_tempid, V2_QPC_BYTE_60_QP_ST_M,
 		       V2_QPC_BYTE_60_QP_ST_S, 0);
 
 	/* SW pass context to HW */
@@ -4114,7 +4101,7 @@ static int hns_roce_v2_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		goto out;
 	}
 
-	state = roce_get_field(context->byte_60_qpst_mapid,
+	state = roce_get_field(context->byte_60_qpst_tempid,
 			       V2_QPC_BYTE_60_QP_ST_M, V2_QPC_BYTE_60_QP_ST_S);
 	tmp_qp_state = to_ib_qp_st((enum hns_roce_v2_qp_state)state);
 	if (tmp_qp_state == -1) {
