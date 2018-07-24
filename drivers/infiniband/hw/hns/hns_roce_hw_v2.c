@@ -3014,9 +3014,9 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 	roce_set_bit(qpc_mask->byte_168_irrl_idx,
 		     V2_QPC_BYTE_168_POLL_DB_WAIT_DO_S, 0);
 	roce_set_bit(qpc_mask->byte_168_irrl_idx,
-		     V2_QPC_BYTE_168_ACK_TIMEOUT_DB_S, 0);
+		     V2_QPC_BYTE_168_SCC_TOKEN_FORBID_SQ_DEQ_S, 0);
 	roce_set_bit(qpc_mask->byte_168_irrl_idx,
-		     V2_QPC_BYTE_168_WAIT_ACK_TIMEOUT_DB_S, 0);
+		     V2_QPC_BYTE_168_WAIT_ACK_TIMEOUT_S, 0);
 	roce_set_bit(qpc_mask->byte_168_irrl_idx,
 		     V2_QPC_BYTE_168_MSG_RTY_LP_FLG_S, 0);
 	roce_set_bit(qpc_mask->byte_168_irrl_idx,
