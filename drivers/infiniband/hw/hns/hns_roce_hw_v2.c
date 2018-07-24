@@ -3089,6 +3089,13 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 		       V2_QPC_BYTE_232_IRRL_SGE_IDX_M,
 		       V2_QPC_BYTE_232_IRRL_SGE_IDX_S, 0);
 
+	roce_set_bit(qpc_mask->byte_232_irrl_sge, V2_QPC_BYTE_232_SO_LP_VLD_S,
+		     0);
+	roce_set_bit(qpc_mask->byte_232_irrl_sge,
+		     V2_QPC_BYTE_232_FENCE_LP_VLD_S, 0);
+	roce_set_bit(qpc_mask->byte_232_irrl_sge, V2_QPC_BYTE_232_IRRL_LP_VLD_S,
+		     0);
+
 	qpc_mask->irrl_cur_sge_offset = 0;
 
 	roce_set_field(qpc_mask->byte_240_irrl_tail,
