@@ -515,6 +515,9 @@ static void hns3_get_ringparam(struct net_device *netdev,
 	struct hnae3_handle *h = priv->ae_handle;
 	int queue_num = h->kinfo.num_tqps;
 
+	if (test_bit(HNS3_NIC_STATE_REINITING, &priv->state))
+		return;
+
 	param->tx_max_pending = HNS3_RING_MAX_PENDING;
 	param->rx_max_pending = HNS3_RING_MAX_PENDING;
 
@@ -763,6 +766,9 @@ static int hns3_set_ringparam(struct net_device *ndev,
 		return -EINVAL;
 	}
 
+	if (test_bit(HNS3_NIC_STATE_REINITING, &priv->state))
+		return -EBUSY;
+
 	new_desc_num = param->tx_pending;
 
 	/* Hardware requires that its descriptors must be multiple of eight */
@@ -863,6 +869,9 @@ static int hns3_get_coalesce_per_queue(struct net_device *netdev, u32 queue,
 			   queue, queue_num - 1);
 		return -EINVAL;
 	}
+
+	if (test_bit(HNS3_NIC_STATE_REINITING, &priv->state))
+		return -EBUSY;
 
 	tx_vector = priv->ring_data[queue].ring->tqp_vector;
 	rx_vector = priv->ring_data[queue_num + queue].ring->tqp_vector;
@@ -1014,9 +1023,13 @@ static int hns3_set_coalesce(struct net_device *netdev,
 			     struct ethtool_coalesce *cmd)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	u16 queue_num = h->kinfo.num_tqps;
 	int ret;
 	int i;
+
+	if (test_bit(HNS3_NIC_STATE_REINITING, &priv->state))
+		return -EBUSY;
 
 	ret = hns3_check_coalesce_para(netdev, cmd);
 	if (ret)

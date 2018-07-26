@@ -357,6 +357,9 @@ static int hns3_nic_net_open(struct net_device *netdev)
 	struct hnae3_knic_private_info *kinfo;
 	int i, ret;
 
+	if (test_bit(HNS3_NIC_STATE_REINITING, &priv->state))
+		return -EBUSY;
+
 	netif_carrier_off(netdev);
 
 	ret = hns3_nic_set_real_num_queue(netdev);
@@ -3549,6 +3552,9 @@ int hns3_nic_reset_all_ring(struct hnae3_handle *h)
 	int i, j;
 	int ret;
 
+	if (test_bit(HNS3_NIC_STATE_REINITING, &priv->state))
+		return -EBUSY;
+
 	for (i = 0; i < h->kinfo.num_tqps; i++) {
 		h->ae_algo->ops->reset_queue(h, i);
 		hns3_init_ring_hw(priv->ring_data[i].ring);
@@ -3672,6 +3678,8 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 		priv->ring_data = NULL;
 	}
 
+	clear_bit(HNS3_NIC_STATE_REINITING, &priv->state);
+
 	return ret;
 }
 
@@ -3681,11 +3689,15 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
 
+	if (test_and_set_bit(HNS3_NIC_STATE_REINITING, &priv->state))
+		return -EBUSY;
+
 	hns3_force_clear_all_rx_ring(handle);
 
 	ret = hns3_nic_uninit_vector_data(priv);
 	if (ret) {
 		netdev_err(netdev, "uninit vector error\n");
+		clear_bit(HNS3_NIC_STATE_REINITING, &priv->state);
 		return ret;
 	}
 
