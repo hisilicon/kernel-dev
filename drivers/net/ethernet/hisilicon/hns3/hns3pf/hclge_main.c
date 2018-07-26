@@ -1043,21 +1043,6 @@ static int hclge_knic_setup(struct hclge_vport *vport,
 		= min_t(u16, hdev->rss_size_max, num_tqps / kinfo->num_tc);
 	kinfo->num_tqps = kinfo->rss_size * kinfo->num_tc;
 
-	for (i = 0; i < HNAE3_MAX_TC; i++) {
-		if (hdev->hw_tc_map & BIT(i)) {
-			kinfo->tc_info[i].enable = true;
-			kinfo->tc_info[i].tqp_offset = i * kinfo->rss_size;
-			kinfo->tc_info[i].tqp_count = kinfo->rss_size;
-			kinfo->tc_info[i].tc = i;
-		} else {
-			/* Set to default queue if TC is disable */
-			kinfo->tc_info[i].enable = false;
-			kinfo->tc_info[i].tqp_offset = 0;
-			kinfo->tc_info[i].tqp_count = 1;
-			kinfo->tc_info[i].tc = 0;
-		}
-	}
-
 	kinfo->tqp = devm_kcalloc(&hdev->pdev->dev, kinfo->num_tqps,
 				  sizeof(struct hnae3_queue *), GFP_KERNEL);
 	if (!kinfo->tqp)
