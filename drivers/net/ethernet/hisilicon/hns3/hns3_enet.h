@@ -400,7 +400,6 @@ struct hns3_enet_ring {
 	int next_to_clean;
 
 	u32 flag;          /* ring attribute */
-	int irq_init_flag;
 
 	int numa_node;
 	cpumask_t affinity_mask;
