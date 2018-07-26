@@ -3628,7 +3628,7 @@ static int hns3_reset_notify_up_enet(struct hnae3_handle *handle)
 	int ret = 0;
 
 	if (netif_running(kinfo->netdev)) {
-		ret = hns3_nic_net_up(kinfo->netdev);
+		ret = hns3_nic_net_open(kinfo->netdev);
 		if (ret) {
 			netdev_err(kinfo->netdev,
 				   "hns net up fail, ret=%d!\n", ret);
