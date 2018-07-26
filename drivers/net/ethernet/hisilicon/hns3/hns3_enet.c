@@ -3664,21 +3664,29 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 
 	ret = hns3_nic_alloc_vector_data(priv);
 	if (ret)
-		return ret;
+		goto err_put_ring;
 
 	hns3_restore_coal(priv);
 
 	ret = hns3_nic_init_vector_data(priv);
 	if (ret)
-		return ret;
+		goto err_dealloc_vector;
 
 	ret = hns3_init_all_ring(priv);
-	if (ret) {
-		hns3_nic_uninit_vector_data(priv);
-		priv->ring_data = NULL;
-	}
+	if (ret)
+		goto err_uninit_vector;
 
 	clear_bit(HNS3_NIC_STATE_REINITING, &priv->state);
+
+	return 0;
+
+err_uninit_vector:
+	hns3_nic_uninit_vector_data(priv);
+err_dealloc_vector:
+	hns3_nic_dealloc_vector_data(priv);
+err_put_ring:
+	hns3_put_ring_config(priv);
+	priv->ring_data = NULL;
 
 	return ret;
 }
