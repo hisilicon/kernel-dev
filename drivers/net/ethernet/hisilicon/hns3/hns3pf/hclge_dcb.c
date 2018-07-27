@@ -184,6 +184,16 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 	if (ret)
 		return ret;
 
+	if (map_changed) {
+		ret = hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+		if (ret)
+			return ret;
+
+		ret = hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+		if (ret)
+			return ret;
+	}
+
 	ret = hclge_tm_schd_info_update(hdev, num_tc);
 	if (ret)
 		return ret;
@@ -194,6 +204,13 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 
 	if (map_changed) {
 		ret = hclge_client_setup_tc(hdev);
+		if (ret)
+			return ret;
+		ret = hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
+		if (ret)
+			return ret;
+
+		ret = hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 		if (ret)
 			return ret;
 	}
