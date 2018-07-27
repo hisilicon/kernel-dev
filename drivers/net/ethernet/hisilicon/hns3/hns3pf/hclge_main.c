@@ -6008,6 +6008,20 @@ static int hclge_del_fd_entry(struct hnae3_handle *handle,
 					 false);
 }
 
+static void hclge_del_all_entries(struct hclge_dev *hdev)
+{
+	struct hclge_fd_rule *rule;
+	struct hlist_node *node;
+
+	hlist_for_each_entry_safe(rule, node, &hdev->fd_rule_list, rule_node) {
+		hclge_fd_tcam_config(hdev, HCLGE_FD_STAGE_1, true,
+				     rule->location, NULL, false);
+		hlist_del(&rule->rule_node);
+		kfree(rule);
+		hdev->hclge_fd_rule_num--;
+	}
+}
+
 static int hclge_get_fd_rule_cnt(struct hnae3_handle *handle,
 				 struct ethtool_rxnfc *cmd)
 {
@@ -7117,6 +7131,9 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 	if (mac->phydev)
 		mdiobus_unregister(mac->mdio_bus);
+
+	if (hdev->hclge_fd_rule_num)
+		hclge_del_all_entries(hdev);
 
 	/* Disable MISC vector(vector0) */
 	hclge_enable_vector(&hdev->misc_vector, false);
