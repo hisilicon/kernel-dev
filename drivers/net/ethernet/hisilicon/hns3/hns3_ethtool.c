@@ -701,7 +701,7 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
-		cmd->data = h->kinfo.rss_size;
+		cmd->data = h->kinfo.num_tqps;
 		return 0;
 	case ETHTOOL_GRXFH:
 		if (h->ae_algo->ops->get_rss_tuple)
