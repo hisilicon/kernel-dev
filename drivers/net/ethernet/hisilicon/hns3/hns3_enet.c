@@ -21,6 +21,7 @@
 
 static void hns3_clear_all_ring(struct hnae3_handle *h);
 static void hns3_force_clear_all_rx_ring(struct hnae3_handle *h);
+static void hns3_remove_hw_addr(struct net_device *netdev);
 
 static const char hns3_driver_name[] = "hns3";
 const char hns3_driver_version[] = VERMAGIC_STRING;
@@ -3252,15 +3253,6 @@ static void hns3_init_mac_addr(struct net_device *netdev, bool init)
 
 }
 
-static void hns3_uninit_mac_addr(struct net_device *netdev)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
-
-	if (h->ae_algo->ops->rm_uc_addr)
-		h->ae_algo->ops->rm_uc_addr(h, netdev->dev_addr);
-}
-
 static void hns3_nic_set_priv_ops(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -3394,7 +3386,7 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 
 	priv->ring_data = NULL;
 
-	hns3_uninit_mac_addr(netdev);
+	hns3_remove_hw_addr(netdev);
 
 	free_netdev(netdev);
 }
@@ -3441,6 +3433,8 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 
 static void hns3_recover_hw_addr(struct net_device *ndev)
 {
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = priv->ae_handle;
 	struct netdev_hw_addr_list *list;
 	struct netdev_hw_addr *ha, *tmp;
 
@@ -3452,7 +3446,31 @@ static void hns3_recover_hw_addr(struct net_device *ndev)
 	/* go through and sync mc_addr entries to the device */
 	list = &ndev->mc;
 	list_for_each_entry_safe(ha, tmp, &list->list, list)
-		hns3_nic_mc_sync(ndev, ha->addr);
+		if (ha->refcount > 1)
+			hns3_nic_mc_sync(ndev, ha->addr);
+
+	/* recover promisc */
+	h->ae_algo->ops->set_promisc_mode(h,
+					  h->current_netdev_flags & HNAE3_UPE,
+					  h->current_netdev_flags & HNAE3_MPE);
+}
+
+static void hns3_remove_hw_addr(struct net_device *netdev)
+{
+	struct netdev_hw_addr_list *list;
+	struct netdev_hw_addr *ha, *tmp;
+
+	hns3_nic_uc_unsync(netdev, netdev->dev_addr);
+
+	list = &netdev->uc;
+	list_for_each_entry_safe(ha, tmp, &list->list, list)
+		hns3_nic_uc_unsync(netdev, ha->addr);
+
+	/* go through and sync mc_addr entries to the device */
+	list = &netdev->mc;
+	list_for_each_entry_safe(ha, tmp, &list->list, list)
+		if (ha->refcount > 1)
+			hns3_nic_mc_unsync(netdev, ha->addr);
 }
 
 static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
@@ -3655,7 +3673,6 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	int ret;
 
 	hns3_init_mac_addr(netdev, false);
-	hns3_nic_set_rx_mode(netdev);
 	hns3_recover_hw_addr(netdev);
 
 	/* Hardware table is only clear when pf resets */
@@ -3729,7 +3746,10 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	hns3_put_ring_config(priv);
 	priv->ring_data = NULL;
 
-	hns3_uninit_mac_addr(netdev);
+	if (handle->need_clear_tables) {
+		hns3_remove_hw_addr(netdev);
+		handle->need_clear_tables = false;
+	}
 
 	return ret;
 }

@@ -518,6 +518,7 @@ struct hnae3_handle {
 
 	unsigned long last_reset_time;
 	enum hnae3_reset_type reset_level;
+	bool need_clear_tables; /* for function reset, need to clear tables */
 
 	union {
 		struct net_device *netdev; /* first member */

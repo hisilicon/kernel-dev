@@ -2466,6 +2466,7 @@ int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id)
 static void hclge_do_reset(struct hclge_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
+	struct hnae3_handle *handle;
 	u32 val;
 
 	switch (hdev->reset_type) {
@@ -2482,6 +2483,8 @@ static void hclge_do_reset(struct hclge_dev *hdev)
 		dev_info(&pdev->dev, "Core Reset requested\n");
 		break;
 	case HNAE3_FUNC_RESET:
+		handle = &hdev->vport[0].nic;
+		handle->need_clear_tables = true;
 		dev_info(&pdev->dev, "PF Reset requested\n");
 		hclge_func_reset_cmd(hdev, 0);
 		/* schedule again to check later */
