@@ -661,7 +661,8 @@ void iommu_group_remove_device(struct device *dev)
 
 	kfree(device->name);
 	kfree(device);
-	dev->iommu_group = NULL;
+	rcu_assign_pointer(dev->iommu_group, NULL);
+	synchronize_rcu();
 	kobject_put(group->devices_kobj);
 }
 EXPORT_SYMBOL_GPL(iommu_group_remove_device);
@@ -1364,16 +1365,14 @@ EXPORT_SYMBOL_GPL(iommu_detach_device);
 
 struct iommu_domain *iommu_get_domain_for_dev(struct device *dev)
 {
-	struct iommu_domain *domain;
 	struct iommu_group *group;
+	struct iommu_domain *domain = NULL;
 
-	group = iommu_group_get(dev);
-	if (!group)
-		return NULL;
-
-	domain = group->domain;
-
-	iommu_group_put(group);
+	rcu_read_lock();
+	group = rcu_dereference(dev->iommu_group);
+	if (group)
+		domain = group->domain;
+	rcu_read_unlock();
 
 	return domain;
 }
