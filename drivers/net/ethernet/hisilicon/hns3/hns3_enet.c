@@ -2336,6 +2336,7 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 			     struct sk_buff **out_skb)
 {
 	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	enum hns3_pkt_l2t_type l2_frame_type;
 	struct sk_buff *skb = ring->skb;
 	struct hns3_desc_cb *desc_cb;
 	struct hns3_desc *desc;
@@ -2430,6 +2431,11 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 		dev_kfree_skb_any(skb);
 		return -EFAULT;
 	}
+
+	l2_frame_type = hnae3_get_field(l234info, HNS3_RXD_DMAC_M,
+					HNS3_RXD_DMAC_S);
+	if (l2_frame_type == HNS3_L2_TYPE_MULTICAST)
+		ring->stats.rx_multicast++;
 
 	u64_stats_update_begin(&ring->syncp);
 	ring->stats.rx_pkts++;
