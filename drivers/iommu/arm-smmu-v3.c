@@ -631,6 +631,24 @@ static struct arm_smmu_option_prop arm_smmu_options[] = {
 	{ 0, NULL},
 };
 
+static u32 iommu_strict_mode __read_mostly = IOMMU_STRICT;
+
+static int __init setup_iommu_strict_mode(char *str)
+{
+	u32 strict_mode = IOMMU_STRICT;
+
+	get_option(&str, &strict_mode);
+	if (strict_mode == IOMMU_NON_STRICT) {
+		iommu_strict_mode = strict_mode;
+		pr_warn("WARNING: iommu non-strict mode is chose.\n"
+			"It's good for scatter-gather performance but lacks full isolation\n");
+		add_taint(TAINT_WARN, LOCKDEP_STILL_OK);
+	}
+
+	return 0;
+}
+early_param("iommu_strict_mode", setup_iommu_strict_mode);
+
 static inline void __iomem *arm_smmu_page1_fixup(unsigned long offset,
 						 struct arm_smmu_device *smmu)
 {
@@ -1441,7 +1459,7 @@ static bool arm_smmu_capable(enum iommu_cap cap)
 	case IOMMU_CAP_NOEXEC:
 		return true;
 	case IOMMU_CAP_NON_STRICT:
-		return true;
+		return (iommu_strict_mode == IOMMU_NON_STRICT) ? true : false;
 	default:
 		return false;
 	}
@@ -1750,6 +1768,14 @@ out_unlock:
 	return ret;
 }
 
+static u32 arm_smmu_strict_mode(struct iommu_domain *domain)
+{
+	if (iommu_strict_mode == IOMMU_NON_STRICT)
+		return IOMMU_DOMAIN_STRICT_MODE(domain);
+
+	return IOMMU_STRICT;
+}
+
 static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 			phys_addr_t paddr, size_t size, int prot)
 {
@@ -1769,7 +1795,7 @@ arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
 	if (!ops)
 		return 0;
 
-	return ops->unmap(ops, iova | IOMMU_DOMAIN_STRICT_MODE(domain), size);
+	return ops->unmap(ops, iova | arm_smmu_strict_mode(domain), size);
 }
 
 static void arm_smmu_flush_iotlb_all(struct iommu_domain *domain)
@@ -1784,7 +1810,7 @@ static void arm_smmu_iotlb_sync(struct iommu_domain *domain)
 {
 	struct arm_smmu_device *smmu = to_smmu_domain(domain)->smmu;
 
-	if (smmu && (IOMMU_DOMAIN_STRICT_MODE(domain) == IOMMU_STRICT))
+	if (smmu && (arm_smmu_strict_mode(domain) == IOMMU_STRICT))
 		__arm_smmu_tlb_sync(smmu);
 }
 
