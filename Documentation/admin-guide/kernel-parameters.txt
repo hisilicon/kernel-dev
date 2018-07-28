@@ -1720,6 +1720,18 @@
 		nobypass	[PPC/POWERNV]
 			Disable IOMMU bypass, using IOMMU for PCI devices.
 
+	iommu_strict_mode=	[arm-smmu-v3]
+		0 - strict mode
+		    Make sure all related TLBs to be invalidated before the
+		    memory released.
+		1 - non-strict mode
+		    Put off TLBs invalidation and release memory first. This mode
+		    introduces a vlunerability window, an untrusted device can
+		    access the reused memory because the TLBs may still valid.
+		    Please take full consideration before choosing this mode.
+		    Note that, VFIO is always use strict mode.
+		others - strict mode
+
 	iommu.passthrough=
 			[ARM64] Configure DMA to bypass the IOMMU by default.
 			Format: { "0" | "1" }
