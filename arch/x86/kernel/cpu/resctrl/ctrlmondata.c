@@ -263,22 +263,21 @@ static void apply_config(struct rdt_hw_domain *hw_dom,
 	}
 }
 
-int update_domains(struct rdt_resource *r, int closid)
+int resctrl_arch_update_domains(struct rdt_resource *r)
 {
 	struct resctrl_staged_config *cfg;
 	struct rdt_hw_domain *hw_dom;
+	bool msr_param_init = false;
 	struct msr_param msr_param;
 	cpumask_var_t cpu_mask;
 	struct rdt_domain *d;
 	bool mba_sc;
+	u32 closid;
 	int cpu, i;
 
 	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL))
 		return -ENOMEM;
 
-	/* TODO: learn these two by looping the config */
-	msr_param.low = closid;
-	msr_param.high = msr_param.low + 1;
 	msr_param.res = r;
 
 	mba_sc = is_mba_sc(r);
@@ -290,8 +289,20 @@ int update_domains(struct rdt_resource *r, int closid)
 				continue;
 
 			apply_config(hw_dom, cfg, cpu_mask, mba_sc);
+
+			closid = cfg->closid;
+			if (!msr_param_init) {
+				msr_param.low = closid;
+				msr_param.high = closid;
+				msr_param_init = true;
+			} else {
+				msr_param.low = min(msr_param.low, closid);
+				msr_param.high = max(msr_param.high, closid);
+			}
 		}
 	}
+
+	msr_param.high += 1;
 
 	/*
 	 * Avoid writing the control msr with control values when
@@ -382,7 +393,7 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 	}
 
 	for_each_alloc_enabled_rdt_resource(r) {
-		ret = update_domains(r, rdtgrp->closid);
+		ret = resctrl_arch_update_domains(r);
 		if (ret)
 			goto out;
 	}
