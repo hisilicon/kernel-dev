@@ -148,4 +148,6 @@ struct rdt_resource {
 
 };
 
+int resctrl_arch_update_domains(struct rdt_resource *r);
+
 #endif /* __LINUX_RESCTRL_H */
