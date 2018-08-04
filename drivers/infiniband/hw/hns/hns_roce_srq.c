@@ -36,6 +36,29 @@
 #include "hns_roce_cmd.h"
 #include "hns_roce_hem.h"
 
+void hns_roce_srq_event(struct hns_roce_dev *hr_dev, u32 srqn, int event_type)
+{
+	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
+	struct hns_roce_srq *srq;
+
+	rcu_read_lock();
+	srq = radix_tree_lookup(&srq_table->tree,
+				srqn & (hr_dev->caps.num_srqs - 1));
+	rcu_read_unlock();
+	if (srq) {
+		refcount_inc(&srq->refcount);
+	} else {
+		dev_warn(hr_dev->dev, "Async event for bogus SRQ %08x\n", srqn);
+		return;
+	}
+
+	srq->event(srq, event_type);
+
+	if (refcount_dec_and_test(&srq->refcount))
+		complete(&srq->free);
+}
+EXPORT_SYMBOL_GPL(hns_roce_srq_event);
+
 static void hns_roce_ib_srq_event(struct hns_roce_srq *srq,
 				  enum hns_roce_event event_type)
 {
