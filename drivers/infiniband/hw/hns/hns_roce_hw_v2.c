@@ -4003,8 +4003,8 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 
 	roce_set_bit(context->byte_108_rx_reqepsn, V2_QPC_BYTE_108_INV_CREDIT_S,
 		    (ibqp->srq ||
-		    to_hr_qp_type(hr_qp->ibqp.qp_type != SERV_TYPE_XRC) ?
-		    1 : 0));
+		    to_hr_qp_type(hr_qp->ibqp.qp_type) != SERV_TYPE_XRC) ?
+		    1 : 0);
 	roce_set_bit(qpc_mask->byte_108_rx_reqepsn,
 		     V2_QPC_BYTE_108_INV_CREDIT_S, 0);
 
