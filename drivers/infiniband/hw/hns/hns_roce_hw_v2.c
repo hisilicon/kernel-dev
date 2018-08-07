@@ -4622,7 +4622,6 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 		switch (event_type) {
 		case HNS_ROCE_EVENT_TYPE_PATH_MIG:
 		case HNS_ROCE_EVENT_TYPE_PATH_MIG_FAILED:
-			break;
 		case HNS_ROCE_EVENT_TYPE_COMM_EST:
 		case HNS_ROCE_EVENT_TYPE_SQ_DRAINED:
 		case HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR:
