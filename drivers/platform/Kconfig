@@ -12,4 +12,6 @@ source "drivers/platform/chrome/Kconfig"
 
 source "drivers/platform/mellanox/Kconfig"
 
+source "drivers/platform/mpam/Kconfig"
+
 source "drivers/platform/olpc/Kconfig"
