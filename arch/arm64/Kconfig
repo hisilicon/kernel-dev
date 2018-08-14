@@ -1366,6 +1366,7 @@ menu "ARMv8.4 architectural features"
 config ARM64_MPAM
 	bool "Enable support for MPAM"
 	select ARCH_HAS_CPU_RESCTRL
+	select ARM_CPU_RESCTRL
 
 endmenu
 
