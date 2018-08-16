@@ -65,6 +65,12 @@ static inline void __iomem *acpi_os_ioremap(acpi_physical_address phys,
 typedef u64 phys_cpuid_t;
 #define PHYS_CPUID_INVALID INVALID_HWID
 
+/* Shift the relevant bits out of u64 phys_cpuid_t into a u32 */
+#define ARCH_PHYSID_TO_U32(x) (u32)(MPIDR_AFFINITY_LEVEL(x, 0)		|\
+			MPIDR_AFFINITY_LEVEL(x, 1) << MPIDR_LEVEL_BITS  |\
+			MPIDR_AFFINITY_LEVEL(x, 2) << 2*MPIDR_LEVEL_BITS|\
+			MPIDR_AFFINITY_LEVEL(x, 3) << 3*MPIDR_LEVEL_BITS)
+
 #define acpi_strict 1	/* No out-of-spec workarounds on ARM64 */
 extern int acpi_disabled;
 extern int acpi_noirq;
