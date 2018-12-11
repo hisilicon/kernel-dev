@@ -22,6 +22,7 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
+#include <asm/mpam.h>
 
 /*
  * Non-VHE: Both host and guest must save everything.
@@ -243,6 +244,26 @@ void __hyp_text __sysreg32_restore_state(struct kvm_vcpu *vcpu)
 		write_sysreg(sysreg[DBGVCR32_EL2], dbgvcr32_el2);
 }
 
+/*
+ * The register for EL0 was written by context switch, copy this into the EL1
+ * register.
+ */
+void __hyp_text __mpam_guest_load(void)
+{
+	u64 r;
+
+	if (mpam_cpus_have_feature()) {
+		r = _mpam_get_current_regval();
+		write_sysreg_el1(r, SYS_MPAM1);
+	}
+}
+
+void __hyp_text __mpam_guest_put(void)
+{
+	if (mpam_cpus_have_feature())
+		write_sysreg_el1(0, SYS_MPAM1);
+}
+
 /**
  * kvm_vcpu_load_sysregs - Load guest system registers to the physical CPU
  *
@@ -273,6 +294,7 @@ void kvm_vcpu_load_sysregs(struct kvm_vcpu *vcpu)
 	__sysreg32_restore_state(vcpu);
 	__sysreg_restore_user_state(guest_ctxt);
 	__sysreg_restore_el1_state(guest_ctxt);
+	__mpam_guest_load();
 
 	vcpu->arch.sysregs_loaded_on_cpu = true;
 

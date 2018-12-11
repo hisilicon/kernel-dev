@@ -635,6 +635,7 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 	__sysreg32_restore_state(vcpu);
 	__sysreg_restore_state_nvhe(guest_ctxt);
 	__debug_switch_to_guest(vcpu);
+	__mpam_guest_load();
 
 	__set_guest_arch_workaround_state(vcpu);
 
@@ -649,6 +650,7 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 
 	__sysreg_save_state_nvhe(guest_ctxt);
 	__sysreg32_save_state(vcpu);
+	__mpam_guest_put();
 	__timer_disable_traps(vcpu);
 	__hyp_vgic_save_state(vcpu);
 
