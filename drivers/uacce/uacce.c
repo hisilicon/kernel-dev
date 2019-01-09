@@ -398,7 +398,7 @@ static int uacce_start_queue(struct uacce_queue *q)
 	if (ret)
 		goto err_with_vmap;
 
-	dev_dbg(&q->uacce->dev, "queue started\n");
+	dev_dbg(&q->uacce->dev, "uacce state switch to STARTED\n");
 	atomic_set(&q->uacce->state, UACCE_ST_STARTED);
 	return 0;
 
@@ -493,6 +493,8 @@ static int uacce_dev_open_check(struct uacce *uacce)
 		return -EBUSY;
 	}
 
+	dev_dbg(&uacce->dev, "state switch to OPENNED");
+
 	return 0;
 }
 
@@ -585,6 +587,7 @@ static int uacce_fops_release(struct inode *inode, struct file *filep)
 	if (uacce->ops->put_queue)
 		uacce->ops->put_queue(q);
 
+	dev_dbg(&uacce->dev, "uacce state switch to INIT");
 	atomic_set(&uacce->state, UACCE_ST_INIT);
 	return 0;
 }
@@ -1042,6 +1045,7 @@ int uacce_register(struct uacce *uacce)
 			~(UACCE_DEV_FAULT_FROM_DEV | UACCE_DEV_PASID);
 #endif
 
+	dev_dbg(&uacce->dev, "uacce state set to INIT");
 	atomic_set(&uacce->state, UACCE_ST_INIT);
 	mutex_unlock(&uacce_mutex);
 	return 0;
