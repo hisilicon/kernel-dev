@@ -487,7 +487,8 @@ static int uacce_dev_open_check(struct uacce *uacce)
 	if (uacce->ops->flags & (UACCE_DEV_PASID | UACCE_DEV_NOIOMMU))
 		return 0;
 
-	if (atomic_cmpxchg(&uacce->state, UACCE_ST_INIT, UACCE_ST_OPENNED)) {
+	if (atomic_cmpxchg(&uacce->state, UACCE_ST_INIT, UACCE_ST_OPENNED) 
+	    != UACCE_ST_INIT) {
 		dev_info(&uacce->dev, "this device can be openned only once\n");
 		return -EBUSY;
 	}
@@ -530,7 +531,6 @@ static int uacce_fops_open(struct inode *inode, struct file *filep)
 	filep->private_data = q;
 
 	__module_get(uacce->ops->owner);
-	atomic_set(&uacce->state, UACCE_ST_INIT);
 	return 0;
 }
 
