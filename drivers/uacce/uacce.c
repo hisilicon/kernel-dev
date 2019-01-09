@@ -530,7 +530,6 @@ static int uacce_fops_open(struct inode *inode, struct file *filep)
 	init_waitqueue_head(&q->wait);
 	filep->private_data = q;
 
-	__module_get(uacce->ops->owner);
 	return 0;
 }
 
@@ -586,9 +585,7 @@ static int uacce_fops_release(struct inode *inode, struct file *filep)
 	if (uacce->ops->put_queue)
 		uacce->ops->put_queue(q);
 
-	module_put(uacce->ops->owner);
 	atomic_set(&uacce->state, UACCE_ST_INIT);
-
 	return 0;
 }
 
