@@ -346,7 +346,7 @@ static long uacce_cmd_share_qfr(struct uacce_queue *tgt, int fd)
 		return -EINVAL;
 
 	/* no ssva is needed if the dev can do fault-from-dev */
-	if (tgt->uacce->ops->flags | UACCE_DEV_FAULT_FROM_DEV)
+	if (tgt->uacce->ops->flags & UACCE_DEV_FAULT_FROM_DEV)
 		return -EINVAL;
 
 	uacce_qs_wlock();
