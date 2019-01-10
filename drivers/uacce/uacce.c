@@ -987,6 +987,9 @@ void uacce_unset_iommu_domain(struct uacce *uacce)
 {
 	struct iommu_domain *domain;
 
+	if (uacce->ops->flags & UACCE_DEV_NOIOMMU)
+		return;
+
 	domain = iommu_get_domain_for_dev(uacce->pdev);
 	if (domain) {
 		iommu_detach_device(domain, uacce->pdev);
