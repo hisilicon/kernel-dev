@@ -2,6 +2,7 @@
 
 obj-$(CONFIG_HAS_DMA)			+= mapping.o
 obj-$(CONFIG_DMA_CMA)			+= contiguous.o
+obj-$(CONFIG_DMA_RESERVE)		+= reserve.o
 obj-$(CONFIG_HAVE_GENERIC_DMA_COHERENT) += coherent.o
 obj-$(CONFIG_DMA_DIRECT_OPS)		+= direct.o
 obj-$(CONFIG_DMA_VIRT_OPS)		+= virt.o
