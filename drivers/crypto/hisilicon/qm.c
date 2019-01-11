@@ -129,10 +129,23 @@
 #define USE_PHY_IN_NOIOMMU_MODE 1
 
 #define QM_MK_CQC_DW3_V1(hop_num, pg_sz, buf_sz, sqe_sz) \
-	(hop_num << QM_CQ_HOP_NUM_SHIFT)	| \
-	(pg_sz << QM_CQ_PAGE_SIZE_SHIFT)	| \
-	(buf_sz << QM_CQ_BUF_SIZE_SHIFT)	| \
-	(sqe_sz << QM_CQ_SQE_SIZE_SHIFT)
+	(((hop_num) << QM_CQ_HOP_NUM_SHIFT)	| \
+	((pg_sz) << QM_CQ_PAGE_SIZE_SHIFT)	| \
+	((buf_sz) << QM_CQ_BUF_SIZE_SHIFT)	| \
+	((sqe_sz) << QM_CQ_SQE_SIZE_SHIFT))
+#define QM_MK_CQC_DW3_V2(sqe_sz) \
+	((QM_Q_DEPTH - 1) | ((sqe_sz) << QM_CQ_SQE_SIZE_SHIFT))
+#define QM_MK_SQC_W13(priority, orders, alg_type) \
+	(((priority) << QM_SQ_PRIORITY_SHIFT)	| \
+	((orders) << QM_SQ_ORDERS_SHIFT)	| \
+	(((alg_type) & QM_SQ_TYPE_MASK) << QM_SQ_TYPE_SHIFT))
+#define QM_MK_SQC_DW3_V1(hop_num, pg_sz, buf_sz, sqe_sz) \
+	(((hop_num) << QM_SQ_HOP_NUM_SHIFT)	| \
+	((pg_sz) << QM_SQ_PAGE_SIZE_SHIFT)	| \
+	((buf_sz) << QM_SQ_BUF_SIZE_SHIFT)	| \
+	(ilog2(sqe_sz) << QM_SQ_SQE_SIZE_SHIFT))
+#define QM_MK_SQC_DW3_V2(sqe_sz) \
+	((QM_Q_DEPTH - 1) | (ilog2(sqe_sz) << QM_SQ_SQE_SIZE_SHIFT))
 
 struct qm_cqe {
 	__le32 rsvd0;
@@ -786,20 +799,14 @@ static int qm_start_qp(struct hisi_qp *qp, unsigned long arg)
 	INIT_QC_COMMON(sqc, qp->scqe.dma);
 	sqc->pasid = pasid;
 	if (ver == QM_HW_V1) {
-		sqc->dw3 = (0 << QM_SQ_HOP_NUM_SHIFT)      |
-			   (0 << QM_SQ_PAGE_SIZE_SHIFT)    |
-			   (0 << QM_SQ_BUF_SIZE_SHIFT)     |
-			   (ilog2(qm->sqe_size) << QM_SQ_SQE_SIZE_SHIFT);
+		sqc->dw3 = QM_MK_SQC_DW3_V1(0, 0, 0, qm->sqe_size);
 		sqc->w8 = QM_Q_DEPTH - 1;
 	} else if (ver == QM_HW_V2) {
-		sqc->dw3 = (QM_Q_DEPTH - 1) |
-			   (ilog2(qm->sqe_size) << QM_SQ_SQE_SIZE_SHIFT);
+		sqc->dw3 = QM_MK_SQC_DW3_V2(qm->sqe_size);
 		sqc->w8 = 0; /* rand_qc */
 	}
 	sqc->cq_num = qp_id;
-	sqc->w13 = 0 << QM_SQ_PRIORITY_SHIFT	|
-		   1 << QM_SQ_ORDERS_SHIFT	|
-		   (qp->alg_type & QM_SQ_TYPE_MASK) << QM_SQ_TYPE_SHIFT;
+	sqc->w13 = QM_MK_SQC_W13(0, 1, qp->alg_type);
 
 	ret = qm_mb(qm, QM_MB_CMD_SQC, qp->sqc.dma, qp_id, 0, 0);
 	if (ret)
@@ -809,15 +816,11 @@ static int qm_start_qp(struct hisi_qp *qp, unsigned long arg)
 
 	INIT_QC_COMMON(cqc, qp->scqe.dma + qm->sqe_size * QM_Q_DEPTH);
 	if (ver == QM_HW_V1) {
-		cqc->dw3 = (0 << QM_CQ_HOP_NUM_SHIFT)	|
-			   (0 << QM_CQ_PAGE_SIZE_SHIFT)	|
-			   (0 << QM_CQ_BUF_SIZE_SHIFT)	|
-			   (4 << QM_CQ_SQE_SIZE_SHIFT);
+		cqc->dw3 = QM_MK_CQC_DW3_V1(0, 0, 0, 4);
 		cqc->w8 = QM_Q_DEPTH - 1;
 	} else if (ver == QM_HW_V2) {
 		cqc->pasid = pasid;
-		cqc->dw3 = (QM_Q_DEPTH - 1) |
-			   (4 << QM_CQ_SQE_SIZE_SHIFT);
+		cqc->dw3 = QM_MK_CQC_DW3_V2(4);
 		cqc->w8 = 0; /* rand_qc */
 	}
 	cqc->dw6 = 1 << QM_CQ_PHASE_SHIFT | 1 << QM_CQ_FLAG_SHIFT;
@@ -1683,9 +1686,7 @@ static int qm_set_sqctype(struct uacce_queue *q, u16 type)
 	sqc = qp->sqc.addr;
 	qp->alg_type = type;
 
-	sqc->w13 = 0 << QM_SQ_PRIORITY_SHIFT	|
-		   1 << QM_SQ_ORDERS_SHIFT	|
-		   (qp->alg_type & QM_SQ_TYPE_MASK) << QM_SQ_TYPE_SHIFT;
+	sqc->w13 = QM_MK_SQC_W13(0, 1, qp->alg_type);
 	ret = qm_mb(qm, QM_MB_CMD_SQC, qp->sqc.dma, qp->qp_id, 0, 0);
 
 out_with_lock:
