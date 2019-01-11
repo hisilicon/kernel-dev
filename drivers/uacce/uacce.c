@@ -398,7 +398,7 @@ static int uacce_start_queue(struct uacce_queue *q)
 	}
 
 	ret = q->uacce->ops->start_queue(q);
-	if (ret)
+	if (ret < 0)
 		goto err_with_vmap;
 
 	dev_dbg(&q->uacce->dev, "uacce state switch to STARTED\n");
