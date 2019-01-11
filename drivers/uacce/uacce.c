@@ -349,6 +349,9 @@ static long uacce_cmd_share_qfr(struct uacce_queue *tgt, int fd)
 	if (tgt->uacce->ops->flags & UACCE_DEV_FAULT_FROM_DEV)
 		return -EINVAL;
 
+	dev_dbg(&src->uacce->dev, "share ss with %s\n",
+		dev_name(&tgt->uacce->dev));
+
 	uacce_qs_wlock();
 	if (!src->qfrs[UACCE_QFRT_SS] || tgt->qfrs[UACCE_QFRT_SS]) {
 		ret = -EINVAL;
@@ -416,8 +419,8 @@ err_with_vmap:
 static long uacce_get_ss_pa(struct uacce_queue *q, void __user *arg)
 {
 	struct uacce *uacce = q->uacce;
-	long ret;
-	unsigned long pa;
+	long ret = 0;
+	unsigned long pa = 0;
 
 	if (!(uacce->ops->flags & UACCE_DEV_CONT_PAGE))
 		return -EINVAL;
@@ -429,13 +432,12 @@ static long uacce_get_ss_pa(struct uacce_queue *q, void __user *arg)
 
 		dev_dbg(&uacce->dev, "uacce_get_ss_pa(pfn=%lx, pa=%lx\n",
 			page_to_pfn(q->qfrs[UACCE_QFRT_SS]->cont_pages), pa);
-		if (copy_to_user(arg, &pa, sizeof(pa)))
-			ret = -EFAULT;
-		else
-			ret = 0;
 	} else
 		ret = -EINVAL;
 	uacce_qs_wunlock();
+
+	if (copy_to_user(arg, &pa, sizeof(pa)))
+		ret = -EFAULT;
 
 	return ret;
 }
