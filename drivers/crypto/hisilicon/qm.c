@@ -1631,8 +1631,10 @@ static int hisi_qm_uacce_start_queue(struct uacce_queue *q)
 	}
 
 	ret = hisi_qm_start_qp(qp, qp->pasid);
-	if (ret && qm->uacce_mode == UACCE_MODE_UACCE)
+	if (ret && qm->uacce_mode == UACCE_MODE_UACCE) {
 		hisi_qm_stop(qm);
+		ret = -EINVAL;
+	}
 
 	return ret;
 }
