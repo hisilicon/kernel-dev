@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 #include <linux/compat.h>
+#include <linux/dma-mapping.h>
+#include <linux/dma-reserve.h>
 #include <linux/file.h>
 #include <linux/idr.h>
 #include <linux/list.h>
@@ -1037,6 +1039,13 @@ int uacce_register(struct uacce *uacce)
 	if (ret)
 		goto err_with_lock;
 
+	uacce->mem_id = -1;
+	if (uacce->ops->flags & UACCE_DEV_CONT_PAGE) {
+		ret = dma_set_coherent_mask(uacce->pdev, DMA_BIT_MASK(64));
+		if (!ret)
+			uacce->mem_id = dma_memory_declear(uacce->pdev);
+	}
+
 #ifdef CONFIG_IOMMU_SVA
 	ret = iommu_sva_init_device(uacce->pdev, IOMMU_SVA_FEAT_IOPF, 0, 0,
 				    NULL);
@@ -1075,7 +1084,8 @@ void uacce_unregister(struct uacce *uacce)
 #ifdef CONFIG_IOMMU_SVA
 	iommu_sva_shutdown_device(uacce->pdev);
 #endif
-
+	if (uacce->mem_id != -1)
+		dma_memory_release(uacce->pdev, uacce->mem_id);
 	uacce_destroy_chrdev(uacce);
 	uacce_unset_iommu_domain(uacce);
 

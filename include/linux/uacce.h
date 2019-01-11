@@ -109,6 +109,7 @@ struct uacce {
 	struct device *pdev;
 	bool is_vf;
 	u32 dev_id;
+	int mem_id;
 	struct cdev cdev;
 	struct device dev;
 	void *priv;
