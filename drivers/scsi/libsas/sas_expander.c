@@ -2057,21 +2057,17 @@ static bool sas_process_flutter(struct domain_device *dev, struct ex_phy *phy,
 	return true;
 }
 
-static int sas_unregister(struct domain_device *dev, int phy_id, bool last,
-			      bool *retry, int sibling)
+static int sas_ex_unregister(struct domain_device *dev, int phy_id, bool last,
+			      bool *retry)
 {
 	struct expander_device *ex = &dev->ex_dev;
 	struct ex_phy *phy = &ex->ex_phy[phy_id];
 	enum sas_device_type type = SAS_PHY_UNUSED;
 	u8 sas_addr[SAS_ADDR_SIZE];
-	char msg[80] = "";
 	int res;
 
-	if (!last)
-		sprintf(msg, ", part of a wide port with phy%02d", sibling);
-
-	pr_debug("ex %016llx unregistering phy%02d%s\n",
-		 SAS_ADDR(dev->sas_addr), phy_id, msg);
+	pr_debug("ex %016llx unregistering phy%02d\n",
+		 SAS_ADDR(dev->sas_addr), phy_id);
 
 	memset(sas_addr, 0, SAS_ADDR_SIZE);
 	res = sas_get_phy_attached_dev(dev, phy_id, sas_addr, &type);
@@ -2121,21 +2117,8 @@ static int sas_unregister(struct domain_device *dev, int phy_id, bool last,
 	return 0;
 }
 
-/**
- * sas_rediscover - revalidate the domain.
- * @dev:domain device to be detect.
- * @phy_id: the phy id will be detected.
- *
- * NOTE: this process _must_ quit (return) as soon as any connection
- * errors are encountered.  Connection recovery is done elsewhere.
- * Discover process only interrogates devices in order to discover the
- * domain.For plugging out, we un-register the device only when it is
- * the last phy in the port, for other phys in this port, we just delete it
- * from the port.For inserting, we do discovery when it is the
- * first phy,for other phys in this port, we add it to the port to
- * forming the wide-port.
- */
-static void sas_rediscover(struct domain_device *dev, const int phy_id,
+
+static void sas_ex_unregister_device(struct domain_device *dev, const int phy_id,
 			   bool *retry)
 {
 	struct expander_device *ex = &dev->ex_dev;
@@ -2144,27 +2127,68 @@ static void sas_rediscover(struct domain_device *dev, const int phy_id,
 	int i;
 	bool last = true;	/* is this the last phy of the port */
 
-	pr_debug("ex %016llx phy%02d originated BROADCAST(CHANGE)\n",
-		 SAS_ADDR(dev->sas_addr), phy_id);
+	for (i = 0; i < ex->num_phys; i++) {
+		struct ex_phy *phy = &ex->ex_phy[i];
 
-	if (SAS_ADDR(changed_phy->attached_sas_addr) != 0) {
-		for (i = 0; i < ex->num_phys; i++) {
-			struct ex_phy *phy = &ex->ex_phy[i];
-
-			if (i == phy_id)
-				continue;
-			if (SAS_ADDR(phy->attached_sas_addr) ==
-			    SAS_ADDR(changed_phy->attached_sas_addr)) {
-				last = false;
-				break;
-			}
+		if (i == phy_id)
+			continue;
+		if (SAS_ADDR(phy->attached_sas_addr) ==
+		    SAS_ADDR(changed_phy->attached_sas_addr)) {
+			pr_debug("phy%02d part of wide port with phy%02d\n",
+				 phy_id, i);
+			last = false;
+			break;
 		}
-		res = sas_unregister(dev, phy_id, last, retry, i);
-	} else
-		res = sas_discover_new(dev, phy_id);
+	}
+	res = sas_ex_unregister(dev, phy_id, last, retry);
 
 	pr_debug("ex %016llx phy%d discover returned 0x%x\n",
 		 SAS_ADDR(dev->sas_addr), phy_id, res);
+}
+
+static int sas_ex_try_unregister(struct domain_device *dev, u8 *changed_phy,
+				 int nr, bool *retry)
+{
+	struct expander_device *ex = &dev->ex_dev;
+	int unregistered = 0;
+	struct ex_phy *phy;
+	int i;
+
+	for (i = 0; i < nr; i++) {
+		pr_debug("ex %016llx phy%d originated BROADCAST(CHANGE)\n",
+			 SAS_ADDR(dev->sas_addr), changed_phy[i]);
+
+		phy = &ex->ex_phy[changed_phy[i]];
+
+		if (SAS_ADDR(phy->attached_sas_addr) == 0)
+			continue;
+
+		sas_ex_unregister_device(dev, changed_phy[i], retry);
+		changed_phy[i] = 0xff;
+		unregistered++;
+	}
+	return unregistered;
+}
+
+static void sas_ex_register(struct domain_device *dev, u8 *changed_phy,
+			    int nr)
+{
+	struct expander_device *ex = &dev->ex_dev;
+	struct ex_phy *phy;
+	int res = 0;
+	int i;
+
+	for (i = 0; i < nr; i++) {
+		if (changed_phy[i] == 0xff)
+			continue;
+
+		phy = &ex->ex_phy[changed_phy[i]];
+
+		res = sas_discover_new(dev, changed_phy[i]);
+
+		pr_debug("ex %016llx phy%d register returned 0x%x\n",
+			 SAS_ADDR(dev->sas_addr), changed_phy[i], res);
+	}
 }
 
 /**
@@ -2181,21 +2205,49 @@ void sas_ex_revalidate_domain(struct domain_device *port_dev, bool *retry)
 {
 	int res;
 	struct domain_device *dev = NULL;
+	u8 changed_phy[MAX_EXPANDER_PHYS];
+	struct expander_device *ex;
+	int unregistered = 0;
+	int phy_id;
+	int nr = 0;
+	int i = 0;
 
 	res = sas_find_bcast_dev(port_dev, &dev);
-	if (res == 0 && dev) {
-		struct expander_device *ex = &dev->ex_dev;
-		int i = 0, phy_id;
+	if (res || !dev)
+		return;
 
-		do {
-			phy_id = -1;
-			res = sas_find_bcast_phy(dev, &phy_id, i, true);
-			if (phy_id == -1)
-				break;
-			sas_rediscover(dev, phy_id, retry);
-			i = phy_id + 1;
-		} while (i < ex->num_phys);
+	memset(changed_phy, 0xff, MAX_EXPANDER_PHYS);
+	ex = &dev->ex_dev;
+
+	do {
+		phy_id = -1;
+		res = sas_find_bcast_phy(dev, &phy_id, i, true);
+		if (phy_id == -1)
+			break;
+		changed_phy[nr++] = phy_id;
+		i = phy_id + 1;
+	} while (i < dev->ex_dev.num_phys);
+
+	if (nr == 0)
+		return;
+
+	unregistered = sas_ex_try_unregister(dev, changed_phy, nr, retry);
+
+	if (unregistered > 0) {
+		struct ex_phy *phy;
+
+		for (i = 0; i < nr; i++) {
+			if (changed_phy[i] == 0xff)
+				continue;
+			phy = &ex->ex_phy[changed_phy[i]];
+			phy->phy_change_count = -1;
+		}
+		ex->ex_change_count = -1;
+		*retry = true;
+		return;
 	}
+
+	sas_ex_register(dev, changed_phy, nr);
 }
 
 void sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
