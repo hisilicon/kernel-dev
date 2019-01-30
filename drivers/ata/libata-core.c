@@ -3668,7 +3668,7 @@ EXPORT_SYMBOL_GPL(ata_std_postreset);
  *	RETURNS:
  *	1 if @dev matches @new_class and @new_id, 0 otherwise.
  */
-static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
+int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 			       const u16 *new_id)
 {
 	const u16 *old_id = dev->id;
@@ -3700,6 +3700,7 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(ata_dev_same_device);
 
 /**
  *	ata_dev_reread_id - Re-read IDENTIFY data

@@ -1975,6 +1975,61 @@ static bool dev_type_flutter(enum sas_device_type new, enum sas_device_type old)
 	return false;
 }
 
+/*
+ * we think the device is fluttering so just read the phy state and update
+ * some information of the device, but if some important things changed
+ * such as the sas address, or the linkrate, or the ata devices id and class,
+ * we have to unregister the device and re-probe it.
+ */
+static bool sas_process_flutter(struct domain_device *dev, struct ex_phy *phy,
+				int phy_id, u8 *sas_addr)
+{
+	struct domain_device *ata_dev = sas_ex_to_ata(dev, phy_id);
+	enum sas_linkrate linkrate = phy->linkrate;
+	char *action = "";
+
+	sas_ex_phy_discover(dev, phy_id);
+
+	if (ata_dev && phy->attached_dev_type == SAS_SATA_PENDING)
+		action = ", needs recovery";
+	pr_debug("ex %016llx phy%d broadcast flutter%s\n",
+		 SAS_ADDR(dev->sas_addr), phy_id, action);
+
+	if (linkrate != phy->linkrate) {
+		pr_debug("ex %016llx phy%d linkrate changed from %d to %d\n",
+			 SAS_ADDR(dev->sas_addr), phy_id,
+			 linkrate, phy->linkrate);
+		return false;
+	}
+
+	/* the phy attached address will be updated by sas_ex_phy_discover()
+	 * and sometimes become abnormal
+	 */
+	if (SAS_ADDR(phy->attached_sas_addr) != SAS_ADDR(sas_addr) ||
+	    SAS_ADDR(phy->attached_sas_addr) == 0) {
+		/* if attached_sas_addr become abnormal, we must set the
+		 * original address back so that the device can be unregistered
+		 */
+		memcpy(phy->attached_sas_addr, sas_addr, SAS_ADDR_SIZE);
+		pr_debug("phy address(%016llx) abnormal, origin:%016llx\n",
+			 SAS_ADDR(phy->attached_sas_addr),
+			 SAS_ADDR(sas_addr));
+		return false;
+	}
+
+	if (ata_dev) {
+		struct ata_device *adev = sas_to_ata_dev(ata_dev);
+		unsigned int class = ata_dev->sata_dev.class;
+		u16 *id = ata_dev->sata_dev.id;
+
+		/* to see if the disk is replaced with another one */
+		if (!ata_dev_same_device(adev, class, id))
+			return false;
+	}
+
+	return true;
+}
+
 static int sas_unregister(struct domain_device *dev, int phy_id, bool last,
 			      bool *retry, int sibling)
 {
@@ -2021,16 +2076,8 @@ static int sas_unregister(struct domain_device *dev, int phy_id, bool last,
 		return res;
 	} else if (SAS_ADDR(sas_addr) == SAS_ADDR(phy->attached_sas_addr) &&
 		   dev_type_flutter(type, phy->attached_dev_type)) {
-		struct domain_device *ata_dev = sas_ex_to_ata(dev, phy_id);
-		char *action = "";
-
-		sas_ex_phy_discover(dev, phy_id);
-
-		if (ata_dev && phy->attached_dev_type == SAS_SATA_PENDING)
-			action = ", needs recovery";
-		pr_debug("ex %016llx phy%02d broadcast flutter%s\n",
-			 SAS_ADDR(dev->sas_addr), phy_id, action);
-		return res;
+		if (sas_process_flutter(dev, phy, phy_id, sas_addr))
+			return res;
 	}
 
 	/* we always have to delete the old device when we went here */
