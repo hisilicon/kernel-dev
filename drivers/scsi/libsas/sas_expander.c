@@ -2056,7 +2056,7 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
  * first phy,for other phys in this port, we add it to the port to
  * forming the wide-port.
  */
-static int sas_rediscover(struct domain_device *dev, const int phy_id)
+static void sas_rediscover(struct domain_device *dev, const int phy_id)
 {
 	struct expander_device *ex = &dev->ex_dev;
 	struct ex_phy *changed_phy = &ex->ex_phy[phy_id];
@@ -2082,7 +2082,9 @@ static int sas_rediscover(struct domain_device *dev, const int phy_id)
 		res = sas_rediscover_dev(dev, phy_id, last, i);
 	} else
 		res = sas_discover_new(dev, phy_id);
-	return res;
+
+	pr_debug("ex %016llx phy%d discover returned 0x%x\n",
+		 SAS_ADDR(dev->sas_addr), phy_id, res);
 }
 
 /**
@@ -2094,7 +2096,7 @@ static int sas_rediscover(struct domain_device *dev, const int phy_id)
  * Discover process only interrogates devices in order to discover the
  * domain.
  */
-int sas_ex_revalidate_domain(struct domain_device *port_dev)
+void sas_ex_revalidate_domain(struct domain_device *port_dev)
 {
 	int res;
 	struct domain_device *dev = NULL;
@@ -2109,11 +2111,10 @@ int sas_ex_revalidate_domain(struct domain_device *port_dev)
 			res = sas_find_bcast_phy(dev, &phy_id, i, true);
 			if (phy_id == -1)
 				break;
-			res = sas_rediscover(dev, phy_id);
+			sas_rediscover(dev, phy_id);
 			i = phy_id + 1;
 		} while (i < ex->num_phys);
 	}
-	return res;
 }
 
 void sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
