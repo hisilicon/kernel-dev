@@ -488,7 +488,6 @@ static void sas_discover_domain(struct work_struct *work)
 
 static void sas_revalidate_domain(struct work_struct *work)
 {
-	int res = 0;
 	struct sas_discovery_event *ev = to_sas_discovery_event(work);
 	struct asd_sas_port *port = ev->port;
 	struct sas_ha_struct *ha = port->ha;
@@ -508,10 +507,10 @@ static void sas_revalidate_domain(struct work_struct *work)
 		 task_pid_nr(current));
 
 	if (ddev && dev_is_expander(ddev->dev_type))
-		res = sas_ex_revalidate_domain(ddev);
+		sas_ex_revalidate_domain(ddev);
 
-	pr_debug("done REVALIDATING DOMAIN on port %d, pid:%d, res 0x%x\n",
-		 port->id, task_pid_nr(current), res);
+	pr_debug("done REVALIDATING DOMAIN on port %d, pid:%d\n",
+		 port->id, task_pid_nr(current));
  out:
 	mutex_unlock(&ha->disco_mutex);
 
