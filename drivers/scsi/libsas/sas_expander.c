@@ -1975,8 +1975,8 @@ static bool dev_type_flutter(enum sas_device_type new, enum sas_device_type old)
 	return false;
 }
 
-static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
-			      bool last, int sibling)
+static int sas_unregister(struct domain_device *dev, int phy_id, bool last,
+			      bool *retry, int sibling)
 {
 	struct expander_device *ex = &dev->ex_dev;
 	struct ex_phy *phy = &ex->ex_phy[phy_id];
@@ -1988,7 +1988,7 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
 	if (!last)
 		sprintf(msg, ", part of a wide port with phy%02d", sibling);
 
-	pr_debug("ex %016llx rediscovering phy%02d%s\n",
+	pr_debug("ex %016llx unregistering phy%02d%s\n",
 		 SAS_ADDR(dev->sas_addr), phy_id, msg);
 
 	memset(sas_addr, 0, SAS_ADDR_SIZE);
@@ -2039,7 +2039,12 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
 		SAS_ADDR(phy->attached_sas_addr));
 	sas_unregister_devs_sas_addr(dev, phy_id, last);
 
-	return sas_discover_new(dev, phy_id);
+	/* force the next revalidation find this phy and bring it up */
+	phy->phy_change_count = -1;
+	ex->ex_change_count = -1;
+	*retry = true;
+
+	return 0;
 }
 
 /**
@@ -2056,7 +2061,8 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
  * first phy,for other phys in this port, we add it to the port to
  * forming the wide-port.
  */
-static void sas_rediscover(struct domain_device *dev, const int phy_id)
+static void sas_rediscover(struct domain_device *dev, const int phy_id,
+			   bool *retry)
 {
 	struct expander_device *ex = &dev->ex_dev;
 	struct ex_phy *changed_phy = &ex->ex_phy[phy_id];
@@ -2079,7 +2085,7 @@ static void sas_rediscover(struct domain_device *dev, const int phy_id)
 				break;
 			}
 		}
-		res = sas_rediscover_dev(dev, phy_id, last, i);
+		res = sas_unregister(dev, phy_id, last, retry, i);
 	} else
 		res = sas_discover_new(dev, phy_id);
 
@@ -2090,13 +2096,14 @@ static void sas_rediscover(struct domain_device *dev, const int phy_id)
 /**
  * sas_ex_revalidate_domain - revalidate the domain
  * @port_dev: port domain device.
+ * @retry: do we need to revalidate again
  *
  * NOTE: this process _must_ quit (return) as soon as any connection
  * errors are encountered.  Connection recovery is done elsewhere.
  * Discover process only interrogates devices in order to discover the
  * domain.
  */
-void sas_ex_revalidate_domain(struct domain_device *port_dev)
+void sas_ex_revalidate_domain(struct domain_device *port_dev, bool *retry)
 {
 	int res;
 	struct domain_device *dev = NULL;
@@ -2111,7 +2118,7 @@ void sas_ex_revalidate_domain(struct domain_device *port_dev)
 			res = sas_find_bcast_phy(dev, &phy_id, i, true);
 			if (phy_id == -1)
 				break;
-			sas_rediscover(dev, phy_id);
+			sas_rediscover(dev, phy_id, retry);
 			i = phy_id + 1;
 		} while (i < ex->num_phys);
 	}
