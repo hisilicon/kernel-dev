@@ -10,6 +10,13 @@
 #include <linux/resctrl.h>
 #include <linux/sizes.h>
 
+/* System wide properties */
+struct mpam_sysprops {
+	u16 max_partid;
+	u8 max_pmg;
+};
+extern struct mpam_sysprops mpam_sysprops;
+
 /*
  * An mpam_device corresponds to an MSC, an interface to a component's cache
  * or bandwidth controls. It is associated with a set of CPUs, and a component.
@@ -28,10 +35,13 @@ struct mpam_device
 
 	/* The affinity learn't from firmware */
 	struct cpumask          fw_affinity;
+	/* of which these cpus are online */
+	struct cpumask          online_affinity;
 
 	spinlock_t              lock;
 	phys_addr_t             hwpage_address;
 	void __iomem *          mapped_hwpage;
+	bool			probed;
 
 	u32                     error_irq;
 	u32                     error_irq_flags;
