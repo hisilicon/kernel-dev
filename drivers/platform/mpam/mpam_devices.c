@@ -293,6 +293,60 @@ static int mpam_device_probe(struct mpam_device *dev)
 
 	mpam_probe_update_sysprops(max_partid, max_pmg);
 
+	/* Cache Portion partitioning */
+	if (hwfeatures & MPAMF_IDR_HAS_CPOR_PART) {
+		u32 cpor_features = mpam_read_reg(dev, MPAMF_CPOR_IDR);
+
+		pr_debug("probe: probed CPOR_PART\n");
+
+		dev->cpbm_wd = cpor_features & MPAMF_CPOR_IDR_CPBM_WD;
+		if (dev->cpbm_wd)
+			mpam_set_feature(mpam_feat_cpor_part, &dev->features);
+	}
+
+	/* Memory bandwidth partitioning */
+	if (hwfeatures & MPAMF_IDR_HAS_MBW_PART) {
+		u32 mbw_features = mpam_read_reg(dev, MPAMF_MBW_IDR);
+
+		pr_debug("probe: probed MBW_PART\n");
+
+		/* portion bitmap resolution */
+		dev->mbw_pbm_bits = (mbw_features & MPAMF_MBW_IDR_BWPBM_WD) >>
+				     MPAMF_MBW_IDR_BWPBM_WD_SHIFT;
+		if (dev->mbw_pbm_bits && (mbw_features & MPAMF_MBW_IDR_HAS_PBM))
+			mpam_set_feature(mpam_feat_mbw_part, &dev->features);
+
+		dev->bwa_wd = (mbw_features & MPAMF_MBW_IDR_BWA_WD);
+		if (dev->bwa_wd && (mbw_features & MPAMF_MBW_IDR_HAS_MAX))
+			mpam_set_feature(mpam_feat_mbw_max, &dev->features);
+	}
+
+	/* Performance Monitoring */
+	if (hwfeatures & MPAMF_IDR_HAS_MSMON) {
+		u32 msmon_features = mpam_read_reg(dev, MPAMF_MSMON_IDR);
+
+		pr_debug("probe: probed MSMON\n");
+
+		if (msmon_features & MPAMF_MSMON_IDR_MSMON_CSU) {
+			u32 csumonidr;
+
+			csumonidr = mpam_read_reg(dev, MPAMF_CSUMON_IDR);
+			dev->num_csu_mon = csumonidr & MPAMF_CSUMON_IDR_NUM_MON;
+			if (dev->num_csu_mon)
+				mpam_set_feature(mpam_feat_msmon_csu,
+						 &dev->features);
+		}
+		if (msmon_features & MPAMF_MSMON_IDR_MSMON_MBWU) {
+			u32 mbwumonidr = mpam_read_reg(dev, MPAMF_MBWUMON_IDR);
+
+			dev->num_mbwu_mon = mbwumonidr & MPAMF_MBWUMON_IDR_NUM_MON;
+			if (dev->num_mbwu_mon)
+				mpam_set_feature(mpam_feat_msmon_mbwu,
+						 &dev->features);
+
+		}
+	}
+
 	dev->probed = true;
 
 	return 0;
