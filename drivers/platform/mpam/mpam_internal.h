@@ -18,6 +18,51 @@ struct mpam_sysprops {
 extern struct mpam_sysprops mpam_sysprops;
 
 /*
+ * When we compact the supported features, we don't care what they are.
+ * Storing them as a bitmap makes life easy.
+ */
+typedef u16 mpam_features_t;
+
+/* Bits for mpam_features_t */
+enum mpam_device_features {
+	mpam_feat_ccap_part = 0,
+	mpam_feat_cpor_part,
+	mpam_feat_mbw_part,
+	mpam_feat_mbw_min,
+	mpam_feat_mbw_max,
+	mpam_feat_mbw_prop,
+	mpam_feat_pri_part,
+	mpam_feat_msmon,
+	mpam_feat_msmon_csu,
+	mpam_feat_msmon_csu_capture,
+	mpam_feat_msmon_mbwu,
+	mpam_feat_msmon_mbwu_capture,
+	mpam_feat_msmon_capt,
+	MPAM_FEATURE_LAST,
+};
+
+#define MPAM_ALL_FEATURES	((1<<MPAM_FEATURE_LAST) - 1)
+
+static inline bool mpam_has_feature(enum mpam_device_features feat,
+				    mpam_features_t supported)
+{
+	return (1<<feat) & supported;
+}
+
+static inline void mpam_set_feature(enum mpam_device_features feat,
+				    mpam_features_t *supported)
+{
+	*supported |= (1<<feat);
+}
+
+static inline void mpam_clear_feature(enum mpam_device_features feat,
+				      mpam_features_t *supported)
+{
+	*supported &= ~(1<<feat);
+}
+
+
+/*
  * An mpam_device corresponds to an MSC, an interface to a component's cache
  * or bandwidth controls. It is associated with a set of CPUs, and a component.
  * For resctrl the component is expected to be a well-known cache (e.g. L2).
@@ -42,6 +87,12 @@ struct mpam_device
 	phys_addr_t             hwpage_address;
 	void __iomem *          mapped_hwpage;
 	bool			probed;
+	mpam_features_t		features;
+	u16			cpbm_wd;
+	u16			mbw_pbm_bits;
+	u16			bwa_wd;
+	u16			num_csu_mon;
+	u16			num_mbwu_mon;
 
 	u32                     error_irq;
 	u32                     error_irq_flags;
