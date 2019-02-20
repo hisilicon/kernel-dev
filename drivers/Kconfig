@@ -228,6 +228,8 @@ source "drivers/siox/Kconfig"
 
 source "drivers/slimbus/Kconfig"
 
+source "drivers/uacce/Kconfig"
+
 source "drivers/interconnect/Kconfig"
 
 endmenu
