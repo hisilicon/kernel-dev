@@ -61,6 +61,16 @@ static inline void mpam_clear_feature(enum mpam_device_features feat,
 	*supported &= ~(1<<feat);
 }
 
+static inline bool mpam_has_part_sel(mpam_features_t supported)
+{
+	mpam_features_t mask = (1<<mpam_feat_ccap_part) |
+		(1<<mpam_feat_cpor_part) | (1<<mpam_feat_mbw_part) |
+		(1<<mpam_feat_mbw_max) | (1<<mpam_feat_pri_part);
+	/* or HAS_PARTID_NRW or HAS_IMPL_IDR */
+
+	return supported & mask;
+}
+
 
 /*
  * An mpam_device corresponds to an MSC, an interface to a component's cache

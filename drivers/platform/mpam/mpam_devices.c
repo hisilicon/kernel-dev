@@ -4,6 +4,8 @@
 #define pr_fmt(fmt) "mpam: " fmt
 
 #include <linux/arm_mpam.h>
+#include <linux/bitmap.h>
+#include <linux/bits.h>
 #include <linux/cacheinfo.h>
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
@@ -60,6 +62,21 @@ static inline u32 mpam_read_reg(struct mpam_device *dev, u16 reg)
 	WARN_ON_ONCE(!cpumask_test_cpu(smp_processor_id(), &dev->fw_affinity));
 
 	return readl_relaxed(dev->mapped_hwpage + reg);
+}
+
+static inline void mpam_write_reg(struct mpam_device *dev, u16 reg, u32 val)
+{
+	WARN_ON_ONCE(reg > SZ_MPAM_DEVICE);
+	assert_spin_locked(&dev->lock);
+
+	/*
+	 * If we touch a device that isn't accessible from this CPU we may get
+	 * an external-abort. If we're lucky, we corrupt another mpam:component.
+	 */
+	WARN_ON_ONCE(preemptible());
+	WARN_ON_ONCE(!cpumask_test_cpu(smp_processor_id(), &dev->fw_affinity));
+
+	writel_relaxed(val, dev->mapped_hwpage + reg);
 }
 
 static struct mpam_device * __init
@@ -475,6 +492,69 @@ int __init mpam_discovery_start(void)
 	return 0;
 }
 
+static void mpam_reset_device_bitmap(struct mpam_device *dev, u16 reg, u16 wd)
+{
+	u32 bm = ~0;
+	int i;
+
+	lockdep_assert_held(&dev->lock);
+
+	/* write all but the last full-32bit-word */
+	for (i = 0; i < wd / 32; i++, reg += sizeof(bm)) {
+		mpam_write_reg(dev, reg, bm);
+	}
+
+	/* and the last partial 32bit word */
+	bm = GENMASK(wd % 32, 0);
+	if (bm)
+		mpam_write_reg(dev, reg, bm);
+}
+
+static void mpam_reset_device_partid(struct mpam_device *dev, u16 partid)
+{
+	u16 bwa_fract = GENMASK(15, dev->bwa_wd);
+
+	lockdep_assert_held(&dev->lock);
+
+	if (!mpam_has_part_sel(dev->features))
+		return;
+
+	mpam_write_reg(dev, MPAMCFG_PART_SEL, partid);
+	wmb(); /* subsequent writes must be applied to our new partid */
+
+	if (mpam_has_feature(mpam_feat_cpor_part, dev->features))
+		mpam_reset_device_bitmap(dev, MPAMCFG_CPBM, dev->cpbm_wd);
+
+	if (mpam_has_feature(mpam_feat_mbw_part, dev->features))
+		mpam_reset_device_bitmap(dev, MPAMCFG_MBW_PBM, dev->mbw_pbm_bits);
+
+	if (mpam_has_feature(mpam_feat_mbw_min, dev->features))
+		mpam_write_reg(dev, MPAMCFG_MBW_MIN, bwa_fract);
+
+	if (mpam_has_feature(mpam_feat_mbw_max, dev->features))
+		mpam_write_reg(dev, MPAMCFG_MBW_MAX, bwa_fract);
+
+	if (mpam_has_feature(mpam_feat_mbw_prop, dev->features))
+		mpam_write_reg(dev, MPAMCFG_MBW_PROP, bwa_fract);
+
+	mb(); /* complete the configuration before the cpu can use this partid */
+}
+
+/*
+ * Called from cpuhp callbacks and with the cpus_read_lock() held from
+ * mpam_reset_devices().
+ */
+static void mpam_reset_device(struct mpam_device *dev)
+{
+	u16 partid;
+
+	lockdep_assert_held(&dev->lock);
+
+	for (partid = 0; partid < mpam_sysprops.max_partid; partid++)
+		mpam_reset_device_partid(dev, partid);
+
+}
+
 /*
  * Firmware didn't give us an affinity, but a cache-id, if this cpu has that
  * cache-id, update the fw_affinity for this component.
@@ -518,6 +598,9 @@ static int __online_devices(struct mpam_component *comp, int cpu)
 			if (!err)
 				new_device_probed = true;
 		}
+
+		if (cpumask_empty(&dev->online_affinity))
+			mpam_reset_device(dev);
 
 		cpumask_set_cpu(cpu, &dev->online_affinity);
 		spin_unlock(&dev->lock);
