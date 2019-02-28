@@ -28,4 +28,8 @@ static inline u32 resctrl_arch_system_num_closid(void)
 	return mpam_resctrl_num_closid();
 }
 
+static inline u32 resctrl_arch_max_rmid_threshold(void)
+{
+	return mpam_resctrl_llc_cache_size();
+}
 #endif /* __ASM_RESCTRL_H__ */

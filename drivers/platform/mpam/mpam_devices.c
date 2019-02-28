@@ -824,9 +824,10 @@ static void mpam_sync_cpu_cache_component_fw_affinity(struct mpam_class *class,
 						      int cpu)
 {
 	int cpu_cache_id;
+	struct cacheinfo *leaf;
 	struct mpam_component *comp;
 
-	lockdep_assert_held(&mpam_devices_lock);
+	lockdep_assert_held(&mpam_devices_lock); /* we modify mpam_sysprops */
 
 	if (class->type != MPAM_CLASS_CACHE)
 		return;
@@ -837,6 +838,15 @@ static void mpam_sync_cpu_cache_component_fw_affinity(struct mpam_class *class,
 	/* This cpu does not have a component of this class */
 	if (!comp)
 		return;
+
+	/*
+	 * The resctrl rmid_threshold is based on cache size. Keep track of
+	 * the biggest cache we've seen.
+	 */
+	leaf = get_cpu_cache_leaf(cpu, class->level);
+	if (leaf)
+		mpam_sysprops.mpam_llc_size = max(mpam_sysprops.mpam_llc_size,
+						  leaf->size);
 
 	cpumask_set_cpu(cpu, &comp->fw_affinity);
 	cpumask_set_cpu(cpu, &class->fw_affinity);

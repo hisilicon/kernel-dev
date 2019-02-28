@@ -112,6 +112,8 @@ bool mpam_resctrl_mon_capable(void);
 bool mpam_resctrl_llc_occupancy_enabled(void);
 bool mpam_resctrl_mbm_total_enabled(void);
 
+/* What is the largest cache mpam has seen? (Used for resctrl rmid threshold) */
+u32 mpam_resctrl_llc_cache_size(void);
 u32 mpam_resctrl_num_closid(void);
 u32 mpam_resctrl_num_rmid(void);
 
