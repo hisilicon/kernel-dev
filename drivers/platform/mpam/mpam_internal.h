@@ -31,7 +31,10 @@ enum mpam_device_features {
 	mpam_feat_mbw_min,
 	mpam_feat_mbw_max,
 	mpam_feat_mbw_prop,
-	mpam_feat_pri_part,
+	mpam_feat_intpri_part,
+	mpam_feat_intpri_part_0_low,
+	mpam_feat_dspri_part,
+	mpam_feat_dspri_part_0_low,
 	mpam_feat_msmon,
 	mpam_feat_msmon_csu,
 	mpam_feat_msmon_csu_capture,
@@ -65,7 +68,8 @@ static inline bool mpam_has_part_sel(mpam_features_t supported)
 {
 	mpam_features_t mask = (1<<mpam_feat_ccap_part) |
 		(1<<mpam_feat_cpor_part) | (1<<mpam_feat_mbw_part) |
-		(1<<mpam_feat_mbw_max) | (1<<mpam_feat_pri_part);
+		(1<<mpam_feat_mbw_max) | (1<<mpam_feat_intpri_part) |
+		(1<<mpam_feat_dspri_part);
 	/* or HAS_PARTID_NRW or HAS_IMPL_IDR */
 
 	return supported & mask;
@@ -98,9 +102,12 @@ struct mpam_device
 	void __iomem *          mapped_hwpage;
 	bool			probed;
 	mpam_features_t		features;
+	u16			cmax_wd;
 	u16			cpbm_wd;
 	u16			mbw_pbm_bits;
 	u16			bwa_wd;
+	u16			intpri_wd;
+	u16			dspri_wd;
 	u16			num_csu_mon;
 	u16			num_mbwu_mon;
 
@@ -157,6 +164,8 @@ struct mpam_class
 	u16			cpbm_wd;
 	u16			mbw_pbm_bits;
 	u16			bwa_wd;
+	u16			intpri_wd;
+	u16			dspri_wd;
 	u16			num_csu_mon;
 	u16			num_mbwu_mon;
 
