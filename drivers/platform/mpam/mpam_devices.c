@@ -322,6 +322,18 @@ static int mpam_device_probe(struct mpam_device *dev)
 
 	mpam_probe_update_sysprops(max_partid, max_pmg);
 
+	/* Cache Capacity Partitioning */
+	if (hwfeatures & MPAMF_IDR_HAS_CCAP_PART) {
+		u32 ccap_features = mpam_read_reg(dev, MPAMF_CCAP_IDR);
+
+		pr_debug("probe: probed CCAP_PART\n");
+
+		dev->cmax_wd = ccap_features & MPAMF_CCAP_IDR_CMAX_WD;
+		if (dev->cmax_wd)
+			mpam_set_feature(mpam_feat_ccap_part, &dev->features);
+
+	}
+
 	/* Cache Portion partitioning */
 	if (hwfeatures & MPAMF_IDR_HAS_CPOR_PART) {
 		u32 cpor_features = mpam_read_reg(dev, MPAMF_CPOR_IDR);
@@ -348,6 +360,36 @@ static int mpam_device_probe(struct mpam_device *dev)
 		dev->bwa_wd = (mbw_features & MPAMF_MBW_IDR_BWA_WD);
 		if (dev->bwa_wd && (mbw_features & MPAMF_MBW_IDR_HAS_MAX))
 			mpam_set_feature(mpam_feat_mbw_max, &dev->features);
+
+		if (dev->bwa_wd && (mbw_features & MPAMF_MBW_IDR_HAS_MIN))
+			mpam_set_feature(mpam_feat_mbw_min, &dev->features);
+
+		if (dev->bwa_wd && (mbw_features & MPAMF_MBW_IDR_HAS_PROP))
+			mpam_set_feature(mpam_feat_mbw_prop, &dev->features);
+
+	}
+
+	/* Priority partitioning */
+	if (hwfeatures & MPAMF_IDR_HAS_PRI_PART) {
+		u32 pri_features = mpam_read_reg(dev, MPAMF_PRI_IDR);
+
+		pr_debug("probe: probed PRI_PART\n");
+
+		dev->intpri_wd = (pri_features & MPAMF_PRI_IDR_INTPRI_WD) >>
+				  MPAMF_PRI_IDR_INTPRI_WD_SHIFT;
+		if (dev->intpri_wd && (pri_features & MPAMF_PRI_IDR_HAS_INTPRI)) {
+			mpam_set_feature(mpam_feat_intpri_part, &dev->features);
+			if (pri_features & MPAMF_PRI_IDR_INTPRI_0_IS_LOW)
+				mpam_set_feature(mpam_feat_intpri_part_0_low, &dev->features);
+		}
+
+		dev->dspri_wd = (pri_features & MPAMF_PRI_IDR_DSPRI_WD) >>
+				  MPAMF_PRI_IDR_DSPRI_WD_SHIFT;
+		if (dev->dspri_wd && (pri_features & MPAMF_PRI_IDR_HAS_DSPRI)) {
+			mpam_set_feature(mpam_feat_dspri_part, &dev->features);
+			if (pri_features & MPAMF_PRI_IDR_DSPRI_0_IS_LOW)
+				mpam_set_feature(mpam_feat_dspri_part_0_low, &dev->features);
+		}
 	}
 
 	/* Performance Monitoring */
@@ -404,6 +446,23 @@ static void __device_class_feature_mismatch(struct mpam_device *dev,
 		class->num_csu_mon = min(class->num_csu_mon, dev->num_csu_mon);
 	if (class->num_mbwu_mon != dev->num_mbwu_mon)
 		class->num_mbwu_mon = min(class->num_mbwu_mon, dev->num_mbwu_mon);
+
+	/* bwa_wd is a count of bits, fewer bits means less precision */
+	if (class->bwa_wd != dev->bwa_wd)
+		class->bwa_wd = min(class->bwa_wd, dev->bwa_wd);
+
+	if (class->intpri_wd != dev->intpri_wd)
+		class->intpri_wd = min(class->intpri_wd, dev->intpri_wd);
+	if (class->dspri_wd != dev->dspri_wd)
+		class->dspri_wd = min(class->dspri_wd, dev->dspri_wd);
+
+	/* {int,ds}pri may not have differing 0-low behaviour */
+	if (mpam_has_feature(mpam_feat_intpri_part_0_low, class->features) !=
+	    mpam_has_feature(mpam_feat_intpri_part_0_low, dev->features))
+		mpam_clear_feature(mpam_feat_intpri_part, &class->features);
+	if (mpam_has_feature(mpam_feat_dspri_part_0_low, class->features) !=
+	    mpam_has_feature(mpam_feat_dspri_part_0_low, dev->features))
+		mpam_clear_feature(mpam_feat_dspri_part, &class->features);
 }
 
 /*
@@ -443,6 +502,8 @@ static void mpam_enable_squash_features(void)
 			class->cpbm_wd = dev->cpbm_wd;
 			class->mbw_pbm_bits = dev->mbw_pbm_bits;
 			class->bwa_wd = dev->bwa_wd;
+			class->intpri_wd = dev->intpri_wd;
+			class->dspri_wd = dev->dspri_wd;
 			class->num_csu_mon = dev->num_csu_mon;
 			class->num_mbwu_mon = dev->num_mbwu_mon;
 			spin_unlock(&dev->lock);
@@ -524,7 +585,11 @@ static void mpam_reset_device_bitmap(struct mpam_device *dev, u16 reg, u16 wd)
 
 static void mpam_reset_device_partid(struct mpam_device *dev, u16 partid)
 {
+	u16 cmax = GENMASK(dev->cmax_wd, 0);
 	u16 bwa_fract = GENMASK(15, dev->bwa_wd);
+	u16 intpri = GENMASK(dev->intpri_wd, 0);
+	u16 dspri = GENMASK(dev->dspri_wd, 0);
+	u32 pri_val = 0;
 
 	lockdep_assert_held(&dev->lock);
 
@@ -533,6 +598,9 @@ static void mpam_reset_device_partid(struct mpam_device *dev, u16 partid)
 
 	mpam_write_reg(dev, MPAMCFG_PART_SEL, partid);
 	wmb(); /* subsequent writes must be applied to our new partid */
+
+	if (mpam_has_feature(mpam_feat_ccap_part, dev->features))
+		mpam_write_reg(dev, MPAMCFG_CMAX, cmax);
 
 	if (mpam_has_feature(mpam_feat_cpor_part, dev->features))
 		mpam_reset_device_bitmap(dev, MPAMCFG_CPBM, dev->cpbm_wd);
@@ -548,6 +616,24 @@ static void mpam_reset_device_partid(struct mpam_device *dev, u16 partid)
 
 	if (mpam_has_feature(mpam_feat_mbw_prop, dev->features))
 		mpam_write_reg(dev, MPAMCFG_MBW_PROP, bwa_fract);
+
+	if (mpam_has_feature(mpam_feat_intpri_part, dev->features) ||
+	    mpam_has_feature(mpam_feat_dspri_part, dev->features)) {
+		/* aces high? */
+		if (!mpam_has_feature(mpam_feat_intpri_part_0_low,
+				      dev->features))
+			intpri = 0;
+		if (!mpam_has_feature(mpam_feat_dspri_part_0_low,
+				      dev->features))
+			dspri = 0;
+
+		if (mpam_has_feature(mpam_feat_intpri_part, dev->features))
+			pri_val |= intpri;
+		if (mpam_has_feature(mpam_feat_dspri_part, dev->features))
+			pri_val |= (dspri << MPAMCFG_PRI_DSPRI_SHIFT);
+
+		mpam_write_reg(dev, MPAMCFG_PRI, pri_val);
+	}
 
 	mb(); /* complete the configuration before the cpu can use this partid */
 }
