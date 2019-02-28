@@ -21,6 +21,7 @@
 
 /* The classes we've picked to map to resctrl resources */
 static struct mpam_class *mpam_resctrl_exports[RDT_NUM_RESOURCES];
+static struct mpam_class *mpam_resctrl_events[RESCTRL_NUM_EVENT_IDS];
 static struct mpam_class *mpam_llc_class;
 
 static bool exposed_alloc_capable;
@@ -65,6 +66,66 @@ struct rdt_resource *mpam_resctrl_get_resource(enum resctrl_resource_level l)
 		return NULL;
 
 	return &mpam_resctrl_exports[l]->resctrl_res;
+}
+
+bool mpam_resctrl_mbm_total_enabled(void)
+{
+	return (mpam_resctrl_events[QOS_L3_MBM_TOTAL_EVENT_ID] != NULL);
+}
+
+bool mpam_resctrl_llc_occupancy_enabled(void)
+{
+	return (mpam_resctrl_events[QOS_L3_OCCUP_EVENT_ID] != NULL);
+}
+
+static void mpam_resctrl_pick_event_l3_occup(void)
+{
+	/*
+	 * as the name suggests, resctrl can only use this if your cache is
+	 * called 'l3'.
+	 */
+	struct mpam_class *class = mpam_resctrl_exports[RDT_RESOURCE_L3];
+	if (!class)
+		return;
+
+	if (!mpam_has_feature(mpam_feat_msmon_csu, class->features))
+		return;
+
+	mpam_resctrl_events[QOS_L3_OCCUP_EVENT_ID] = class;
+
+	exposed_mon_capable = true;
+	class->resctrl_res.mon_capable = true;
+}
+
+static void mpam_resctrl_pick_event_mbm_total(void)
+{
+	u64 num_counters;
+	struct mpam_class *class;
+
+	/*
+	 * as the name suggests, resctrl can only use this if your cache is
+	 * called 'l3'.
+	 */
+	class = mpam_resctrl_exports[RDT_RESOURCE_L3];
+	if (!class)
+		return;
+
+	/*
+	 * to measure bandwidth in a resctrl like way, we need to leave a
+	 * counter running all the time. This is really unlikely.
+	 */
+	num_counters = mpam_resctrl_num_closid() * mpam_resctrl_num_rmid();
+
+	if (mpam_has_feature(mpam_feat_msmon_mbwu, class->features)) {
+		if (class->num_mbwu_mon >= num_counters) {
+			/*
+			 * We don't support this use of monitors, let the
+			 * world know this platform could make use of them
+			 * if we did!
+			 */
+			pr_info_once("Platform has candidate class for unsupported event: MBM_TOTAL!");
+		}
+	}
 }
 
 /* Find what we can can export as MBA */
@@ -321,6 +382,9 @@ int mpam_resctrl_init(void)
 
 	mpam_resctrl_pick_caches();
 	mpam_resctrl_pick_mba();
+
+	mpam_resctrl_pick_event_l3_occup();
+	mpam_resctrl_pick_event_mbm_total();
 
 	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
 		if (mpam_resctrl_exports[i])

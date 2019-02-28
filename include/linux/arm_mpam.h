@@ -109,6 +109,9 @@ void mpam_discovery_complete(void);
 bool mpam_resctrl_alloc_capable(void);
 bool mpam_resctrl_mon_capable(void);
 
+bool mpam_resctrl_llc_occupancy_enabled(void);
+bool mpam_resctrl_mbm_total_enabled(void);
+
 u32 mpam_resctrl_num_closid(void);
 u32 mpam_resctrl_num_rmid(void);
 
