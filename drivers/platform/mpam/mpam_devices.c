@@ -49,6 +49,18 @@ struct mpam_sysprops mpam_sysprops;
  */
 static struct work_struct mpam_enable_work;
 
+struct mpam_device_sync
+{
+	struct mpam_component *comp;
+
+	/*
+	 * If the device is reachable from one of these cpus, it has been
+	 * updated.
+	 */
+	struct cpumask updated_on;
+	int first_error;
+};
+
 static inline u32 mpam_read_reg(struct mpam_device *dev, u16 reg)
 {
 	WARN_ON_ONCE(reg > SZ_MPAM_DEVICE);
@@ -553,6 +565,103 @@ static void mpam_reset_device(struct mpam_device *dev)
 	for (partid = 0; partid < mpam_sysprops.max_partid; partid++)
 		mpam_reset_device_partid(dev, partid);
 
+}
+
+static int mpam_device_apply_config(struct mpam_device *dev)
+{
+	int ret = 0;
+
+	spin_lock(&dev->lock);
+	mpam_reset_device(dev);
+	spin_unlock(&dev->lock);
+
+	return ret;
+}
+
+/* Update all newly reachable devices. Call with cpus_read_lock() held. */
+static void mpam_component_config_sync_local(void *_ctx)
+{
+	int err;
+	struct mpam_device *dev;
+	struct mpam_device_sync *ctx = _ctx;
+	struct mpam_component *comp = ctx->comp;
+
+	list_for_each_entry(dev, &comp->devices, comp_list) {
+		if (cpumask_intersects(&dev->online_affinity,
+				       &ctx->updated_on))
+			continue;
+
+		/* This device needs updating, can I reach it? */
+		if (!cpumask_test_cpu(smp_processor_id(), &dev->online_affinity))
+			continue;
+
+		/* Apply new configuration to this device */
+		err = mpam_device_apply_config(dev);
+		if (err)
+			cmpxchg(&ctx->first_error, 0, err);
+	}
+
+	cpumask_set_cpu(smp_processor_id(), &ctx->updated_on);
+}
+
+/* Call with cpuhp lock held */
+int mpam_component_config_sync(struct mpam_component *comp)
+{
+	int cpu;
+	struct mpam_device *dev;
+	struct mpam_device_sync ctx;
+
+	/* The online_affinity masks must not change while we do this */
+	lockdep_assert_cpus_held();
+
+	ctx.comp =  comp;
+	ctx.first_error = 0;
+	cpumask_clear(&ctx.updated_on);
+
+	cpu = get_cpu();
+	/* Update any devices we can reach locally */
+	if (cpumask_test_cpu(cpu, &comp->fw_affinity))
+		mpam_component_config_sync_local(&ctx);
+	put_cpu();
+
+	/* Find the set of other CPUs we need to run on to update this component */
+	list_for_each_entry(dev, &comp->devices, comp_list) {
+		if (ctx.first_error)
+			break;
+
+		if (cpumask_intersects(&dev->online_affinity,
+				       &ctx.updated_on))
+			continue;
+
+		/*
+		 * This device needs the config applying, and hasn't been
+		 * reachable by any cpu so far.
+		 */
+		cpu = cpumask_any(&dev->online_affinity);
+		smp_call_function_single(cpu, mpam_component_config_sync_local,
+					 &ctx, 1);
+	}
+
+	return ctx.first_error;
+}
+
+/*
+ * Reset every component, configuring every partid unrestricted.
+ * Call with cpuhp lock held.
+ */
+void mpam_reset_devices(void)
+{
+	struct mpam_class *class;
+	struct mpam_component *comp;
+
+	lockdep_assert_cpus_held();
+
+	mutex_lock(&mpam_devices_lock);
+	list_for_each_entry(class, &mpam_classes, classes_list) {
+		list_for_each_entry(comp, &class->components, class_list)
+			mpam_component_config_sync(comp);
+	}
+	mutex_unlock(&mpam_devices_lock);
 }
 
 /*

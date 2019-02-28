@@ -94,6 +94,9 @@ void mpam_device_set_overflow_irq(struct mpam_device *dev, u32 irq, u32 flags);
  */
 void mpam_discovery_failed(void);
 
+/* Reset every device, configuring every partid unrestricted */
+void mpam_reset_devices(void);
+
 /*
  * All devices have been created, build all the internal lists and try and
  * probe any missing devices. Enabling MPAM for use will be scheduled once
