@@ -224,6 +224,35 @@ static void mpam_resctrl_pick_caches(void)
 	rcu_read_unlock();
 }
 
+static void mpam_convert_resctrl_cfg(struct mpam_class *class,
+				     resctrl_config_t resctrl_cfg,
+				     struct mpam_component_cfg_update *cfg)
+{
+	if (class == mpam_resctrl_exports[RDT_RESOURCE_MBA]) {
+		u64 range;
+
+		/* For MBA cfg is a percentage of .. */
+		if (class->resctrl_mba_uses_mbw_part) {
+			/* .. the number of bits we can set */
+			range = class->mbw_pbm_bits;
+			cfg->feat = mpam_feat_mbw_part;
+		} else {
+			/* .. the number of fractions we can represent */
+			range = (1ULL << class->bwa_wd) - 1;
+			cfg->feat = mpam_feat_mbw_max;
+		}
+
+		cfg->mpam_cfg = (resctrl_cfg * range) / MAX_MBA_BW;
+	} else {
+		/*
+		 * Nothing clever here as mpam_resctrl_pick_caches()
+		 * capped the size at RESCTRL_MAX_CBM.
+		 */
+		cfg->mpam_cfg = resctrl_cfg;
+		cfg->feat = mpam_feat_cpor_part;
+	}
+}
+
 static void resource_reset_cfg(struct mpam_class *class, struct mpam_component *comp)
 {
 	int i;
@@ -406,5 +435,54 @@ int mpam_resctrl_init(void)
 		return -EOPNOTSUPP;
 
 	return 0;
+}
+
+struct mpam_component_cfg_update *
+mpam_resctrl_get_converted_config(struct mpam_class *class,
+				  struct mpam_component *comp, u16 partid,
+				  struct mpam_component_cfg_update *cfg)
+{
+	resctrl_config_t resctrl_cfg;
+
+	/* Not exported as a configurable resource: reset */
+	if (!class->resctrl_res.alloc_capable)
+		return NULL;
+
+	/* Out of range: reset */
+	if (partid >= mpam_resctrl_num_closid())
+		return NULL;
+
+	resctrl_cfg = comp->resctrl_cfg[partid];
+	/* resctrl:reset value, keep the mpam:reset value */
+	if (resctrl_cfg == class->resctrl_res.default_ctrl)
+		return NULL;
+
+	cfg->partid = partid;
+	mpam_convert_resctrl_cfg(class, resctrl_cfg, cfg);
+
+	return cfg;
+}
+
+int mpam_resctrl_update_one(struct rdt_resource *r, struct rdt_domain *d,
+			    u16 hw_closid, u32 resctrl_val)
+{
+	struct mpam_class *class;
+	struct mpam_component *comp;
+	struct mpam_component_cfg_update cfg;
+	struct mpam_component_cfg_update *cfg_p;
+
+	lockdep_assert_cpus_held();
+
+	class = container_of(r, struct mpam_class, resctrl_res);
+	comp = container_of(d, struct mpam_component, resctrl_domain);
+
+	if (hw_closid >= mpam_resctrl_num_closid())
+		return -EINVAL;
+
+	comp->resctrl_cfg[hw_closid] = resctrl_val;
+	cfg_p = mpam_resctrl_get_converted_config(class, comp, hw_closid, &cfg);
+
+	return mpam_component_apply_all(comp, cfg_p);
+
 }
 

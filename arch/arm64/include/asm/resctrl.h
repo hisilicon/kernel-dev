@@ -9,6 +9,8 @@
 /* This is the MPAM->resctrl<-arch glue. */
 
 typedef struct { u16 val; } hw_closid_t;
+#define as_hwclosid_t(x)	((hw_closid_t){(x)})
+#define hwclosid_val(x)		(x.val)
 
 #define resctrl_arch_get_resource(l)	mpam_resctrl_get_resource(l)
 
@@ -30,8 +32,18 @@ static inline u32 resctrl_arch_system_num_closid(void)
 	return mpam_resctrl_num_closid();
 }
 
+struct rdt_resource;
+struct rdt_domain;
+static inline int resctrl_arch_update_one(struct rdt_resource *r,
+					  struct rdt_domain *d,
+					  hw_closid_t hw_closid, u32 value)
+{
+	return mpam_resctrl_update_one(r, d, hwclosid_val(hw_closid), value);
+}
+
 static inline u32 resctrl_arch_max_rmid_threshold(void)
 {
 	return mpam_resctrl_llc_cache_size();
 }
+
 #endif /* __ASM_RESCTRL_H__ */

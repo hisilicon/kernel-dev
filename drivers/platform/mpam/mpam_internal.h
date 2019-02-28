@@ -191,6 +191,33 @@ struct mpam_class
 /* List of all classes */
 extern struct list_head mpam_classes_rcu;
 
+struct mpam_component_cfg_update
+{
+	/* Caller specifies these values: */
+	u16 partid;
+	mpam_config_t mpam_cfg;
+	enum mpam_device_features feat;
+};
+
+/*
+ * Retrieve @comp's mpam configuration for @partid.
+ *
+ * Called from cpuhp callbacks.
+ * Storage for the config update is passed in as @cfg, and the same pointer is
+ * returned, or NULL if the mpam:reset value is appropriate.
+ */
+struct mpam_component_cfg_update *
+mpam_resctrl_get_converted_config(struct mpam_class *class,
+				  struct mpam_component *comp, u16 partid,
+				  struct mpam_component_cfg_update *cfg);
+
+/*
+ * Apply the describe configuration update to all online devices.
+ * Call with cpuhp lock held. A NULL arg causes these devices to be reset.
+ */
+int mpam_component_apply_all(struct mpam_component *comp,
+			     struct mpam_component_cfg_update *arg);
+
 int mpam_resctrl_init(void);
 
 /* Size of the memory mapped registers: 4K of feature page then 2x 4K bitmap registers */
