@@ -21,6 +21,7 @@
 
 /* The classes we've picked to map to resctrl resources */
 static struct mpam_class *mpam_resctrl_exports[RDT_NUM_RESOURCES];
+static struct mpam_class *mpam_llc_class;
 
 static bool exposed_alloc_capable;
 static bool exposed_mon_capable;
@@ -66,6 +67,55 @@ struct rdt_resource *mpam_resctrl_get_resource(enum resctrl_resource_level l)
 	return &mpam_resctrl_exports[l]->resctrl_res;
 }
 
+/* Find what we can can export as MBA */
+static void mpam_resctrl_pick_mba(void)
+{
+	u8 level, resctrl_llc;
+	struct mpam_class *class;
+	struct mpam_class *candidate = NULL;
+
+	/* At least two partitions ... */
+	if (mpam_sysprops.max_partid <= 1)
+		return;
+
+	if (mpam_resctrl_exports[RDT_RESOURCE_L3])
+		resctrl_llc = 3;
+	else if (mpam_resctrl_exports[RDT_RESOURCE_L2])
+		resctrl_llc = 2;
+	else
+		resctrl_llc = 0;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(class, &mpam_classes_rcu, classes_list_rcu) {
+		if (class->type == MPAM_CLASS_UNKNOWN)
+			continue;
+
+		level = class->resctrl_res.cache_level;
+		if (level < resctrl_llc)
+			continue;
+
+		if (!mpam_has_feature(mpam_feat_msmon_mbwu, class->features))
+			continue;
+
+		/*
+		 * There are two ways we can generate delays for MBA, either with
+		 * the mbw portion bitmap, or the mbw max control.
+		 */
+		if (!mpam_has_feature(mpam_feat_mbw_part, class->features) ||
+		    !mpam_has_feature(mpam_feat_mbw_max, class->features))
+			continue;
+
+		/* pick the class 'closest' to resctrl_llc */
+		if (!candidate || (level < candidate->resctrl_res.cache_level))
+			candidate = class;
+	}
+	rcu_read_unlock();
+
+	if (candidate)
+		mpam_resctrl_exports[RDT_RESOURCE_MBA] = candidate;
+}
+
+
 /* Test whether we can export MPAM_CLASS_CACHE:{2,3}? */
 static void mpam_resctrl_pick_caches(void)
 {
@@ -95,9 +145,14 @@ static void mpam_resctrl_pick_caches(void)
 		if (level == 2) {
 			mpam_resctrl_exports[RDT_RESOURCE_L2] = class;
 			class->resctrl_res.name = "L2";
+
+			if (!mpam_llc_class)
+				mpam_llc_class = class;
 		} else {
 			mpam_resctrl_exports[RDT_RESOURCE_L3] = class;
 			class->resctrl_res.name = "L3";
+
+			mpam_llc_class = class;
 		}
 	}
 	rcu_read_unlock();
@@ -140,7 +195,52 @@ static int mpam_resctrl_resource_init(struct mpam_class *class)
 
 	res = &class->resctrl_res;
 
-	if (class != mpam_resctrl_exports[RDT_RESOURCE_MBA]) {
+	if (class == mpam_resctrl_exports[RDT_RESOURCE_MBA]) {
+		res->default_ctrl = MAX_MBA_BW;
+		res->data_width = 3;
+		res->membw.delay_linear = true;
+		res->name = "MB";
+
+		/* TODO: kill these */
+		res->format_str = "%d=%0*u";
+		res->fflags = RFTYPE_RES_MB;
+
+		if (mpam_has_feature(mpam_feat_mbw_part, class->features)) {
+			class->resctrl_mba_uses_mbw_part = true;
+
+			/*
+			 * The maximum throttling is the number of bits we can
+			 * unset in the bitmap. We never clear all of them, so the
+			 * minimum is one bit, as a percentage.
+			 */
+			res->membw.min_bw = MAX_MBA_BW / class->mbw_pbm_bits;
+		} else {
+			/* we're using mpam_feat_mbw_max's */
+			class->resctrl_mba_uses_mbw_part = false;
+
+			/*
+			 * The maximum throttling is the number of fractions we
+			 * can represent with the implemented bits. We never
+			 * set 0. The minimum is the LSB, as a percentage.
+			 */
+			res->membw.min_bw = MAX_MBA_BW / ((1ULL << class->bwa_wd) - 1);
+		}
+
+		/* Just in case we have an excessive number of bits */
+		if (!res->membw.min_bw)
+			res->membw.min_bw = 1;
+
+		/*
+		 * because its linear with no offset, the granule is the same
+		 * as the smallest value
+		 */
+		res->membw.bw_gran = res->membw.min_bw;
+
+		/* We will only pick a class that can monitor and control */
+		res->alloc_capable = true;
+		exposed_alloc_capable = true;
+		res->mon_capable = true;
+	} else {
 		res->cache.cbm_len = class->cpbm_wd;
 		res->cache.arch_has_sparse_bitmaps = true;
 
@@ -220,6 +320,7 @@ int mpam_resctrl_init(void)
 	enum resctrl_resource_level i;
 
 	mpam_resctrl_pick_caches();
+	mpam_resctrl_pick_mba();
 
 	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
 		if (mpam_resctrl_exports[i])

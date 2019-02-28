@@ -162,6 +162,12 @@ struct mpam_class
 	struct rdt_resource     resctrl_res;
 	struct cpumask          fw_affinity;
 
+	/*
+	 * If this class is exported as resctrl:MBA, are we using mbw_max
+	 * control or the mbw_part bitmap.
+	 */
+	bool			resctrl_mba_uses_mbw_part;
+
 	/* level is stored in resctrl_res.cache_level, regardless of type */
 	enum mpam_class_types	type;
 
