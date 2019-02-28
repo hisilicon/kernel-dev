@@ -229,6 +229,19 @@ void mpam_class_list_lock_held(void);
 static inline mpam_class_list_lock_held(void) { }
 #endif
 
+struct mpam_component_sync_args
+{
+	/* Caller specifies these values: */
+	u16 partid;
+};
+
+/*
+ * Apply the describe configuration update to all online devices.
+ * Call with cpuhp lock held. A NULL arg causes these devices to be reset.
+ */
+int mpam_component_config_sync(struct mpam_component *comp,
+			       struct mpam_component_sync_args *sync_args);
+
 int mpam_resctrl_cpu_online(unsigned int cpu);
 int mpam_resctrl_cpu_offline(unsigned int cpu);
 

@@ -9,6 +9,8 @@
 /* This is the MPAM->resctrl<-arch glue. */
 
 typedef struct { u16 val; } hw_closid_t;
+#define as_hwclosid_t(x)	((hw_closid_t){(x)})
+#define hwclosid_val(x)		(x.val)
 
 #define resctrl_arch_get_resource(l)	mpam_resctrl_get_resource(l)
 

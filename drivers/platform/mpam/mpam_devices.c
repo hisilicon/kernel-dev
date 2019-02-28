@@ -60,6 +60,9 @@ struct mpam_device_sync
 {
 	struct mpam_component *comp;
 
+	/* sync_args is NULL for a reset */
+	struct mpam_component_sync_args *sync_args;
+
 	/*
 	 * If the device is reachable from one of these cpus, it has been
 	 * updated.
@@ -716,16 +719,14 @@ static void mpam_reset_device(struct mpam_component *comp,
 
 }
 
-static int mpam_device_apply_config(struct mpam_component *comp,
-				    struct mpam_device *dev)
+static int mpam_device_apply_config_locked(struct mpam_component *comp,
+					   struct mpam_device *dev)
 {
 	u16 partid;
 	int ret = 0;
 
-	spin_lock(&dev->lock);
 	for (partid = 0; partid < mpam_sysprops.max_partid; partid++)
 		mpam_reset_device_partid(dev, partid, &comp->cfg[partid]);
-	spin_unlock(&dev->lock);
 
 	return ret;
 }
@@ -734,9 +735,11 @@ static int mpam_device_apply_config(struct mpam_component *comp,
 static void mpam_component_config_sync_local(void *_ctx)
 {
 	int err;
+	u16 partid;
 	struct mpam_device *dev;
 	struct mpam_device_sync *ctx = _ctx;
 	struct mpam_component *comp = ctx->comp;
+	struct mpam_component_sync_args *sync_args = ctx->sync_args;
 
 	list_for_each_entry(dev, &comp->devices, comp_list) {
 		if (cpumask_intersects(&dev->online_affinity,
@@ -748,7 +751,15 @@ static void mpam_component_config_sync_local(void *_ctx)
 			continue;
 
 		/* Apply new configuration to this device */
-		err = mpam_device_apply_config(comp, dev);
+		err = 0;
+		spin_lock(&dev->lock);
+		if (sync_args) {
+			partid = sync_args->partid;
+			mpam_reset_device_partid(dev, partid, &comp->cfg[partid]);
+		} else {
+			err = mpam_device_apply_config_locked(comp, dev);
+		}
+		spin_unlock(&dev->lock);
 		if (err)
 			cmpxchg(&ctx->first_error, 0, err);
 	}
@@ -756,8 +767,9 @@ static void mpam_component_config_sync_local(void *_ctx)
 	cpumask_set_cpu(smp_processor_id(), &ctx->updated_on);
 }
 
-/* Call with cpuhp lock held */
-int mpam_component_config_sync(struct mpam_component *comp)
+/* Call with cpuhp lock held, sync_args may be NULL */
+int mpam_component_config_sync(struct mpam_component *comp,
+			       struct mpam_component_sync_args *sync_args)
 {
 	int cpu;
 	struct mpam_device *dev;
@@ -766,8 +778,9 @@ int mpam_component_config_sync(struct mpam_component *comp)
 	/* The online_affinity masks must not change while we do this */
 	lockdep_assert_cpus_held();
 
-	ctx.comp =  comp;
+	ctx.comp = comp;
 	ctx.first_error = 0;
+	ctx.sync_args = sync_args;
 	cpumask_clear(&ctx.updated_on);
 
 	cpu = get_cpu();
@@ -811,7 +824,7 @@ void mpam_reset_devices(void)
 	mutex_lock(&mpam_devices_lock);
 	list_for_each_entry(class, &mpam_classes, classes_list) {
 		list_for_each_entry(comp, &class->components, class_list)
-			mpam_component_config_sync(comp);
+			mpam_component_config_sync(comp, NULL);
 	}
 	mutex_unlock(&mpam_devices_lock);
 }

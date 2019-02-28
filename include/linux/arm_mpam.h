@@ -123,4 +123,11 @@ struct rdt_resource *mpam_resctrl_get_resource(enum resctrl_resource_level l);
 /* reset cached configurations, then all devices */
 void resctrl_arch_reset_resources(void);
 
+
+struct rdt_resource;
+struct rdt_domain;
+int mpam_resctrl_update_one(struct rdt_resource *r, struct rdt_domain *d,
+			    u16 hw_closid, u32 cfg_val);
+
+
 #endif /* __LINUX_ARM_MPAM_H */

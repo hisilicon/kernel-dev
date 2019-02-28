@@ -387,6 +387,35 @@ static void mpam_update_from_resctrl_cfg(struct mpam_resctrl_res *res,
 	}
 }
 
+int resctrl_arch_update_one(struct rdt_resource *r, struct rdt_domain *d,
+			    hw_closid_t hw_closid, u32 resctrl_val)
+{
+	u16 partid = hwclosid_val(hw_closid);
+	struct mpam_resctrl_res *res;
+	struct mpam_resctrl_dom *dom;
+	struct mpam_component_sync_args sync_args;
+
+	lockdep_assert_cpus_held();
+
+	/* Not exported as a configurable resource */
+	if (!r->alloc_capable)
+		return -EINVAL;
+
+	/* Out of range */
+	if (partid >= mpam_resctrl_num_closid())
+		return -EINVAL;
+
+	res = container_of(r, struct mpam_resctrl_res, resctrl_res);
+	dom = container_of(d, struct mpam_resctrl_dom, resctrl_dom);
+
+	dom->resctrl_cfg[partid] = resctrl_val;
+
+	sync_args.partid = partid;
+	mpam_update_from_resctrl_cfg(res, resctrl_val, &dom->comp->cfg[partid]);
+
+	return mpam_component_config_sync(dom->comp, &sync_args);
+}
+
 static void resource_reset_cfg(struct mpam_resctrl_res *res,
 			       struct mpam_resctrl_dom *dom)
 {
