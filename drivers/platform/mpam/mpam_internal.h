@@ -210,6 +210,13 @@ struct mpam_resctrl_dom {
 
 struct mpam_resctrl_res {
 	struct mpam_class	*class;
+
+	/*
+	 * If this class is exported as resctrl:MBA, are we using mbw_max
+	 * control or the mbw_part bitmap.
+	 */
+	bool			resctrl_mba_uses_mbw_part;
+
 	struct rdt_resource	resctrl_res;
 };
 
