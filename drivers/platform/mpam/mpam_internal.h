@@ -14,6 +14,7 @@
 struct mpam_sysprops {
 	u16 max_partid;
 	u8 max_pmg;
+	u32 mpam_llc_size;
 };
 extern struct mpam_sysprops mpam_sysprops;
 
@@ -189,7 +190,6 @@ struct mpam_class
 
 /* List of all classes */
 extern struct list_head mpam_classes_rcu;
-
 
 int mpam_resctrl_init(void);
 
