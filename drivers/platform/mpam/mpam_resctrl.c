@@ -24,6 +24,12 @@
  */
 static struct mpam_resctrl_res mpam_resctrl_exports[RDT_NUM_RESOURCES];
 
+/*
+ * The mpam_resctrl_res in mpam_resctrl_exports that backs an event.
+ * Caches and memory-controller may have MBM events.
+ */
+static struct mpam_resctrl_res *mpam_resctrl_events[RESCTRL_NUM_EVENT_IDS];
+
 static bool exposed_alloc_capable;
 static bool exposed_mon_capable;
 
@@ -66,6 +72,70 @@ struct rdt_resource *mpam_resctrl_get_resource(enum resctrl_resource_level l)
 		return NULL;
 
 	return &mpam_resctrl_exports[l].resctrl_res;
+}
+
+bool mpam_resctrl_mbm_total_enabled(void)
+{
+	return (mpam_resctrl_events[QOS_L3_MBM_TOTAL_EVENT_ID] != NULL);
+}
+
+bool mpam_resctrl_llc_occupancy_enabled(void)
+{
+	return (mpam_resctrl_events[QOS_L3_OCCUP_EVENT_ID] != NULL);
+}
+
+static void mpam_resctrl_pick_event_l3_occup(void)
+{
+	/*
+	 * as the name suggests, resctrl can only use this if your cache is
+	 * called 'l3'.
+	 */
+	struct mpam_resctrl_res *res = &mpam_resctrl_exports[RDT_RESOURCE_L3];
+	if (!res->class)
+		return;
+
+	if (!mpam_has_feature(mpam_feat_msmon_csu, res->class->features))
+		return;
+
+	mpam_resctrl_events[QOS_L3_OCCUP_EVENT_ID] = res;
+
+	exposed_mon_capable = true;
+	res->resctrl_res.mon_capable = true;
+}
+
+static void mpam_resctrl_pick_event_mbm_total(void)
+{
+	u64 num_counters;
+	struct mpam_resctrl_res *res;
+
+	/* We prefer to measure mbm_total on whatever we used as MBA... */
+	res = &mpam_resctrl_exports[RDT_RESOURCE_MBA];
+	if (!res->class) {
+		/* ... but if there isn't one, the L3 cache works */
+		res = &mpam_resctrl_exports[RDT_RESOURCE_L3];
+		if (!res->class)
+			return;
+
+	}
+
+	/*
+	 * to measure bandwidth in a resctrl like way, we need to leave a
+	 * counter running all the time. As these are PMU-like, it is really
+	 * unlikely we have enough... To be useful, we'd need at least one per
+	 * closid.
+	 */
+	num_counters = mpam_resctrl_num_closid();
+
+	if (mpam_has_feature(mpam_feat_msmon_mbwu, res->class->features)) {
+		if (res->class->num_mbwu_mon >= num_counters) {
+			/*
+			 * We don't support this use of monitors, let the
+			 * world know this platform could make use of them
+			 * if we did!
+			 */
+			pr_info_once("Platform has candidate class for unsupported event: MBM_TOTAL!");
+		}
+	}
 }
 
 /* Find what we can can export as MBA */
@@ -265,6 +335,9 @@ int mpam_resctrl_setup(void)
 
 	mpam_resctrl_pick_caches();
 	mpam_resctrl_pick_mba();
+
+	mpam_resctrl_pick_event_l3_occup();
+	mpam_resctrl_pick_event_mbm_total();
 
 	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
 		res = &mpam_resctrl_exports[i];
