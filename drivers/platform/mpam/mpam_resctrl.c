@@ -66,6 +66,11 @@ u32 mpam_resctrl_num_rmid(void)
 	return mpam_sysprops.max_pmg;
 }
 
+u32 mpam_resctrl_llc_cache_size(void)
+{
+	return mpam_sysprops.mpam_llc_size;
+}
+
 struct rdt_resource *mpam_resctrl_get_resource(enum resctrl_resource_level l)
 {
 	if (l >= RDT_NUM_RESOURCES)

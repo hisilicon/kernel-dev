@@ -14,6 +14,7 @@
 struct mpam_sysprops {
 	u16 max_partid;
 	u8 max_pmg;
+	u32 mpam_llc_size;
 };
 extern struct mpam_sysprops mpam_sysprops;
 
