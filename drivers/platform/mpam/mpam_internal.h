@@ -75,6 +75,13 @@ static inline bool mpam_has_part_sel(mpam_features_t supported)
 	return supported & mask;
 }
 
+/*
+ * The biggest config we could pass around is 4K, but resctrl's max cbm is
+ * u32, so we only need the full-size config during reset. Keep these as
+ * separate types so we can't accidentally use the wrong one.
+ */
+typedef u32 mpam_config_t;
+typedef u32 resctrl_config_t;
 
 /*
  * An mpam_device corresponds to an MSC, an interface to a component's cache
@@ -130,6 +137,7 @@ struct mpam_component
 	struct rdt_domain       resctrl_domain;
 	struct cpumask          fw_affinity;
 
+	resctrl_config_t	*resctrl_cfg;
 
 	/* member of mpam_class:components */
 	struct list_head        class_list;
@@ -175,6 +183,9 @@ struct mpam_class
 
 /* List of all classes */
 extern struct list_head mpam_classes_rcu;
+
+
+int mpam_resctrl_init(void);
 
 /* Size of the memory mapped registers: 4K of feature page then 2x 4K bitmap registers */
 #define SZ_MPAM_DEVICE	(3 * SZ_4K)
