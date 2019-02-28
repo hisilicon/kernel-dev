@@ -4,6 +4,8 @@
 #ifndef __ASM_RESCTRL_H__
 #define __ASM_RESCTRL_H__
 
+#include <linux/arm_mpam.h>
+
 /* This is the MPAM->resctrl<-arch glue. */
 
 typedef struct { u16 val; } hw_closid_t;
