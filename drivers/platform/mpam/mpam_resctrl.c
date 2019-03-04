@@ -375,6 +375,21 @@ void resctrl_arch_get_config(struct rdt_resource *res, struct rdt_domain *d,
 	*value = dom->resctrl_cfg[partid];
 }
 
+void resctrl_arch_update_cpu_defaults(void *info)
+{
+	u16 partid_i, partid_d;
+	struct resctrl_cpu_sync *d = info;
+
+	if (d) {
+		partid_i = hwclosid_val(d->closid_code);
+		partid_d = hwclosid_val(d->closid_data);
+		mpam_set_default_partid(smp_processor_id(), partid_d, partid_i);
+		mpam_set_default_pmg(smp_processor_id(), d->rmid, d->rmid);
+	}
+
+	resctrl_sched_in();
+}
+
 static void mpam_update_from_resctrl_cfg(struct mpam_resctrl_res *res,
 					 resctrl_config_t resctrl_cfg,
 					 mpam_config_t *mpam_cfg)
