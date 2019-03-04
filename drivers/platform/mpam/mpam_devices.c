@@ -697,13 +697,29 @@ static int __apply_config(struct mpam_device *dev,
 static void mpam_reset_device(struct mpam_class *class, struct mpam_component *comp,
 			      struct mpam_device *dev)
 {
+	int err;
 	u16 partid;
+	struct mpam_component_cfg_update cfg;
+	struct mpam_component_cfg_update *cfg_p;
 
 	lockdep_assert_held(&dev->lock);
 
-	for (partid = 0; partid < mpam_sysprops.max_partid; partid++)
+	for (partid = 0; partid < mpam_sysprops.max_partid; partid++) {
 		mpam_reset_device_partid(dev, partid);
 
+		/*
+		 * If cpuhp is driving the reset, we need to retrieve the
+		 * resctrl config if there is one.
+		 */
+		cfg_p = mpam_resctrl_get_converted_config(class, comp, partid,
+							  &cfg);
+		if (cfg_p) {
+			/* An error here leaves the reset config in place */
+			err = __apply_config(dev, cfg_p);
+			if (err)
+				pr_warn_once("Failed to apply resctrl config during reset");
+		}
+	}
 }
 
 static int mpam_device_apply_config(struct mpam_device *dev,
