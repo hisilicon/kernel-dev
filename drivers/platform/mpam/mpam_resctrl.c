@@ -505,6 +505,21 @@ int mpam_resctrl_cpu_offline(unsigned int cpu)
 	return 0;
 }
 
+void resctrl_arch_update_cpu_defaults(void *info)
+{
+	u16 partid_i, partid_d;
+	struct resctrl_cpu_sync *d = info;
+
+	if (d) {
+		partid_i = hwclosid_val(d->closid_code);
+		partid_d = hwclosid_val(d->closid_data);
+		mpam_set_default_partid(smp_processor_id(), partid_d, partid_i);
+		mpam_set_default_pmg(smp_processor_id(), d->rmid, d->rmid);
+	}
+
+	resctrl_sched_in();
+}
+
 struct mpam_component_cfg_update *
 mpam_resctrl_get_converted_config(struct mpam_class *class,
 				  struct mpam_component *comp, u16 partid,
