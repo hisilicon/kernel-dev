@@ -452,6 +452,9 @@ void mpam_resctrl_get_config(struct rdt_resource *res, struct rdt_domain *d,
 int mpam_resctrl_cpu_online(unsigned int cpu)
 {
 	int i;
+	bool do_online_domain;
+	struct rdt_domain *dom;
+	struct rdt_resource *res;
 	struct mpam_class *class;
 	struct mpam_component *comp;
 
@@ -466,15 +469,23 @@ int mpam_resctrl_cpu_online(unsigned int cpu)
 		if (list_empty(&class->classes_list_rcu))
 			continue;
 
+		res = &class->resctrl_res;
 		list_for_each_entry(comp, &class->components, class_list) {
 			if (!cpumask_test_cpu(cpu, &comp->fw_affinity))
 				continue;
 
-			cpumask_set_cpu(cpu, &comp->resctrl_domain.cpu_mask);
+			dom = &comp->resctrl_domain;
+			do_online_domain = cpumask_empty(&dom->cpu_mask);
+			cpumask_set_cpu(cpu, &dom->cpu_mask);
+
+			if (do_online_domain){
+				list_add(&dom->list, &res->domains);
+				resctrl_online_domain(res, dom);
+			}
 		}
 	}
 
-	return 0;
+	return resctrl_online_cpu(cpu);
 }
 
 static void reset_this_cpus_defaults(int cpu)
@@ -488,9 +499,12 @@ static void reset_this_cpus_defaults(int cpu)
 int mpam_resctrl_cpu_offline(unsigned int cpu)
 {
 	int i;
+	struct rdt_domain *dom;
+	struct rdt_resource *res;
 	struct mpam_class *class;
 	struct mpam_component *comp;
 
+	resctrl_offline_cpu(cpu);
 	reset_this_cpus_defaults(cpu);
 
 	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
@@ -504,11 +518,18 @@ int mpam_resctrl_cpu_offline(unsigned int cpu)
 		if (list_empty(&class->classes_list_rcu))
 			continue;
 
+		res = &class->resctrl_res;
 		list_for_each_entry(comp, &class->components, class_list) {
 			if (!cpumask_test_cpu(cpu, &comp->fw_affinity))
 				continue;
 
-			cpumask_clear_cpu(cpu, &comp->resctrl_domain.cpu_mask);
+			dom = &comp->resctrl_domain;
+			cpumask_clear_cpu(cpu, &dom->cpu_mask);
+
+			if (cpumask_empty(&dom->cpu_mask)) {
+				resctrl_offline_domain(res, dom);
+				list_del(&dom->list);
+			}
 		}
 	}
 
