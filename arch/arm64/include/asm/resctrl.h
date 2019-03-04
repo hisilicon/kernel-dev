@@ -6,6 +6,8 @@
 
 #include <linux/arm_mpam.h>
 
+#include <asm/mpam.h>
+
 /* This is the MPAM->resctrl<-arch glue. */
 
 typedef struct { u16 val; } hw_closid_t;
@@ -33,5 +35,65 @@ static inline u32 resctrl_arch_system_num_closid(void)
 static inline u32 resctrl_arch_max_rmid_threshold(void)
 {
 	return mpam_resctrl_llc_cache_size();
+}
+
+static inline void resctrl_arch_set_closid(struct task_struct *tsk,
+					   hw_closid_t closid_code,
+					   hw_closid_t closid_data)
+{
+	mpam_set_task_partid(tsk, hwclosid_val(closid_data),
+			     hwclosid_val(closid_code));
+}
+
+#ifdef CONFIG_ARCH_HAS_CPU_RESCTRL
+static inline bool resctrl_arch_match_closid(struct task_struct *tsk,
+					     hw_closid_t closid_code,
+					     hw_closid_t closid_data)
+{
+	u32 partid = hwclosid_val(closid_data)<<MPAM_SYSREG_PARTID_D_SHIFT |
+		     hwclosid_val(closid_code)<<MPAM_SYSREG_PARTID_I_SHIFT;
+
+	return READ_ONCE(tsk->closid) == partid;
+}
+
+static inline bool resctrl_arch_match_rmid(struct task_struct *tsk, u32 rmid)
+{
+	u32 val;
+
+	val = ((u64)rmid << (MPAM_SYSREG_PMG_D_SHIFT - 32)) |
+	      ((u64)rmid << (MPAM_SYSREG_PMG_I_SHIFT - 32));
+
+	return READ_ONCE(tsk->rmid) == val;
+}
+#else
+static inline bool resctrl_arch_match_closid(struct task_struct *tsk,
+					     hw_closid_t closid_code,
+					     hw_closid_t closid_data)
+{
+	return false;
+}
+
+static inline bool resctrl_arch_match_rmid(struct task_struct *tsk, u32 rmid)
+{
+	return false;
+}
+#endif /* CONFIG_ARCH_HAS_CPU_RESCTRL */
+
+static inline void resctrl_arch_set_rmid(struct task_struct *tsk, u32 rmid)
+{
+	mpam_set_task_pmg(tsk, rmid, rmid);
+}
+
+static inline void resctrl_arch_set_cpu_default_closid(int cpu,
+						       hw_closid_t closid_code,
+						       hw_closid_t closid_data)
+{
+	mpam_set_default_partid(cpu, hwclosid_val(closid_data),
+				hwclosid_val(closid_code));
+}
+
+static inline void resctrl_arch_set_cpu_default_rmid(int cpu, u32 rmid)
+{
+	mpam_set_default_pmg(cpu, rmid, rmid);
 }
 #endif /* __ASM_RESCTRL_H__ */
