@@ -52,6 +52,7 @@ static struct work_struct mpam_enable_work;
 
 struct mpam_device_cfg_update
 {
+	struct mpam_class *class;
 	struct mpam_component *comp;
 
 	/* cfg is NULL for a reset */
@@ -693,7 +694,8 @@ static int __apply_config(struct mpam_device *dev,
  * Called from cpuhp callbacks and with the cpus_read_lock() held from
  * mpam_reset_devices().
  */
-static void mpam_reset_device(struct mpam_device *dev)
+static void mpam_reset_device(struct mpam_class *class, struct mpam_component *comp,
+			      struct mpam_device *dev)
 {
 	u16 partid;
 
@@ -705,15 +707,16 @@ static void mpam_reset_device(struct mpam_device *dev)
 }
 
 static int mpam_device_apply_config(struct mpam_device *dev,
-				    struct mpam_component_cfg_update *arg)
+				    struct mpam_device_cfg_update *cfg_update)
 {
 	int ret = 0;
+	struct mpam_component_cfg_update *cfg = cfg_update->cfg;
 
 	spin_lock(&dev->lock);
-	if (arg)
-		ret = __apply_config(dev, arg);
+	if (cfg)
+		ret = __apply_config(dev, cfg);
 	else
-		mpam_reset_device(dev);
+		mpam_reset_device(cfg_update->class, cfg_update->comp, dev);
 	spin_unlock(&dev->lock);
 
 	return ret;
@@ -726,7 +729,6 @@ static void mpam_component_apply_all_local(void *d)
 	struct mpam_device *dev;
 	struct mpam_device_cfg_update *cfg_update = d;
 	struct mpam_component *comp = cfg_update->comp;
-	struct mpam_component_cfg_update *cfg = cfg_update->cfg;
 
 	list_for_each_entry(dev, &comp->devices, comp_list) {
 		if (cpumask_intersects(&dev->online_affinity,
@@ -738,7 +740,7 @@ static void mpam_component_apply_all_local(void *d)
 			continue;
 
 		/* Apply new configuration to this device */
-		err = mpam_device_apply_config(dev, cfg);
+		err = mpam_device_apply_config(dev, cfg_update);
 		if (err)
 			cmpxchg(&cfg_update->first_error, 0, err);
 	}
@@ -747,7 +749,8 @@ static void mpam_component_apply_all_local(void *d)
 }
 
 /* Call with cpuhp lock held */
-int mpam_component_apply_all(struct mpam_component *comp,
+int mpam_component_apply_all(struct mpam_class *class,
+			     struct mpam_component *comp,
 			     struct mpam_component_cfg_update *cfg)
 {
 	int cpu;
@@ -757,6 +760,7 @@ int mpam_component_apply_all(struct mpam_component *comp,
 	/* The online_affinity masks must not change while we do this */
 	lockdep_assert_cpus_held();
 
+	cfg_update.class = class;
 	cfg_update.comp =  comp;
 	cfg_update.cfg = cfg;
 	cfg_update.first_error = 0;
@@ -804,7 +808,7 @@ void mpam_reset_devices(void)
 	rcu_read_lock();
 	list_for_each_entry_rcu(class, &mpam_classes_rcu, classes_list_rcu) {
 		list_for_each_entry(comp, &class->components, class_list)
-			mpam_component_apply_all(comp, NULL);
+			mpam_component_apply_all(class, comp, NULL);
 	}
 	rcu_read_unlock();
 	mutex_unlock(&mpam_devices_lock);
@@ -848,7 +852,8 @@ static void mpam_sync_cpu_cache_component_fw_affinity(struct mpam_class *class,
 	cpumask_set_cpu(cpu, &class->fw_affinity);
 }
 
-static int __online_devices(struct mpam_component *comp, int cpu)
+static int __online_devices(struct mpam_class *class,
+			    struct mpam_component *comp, int cpu)
 {
 	int err = 0;
 	struct mpam_device *dev;
@@ -867,7 +872,7 @@ static int __online_devices(struct mpam_component *comp, int cpu)
 		}
 
 		if (cpumask_empty(&dev->online_affinity))
-			mpam_reset_device(dev);
+			mpam_reset_device(class, comp, dev);
 
 		cpumask_set_cpu(cpu, &dev->online_affinity);
 		spin_unlock(&dev->lock);
@@ -898,7 +903,7 @@ static int mpam_cpu_online(unsigned int cpu)
 			if (!cpumask_test_cpu(cpu, &comp->fw_affinity))
 				continue;
 
-			err = __online_devices(comp, cpu);
+			err = __online_devices(class, comp, cpu);
 			if (err > 0)
 				new_device_probed = true;
 			if (err < 0)

@@ -482,7 +482,7 @@ int mpam_resctrl_update_one(struct rdt_resource *r, struct rdt_domain *d,
 	comp->resctrl_cfg[hw_closid] = resctrl_val;
 	cfg_p = mpam_resctrl_get_converted_config(class, comp, hw_closid, &cfg);
 
-	return mpam_component_apply_all(comp, cfg_p);
+	return mpam_component_apply_all(class, comp, cfg_p);
 
 }
 

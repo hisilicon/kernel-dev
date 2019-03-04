@@ -215,7 +215,8 @@ mpam_resctrl_get_converted_config(struct mpam_class *class,
  * Apply the describe configuration update to all online devices.
  * Call with cpuhp lock held. A NULL arg causes these devices to be reset.
  */
-int mpam_component_apply_all(struct mpam_component *comp,
+int mpam_component_apply_all(struct mpam_class *class,
+			     struct mpam_component *comp,
 			     struct mpam_component_cfg_update *arg);
 
 int mpam_resctrl_init(void);
