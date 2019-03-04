@@ -360,6 +360,21 @@ int mpam_resctrl_setup(void)
 	return 0;
 }
 
+void resctrl_arch_get_config(struct rdt_resource *res, struct rdt_domain *d,
+			     hw_closid_t hw_closid, u32 *value)
+{
+	u16 partid;
+	struct mpam_resctrl_dom *dom;
+
+	partid = hwclosid_val(hw_closid);
+
+	if (!res->alloc_capable || partid >= mpam_resctrl_num_closid())
+		*value = res->default_ctrl;
+
+	dom = container_of(d, struct mpam_resctrl_dom, resctrl_dom);
+	*value = dom->resctrl_cfg[partid];
+}
+
 static void mpam_update_from_resctrl_cfg(struct mpam_resctrl_res *res,
 					 resctrl_config_t resctrl_cfg,
 					 mpam_config_t *mpam_cfg)
