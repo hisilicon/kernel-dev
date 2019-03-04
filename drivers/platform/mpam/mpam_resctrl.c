@@ -437,6 +437,18 @@ int mpam_resctrl_init(void)
 	return 0;
 }
 
+void mpam_resctrl_get_config(struct rdt_resource *res, struct rdt_domain *d,
+			     u16 hw_closid, u32 *value)
+{
+	struct mpam_component *comp;
+
+	if (!res->alloc_capable || hw_closid >= mpam_resctrl_num_closid())
+		*value = res->default_ctrl;
+
+	comp = container_of(d, struct mpam_component, resctrl_domain);
+	*value = comp->resctrl_cfg[hw_closid];
+}
+
 struct mpam_component_cfg_update *
 mpam_resctrl_get_converted_config(struct mpam_class *class,
 				  struct mpam_component *comp, u16 partid,

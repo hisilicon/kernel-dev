@@ -35,6 +35,13 @@ static inline u32 resctrl_arch_system_num_closid(void)
 
 struct rdt_resource;
 struct rdt_domain;
+static inline void resctrl_arch_get_config(struct rdt_resource *r,
+					   struct rdt_domain *d,
+					   hw_closid_t hw_closid, u32 *value)
+{
+	return mpam_resctrl_get_config(r, d, hwclosid_val(hw_closid), value);
+}
+
 static inline int resctrl_arch_update_one(struct rdt_resource *r,
 					  struct rdt_domain *d,
 					  hw_closid_t hw_closid, u32 value)

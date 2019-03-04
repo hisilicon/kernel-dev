@@ -126,6 +126,8 @@ void mpam_resctrl_reset_resources(void);
 
 struct rdt_resource;
 struct rdt_domain;
+void mpam_resctrl_get_config(struct rdt_resource *r, struct rdt_domain *d,
+			     u16 hw_closid, u32 *value);
 int mpam_resctrl_update_one(struct rdt_resource *r, struct rdt_domain *d,
 			    u16 hw_closid, u32 cfg_val);
 struct rdt_domain *resctrl_arch_find_domain(struct rdt_resource *r, int id);

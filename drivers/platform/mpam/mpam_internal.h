@@ -224,6 +224,10 @@ int mpam_component_apply_all(struct mpam_class *class,
 
 int mpam_resctrl_init(void);
 
+struct mpam_component *mpam_component_get(struct mpam_class *class, int id,
+					  bool alloc);
+
+
 /* Size of the memory mapped registers: 4K of feature page then 2x 4K bitmap registers */
 #define SZ_MPAM_DEVICE	(3 * SZ_4K)
 
