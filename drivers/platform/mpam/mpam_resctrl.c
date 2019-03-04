@@ -569,12 +569,23 @@ int mpam_resctrl_cpu_online(unsigned int cpu)
 	return 0;
 }
 
+
+static void reset_this_cpus_defaults(int cpu)
+{
+	mpam_set_default_partid(cpu, 0, 0);
+	mpam_set_default_pmg(cpu, 0, 0);
+
+	_mpam_thread_switch(current);
+}
+
 int mpam_resctrl_cpu_offline(unsigned int cpu)
 {
 	int i;
 	struct rdt_domain *d;
 	struct mpam_resctrl_res *res;
 	struct mpam_resctrl_dom *dom;
+
+	reset_this_cpus_defaults(cpu);
 
 	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
 		res = &mpam_resctrl_exports[i];
