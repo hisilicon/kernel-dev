@@ -936,6 +936,8 @@ static int mpam_cpu_online(unsigned int cpu)
 	if (err < 0)
 		return err;
 
+	mpam_resctrl_cpu_online(cpu);
+
 	return 0;
 }
 
@@ -948,6 +950,8 @@ static int mpam_cpu_offline(unsigned int cpu)
 		cpumask_clear_cpu(cpu, &dev->online_affinity);
 
 	mutex_unlock(&mpam_devices_lock);
+
+	mpam_resctrl_cpu_offline(cpu);
 
 	return 0;
 }

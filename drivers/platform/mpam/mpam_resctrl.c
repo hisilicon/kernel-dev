@@ -449,6 +449,62 @@ void mpam_resctrl_get_config(struct rdt_resource *res, struct rdt_domain *d,
 	*value = comp->resctrl_cfg[hw_closid];
 }
 
+int mpam_resctrl_cpu_online(unsigned int cpu)
+{
+	int i;
+	struct mpam_class *class;
+	struct mpam_component *comp;
+
+	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
+		class = mpam_resctrl_exports[i];
+
+		/* might not be initialised yet */
+		if (!class)
+			return 0;
+
+		/* dummy resource, we leave its domain list empty */
+		if (list_empty(&class->classes_list_rcu))
+			continue;
+
+		list_for_each_entry(comp, &class->components, class_list) {
+			if (!cpumask_test_cpu(cpu, &comp->fw_affinity))
+				continue;
+
+			cpumask_set_cpu(cpu, &comp->resctrl_domain.cpu_mask);
+		}
+	}
+
+	return 0;
+}
+
+int mpam_resctrl_cpu_offline(unsigned int cpu)
+{
+	int i;
+	struct mpam_class *class;
+	struct mpam_component *comp;
+
+	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
+		class = mpam_resctrl_exports[i];
+
+		/* might not be initialised yet */
+		if (!class)
+			return 0;
+
+		/* dummy resource */
+		if (list_empty(&class->classes_list_rcu))
+			continue;
+
+		list_for_each_entry(comp, &class->components, class_list) {
+			if (!cpumask_test_cpu(cpu, &comp->fw_affinity))
+				continue;
+
+			cpumask_clear_cpu(cpu, &comp->resctrl_domain.cpu_mask);
+		}
+	}
+
+	return 0;
+}
+
 struct mpam_component_cfg_update *
 mpam_resctrl_get_converted_config(struct mpam_class *class,
 				  struct mpam_component *comp, u16 partid,

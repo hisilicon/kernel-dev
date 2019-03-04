@@ -222,6 +222,10 @@ int mpam_component_apply_all(struct mpam_class *class,
 			     struct mpam_component *comp,
 			     struct mpam_component_cfg_update *arg);
 
+
+int mpam_resctrl_cpu_online(unsigned int cpu);
+int mpam_resctrl_cpu_offline(unsigned int cpu);
+
 int mpam_resctrl_init(void);
 
 struct mpam_component *mpam_component_get(struct mpam_class *class, int id,
