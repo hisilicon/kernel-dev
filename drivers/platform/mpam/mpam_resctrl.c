@@ -483,6 +483,22 @@ int mpam_resctrl_update_one(struct rdt_resource *r, struct rdt_domain *d,
 	cfg_p = mpam_resctrl_get_converted_config(class, comp, hw_closid, &cfg);
 
 	return mpam_component_apply_all(class, comp, cfg_p);
+}
 
+/* call with cpus_read_lock() held */
+struct rdt_domain *mpam_resctrl_find_domain(struct rdt_resource *r, int id)
+{
+	struct mpam_class *class;
+	struct mpam_component *comp;
+
+	if (!r)
+		return NULL;
+
+	class = container_of(r, struct mpam_class, resctrl_res);
+	comp = mpam_component_get(class, id, false);
+	if (!comp)
+		return NULL;
+
+	return &comp->resctrl_domain;
 }
 

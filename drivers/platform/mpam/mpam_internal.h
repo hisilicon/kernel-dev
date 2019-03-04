@@ -199,6 +199,9 @@ struct mpam_component_cfg_update
 	enum mpam_device_features feat;
 };
 
+struct mpam_component *mpam_component_get(struct mpam_class *class, int id,
+					  bool alloc);
+
 /*
  * Retrieve @comp's mpam configuration for @partid.
  *
