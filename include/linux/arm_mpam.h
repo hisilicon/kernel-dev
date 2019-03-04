@@ -115,4 +115,7 @@ u32 mpam_resctrl_num_rmid(void);
 /* Get the specific resctrl resource */
 struct rdt_resource *mpam_resctrl_get_resource(enum resctrl_resource_level l);
 
+/* reset cached configurations, then all devices */
+void resctrl_arch_reset_resources(void);
+
 #endif /* __LINUX_ARM_MPAM_H */

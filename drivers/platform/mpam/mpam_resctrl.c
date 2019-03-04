@@ -208,6 +208,32 @@ static void resource_reset_cfg(struct mpam_resctrl_res *res,
 	}
 }
 
+void resctrl_arch_reset_resources(void)
+{
+	int i;
+	struct rdt_domain *d;
+	struct mpam_resctrl_dom *dom;
+	struct mpam_resctrl_res *res;
+
+	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
+		res = &mpam_resctrl_exports[i];
+
+		if (!res->class)
+			continue;	// dummy resource
+
+		if (!res->resctrl_res.alloc_capable)
+			continue;
+
+		list_for_each_entry(d, &res->resctrl_res.domains, list) {
+			dom = container_of(d, struct mpam_resctrl_dom,
+					   resctrl_dom);
+			resource_reset_cfg(res, dom);
+		}
+	}
+
+	mpam_reset_devices();
+}
+
 static int mpam_resctrl_setup_domain(unsigned int cpu,
 				     struct mpam_resctrl_res *res)
 {
