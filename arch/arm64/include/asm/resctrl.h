@@ -25,6 +25,11 @@ typedef struct { u16 val; } hw_closid_t;
 #define resctrl_arch_reset_resources()	mpam_resctrl_reset_resources()
 #define resctrl_arch_find_domain(r, id)	mpam_resctrl_find_domain(r, id);
 
+static inline void resctrl_arch_enable_alloc(void) { }
+static inline void resctrl_arch_disable_alloc(void) { }
+static inline void resctrl_arch_enable_mon(void) { }
+static inline void resctrl_arch_disable_mon(void) { }
+
 static inline u32 resctrl_arch_system_num_rmid(void)
 {
 	return mpam_resctrl_num_rmid();
