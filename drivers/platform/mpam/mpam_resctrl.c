@@ -527,6 +527,8 @@ static int mpam_resctrl_setup_domain(unsigned int cpu,
 	/* TODO: this list should be sorted */
 	list_add_tail(&dom->resctrl_dom.list, &res->resctrl_res.domains);
 
+	resctrl_online_domain(&res->resctrl_res, &dom->resctrl_dom);
+
 	return 0;
 }
 
@@ -566,7 +568,7 @@ int mpam_resctrl_cpu_online(unsigned int cpu)
 			mpam_resctrl_setup_domain(cpu, res);
 	}
 
-	return 0;
+	return resctrl_online_cpu(cpu);
 }
 
 
@@ -585,6 +587,7 @@ int mpam_resctrl_cpu_offline(unsigned int cpu)
 	struct mpam_resctrl_res *res;
 	struct mpam_resctrl_dom *dom;
 
+	resctrl_offline_cpu(cpu);
 	reset_this_cpus_defaults(cpu);
 
 	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
@@ -604,7 +607,9 @@ int mpam_resctrl_cpu_offline(unsigned int cpu)
 		if (!cpumask_empty(&d->cpu_mask))
 			continue;
 
+		resctrl_offline_domain(&res->resctrl_res, d);
 		list_del(&d->list);
+
 		dom = container_of(d, struct mpam_resctrl_dom, resctrl_dom);
 		kfree(dom->resctrl_cfg);
 		kfree(dom);
