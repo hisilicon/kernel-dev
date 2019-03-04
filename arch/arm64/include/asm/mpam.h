@@ -144,6 +144,10 @@ static inline u64 _mpam_get_current_regval(void)
 }
 
 #else
+static inline void mpam_set_task_partid(struct task_struct *t, u16 d, u16 i) { }
+static inline void mpam_set_task_pmg(struct task_struct *t, u8 d, u8 i) { }
+static inline void mpam_set_default_partid(int c, u16 d, u16 i) { }
+static inline void mpam_set_default_pmg(int c, u8 d, u8 i) { }
 static inline void _mpam_thread_switch(struct task_struct *next) { }
 static inline u64 _mpam_get_current_regval(void) { return 0; }
 #endif /* CONFIG_ARCH_HAS_CPU_RESCTRL */
