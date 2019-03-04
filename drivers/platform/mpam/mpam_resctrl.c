@@ -177,6 +177,24 @@ static int mpam_resctrl_resource_init(struct mpam_class *class)
 	return resource_alloc_cfg(class);
 }
 
+void mpam_resctrl_reset_resources(void)
+{
+	int i;
+	struct mpam_class *class;
+	struct mpam_component *comp;
+
+	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
+		class = mpam_resctrl_exports[i];
+
+		if (!class->resctrl_res.alloc_capable)
+			continue;
+
+		list_for_each_entry(comp, &class->components, class_list)
+			resource_reset_cfg(class, comp);
+	}
+
+	mpam_reset_devices();
+}
 
 static int mpam_resctrl_allocate_dummy_resource(enum resctrl_resource_level l)
 {
