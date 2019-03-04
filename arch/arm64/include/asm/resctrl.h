@@ -6,6 +6,7 @@
 
 #include <linux/arm_mpam.h>
 
+#include <asm/barrier.h>
 #include <asm/mpam.h>
 
 /* This is the MPAM->resctrl<-arch glue. */
@@ -35,6 +36,18 @@ static inline u32 resctrl_arch_system_num_rmid(void)
 static inline u32 resctrl_arch_system_num_closid(void)
 {
 	return mpam_resctrl_num_closid();
+}
+
+static inline void resctrl_sched_in(void)
+{
+	_mpam_thread_switch(current);
+
+	/*
+	 * We depend on the dsb() in __switch_to() to finish any writes
+	 * that had the old mpam partid. This allows us to re-allocate that
+	 * partid after the last task has finished using it.
+	 */
+	dsb(ishst);
 }
 
 static inline u32 resctrl_arch_max_rmid_threshold(void)
