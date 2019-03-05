@@ -211,6 +211,10 @@ static struct mpam_class * __init mpam_class_alloc(u8 level_idx, enum mpam_class
 	INIT_LIST_HEAD(&class->resctrl_res.domains);
 	INIT_LIST_HEAD(&class->classes_list_rcu);
 
+	mutex_init(&class->lock);
+	ida_init(&class->ida_csu_mon);
+	ida_init(&class->ida_mbwu_mon);
+
 	/* even if its not a cache: */
 	class->resctrl_res.cache_level = level_idx;
 	class->type = type;
