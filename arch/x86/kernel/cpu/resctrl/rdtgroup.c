@@ -3199,6 +3199,50 @@ out:
 	return ret;
 }
 
+/*
+ * Allocate any resource specific monitor arrays.
+ * Called from cpuhp callbacks before resctrl_online_domain().
+ */
+static int resctrl_domain_setup_mon_state(struct rdt_resource *r,
+					  struct rdt_domain *d)
+{
+	size_t tsize;
+	u32 rmid_limit = resctrl_arch_system_num_rmid();
+
+	if (is_llc_occupancy_enabled()) {
+		d->rmid_busy_llc = bitmap_zalloc(rmid_limit, GFP_KERNEL);
+		if (!d->rmid_busy_llc)
+			return -ENOMEM;
+	}
+	if (is_mbm_total_enabled()) {
+		tsize = sizeof(*d->mbm_total);
+		d->mbm_total = kcalloc(rmid_limit, tsize, GFP_KERNEL);
+		if (!d->mbm_total) {
+			bitmap_free(d->rmid_busy_llc);
+			return -ENOMEM;
+		}
+	}
+	if (is_mbm_local_enabled()) {
+		tsize = sizeof(*d->mbm_local);
+		d->mbm_local = kcalloc(rmid_limit, tsize, GFP_KERNEL);
+		if (!d->mbm_local) {
+			bitmap_free(d->rmid_busy_llc);
+			kfree(d->mbm_total);
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+
+}
+
+static void resctrl_domain_teardown_mon_state(struct rdt_domain *d)
+{
+	kfree(d->rmid_busy_llc);
+	kfree(d->mbm_total);
+	kfree(d->mbm_local);
+}
+
 void resctrl_offline_domain(struct rdt_resource *r, struct rdt_domain *d)
 {
 	lockdep_assert_held(&rdtgroup_mutex); // the arch code took this for us
@@ -3230,14 +3274,23 @@ void resctrl_offline_domain(struct rdt_resource *r, struct rdt_domain *d)
 
 	if (resctrl_mounted && is_mba_sc(r))
 		destroy_domain_mba_sc(r, d);
+
+	resctrl_domain_teardown_mon_state(d);
 }
 
-void resctrl_online_domain(struct rdt_resource *r, struct rdt_domain *d)
+int resctrl_online_domain(struct rdt_resource *r, struct rdt_domain *d)
 {
+	int err;
 	lockdep_assert_held(&rdtgroup_mutex); // the arch code took this for us
 
 	if (!r->mon_capable)
-		return;
+		return 0;
+
+	err = resctrl_domain_setup_mon_state(r, d);
+	if (err) {
+		resctrl_domain_teardown_mon_state(d);
+		return err;
+	}
 
 	if (is_mbm_enabled()) {
 		INIT_DELAYED_WORK(&d->mbm_over, mbm_handle_overflow);
@@ -3253,6 +3306,8 @@ void resctrl_online_domain(struct rdt_resource *r, struct rdt_domain *d)
 
 	if (resctrl_mounted && is_mba_sc(r))
 		allocate_domain_mba_sc(smp_processor_id(), r, d);
+
+	return 0;
 }
 
 /*
