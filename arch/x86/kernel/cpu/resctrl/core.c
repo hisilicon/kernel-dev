@@ -438,37 +438,6 @@ static int domain_setup_ctrlval(struct rdt_resource *r, struct rdt_domain *d)
 	return 0;
 }
 
-static int domain_setup_mon_state(struct rdt_resource *r, struct rdt_domain *d)
-{
-	size_t tsize;
-	u32 rmid_limit = resctrl_arch_system_num_rmid();
-
-	if (is_llc_occupancy_enabled()) {
-		d->rmid_busy_llc = bitmap_zalloc(rmid_limit, GFP_KERNEL);
-		if (!d->rmid_busy_llc)
-			return -ENOMEM;
-	}
-	if (is_mbm_total_enabled()) {
-		tsize = sizeof(*d->mbm_total);
-		d->mbm_total = kcalloc(rmid_limit, tsize, GFP_KERNEL);
-		if (!d->mbm_total) {
-			bitmap_free(d->rmid_busy_llc);
-			return -ENOMEM;
-		}
-	}
-	if (is_mbm_local_enabled()) {
-		tsize = sizeof(*d->mbm_local);
-		d->mbm_local = kcalloc(rmid_limit, tsize, GFP_KERNEL);
-		if (!d->mbm_local) {
-			bitmap_free(d->rmid_busy_llc);
-			kfree(d->mbm_total);
-			return -ENOMEM;
-		}
-	}
-
-	return 0;
-}
-
 /*
  * domain_add_cpu - Add a cpu to a resource's domain list.
  *
@@ -513,14 +482,12 @@ static void domain_add_cpu(int cpu, struct rdt_resource *r)
 		return;
 	}
 
-	if (r->mon_capable && domain_setup_mon_state(r, d)) {
-		kfree(d);
-		return;
-	}
-
 	list_add_tail(&d->list, add_pos);
 
-	return resctrl_online_domain(r, d);
+	if (resctrl_online_domain(r, d)) {
+		list_del(&d->list);
+		kfree(d);
+	}
 }
 
 static void domain_remove_cpu(int cpu, struct rdt_resource *r)
@@ -549,9 +516,6 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 			d->plr->d = NULL;
 
 		kfree(hw_dom->ctrl_val);
-		bitmap_free(d->rmid_busy_llc);
-		kfree(d->mbm_total);
-		kfree(d->mbm_local);
 		kfree(hw_dom);
 		return;
 	}
