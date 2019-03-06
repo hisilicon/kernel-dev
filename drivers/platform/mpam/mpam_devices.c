@@ -63,8 +63,9 @@ struct mpam_device_cfg_update
 	struct mpam_class *class;
 	struct mpam_component *comp;
 
-	/* cfg is NULL for a reset */
-	struct mpam_component_cfg_update *cfg;
+	struct mpam_component_cfg_update *update_arg;
+	int (*updater)(struct mpam_device *dev,
+		       struct mpam_device_cfg_update *arg);
 
 	/*
 	 * If the device is reachable from one of these cpus, it has been
@@ -885,7 +886,7 @@ static int mpam_device_apply_config(struct mpam_device *dev,
 {
 	int ret = 0;
 	unsigned long flags;
-	struct mpam_component_cfg_update *cfg = cfg_update->cfg;
+	struct mpam_component_cfg_update *cfg = cfg_update->update_arg;
 
 	if (mpam_broken)
 		return -EIO;
@@ -918,7 +919,7 @@ static void mpam_component_apply_all_local(void *d)
 			continue;
 
 		/* Apply new configuration to this device */
-		err = mpam_device_apply_config(dev, cfg_update);
+		err = cfg_update->updater(dev, cfg_update);
 		if (err)
 			cmpxchg(&cfg_update->first_error, 0, err);
 	}
@@ -927,36 +928,28 @@ static void mpam_component_apply_all_local(void *d)
 }
 
 /* Call with cpuhp lock held */
-int mpam_component_apply_all(struct mpam_class *class,
-			     struct mpam_component *comp,
-			     struct mpam_component_cfg_update *cfg)
+static void __apply_all(struct mpam_device_cfg_update *cfg_update)
 {
 	int cpu;
 	struct mpam_device *dev;
-	struct mpam_device_cfg_update cfg_update;
+	struct mpam_component *comp = cfg_update->comp;
 
 	/* The online_affinity masks must not change while we do this */
 	lockdep_assert_cpus_held();
 
-	cfg_update.class = class;
-	cfg_update.comp =  comp;
-	cfg_update.cfg = cfg;
-	cfg_update.first_error = 0;
-	cpumask_clear(&cfg_update.updated_on);
-
 	cpu = get_cpu();
 	/* Update any devices we can reach locally */
 	if (cpumask_test_cpu(cpu, &comp->fw_affinity))
-		mpam_component_apply_all_local(&cfg_update);
+		mpam_component_apply_all_local(cfg_update);
 	put_cpu();
 
 	/* Find the set of other CPUs we need to run on to update this component */
 	list_for_each_entry(dev, &comp->devices, comp_list) {
-		if (cfg_update.first_error)
+		if (cfg_update->first_error)
 			break;
 
 		if (cpumask_intersects(&dev->online_affinity,
-				       &cfg_update.updated_on))
+				       &cfg_update->updated_on))
 			continue;
 
 		/*
@@ -965,8 +958,25 @@ int mpam_component_apply_all(struct mpam_class *class,
 		 */
 		cpu = cpumask_any(&dev->online_affinity);
 		smp_call_function_single(cpu, mpam_component_apply_all_local,
-					 &cfg_update, 1);
+					 cfg_update, 1);
 	}
+}
+
+/* Call with cpuhp lock held */
+int mpam_component_apply_all(struct mpam_class *class,
+			     struct mpam_component *comp,
+			     struct mpam_component_cfg_update *cfg)
+{
+	struct mpam_device_cfg_update cfg_update;
+
+	cfg_update.class = class;
+	cfg_update.comp = comp;
+	cfg_update.updater = &mpam_device_apply_config;
+	cfg_update.update_arg = cfg;
+	cfg_update.first_error = 0;
+	cpumask_clear(&cfg_update.updated_on);
+
+	__apply_all(&cfg_update);
 
 	return cfg_update.first_error;
 }
