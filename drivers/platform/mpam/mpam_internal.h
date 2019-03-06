@@ -198,6 +198,11 @@ struct mpam_component_cfg_update
 	u16 partid;
 	mpam_config_t mpam_cfg;
 	enum mpam_device_features feat;
+
+	/* when we are configuring a monitor, we need these: */
+	u8	mon;
+	bool	match_pmg;
+	u8	pmg;
 };
 
 struct mpam_component *mpam_component_get(struct mpam_class *class, int id,
@@ -222,6 +227,23 @@ mpam_resctrl_get_converted_config(struct mpam_class *class,
 int mpam_component_apply_all(struct mpam_class *class,
 			     struct mpam_component *comp,
 			     struct mpam_component_cfg_update *arg);
+
+/*
+ * Configure a freshly allocated monitor for your partid:pmg.
+ * Call with cpuhp lock held.
+ */
+int mpam_component_configure_mon(struct mpam_class *class,
+				 struct mpam_component *comp,
+				 struct mpam_component_cfg_update *arg);
+
+/*
+ * Read a configured monitor, may return -EBUSY if any device's monitor is
+ * not-ready. Call with cpuhp lock held.
+ */
+int mpam_component_read_mon(struct mpam_class *class,
+			    struct mpam_component *comp,
+			    struct mpam_component_cfg_update *arg,
+			    u64 *value);
 
 
 int mpam_resctrl_cpu_online(unsigned int cpu);

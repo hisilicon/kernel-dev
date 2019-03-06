@@ -4,6 +4,7 @@
 #define pr_fmt(fmt) "mpam: " fmt
 
 #include <linux/arm_mpam.h>
+#include <linux/atomic.h>
 #include <linux/bitmap.h>
 #include <linux/bits.h>
 #include <linux/cacheinfo.h>
@@ -66,6 +67,9 @@ struct mpam_device_cfg_update
 	struct mpam_component_cfg_update *update_arg;
 	int (*updater)(struct mpam_device *dev,
 		       struct mpam_device_cfg_update *arg);
+
+	/* When reading a monitor, we have an atomic u64 for the counter value */
+	atomic64_t mon_value;
 
 	/*
 	 * If the device is reachable from one of these cpus, it has been
@@ -979,6 +983,132 @@ int mpam_component_apply_all(struct mpam_class *class,
 	__apply_all(&cfg_update);
 
 	return cfg_update.first_error;
+}
+
+static int mpam_device_configure_mon(struct mpam_device *dev,
+				    struct mpam_device_cfg_update *cfg_update)
+{
+	u32 clt, flt;
+	unsigned long flags;
+	struct mpam_component_cfg_update *cfg = cfg_update->update_arg;
+
+	if (mpam_broken)
+		return -EIO;
+
+	if (cfg->feat != mpam_feat_msmon_csu)
+		return -EOPNOTSUPP;
+	if (!mpam_has_feature(cfg->feat, dev->features))
+		return -EOPNOTSUPP;
+
+	spin_lock_irqsave(&dev->lock, flags);
+
+	mpam_write_reg(dev, MSMON_CFG_MON_SEL, cfg->mon);
+	wmb();
+
+	flt = cfg->partid | (cfg->pmg << MSMON_CFG_MBWU_FLT_PMG_SHIFT);
+	mpam_write_reg(dev, MSMON_CFG_CSU_FLT, flt);
+
+	/*
+	 * We don't bother with capture as we don't expose a way of measuring
+	 * multiple partid:pmg with a single capture.
+	 *
+	 * Write the ctl with the enable bit cleared, reset the counter, then
+	 * enable counter.
+	 */
+	clt = MSMON_CFG_x_CTL_MATCH_PARTID;
+	if (cfg->match_pmg)
+		clt |= MSMON_CFG_x_CTL_MATCH_PMG;
+	mpam_write_reg(dev, MSMON_CFG_CSU_CLT, clt);
+	wmb();
+
+	mpam_write_reg(dev, MSMON_CSU, 0);
+	wmb();
+
+	clt |= MSMON_CFG_x_CTL_EN;
+	mpam_write_reg(dev, MSMON_CFG_CSU_CLT, clt);
+	wmb();
+
+	spin_unlock_irqrestore(&dev->lock, flags);
+
+	return 0;
+}
+
+/* Call with cpuhp lock held */
+int mpam_component_configure_mon(struct mpam_class *class,
+			         struct mpam_component *comp,
+			         struct mpam_component_cfg_update *arg)
+{
+	struct mpam_device_cfg_update cfg_update;
+
+	cfg_update.class = class;
+	cfg_update.comp = comp;
+	cfg_update.updater = &mpam_device_configure_mon;
+	cfg_update.update_arg = arg;
+	cfg_update.first_error = 0;
+	cpumask_clear(&cfg_update.updated_on);
+
+	__apply_all(&cfg_update);
+
+	return cfg_update.first_error;
+}
+
+static int mpam_device_read_mon(struct mpam_device *dev,
+			        struct mpam_device_cfg_update *cfg_update)
+{
+	u32 csu;
+	unsigned long flags;
+	struct mpam_component_cfg_update *cfg = cfg_update->update_arg;
+
+	if (mpam_broken)
+		return -EIO;
+
+	if (cfg->feat != mpam_feat_msmon_csu)
+		return -EOPNOTSUPP;
+	if (!mpam_has_feature(cfg->feat, dev->features))
+		return -EOPNOTSUPP;
+
+	spin_lock_irqsave(&dev->lock, flags);
+
+	mpam_write_reg(dev, MSMON_CFG_MON_SEL, cfg->mon);
+	mb();
+	csu = mpam_read_reg(dev, MSMON_CSU);
+
+	spin_unlock_irqrestore(&dev->lock, flags);
+
+	if (csu & MSMON___NRDY)
+		return -EBUSY;
+
+	csu = csu & MSMON___VALUE;
+	atomic64_add(csu, &cfg_update->mon_value);
+
+	return 0;
+}
+
+/* Call with cpuhp lock held */
+int mpam_component_read_mon(struct mpam_class *class,
+			    struct mpam_component *comp,
+			    struct mpam_component_cfg_update *arg,
+			    u64 *value)
+{
+	struct mpam_device_cfg_update cfg_update;
+
+	cfg_update.class = class;
+	cfg_update.comp = comp;
+	cfg_update.updater = &mpam_device_read_mon;
+	cfg_update.update_arg = arg;
+	cfg_update.first_error = 0;
+	cpumask_clear(&cfg_update.updated_on);
+
+	atomic64_set(&cfg_update.mon_value, 0);
+
+	__apply_all(&cfg_update);
+
+	if (cfg_update.first_error)
+		return cfg_update.first_error;
+
+	*value = atomic64_read(&cfg_update.mon_value);
+
+	return 0;
 }
 
 /*
