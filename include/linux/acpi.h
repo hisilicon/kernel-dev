@@ -654,6 +654,10 @@ static inline u64 acpi_arch_get_root_pointer(void)
 
 struct acpi_pptt_cache *acpi_pptt_validate_cache_node(struct acpi_table_header *table_hdr, u32 offset);
 
+struct acpi_pptt_processor *
+acpi_pptt_find_cache_backwards(struct acpi_table_header *table_hdr,
+			       struct acpi_pptt_cache *cache);
+
 #else	/* !CONFIG_ACPI */
 
 #define acpi_disabled 1
