@@ -434,7 +434,7 @@ int mpam_resctrl_init(void)
 	if (!exposed_alloc_capable || exposed_mon_capable)
 		return -EOPNOTSUPP;
 
-	return 0;
+	return resctrl_init();
 }
 
 void mpam_resctrl_get_config(struct rdt_resource *res, struct rdt_domain *d,
@@ -460,10 +460,6 @@ int mpam_resctrl_cpu_online(unsigned int cpu)
 
 	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
 		class = mpam_resctrl_exports[i];
-
-		/* might not be initialised yet */
-		if (!class)
-			return 0;
 
 		/* dummy resource, we leave its domain list empty */
 		if (list_empty(&class->classes_list_rcu))
@@ -509,10 +505,6 @@ int mpam_resctrl_cpu_offline(unsigned int cpu)
 
 	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
 		class = mpam_resctrl_exports[i];
-
-		/* might not be initialised yet */
-		if (!class)
-			return 0;
 
 		/* dummy resource */
 		if (list_empty(&class->classes_list_rcu))
