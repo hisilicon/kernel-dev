@@ -40,9 +40,15 @@ static LIST_HEAD(mpam_all_devices);
 /* Classes are the set of MSCs that make up components of the same type. */
 LIST_HEAD(mpam_classes);
 
-/* Hold this when registering/unregistering cpuhp callbacks */
+/*
+ * Hold this when registering/unregistering cpuhp callbacks.
+ * When taking the device lock too, take this lock first.
+ */
 static DEFINE_MUTEX(mpam_cpuhp_lock);
 static int mpam_cpuhp_state;
+
+static int mpam_cpu_online(unsigned int cpu);
+static int mpam_cpu_offline(unsigned int cpu);
 
 struct mpam_sysprops mpam_sysprops;
 
@@ -58,6 +64,8 @@ static struct work_struct mpam_enable_work;
  */
 static int mpam_broken;
 static struct work_struct mpam_failed_work;
+
+static bool resctrl_registered;
 
 #ifdef CONFIG_LOCKDEP
 void mpam_class_list_lock_held(void)
@@ -723,11 +731,45 @@ static void mpam_enable(struct work_struct *work)
 	mutex_lock(&mpam_devices_lock);
 	mpam_enable_squash_features();
 	err = mpam_allocate_config();
-	if (!err) {
+	if (!err)
 		mpam_enable_irqs();
-		mpam_resctrl_setup();
-	}
 	mutex_unlock(&mpam_devices_lock);
+
+	if (err)
+		return;
+
+	/*
+	 * mpam_enable() runs in parallel with cpuhp callbacks bringing other
+	 * CPUs online, as we eagerly schedule the work. To give resctrl a
+	 * clean start, we make all cpus look offline, set resctrl_registered,
+	 * and then bring them back.
+	 */
+	mutex_lock(&mpam_cpuhp_lock);
+	if (!mpam_cpuhp_state) {
+		/* We raced with mpam_failed(). */
+		mutex_unlock(&mpam_cpuhp_lock);
+		return;
+	}
+
+	cpuhp_remove_state(mpam_cpuhp_state);
+
+	mutex_lock(&mpam_devices_lock);
+	err = mpam_resctrl_setup();
+	mutex_unlock(&mpam_devices_lock);
+	if (!err) {
+		err = mpam_resctrl_init();
+		if (!err)
+			resctrl_registered = true;
+	}
+	if (err)
+		pr_err("Failed to setup/init resctrl\n");
+
+	mpam_cpuhp_state = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
+					     "mpam:online", mpam_cpu_online,
+					     mpam_cpu_offline);
+	if (mpam_cpuhp_state <= 0)
+		pr_err("Failed to re-register 'dyn' cpuhp callbacks");
+	mutex_unlock(&mpam_cpuhp_lock);
 }
 
 static void mpam_disable_irqs(void)
@@ -1214,7 +1256,8 @@ static int mpam_cpu_online(unsigned int cpu)
 		return err;
 	}
 
-	mpam_resctrl_cpu_online(cpu);
+	if (resctrl_registered)
+		mpam_resctrl_cpu_online(cpu);
 
 	return 0;
 }
@@ -1239,7 +1282,8 @@ static int mpam_cpu_offline(unsigned int cpu)
 	}
 	mutex_unlock(&mpam_devices_lock);
 
-	mpam_resctrl_cpu_offline(cpu);
+	if (resctrl_registered)
+		mpam_resctrl_cpu_offline(cpu);
 
 	return 0;
 }

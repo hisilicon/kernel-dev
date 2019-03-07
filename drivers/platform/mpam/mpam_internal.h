@@ -315,6 +315,7 @@ int mpam_resctrl_cpu_online(unsigned int cpu);
 int mpam_resctrl_cpu_offline(unsigned int cpu);
 
 int mpam_resctrl_setup(void);
+int mpam_resctrl_init(void);
 
 /* Size of the memory mapped registers: 4K of feature page then 2x 4K bitmap registers */
 #define SZ_MPAM_DEVICE	(3 * SZ_4K)
