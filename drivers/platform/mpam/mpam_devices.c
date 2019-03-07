@@ -51,6 +51,13 @@ struct mpam_sysprops mpam_sysprops;
  */
 static struct work_struct mpam_enable_work;
 
+/*
+ * This gets set if something terrible happens, it prevents future attempts
+ * to configure devices.
+ */
+static int mpam_broken;
+static struct work_struct mpam_failed_work;
+
 struct mpam_device_cfg_update
 {
 	struct mpam_class *class;
@@ -572,6 +579,9 @@ static irqreturn_t mpam_handle_error_irq(int irq, void *data)
 		pr_err_ratelimited("unexpected error %d [esr:%x]\n",
 				   device_errcode, device_esr);
 
+	if (!cmpxchg(&mpam_broken, -EINTR, 0))
+	        schedule_work(&mpam_failed_work);
+
 	/* A write of 0 to MPAMF_ESR.ERRCODE clears level interrupts */
 	spin_lock(&dev->lock);
 	mpam_write_reg(dev, MPAMF_ESR, 0);
@@ -672,6 +682,19 @@ static void mpam_enable(struct work_struct *work)
 	mpam_resctrl_init();
 }
 
+static void mpam_failed(struct work_struct *work)
+{
+	/*
+	 * Make it look like all CPUs are offline. This also resets the
+	 * cpu default values.
+	 */
+	mutex_lock(&mpam_cpuhp_lock);
+	if (mpam_cpuhp_state) {
+		cpuhp_remove_state(mpam_cpuhp_state);
+		mpam_cpuhp_state = 0;
+	}
+	mutex_unlock(&mpam_cpuhp_lock);
+}
 
 int __init mpam_discovery_start(void)
 {
@@ -682,6 +705,7 @@ int __init mpam_discovery_start(void)
 	mpam_sysprops.max_pmg = mpam_cpu_max_pmgs();
 
 	INIT_WORK(&mpam_enable_work, mpam_enable);
+	INIT_WORK(&mpam_failed_work, mpam_failed);
 
 	return 0;
 }
@@ -842,6 +866,9 @@ static int mpam_device_apply_config(struct mpam_device *dev,
 	unsigned long flags;
 	struct mpam_component_cfg_update *cfg = cfg_update->cfg;
 
+	if (mpam_broken)
+		return -EIO;
+
 	spin_lock_irqsave(&dev->lock, flags);
 	if (cfg)
 		ret = __apply_config(dev, cfg);
@@ -1001,7 +1028,7 @@ static int __online_devices(struct mpam_class *class,
 				new_device_probed = true;
 		}
 
-		if (cpumask_empty(&dev->online_affinity))
+		if (!err && cpumask_empty(&dev->online_affinity))
 			mpam_reset_device(class, comp, dev);
 
 		cpumask_set_cpu(cpu, &dev->online_affinity);
@@ -1047,8 +1074,12 @@ static int mpam_cpu_online(unsigned int cpu)
 
 	mutex_unlock(&mpam_devices_lock);
 
-	if (err < 0)
+	if (err < 0) {
+		if (!cmpxchg(&mpam_broken, err, 0))
+			schedule_work(&mpam_failed_work);
+
 		return err;
+	}
 
 	mpam_resctrl_cpu_online(cpu);
 
