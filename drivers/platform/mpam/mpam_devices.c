@@ -717,16 +717,37 @@ static void mpam_enable(struct work_struct *work)
 	mutex_unlock(&mpam_devices_lock);
 }
 
+static void mpam_disable_irqs(void)
+{
+	int irq;
+	bool do_unregister;
+	struct mpam_device *dev;
+	unsigned long irq_save_flags;
+
+	list_for_each_entry(dev, &mpam_all_devices, glbl_list) {
+		spin_lock_irqsave(&dev->lock, irq_save_flags);
+		irq = dev->error_irq;
+		do_unregister = dev->enable_error_irq;
+		dev->enable_error_irq = false;
+		spin_unlock_irqrestore(&dev->lock, irq_save_flags);
+
+		if (do_unregister)
+			free_irq(irq, dev);
+	}
+}
+
 static void mpam_failed(struct work_struct *work)
 {
 	/*
 	 * Make it look like all CPUs are offline. This also resets the
-	 * cpu default values.
+	 * cpu default values and disables interrupts.
 	 */
 	mutex_lock(&mpam_cpuhp_lock);
 	if (mpam_cpuhp_state) {
 		cpuhp_remove_state(mpam_cpuhp_state);
 		mpam_cpuhp_state = 0;
+
+		mpam_disable_irqs();
 	}
 	mutex_unlock(&mpam_cpuhp_lock);
 }
