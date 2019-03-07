@@ -360,6 +360,11 @@ int mpam_resctrl_setup(void)
 	return 0;
 }
 
+int mpam_resctrl_init(void)
+{
+	return resctrl_init();
+}
+
 void resctrl_arch_get_config(struct rdt_resource *res, struct rdt_domain *d,
 			     hw_closid_t hw_closid, u32 *value)
 {
