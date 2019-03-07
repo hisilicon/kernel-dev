@@ -416,6 +416,7 @@ struct mpam_component *mpam_component_get(struct mpam_class *class, int id,
 #define MPAM_ERRCODE_MONITOR_RANGE              5
 #define MPAM_ERRCODE_INTPARTID_RANGE            6
 #define MPAM_ERRCODE_UNEXPECTED_INTERNAL        7
+#define _MPAM_NUM_ERRCODE			8
 
 /*
  * MSMON_CFG_CSU_FLT - Memory system performance monitor configure cache storage

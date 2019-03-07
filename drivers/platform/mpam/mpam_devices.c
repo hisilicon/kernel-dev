@@ -11,6 +11,7 @@
 #include <linux/cpumask.h>
 #include <linux/errno.h>
 #include <linux/gfp.h>
+#include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/mutex.h>
@@ -110,7 +111,6 @@ mpam_device_alloc(struct mpam_component *comp)
 	spin_lock_init(&dev->lock);
 	INIT_LIST_HEAD(&dev->comp_list);
 	INIT_LIST_HEAD(&dev->glbl_list);
-	dev->enable_error_irq = true;	// temporary
 
 	dev->comp = comp;
 	list_add(&dev->comp_list, &comp->devices);
@@ -292,19 +292,23 @@ __mpam_device_create(u8 level_idx, enum mpam_class_types type,
 void __init mpam_device_set_error_irq(struct mpam_device *dev, u32 irq,
 				      u32 flags)
 {
-	spin_lock(&dev->lock);
+	unsigned long irq_save_flags;
+
+	spin_lock_irqsave(&dev->lock, irq_save_flags);
 	dev->error_irq = irq;
 	dev->error_irq_flags = flags & MPAM_IRQ_FLAGS_MASK;
-	spin_unlock(&dev->lock);
+	spin_unlock_irqrestore(&dev->lock, irq_save_flags);
 }
 
 void __init mpam_device_set_overflow_irq(struct mpam_device *dev, u32 irq,
 					 u32 flags)
 {
-	spin_lock(&dev->lock);
+	unsigned long irq_save_flags;
+
+	spin_lock_irqsave(&dev->lock, irq_save_flags);
 	dev->overflow_irq = irq;
 	dev->overflow_irq_flags = flags & MPAM_IRQ_FLAGS_MASK;
-	spin_unlock(&dev->lock);
+	spin_unlock_irqrestore(&dev->lock, irq_save_flags);
 }
 
 static void mpam_probe_update_sysprops(u16 max_partid, u8 max_pmg)
@@ -481,6 +485,7 @@ static void __device_class_feature_mismatch(struct mpam_device *dev,
  */
 static void mpam_enable_squash_features(void)
 {
+	unsigned long flags;
 	struct mpam_device *dev;
 	struct mpam_class *class;
 	struct mpam_component *comp;
@@ -506,7 +511,7 @@ static void mpam_enable_squash_features(void)
 			if (WARN_ON(!dev))
 				break;
 
-			spin_lock(&dev->lock);
+			spin_lock_irqsave(&dev->lock, flags);
 			class->features = dev->features;
 			class->cpbm_wd = dev->cpbm_wd;
 			class->mbw_pbm_bits = dev->mbw_pbm_bits;
@@ -515,19 +520,121 @@ static void mpam_enable_squash_features(void)
 			class->dspri_wd = dev->dspri_wd;
 			class->num_csu_mon = dev->num_csu_mon;
 			class->num_mbwu_mon = dev->num_mbwu_mon;
-			spin_unlock(&dev->lock);
+			spin_unlock_irqrestore(&dev->lock, flags);
 		}
 
 		list_for_each_entry(comp, &class->components, class_list) {
 			list_for_each_entry(dev, &comp->devices, comp_list) {
-				spin_lock(&dev->lock);
+				spin_lock_irqsave(&dev->lock, flags);
 				__device_class_feature_mismatch(dev, class);
 				class->features &= dev->features;
-				spin_unlock(&dev->lock);
+				spin_unlock_irqrestore(&dev->lock, flags);
 			}
 		}
 	}
 	rcu_read_unlock();
+}
+
+static const char *mpam_msc_err_str[_MPAM_NUM_ERRCODE] = {
+	[MPAM_ERRCODE_NONE] = "No Error",
+	[MPAM_ERRCODE_PARTID_SEL_RANGE] = "Out of range PARTID selected",
+	[MPAM_ERRCODE_REQ_PARTID_RANGE] = "Out of range PARTID requested",
+	[MPAM_ERRCODE_REQ_PMG_RANGE] = "Out of range PMG requested",
+	[MPAM_ERRCODE_MONITOR_RANGE] = "Out of range Monitor selected",
+	[MPAM_ERRCODE_MSMONCFG_ID_RANGE] = "Out of range Monitor:PARTID or PMG written",
+
+	/* These two are about PARTID narrowing, which we don't support */
+	[MPAM_ERRCODE_INTPARTID_RANGE] = "Out or range Internal-PARTID written",
+	[MPAM_ERRCODE_UNEXPECTED_INTERNAL] = "Internal-PARTID set but not expected",
+};
+
+
+static irqreturn_t mpam_handle_error_irq(int irq, void *data)
+{
+	u32 device_esr;
+	u16 device_errcode;
+	struct mpam_device *dev = data;
+
+	spin_lock(&dev->lock);
+	device_esr = mpam_read_reg(dev, MPAMF_ESR);
+	spin_unlock(&dev->lock);
+
+	device_errcode = (device_esr & MPAMF_ESR_ERRCODE) >> MPAMF_ESR_ERRCODE_SHIFT;
+	if (device_errcode == MPAM_ERRCODE_NONE)
+		return IRQ_NONE;
+
+	/* No-one expects MPAM errors! */
+	if (device_errcode <= _MPAM_NUM_ERRCODE)
+		pr_err_ratelimited("unexpected error '%s' [esr:%x]\n",
+				   mpam_msc_err_str[device_errcode],
+				   device_esr);
+	else
+		pr_err_ratelimited("unexpected error %d [esr:%x]\n",
+				   device_errcode, device_esr);
+
+	/* A write of 0 to MPAMF_ESR.ERRCODE clears level interrupts */
+	spin_lock(&dev->lock);
+	mpam_write_reg(dev, MPAMF_ESR, 0);
+	spin_unlock(&dev->lock);
+
+	return IRQ_HANDLED;
+}
+
+/* register and enable all device error interrupts */
+static void mpam_enable_irqs(void)
+{
+	struct mpam_device *dev;
+	int rc, irq, request_flags;
+	unsigned long irq_save_flags;
+
+	list_for_each_entry(dev, &mpam_all_devices, glbl_list) {
+		spin_lock_irqsave(&dev->lock, irq_save_flags);
+		irq = dev->error_irq;
+		request_flags = dev->error_irq_flags;
+		spin_unlock_irqrestore(&dev->lock, irq_save_flags);
+
+		if (request_flags & MPAM_IRQ_MODE_LEVEL) {
+			struct cpumask tmp;
+			bool inaccessible_cpus;
+
+			request_flags = IRQF_TRIGGER_LOW | IRQF_SHARED;
+
+			/*
+			 * If the MSC is not accessible from any CPU the IRQ
+			 * may be migrated to, we won't be able to clear it.
+			 * ~dev->fw_affinity is all the CPUs that can't access
+			 * the MSC. 'and' cpu_possible_mask tells us whether we
+			 * care.
+			 */
+			spin_lock_irqsave(&dev->lock, irq_save_flags);
+			inaccessible_cpus = cpumask_andnot(&tmp,
+							  cpu_possible_mask,
+							  &dev->fw_affinity);
+			spin_unlock_irqrestore(&dev->lock, irq_save_flags);
+
+			if (inaccessible_cpus) {
+				pr_err_once("NOT registering MPAM error level-irq that isn't globally reachable");
+				continue;
+			}
+		} else {
+			request_flags = IRQF_TRIGGER_RISING | IRQF_SHARED;
+		}
+
+		rc = request_irq(irq, mpam_handle_error_irq, request_flags,
+				 "MPAM ERR IRQ", dev);
+		if (rc) {
+			pr_err_ratelimited("Failed to register irq %u\n", irq);
+			continue;
+		}
+
+		/*
+		 * temporary: the interrupt will only be enabled when cpus
+		 * subsequently come online after mpam_enable().
+		 */
+		spin_lock_irqsave(&dev->lock, irq_save_flags);
+		dev->enable_error_irq = true;
+		spin_unlock_irqrestore(&dev->lock, irq_save_flags);
+	}
 }
 
 /*
@@ -537,16 +644,17 @@ static void mpam_enable_squash_features(void)
  */
 static void mpam_enable(struct work_struct *work)
 {
+	unsigned long flags;
 	struct mpam_device *dev;
 	bool all_devices_probed = true;
 
 	/* Have we probed all the devices? */
 	mutex_lock(&mpam_devices_lock);
 	list_for_each_entry(dev, &mpam_all_devices, glbl_list) {
-		spin_lock(&dev->lock);
+		spin_lock_irqsave(&dev->lock, flags);
 		if (!dev->probed)
 			all_devices_probed = false;
-		spin_unlock(&dev->lock);
+		spin_unlock_irqrestore(&dev->lock, flags);
 
 		if (!all_devices_probed)
 			break;
@@ -558,6 +666,7 @@ static void mpam_enable(struct work_struct *work)
 
 	mutex_lock(&mpam_devices_lock);
 	mpam_enable_squash_features();
+	mpam_enable_irqs();
 	mutex_unlock(&mpam_devices_lock);
 
 	mpam_resctrl_init();
@@ -730,14 +839,15 @@ static int mpam_device_apply_config(struct mpam_device *dev,
 				    struct mpam_device_cfg_update *cfg_update)
 {
 	int ret = 0;
+	unsigned long flags;
 	struct mpam_component_cfg_update *cfg = cfg_update->cfg;
 
-	spin_lock(&dev->lock);
+	spin_lock_irqsave(&dev->lock, flags);
 	if (cfg)
 		ret = __apply_config(dev, cfg);
 	else
 		mpam_reset_device(cfg_update->class, cfg_update->comp, dev);
-	spin_unlock(&dev->lock);
+	spin_unlock_irqrestore(&dev->lock, flags);
 
 	return ret;
 }
@@ -876,6 +986,7 @@ static int __online_devices(struct mpam_class *class,
 			    struct mpam_component *comp, int cpu)
 {
 	int err = 0;
+	unsigned long flags;
 	struct mpam_device *dev;
 	bool new_device_probed = false;
 
@@ -883,8 +994,7 @@ static int __online_devices(struct mpam_class *class,
 		if (!cpumask_test_cpu(cpu, &dev->fw_affinity))
 			continue;
 
-
-		spin_lock(&dev->lock);
+		spin_lock_irqsave(&dev->lock, flags);
 		if (!dev->probed) {
 			err = mpam_device_probe(dev);
 			if (!err)
@@ -895,7 +1005,7 @@ static int __online_devices(struct mpam_class *class,
 			mpam_reset_device(class, comp, dev);
 
 		cpumask_set_cpu(cpu, &dev->online_affinity);
-		spin_unlock(&dev->lock);
+		spin_unlock_irqrestore(&dev->lock, flags);
 
 		if (err)
 			return err;
