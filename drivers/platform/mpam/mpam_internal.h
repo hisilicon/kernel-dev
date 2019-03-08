@@ -132,6 +132,7 @@ struct mpam_device
 	u16			num_csu_mon;
 	u16			num_mbwu_mon;
 
+	bool			enable_error_irq;
 	u32                     error_irq;
 	u32                     error_irq_flags;
 	u32                     overflow_irq;
