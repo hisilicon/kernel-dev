@@ -115,6 +115,7 @@ mpam_device_alloc(struct mpam_component *comp)
 	spin_lock_init(&dev->lock);
 	INIT_LIST_HEAD(&dev->comp_list);
 	INIT_LIST_HEAD(&dev->glbl_list);
+	dev->enable_error_irq = true;	// temporary
 
 	dev->comp = comp;
 	list_add(&dev->comp_list, &comp->devices);
@@ -714,6 +715,9 @@ static void mpam_reset_device(struct mpam_component *comp,
 
 	lockdep_assert_held(&dev->lock);
 
+	if (dev->enable_error_irq)
+		mpam_write_reg(dev, MPAMF_ECR, MPAMF_ECR_INTEN);
+
 	for (partid = 0; partid < mpam_sysprops.max_partid; partid++)
 		mpam_reset_device_partid(dev, partid, NULL);
 
@@ -937,12 +941,22 @@ static int mpam_cpu_online(unsigned int cpu)
 
 static int mpam_cpu_offline(unsigned int cpu)
 {
+	unsigned long flags;
 	struct mpam_device *dev;
 
 	mutex_lock(&mpam_devices_lock);
-	list_for_each_entry(dev, &mpam_all_devices, glbl_list)
+	list_for_each_entry(dev, &mpam_all_devices, glbl_list){
+		if (!cpumask_test_cpu(cpu, &dev->online_affinity))
+			continue;
+
 		cpumask_clear_cpu(cpu, &dev->online_affinity);
 
+		if (cpumask_empty(&dev->online_affinity)) {
+			spin_lock_irqsave(&dev->lock, flags);
+			mpam_write_reg(dev, MPAMF_ECR, 0);
+			spin_unlock_irqrestore(&dev->lock, flags);
+		}
+	}
 	mutex_unlock(&mpam_devices_lock);
 
 	mpam_resctrl_cpu_offline(cpu);
