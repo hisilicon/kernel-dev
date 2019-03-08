@@ -148,7 +148,8 @@ struct hpre_debugfs_file {
 #define HPRE_DEBUGFS_FILE_NUM	(HPRE_DEBUG_FILE_NUM + HPRE_CLUSTERS_NUM - 1)
 
 /*
- * One HPRE controller has one PF and multiple VFs, some global configurations
+ * One HPRE controller has one PF and multiple VFs,
+ * some global configurations
  * which PF has need this structure.
  *
  * Just relevant for PF.
@@ -307,7 +308,7 @@ static int hpre_set_user_domain_and_cache(struct hpre *hpre)
 	writel(_QM_USR_CFG_MASK, HPRE_ADDR(QM_AWUSER_M_CFG_ENABLE));
 	writel_relaxed(_QM_AXI_CFG_MASK, HPRE_ADDR(QM_AXI_M_CFG));
 
-	/* HPRE need more time, we close this interupt */
+	/* HPRE need more time, we close this interrupt */
 	val = readl_relaxed(HPRE_ADDR(HPRE_QM_ABNML_INT_MASK));
 	val |= BIT(HPRE_TIMEOUT_ABNML_BIT);
 	writel_relaxed(val, HPRE_ADDR(HPRE_QM_ABNML_INT_MASK));
@@ -534,6 +535,9 @@ static int hpre_create_debugfs_file(struct hpre_ctrl *ctrl, struct dentry *dir,
 		file_dir = dir;
 	else
 		file_dir = ctrl->debug_root;
+
+	if (type > HPRE_DEBUG_FILE_NUM)
+		return -EINVAL;
 
 	spin_lock_init(&ctrl->files[indx].lock);
 	ctrl->files[indx].ctrl = ctrl;
@@ -1026,7 +1030,7 @@ static int hpre_soft_reset(struct hpre *hpre)
 	if (ACPI_HANDLE(dev)) {
 		acpi_status s;
 
-		s = acpi_evaluate_object(ACPI_HANDLE(dev), "ZRST", NULL, NULL);
+		s = acpi_evaluate_object(ACPI_HANDLE(dev), "HRST", NULL, NULL);
 		if (ACPI_FAILURE(s)) {
 			dev_err(dev, "Controller reset fails\n");
 			return -EIO;
