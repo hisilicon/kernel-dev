@@ -220,7 +220,8 @@ static unsigned int cbm_idx(struct rdt_resource *r, unsigned int closid)
  */
 static inline void cache_alloc_hsw_probe(void)
 {
-	struct rdt_resource *r  = &rdt_resources_all[RDT_RESOURCE_L3].resctrl;
+	struct rdt_hw_resource *hw_res  = &rdt_resources_all[RDT_RESOURCE_L3];
+	struct rdt_resource *r = &hw_res->resctrl;
 	u32 l, h, max_cbm = BIT_MASK(20) - 1;
 
 	if (wrmsr_safe(MSR_IA32_L3_CBM_BASE, max_cbm, 0))
@@ -233,6 +234,7 @@ static inline void cache_alloc_hsw_probe(void)
 		return;
 
 	r->num_closid = 4;
+	hw_res->hw_num_closid = 4;
 	r->default_ctrl = max_cbm;
 	r->cache.cbm_len = 20;
 	r->cache.shareable_bits = 0xc0000;
@@ -274,12 +276,14 @@ static inline bool rdt_get_mb_table(struct rdt_resource *r)
 
 static bool __get_mem_config_intel(struct rdt_resource *r)
 {
+	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
 	union cpuid_0x10_3_eax eax;
 	union cpuid_0x10_x_edx edx;
 	u32 ebx, ecx, max_delay;
 
 	cpuid_count(0x00000010, 3, &eax.full, &ebx, &ecx, &edx.full);
 	r->num_closid = edx.split.cos_max + 1;
+	hw_res->hw_num_closid = r->num_closid;
 	max_delay = eax.split.max_delay + 1;
 	r->default_ctrl = MAX_MBA_BW;
 	r->membw.arch_needs_linear = true;
@@ -302,12 +306,14 @@ static bool __get_mem_config_intel(struct rdt_resource *r)
 
 static bool __rdt_get_mem_config_amd(struct rdt_resource *r)
 {
+	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
 	union cpuid_0x10_3_eax eax;
 	union cpuid_0x10_x_edx edx;
 	u32 ebx, ecx;
 
 	cpuid_count(0x80000020, 1, &eax.full, &ebx, &ecx, &edx.full);
 	r->num_closid = edx.split.cos_max + 1;
+	hw_res->hw_num_closid = r->num_closid;
 	r->default_ctrl = MAX_MBA_BW_AMD;
 
 	/* AMD does not use delay */
@@ -327,12 +333,14 @@ static bool __rdt_get_mem_config_amd(struct rdt_resource *r)
 
 static void rdt_get_cache_alloc_cfg(int idx, struct rdt_resource *r)
 {
+	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
 	union cpuid_0x10_1_eax eax;
 	union cpuid_0x10_x_edx edx;
 	u32 ebx, ecx;
 
 	cpuid_count(0x00000010, idx, &eax.full, &ebx, &ecx, &edx.full);
 	r->num_closid = edx.split.cos_max + 1;
+	hw_res->hw_num_closid = r->num_closid;
 	r->cache.cbm_len = eax.split.cbm_len + 1;
 	r->default_ctrl = BIT_MASK(eax.split.cbm_len + 1) - 1;
 	r->cache.shareable_bits = ebx & r->default_ctrl;
@@ -344,9 +352,11 @@ static void rdt_get_cache_alloc_cfg(int idx, struct rdt_resource *r)
 static void rdt_get_cdp_config(int level, int type)
 {
 	struct rdt_resource *r_l = &rdt_resources_all[level].resctrl;
-	struct rdt_resource *r = &rdt_resources_all[type].resctrl;
+	struct rdt_hw_resource *hw_res_t = &rdt_resources_all[type];
+	struct rdt_resource *r = &hw_res_t->resctrl;
 
 	r->num_closid = r_l->num_closid / 2;
+	hw_res_t->hw_num_closid = r->num_closid;
 	r->cache.cbm_len = r_l->cache.cbm_len;
 	r->default_ctrl = r_l->default_ctrl;
 	r->cache.shareable_bits = r_l->cache.shareable_bits;
@@ -487,6 +497,7 @@ struct rdt_domain *rdt_find_domain(struct rdt_resource *r, int id,
 void setup_default_ctrlval(struct rdt_resource *r, u32 *dc, u32 *dm)
 {
 	int i;
+	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
 
 	/*
 	 * Initialize the Control MSRs to having no control.
@@ -494,7 +505,7 @@ void setup_default_ctrlval(struct rdt_resource *r, u32 *dc, u32 *dm)
 	 * For Memory Allocation: Set b/w requested to 100%
 	 * and the bandwidth in MBps to U32_MAX
 	 */
-	for (i = 0; i < r->num_closid; i++, dc++, dm++) {
+	for (i = 0; i < hw_res->hw_num_closid; i++, dc++, dm++) {
 		*dc = r->default_ctrl;
 		*dm = MBA_MAX_MBPS;
 	}
@@ -507,11 +518,11 @@ static int domain_setup_ctrlval(struct rdt_resource *r, struct rdt_domain *d)
 	struct msr_param m;
 	u32 *dc, *dm;
 
-	dc = kmalloc_array(r->num_closid, sizeof(*hw_dom->ctrl_val), GFP_KERNEL);
+	dc = kmalloc_array(hw_res->hw_num_closid, sizeof(*hw_dom->ctrl_val), GFP_KERNEL);
 	if (!dc)
 		return -ENOMEM;
 
-	dm = kmalloc_array(r->num_closid, sizeof(*hw_dom->mbps_val), GFP_KERNEL);
+	dm = kmalloc_array(hw_res->hw_num_closid, sizeof(*hw_dom->mbps_val), GFP_KERNEL);
 	if (!dm) {
 		kfree(dc);
 		return -ENOMEM;
@@ -522,7 +533,7 @@ static int domain_setup_ctrlval(struct rdt_resource *r, struct rdt_domain *d)
 	setup_default_ctrlval(r, dc, dm);
 
 	m.low = 0;
-	m.high = r->num_closid;
+	m.high = hw_res->hw_num_closid;
 	hw_res->msr_update(d, &m, r);
 	return 0;
 }
