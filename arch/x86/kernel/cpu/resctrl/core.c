@@ -928,7 +928,7 @@ static __init void rdt_init_res_defs_intel(void)
 		    r->rid == RDT_RESOURCE_L2 ||
 		    r->rid == RDT_RESOURCE_L2DATA ||
 		    r->rid == RDT_RESOURCE_L2CODE)
-			r->cbm_validate = cbm_validate_intel;
+			r->cache.arch_has_sparse_bitmaps = false;
 		else if (r->rid == RDT_RESOURCE_MBA) {
 			r->msr_base = MSR_IA32_MBA_THRTL_BASE;
 			r->msr_update = mba_wrmsr_intel;
@@ -948,7 +948,7 @@ static __init void rdt_init_res_defs_amd(void)
 		    r->rid == RDT_RESOURCE_L2 ||
 		    r->rid == RDT_RESOURCE_L2DATA ||
 		    r->rid == RDT_RESOURCE_L2CODE)
-			r->cbm_validate = cbm_validate_amd;
+			r->cache.arch_has_sparse_bitmaps = true;
 		else if (r->rid == RDT_RESOURCE_MBA) {
 			r->msr_base = MSR_IA32_MBA_BW_BASE;
 			r->msr_update = mba_wrmsr_amd;
