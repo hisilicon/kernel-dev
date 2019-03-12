@@ -16,13 +16,13 @@ enum resctrl_conf_type {
 
 /**
  * struct resctrl_staged_config - parsed configuration to be applied
- * @closid:		The closid the new configuration applies to
+ * @hw_closid:		raw closid for this configuration, regardless of CDP
  * @new_ctrl:		new ctrl value to be loaded
  * @have_new_ctrl:	did user provide new_ctrl for this domain
  * @new_ctrl_type:	CDP property of the new ctrl
  */
 struct resctrl_staged_config {
-	u32			closid;
+	u32			hw_closid;
 	u32			new_ctrl;
 	bool			have_new_ctrl;
 	enum resctrl_conf_type  new_ctrl_type;
@@ -75,8 +75,6 @@ struct rdt_domain {
 struct resctrl_cache {
 	u32		cbm_len;
 	u32		min_cbm_bits;
-	unsigned int	cbm_idx_mult;	// TODO remove this
-	unsigned int	cbm_idx_offset; // TODO remove this
 	u32		shareable_bits;
 	bool		arch_has_sparse_bitmaps;
 };
