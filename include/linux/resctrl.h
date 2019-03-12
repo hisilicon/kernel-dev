@@ -97,8 +97,10 @@ struct rdt_parse_data;
  * @rid:		The index of the resource
  * @alloc_enabled:	Is allocation enabled on this machine
  * @mon_enabled:	Is monitoring enabled for this feature
+ * @cdp_enabled		Is CDP enabled for this resource
  * @alloc_capable:	Is allocation available on this machine
  * @mon_capable:	Is monitor feature available on this machine
+ * @cdp_capable:	Is CDP feature available on this resource
  *
  * @cache_level:	Which cache level defines scope of this resource
  *
@@ -123,8 +125,10 @@ struct rdt_resource {
 	int			rid;
 	bool			alloc_enabled;
 	bool			mon_enabled;
+	bool			cdp_enabled;
 	bool			alloc_capable;
 	bool			mon_capable;
+	bool			cdp_capable;
 
 	int			cache_level;
 
@@ -151,5 +155,8 @@ struct rdt_resource {
 int resctrl_arch_update_domains(struct rdt_resource *r);
 void resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
 			     u32 closid, u32 *value);
+
+/* Enable/Disable CDP on all applicable resources */
+int resctrl_arch_set_cdp_enabled(bool enable);
 
 #endif /* __LINUX_RESCTRL_H */

@@ -356,6 +356,7 @@ static void rdt_get_cdp_config(int level, int type)
 	 * By default, CDP is disabled. CDP can be enabled by mount parameter
 	 * "cdp" during resctrl file system mount time.
 	 */
+	r_l->cdp_capable = true;
 	r->alloc_enabled = false;
 }
 
