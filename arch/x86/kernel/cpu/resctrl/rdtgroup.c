@@ -796,6 +796,19 @@ static int rdt_shareable_bits_show(struct kernfs_open_file *of,
 	return 0;
 }
 
+static u32 resctrl_get_config(u32 closid, struct rdt_resource *r, struct rdt_domain *d)
+{
+	enum resctrl_conf_type t;
+	hw_closid_t hw_closid;
+	u32 ret;
+
+	t = resctrl_to_arch_res(r)->conf_type;
+	hw_closid = resctrl_closid_cdp_map(closid, t);
+	resctrl_arch_get_config(r, d, hw_closid, &ret);
+
+	return ret;
+}
+
 /**
  * rdt_bit_usage_show - Display current usage of resources
  *
@@ -833,7 +846,7 @@ static int rdt_bit_usage_show(struct kernfs_open_file *of,
 		for (i = 0; i < closids_supported(); i++) {
 			if (!closid_allocated(i))
 				continue;
-			resctrl_arch_get_config(r, dom, i, &ctrl_val);
+			ctrl_val = resctrl_get_config(i, r, dom);
 			mode = rdtgroup_mode_by_closid(i);
 			switch (mode) {
 			case RDT_MODE_SHAREABLE:
@@ -1079,9 +1092,9 @@ static bool __rdtgroup_cbm_overlaps(struct rdt_resource *r, struct rdt_domain *d
 				    unsigned long cbm, int closid, bool exclusive)
 {
 	enum resctrl_conf_type t = resctrl_to_arch_res(r)->conf_type;
+	hw_closid_t hw_closid_iter;
 	enum rdtgrp_mode mode;
 	unsigned long ctrl_b;
-	u32 hw_closid_iter;
 	int i;
 
 	/* Check for any overlap with regions used by hardware directly */
@@ -1166,8 +1179,9 @@ static bool rdtgroup_mode_test_exclusive(struct rdtgroup *rdtgrp)
 	enum resctrl_conf_type t;
 	struct rdt_resource *r;
 	bool has_cache = false;
+	hw_closid_t hw_closid;
 	struct rdt_domain *d;
-	u32 ctrl, hw_closid;
+	u32 ctrl;
 
 	for_each_alloc_enabled_rdt_resource(r) {
 		if (r->rid == RDT_RESOURCE_MBA)
@@ -1312,11 +1326,12 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 {
 	struct rdtgroup *rdtgrp;
 	struct rdt_resource *r;
+	hw_closid_t hw_closid;
 	struct rdt_domain *d;
-	u32 ctrl, hw_closid;
 	unsigned int size;
 	int ret = 0;
 	bool sep;
+	u32 ctrl;
 
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (!rdtgrp) {
@@ -2588,12 +2603,13 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct rdt_resource *r,
 {
 	enum resctrl_conf_type t = resctrl_to_arch_res(r)->conf_type;
 	enum resctrl_conf_type t_peer = CDP_BOTH;
-	u32 peer_ctl, ctrl_val, hw_closid_iter;
 	struct rdt_resource *r_cdp = NULL;
 	struct resctrl_staged_config *cfg;
 	struct rdt_domain *d_cdp = NULL;
 	u32 used_b = 0, unused_b = 0;
+	hw_closid_t hw_closid_iter;
 	unsigned long tmp_cbm;
+	u32 peer_ctl, ctrl_val;
 	enum rdtgrp_mode mode;
 	int i;
 

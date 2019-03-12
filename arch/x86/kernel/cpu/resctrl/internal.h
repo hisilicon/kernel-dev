@@ -510,6 +510,6 @@ void cqm_setup_limbo_handler(struct rdt_domain *dom, unsigned long delay_ms);
 void cqm_handle_limbo(struct work_struct *work);
 bool has_busy_rmid(struct rdt_resource *r, struct rdt_domain *d);
 void __check_limbo(struct rdt_domain *d, bool force_free);
-u32 resctrl_closid_cdp_map(u32 closid, enum resctrl_conf_type t);
+hw_closid_t resctrl_closid_cdp_map(u32 closid, enum resctrl_conf_type t);
 
 #endif /* _ASM_X86_RESCTRL_INTERNAL_H */
