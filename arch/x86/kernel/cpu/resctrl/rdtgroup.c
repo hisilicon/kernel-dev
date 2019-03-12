@@ -1818,7 +1818,7 @@ static int cdp_enable(int level, int data_type, int code_type)
 	int ret;
 
 	if (!r_l->alloc_capable || !r_ldata->alloc_capable ||
-	    !r_lcode->alloc_capable)
+	    !r_lcode->alloc_capable || !r_l->cdp_capable)
 		return -EINVAL;
 
 	ret = set_cache_qos_cfg(level, true);
@@ -1826,25 +1826,20 @@ static int cdp_enable(int level, int data_type, int code_type)
 		r_l->alloc_enabled = false;
 		r_ldata->alloc_enabled = true;
 		r_lcode->alloc_enabled = true;
+
+		r_l->cdp_enabled = true;
+		r_ldata->cdp_enabled = true;
+		r_lcode->cdp_enabled = true;
 	}
 	return ret;
-}
-
-static int cdpl3_enable(void)
-{
-	return cdp_enable(RDT_RESOURCE_L3, RDT_RESOURCE_L3DATA,
-			  RDT_RESOURCE_L3CODE);
-}
-
-static int cdpl2_enable(void)
-{
-	return cdp_enable(RDT_RESOURCE_L2, RDT_RESOURCE_L2DATA,
-			  RDT_RESOURCE_L2CODE);
 }
 
 static void cdp_disable(int level, int data_type, int code_type)
 {
 	struct rdt_resource *r = &rdt_resources_all[level].resctrl;
+
+	if (!r->cdp_enabled)
+		return;
 
 	r->alloc_enabled = r->alloc_capable;
 
@@ -1852,25 +1847,57 @@ static void cdp_disable(int level, int data_type, int code_type)
 		rdt_resources_all[data_type].resctrl.alloc_enabled = false;
 		rdt_resources_all[code_type].resctrl.alloc_enabled = false;
 		set_cache_qos_cfg(level, false);
+
+		r->cdp_enabled = false;
+		rdt_resources_all[data_type].resctrl.cdp_enabled = false;
+		rdt_resources_all[code_type].resctrl.cdp_enabled = false;
 	}
-}
-
-static void cdpl3_disable(void)
-{
-	cdp_disable(RDT_RESOURCE_L3, RDT_RESOURCE_L3DATA, RDT_RESOURCE_L3CODE);
-}
-
-static void cdpl2_disable(void)
-{
-	cdp_disable(RDT_RESOURCE_L2, RDT_RESOURCE_L2DATA, RDT_RESOURCE_L2CODE);
 }
 
 static void cdp_disable_all(void)
 {
-	if (rdt_resources_all[RDT_RESOURCE_L3DATA].resctrl.alloc_enabled)
-		cdpl3_disable();
-	if (rdt_resources_all[RDT_RESOURCE_L2DATA].resctrl.alloc_enabled)
-		cdpl2_disable();
+	resctrl_arch_set_cdp_enabled(false);
+}
+
+int resctrl_arch_set_cdp_enabled(bool enable)
+{
+	int ret = -EINVAL;
+	struct rdt_hw_resource *l3 = &rdt_resources_all[RDT_RESOURCE_L3];
+	struct rdt_hw_resource *l2 = &rdt_resources_all[RDT_RESOURCE_L2];
+
+	if (l3->resctrl.cdp_capable) {
+		if (!enable) {
+			cdp_disable(RDT_RESOURCE_L3, RDT_RESOURCE_L3DATA,
+				    RDT_RESOURCE_L3CODE);
+			ret = 0;
+		} else {
+			ret = cdp_enable(RDT_RESOURCE_L3, RDT_RESOURCE_L3DATA,
+					 RDT_RESOURCE_L3CODE);
+		}
+	}
+	if (l2->resctrl.cdp_capable) {
+		if (!enable) {
+			cdp_disable(RDT_RESOURCE_L2, RDT_RESOURCE_L2DATA,
+				    RDT_RESOURCE_L2CODE);
+			ret = 0;
+		} else {
+			ret = cdp_enable(RDT_RESOURCE_L2, RDT_RESOURCE_L2DATA,
+					 RDT_RESOURCE_L2CODE);
+		}
+	}
+
+	return ret;
+
+}
+
+static int try_to_enable_cdp(int level)
+{
+	struct rdt_resource *r = &rdt_resources_all[level].resctrl;
+
+	if (!r->cdp_capable)
+		return -EINVAL;
+
+	return resctrl_arch_set_cdp_enabled(true);
 }
 
 /*
@@ -1949,10 +1976,10 @@ static int rdt_enable_ctx(struct rdt_fs_context *ctx)
 	int ret = 0;
 
 	if (ctx->enable_cdpl2)
-		ret = cdpl2_enable();
+		ret = try_to_enable_cdp(RDT_RESOURCE_L2);
 
 	if (!ret && ctx->enable_cdpl3)
-		ret = cdpl3_enable();
+		ret = try_to_enable_cdp(RDT_RESOURCE_L3);
 
 	if (!ret && ctx->enable_mba_mbps)
 		ret = set_mba_sc(true);
