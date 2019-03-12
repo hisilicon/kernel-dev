@@ -29,6 +29,16 @@
 #include <linux/slab.h>
 #include "internal.h"
 
+u32 resctrl_closid_cdp_map(u32 closid, enum resctrl_conf_type t)
+{
+	if (t == CDP_CODE)
+		return (closid * 2) + 1;
+	else if (t == CDP_DATA)
+		return (closid * 2);
+	else
+		return closid;
+}
+
 /*
  * Check whether MBA bandwidth percentage value is correct. The value is
  * checked against the minimum and max bandwidth values specified by the
@@ -80,7 +90,7 @@ int parse_bw(struct rdt_parse_data *data, struct rdt_resource *r,
 	if (!bw_validate(data->buf, &bw_val, r))
 		return -EINVAL;
 	cfg->new_ctrl = bw_val;
-	cfg->closid = data->rdtgrp->closid;
+	cfg->hw_closid = resctrl_closid_cdp_map(data->rdtgrp->closid, t);
 	cfg->new_ctrl_type = t;
 	cfg->have_new_ctrl = true;
 
@@ -187,7 +197,7 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 	}
 
 	cfg->new_ctrl = cbm_val;
-	cfg->closid = data->rdtgrp->closid;
+	cfg->hw_closid = resctrl_closid_cdp_map(data->rdtgrp->closid, t);
 	cfg->new_ctrl_type = t;
 	cfg->have_new_ctrl = true;
 
@@ -258,12 +268,13 @@ static void apply_config(struct rdt_hw_domain *hw_dom,
 			 struct resctrl_staged_config *cfg,
 			 cpumask_var_t cpu_mask, bool mba_sc)
 {
+	u32 hw_closid_val = cfg->hw_closid;
 	struct rdt_domain *dom = &hw_dom->resctrl;
 	u32 *dc = !mba_sc ? hw_dom->ctrl_val : hw_dom->mbps_val;
 
-	if (cfg->new_ctrl != dc[cfg->closid]) {
+	if (cfg->new_ctrl != dc[hw_closid_val]) {
 		cpumask_set_cpu(cpumask_any(&dom->cpu_mask), cpu_mask);
-		dc[cfg->closid] = cfg->new_ctrl;
+		dc[hw_closid_val] = cfg->new_ctrl;
 		cfg->have_new_ctrl = false;
 	}
 }
@@ -277,7 +288,7 @@ int resctrl_arch_update_domains(struct rdt_resource *r)
 	cpumask_var_t cpu_mask;
 	struct rdt_domain *d;
 	bool mba_sc;
-	u32 closid;
+	u32 hw_closid_val;
 	int cpu, i;
 
 	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL))
@@ -295,14 +306,16 @@ int resctrl_arch_update_domains(struct rdt_resource *r)
 
 			apply_config(hw_dom, cfg, cpu_mask, mba_sc);
 
-			closid = cfg->closid;
+			hw_closid_val = cfg->hw_closid;
 			if (!msr_param_init) {
-				msr_param.low = closid;
-				msr_param.high = closid;
+				msr_param.low = hw_closid_val;
+				msr_param.high = hw_closid_val;
 				msr_param_init = true;
 			} else {
-				msr_param.low = min(msr_param.low, closid);
-				msr_param.high = max(msr_param.high, closid);
+				msr_param.low = min(msr_param.low,
+						    hw_closid_val);
+				msr_param.high = max(msr_param.high,
+						     hw_closid_val);
 			}
 		}
 	}
@@ -421,28 +434,30 @@ out:
 }
 
 void resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
-			     u32 closid, u32 *value)
+			     u32 hw_closid_val, u32 *value)
 {
 	struct rdt_hw_domain *hw_dom = resctrl_to_arch_dom(d);
 
 	if (!is_mba_sc(r))
-		*value = hw_dom->ctrl_val[closid];
+		*value = hw_dom->ctrl_val[hw_closid_val];
 	else
-		*value = hw_dom->mbps_val[closid];
+		*value = hw_dom->mbps_val[hw_closid_val];
 }
 
 static void show_doms(struct seq_file *s, struct rdt_resource *r, int closid)
 {
+	u32 ctrl_val, hw_closid;
 	struct rdt_domain *dom;
 	bool sep = false;
-	u32 ctrl_val;
 
 	seq_printf(s, "%*s:", max_name_width, r->name);
 	list_for_each_entry(dom, &r->domains, list) {
 		if (sep)
 			seq_puts(s, ";");
 
-		resctrl_arch_get_config(r, dom, closid, &ctrl_val);
+		hw_closid = resctrl_closid_cdp_map(closid,
+						   resctrl_to_arch_res(r)->conf_type);
+		resctrl_arch_get_config(r, dom, hw_closid, &ctrl_val);
 		seq_printf(s, r->format_str, dom->id, max_data_width,
 			   ctrl_val);
 		sep = true;
