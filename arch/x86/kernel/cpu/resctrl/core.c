@@ -65,119 +65,133 @@ static void
 mba_wrmsr_amd(struct rdt_domain *d, struct msr_param *m,
 	      struct rdt_resource *r);
 
-#define domain_init(id) LIST_HEAD_INIT(rdt_resources_all[id].domains)
+#define domain_init(id) LIST_HEAD_INIT(rdt_resources_all[id].resctrl.domains)
 
-struct rdt_resource rdt_resources_all[] = {
+struct rdt_hw_resource rdt_resources_all[] = {
 	[RDT_RESOURCE_L3] =
 	{
-		.rid			= RDT_RESOURCE_L3,
-		.name			= "L3",
-		.domains		= domain_init(RDT_RESOURCE_L3),
+		.resctrl = {
+			.rid			= RDT_RESOURCE_L3,
+			.name			= "L3",
+			.cache_level		= 3,
+			.cache = {
+				.min_cbm_bits	= 1,
+				.cbm_idx_mult	= 1,
+				.cbm_idx_offset	= 0,
+			},
+			.domains		= domain_init(RDT_RESOURCE_L3),
+			.parse_ctrlval		= parse_cbm,
+			.format_str		= "%d=%0*x",
+			.fflags			= RFTYPE_RES_CACHE,
+		},
 		.msr_base		= MSR_IA32_L3_CBM_BASE,
 		.msr_update		= cat_wrmsr,
-		.cache_level		= 3,
-		.cache = {
-			.min_cbm_bits	= 1,
-			.cbm_idx_mult	= 1,
-			.cbm_idx_offset	= 0,
-		},
-		.parse_ctrlval		= parse_cbm,
-		.format_str		= "%d=%0*x",
-		.fflags			= RFTYPE_RES_CACHE,
 	},
 	[RDT_RESOURCE_L3DATA] =
 	{
-		.rid			= RDT_RESOURCE_L3DATA,
-		.name			= "L3DATA",
-		.domains		= domain_init(RDT_RESOURCE_L3DATA),
+		.resctrl = {
+			.rid			= RDT_RESOURCE_L3DATA,
+			.name			= "L3DATA",
+			.cache_level		= 3,
+			.cache = {
+				.min_cbm_bits	= 1,
+				.cbm_idx_mult	= 2,
+				.cbm_idx_offset	= 0,
+			},
+			.domains		= domain_init(RDT_RESOURCE_L3DATA),
+			.parse_ctrlval		= parse_cbm,
+			.format_str		= "%d=%0*x",
+			.fflags			= RFTYPE_RES_CACHE,
+		},
 		.msr_base		= MSR_IA32_L3_CBM_BASE,
 		.msr_update		= cat_wrmsr,
-		.cache_level		= 3,
-		.cache = {
-			.min_cbm_bits	= 1,
-			.cbm_idx_mult	= 2,
-			.cbm_idx_offset	= 0,
-		},
-		.parse_ctrlval		= parse_cbm,
-		.format_str		= "%d=%0*x",
-		.fflags			= RFTYPE_RES_CACHE,
 	},
 	[RDT_RESOURCE_L3CODE] =
 	{
-		.rid			= RDT_RESOURCE_L3CODE,
-		.name			= "L3CODE",
-		.domains		= domain_init(RDT_RESOURCE_L3CODE),
+		.resctrl = {
+			.rid			= RDT_RESOURCE_L3CODE,
+			.name			= "L3CODE",
+			.cache_level		= 3,
+			.cache = {
+				.min_cbm_bits	= 1,
+				.cbm_idx_mult	= 2,
+				.cbm_idx_offset	= 1,
+			},
+			.domains		= domain_init(RDT_RESOURCE_L3CODE),
+			.parse_ctrlval		= parse_cbm,
+			.format_str		= "%d=%0*x",
+			.fflags			= RFTYPE_RES_CACHE,
+		},
 		.msr_base		= MSR_IA32_L3_CBM_BASE,
 		.msr_update		= cat_wrmsr,
-		.cache_level		= 3,
-		.cache = {
-			.min_cbm_bits	= 1,
-			.cbm_idx_mult	= 2,
-			.cbm_idx_offset	= 1,
-		},
-		.parse_ctrlval		= parse_cbm,
-		.format_str		= "%d=%0*x",
-		.fflags			= RFTYPE_RES_CACHE,
 	},
 	[RDT_RESOURCE_L2] =
 	{
-		.rid			= RDT_RESOURCE_L2,
-		.name			= "L2",
-		.domains		= domain_init(RDT_RESOURCE_L2),
+		.resctrl = {
+			.rid			= RDT_RESOURCE_L2,
+			.name			= "L2",
+			.cache_level		= 2,
+			.cache = {
+				.min_cbm_bits	= 1,
+				.cbm_idx_mult	= 1,
+				.cbm_idx_offset	= 0,
+			},
+			.domains		= domain_init(RDT_RESOURCE_L2),
+			.parse_ctrlval		= parse_cbm,
+			.format_str		= "%d=%0*x",
+			.fflags			= RFTYPE_RES_CACHE,
+		},
 		.msr_base		= MSR_IA32_L2_CBM_BASE,
 		.msr_update		= cat_wrmsr,
-		.cache_level		= 2,
-		.cache = {
-			.min_cbm_bits	= 1,
-			.cbm_idx_mult	= 1,
-			.cbm_idx_offset	= 0,
-		},
-		.parse_ctrlval		= parse_cbm,
-		.format_str		= "%d=%0*x",
-		.fflags			= RFTYPE_RES_CACHE,
 	},
 	[RDT_RESOURCE_L2DATA] =
 	{
-		.rid			= RDT_RESOURCE_L2DATA,
-		.name			= "L2DATA",
-		.domains		= domain_init(RDT_RESOURCE_L2DATA),
+		.resctrl = {
+			.rid			= RDT_RESOURCE_L2DATA,
+			.name			= "L2DATA",
+			.cache_level		= 2,
+			.cache = {
+				.min_cbm_bits	= 1,
+				.cbm_idx_mult	= 2,
+				.cbm_idx_offset	= 0,
+			},
+			.domains		= domain_init(RDT_RESOURCE_L2DATA),
+			.parse_ctrlval		= parse_cbm,
+			.format_str		= "%d=%0*x",
+			.fflags			= RFTYPE_RES_CACHE,
+		},
 		.msr_base		= MSR_IA32_L2_CBM_BASE,
 		.msr_update		= cat_wrmsr,
-		.cache_level		= 2,
-		.cache = {
-			.min_cbm_bits	= 1,
-			.cbm_idx_mult	= 2,
-			.cbm_idx_offset	= 0,
-		},
-		.parse_ctrlval		= parse_cbm,
-		.format_str		= "%d=%0*x",
-		.fflags			= RFTYPE_RES_CACHE,
 	},
 	[RDT_RESOURCE_L2CODE] =
 	{
-		.rid			= RDT_RESOURCE_L2CODE,
-		.name			= "L2CODE",
-		.domains		= domain_init(RDT_RESOURCE_L2CODE),
+		.resctrl = {
+			.rid			= RDT_RESOURCE_L2CODE,
+			.name			= "L2CODE",
+			.cache_level		= 2,
+			.cache = {
+				.min_cbm_bits	= 1,
+				.cbm_idx_mult	= 2,
+				.cbm_idx_offset	= 1,
+			},
+			.domains		= domain_init(RDT_RESOURCE_L2CODE),
+			.parse_ctrlval		= parse_cbm,
+			.format_str		= "%d=%0*x",
+			.fflags			= RFTYPE_RES_CACHE,
+		},
 		.msr_base		= MSR_IA32_L2_CBM_BASE,
 		.msr_update		= cat_wrmsr,
-		.cache_level		= 2,
-		.cache = {
-			.min_cbm_bits	= 1,
-			.cbm_idx_mult	= 2,
-			.cbm_idx_offset	= 1,
-		},
-		.parse_ctrlval		= parse_cbm,
-		.format_str		= "%d=%0*x",
-		.fflags			= RFTYPE_RES_CACHE,
 	},
 	[RDT_RESOURCE_MBA] =
 	{
-		.rid			= RDT_RESOURCE_MBA,
-		.name			= "MB",
-		.domains		= domain_init(RDT_RESOURCE_MBA),
-		.cache_level		= 3,
-		.format_str		= "%d=%*u",
-		.fflags			= RFTYPE_RES_MB,
+		.resctrl = {
+			.rid			= RDT_RESOURCE_MBA,
+			.name			= "MB",
+			.cache_level		= 3,
+			.domains		= domain_init(RDT_RESOURCE_MBA),
+			.format_str		= "%d=%*u",
+			.fflags			= RFTYPE_RES_MB,
+		},
 	},
 };
 
@@ -206,7 +220,7 @@ static unsigned int cbm_idx(struct rdt_resource *r, unsigned int closid)
  */
 static inline void cache_alloc_hsw_probe(void)
 {
-	struct rdt_resource *r  = &rdt_resources_all[RDT_RESOURCE_L3];
+	struct rdt_resource *r  = &rdt_resources_all[RDT_RESOURCE_L3].resctrl;
 	u32 l, h, max_cbm = BIT_MASK(20) - 1;
 
 	if (wrmsr_safe(MSR_IA32_L3_CBM_BASE, max_cbm, 0))
@@ -232,7 +246,7 @@ static inline void cache_alloc_hsw_probe(void)
 bool is_mba_sc(struct rdt_resource *r)
 {
 	if (!r)
-		return rdt_resources_all[RDT_RESOURCE_MBA].membw.mba_sc;
+		return rdt_resources_all[RDT_RESOURCE_MBA].resctrl.membw.mba_sc;
 
 	return r->membw.mba_sc;
 }
@@ -329,8 +343,8 @@ static void rdt_get_cache_alloc_cfg(int idx, struct rdt_resource *r)
 
 static void rdt_get_cdp_config(int level, int type)
 {
-	struct rdt_resource *r_l = &rdt_resources_all[level];
-	struct rdt_resource *r = &rdt_resources_all[type];
+	struct rdt_resource *r_l = &rdt_resources_all[level].resctrl;
+	struct rdt_resource *r = &rdt_resources_all[type].resctrl;
 
 	r->num_closid = r_l->num_closid / 2;
 	r->cache.cbm_len = r_l->cache.cbm_len;
@@ -361,9 +375,10 @@ static void
 mba_wrmsr_amd(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
 {
 	unsigned int i;
+	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
 
 	for (i = m->low; i < m->high; i++)
-		wrmsrl(r->msr_base + i, d->ctrl_val[i]);
+		wrmsrl(hw_res->msr_base + i, d->ctrl_val[i]);
 }
 
 /*
@@ -385,19 +400,21 @@ mba_wrmsr_intel(struct rdt_domain *d, struct msr_param *m,
 		struct rdt_resource *r)
 {
 	unsigned int i;
+	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
 
 	/*  Write the delay values for mba. */
 	for (i = m->low; i < m->high; i++)
-		wrmsrl(r->msr_base + i, delay_bw_map(d->ctrl_val[i], r));
+		wrmsrl(hw_res->msr_base + i, delay_bw_map(d->ctrl_val[i], r));
 }
 
 static void
 cat_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
 {
 	unsigned int i;
+	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
 
 	for (i = m->low; i < m->high; i++)
-		wrmsrl(r->msr_base + cbm_idx(r, i), d->ctrl_val[i]);
+		wrmsrl(hw_res->msr_base + cbm_idx(r, i), d->ctrl_val[i]);
 }
 
 struct rdt_domain *get_domain_from_cpu(int cpu, struct rdt_resource *r)
@@ -416,13 +433,14 @@ struct rdt_domain *get_domain_from_cpu(int cpu, struct rdt_resource *r)
 void rdt_ctrl_update(void *arg)
 {
 	struct msr_param *m = arg;
+	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(m->res);
 	struct rdt_resource *r = m->res;
 	int cpu = smp_processor_id();
 	struct rdt_domain *d;
 
 	d = get_domain_from_cpu(cpu, r);
 	if (d) {
-		r->msr_update(d, m, r);
+		hw_res->msr_update(d, m, r);
 		return;
 	}
 	pr_warn_once("cpu %d not found in any domain for resource %s\n",
@@ -480,6 +498,7 @@ void setup_default_ctrlval(struct rdt_resource *r, u32 *dc, u32 *dm)
 
 static int domain_setup_ctrlval(struct rdt_resource *r, struct rdt_domain *d)
 {
+	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
 	struct msr_param m;
 	u32 *dc, *dm;
 
@@ -499,7 +518,7 @@ static int domain_setup_ctrlval(struct rdt_resource *r, struct rdt_domain *d)
 
 	m.low = 0;
 	m.high = r->num_closid;
-	r->msr_update(d, &m, r);
+	hw_res->msr_update(d, &m, r);
 	return 0;
 }
 
@@ -647,7 +666,7 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 		return;
 	}
 
-	if (r == &rdt_resources_all[RDT_RESOURCE_L3]) {
+	if (r == &rdt_resources_all[RDT_RESOURCE_L3].resctrl) {
 		if (is_mbm_enabled() && cpu == d->mbm_work_cpu) {
 			cancel_delayed_work(&d->mbm_over);
 			mbm_setup_overflow_handler(d, 0);
@@ -823,9 +842,9 @@ static __init bool get_mem_config(void)
 		return false;
 
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
-		return __get_mem_config_intel(&rdt_resources_all[RDT_RESOURCE_MBA]);
+		return __get_mem_config_intel(&rdt_resources_all[RDT_RESOURCE_MBA].resctrl);
 	else if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
-		return __rdt_get_mem_config_amd(&rdt_resources_all[RDT_RESOURCE_MBA]);
+		return __rdt_get_mem_config_amd(&rdt_resources_all[RDT_RESOURCE_MBA].resctrl);
 
 	return false;
 }
@@ -841,14 +860,14 @@ static __init bool get_rdt_alloc_resources(void)
 		return false;
 
 	if (rdt_cpu_has(X86_FEATURE_CAT_L3)) {
-		rdt_get_cache_alloc_cfg(1, &rdt_resources_all[RDT_RESOURCE_L3]);
+		rdt_get_cache_alloc_cfg(1, &rdt_resources_all[RDT_RESOURCE_L3].resctrl);
 		if (rdt_cpu_has(X86_FEATURE_CDP_L3))
 			rdt_get_cdp_l3_config();
 		ret = true;
 	}
 	if (rdt_cpu_has(X86_FEATURE_CAT_L2)) {
 		/* CPUID 0x10.2 fields are same format at 0x10.1 */
-		rdt_get_cache_alloc_cfg(2, &rdt_resources_all[RDT_RESOURCE_L2]);
+		rdt_get_cache_alloc_cfg(2, &rdt_resources_all[RDT_RESOURCE_L2].resctrl);
 		if (rdt_cpu_has(X86_FEATURE_CDP_L2))
 			rdt_get_cdp_l2_config();
 		ret = true;
@@ -872,7 +891,7 @@ static __init bool get_rdt_mon_resources(void)
 	if (!rdt_mon_features)
 		return false;
 
-	return !rdt_get_mon_l3_config(&rdt_resources_all[RDT_RESOURCE_L3]);
+	return !rdt_get_mon_l3_config(&rdt_resources_all[RDT_RESOURCE_L3].resctrl);
 }
 
 static __init void __check_quirks_intel(void)
@@ -906,9 +925,14 @@ static __init bool get_rdt_resources(void)
 
 static __init void rdt_init_res_defs_intel(void)
 {
+	struct rdt_hw_resource *hw_res;
 	struct rdt_resource *r;
+	int i;
 
-	for_each_rdt_resource(r) {
+	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
+		hw_res = &rdt_resources_all[i];
+		r = &rdt_resources_all[i].resctrl;
+
 		if (r->rid == RDT_RESOURCE_L3 ||
 		    r->rid == RDT_RESOURCE_L3DATA ||
 		    r->rid == RDT_RESOURCE_L3CODE ||
@@ -917,8 +941,8 @@ static __init void rdt_init_res_defs_intel(void)
 		    r->rid == RDT_RESOURCE_L2CODE)
 			r->cache.arch_has_sparse_bitmaps = false;
 		else if (r->rid == RDT_RESOURCE_MBA) {
-			r->msr_base = MSR_IA32_MBA_THRTL_BASE;
-			r->msr_update = mba_wrmsr_intel;
+			hw_res->msr_base = MSR_IA32_MBA_THRTL_BASE;
+			hw_res->msr_update = mba_wrmsr_intel;
 			r->parse_ctrlval = parse_bw;
 		}
 	}
@@ -926,9 +950,14 @@ static __init void rdt_init_res_defs_intel(void)
 
 static __init void rdt_init_res_defs_amd(void)
 {
+	struct rdt_hw_resource *hw_res;
 	struct rdt_resource *r;
+	int i;
 
-	for_each_rdt_resource(r) {
+	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
+		hw_res = &rdt_resources_all[i];
+		r = &rdt_resources_all[i].resctrl;
+
 		if (r->rid == RDT_RESOURCE_L3 ||
 		    r->rid == RDT_RESOURCE_L3DATA ||
 		    r->rid == RDT_RESOURCE_L3CODE ||
@@ -937,8 +966,8 @@ static __init void rdt_init_res_defs_amd(void)
 		    r->rid == RDT_RESOURCE_L2CODE)
 			r->cache.arch_has_sparse_bitmaps = true;
 		else if (r->rid == RDT_RESOURCE_MBA) {
-			r->msr_base = MSR_IA32_MBA_BW_BASE;
-			r->msr_update = mba_wrmsr_amd;
+			hw_res->msr_base = MSR_IA32_MBA_BW_BASE;
+			hw_res->msr_update = mba_wrmsr_amd;
 			r->parse_ctrlval = parse_bw;
 		}
 	}

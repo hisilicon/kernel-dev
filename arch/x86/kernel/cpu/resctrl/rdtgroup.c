@@ -937,8 +937,9 @@ static int max_threshold_occ_show(struct kernfs_open_file *of,
 				  struct seq_file *seq, void *v)
 {
 	struct rdt_resource *r = of->kn->parent->priv;
+	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
 
-	seq_printf(seq, "%u\n", resctrl_cqm_threshold * r->mon_scale);
+	seq_printf(seq, "%u\n", resctrl_cqm_threshold * hw_res->mon_scale);
 
 	return 0;
 }
@@ -946,7 +947,7 @@ static int max_threshold_occ_show(struct kernfs_open_file *of,
 static ssize_t max_threshold_occ_write(struct kernfs_open_file *of,
 				       char *buf, size_t nbytes, loff_t off)
 {
-	struct rdt_resource *r = of->kn->parent->priv;
+	struct rdt_hw_resource *hw_res;
 	unsigned int bytes;
 	int ret;
 
@@ -957,7 +958,8 @@ static ssize_t max_threshold_occ_write(struct kernfs_open_file *of,
 	if (bytes > (boot_cpu_data.x86_cache_size * 1024))
 		return -EINVAL;
 
-	resctrl_cqm_threshold = bytes / r->mon_scale;
+	hw_res = resctrl_to_arch_res(of->kn->parent->priv);
+	resctrl_cqm_threshold = bytes / hw_res->mon_scale;
 
 	return nbytes;
 }
@@ -1015,16 +1017,16 @@ static int rdt_cdp_peer_get(struct rdt_resource *r, struct rdt_domain *d,
 
 	switch (r->rid) {
 	case RDT_RESOURCE_L3DATA:
-		_r_cdp = &rdt_resources_all[RDT_RESOURCE_L3CODE];
+		_r_cdp = &rdt_resources_all[RDT_RESOURCE_L3CODE].resctrl;
 		break;
 	case RDT_RESOURCE_L3CODE:
-		_r_cdp =  &rdt_resources_all[RDT_RESOURCE_L3DATA];
+		_r_cdp =  &rdt_resources_all[RDT_RESOURCE_L3DATA].resctrl;
 		break;
 	case RDT_RESOURCE_L2DATA:
-		_r_cdp =  &rdt_resources_all[RDT_RESOURCE_L2CODE];
+		_r_cdp =  &rdt_resources_all[RDT_RESOURCE_L2CODE].resctrl;
 		break;
 	case RDT_RESOURCE_L2CODE:
-		_r_cdp =  &rdt_resources_all[RDT_RESOURCE_L2DATA];
+		_r_cdp =  &rdt_resources_all[RDT_RESOURCE_L2DATA].resctrl;
 		break;
 	default:
 		ret = -ENOENT;
@@ -1746,7 +1748,7 @@ static void l2_qos_cfg_update(void *arg)
 
 static inline bool is_mba_linear(void)
 {
-	return rdt_resources_all[RDT_RESOURCE_MBA].membw.delay_linear;
+	return rdt_resources_all[RDT_RESOURCE_MBA].resctrl.membw.delay_linear;
 }
 
 static int set_cache_qos_cfg(int level, bool enable)
@@ -1767,7 +1769,7 @@ static int set_cache_qos_cfg(int level, bool enable)
 	else
 		return -EINVAL;
 
-	r_l = &rdt_resources_all[level];
+	r_l = &rdt_resources_all[level].resctrl;
 	list_for_each_entry(d, &r_l->domains, list) {
 		/* Pick one CPU from each domain instance to update MSR */
 		cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
@@ -1793,7 +1795,7 @@ static int set_cache_qos_cfg(int level, bool enable)
  */
 static int set_mba_sc(bool mba_sc)
 {
-	struct rdt_resource *r = &rdt_resources_all[RDT_RESOURCE_MBA];
+	struct rdt_resource *r = &rdt_resources_all[RDT_RESOURCE_MBA].resctrl;
 	struct rdt_domain *d;
 
 	if (!is_mbm_enabled() || !is_mba_linear() ||
@@ -1809,9 +1811,9 @@ static int set_mba_sc(bool mba_sc)
 
 static int cdp_enable(int level, int data_type, int code_type)
 {
-	struct rdt_resource *r_ldata = &rdt_resources_all[data_type];
-	struct rdt_resource *r_lcode = &rdt_resources_all[code_type];
-	struct rdt_resource *r_l = &rdt_resources_all[level];
+	struct rdt_resource *r_ldata = &rdt_resources_all[data_type].resctrl;
+	struct rdt_resource *r_lcode = &rdt_resources_all[code_type].resctrl;
+	struct rdt_resource *r_l = &rdt_resources_all[level].resctrl;
 	int ret;
 
 	if (!r_l->alloc_capable || !r_ldata->alloc_capable ||
@@ -1841,13 +1843,13 @@ static int cdpl2_enable(void)
 
 static void cdp_disable(int level, int data_type, int code_type)
 {
-	struct rdt_resource *r = &rdt_resources_all[level];
+	struct rdt_resource *r = &rdt_resources_all[level].resctrl;
 
 	r->alloc_enabled = r->alloc_capable;
 
-	if (rdt_resources_all[data_type].alloc_enabled) {
-		rdt_resources_all[data_type].alloc_enabled = false;
-		rdt_resources_all[code_type].alloc_enabled = false;
+	if (rdt_resources_all[data_type].resctrl.alloc_enabled) {
+		rdt_resources_all[data_type].resctrl.alloc_enabled = false;
+		rdt_resources_all[code_type].resctrl.alloc_enabled = false;
 		set_cache_qos_cfg(level, false);
 	}
 }
@@ -1864,9 +1866,9 @@ static void cdpl2_disable(void)
 
 static void cdp_disable_all(void)
 {
-	if (rdt_resources_all[RDT_RESOURCE_L3DATA].alloc_enabled)
+	if (rdt_resources_all[RDT_RESOURCE_L3DATA].resctrl.alloc_enabled)
 		cdpl3_disable();
-	if (rdt_resources_all[RDT_RESOURCE_L2DATA].alloc_enabled)
+	if (rdt_resources_all[RDT_RESOURCE_L2DATA].resctrl.alloc_enabled)
 		cdpl2_disable();
 }
 
@@ -2017,7 +2019,7 @@ static int rdt_get_tree(struct fs_context *fc)
 		static_branch_enable_cpuslocked(&rdt_enable_key);
 
 	if (is_mbm_enabled()) {
-		r = &rdt_resources_all[RDT_RESOURCE_L3];
+		r = &rdt_resources_all[RDT_RESOURCE_L3].resctrl;
 		list_for_each_entry(dom, &r->domains, list)
 			mbm_setup_overflow_handler(dom, MBM_OVERFLOW_INTERVAL);
 	}
@@ -3023,13 +3025,13 @@ out:
 
 static int rdtgroup_show_options(struct seq_file *seq, struct kernfs_root *kf)
 {
-	if (rdt_resources_all[RDT_RESOURCE_L3DATA].alloc_enabled)
+	if (rdt_resources_all[RDT_RESOURCE_L3DATA].resctrl.alloc_enabled)
 		seq_puts(seq, ",cdp");
 
-	if (rdt_resources_all[RDT_RESOURCE_L2DATA].alloc_enabled)
+	if (rdt_resources_all[RDT_RESOURCE_L2DATA].resctrl.alloc_enabled)
 		seq_puts(seq, ",cdpl2");
 
-	if (is_mba_sc(&rdt_resources_all[RDT_RESOURCE_MBA]))
+	if (is_mba_sc(&rdt_resources_all[RDT_RESOURCE_MBA].resctrl))
 		seq_puts(seq, ",mba_MBps");
 
 	return 0;
