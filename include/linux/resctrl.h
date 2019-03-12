@@ -10,10 +10,12 @@
 
 /**
  * struct resctrl_staged_config - parsed configuration to be applied
+ * @closid:		The closid the new configuration applies to
  * @new_ctrl:		new ctrl value to be loaded
  * @have_new_ctrl:	did user provide new_ctrl for this domain
  */
 struct resctrl_staged_config {
+	u32			closid;
 	u32			new_ctrl;
 	bool			have_new_ctrl;
 };
