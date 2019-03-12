@@ -9,12 +9,20 @@
 #include <linux/kernel.h>
 
 /**
+ * struct resctrl_staged_config - parsed configuration to be applied
+ * @new_ctrl:		new ctrl value to be loaded
+ * @have_new_ctrl:	did user provide new_ctrl for this domain
+ */
+struct resctrl_staged_config {
+	u32			new_ctrl;
+	bool			have_new_ctrl;
+};
+
+/**
  * struct rdt_domain - group of cpus sharing an RDT resource
  * @list:		all instances of this resource
  * @id:			unique id for this instance
  * @cpu_mask:		which cpus share this resource
- * @new_ctrl:		new ctrl value to be loaded
- * @have_new_ctrl:	did user provide new_ctrl for this domain
  * @rmid_busy_llc:	bitmap of which limbo RMIDs are above threshold
  * @mbm_total:		saved state for MBM total bandwidth
  * @mbm_local:		saved state for MBM local bandwidth
@@ -23,14 +31,12 @@
  * @mbm_work_cpu:	worker cpu for MBM h/w counters
  * @cqm_work_cpu:	worker cpu for CQM h/w counters
  * @plr:		pseudo-locked region (if any) associated with domain
+ * @staged_config:	parsed configuration to be applied
  */
 struct rdt_domain {
 	struct list_head		list;
 	int				id;
 	struct cpumask			cpu_mask;
-
-	u32				new_ctrl;
-	bool				have_new_ctrl;
 
 	unsigned long			*rmid_busy_llc;
 	struct mbm_state		*mbm_total;
@@ -41,6 +47,7 @@ struct rdt_domain {
 	int				cqm_work_cpu;
 
 	struct pseudo_lock_region	*plr;
+	struct resctrl_staged_config	staged_config[1];
 };
 
 /**
