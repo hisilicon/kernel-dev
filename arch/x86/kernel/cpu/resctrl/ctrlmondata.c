@@ -29,14 +29,14 @@
 #include <linux/slab.h>
 #include "internal.h"
 
-u32 resctrl_closid_cdp_map(u32 closid, enum resctrl_conf_type t)
+hw_closid_t resctrl_closid_cdp_map(u32 closid, enum resctrl_conf_type t)
 {
 	if (t == CDP_CODE)
-		return (closid * 2) + 1;
+		return as_hwclosid_t((closid * 2) + 1);
 	else if (t == CDP_DATA)
-		return (closid * 2);
+		return as_hwclosid_t(closid * 2);
 	else
-		return closid;
+		return as_hwclosid_t(closid);
 }
 
 /*
@@ -268,7 +268,7 @@ static void apply_config(struct rdt_hw_domain *hw_dom,
 			 struct resctrl_staged_config *cfg,
 			 cpumask_var_t cpu_mask, bool mba_sc)
 {
-	u32 hw_closid_val = cfg->hw_closid;
+	u32 hw_closid_val = hwclosid_val(cfg->hw_closid);
 	struct rdt_domain *dom = &hw_dom->resctrl;
 	u32 *dc = !mba_sc ? hw_dom->ctrl_val : hw_dom->mbps_val;
 
@@ -306,7 +306,7 @@ int resctrl_arch_update_domains(struct rdt_resource *r)
 
 			apply_config(hw_dom, cfg, cpu_mask, mba_sc);
 
-			hw_closid_val = cfg->hw_closid;
+			hw_closid_val = hwclosid_val(cfg->hw_closid);
 			if (!msr_param_init) {
 				msr_param.low = hw_closid_val;
 				msr_param.high = hw_closid_val;
@@ -434,8 +434,9 @@ out:
 }
 
 void resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
-			     u32 hw_closid_val, u32 *value)
+			     hw_closid_t hw_closid, u32 *value)
 {
+	u32 hw_closid_val = hwclosid_val(hw_closid);
 	struct rdt_hw_domain *hw_dom = resctrl_to_arch_dom(d);
 
 	if (!is_mba_sc(r))
@@ -446,9 +447,10 @@ void resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
 
 static void show_doms(struct seq_file *s, struct rdt_resource *r, int closid)
 {
-	u32 ctrl_val, hw_closid;
 	struct rdt_domain *dom;
+	hw_closid_t hw_closid;
 	bool sep = false;
+	u32 ctrl_val;
 
 	seq_printf(s, "%*s:", max_name_width, r->name);
 	list_for_each_entry(dom, &r->domains, list) {

@@ -368,7 +368,7 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 	struct rdt_domain *dom_mba;
 	struct list_head *head;
 	struct rdtgroup *entry;
-	u32 hw_closid;
+	hw_closid_t hw_closid;
 
 	hw_r_mba = &rdt_resources_all[RDT_RESOURCE_MBA];
 	r_mba = &hw_r_mba->resctrl;
@@ -392,7 +392,7 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 	 * resctrl_arch_get_config() chooses the mbps/ctrl value to return
 	 * based on is_mba_sc(). For now, reach into the hw_dom.
 	 */
-	cur_msr_val = hw_dom_mba->ctrl_val[hw_closid];
+	cur_msr_val = hw_dom_mba->ctrl_val[hwclosid_val(hw_closid)];
 
 	/*
 	 * For Ctrl groups read data from child monitor groups.
@@ -427,9 +427,9 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 		return;
 	}
 
-	cur_msr = hw_r_mba->msr_base + hw_closid;
+	cur_msr = hw_r_mba->msr_base + hwclosid_val(hw_closid);
 	wrmsrl(cur_msr, delay_bw_map(new_msr_val, r_mba));
-	hw_dom_mba->ctrl_val[hw_closid] = new_msr_val;
+	hw_dom_mba->ctrl_val[hwclosid_val(hw_closid)] = new_msr_val;
 
 	/*
 	 * Delta values are updated dynamically package wise for each
