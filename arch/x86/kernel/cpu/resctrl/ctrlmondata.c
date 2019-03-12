@@ -79,6 +79,7 @@ int parse_bw(struct rdt_parse_data *data, struct rdt_resource *r,
 	if (!bw_validate(data->buf, &bw_val, r))
 		return -EINVAL;
 	cfg->new_ctrl = bw_val;
+	cfg->closid = data->rdtgrp->closid;
 	cfg->have_new_ctrl = true;
 
 	return 0;
@@ -183,6 +184,7 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 	}
 
 	cfg->new_ctrl = cbm_val;
+	cfg->closid = data->rdtgrp->closid;
 	cfg->have_new_ctrl = true;
 
 	return 0;
@@ -248,15 +250,15 @@ next:
 }
 
 static void apply_config(struct rdt_hw_domain *hw_dom,
-			 struct resctrl_staged_config *cfg, int closid,
+			 struct resctrl_staged_config *cfg,
 			 cpumask_var_t cpu_mask, bool mba_sc)
 {
 	struct rdt_domain *dom = &hw_dom->resctrl;
 	u32 *dc = !mba_sc ? hw_dom->ctrl_val : hw_dom->mbps_val;
 
-	if (cfg->new_ctrl != dc[closid]) {
+	if (cfg->new_ctrl != dc[cfg->closid]) {
 		cpumask_set_cpu(cpumask_any(&dom->cpu_mask), cpu_mask);
-		dc[closid] = cfg->new_ctrl;
+		dc[cfg->closid] = cfg->new_ctrl;
 		cfg->have_new_ctrl = false;
 	}
 }
@@ -274,6 +276,7 @@ int update_domains(struct rdt_resource *r, int closid)
 	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL))
 		return -ENOMEM;
 
+	/* TODO: learn these two by looping the config */
 	msr_param.low = closid;
 	msr_param.high = msr_param.low + 1;
 	msr_param.res = r;
@@ -286,7 +289,7 @@ int update_domains(struct rdt_resource *r, int closid)
 			if (!cfg->have_new_ctrl)
 				continue;
 
-			apply_config(hw_dom, cfg, closid, cpu_mask, mba_sc);
+			apply_config(hw_dom, cfg, cpu_mask, mba_sc);
 		}
 	}
 

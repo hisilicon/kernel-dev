@@ -2594,6 +2594,7 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct rdt_resource *r,
 		rdt_last_cmd_printf("No space on %s:%d\n", r->name, d->id);
 		return -ENOSPC;
 	}
+	cfg->closid = closid;
 	cfg->have_new_ctrl = true;
 
 	return 0;
@@ -2624,7 +2625,7 @@ static int rdtgroup_init_cat(struct rdt_resource *r, u32 closid)
 }
 
 /* Initialize MBA resource with default values. */
-static void rdtgroup_init_mba(struct rdt_resource *r)
+static void rdtgroup_init_mba(struct rdt_resource *r, u32 closid)
 {
 	struct resctrl_staged_config *cfg;
 	struct rdt_domain *d;
@@ -2632,6 +2633,7 @@ static void rdtgroup_init_mba(struct rdt_resource *r)
 	list_for_each_entry(d, &r->domains, list) {
 		cfg = &d->staged_config[0];
 		cfg->new_ctrl = is_mba_sc(r) ? MBA_MAX_MBPS : r->default_ctrl;
+		cfg->closid = closid;
 		cfg->have_new_ctrl = true;
 	}
 }
@@ -2644,7 +2646,7 @@ static int rdtgroup_init_alloc(struct rdtgroup *rdtgrp)
 
 	for_each_alloc_enabled_rdt_resource(r) {
 		if (r->rid == RDT_RESOURCE_MBA) {
-			rdtgroup_init_mba(r);
+			rdtgroup_init_mba(r, rdtgrp->closid);
 		} else {
 			ret = rdtgroup_init_cat(r, rdtgrp->closid);
 			if (ret < 0)
