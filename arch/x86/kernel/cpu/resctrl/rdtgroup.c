@@ -1856,6 +1856,14 @@ static void cdp_disable(int level, int data_type, int code_type)
 
 static void cdp_disable_all(void)
 {
+	struct rdt_resource *l2 = &rdt_resources_all[RDT_RESOURCE_L2].resctrl;
+	struct rdt_resource *l3 = &rdt_resources_all[RDT_RESOURCE_L3].resctrl;
+
+	if (l2->cdp_enabled)
+		l2->num_closid *= 2;
+	if (l3->cdp_enabled)
+		l3->num_closid *= 2;
+
 	resctrl_arch_set_cdp_enabled(false);
 }
 
@@ -1892,12 +1900,23 @@ int resctrl_arch_set_cdp_enabled(bool enable)
 
 static int try_to_enable_cdp(int level)
 {
+	int err;
 	struct rdt_resource *r = &rdt_resources_all[level].resctrl;
+	struct rdt_resource *l3 = &rdt_resources_all[RDT_RESOURCE_L3].resctrl;
+	struct rdt_resource *l2 = &rdt_resources_all[RDT_RESOURCE_L2].resctrl;
 
 	if (!r->cdp_capable)
 		return -EINVAL;
 
-	return resctrl_arch_set_cdp_enabled(true);
+	err = resctrl_arch_set_cdp_enabled(true);
+	if (!err) {
+		if (l2->cdp_enabled)
+			l2->num_closid /= 2;
+		if (l3->cdp_enabled)
+			l3->num_closid /= 2;
+	}
+
+	return err;
 }
 
 /*
