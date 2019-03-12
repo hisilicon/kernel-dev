@@ -2535,6 +2535,7 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct rdt_resource *r,
 				 u32 closid)
 {
 	struct rdt_resource *r_cdp = NULL;
+	struct resctrl_staged_config *cfg;
 	struct rdt_domain *d_cdp = NULL;
 	u32 used_b = 0, unused_b = 0;
 	unsigned long tmp_cbm;
@@ -2543,8 +2544,9 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct rdt_resource *r,
 	int i;
 
 	rdt_cdp_peer_get(r, d, &r_cdp, &d_cdp);
-	d->have_new_ctrl = false;
-	d->new_ctrl = r->cache.shareable_bits;
+	cfg = &d->staged_config[0];
+	cfg->have_new_ctrl = false;
+	cfg->new_ctrl = r->cache.shareable_bits;
 	used_b = r->cache.shareable_bits;
 	ctrl = resctrl_to_arch_dom(d)->ctrl_val;
 	for (i = 0; i < closids_supported(); i++, ctrl++) {
@@ -2570,29 +2572,29 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct rdt_resource *r,
 				peer_ctl = 0;
 			used_b |= *ctrl | peer_ctl;
 			if (mode == RDT_MODE_SHAREABLE)
-				d->new_ctrl |= *ctrl | peer_ctl;
+				cfg->new_ctrl |= *ctrl | peer_ctl;
 		}
 	}
 	if (d->plr && d->plr->cbm > 0)
 		used_b |= d->plr->cbm;
 	unused_b = used_b ^ (BIT_MASK(r->cache.cbm_len) - 1);
 	unused_b &= BIT_MASK(r->cache.cbm_len) - 1;
-	d->new_ctrl |= unused_b;
+	cfg->new_ctrl |= unused_b;
 	/*
 	 * Force the initial CBM to be valid, user can
 	 * modify the CBM based on system availability.
 	 */
-	cbm_ensure_valid(&d->new_ctrl, r);
+	cbm_ensure_valid(&cfg->new_ctrl, r);
 	/*
 	 * Assign the u32 CBM to an unsigned long to ensure that
 	 * bitmap_weight() does not access out-of-bound memory.
 	 */
-	tmp_cbm = d->new_ctrl;
+	tmp_cbm = cfg->new_ctrl;
 	if (bitmap_weight(&tmp_cbm, r->cache.cbm_len) < r->cache.min_cbm_bits) {
 		rdt_last_cmd_printf("No space on %s:%d\n", r->name, d->id);
 		return -ENOSPC;
 	}
-	d->have_new_ctrl = true;
+	cfg->have_new_ctrl = true;
 
 	return 0;
 }
@@ -2624,11 +2626,13 @@ static int rdtgroup_init_cat(struct rdt_resource *r, u32 closid)
 /* Initialize MBA resource with default values. */
 static void rdtgroup_init_mba(struct rdt_resource *r)
 {
+	struct resctrl_staged_config *cfg;
 	struct rdt_domain *d;
 
 	list_for_each_entry(d, &r->domains, list) {
-		d->new_ctrl = is_mba_sc(r) ? MBA_MAX_MBPS : r->default_ctrl;
-		d->have_new_ctrl = true;
+		cfg = &d->staged_config[0];
+		cfg->new_ctrl = is_mba_sc(r) ? MBA_MAX_MBPS : r->default_ctrl;
+		cfg->have_new_ctrl = true;
 	}
 }
 

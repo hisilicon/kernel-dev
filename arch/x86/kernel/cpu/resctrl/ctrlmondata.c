@@ -69,16 +69,17 @@ int parse_bw(struct rdt_parse_data *data, struct rdt_resource *r,
 		   struct rdt_domain *d)
 {
 	unsigned long bw_val;
+	struct resctrl_staged_config *cfg = &d->staged_config[0];
 
-	if (d->have_new_ctrl) {
+	if (cfg->have_new_ctrl) {
 		rdt_last_cmd_printf("Duplicate domain %d\n", d->id);
 		return -EINVAL;
 	}
 
 	if (!bw_validate(data->buf, &bw_val, r))
 		return -EINVAL;
-	d->new_ctrl = bw_val;
-	d->have_new_ctrl = true;
+	cfg->new_ctrl = bw_val;
+	cfg->have_new_ctrl = true;
 
 	return 0;
 }
@@ -135,10 +136,11 @@ static bool cbm_validate(char *buf, u32 *data, struct rdt_resource *r)
 int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 	      struct rdt_domain *d)
 {
+	struct resctrl_staged_config *cfg = &d->staged_config[0];
 	struct rdtgroup *rdtgrp = data->rdtgrp;
 	u32 cbm_val;
 
-	if (d->have_new_ctrl) {
+	if (cfg->have_new_ctrl) {
 		rdt_last_cmd_printf("Duplicate domain %d\n", d->id);
 		return -EINVAL;
 	}
@@ -180,8 +182,8 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 		}
 	}
 
-	d->new_ctrl = cbm_val;
-	d->have_new_ctrl = true;
+	cfg->new_ctrl = cbm_val;
+	cfg->have_new_ctrl = true;
 
 	return 0;
 }
@@ -195,6 +197,7 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 static int parse_line(char *line, struct rdt_resource *r,
 		      struct rdtgroup *rdtgrp)
 {
+	struct resctrl_staged_config *cfg;
 	struct rdt_parse_data data;
 	char *dom = NULL, *id;
 	struct rdt_domain *d;
@@ -223,6 +226,7 @@ next:
 			if (r->parse_ctrlval(&data, r, d))
 				return -EINVAL;
 			if (rdtgrp->mode ==  RDT_MODE_PSEUDO_LOCKSETUP) {
+				cfg = &d->staged_config[0];
 				/*
 				 * In pseudo-locking setup mode and just
 				 * parsed a valid CBM that should be
@@ -233,7 +237,7 @@ next:
 				 */
 				rdtgrp->plr->r = r;
 				rdtgrp->plr->d = d;
-				rdtgrp->plr->cbm = d->new_ctrl;
+				rdtgrp->plr->cbm = cfg->new_ctrl;
 				d->plr = rdtgrp->plr;
 				return 0;
 			}
@@ -243,15 +247,29 @@ next:
 	return -EINVAL;
 }
 
+static void apply_config(struct rdt_hw_domain *hw_dom,
+			 struct resctrl_staged_config *cfg, int closid,
+			 cpumask_var_t cpu_mask, bool mba_sc)
+{
+	struct rdt_domain *dom = &hw_dom->resctrl;
+	u32 *dc = !mba_sc ? hw_dom->ctrl_val : hw_dom->mbps_val;
+
+	if (cfg->new_ctrl != dc[closid]) {
+		cpumask_set_cpu(cpumask_any(&dom->cpu_mask), cpu_mask);
+		dc[closid] = cfg->new_ctrl;
+		cfg->have_new_ctrl = false;
+	}
+}
+
 int update_domains(struct rdt_resource *r, int closid)
 {
+	struct resctrl_staged_config *cfg;
 	struct rdt_hw_domain *hw_dom;
 	struct msr_param msr_param;
 	cpumask_var_t cpu_mask;
 	struct rdt_domain *d;
 	bool mba_sc;
-	u32 *dc;
-	int cpu;
+	int cpu, i;
 
 	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL))
 		return -ENOMEM;
@@ -263,10 +281,12 @@ int update_domains(struct rdt_resource *r, int closid)
 	mba_sc = is_mba_sc(r);
 	list_for_each_entry(d, &r->domains, list) {
 		hw_dom = resctrl_to_arch_dom(d);
-		dc = !mba_sc ? hw_dom->ctrl_val : hw_dom->mbps_val;
-		if (d->have_new_ctrl && d->new_ctrl != dc[closid]) {
-			cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
-			dc[closid] = d->new_ctrl;
+		for (i = 0; i < ARRAY_SIZE(d->staged_config); i++) {
+			cfg = &hw_dom->resctrl.staged_config[i];
+			if (!cfg->have_new_ctrl)
+				continue;
+
+			apply_config(hw_dom, cfg, closid, cpu_mask, mba_sc);
 		}
 	}
 
@@ -338,7 +358,7 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 
 	for_each_alloc_enabled_rdt_resource(r) {
 		list_for_each_entry(dom, &r->domains, list)
-			dom->have_new_ctrl = false;
+			memset(dom->staged_config, 0, sizeof(dom->staged_config));
 	}
 
 	while ((tok = strsep(&buf, "\n")) != NULL) {
