@@ -61,6 +61,7 @@ int parse_bw(struct rdt_parse_data *data, struct rdt_resource *r,
 		   struct rdt_domain *d)
 {
 	unsigned long bw_val;
+	enum resctrl_conf_type t = data->conf_type;
 	struct resctrl_staged_config *cfg = &d->staged_config[0];
 
 	if (cfg->have_new_ctrl) {
@@ -72,6 +73,7 @@ int parse_bw(struct rdt_parse_data *data, struct rdt_resource *r,
 		return -EINVAL;
 	cfg->new_ctrl = bw_val;
 	cfg->closid = data->rdtgrp->closid;
+	cfg->new_ctrl_type = t;
 	cfg->have_new_ctrl = true;
 
 	return 0;
@@ -130,6 +132,7 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 	      struct rdt_domain *d)
 {
 	struct resctrl_staged_config *cfg = &d->staged_config[0];
+	enum resctrl_conf_type t = data->conf_type;
 	struct rdtgroup *rdtgrp = data->rdtgrp;
 	u32 cbm_val;
 
@@ -177,6 +180,7 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 
 	cfg->new_ctrl = cbm_val;
 	cfg->closid = data->rdtgrp->closid;
+	cfg->new_ctrl_type = t;
 	cfg->have_new_ctrl = true;
 
 	return 0;
@@ -189,7 +193,7 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
  * the "id"s for this resource.
  */
 static int parse_line(char *line, struct rdt_resource *r,
-		      struct rdtgroup *rdtgrp)
+		      struct rdtgroup *rdtgrp, enum resctrl_conf_type t)
 {
 	struct resctrl_staged_config *cfg;
 	struct rdt_parse_data data;
@@ -217,6 +221,7 @@ next:
 		if (d->id == dom_id) {
 			data.buf = dom;
 			data.rdtgrp = rdtgrp;
+			data.conf_type = t;
 			if (r->parse_ctrlval(&data, r, d))
 				return -EINVAL;
 			if (rdtgrp->mode ==  RDT_MODE_PSEUDO_LOCKSETUP) {
@@ -323,7 +328,8 @@ static int rdtgroup_parse_resource(char *resname, char *tok,
 
 	for_each_alloc_enabled_rdt_resource(r) {
 		if (!strcmp(resname, r->name) && rdtgrp->closid < r->num_closid)
-			return parse_line(tok, r, rdtgrp);
+			return parse_line(tok, r, rdtgrp,
+					  resctrl_to_arch_res(r)->conf_type);
 	}
 	rdt_last_cmd_printf("Unknown or unsupported resource name '%s'\n", resname);
 	return -EINVAL;
