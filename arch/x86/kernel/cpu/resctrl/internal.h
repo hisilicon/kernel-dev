@@ -362,6 +362,7 @@ struct rdt_cache {
  * struct rdt_membw - Memory bandwidth allocation related data
  * @min_bw:		Minimum memory bandwidth percentage user can request
  * @bw_gran:		Granularity at which the memory bandwidth is allocated
+ * @arch_needs_linear:  True if we can't configure non-linear resources
  * @delay_linear:	True if memory B/W delay is in linear scale
  * @mba_sc:		True if MBA software controller(mba_sc) is enabled
  * @mb_map:		Mapping of memory B/W percentage to memory B/W delay
@@ -370,6 +371,7 @@ struct rdt_membw {
 	u32		min_bw;
 	u32		bw_gran;
 	u32		delay_linear;
+	bool		arch_needs_linear;
 	bool		mba_sc;
 	u32		*mb_map;
 };
