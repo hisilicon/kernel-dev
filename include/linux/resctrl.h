@@ -175,11 +175,13 @@ int resctrl_arch_set_cdp_enabled(bool enable);
  * @list:	Member of resctrl's schema list
  * @conf_type:	Type of configuration, e.g. code/data/both
  * @res:	The rdt_resource for this entry
+ * @cdp_peer:	The partner schema for the same resource when using CDP
  */
 struct resctrl_schema {
 	struct list_head		list;
 	enum resctrl_conf_type		conf_type;
 	struct rdt_resource		*res;
+	struct resctrl_schema		*cdp_peer;
 };
 
 #endif /* __LINUX_RESCTRL_H */
