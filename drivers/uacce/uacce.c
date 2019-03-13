@@ -98,7 +98,7 @@ static inline int uacce_iommu_map_qfr(struct uacce_queue *q,
 	return 0;
 
 err_with_map_pages:
-	for (j = i-1; j >= 0; j--) {
+	for (j = i - 1; j >= 0; j--) {
 		iommu_unmap(domain, qfr->iova + j * PAGE_SIZE, PAGE_SIZE);
 		put_page(qfr->pages[j]);
 	}
@@ -106,7 +106,7 @@ err_with_map_pages:
 }
 
 static inline void uacce_iommu_unmap_qfr(struct uacce_queue *q,
-					       struct uacce_qfile_region *qfr)
+					 struct uacce_qfile_region *qfr)
 {
 	struct device *dev = q->uacce->pdev;
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
@@ -115,7 +115,7 @@ static inline void uacce_iommu_unmap_qfr(struct uacce_queue *q,
 	if (!domain || !qfr)
 		return;
 
-	for (i = qfr->nr_pages-1; i >= 0; i--) {
+	for (i = qfr->nr_pages - 1; i >= 0; i--) {
 		iommu_unmap(domain, qfr->iova + i * PAGE_SIZE, PAGE_SIZE);
 		put_page(qfr->pages[i]);
 	}
@@ -218,8 +218,8 @@ static void uacce_qfr_free_pages(struct uacce_qfile_region *qfr)
 }
 
 static inline int uacce_queue_mmap_qfr(struct uacce_queue *q,
-				  struct uacce_qfile_region *qfr,
-				  struct vm_area_struct *vma)
+				       struct uacce_qfile_region *qfr,
+				       struct vm_area_struct *vma)
 {
 #ifdef CONFIG_UACCE_FIX_MMAP
 	int i, ret;
@@ -230,8 +230,8 @@ static inline int uacce_queue_mmap_qfr(struct uacce_queue *q,
 	for (i = 0; i < qfr->nr_pages; i++) {
 		get_page(qfr->pages[i]);
 		ret = remap_pfn_range(vma, vma->vm_start + (i << PAGE_SHIFT),
-				page_to_pfn(qfr->pages[i]), PAGE_SIZE,
-				vma->vm_page_prot);
+				      page_to_pfn(qfr->pages[i]), PAGE_SIZE,
+				      vma->vm_page_prot);
 		if (ret)
 			return ret;
 	}
@@ -245,7 +245,8 @@ static inline int uacce_queue_mmap_qfr(struct uacce_queue *q,
 }
 
 static struct uacce_qfile_region *uacce_create_region(struct uacce_queue *q,
-	struct vm_area_struct *vma, enum uacce_qfrt type, int flags)
+						struct vm_area_struct *vma,
+						enum uacce_qfrt type, int flags)
 {
 	struct uacce_qfile_region *qfr;
 	struct uacce *uacce = q->uacce;
@@ -278,8 +279,9 @@ static struct uacce_qfile_region *uacce_create_region(struct uacce_queue *q,
 	/* allocate memory */
 	if (flags & UACCE_QFRF_DMA) {
 		dev_dbg(uacce->pdev, "allocate dma %d pages\n", qfr->nr_pages);
-		qfr->kaddr = dma_alloc_coherent(uacce->pdev,
-			qfr->nr_pages << PAGE_SHIFT, &qfr->dma, GFP_KERNEL);
+		qfr->kaddr = dma_alloc_coherent(uacce->pdev, qfr->nr_pages <<
+						PAGE_SHIFT, &qfr->dma,
+						GFP_KERNEL);
 		if (!qfr->kaddr) {
 			goto err_with_qfr;
 			ret = -ENOMEM;
@@ -299,6 +301,7 @@ static struct uacce_qfile_region *uacce_create_region(struct uacce_queue *q,
 	/* mmap to user space */
 	if (flags & UACCE_QFRF_MMAP) {
 		if (flags & UACCE_QFRF_DMA) {
+
 			/* dma_mmap_coherent() requires vm_pgoff as 0
 			 * restore vm_pfoff to initial value for mmap()
 			 */
@@ -309,8 +312,9 @@ static struct uacce_qfile_region *uacce_create_region(struct uacce_queue *q,
 						qfr->dma,
 						qfr->nr_pages << PAGE_SHIFT);
 			vma->vm_pgoff = vm_pgoff;
-		} else
+		} else {
 			ret = uacce_queue_mmap_qfr(q, qfr, vma);
+		}
 
 		if (ret)
 			goto err_with_mapped_qfr;
@@ -459,8 +463,9 @@ static long uacce_get_ss_dma(struct uacce_queue *q, void __user *arg)
 	if (q->qfrs[UACCE_QFRT_SS]) {
 		dma = (unsigned long)(q->qfrs[UACCE_QFRT_SS]->dma);
 		dev_dbg(&uacce->dev, "uacce_get_ss_dma(%lx)\n", dma);
-	} else
+	} else {
 		ret = -EINVAL;
+	}
 	uacce_qs_wunlock();
 
 	if (copy_to_user(arg, &dma, sizeof(dma)))
@@ -470,7 +475,7 @@ static long uacce_get_ss_dma(struct uacce_queue *q, void __user *arg)
 }
 
 static long uacce_fops_unl_ioctl(struct file *filep,
-				unsigned int cmd, unsigned long arg)
+				 unsigned int cmd, unsigned long arg)
 {
 	struct uacce_queue *q = filep->private_data;
 	struct uacce *uacce = q->uacce;
@@ -516,13 +521,13 @@ static int uacce_dev_open_check(struct uacce *uacce)
 	if (uacce->ops->flags & (UACCE_DEV_PASID | UACCE_DEV_NOIOMMU))
 		return 0;
 
-	if (atomic_cmpxchg(&uacce->state, UACCE_ST_INIT, UACCE_ST_OPENNED)
-	    != UACCE_ST_INIT) {
+	if (atomic_cmpxchg(&uacce->state, UACCE_ST_INIT, UACCE_ST_OPENNED) !=
+	    UACCE_ST_INIT) {
 		dev_info(&uacce->dev, "this device can be openned only once\n");
 		return -EBUSY;
 	}
 
-	dev_dbg(&uacce->dev, "state switch to OPENNED");
+	dev_dbg(&uacce->dev, "state switch to OPENNED!\n");
 
 	return 0;
 }
@@ -599,16 +604,16 @@ static int uacce_fops_open(struct inode *inode, struct file *filep)
 		return -EINVAL;
 
 	ret = uacce_dev_open_check(uacce);
-
-#ifdef CONFIG_IOMMU_SVA
-	if (uacce->ops->flags & UACCE_DEV_PASID)
-		ret = iommu_sva_bind_device(uacce->pdev, current->mm, &pasid,
-					    IOMMU_SVA_FEAT_IOPF, NULL);
-#endif
-
 	if (ret)
 		return ret;
-
+#ifdef CONFIG_IOMMU_SVA
+	if (uacce->ops->flags & UACCE_DEV_PASID) {
+		ret = iommu_sva_bind_device(uacce->pdev, current->mm, &pasid,
+					    IOMMU_SVA_FEAT_IOPF, NULL);
+		if (ret)
+			return ret;
+	}
+#endif
 	ret = uacce->ops->get_queue(uacce, pasid, &q);
 	if (ret < 0)
 		return ret;
@@ -796,7 +801,7 @@ out_with_lock:
 
 static __poll_t uacce_fops_poll(struct file *file, poll_table *wait)
 {
-	struct uacce_queue *q = (struct uacce_queue *)file->private_data;
+	struct uacce_queue *q = file->private_data;
 	struct uacce *uacce = q->uacce;
 
 	poll_wait(file, &q->wait, wait);
@@ -867,8 +872,8 @@ static ssize_t uacce_dev_show_node_id(struct device *dev,
 static DEVICE_ATTR(node_id, S_IRUGO, uacce_dev_show_node_id, NULL);
 
 static ssize_t uacce_dev_show_flags(struct device *dev,
-				       struct device_attribute *attr,
-				       char *buf)
+				    struct device_attribute *attr,
+				    char *buf)
 {
 	struct uacce *uacce = UACCE_FROM_CDEV_ATTR(dev);
 
@@ -877,7 +882,7 @@ static ssize_t uacce_dev_show_flags(struct device *dev,
 static DEVICE_ATTR(flags, S_IRUGO, uacce_dev_show_flags, NULL);
 
 static ssize_t uacce_dev_show_available_instances(struct device *dev,
-					  struct device_attribute *attr,
+						  struct device_attribute *attr,
 						  char *buf)
 {
 	struct uacce *uacce = UACCE_FROM_CDEV_ATTR(dev);
@@ -885,7 +890,7 @@ static ssize_t uacce_dev_show_available_instances(struct device *dev,
 	return sprintf(buf, "%d\n", uacce->ops->get_available_instances(uacce));
 }
 static DEVICE_ATTR(available_instances, S_IRUGO,
-	    uacce_dev_show_available_instances, NULL);
+		   uacce_dev_show_available_instances, NULL);
 
 static ssize_t uacce_dev_show_algorithms(struct device *dev,
 					 struct device_attribute *attr,
@@ -977,7 +982,7 @@ static int uacce_default_get_available_instances(struct uacce *uacce)
 
 static int uacce_default_start_queue(struct uacce_queue *q)
 {
-	dev_dbg(&q->uacce->dev, "fake start queue");
+	dev_dbg(&q->uacce->dev, "fake start queue\n");
 	return 0;
 }
 
@@ -1104,8 +1109,9 @@ static void uacce_unset_iommu_domain(struct uacce *uacce)
 	if (domain) {
 		iommu_detach_device(domain, uacce->pdev);
 		iommu_domain_free(domain);
-	} else
+	} else {
 		dev_err(&uacce->dev, "bug: no domain attached to device\n");
+	}
 }
 #endif
 
@@ -1169,7 +1175,7 @@ int uacce_register(struct uacce *uacce)
 #endif
 	}
 
-	dev_dbg(&uacce->dev, "uacce state initialized to INIT");
+	dev_dbg(&uacce->dev, "uacce state initialized to INIT\n");
 	atomic_set(&uacce->state, UACCE_ST_INIT);
 	mutex_unlock(&uacce_mutex);
 	return 0;
