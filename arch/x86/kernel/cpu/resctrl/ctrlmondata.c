@@ -75,11 +75,12 @@ static bool bw_validate(char *buf, unsigned long *data, struct rdt_resource *r)
 	return true;
 }
 
-int parse_bw(struct rdt_parse_data *data, struct rdt_resource *r,
+int parse_bw(struct rdt_parse_data *data, struct resctrl_schema *s,
 		   struct rdt_domain *d)
 {
 	unsigned long bw_val;
-	enum resctrl_conf_type t = data->conf_type;
+	struct rdt_resource *r = s->res;
+	enum resctrl_conf_type t = s->conf_type;
 	struct resctrl_staged_config *cfg = &d->staged_config[t];
 
 	if (cfg->have_new_ctrl) {
@@ -146,12 +147,13 @@ static bool cbm_validate(char *buf, u32 *data, struct rdt_resource *r)
  * Read one cache bit mask (hex). Check that it is valid for the current
  * resource type.
  */
-int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
+int parse_cbm(struct rdt_parse_data *data, struct resctrl_schema *s,
 	      struct rdt_domain *d)
 {
-	enum resctrl_conf_type t = data->conf_type;
+	enum resctrl_conf_type t = s->conf_type;
 	struct rdtgroup *rdtgrp = data->rdtgrp;
 	struct resctrl_staged_config *cfg;
+	struct rdt_resource *r = s->res;
 	u32 cbm_val;
 
 	cfg = &d->staged_config[t];
@@ -184,12 +186,12 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 	 * The CBM may not overlap with the CBM of another closid if
 	 * either is exclusive.
 	 */
-	if (rdtgroup_cbm_overlaps(r, d, cbm_val, rdtgrp->closid, true)) {
+	if (rdtgroup_cbm_overlaps(s, d, cbm_val, rdtgrp->closid, true)) {
 		rdt_last_cmd_puts("Overlaps with exclusive group\n");
 		return -EINVAL;
 	}
 
-	if (rdtgroup_cbm_overlaps(r, d, cbm_val, rdtgrp->closid, false)) {
+	if (rdtgroup_cbm_overlaps(s, d, cbm_val, rdtgrp->closid, false)) {
 		if (rdtgrp->mode == RDT_MODE_EXCLUSIVE ||
 		    rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP) {
 			rdt_last_cmd_puts("Overlaps with other group\n");
@@ -211,10 +213,11 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
  * separated by ";". The "id" is in decimal, and must match one of
  * the "id"s for this resource.
  */
-static int parse_line(char *line, struct rdt_resource *r,
+static int parse_line(char *line, struct resctrl_schema *s,
 		      struct rdtgroup *rdtgrp, enum resctrl_conf_type t)
 {
 	struct resctrl_staged_config *cfg;
+	struct rdt_resource *r = s->res;
 	struct rdt_parse_data data;
 	char *dom = NULL, *id;
 	struct rdt_domain *d;
@@ -240,8 +243,7 @@ next:
 		if (d->id == dom_id) {
 			data.buf = dom;
 			data.rdtgrp = rdtgrp;
-			data.conf_type = t;
-			if (r->parse_ctrlval(&data, r, d))
+			if (r->parse_ctrlval(&data, s, d))
 				return -EINVAL;
 			if (rdtgrp->mode ==  RDT_MODE_PSEUDO_LOCKSETUP) {
 				cfg = &d->staged_config[t];
@@ -347,10 +349,14 @@ static int rdtgroup_parse_resource(char *resname, char *tok,
 				   struct rdtgroup *rdtgrp)
 {
 	struct rdt_resource *r;
+	struct resctrl_schema *s;
 
-	for_each_alloc_enabled_rdt_resource(r) {
+	lockdep_assert_held(&rdtgroup_mutex);
+
+	list_for_each_entry(s, &resctrl_all_schema, list) {
+		r = s->res;
 		if (!strcmp(resname, r->name) && rdtgrp->closid < r->num_closid)
-			return parse_line(tok, r, rdtgrp,
+			return parse_line(tok, s, rdtgrp,
 					  resctrl_to_arch_res(r)->conf_type);
 	}
 	rdt_last_cmd_printf("Unknown or unsupported resource name '%s'\n", resname);
@@ -360,6 +366,7 @@ static int rdtgroup_parse_resource(char *resname, char *tok,
 ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 				char *buf, size_t nbytes, loff_t off)
 {
+	struct resctrl_schema *s;
 	struct rdtgroup *rdtgrp;
 	struct rdt_domain *dom;
 	struct rdt_resource *r;
@@ -390,8 +397,8 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 		goto out;
 	}
 
-	for_each_alloc_enabled_rdt_resource(r) {
-		list_for_each_entry(dom, &r->domains, list)
+	list_for_each_entry(s, &resctrl_all_schema, list) {
+		list_for_each_entry(dom, &s->res->domains, list)
 			memset(dom->staged_config, 0, sizeof(dom->staged_config));
 	}
 
@@ -412,7 +419,8 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 			goto out;
 	}
 
-	for_each_alloc_enabled_rdt_resource(r) {
+	list_for_each_entry(s, &resctrl_all_schema, list) {
+		r = s->res;
 		ret = resctrl_arch_update_domains(r);
 		if (ret)
 			goto out;
@@ -446,8 +454,9 @@ void resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
 		*value = hw_dom->mbps_val[hw_closid_val];
 }
 
-static void show_doms(struct seq_file *s, struct rdt_resource *r, int closid)
+static void show_doms(struct seq_file *s, struct resctrl_schema *schema, int closid)
 {
+	struct rdt_resource *r = schema->res;
 	struct rdt_domain *dom;
 	hw_closid_t hw_closid;
 	bool sep = false;
@@ -471,6 +480,7 @@ static void show_doms(struct seq_file *s, struct rdt_resource *r, int closid)
 int rdtgroup_schemata_show(struct kernfs_open_file *of,
 			   struct seq_file *s, void *v)
 {
+	struct resctrl_schema *schema;
 	struct rdtgroup *rdtgrp;
 	struct rdt_resource *r;
 	int ret = 0;
@@ -479,8 +489,10 @@ int rdtgroup_schemata_show(struct kernfs_open_file *of,
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (rdtgrp) {
 		if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP) {
-			for_each_alloc_enabled_rdt_resource(r)
+			list_for_each_entry(schema, &resctrl_all_schema, list) {
+				r = schema->res;
 				seq_printf(s, "%s:uninitialized\n", r->name);
+			}
 		} else if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKED) {
 			if (!rdtgrp->plr->d) {
 				rdt_last_cmd_clear();
@@ -494,9 +506,10 @@ int rdtgroup_schemata_show(struct kernfs_open_file *of,
 			}
 		} else {
 			closid = rdtgrp->closid;
-			for_each_alloc_enabled_rdt_resource(r) {
+			list_for_each_entry(schema, &resctrl_all_schema, list) {
+				r = schema->res;
 				if (closid < r->num_closid)
-					show_doms(s, r, closid);
+					show_doms(s, schema, closid);
 			}
 		}
 	} else {
