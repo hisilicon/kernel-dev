@@ -360,7 +360,6 @@ struct rdt_parse_data {
 struct rdt_hw_resource {
 	struct rdt_resource     resctrl;
 	u32			hw_num_closid;
-	enum resctrl_conf_type	conf_type;	// temporary
 	unsigned int		msr_base;
 	void (*msr_update)	(struct rdt_domain *d, struct msr_param *m,
 				 struct rdt_resource *r);
