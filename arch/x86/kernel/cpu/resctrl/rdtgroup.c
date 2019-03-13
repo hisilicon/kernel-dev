@@ -1008,65 +1008,6 @@ static int rdtgroup_mode_show(struct kernfs_open_file *of,
 }
 
 /**
- * rdt_cdp_peer_get - Retrieve CDP peer if it exists
- * @s: Schema of the resource to which RDT domain @d belongs
- * @d: Cache instance for which a CDP peer is requested
- * @r_cdp: RDT resource that shares hardware with @r (RDT resource peer)
- *         Used to return the result.
- * @d_cdp: RDT domain that shares hardware with @d (RDT domain peer)
- *         Used to return the result.
- *
- * RDT resources are managed independently and by extension the RDT domains
- * (RDT resource instances) are managed independently also. The Code and
- * Data Prioritization (CDP) RDT resources, while managed independently,
- * could refer to the same underlying hardware. For example,
- * RDT_RESOURCE_L2CODE and RDT_RESOURCE_L2DATA both refer to the L2 cache.
- *
- * When provided with an RDT resource @r and an instance of that RDT
- * resource @d rdt_cdp_peer_get() will return if there is a peer RDT
- * resource and the exact instance that shares the same hardware.
- *
- * Return: 0 if a CDP peer was found, <0 on error or if no CDP peer exists.
- *         If a CDP peer was found, @r_cdp will point to the peer RDT resource
- *         and @d_cdp will point to the peer RDT domain.
- */
-static int rdt_cdp_peer_get(struct resctrl_schema *s, struct rdt_domain *d,
-			    struct rdt_domain **d_cdp)
-{
-	struct rdt_resource *_r_cdp = NULL;
-	struct rdt_domain *_d_cdp = NULL;
-	int ret = 0;
-
-	if (!s->res->cdp_enabled)
-		return 0;
-
-	_r_cdp = s->cdp_peer->res;
-	if (_r_cdp ==s->res) {
-		*d_cdp = d;
-		return 0;
-	}
-
-	/*
-	 * When a new CPU comes online and CDP is enabled then the new
-	 * RDT domains (if any) associated with both CDP RDT resources
-	 * are added in the same CPU online routine while the
-	 * rdtgroup_mutex is held. It should thus not happen for one
-	 * RDT domain to exist and be associated with its RDT CDP
-	 * resource but there is no RDT domain associated with the
-	 * peer RDT CDP resource. Hence the WARN.
-	 */
-	_d_cdp = rdt_find_domain(_r_cdp, d->id, NULL);
-	if (WARN_ON(IS_ERR_OR_NULL(_d_cdp))) {
-		_r_cdp = NULL;
-		ret = -EINVAL;
-	}
-
-	*d_cdp = _d_cdp;
-
-	return ret;
-}
-
-/**
  * __rdtgroup_cbm_overlaps - Does CBM for intended closid overlap with other
  * @s: Schema for the resource to which domain instance @d belongs.
  * @d: The domain instance for which @closid is being tested.
@@ -1148,15 +1089,13 @@ static bool __rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain 
 bool rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain *d,
 			   unsigned long cbm, int closid, bool exclusive)
 {
-	struct rdt_domain *d_cdp;
-
 	if (__rdtgroup_cbm_overlaps(s, d, cbm, closid, exclusive))
 		return true;
 
-	if (rdt_cdp_peer_get(s, d, &d_cdp) < 0)
+	if (!s->res->cdp_enabled)
 		return false;
 
-	return  __rdtgroup_cbm_overlaps(s->cdp_peer, d_cdp, cbm, closid, exclusive);
+	return  __rdtgroup_cbm_overlaps(s->cdp_peer, d, cbm, closid, exclusive);
 }
 
 /**
@@ -2694,7 +2633,6 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
 	enum resctrl_conf_type t_peer = CDP_BOTH;
 	enum resctrl_conf_type t = s->conf_type;
 	struct resctrl_staged_config *cfg;
-	struct rdt_domain *d_cdp = NULL;
 	struct rdt_resource *r = s->res;
 	u32 used_b = 0, unused_b = 0;
 	hw_closid_t hw_closid_iter;
@@ -2703,10 +2641,8 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
 	enum rdtgrp_mode mode;
 	int i;
 
-	if (r->cdp_enabled) {
+	if (r->cdp_enabled)
 		t_peer = s->cdp_peer->conf_type;
-		rdt_cdp_peer_get(s, d, &d_cdp);
-	}
 
 	cfg = &d->staged_config[t];
 	cfg->have_new_ctrl = false;
@@ -2729,7 +2665,7 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
 			 * usage to ensure there is no overlap
 			 * with an exclusive group.
 			 */
-			if (d_cdp) {
+			if (r->cdp_enabled) {
 				hw_closid_iter = resctrl_closid_cdp_map(i, t_peer);
 				resctrl_arch_get_config(r, d, hw_closid_iter,
 							&peer_ctl);
