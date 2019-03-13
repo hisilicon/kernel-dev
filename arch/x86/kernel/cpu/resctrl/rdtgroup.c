@@ -2043,6 +2043,42 @@ static int rdt_enable_ctx(struct rdt_fs_context *ctx)
 	return ret;
 }
 
+static int pair_schemata_list(void)
+{
+	enum resctrl_conf_type peer_type;
+	struct resctrl_schema *iter, *tmp;
+
+	lockdep_assert_held(&rdtgroup_mutex);
+
+	list_for_each_entry(iter, &resctrl_all_schema, list) {
+		if (!iter->res->cdp_enabled)
+			continue;
+
+		if (iter->conf_type == CDP_CODE)
+			peer_type = CDP_DATA;
+		else
+			peer_type = CDP_CODE;
+
+		/* Find the peer */
+		list_for_each_entry(tmp, &resctrl_all_schema, list) {
+			if (!tmp->res->cdp_enabled || iter == tmp)
+				continue;
+
+			if (tmp->conf_type == peer_type &&
+			    tmp->res->cache_level == iter->res->cache_level &&
+			    tmp->res->fflags == iter->res->fflags)
+			{
+				iter->cdp_peer = tmp;
+				break;
+			}
+		}
+		WARN_ON_ONCE(!iter->cdp_peer);
+	}
+
+	return 0;
+}
+
+
 static int create_schemata_list(void)
 {
 	struct rdt_resource *r;
@@ -2059,6 +2095,8 @@ static int create_schemata_list(void)
 		INIT_LIST_HEAD(&s->list);
 		list_add(&s->list, &resctrl_all_schema);
 	}
+
+	pair_schemata_list();
 
 	return 0;
 }
@@ -2664,11 +2702,10 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
 	enum rdtgrp_mode mode;
 	int i;
 
-	rdt_cdp_peer_get(r, d, &r_cdp, &d_cdp);
-	if (t == CDP_CODE)
-		t_peer = CDP_DATA;
-	else if (t == CDP_DATA)
-		t_peer = CDP_CODE;
+	if (r->cdp_enabled) {
+		t_peer = s->cdp_peer->conf_type;
+		rdt_cdp_peer_get(r, d, &r_cdp, &d_cdp);
+	}
 
 	cfg = &d->staged_config[t];
 	cfg->have_new_ctrl = false;
