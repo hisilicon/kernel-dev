@@ -2619,7 +2619,7 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct rdt_resource *r,
 	else if (t == CDP_DATA)
 		t_peer = CDP_CODE;
 
-	cfg = &d->staged_config[0];
+	cfg = &d->staged_config[t];
 	cfg->have_new_ctrl = false;
 	cfg->new_ctrl = r->cache.shareable_bits;
 	used_b = r->cache.shareable_bits;
@@ -2710,7 +2710,7 @@ static void rdtgroup_init_mba(struct rdt_resource *r, u32 closid)
 	struct rdt_domain *d;
 
 	list_for_each_entry(d, &r->domains, list) {
-		cfg = &d->staged_config[0];
+		cfg = &d->staged_config[CDP_BOTH];
 		cfg->new_ctrl = is_mba_sc(r) ? MBA_MAX_MBPS : r->default_ctrl;
 		cfg->hw_closid = resctrl_closid_cdp_map(closid, CDP_BOTH);
 		cfg->have_new_ctrl = true;

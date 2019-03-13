@@ -80,7 +80,7 @@ int parse_bw(struct rdt_parse_data *data, struct rdt_resource *r,
 {
 	unsigned long bw_val;
 	enum resctrl_conf_type t = data->conf_type;
-	struct resctrl_staged_config *cfg = &d->staged_config[0];
+	struct resctrl_staged_config *cfg = &d->staged_config[t];
 
 	if (cfg->have_new_ctrl) {
 		rdt_last_cmd_printf("Duplicate domain %d\n", d->id);
@@ -149,11 +149,12 @@ static bool cbm_validate(char *buf, u32 *data, struct rdt_resource *r)
 int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 	      struct rdt_domain *d)
 {
-	struct resctrl_staged_config *cfg = &d->staged_config[0];
 	enum resctrl_conf_type t = data->conf_type;
 	struct rdtgroup *rdtgrp = data->rdtgrp;
+	struct resctrl_staged_config *cfg;
 	u32 cbm_val;
 
+	cfg = &d->staged_config[t];
 	if (cfg->have_new_ctrl) {
 		rdt_last_cmd_printf("Duplicate domain %d\n", d->id);
 		return -EINVAL;
@@ -243,7 +244,7 @@ next:
 			if (r->parse_ctrlval(&data, r, d))
 				return -EINVAL;
 			if (rdtgrp->mode ==  RDT_MODE_PSEUDO_LOCKSETUP) {
-				cfg = &d->staged_config[0];
+				cfg = &d->staged_config[t];
 				/*
 				 * In pseudo-locking setup mode and just
 				 * parsed a valid CBM that should be
