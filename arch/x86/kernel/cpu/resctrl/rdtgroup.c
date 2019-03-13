@@ -803,13 +803,13 @@ static int rdt_shareable_bits_show(struct kernfs_open_file *of,
 	return 0;
 }
 
-static u32 resctrl_get_config(u32 closid, struct rdt_resource *r, struct rdt_domain *d)
+static u32 resctrl_get_config(u32 closid, struct resctrl_schema *s, struct rdt_domain *d)
 {
-	enum resctrl_conf_type t;
+	enum resctrl_conf_type t = s->conf_type;
+	struct rdt_resource *r = s->res;
 	hw_closid_t hw_closid;
 	u32 ret;
 
-	t = resctrl_to_arch_res(r)->conf_type;
 	hw_closid = resctrl_closid_cdp_map(closid, t);
 	resctrl_arch_get_config(r, d, hw_closid, &ret);
 
@@ -854,7 +854,7 @@ static int rdt_bit_usage_show(struct kernfs_open_file *of,
 		for (i = 0; i < closids_supported(); i++) {
 			if (!closid_allocated(i))
 				continue;
-			ctrl_val = resctrl_get_config(i, r, dom);
+			ctrl_val = resctrl_get_config(i, s, dom);
 			mode = rdtgroup_mode_by_closid(i);
 			switch (mode) {
 			case RDT_MODE_SHAREABLE:
@@ -1080,7 +1080,7 @@ out:
 
 /**
  * __rdtgroup_cbm_overlaps - Does CBM for intended closid overlap with other
- * @r: Resource to which domain instance @d belongs.
+ * @s: Schema for the resource to which domain instance @d belongs.
  * @d: The domain instance for which @closid is being tested.
  * @cbm: Capacity bitmask being tested.
  * @closid: Intended closid for @cbm.
@@ -1098,10 +1098,11 @@ out:
  *
  * Return: false if CBM does not overlap, true if it does.
  */
-static bool __rdtgroup_cbm_overlaps(struct rdt_resource *r, struct rdt_domain *d,
+static bool __rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain *d,
 				    unsigned long cbm, int closid, bool exclusive)
 {
-	enum resctrl_conf_type t = resctrl_to_arch_res(r)->conf_type;
+	enum resctrl_conf_type t = s->conf_type;
+	struct rdt_resource *r = s->res;
 	hw_closid_t hw_closid_iter;
 	enum rdtgrp_mode mode;
 	unsigned long ctrl_b;
@@ -1163,13 +1164,13 @@ bool rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain *d,
 	struct rdt_resource *r_cdp;
 	struct rdt_domain *d_cdp;
 
-	if (__rdtgroup_cbm_overlaps(r, d, cbm, closid, exclusive))
+	if (__rdtgroup_cbm_overlaps(s, d, cbm, closid, exclusive))
 		return true;
 
 	if (rdt_cdp_peer_get(r, d, &r_cdp, &d_cdp) < 0)
 		return false;
 
-	return  __rdtgroup_cbm_overlaps(r_cdp, d_cdp, cbm, closid, exclusive);
+	return  __rdtgroup_cbm_overlaps(s->cdp_peer, d_cdp, cbm, closid, exclusive);
 }
 
 /**
@@ -1187,7 +1188,6 @@ bool rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain *d,
 static bool rdtgroup_mode_test_exclusive(struct rdtgroup *rdtgrp)
 {
 	int closid = rdtgrp->closid;
-	enum resctrl_conf_type t;
 	struct resctrl_schema *s;
 	struct rdt_resource *r;
 	bool has_cache = false;
@@ -1201,8 +1201,7 @@ static bool rdtgroup_mode_test_exclusive(struct rdtgroup *rdtgrp)
 			continue;
 		has_cache = true;
 
-		t = resctrl_to_arch_res(r)->conf_type;
-		hw_closid = resctrl_closid_cdp_map(closid, t);
+		hw_closid = resctrl_closid_cdp_map(closid, s->conf_type);
 
 		list_for_each_entry(d, &r->domains, list) {
 			resctrl_arch_get_config(r, d, hw_closid, &ctrl);
@@ -1374,7 +1373,7 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 
 		sep = false;
 		hw_closid = resctrl_closid_cdp_map(rdtgrp->closid,
-						   resctrl_to_arch_res(r)->conf_type);
+						   schema->conf_type);
 		seq_printf(s, "%*s:", max_name_width, r->name);
 		list_for_each_entry(d, &r->domains, list) {
 			if (sep)
