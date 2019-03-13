@@ -1839,47 +1839,29 @@ static int set_mba_sc(bool mba_sc)
 	return 0;
 }
 
-static int cdp_enable(int level, int data_type, int code_type)
+static int cdp_enable(int level)
 {
-	struct rdt_resource *r_ldata = &rdt_resources_all[data_type].resctrl;
-	struct rdt_resource *r_lcode = &rdt_resources_all[code_type].resctrl;
 	struct rdt_resource *r_l = &rdt_resources_all[level].resctrl;
 	int ret;
 
-	if (!r_l->alloc_capable || !r_ldata->alloc_capable ||
-	    !r_lcode->alloc_capable || !r_l->cdp_capable)
+	if (!r_l->alloc_capable || !r_l->cdp_capable)
 		return -EINVAL;
 
 	ret = set_cache_qos_cfg(level, true);
-	if (!ret) {
-		r_l->alloc_enabled = false;
-		r_ldata->alloc_enabled = true;
-		r_lcode->alloc_enabled = true;
-
+	if (!ret)
 		r_l->cdp_enabled = true;
-		r_ldata->cdp_enabled = true;
-		r_lcode->cdp_enabled = true;
-	}
+
 	return ret;
 }
 
-static void cdp_disable(int level, int data_type, int code_type)
+static void cdp_disable(int level)
 {
 	struct rdt_resource *r = &rdt_resources_all[level].resctrl;
 
-	if (!r->cdp_enabled)
-		return;
-
-	r->alloc_enabled = r->alloc_capable;
-
-	if (rdt_resources_all[data_type].resctrl.alloc_enabled) {
-		rdt_resources_all[data_type].resctrl.alloc_enabled = false;
-		rdt_resources_all[code_type].resctrl.alloc_enabled = false;
+	if (r->cdp_enabled) {
 		set_cache_qos_cfg(level, false);
 
 		r->cdp_enabled = false;
-		rdt_resources_all[data_type].resctrl.cdp_enabled = false;
-		rdt_resources_all[code_type].resctrl.cdp_enabled = false;
 	}
 }
 
@@ -1904,22 +1886,18 @@ int resctrl_arch_set_cdp_enabled(bool enable)
 
 	if (l3->resctrl.cdp_capable) {
 		if (!enable) {
-			cdp_disable(RDT_RESOURCE_L3, RDT_RESOURCE_L3DATA,
-				    RDT_RESOURCE_L3CODE);
+			cdp_disable(RDT_RESOURCE_L3);
 			ret = 0;
 		} else {
-			ret = cdp_enable(RDT_RESOURCE_L3, RDT_RESOURCE_L3DATA,
-					 RDT_RESOURCE_L3CODE);
+			ret = cdp_enable(RDT_RESOURCE_L3);
 		}
 	}
 	if (l2->resctrl.cdp_capable) {
 		if (!enable) {
-			cdp_disable(RDT_RESOURCE_L2, RDT_RESOURCE_L2DATA,
-				    RDT_RESOURCE_L2CODE);
+			cdp_disable(RDT_RESOURCE_L2);
 			ret = 0;
 		} else {
-			ret = cdp_enable(RDT_RESOURCE_L2, RDT_RESOURCE_L2DATA,
-					 RDT_RESOURCE_L2CODE);
+			ret = cdp_enable(RDT_RESOURCE_L2);
 		}
 	}
 
@@ -2070,29 +2048,59 @@ static int pair_schemata_list(void)
 	return 0;
 }
 
+static int add_schema(enum resctrl_conf_type t, struct rdt_resource *r)
+{
+	char *suffix = "";
+	struct resctrl_schema *s;
+
+	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	s->res = r;
+	s->conf_type = t;
+
+	switch (t) {
+	case CDP_CODE:
+		suffix = "CODE";
+		break;
+	case CDP_DATA:
+		suffix = "DATA";
+		break;
+	case CDP_BOTH:
+		suffix = "";
+		break;
+        }
+
+	WARN_ON_ONCE(strlen(r->name) + strlen(suffix) + 1 > RESCTRL_NAME_LEN);
+	snprintf(s->name, sizeof(s->name), "%s%s", r->name, suffix);
+
+	INIT_LIST_HEAD(&s->list);
+	list_add(&s->list, &resctrl_all_schema);
+
+        return 0;
+}
 
 static int create_schemata_list(void)
 {
+	int ret;
 	struct rdt_resource *r;
-	struct resctrl_schema *s;
 
 	for_each_alloc_enabled_rdt_resource(r) {
-		s = kzalloc(sizeof(*s), GFP_KERNEL);
-		if (!s)
-			return -ENOMEM;
-
-		s->res = r;
-		s->conf_type = resctrl_to_arch_res(r)->conf_type;
-
-		snprintf(s->name, sizeof(s->name), "%s", r->name);
-
-		INIT_LIST_HEAD(&s->list);
-		list_add(&s->list, &resctrl_all_schema);
+		if (r->cdp_enabled) {
+			ret = add_schema(CDP_CODE, r);
+			ret |= add_schema(CDP_DATA, r);
+		} else {
+			ret = add_schema(CDP_BOTH, r);
+		}
+		if (ret)
+			break;
 	}
 
-	pair_schemata_list();
+	if (!ret)
+		pair_schemata_list();
 
-	return 0;
+	return ret;
 }
 
 static void destroy_schemata_list(void)
@@ -3204,10 +3212,10 @@ out:
 
 static int rdtgroup_show_options(struct seq_file *seq, struct kernfs_root *kf)
 {
-	if (rdt_resources_all[RDT_RESOURCE_L3DATA].resctrl.alloc_enabled)
+	if (rdt_resources_all[RDT_RESOURCE_L3].resctrl.cdp_enabled)
 		seq_puts(seq, ",cdp");
 
-	if (rdt_resources_all[RDT_RESOURCE_L2DATA].resctrl.alloc_enabled)
+	if (rdt_resources_all[RDT_RESOURCE_L2].resctrl.cdp_enabled)
 		seq_puts(seq, ",cdpl2");
 
 	if (is_mba_sc(&rdt_resources_all[RDT_RESOURCE_MBA].resctrl))
