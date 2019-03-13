@@ -115,7 +115,7 @@ static void closid_init(void)
 	int rdt_min_closid = 32;
 
 	/* Compute rdt_min_closid across all resources */
-	for_each_alloc_enabled_rdt_resource(r)
+	for_each_alloc_capable_rdt_resource(r)
 		rdt_min_closid = min(rdt_min_closid, r->num_closid);
 
 	closid_free_map = BIT_MASK(rdt_min_closid) - 1;
@@ -2025,7 +2025,7 @@ static int create_schemata_list(void)
 	int ret;
 	struct rdt_resource *r;
 
-	for_each_alloc_enabled_rdt_resource(r) {
+	for_each_alloc_capable_rdt_resource(r) {
 		if (r->cdp_enabled) {
 			ret = add_schema(CDP_CODE, r);
 			ret |= add_schema(CDP_DATA, r);
@@ -2374,7 +2374,7 @@ static void rdt_kill_sb(struct super_block *sb)
 	set_mba_sc(false);
 
 	/*Put everything back to default values. */
-	for_each_alloc_enabled_rdt_resource(r)
+	for_each_alloc_capable_rdt_resource(r)
 		reset_all_ctrls(r);
 	cdp_disable_all();
 	rmdir_all_sub();
