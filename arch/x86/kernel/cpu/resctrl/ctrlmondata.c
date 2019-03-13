@@ -356,8 +356,7 @@ static int rdtgroup_parse_resource(char *resname, char *tok,
 	list_for_each_entry(s, &resctrl_all_schema, list) {
 		r = s->res;
 		if (!strcmp(resname, r->name) && rdtgrp->closid < r->num_closid)
-			return parse_line(tok, s, rdtgrp,
-					  resctrl_to_arch_res(r)->conf_type);
+			return parse_line(tok, s, rdtgrp, s->conf_type);
 	}
 	rdt_last_cmd_printf("Unknown or unsupported resource name '%s'\n", resname);
 	return -EINVAL;
@@ -467,8 +466,7 @@ static void show_doms(struct seq_file *s, struct resctrl_schema *schema, int clo
 		if (sep)
 			seq_puts(s, ";");
 
-		hw_closid = resctrl_closid_cdp_map(closid,
-						   resctrl_to_arch_res(r)->conf_type);
+		hw_closid = resctrl_closid_cdp_map(closid, schema->conf_type);
 		resctrl_arch_get_config(r, dom, hw_closid, &ctrl_val);
 		seq_printf(s, r->format_str, dom->id, max_data_width,
 			   ctrl_val);
