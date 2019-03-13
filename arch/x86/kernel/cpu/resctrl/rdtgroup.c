@@ -1358,8 +1358,8 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 			rdt_last_cmd_puts("Cache domain offline\n");
 			ret = -ENODEV;
 		} else {
-			seq_printf(s, "%*s:", max_name_width,
-				   rdtgrp->plr->s->res->name);
+			seq_printf(s, "%*s:", RESCTRL_NAME_LEN,
+				   rdtgrp->plr->s->name);
 			size = rdtgroup_cbm_to_size(rdtgrp->plr->s->res,
 						    rdtgrp->plr->d,
 						    rdtgrp->plr->cbm);
@@ -1374,7 +1374,7 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 		sep = false;
 		hw_closid = resctrl_closid_cdp_map(rdtgrp->closid,
 						   schema->conf_type);
-		seq_printf(s, "%*s:", max_name_width, r->name);
+		seq_printf(s, "%*s:", RESCTRL_NAME_LEN, schema->name);
 		list_for_each_entry(d, &r->domains, list) {
 			if (sep)
 				seq_putc(s, ';');
@@ -1707,7 +1707,7 @@ static int rdtgroup_create_info_dir(struct kernfs_node *parent_kn)
 	list_for_each_entry(s, &resctrl_all_schema, list) {
 		r = s->res;
 		fflags =  r->fflags | RF_CTRL_INFO;
-		ret = rdtgroup_mkdir_info_resdir(s, r->name, fflags);
+		ret = rdtgroup_mkdir_info_resdir(s, s->name, fflags);
 		if (ret)
 			goto out_destroy;
 	}
@@ -2097,6 +2097,8 @@ static int create_schemata_list(void)
 
 		s->res = r;
 		s->conf_type = resctrl_to_arch_res(r)->conf_type;
+
+		snprintf(s->name, sizeof(s->name), "%s", r->name);
 
 		INIT_LIST_HEAD(&s->list);
 		list_add(&s->list, &resctrl_all_schema);
