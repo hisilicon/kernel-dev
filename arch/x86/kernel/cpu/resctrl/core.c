@@ -45,10 +45,10 @@ DEFINE_MUTEX(rdtgroup_mutex);
 DEFINE_PER_CPU(struct resctrl_pqr_state, pqr_state);
 
 /*
- * Used to store the max resource name width and max resource data width
+ * Used to store the max resource data width
  * to display the schemata in a tabular format
  */
-int max_name_width, max_data_width;
+int max_data_width;
 
 /*
  * Global boolean for rdt_alloc which is true if any
@@ -752,13 +752,8 @@ static int resctrl_offline_cpu(unsigned int cpu)
 static __init void rdt_init_padding(void)
 {
 	struct rdt_resource *r;
-	int cl;
 
 	for_each_alloc_capable_rdt_resource(r) {
-		cl = strlen(r->name);
-		if (cl > max_name_width)
-			max_name_width = cl;
-
 		if (r->data_width > max_data_width)
 			max_data_width = r->data_width;
 	}

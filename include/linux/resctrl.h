@@ -8,9 +8,15 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 
+
 typedef struct { u32 val; } hw_closid_t;
 #define as_hwclosid_t(x)	((hw_closid_t){(x)})
 #define hwclosid_val(x)		(x.val)
+
+/*
+ * The longest name we expect in the schemata file:
+ */
+#define RESCTRL_NAME_LEN	7
 
 enum resctrl_conf_type {
 	CDP_BOTH = 0,
@@ -173,12 +179,14 @@ int resctrl_arch_set_cdp_enabled(bool enable);
 
 /**
  * @list:	Member of resctrl's schema list
+ * @name:	Name visible in the schemata file
  * @conf_type:	Type of configuration, e.g. code/data/both
  * @res:	The rdt_resource for this entry
  * @cdp_peer:	The partner schema for the same resource when using CDP
  */
 struct resctrl_schema {
 	struct list_head		list;
+	char				name[RESCTRL_NAME_LEN];
 	enum resctrl_conf_type		conf_type;
 	struct rdt_resource		*res;
 	struct resctrl_schema		*cdp_peer;
