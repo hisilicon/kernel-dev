@@ -1717,10 +1717,9 @@ static inline bool is_mba_linear(void)
 	return rdt_resources_all[RDT_RESOURCE_MBA].resctrl.membw.delay_linear;
 }
 
-static int set_cache_qos_cfg(int level, bool enable)
+static int set_cache_qos_cfg(struct rdt_hw_resource *hw_res, bool enable)
 {
 	void (*update)(void *arg);
-	struct rdt_resource *r_l;
 	cpumask_var_t cpu_mask;
 	struct rdt_domain *d;
 	int cpu;
@@ -1728,15 +1727,14 @@ static int set_cache_qos_cfg(int level, bool enable)
 	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL))
 		return -ENOMEM;
 
-	if (level == RDT_RESOURCE_L3)
+	if (hw_res == &rdt_resources_all[RDT_RESOURCE_L3])
 		update = l3_qos_cfg_update;
-	else if (level == RDT_RESOURCE_L2)
+	else if (hw_res == &rdt_resources_all[RDT_RESOURCE_L2])
 		update = l2_qos_cfg_update;
 	else
 		return -EINVAL;
 
-	r_l = &rdt_resources_all[level].resctrl;
-	list_for_each_entry(d, &r_l->domains, list) {
+	list_for_each_entry(d, &hw_res->resctrl.domains, list) {
 		/* Pick one CPU from each domain instance to update MSR */
 		cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
 	}
@@ -1778,30 +1776,18 @@ static int set_mba_sc(bool mba_sc)
 	return 0;
 }
 
-static int cdp_enable(int level)
+static int cdp_set_enabled(struct rdt_hw_resource *hw_res, bool enable)
 {
-	struct rdt_resource *r_l = &rdt_resources_all[level].resctrl;
 	int ret;
 
-	if (!r_l->alloc_capable || !r_l->cdp_capable)
+	if (!hw_res->resctrl.cdp_capable)
 		return -EINVAL;
 
-	ret = set_cache_qos_cfg(level, true);
+	ret = set_cache_qos_cfg(hw_res, enable);
 	if (!ret)
-		r_l->cdp_enabled = true;
+		hw_res->resctrl.cdp_enabled = enable;
 
 	return ret;
-}
-
-static void cdp_disable(int level)
-{
-	struct rdt_resource *r = &rdt_resources_all[level].resctrl;
-
-	if (r->cdp_enabled) {
-		set_cache_qos_cfg(level, false);
-
-		r->cdp_enabled = false;
-	}
 }
 
 static void cdp_disable_all(void)
@@ -1823,22 +1809,10 @@ int resctrl_arch_set_cdp_enabled(bool enable)
 	struct rdt_hw_resource *l3 = &rdt_resources_all[RDT_RESOURCE_L3];
 	struct rdt_hw_resource *l2 = &rdt_resources_all[RDT_RESOURCE_L2];
 
-	if (l3->resctrl.cdp_capable) {
-		if (!enable) {
-			cdp_disable(RDT_RESOURCE_L3);
-			ret = 0;
-		} else {
-			ret = cdp_enable(RDT_RESOURCE_L3);
-		}
-	}
-	if (l2->resctrl.cdp_capable) {
-		if (!enable) {
-			cdp_disable(RDT_RESOURCE_L2);
-			ret = 0;
-		} else {
-			ret = cdp_enable(RDT_RESOURCE_L2);
-		}
-	}
+	if (l3->resctrl.cdp_capable)
+		ret = cdp_set_enabled(l3, enable);
+	if (l2->resctrl.cdp_capable)
+		ret = cdp_set_enabled(l2, enable);
 
 	return ret;
 
