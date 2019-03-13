@@ -1009,7 +1009,7 @@ static int rdtgroup_mode_show(struct kernfs_open_file *of,
 
 /**
  * rdt_cdp_peer_get - Retrieve CDP peer if it exists
- * @r: RDT resource to which RDT domain @d belongs
+ * @s: Schema of the resource to which RDT domain @d belongs
  * @d: Cache instance for which a CDP peer is requested
  * @r_cdp: RDT resource that shares hardware with @r (RDT resource peer)
  *         Used to return the result.
@@ -1030,30 +1030,20 @@ static int rdtgroup_mode_show(struct kernfs_open_file *of,
  *         If a CDP peer was found, @r_cdp will point to the peer RDT resource
  *         and @d_cdp will point to the peer RDT domain.
  */
-static int rdt_cdp_peer_get(struct rdt_resource *r, struct rdt_domain *d,
-			    struct rdt_resource **r_cdp,
+static int rdt_cdp_peer_get(struct resctrl_schema *s, struct rdt_domain *d,
 			    struct rdt_domain **d_cdp)
 {
 	struct rdt_resource *_r_cdp = NULL;
 	struct rdt_domain *_d_cdp = NULL;
 	int ret = 0;
 
-	switch (r->rid) {
-	case RDT_RESOURCE_L3DATA:
-		_r_cdp = &rdt_resources_all[RDT_RESOURCE_L3CODE].resctrl;
-		break;
-	case RDT_RESOURCE_L3CODE:
-		_r_cdp =  &rdt_resources_all[RDT_RESOURCE_L3DATA].resctrl;
-		break;
-	case RDT_RESOURCE_L2DATA:
-		_r_cdp =  &rdt_resources_all[RDT_RESOURCE_L2CODE].resctrl;
-		break;
-	case RDT_RESOURCE_L2CODE:
-		_r_cdp =  &rdt_resources_all[RDT_RESOURCE_L2DATA].resctrl;
-		break;
-	default:
-		ret = -ENOENT;
-		goto out;
+	if (!s->res->cdp_enabled)
+		return 0;
+
+	_r_cdp = s->cdp_peer->res;
+	if (_r_cdp ==s->res) {
+		*d_cdp = d;
+		return 0;
 	}
 
 	/*
@@ -1071,8 +1061,6 @@ static int rdt_cdp_peer_get(struct rdt_resource *r, struct rdt_domain *d,
 		ret = -EINVAL;
 	}
 
-out:
-	*r_cdp = _r_cdp;
 	*d_cdp = _d_cdp;
 
 	return ret;
@@ -1160,14 +1148,12 @@ static bool __rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain 
 bool rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain *d,
 			   unsigned long cbm, int closid, bool exclusive)
 {
-	struct rdt_resource *r = s->res;
-	struct rdt_resource *r_cdp;
 	struct rdt_domain *d_cdp;
 
 	if (__rdtgroup_cbm_overlaps(s, d, cbm, closid, exclusive))
 		return true;
 
-	if (rdt_cdp_peer_get(r, d, &r_cdp, &d_cdp) < 0)
+	if (rdt_cdp_peer_get(s, d, &d_cdp) < 0)
 		return false;
 
 	return  __rdtgroup_cbm_overlaps(s->cdp_peer, d_cdp, cbm, closid, exclusive);
@@ -2697,10 +2683,9 @@ static void cbm_ensure_valid(u32 *_val, struct rdt_resource *r)
 static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
 				 u32 closid)
 {
-	enum resctrl_conf_type t = resctrl_to_arch_res(s->res)->conf_type;
 	enum resctrl_conf_type t_peer = CDP_BOTH;
+	enum resctrl_conf_type t = s->conf_type;
 	struct resctrl_staged_config *cfg;
-	struct rdt_resource *r_cdp = NULL;
 	struct rdt_domain *d_cdp = NULL;
 	struct rdt_resource *r = s->res;
 	u32 used_b = 0, unused_b = 0;
@@ -2712,7 +2697,7 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
 
 	if (r->cdp_enabled) {
 		t_peer = s->cdp_peer->conf_type;
-		rdt_cdp_peer_get(r, d, &r_cdp, &d_cdp);
+		rdt_cdp_peer_get(s, d, &d_cdp);
 	}
 
 	cfg = &d->staged_config[t];
