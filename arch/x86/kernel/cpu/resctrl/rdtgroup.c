@@ -1131,7 +1131,7 @@ static bool __rdtgroup_cbm_overlaps(struct rdt_resource *r, struct rdt_domain *d
 
 /**
  * rdtgroup_cbm_overlaps - Does CBM overlap with other use of hardware
- * @r: Resource to which domain instance @d belongs.
+ * @s: Schema for the resource to which domain instance @d belongs.
  * @d: The domain instance for which @closid is being tested.
  * @cbm: Capacity bitmask being tested.
  * @closid: Intended closid for @cbm.
@@ -1149,9 +1149,10 @@ static bool __rdtgroup_cbm_overlaps(struct rdt_resource *r, struct rdt_domain *d
  *
  * Return: true if CBM overlap detected, false if there is no overlap
  */
-bool rdtgroup_cbm_overlaps(struct rdt_resource *r, struct rdt_domain *d,
+bool rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain *d,
 			   unsigned long cbm, int closid, bool exclusive)
 {
+	struct rdt_resource *r = s->res;
 	struct rdt_resource *r_cdp;
 	struct rdt_domain *d_cdp;
 
@@ -1180,13 +1181,15 @@ static bool rdtgroup_mode_test_exclusive(struct rdtgroup *rdtgrp)
 {
 	int closid = rdtgrp->closid;
 	enum resctrl_conf_type t;
+	struct resctrl_schema *s;
 	struct rdt_resource *r;
 	bool has_cache = false;
 	hw_closid_t hw_closid;
 	struct rdt_domain *d;
 	u32 ctrl;
 
-	for_each_alloc_enabled_rdt_resource(r) {
+	list_for_each_entry(s, &resctrl_all_schema, list) {
+		r = s->res;
 		if (r->rid == RDT_RESOURCE_MBA)
 			continue;
 		has_cache = true;
@@ -1196,7 +1199,7 @@ static bool rdtgroup_mode_test_exclusive(struct rdtgroup *rdtgrp)
 
 		list_for_each_entry(d, &r->domains, list) {
 			resctrl_arch_get_config(r, d, hw_closid, &ctrl);
-			if (rdtgroup_cbm_overlaps(r, d, ctrl, closid, false)) {
+			if (rdtgroup_cbm_overlaps(s, d, ctrl, closid, false)) {
 				rdt_last_cmd_puts("Schemata overlaps\n");
 				return false;
 			}
@@ -1327,6 +1330,7 @@ unsigned int rdtgroup_cbm_to_size(struct rdt_resource *r,
 static int rdtgroup_size_show(struct kernfs_open_file *of,
 			      struct seq_file *s, void *v)
 {
+	struct resctrl_schema *schema;
 	struct rdtgroup *rdtgrp;
 	struct rdt_resource *r;
 	hw_closid_t hw_closid;
@@ -1358,7 +1362,9 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 		goto out;
 	}
 
-	for_each_alloc_enabled_rdt_resource(r) {
+	list_for_each_entry(schema, &resctrl_all_schema, list) {
+		r = schema->res;
+
 		sep = false;
 		hw_closid = resctrl_closid_cdp_map(rdtgrp->closid,
 						   resctrl_to_arch_res(r)->conf_type);
@@ -1676,6 +1682,7 @@ static int rdtgroup_mkdir_info_resdir(struct rdt_resource *r, char *name,
 
 static int rdtgroup_create_info_dir(struct kernfs_node *parent_kn)
 {
+	struct resctrl_schema *s;
 	struct rdt_resource *r;
 	unsigned long fflags;
 	char name[32];
@@ -1691,7 +1698,8 @@ static int rdtgroup_create_info_dir(struct kernfs_node *parent_kn)
 	if (ret)
 		goto out_destroy;
 
-	for_each_alloc_enabled_rdt_resource(r) {
+	list_for_each_entry(s, &resctrl_all_schema, list) {
+		r = s->res;
 		fflags =  r->fflags | RF_CTRL_INFO;
 		ret = rdtgroup_mkdir_info_resdir(r, r->name, fflags);
 		if (ret)
@@ -2640,14 +2648,15 @@ static void cbm_ensure_valid(u32 *_val, struct rdt_resource *r)
  * Set the RDT domain up to start off with all usable allocations. That is,
  * all shareable and unused bits. All-zero CBM is invalid.
  */
-static int __init_one_rdt_domain(struct rdt_domain *d, struct rdt_resource *r,
+static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
 				 u32 closid)
 {
-	enum resctrl_conf_type t = resctrl_to_arch_res(r)->conf_type;
+	enum resctrl_conf_type t = resctrl_to_arch_res(s->res)->conf_type;
 	enum resctrl_conf_type t_peer = CDP_BOTH;
-	struct rdt_resource *r_cdp = NULL;
 	struct resctrl_staged_config *cfg;
+	struct rdt_resource *r_cdp = NULL;
 	struct rdt_domain *d_cdp = NULL;
+	struct rdt_resource *r = s->res;
 	u32 used_b = 0, unused_b = 0;
 	hw_closid_t hw_closid_iter;
 	unsigned long tmp_cbm;
@@ -2731,13 +2740,13 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct rdt_resource *r,
  * If there are no more shareable bits available on any domain then
  * the entire allocation will fail.
  */
-static int rdtgroup_init_cat(struct rdt_resource *r, u32 closid)
+static int rdtgroup_init_cat(struct resctrl_schema *s, u32 closid)
 {
 	struct rdt_domain *d;
 	int ret;
 
-	list_for_each_entry(d, &r->domains, list) {
-		ret = __init_one_rdt_domain(d, r, closid);
+	list_for_each_entry(d, &s->res->domains, list) {
+		ret = __init_one_rdt_domain(d, s, closid);
 		if (ret < 0)
 			return ret;
 	}
@@ -2762,14 +2771,18 @@ static void rdtgroup_init_mba(struct rdt_resource *r, u32 closid)
 /* Initialize the RDT group's allocations. */
 static int rdtgroup_init_alloc(struct rdtgroup *rdtgrp)
 {
+	struct resctrl_schema *s;
 	struct rdt_resource *r;
 	int ret;
 
-	for_each_alloc_enabled_rdt_resource(r) {
+	lockdep_assert_held(&rdtgroup_mutex);
+
+	list_for_each_entry(s, &resctrl_all_schema, list) {
+		r = s->res;
 		if (r->rid == RDT_RESOURCE_MBA) {
 			rdtgroup_init_mba(r, rdtgrp->closid);
 		} else {
-			ret = rdtgroup_init_cat(r, rdtgrp->closid);
+			ret = rdtgroup_init_cat(s, rdtgrp->closid);
 			if (ret < 0)
 				return ret;
 		}
