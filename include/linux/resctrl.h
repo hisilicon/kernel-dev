@@ -170,4 +170,15 @@ void resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
 /* Enable/Disable CDP on all applicable resources */
 int resctrl_arch_set_cdp_enabled(bool enable);
 
+/**
+ * @list:	Member of resctrl's schema list
+ * @cdp_type:	Whether this entry is for code/data/both
+ * @res:	The rdt_resource for this entry
+ */
+struct resctrl_schema {
+	struct list_head		list;
+	enum resctrl_conf_type		conf_type;
+	struct rdt_resource		*res;
+};
+
 #endif /* __LINUX_RESCTRL_H */
