@@ -1007,8 +1007,32 @@ static int rdtgroup_mode_show(struct kernfs_open_file *of,
 	return 0;
 }
 
+static u32 resctrl_get_config_cdp(u32 closid, struct resctrl_schema *s, struct rdt_domain *d)
+{
+	enum resctrl_conf_type t = s->conf_type;
+	struct rdt_resource *r = s->res;
+	hw_closid_t hw_closid;
+	u32 ctrl, tmp;
+
+	hw_closid = resctrl_closid_cdp_map(closid, t);
+	resctrl_arch_get_config(r, d, hw_closid, &ctrl);
+
+	if (s->res->cdp_enabled) {
+		if (t == CDP_CODE)
+			t = CDP_DATA;
+		else
+			t = CDP_CODE;
+		hw_closid = resctrl_closid_cdp_map(closid, t);
+		resctrl_arch_get_config(r, d, hw_closid, &tmp);
+		ctrl |= tmp;
+	}
+
+	return ctrl;
+}
+
 /**
- * __rdtgroup_cbm_overlaps - Does CBM for intended closid overlap with other
+ * rdtgroup_cbm_overlaps - Does CBM for intended closid overlap with other
+ *			   use of hardware
  * @s: Schema for the resource to which domain instance @d belongs.
  * @d: The domain instance for which @closid is being tested.
  * @cbm: Capacity bitmask being tested.
@@ -1022,17 +1046,20 @@ static int rdtgroup_mode_show(struct kernfs_open_file *of,
  * is false then overlaps with any resource group or hardware entities
  * will be considered.
  *
+ * Overlap test is not limited to the specific resource for
+ * which the CBM is intended though - when dealing with CDP resources that
+ * share the underlying hardware the overlap check should be performed on
+ * the CDP resource sharing the hardware also.
+ *
  * @cbm is unsigned long, even if only 32 bits are used, to make the
  * bitmap functions work correctly.
  *
  * Return: false if CBM does not overlap, true if it does.
  */
-static bool __rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain *d,
-				    unsigned long cbm, int closid, bool exclusive)
+bool rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain *d,
+			   unsigned long cbm, int closid, bool exclusive)
 {
-	enum resctrl_conf_type t = s->conf_type;
 	struct rdt_resource *r = s->res;
-	hw_closid_t hw_closid_iter;
 	enum rdtgrp_mode mode;
 	unsigned long ctrl_b;
 	int i;
@@ -1046,9 +1073,7 @@ static bool __rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain 
 
 	/* Check for overlap with other resource groups */
 	for (i = 0; i < closids_supported(); i++) {
-		hw_closid_iter = resctrl_closid_cdp_map(i, t);
-		resctrl_arch_get_config(r, d, hw_closid_iter, (u32 *)&ctrl_b);
-
+		ctrl_b = resctrl_get_config_cdp(i, s, d);
 		mode = rdtgroup_mode_by_closid(i);
 		if (closid_allocated(i) && i != closid &&
 		    mode != RDT_MODE_PSEUDO_LOCKSETUP) {
@@ -1064,38 +1089,6 @@ static bool __rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain 
 	}
 
 	return false;
-}
-
-/**
- * rdtgroup_cbm_overlaps - Does CBM overlap with other use of hardware
- * @s: Schema for the resource to which domain instance @d belongs.
- * @d: The domain instance for which @closid is being tested.
- * @cbm: Capacity bitmask being tested.
- * @closid: Intended closid for @cbm.
- * @exclusive: Only check if overlaps with exclusive resource groups
- *
- * Resources that can be allocated using a CBM can use the CBM to control
- * the overlap of these allocations. rdtgroup_cmb_overlaps() is the test
- * for overlap. Overlap test is not limited to the specific resource for
- * which the CBM is intended though - when dealing with CDP resources that
- * share the underlying hardware the overlap check should be performed on
- * the CDP resource sharing the hardware also.
- *
- * Refer to description of __rdtgroup_cbm_overlaps() for the details of the
- * overlap test.
- *
- * Return: true if CBM overlap detected, false if there is no overlap
- */
-bool rdtgroup_cbm_overlaps(struct resctrl_schema *s, struct rdt_domain *d,
-			   unsigned long cbm, int closid, bool exclusive)
-{
-	if (__rdtgroup_cbm_overlaps(s, d, cbm, closid, exclusive))
-		return true;
-
-	if (!s->res->cdp_enabled)
-		return false;
-
-	return  __rdtgroup_cbm_overlaps(s->cdp_peer, d, cbm, closid, exclusive);
 }
 
 /**
@@ -1926,41 +1919,6 @@ static int rdt_enable_ctx(struct rdt_fs_context *ctx)
 	return ret;
 }
 
-static int pair_schemata_list(void)
-{
-	enum resctrl_conf_type peer_type;
-	struct resctrl_schema *iter, *tmp;
-
-	lockdep_assert_held(&rdtgroup_mutex);
-
-	list_for_each_entry(iter, &resctrl_all_schema, list) {
-		if (!iter->res->cdp_enabled)
-			continue;
-
-		if (iter->conf_type == CDP_CODE)
-			peer_type = CDP_DATA;
-		else
-			peer_type = CDP_CODE;
-
-		/* Find the peer */
-		list_for_each_entry(tmp, &resctrl_all_schema, list) {
-			if (!tmp->res->cdp_enabled || iter == tmp)
-				continue;
-
-			if (tmp->conf_type == peer_type &&
-			    tmp->res->cache_level == iter->res->cache_level &&
-			    tmp->res->fflags == iter->res->fflags)
-			{
-				iter->cdp_peer = tmp;
-				break;
-			}
-		}
-		WARN_ON_ONCE(!iter->cdp_peer);
-	}
-
-	return 0;
-}
-
 static int add_schema(enum resctrl_conf_type t, struct rdt_resource *r)
 {
 	char *suffix = "";
@@ -2009,9 +1967,6 @@ static int create_schemata_list(void)
 		if (ret)
 			break;
 	}
-
-	if (!ret)
-		pair_schemata_list();
 
 	return ret;
 }
@@ -2604,19 +2559,14 @@ static void cbm_ensure_valid(u32 *_val, struct rdt_resource *r)
 static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
 				 u32 closid)
 {
-	enum resctrl_conf_type t_peer = CDP_BOTH;
 	enum resctrl_conf_type t = s->conf_type;
 	struct resctrl_staged_config *cfg;
 	struct rdt_resource *r = s->res;
 	u32 used_b = 0, unused_b = 0;
-	hw_closid_t hw_closid_iter;
 	unsigned long tmp_cbm;
-	u32 peer_ctl, ctrl_val;
 	enum rdtgrp_mode mode;
+	u32 ctrl_val;
 	int i;
-
-	if (r->cdp_enabled)
-		t_peer = s->cdp_peer->conf_type;
 
 	cfg = &d->staged_config[t];
 	cfg->have_new_ctrl = false;
@@ -2639,18 +2589,10 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct resctrl_schema *s,
 			 * usage to ensure there is no overlap
 			 * with an exclusive group.
 			 */
-			if (r->cdp_enabled) {
-				hw_closid_iter = resctrl_closid_cdp_map(i, t_peer);
-				resctrl_arch_get_config(r, d, hw_closid_iter,
-							&peer_ctl);
-			} else {
-				peer_ctl = 0;
-			}
-			hw_closid_iter = resctrl_closid_cdp_map(i, t);
-			resctrl_arch_get_config(r, d, hw_closid_iter, &ctrl_val);
-			used_b |= ctrl_val | peer_ctl;
+			ctrl_val = resctrl_get_config_cdp(i, s, d);
+			used_b |= ctrl_val;
 			if (mode == RDT_MODE_SHAREABLE)
-				cfg->new_ctrl |= ctrl_val | peer_ctl;
+				cfg->new_ctrl |= ctrl_val;
 		}
 	}
 	if (d->plr && d->plr->cbm > 0)
