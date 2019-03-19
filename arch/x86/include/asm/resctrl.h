@@ -34,6 +34,8 @@ DECLARE_STATIC_KEY_FALSE(rdt_mon_enable_key);
 u32 resctrl_arch_system_num_closid(void);
 u32 resctrl_arch_system_num_rmid(void);
 
+void resctrl_arch_reset_resources(void);
+
 /**
  * struct resctrl_pqr_state - State cache for the PQR MSR
  * @cur_rmid:		The cached Resource Monitoring ID
