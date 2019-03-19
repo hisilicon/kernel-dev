@@ -190,6 +190,14 @@ enum resctrl_resource_level {
 struct rdt_resource *resctrl_arch_get_resource(enum resctrl_resource_level l);
 
 int resctrl_arch_update_domains(struct rdt_resource *r);
+
+/*
+ * Update the ctrl_val and apply this config right now.
+ * Must be called one one of the domains cpus.
+ */
+int resctrl_arch_update_one(struct rdt_resource *r, struct rdt_domain *d,
+			    hw_closid_t hw_closid, u32 cfg_val);
+
 void resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
 			     hw_closid_t hw_closid, u32 *value);
 
