@@ -909,6 +909,7 @@ static int rdt_bit_usage_show(struct kernfs_open_file *of,
 	bool sep = false;
 	u32 ctrl_val;
 
+	cpus_read_lock();
 	mutex_lock(&rdtgroup_mutex);
 	hw_shareable = r->cache.shareable_bits;
 	list_for_each_entry(dom, &r->domains, list) {
@@ -968,6 +969,8 @@ static int rdt_bit_usage_show(struct kernfs_open_file *of,
 	}
 	seq_putc(seq, '\n');
 	mutex_unlock(&rdtgroup_mutex);
+	cpus_read_unlock();
+
 	return 0;
 }
 
@@ -1171,6 +1174,8 @@ static bool rdtgroup_mode_test_exclusive(struct rdtgroup *rdtgrp)
 	hw_closid_t hw_closid;
 	struct rdt_domain *d;
 	u32 ctrl;
+
+	lockdep_assert_cpus_held();
 
 	list_for_each_entry(s, &resctrl_all_schema, list) {
 		r = s->res;
@@ -1917,6 +1922,7 @@ struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn)
 	atomic_inc(&rdtgrp->waitcount);
 	kernfs_break_active_protection(kn);
 
+	cpus_read_lock();
 	mutex_lock(&rdtgroup_mutex);
 
 	/* Was this group deleted while we waited? */
@@ -1934,6 +1940,7 @@ void rdtgroup_kn_unlock(struct kernfs_node *kn)
 		return;
 
 	mutex_unlock(&rdtgroup_mutex);
+	cpus_read_unlock();
 
 	if (atomic_dec_and_test(&rdtgrp->waitcount) &&
 	    (rdtgrp->flags & RDT_DELETED)) {
@@ -2277,6 +2284,8 @@ static int reset_all_ctrls(struct rdt_resource *r)
 	struct rdt_domain *d;
 	int i, cpu;
 
+	lockdep_assert_cpus_held();
+
 	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL))
 		return -ENOMEM;
 
@@ -2556,6 +2565,8 @@ static int mkdir_mondata_subdir_alldom(struct kernfs_node *parent_kn,
 	struct rdt_domain *dom;
 	int ret;
 
+	lockdep_assert_cpus_held();
+
 	list_for_each_entry(dom, &r->domains, list) {
 		ret = mkdir_mondata_subdir(parent_kn, dom, r, prgrp);
 		if (ret)
@@ -2771,6 +2782,7 @@ static int rdtgroup_init_alloc(struct rdtgroup *rdtgrp)
 	struct rdt_resource *r;
 	int ret;
 
+	lockdep_assert_cpus_held();
 	lockdep_assert_held(&rdtgroup_mutex);
 
 	list_for_each_entry(s, &resctrl_all_schema, list) {
@@ -3273,11 +3285,10 @@ static void resctrl_domain_teardown_mon_state(struct rdt_domain *d)
 
 void resctrl_offline_domain(struct rdt_resource *r, struct rdt_domain *d)
 {
-	lockdep_assert_held(&rdtgroup_mutex); // the arch code took this for us
-
 	if (!r->mon_capable)
 		return;
 
+	mutex_lock(&rdtgroup_mutex);
 	/*
 	 * If resctrl is mounted, remove all the
 	 * per domain monitor data directories.
@@ -3304,15 +3315,18 @@ void resctrl_offline_domain(struct rdt_resource *r, struct rdt_domain *d)
 		destroy_domain_mba_sc(r, d);
 
 	resctrl_domain_teardown_mon_state(d);
+
+	mutex_unlock(&rdtgroup_mutex);
 }
 
 int resctrl_online_domain(struct rdt_resource *r, struct rdt_domain *d)
 {
 	int err;
-	lockdep_assert_held(&rdtgroup_mutex); // the arch code took this for us
 
 	if (!r->mon_capable)
 		return 0;
+
+	mutex_lock(&rdtgroup_mutex);
 
 	err = resctrl_domain_setup_mon_state(r, d);
 	if (err) {
@@ -3334,6 +3348,8 @@ int resctrl_online_domain(struct rdt_resource *r, struct rdt_domain *d)
 
 	if (resctrl_mounted && is_mba_sc(r))
 		allocate_domain_mba_sc(smp_processor_id(), r, d);
+
+	mutex_unlock(&rdtgroup_mutex);
 
 	return 0;
 }

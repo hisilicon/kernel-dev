@@ -249,6 +249,8 @@ static int parse_line(char *line, struct resctrl_schema *s,
 	struct rdt_domain *d;
 	unsigned long dom_id;
 
+	lockdep_assert_cpus_held();
+
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP &&
 	    r->rid == RDT_RESOURCE_MBA) {
 		rdt_last_cmd_puts("Cannot pseudo-lock MBA resource\n");
@@ -317,6 +319,8 @@ int resctrl_arch_update_domains(struct rdt_resource *r)
 	struct rdt_domain *d;
 	u32 hw_closid_val;
 	int cpu, i;
+
+	lockdep_assert_cpus_held();
 
 	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL))
 		return -ENOMEM;
@@ -396,11 +400,9 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 		return -EINVAL;
 	buf[nbytes - 1] = '\0';
 
-	cpus_read_lock();
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (!rdtgrp) {
 		rdtgroup_kn_unlock(of->kn);
-		cpus_read_unlock();
 		return -ENOENT;
 	}
 	rdt_last_cmd_clear();
@@ -464,7 +466,6 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 
 out:
 	rdtgroup_kn_unlock(of->kn);
-	cpus_read_unlock();
 	return ret ?: nbytes;
 }
 
@@ -484,6 +485,8 @@ static void show_doms(struct seq_file *s, struct resctrl_schema *schema, int clo
 	hw_closid_t hw_closid;
 	bool sep = false;
 	u32 ctrl_val;
+
+	lockdep_assert_cpus_held();
 
 	seq_printf(s, "%*s:", RESCTRL_NAME_LEN, schema->name);
 	list_for_each_entry(dom, &r->domains, list) {
