@@ -28,6 +28,18 @@ enum resctrl_conf_type {
 };
 #define NUM_CDP_TYPES	CDP_DATA + 1
 
+/*
+ * Event IDs, the values match those used to program IA32_QM_EVTSEL before
+ * reading IA32_QM_CTR on RDT systems.
+ */
+enum resctrl_event_id {
+	QOS_L3_OCCUP_EVENT_ID		= 0x01,
+	QOS_L3_MBM_TOTAL_EVENT_ID	= 0x02,
+	QOS_L3_MBM_LOCAL_EVENT_ID	= 0x03,
+
+	/* Must be the last */
+	RESCTRL_NUM_EVENT_IDS,
+};
 
 /**
  * struct resctrl_staged_config - parsed configuration to be applied
@@ -200,6 +212,8 @@ int resctrl_arch_update_one(struct rdt_resource *r, struct rdt_domain *d,
 
 void resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
 			     hw_closid_t hw_closid, u32 *value);
+
+int resctrl_arch_rmid_read(u32 rmid, enum resctrl_event_id eventid, u64 *res);
 
 /* Enable/Disable CDP on all applicable resources */
 int resctrl_arch_set_cdp_enabled(bool enable);
