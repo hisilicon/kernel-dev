@@ -78,8 +78,6 @@ struct rmid_read {
 	u64			val;
 };
 
-extern bool rdt_alloc_capable;
-extern bool rdt_mon_capable;
 extern unsigned int rdt_mon_features;
 extern struct list_head resctrl_all_schema;
 extern bool resctrl_mounted;
