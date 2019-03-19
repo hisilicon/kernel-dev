@@ -240,6 +240,7 @@ struct resctrl_schema {
 
 int resctrl_online_domain(struct rdt_resource *r, struct rdt_domain *d);
 int resctrl_online_cpu(unsigned int cpu);
+void resctrl_offline_cpu(unsigned int cpu);
 void resctrl_offline_domain(struct rdt_resource *r, struct rdt_domain *d);
 
 int __init resctrl_init(void);
