@@ -4,8 +4,8 @@
 
 #ifdef CONFIG_X86_CPU_RESCTRL
 
+#include <linux/resctrl.h>
 #include <linux/sched.h>
-#include <linux/jump_label.h>
 
 #define IA32_PQR_ASSOC	0x0c8f
 
@@ -32,10 +32,6 @@ struct resctrl_pqr_state {
 };
 
 DECLARE_PER_CPU(struct resctrl_pqr_state, pqr_state);
-
-DECLARE_STATIC_KEY_FALSE(rdt_enable_key);
-DECLARE_STATIC_KEY_FALSE(rdt_alloc_enable_key);
-DECLARE_STATIC_KEY_FALSE(rdt_mon_enable_key);
 
 /*
  * __resctrl_sched_in() - Writes the task's CLOSid/RMID to IA32_PQR_MSR
