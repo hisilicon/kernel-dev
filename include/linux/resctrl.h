@@ -13,6 +13,9 @@
 /* Closids are stored as a bitmap in a u32 */
 #define RESCTRL_MAX_CLOSID 32
 
+/* max value for struct resctrl_mba_sc's mbps_val */
+#define MBA_MAX_MBPS   U32_MAX
+
 /*
  * The longest name we expect in the schemata file:
  */
@@ -41,6 +44,14 @@ struct resctrl_staged_config {
 };
 
 /**
+ * struct resctrl_mba_sc - per-closid values for the control loop
+ * @mbps_val:		The user's specified control value
+ */
+struct resctrl_mba_sc {
+	u32		mbps_val;
+};
+
+/**
  * struct rdt_domain - group of cpus sharing an RDT resource
  * @list:		all instances of this resource
  * @id:			unique id for this instance
@@ -54,6 +65,7 @@ struct resctrl_staged_config {
  * @cqm_work_cpu:	worker cpu for CQM h/w counters
  * @plr:		pseudo-locked region (if any) associated with domain
  * @staged_config:	parsed configuration to be applied
+ * @mba_sc:	the mba software controller properties, indexed by closid
  */
 struct rdt_domain {
 	struct list_head		list;
@@ -70,6 +82,7 @@ struct rdt_domain {
 
 	struct pseudo_lock_region	*plr;
 	struct resctrl_staged_config	staged_config[NUM_CDP_TYPES];
+	struct resctrl_mba_sc		*mba_sc;
 };
 
 /**
