@@ -123,6 +123,33 @@ struct rdt_resource *resctrl_arch_get_resource(enum resctrl_resource_level l)
 	return &rdt_resources_all[l].resctrl;
 }
 
+u32 resctrl_arch_system_num_closid(void)
+{
+	int i;
+	struct rdt_resource *res;
+	u32 num_closid = U32_MAX;
+	bool has_alloc_capable_resource = false;
+
+	for (i = 0; i < ARRAY_SIZE(rdt_resources_all); i++) {
+		res = &rdt_resources_all[i].resctrl;
+		if (rdt_resources_all[i].resctrl.alloc_capable) {
+			num_closid = min(num_closid,
+					 rdt_resources_all[i].hw_num_closid);
+			has_alloc_capable_resource = true;
+		}
+	}
+
+	if (!has_alloc_capable_resource)
+		return 0;
+
+	return num_closid;
+}
+
+u32 resctrl_arch_system_num_rmid(void)
+{
+	return boot_cpu_data.x86_cache_max_rmid + 1;
+}
+
 /*
  * cache_alloc_hsw_probe() - Have to probe for Intel haswell server CPUs
  * as they do not have CPUID enumeration support for Cache allocation.
@@ -156,7 +183,6 @@ static inline void cache_alloc_hsw_probe(void)
 	if (l != max_cbm)
 		return;
 
-	r->num_closid = 4;
 	hw_res->hw_num_closid = 4;
 	r->default_ctrl = max_cbm;
 	r->cache.cbm_len = 20;
@@ -204,8 +230,7 @@ static bool __get_mem_config_intel(struct rdt_resource *r)
 	u32 ebx, ecx, max_delay;
 
 	cpuid_count(0x00000010, 3, &eax.full, &ebx, &ecx, &edx.full);
-	r->num_closid = edx.split.cos_max + 1;
-	hw_res->hw_num_closid = r->num_closid;
+	hw_res->hw_num_closid = edx.split.cos_max + 1;
 	max_delay = eax.split.max_delay + 1;
 	r->default_ctrl = MAX_MBA_BW;
 	r->membw.arch_needs_linear = true;
@@ -233,8 +258,7 @@ static bool __rdt_get_mem_config_amd(struct rdt_resource *r)
 	u32 ebx, ecx;
 
 	cpuid_count(0x80000020, 1, &eax.full, &ebx, &ecx, &edx.full);
-	r->num_closid = edx.split.cos_max + 1;
-	hw_res->hw_num_closid = r->num_closid;
+	hw_res->hw_num_closid = edx.split.cos_max + 1;
 	r->default_ctrl = MAX_MBA_BW_AMD;
 
 	/* AMD does not use delay */
@@ -259,8 +283,7 @@ static void rdt_get_cache_alloc_cfg(int idx, struct rdt_resource *r)
 	u32 ebx, ecx;
 
 	cpuid_count(0x00000010, idx, &eax.full, &ebx, &ecx, &edx.full);
-	r->num_closid = edx.split.cos_max + 1;
-	hw_res->hw_num_closid = r->num_closid;
+	hw_res->hw_num_closid = edx.split.cos_max + 1;
 	r->cache.cbm_len = eax.split.cbm_len + 1;
 	r->default_ctrl = BIT_MASK(eax.split.cbm_len + 1) - 1;
 	r->cache.shareable_bits = ebx & r->default_ctrl;
@@ -427,16 +450,17 @@ static int domain_setup_ctrlval(struct rdt_resource *r, struct rdt_domain *d)
 static int domain_setup_mon_state(struct rdt_resource *r, struct rdt_domain *d)
 {
 	size_t tsize;
+	u32 rmid_limit = resctrl_arch_system_num_rmid();
 
 	if (is_llc_occupancy_enabled()) {
-		d->rmid_busy_llc = bitmap_zalloc(r->num_rmid, GFP_KERNEL);
+		d->rmid_busy_llc = bitmap_zalloc(rmid_limit, GFP_KERNEL);
 		if (!d->rmid_busy_llc)
 			return -ENOMEM;
 		INIT_DELAYED_WORK(&d->cqm_limbo, cqm_handle_limbo);
 	}
 	if (is_mbm_total_enabled()) {
 		tsize = sizeof(*d->mbm_total);
-		d->mbm_total = kcalloc(r->num_rmid, tsize, GFP_KERNEL);
+		d->mbm_total = kcalloc(rmid_limit, tsize, GFP_KERNEL);
 		if (!d->mbm_total) {
 			bitmap_free(d->rmid_busy_llc);
 			return -ENOMEM;
@@ -444,7 +468,7 @@ static int domain_setup_mon_state(struct rdt_resource *r, struct rdt_domain *d)
 	}
 	if (is_mbm_local_enabled()) {
 		tsize = sizeof(*d->mbm_local);
-		d->mbm_local = kcalloc(r->num_rmid, tsize, GFP_KERNEL);
+		d->mbm_local = kcalloc(rmid_limit, tsize, GFP_KERNEL);
 		if (!d->mbm_local) {
 			bitmap_free(d->rmid_busy_llc);
 			kfree(d->mbm_total);
