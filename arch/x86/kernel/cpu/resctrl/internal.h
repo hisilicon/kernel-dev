@@ -24,7 +24,6 @@
 
 #define CQM_LIMBOCHECK_INTERVAL	1000
 
-#define MBM_CNTR_WIDTH			24
 #define MBM_OVERFLOW_INTERVAL		1000
 #define MAX_MBA_BW			100u
 #define MBA_IS_LINEAR			0x4
@@ -263,7 +262,7 @@ struct rftype {
 
 /**
  * struct mbm_state - status for each MBM counter in each domain
- * @chunks:	Total data moved (multiply by rdt_group.mon_scale to get bytes)
+ * @chunks:	Total data moved in bytes
  * @prev_msr	Value of IA32_QM_CTR for this RMID last time we read it
  * @prev_bw_msr:Value of previous IA32_QM_CTR for bandwidth counting
  * @prev_bw	The most recent bandwidth in MBps
