@@ -81,12 +81,12 @@ struct rmid_read {
 	u64			val;
 };
 
-extern unsigned int resctrl_cqm_threshold;
 extern bool rdt_alloc_capable;
 extern bool rdt_mon_capable;
 extern unsigned int rdt_mon_features;
 extern struct list_head resctrl_all_schema;
 extern bool resctrl_mounted;
+extern u32 resctrl_rmid_realloc_threshold;
 
 enum rdt_group_type {
 	RDTCTRL_GROUP = 0,
