@@ -78,7 +78,6 @@ struct rdt_hw_resource rdt_resources_all[] = {
 				.min_cbm_bits	= 1,
 			},
 			.domains		= domain_init(RDT_RESOURCE_L3),
-			.parse_ctrlval		= parse_cbm,
 			.format_str		= "%d=%0*x",
 			.fflags			= RFTYPE_RES_CACHE,
 		},
@@ -95,7 +94,6 @@ struct rdt_hw_resource rdt_resources_all[] = {
 				.min_cbm_bits	= 1,
 			},
 			.domains		= domain_init(RDT_RESOURCE_L2),
-			.parse_ctrlval		= parse_cbm,
 			.format_str		= "%d=%0*x",
 			.fflags			= RFTYPE_RES_CACHE,
 		},
@@ -812,7 +810,6 @@ static __init void rdt_init_res_defs_intel(void)
 		else if (r->rid == RDT_RESOURCE_MBA) {
 			hw_res->msr_base = MSR_IA32_MBA_THRTL_BASE;
 			hw_res->msr_update = mba_wrmsr_intel;
-			r->parse_ctrlval = parse_bw;
 		}
 	}
 }
@@ -833,7 +830,6 @@ static __init void rdt_init_res_defs_amd(void)
 		else if (r->rid == RDT_RESOURCE_MBA) {
 			hw_res->msr_base = MSR_IA32_MBA_BW_BASE;
 			hw_res->msr_update = mba_wrmsr_amd;
-			r->parse_ctrlval = parse_bw;
 		}
 	}
 }

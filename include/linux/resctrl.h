@@ -13,6 +13,9 @@
 /* Closids are stored as a bitmap in a u32 */
 #define RESCTRL_MAX_CLOSID 32
 
+/* CBMs are passed around and stored in a u32 */
+#define RESCTRL_MAX_CBM 32
+
 /* max value for struct resctrl_mba_sc's mbps_val */
 #define MBA_MAX_MBPS   U32_MAX
 
@@ -134,9 +137,6 @@ struct resctrl_membw {
 	u32		*mb_map;
 };
 
-struct rdt_parse_data;
-struct resctrl_schema;
-
 /**
  * @rid:		The index of the resource
  * @cdp_enabled		Is CDP enabled for this resource
@@ -155,7 +155,6 @@ struct resctrl_schema;
  * @data_width:		Character width of data when displaying.
  * @default_ctrl:	Specifies default cache cbm or memory B/W percent.
  * @format_str:		Per resource format string to show domain value
- * @parse_ctrlval:	Per resource function pointer to parse control values
  *
  * @evt_list:		List of monitoring events
  * @fflags:		flags to choose base and info files
@@ -178,9 +177,7 @@ struct rdt_resource {
 	int			data_width;
 	u32			default_ctrl;
 	const char		*format_str;
-	int			(*parse_ctrlval)(struct rdt_parse_data *data,
-						 struct resctrl_schema *s,
-						 struct rdt_domain *d);
+
 	struct list_head	evt_list;
 	unsigned long		fflags;
 };
