@@ -45,8 +45,8 @@ static LIST_HEAD(rmid_free_lru);
  * @rmid_limbo_count     count of currently unused but (potentially)
  *     dirty RMIDs.
  *     This counts RMIDs that no one is currently using but that
- *     may have a occupancy value > intel_cqm_threshold. User can change
- *     the threshold occupancy value.
+ *     may have a occupancy value > resctrl_rmid_realloc_threshold. User can
+ *     change the threshold occupancy value.
  */
 static unsigned int rmid_limbo_count;
 
@@ -67,10 +67,10 @@ bool rdt_mon_capable;
 unsigned int rdt_mon_features;
 
 /*
- * This is the threshold cache occupancy at which we will consider an
- * RMID available for re-allocation.
+ * This is the threshold cache occupancy (in bytes) at which we will consider
+ * an RMID available for re-allocation.
  */
-unsigned int resctrl_cqm_threshold;
+unsigned int resctrl_rmid_realloc_threshold;
 
 static inline struct rmid_entry *__rmid_entry(u32 rmid)
 {
@@ -114,7 +114,9 @@ static bool rmid_dirty(struct rmid_entry *entry)
 	if (resctrl_arch_rmid_read(entry->rmid, QOS_L3_OCCUP_EVENT_ID, &val))
 		return true;
 
-	return val >= resctrl_cqm_threshold;
+	val *= boot_cpu_data.x86_cache_occ_scale;
+
+	return val >= resctrl_rmid_realloc_threshold;
 }
 
 /*
@@ -194,7 +196,8 @@ static void add_rmid_to_limbo(struct rmid_entry *entry)
 			ret = resctrl_arch_rmid_read(entry->rmid,
 						     QOS_L3_OCCUP_EVENT_ID,
 						    &val);
-			if (ret || val <= resctrl_cqm_threshold)
+			val *= boot_cpu_data.x86_cache_occ_scale;
+			if (ret || val <= resctrl_rmid_realloc_threshold)
 				continue;
 		}
 
@@ -623,8 +626,8 @@ static void l3_mon_evt_init(struct rdt_resource *r)
 int rdt_get_mon_l3_config(struct rdt_resource *r)
 {
 	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
-	unsigned int cl_size = boot_cpu_data.x86_cache_size;
-	u32 rmid_limit = resctrl_arch_system_num_rmid();
+	u32 rmid_cache_size = resctrl_arch_max_rmid_threshold();
+	u32 num_rmid = resctrl_arch_system_num_rmid();
 	int ret;
 
 	hw_res->mon_scale = boot_cpu_data.x86_cache_occ_scale;
@@ -636,10 +639,7 @@ int rdt_get_mon_l3_config(struct rdt_resource *r)
 	 *
 	 * For a 35MB LLC and 56 RMIDs, this is ~1.8% of the LLC.
 	 */
-	resctrl_cqm_threshold = cl_size * 1024 / rmid_limit;
-
-	/* h/w works in units of "boot_cpu_data.x86_cache_occ_scale" */
-	resctrl_cqm_threshold /= hw_res->mon_scale;
+	resctrl_rmid_realloc_threshold = rmid_cache_size / num_rmid;
 
 	ret = dom_data_init(r);
 	if (ret)
