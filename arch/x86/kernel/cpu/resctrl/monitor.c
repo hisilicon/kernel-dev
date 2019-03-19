@@ -612,12 +612,9 @@ static void l3_mon_evt_init(struct rdt_resource *r)
 
 int rdt_get_mon_l3_config(struct rdt_resource *r)
 {
-	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
 	u32 rmid_cache_size = resctrl_arch_max_rmid_threshold();
 	u32 num_rmid = resctrl_arch_system_num_rmid();
 	int ret;
-
-	hw_res->mon_scale = boot_cpu_data.x86_cache_occ_scale;
 
 	/*
 	 * A reasonable upper limit on the max threshold is the number
