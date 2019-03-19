@@ -341,7 +341,6 @@ struct rdt_parse_data {
  * @hw_num_closid:     The actual number of closids, regardless of CDP
  * @msr_base:		Base MSR address for CBMs
  * @msr_update:		Function pointer to update QOS MSRs
- * @mon_scale:		cqm counter * mon_scale = occupancy in bytes
  */
 struct rdt_hw_resource {
 	struct rdt_resource     resctrl;
@@ -349,7 +348,6 @@ struct rdt_hw_resource {
 	unsigned int		msr_base;
 	void (*msr_update)	(struct rdt_domain *d, struct msr_param *m,
 				 struct rdt_resource *r);
-	unsigned int		mon_scale;
 };
 
 static inline struct rdt_hw_resource *resctrl_to_arch_res(struct rdt_resource *r)
