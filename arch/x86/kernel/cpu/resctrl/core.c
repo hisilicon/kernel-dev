@@ -307,13 +307,35 @@ mba_wrmsr_amd(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
  * that can be written to QOS_MSRs.
  * There are currently no SKUs which support non linear delay values.
  */
-u32 delay_bw_map(unsigned long bw, struct rdt_resource *r)
+static u32 delay_bw_map(unsigned long bw, struct rdt_resource *r)
 {
 	if (r->membw.delay_linear)
 		return MAX_MBA_BW - bw;
 
 	pr_warn_once("Non Linear delay-bw map not supported but queried\n");
 	return r->default_ctrl;
+}
+
+int resctrl_arch_update_one(struct rdt_resource *r, struct rdt_domain *d,
+			    hw_closid_t hw_closid, u32 cfg_val)
+{
+	u32 cur_msr;
+	u32 hw_closid_val = hwclosid_val(hw_closid);
+	struct rdt_hw_domain *hw_dom = resctrl_to_arch_dom(d);
+	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
+
+	if (!cpumask_test_cpu(smp_processor_id(), &d->cpu_mask))
+		return -EINVAL;
+
+	hw_dom->ctrl_val[hw_closid_val] = cfg_val;
+
+	if (r->rid == RDT_RESOURCE_MBA)
+		cfg_val = delay_bw_map(cfg_val, r);
+
+	cur_msr = hw_res->msr_base + hw_closid_val;
+	wrmsrl(cur_msr, cfg_val);
+
+	return 0;
 }
 
 static void

@@ -358,10 +358,8 @@ void mon_event_count(void *info)
  */
 static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 {
-	u32 closid, rmid, cur_msr, cur_msr_val, new_msr_val;
+	u32 closid, rmid, cur_msr_val, new_msr_val;
 	struct mbm_state *pmbm_data, *cmbm_data;
-	struct rdt_hw_resource *hw_r_mba;
-	struct rdt_hw_domain *hw_dom_mba;
 	u32 cur_bw, delta_bw, user_bw;
 	struct rdt_resource *r_mba;
 	struct rdt_domain *dom_mba;
@@ -370,7 +368,6 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 	hw_closid_t hw_closid;
 
 	r_mba = resctrl_arch_get_resource(RDT_RESOURCE_MBA);
-	hw_r_mba = resctrl_to_arch_res(r_mba);
 	closid = rgrp->closid;
 	rmid = rgrp->mon.rmid;
 	pmbm_data = &dom_mbm->mbm_local[rmid];
@@ -380,7 +377,6 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 		pr_warn_once("Failure to get domain for MBA update\n");
 		return;
 	}
-	hw_dom_mba = resctrl_to_arch_dom(dom_mba);
 
 	cur_bw = pmbm_data->prev_bw;
 	user_bw = dom_mba->mba_sc[closid].mbps_val;
@@ -423,9 +419,7 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 		return;
 	}
 
-	cur_msr = hw_r_mba->msr_base + hwclosid_val(hw_closid);
-	wrmsrl(cur_msr, delay_bw_map(new_msr_val, r_mba));
-	hw_dom_mba->ctrl_val[hwclosid_val(hw_closid)] = new_msr_val;
+	resctrl_arch_update_one(r_mba, dom_mba, hw_closid, new_msr_val);
 
 	/*
 	 * Delta values are updated dynamically package wise for each
