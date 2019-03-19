@@ -1922,6 +1922,57 @@ static int mkdir_mondata_all(struct kernfs_node *parent_kn,
 			     struct rdtgroup *prgrp,
 			     struct kernfs_node **mon_data_kn);
 
+static int allocate_domain_mba_sc(int cpu, struct rdt_resource *res,
+				  struct rdt_domain *d)
+{
+	u32 num_closid = closid_free_map_len;
+	int i;
+
+	d->mba_sc = kcalloc_node(num_closid, sizeof(*d->mba_sc),
+				 GFP_KERNEL, cpu_to_node(cpu));
+	if (!d->mba_sc)
+		return -ENOMEM;
+
+	for (i = 0; i < num_closid; i++)
+		d->mba_sc[i].mbps_val = MBA_MAX_MBPS;
+
+	return 0;
+}
+
+static int allocate_mba_sc(struct rdt_resource *r)
+{
+	int ret, cpu;
+	struct rdt_domain *d;
+
+	lockdep_assert_cpus_held();
+
+	list_for_each_entry(d, &r->domains, list) {
+		cpu = cpumask_any(&d->cpu_mask);
+		ret = allocate_domain_mba_sc(cpu, r, d);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+static void destroy_domain_mba_sc(struct rdt_resource *r,
+				  struct rdt_domain *d)
+{
+	kfree(d->mba_sc);
+	d->mba_sc = NULL;
+}
+
+static void destroy_mba_sc(struct rdt_resource *r)
+{
+	struct rdt_domain *d;
+
+	lockdep_assert_cpus_held();
+
+	list_for_each_entry(d, &r->domains, list)
+		destroy_domain_mba_sc(r, d);
+}
+
 static int rdt_enable_ctx(struct rdt_fs_context *ctx)
 {
 	int ret = 0;
@@ -1985,17 +2036,29 @@ static int create_schemata_list(void)
 		}
 		if (ret)
 			break;
+
+		if (is_mba_sc(r)) {
+			ret = allocate_mba_sc(r);
+			if (ret)
+				break;
+		}
 	}
 
 	return ret;
 }
 
+/*
+ * During rdt_kill_sb(), the mba_sc state is reset before
+ * destroy_schemata_list() is called: unconditionally try to free the
+ * array.
+ */
 static void destroy_schemata_list(void)
 {
 	struct resctrl_schema *s, *tmp;
 
 	list_for_each_entry_safe(s, tmp, &resctrl_all_schema, list) {
 		list_del(&s->list);
+		destroy_mba_sc(s->res);
 		kfree(s);
 	}
 }
@@ -3164,6 +3227,9 @@ void resctrl_offline_domain(struct rdt_resource *r, struct rdt_domain *d)
 		__check_limbo(d, true);
 		cancel_delayed_work(&d->cqm_limbo);
 	}
+
+	if (resctrl_mounted && is_mba_sc(r))
+		destroy_domain_mba_sc(r, d);
 }
 
 void resctrl_online_domain(struct rdt_resource *r, struct rdt_domain *d)
@@ -3184,6 +3250,9 @@ void resctrl_online_domain(struct rdt_resource *r, struct rdt_domain *d)
 	/* If resctrl is mounted, add per domain monitor data directories. */
 	if (resctrl_mounted)
 		mkdir_mondata_subdir_allrdtgrp(r, d);
+
+	if (resctrl_mounted && is_mba_sc(r))
+		allocate_domain_mba_sc(smp_processor_id(), r, d);
 }
 
 /*
