@@ -522,7 +522,7 @@ void mbm_handle_overflow(struct work_struct *work)
 
 	mutex_lock(&rdtgroup_mutex);
 
-	if (!static_branch_likely(&rdt_enable_key))
+	if (!resctrl_mounted)
 		goto out_unlock;
 
 	d = container_of(work, struct rdt_domain, mbm_over.work);
@@ -549,8 +549,9 @@ void mbm_setup_overflow_handler(struct rdt_domain *dom, unsigned long delay_ms)
 	unsigned long delay = msecs_to_jiffies(delay_ms);
 	int cpu;
 
-	if (!static_branch_likely(&rdt_enable_key))
+	if (!resctrl_mounted)
 		return;
+
 	cpu = cpumask_any(&dom->cpu_mask);
 	dom->mbm_work_cpu = cpu;
 	schedule_delayed_work_on(cpu, &dom->mbm_over, delay);
