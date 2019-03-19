@@ -5,6 +5,7 @@
 #define __ASM_RESCTRL_H__
 
 #include <linux/bug.h>
+#include <linux/jump_label.h>
 #include <linux/sched.h>
 
 #include <asm/processor.h>
@@ -17,12 +18,36 @@ typedef struct { u32 val; } hw_closid_t;
 #define RMID_VAL_UNAVAIL		BIT_ULL(62)
 #define MBM_CNTR_WIDTH			24
 
+DECLARE_STATIC_KEY_FALSE(rdt_enable_key);
+DECLARE_STATIC_KEY_FALSE(rdt_alloc_enable_key);
+DECLARE_STATIC_KEY_FALSE(rdt_mon_enable_key);
+
 /*
  * Get the system wide closid/rmid limits. The number of closids should not be
  * affected by CDP.
  */
 u32 resctrl_arch_system_num_closid(void);
 u32 resctrl_arch_system_num_rmid(void);
+
+static inline void resctrl_arch_enable_alloc(void)
+{
+	static_branch_enable_cpuslocked(&rdt_alloc_enable_key);
+}
+
+static inline void resctrl_arch_disable_alloc(void)
+{
+	static_branch_disable_cpuslocked(&rdt_alloc_enable_key);
+}
+
+static inline void resctrl_arch_enable_mon(void)
+{
+	static_branch_enable_cpuslocked(&rdt_mon_enable_key);
+}
+
+static inline void resctrl_arch_disable_mon(void)
+{
+	static_branch_disable_cpuslocked(&rdt_mon_enable_key);
+}
 
 static inline u32 resctrl_arch_max_rmid_threshold(void)
 {
