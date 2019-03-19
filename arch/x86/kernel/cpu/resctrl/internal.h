@@ -327,11 +327,6 @@ static inline bool is_mbm_event(int e)
 		e <= QOS_L3_MBM_LOCAL_EVENT_ID);
 }
 
-struct rdt_parse_data {
-	struct rdtgroup		*rdtgrp;
-	char			*buf;
-};
-
 /**
  * struct rdt_hw_resource - hw attributes of an RDT resource
  * @hw_num_closid:     The actual number of closids, regardless of CDP
@@ -350,11 +345,6 @@ static inline struct rdt_hw_resource *resctrl_to_arch_res(struct rdt_resource *r
 {
 	return container_of(r, struct rdt_hw_resource, resctrl);
 }
-
-int parse_cbm(struct rdt_parse_data *data, struct resctrl_schema *s,
-	      struct rdt_domain *d);
-int parse_bw(struct rdt_parse_data *data, struct resctrl_schema *s,
-	     struct rdt_domain *d);
 
 extern struct mutex rdtgroup_mutex;
 
