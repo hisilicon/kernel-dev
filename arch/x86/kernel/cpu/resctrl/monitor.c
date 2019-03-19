@@ -383,15 +383,12 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 	hw_dom_mba = resctrl_to_arch_dom(dom_mba);
 
 	cur_bw = pmbm_data->prev_bw;
+	user_bw = dom_mba->mba_sc[closid].mbps_val;
+	delta_bw = pmbm_data->delta_bw;
+
 	/* MBA monitor resource doesn't support CDP, we know this is both */
 	hw_closid = resctrl_closid_cdp_map(closid, CDP_BOTH);
-	resctrl_arch_get_config(r_mba, dom_mba, hw_closid, &user_bw);
-	delta_bw = pmbm_data->delta_bw;
-	/*
-	 * resctrl_arch_get_config() chooses the mbps/ctrl value to return
-	 * based on is_mba_sc(). For now, reach into the hw_dom.
-	 */
-	cur_msr_val = hw_dom_mba->ctrl_val[hwclosid_val(hw_closid)];
+	resctrl_arch_get_config(r_mba, dom_mba, hw_closid, &cur_msr_val);
 
 	/*
 	 * For Ctrl groups read data from child monitor groups.
