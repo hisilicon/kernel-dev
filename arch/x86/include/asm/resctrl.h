@@ -15,6 +15,7 @@ typedef struct { u32 val; } hw_closid_t;
 
 #define RMID_VAL_ERROR			BIT_ULL(63)
 #define RMID_VAL_UNAVAIL		BIT_ULL(62)
+#define MBM_CNTR_WIDTH			24
 
 /*
  * Get the system wide closid/rmid limits. The number of closids should not be

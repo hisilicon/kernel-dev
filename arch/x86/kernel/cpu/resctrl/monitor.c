@@ -102,7 +102,8 @@ int resctrl_arch_rmid_read(u32 rmid, enum resctrl_event_id eventid, u64 *res)
 	if (val & RMID_VAL_UNAVAIL)
 		return -EINVAL;
 
-	*res = val;
+	val &= GENMASK(MBM_CNTR_WIDTH, 0);
+	*res = val * boot_cpu_data.x86_cache_occ_scale;
 
 	return 0;
 }
@@ -113,8 +114,6 @@ static bool rmid_dirty(struct rmid_entry *entry)
 
 	if (resctrl_arch_rmid_read(entry->rmid, QOS_L3_OCCUP_EVENT_ID, &val))
 		return true;
-
-	val *= boot_cpu_data.x86_cache_occ_scale;
 
 	return val >= resctrl_rmid_realloc_threshold;
 }
@@ -196,7 +195,6 @@ static void add_rmid_to_limbo(struct rmid_entry *entry)
 			ret = resctrl_arch_rmid_read(entry->rmid,
 						     QOS_L3_OCCUP_EVENT_ID,
 						    &val);
-			val *= boot_cpu_data.x86_cache_occ_scale;
 			if (ret || val <= resctrl_rmid_realloc_threshold)
 				continue;
 		}
@@ -235,18 +233,10 @@ void free_rmid(u32 rmid)
 		list_add_tail(&entry->list, &rmid_free_lru);
 }
 
-static u64 mbm_overflow_count(u64 prev_msr, u64 cur_msr)
-{
-	u64 shift = 64 - MBM_CNTR_WIDTH, chunks;
-
-	chunks = (cur_msr << shift) - (prev_msr << shift);
-	return chunks >>= shift;
-}
-
 static int __mon_event_count(u32 rmid, struct rmid_read *rr)
 {
 	struct mbm_state *m;
-	u64 chunks, tval = 0;
+	u64 tval = 0;
 
 	rr->err = resctrl_arch_rmid_read(rmid, rr->evtid, &tval);
 	if (rr->err)
@@ -276,8 +266,7 @@ static int __mon_event_count(u32 rmid, struct rmid_read *rr)
 		return 0;
 	}
 
-	chunks = mbm_overflow_count(m->prev_msr, tval);
-	m->chunks += chunks;
+	m->chunks += tval - m->prev_msr;
 	m->prev_msr = tval;
 
 	rr->val += m->chunks;
@@ -290,17 +279,15 @@ static int __mon_event_count(u32 rmid, struct rmid_read *rr)
  */
 static void mbm_bw_count(u32 rmid, struct rmid_read *rr)
 {
-	struct rdt_resource *r = resctrl_arch_get_resource(RDT_RESOURCE_L3);
-	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
 	struct mbm_state *m = &rr->d->mbm_local[rmid];
 	u64 tval = 0, cur_bw, chunks;
 
 	if (resctrl_arch_rmid_read(rmid, rr->evtid, &tval))
 		return;
 
-	chunks = mbm_overflow_count(m->prev_bw_msr, tval);
+	chunks = tval - m->prev_bw_msr;
 	m->chunks += chunks;
-	cur_bw = (chunks * hw_res->mon_scale) >> 20;
+	cur_bw = chunks / SZ_1M;
 
 	if (m->delta_comp)
 		m->delta_bw = abs(cur_bw - m->prev_bw);
