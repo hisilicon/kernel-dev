@@ -198,6 +198,7 @@ enum resctrl_resource_level {
  */
 struct rdt_resource *resctrl_arch_get_resource(enum resctrl_resource_level l);
 
+struct rdt_domain *resctrl_arch_find_domain(struct rdt_resource *r, int id);
 int resctrl_arch_update_domains(struct rdt_resource *r);
 
 /*
