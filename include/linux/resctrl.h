@@ -13,10 +13,6 @@
 /* Closids are stored as a bitmap in a u32 */
 #define RESCTRL_MAX_CLOSID 32
 
-typedef struct { u32 val; } hw_closid_t;
-#define as_hwclosid_t(x)	((hw_closid_t){(x)})
-#define hwclosid_val(x)		(x.val)
-
 /*
  * The longest name we expect in the schemata file:
  */
