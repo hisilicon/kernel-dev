@@ -1707,7 +1707,7 @@ static void l2_qos_cfg_update(void *arg)
 
 static inline bool is_mba_linear(void)
 {
-	return rdt_resources_all[RDT_RESOURCE_MBA].resctrl.membw.delay_linear;
+	return resctrl_arch_get_resource(RDT_RESOURCE_MBA)->membw.delay_linear;
 }
 
 static int set_cache_qos_cfg(struct rdt_hw_resource *hw_res, bool enable)
@@ -1752,7 +1752,7 @@ static int set_cache_qos_cfg(struct rdt_hw_resource *hw_res, bool enable)
  */
 static int set_mba_sc(bool mba_sc)
 {
-	struct rdt_resource *r = &rdt_resources_all[RDT_RESOURCE_MBA].resctrl;
+	struct rdt_resource *r = resctrl_arch_get_resource(RDT_RESOURCE_MBA);
 	struct rdt_hw_domain *hw_dom;
 	struct rdt_domain *d;
 
@@ -1814,9 +1814,9 @@ int resctrl_arch_set_cdp_enabled(bool enable)
 static int try_to_enable_cdp(int level)
 {
 	int err;
-	struct rdt_resource *r = &rdt_resources_all[level].resctrl;
-	struct rdt_resource *l3 = &rdt_resources_all[RDT_RESOURCE_L3].resctrl;
-	struct rdt_resource *l2 = &rdt_resources_all[RDT_RESOURCE_L2].resctrl;
+	struct rdt_resource *r = resctrl_arch_get_resource(level);
+	struct rdt_resource *l2 = resctrl_arch_get_resource(RDT_RESOURCE_L2);
+	struct rdt_resource *l3 = resctrl_arch_get_resource(RDT_RESOURCE_L3);
 
 	if (!r->cdp_capable)
 		return -EINVAL;
@@ -1983,9 +1983,9 @@ static void destroy_schemata_list(void)
 
 static int rdt_get_tree(struct fs_context *fc)
 {
+	struct rdt_resource *l3 = resctrl_arch_get_resource(RDT_RESOURCE_L3);
 	struct rdt_fs_context *ctx = rdt_fc2context(fc);
 	struct rdt_domain *dom;
-	struct rdt_resource *r;
 	int ret;
 
 	cpus_read_lock();
@@ -2047,8 +2047,7 @@ static int rdt_get_tree(struct fs_context *fc)
 		static_branch_enable_cpuslocked(&rdt_enable_key);
 
 	if (is_mbm_enabled()) {
-		r = &rdt_resources_all[RDT_RESOURCE_L3].resctrl;
-		list_for_each_entry(dom, &r->domains, list)
+		list_for_each_entry(dom, &l3->domains, list)
 			mbm_setup_overflow_handler(dom, MBM_OVERFLOW_INTERVAL);
 	}
 
@@ -3064,13 +3063,16 @@ out:
 
 static int rdtgroup_show_options(struct seq_file *seq, struct kernfs_root *kf)
 {
-	if (rdt_resources_all[RDT_RESOURCE_L3].resctrl.cdp_enabled)
+	struct rdt_resource *l2 = resctrl_arch_get_resource(RDT_RESOURCE_L2);
+	struct rdt_resource *l3 = resctrl_arch_get_resource(RDT_RESOURCE_L3);
+
+	if (l3->cdp_enabled)
 		seq_puts(seq, ",cdp");
 
-	if (rdt_resources_all[RDT_RESOURCE_L2].resctrl.cdp_enabled)
+	if (l2->cdp_enabled)
 		seq_puts(seq, ",cdpl2");
 
-	if (is_mba_sc(&rdt_resources_all[RDT_RESOURCE_MBA].resctrl))
+	if (is_mba_sc(NULL))
 		seq_puts(seq, ",mba_MBps");
 
 	return 0;

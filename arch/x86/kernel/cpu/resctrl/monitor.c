@@ -115,11 +115,9 @@ static bool rmid_dirty(struct rmid_entry *entry)
  */
 void __check_limbo(struct rdt_domain *d, bool force_free)
 {
+	struct rdt_resource *r = resctrl_arch_get_resource(RDT_RESOURCE_L3);
 	struct rmid_entry *entry;
-	struct rdt_resource *r;
 	u32 crmid = 1, nrmid;
-
-	r = &rdt_resources_all[RDT_RESOURCE_L3].resctrl;
 
 	/*
 	 * Skip RMID 0 and start from RMID 1 and check all the RMIDs that
@@ -172,12 +170,10 @@ int alloc_rmid(void)
 
 static void add_rmid_to_limbo(struct rmid_entry *entry)
 {
-	struct rdt_resource *r;
+	struct rdt_resource *r = resctrl_arch_get_resource(RDT_RESOURCE_L3);
 	struct rdt_domain *d;
 	int cpu;
 	u64 val;
-
-	r = &rdt_resources_all[RDT_RESOURCE_L3].resctrl;
 
 	entry->busy = 0;
 	cpu = get_cpu();
@@ -278,7 +274,8 @@ static int __mon_event_count(u32 rmid, struct rmid_read *rr)
  */
 static void mbm_bw_count(u32 rmid, struct rmid_read *rr)
 {
-	struct rdt_hw_resource *hw_res = &rdt_resources_all[RDT_RESOURCE_L3];
+	struct rdt_resource *r = resctrl_arch_get_resource(RDT_RESOURCE_L3);
+	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
 	struct mbm_state *m = &rr->d->mbm_local[rmid];
 	u64 tval, cur_bw, chunks;
 
@@ -370,8 +367,8 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 	struct rdtgroup *entry;
 	hw_closid_t hw_closid;
 
-	hw_r_mba = &rdt_resources_all[RDT_RESOURCE_MBA];
-	r_mba = &hw_r_mba->resctrl;
+	r_mba = resctrl_arch_get_resource(RDT_RESOURCE_MBA);
+	hw_r_mba = resctrl_to_arch_res(r_mba);
 	closid = rgrp->closid;
 	rmid = rgrp->mon.rmid;
 	pmbm_data = &dom_mbm->mbm_local[rmid];
@@ -491,7 +488,7 @@ void cqm_handle_limbo(struct work_struct *work)
 
 	mutex_lock(&rdtgroup_mutex);
 
-	r = &rdt_resources_all[RDT_RESOURCE_L3].resctrl;
+	r = resctrl_arch_get_resource(RDT_RESOURCE_L3);
 	d = container_of(work, struct rdt_domain, cqm_limbo.work);
 
 	__check_limbo(d, false);

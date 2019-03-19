@@ -550,8 +550,8 @@ int rdtgroup_mondata_show(struct seq_file *m, void *arg)
 	domid = md.u.domid;
 	evtid = md.u.evtid;
 
-	hw_res = &rdt_resources_all[resid];
-	r = &hw_res->resctrl;
+	r = resctrl_arch_get_resource(resid);
+	hw_res = resctrl_to_arch_res(r);
 	d = rdt_find_domain(r, domid, NULL);
 	if (IS_ERR_OR_NULL(d)) {
 		ret = -ENOENT;

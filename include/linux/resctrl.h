@@ -166,6 +166,22 @@ struct rdt_resource {
 	unsigned long		fflags;
 };
 
+enum resctrl_resource_level {
+	RDT_RESOURCE_L3,
+	RDT_RESOURCE_L2,
+	RDT_RESOURCE_MBA,
+
+	/* Must be the last */
+	RDT_NUM_RESOURCES,
+};
+
+/*
+ * Get the resource that exists at this level. If the level is not supproted
+ * a dummy/not-capable resource can be returned. Levels >= RDT_NUM_RESOURCES
+ * will return NULL.
+ */
+struct rdt_resource *resctrl_arch_get_resource(enum resctrl_resource_level l);
+
 int resctrl_arch_update_domains(struct rdt_resource *r);
 void resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
 			     hw_closid_t hw_closid, u32 *value);

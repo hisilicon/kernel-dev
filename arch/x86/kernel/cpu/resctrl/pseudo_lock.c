@@ -652,6 +652,8 @@ out:
 int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 {
 	int ret;
+	struct rdt_resource *l2 = resctrl_arch_get_resource(RDT_RESOURCE_L2);
+	struct rdt_resource *l3 = resctrl_arch_get_resource(RDT_RESOURCE_L3);
 
 	/*
 	 * The default resource group can neither be removed nor lose the
@@ -688,8 +690,7 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 	 *   schema, the portion of cache used by it should be made
 	 *   unavailable to all future allocations.
 	 */
-	if (rdt_resources_all[RDT_RESOURCE_L3].resctrl.cdp_enabled ||
-	    rdt_resources_all[RDT_RESOURCE_L2].resctrl.cdp_enabled) {
+	if (l3->cdp_enabled || l2->cdp_enabled) {
 		rdt_last_cmd_puts("CDP enabled\n");
 		return -EINVAL;
 	}
