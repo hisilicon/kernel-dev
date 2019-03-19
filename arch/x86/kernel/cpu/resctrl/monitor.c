@@ -670,6 +670,7 @@ int resctrl_mon_resource_init(void)
 {
 	int ret;
 	struct rdt_resource *r;
+	enum resctrl_resource_level i;
 	u32 num_rmid = resctrl_arch_system_num_rmid();
 	u32 rmid_cache_size = resctrl_arch_max_rmid_threshold();
 
@@ -682,7 +683,11 @@ int resctrl_mon_resource_init(void)
 	 */
 	resctrl_rmid_realloc_threshold = rmid_cache_size / num_rmid;
 
-	for_each_mon_capable_rdt_resource(r) {
+	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
+		r = resctrl_arch_get_resource(i);
+		if (!r->mon_capable)
+			continue;
+
 		ret = dom_data_init(r);
 		if (ret)
 			return ret;
