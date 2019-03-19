@@ -324,13 +324,26 @@ static int rdtgroup_cpus_show(struct kernfs_open_file *of,
  * from update_closid_rmid() is proteced against __switch_to() because
  * preemption is disabled.
  */
-static void update_cpu_closid_rmid(void *info)
+void resctrl_arch_update_cpu_defaults(void *info)
 {
-	struct rdtgroup *r = info;
+	u32 c, d;
+	struct resctrl_cpu_sync *r = info;
 
 	if (r) {
-		this_cpu_write(pqr_state.default_closid, r->closid);
-		this_cpu_write(pqr_state.default_rmid, r->mon.rmid);
+		c = hwclosid_val(r->closid_code);
+		d = hwclosid_val(r->closid_data);
+
+		/*
+		 * For CDP the code/data closid must be adjacent even/odd
+		 * pairs.
+		 */
+		if (c != d) {
+			WARN_ON_ONCE(d + 1 != c);
+			c >>= 1;
+		}
+
+		this_cpu_write(pqr_state.default_closid, c);
+		this_cpu_write(pqr_state.default_rmid, r->rmid);
 	}
 
 	/*
@@ -345,15 +358,26 @@ static void update_cpu_closid_rmid(void *info)
  * Update the PGR_ASSOC MSR on all cpus in @cpu_mask,
  *
  * Per task closids/rmids must have been set up before calling this function.
+ * @r may be NULL.
  */
 static void
 update_closid_rmid(const struct cpumask *cpu_mask, struct rdtgroup *r)
 {
 	int cpu = get_cpu();
+	struct resctrl_cpu_sync defaults;
+	struct resctrl_cpu_sync *defaults_p = NULL;
+
+	if (r) {
+		CDP_CLOSID_MAP_PAIR(r->closid, defaults.closid_code,
+				    defaults.closid_data);
+		defaults.rmid = r->mon.rmid;
+		defaults_p = &defaults;
+	}
 
 	if (cpumask_test_cpu(cpu, cpu_mask))
-		update_cpu_closid_rmid(r);
-	smp_call_function_many(cpu_mask, update_cpu_closid_rmid, r, 1);
+		resctrl_arch_update_cpu_defaults(defaults_p);
+	smp_call_function_many(cpu_mask, resctrl_arch_update_cpu_defaults,
+			       defaults_p, 1);
 	put_cpu();
 }
 

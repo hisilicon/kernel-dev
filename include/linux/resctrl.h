@@ -215,6 +215,15 @@ int resctrl_arch_rmid_read(u32 rmid, enum resctrl_event_id eventid, u64 *res);
 /* Enable/Disable CDP on all applicable resources */
 int resctrl_arch_set_cdp_enabled(bool enable);
 
+
+struct resctrl_cpu_sync
+{
+	hw_closid_t closid_code, closid_data;
+	u32 rmid;
+};
+
+void resctrl_arch_update_cpu_defaults(void *info);
+
 /**
  * @list:	Member of resctrl's schema list
  * @name:	Name visible in the schemata file
