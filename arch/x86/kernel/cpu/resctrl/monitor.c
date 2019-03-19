@@ -658,8 +658,6 @@ static struct mon_evt mbm_local_event = {
  */
 static void l3_mon_evt_init(struct rdt_resource *r)
 {
-	INIT_LIST_HEAD(&r->evt_list);
-
 	if (is_llc_occupancy_enabled())
 		list_add_tail(&llc_occupancy_event.list, &r->evt_list);
 	if (is_mbm_total_enabled())
@@ -668,11 +666,12 @@ static void l3_mon_evt_init(struct rdt_resource *r)
 		list_add_tail(&mbm_local_event.list, &r->evt_list);
 }
 
-int rdt_get_mon_l3_config(struct rdt_resource *r)
+int resctrl_mon_resource_init(void)
 {
-	u32 rmid_cache_size = resctrl_arch_max_rmid_threshold();
-	u32 num_rmid = resctrl_arch_system_num_rmid();
 	int ret;
+	struct rdt_resource *r;
+	u32 num_rmid = resctrl_arch_system_num_rmid();
+	u32 rmid_cache_size = resctrl_arch_max_rmid_threshold();
 
 	/*
 	 * A reasonable upper limit on the max threshold is the number
@@ -683,12 +682,20 @@ int rdt_get_mon_l3_config(struct rdt_resource *r)
 	 */
 	resctrl_rmid_realloc_threshold = rmid_cache_size / num_rmid;
 
-	ret = dom_data_init(r);
-	if (ret)
-		return ret;
+	for_each_mon_capable_rdt_resource(r) {
+		ret = dom_data_init(r);
+		if (ret)
+			return ret;
 
-	l3_mon_evt_init(r);
+		l3_mon_evt_init(r);
+	}
 
+	return 0;
+}
+
+int rdt_get_mon_l3_config(struct rdt_resource *r)
+{
+	INIT_LIST_HEAD(&r->evt_list);
 	r->mon_capable = true;
 
 	return 0;
