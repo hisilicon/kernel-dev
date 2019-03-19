@@ -1795,7 +1795,7 @@ static int set_mba_sc(bool mba_sc)
 	r->membw.mba_sc = mba_sc;
 	list_for_each_entry(d, &r->domains, list) {
 		hw_dom = resctrl_to_arch_dom(d);
-		setup_default_ctrlval(r, hw_dom->ctrl_val, hw_dom->mbps_val);
+		setup_default_ctrlval(r, hw_dom->ctrl_val);
 	}
 
 	return 0;
