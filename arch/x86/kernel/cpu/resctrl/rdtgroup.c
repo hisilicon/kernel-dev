@@ -3338,6 +3338,16 @@ int resctrl_online_domain(struct rdt_resource *r, struct rdt_domain *d)
 	return 0;
 }
 
+int resctrl_online_cpu(unsigned int cpu)
+{
+	mutex_lock(&rdtgroup_mutex);
+	/* The cpu is set in default rdtgroup after online. */
+	cpumask_set_cpu(cpu, &rdtgroup_default.cpu_mask);
+	mutex_unlock(&rdtgroup_mutex);
+
+	return 0;
+}
+
 /*
  * resctrl_init - resctrl filesystem initialization
  *
