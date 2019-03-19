@@ -10,6 +10,8 @@
 
 #define IA32_PQR_ASSOC	0x0c8f
 
+void resctrl_arch_reset_resources(void);
+
 /**
  * struct resctrl_pqr_state - State cache for the PQR MSR
  * @cur_rmid:		The cached Resource Monitoring ID
