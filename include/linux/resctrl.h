@@ -114,7 +114,6 @@ struct resctrl_schema;
 
 /**
  * @rid:		The index of the resource
- * @mon_enabled:	Is monitoring enabled for this feature
  * @cdp_enabled		Is CDP enabled for this resource
  * @alloc_capable:	Is allocation available on this machine
  * @mon_capable:	Is monitor feature available on this machine
@@ -141,7 +140,6 @@ struct resctrl_schema;
  */
 struct rdt_resource {
 	int			rid;
-	bool			mon_enabled;
 	bool			cdp_enabled;
 	bool			alloc_capable;
 	bool			mon_capable;
