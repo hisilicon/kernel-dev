@@ -15,6 +15,7 @@
  * Software Developer Manual June 2016, volume 3, section 17.17.
  */
 
+#include <linux/cpu.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <asm/cpu_device_id.h>
@@ -179,6 +180,8 @@ static void add_rmid_to_limbo(struct rmid_entry *entry)
 	struct rdt_domain *d;
 	int cpu, ret;
 	u64 val = 0;
+
+	lockdep_assert_cpus_held();
 
 	entry->busy = 0;
 	cpu = get_cpu();
