@@ -347,7 +347,7 @@ static int rdtgroup_parse_resource(char *resname, char *tok,
 
 	list_for_each_entry(s, &resctrl_all_schema, list) {
 		r = s->res;
-		if (!strcmp(resname, s->name) && rdtgrp->closid < r->num_closid)
+		if (!strcmp(resname, s->name))
 			return parse_line(tok, s, rdtgrp, s->conf_type);
 	}
 	rdt_last_cmd_printf("Unknown or unsupported resource name '%s'\n", resname);
@@ -472,7 +472,6 @@ int rdtgroup_schemata_show(struct kernfs_open_file *of,
 {
 	struct resctrl_schema *schema;
 	struct rdtgroup *rdtgrp;
-	struct rdt_resource *r;
 	int ret = 0;
 	u32 closid;
 
@@ -496,9 +495,7 @@ int rdtgroup_schemata_show(struct kernfs_open_file *of,
 		} else {
 			closid = rdtgrp->closid;
 			list_for_each_entry(schema, &resctrl_all_schema, list) {
-				r = schema->res;
-				if (closid < r->num_closid)
-					show_doms(s, schema, closid);
+				show_doms(s, schema, closid);
 			}
 		}
 	} else {
