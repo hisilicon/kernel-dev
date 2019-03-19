@@ -49,6 +49,17 @@ LIST_HEAD(rdt_all_groups);
 
 static bool resctrl_cdp_enabled;
 
+#define CDP_CLOSID_MAP_PAIR(closid, hw_c, hw_d)				\
+do {									\
+	if (resctrl_cdp_enabled) {					\
+		hw_c = resctrl_closid_cdp_map(closid, CDP_CODE);	\
+		hw_d = resctrl_closid_cdp_map(closid, CDP_DATA);	\
+	} else {							\
+		hw_c = resctrl_closid_cdp_map(closid, CDP_BOTH);	\
+		hw_d = hw_c;						\
+	}								\
+} while (0)
+
 /* list of entries for the schemata file */
 LIST_HEAD(resctrl_all_schema);
 
@@ -522,6 +533,22 @@ unlock:
 	return ret ?: nbytes;
 }
 
+static void resctrl_set_closid(struct task_struct *tsk, u32 closid)
+{
+	hw_closid_t c, d;
+
+	CDP_CLOSID_MAP_PAIR(closid, c, d);
+	resctrl_arch_set_closid(tsk, c, d);
+}
+
+static bool resctrl_match_closid(struct task_struct *tsk, u32 closid)
+{
+	hw_closid_t c, d;
+
+	CDP_CLOSID_MAP_PAIR(closid, c, d);
+	return resctrl_arch_match_closid(tsk, c, d);
+}
+
 struct task_move_callback {
 	struct callback_head	work;
 	struct rdtgroup		*rdtgrp;
@@ -542,7 +569,7 @@ static void move_myself(struct callback_head *head)
 	 */
 	if (atomic_dec_and_test(&rdtgrp->waitcount) &&
 	    (rdtgrp->flags & RDT_DELETED)) {
-		current->closid = 0;
+		resctrl_set_closid(current, 0);
 		current->rmid = 0;
 		kfree(rdtgrp);
 	}
@@ -558,6 +585,7 @@ static void move_myself(struct callback_head *head)
 static int __rdtgroup_move_task(struct task_struct *tsk,
 				struct rdtgroup *rdtgrp)
 {
+	u32 parent_closid = rdtgrp->mon.parent->closid;
 	struct task_move_callback *callback;
 	int ret;
 
@@ -589,10 +617,10 @@ static int __rdtgroup_move_task(struct task_struct *tsk,
 		 * their parent CTRL group.
 		 */
 		if (rdtgrp->type == RDTCTRL_GROUP) {
-			tsk->closid = rdtgrp->closid;
+			resctrl_set_closid(tsk, rdtgrp->closid);
 			tsk->rmid = rdtgrp->mon.rmid;
 		} else if (rdtgrp->type == RDTMON_GROUP) {
-			if (rdtgrp->mon.parent->closid == tsk->closid) {
+			if (resctrl_match_closid(tsk, parent_closid)) {
 				tsk->rmid = rdtgrp->mon.rmid;
 			} else {
 				rdt_last_cmd_puts("Can't move task to different control group\n");
@@ -605,8 +633,8 @@ static int __rdtgroup_move_task(struct task_struct *tsk,
 
 static bool is_closid_match(struct task_struct *t, struct rdtgroup *r)
 {
-	return (rdt_alloc_capable &&
-	       (r->type == RDTCTRL_GROUP) && (t->closid == r->closid));
+	return (rdt_alloc_capable && (r->type == RDTCTRL_GROUP) &&
+		resctrl_match_closid(t, r->closid));
 }
 
 static bool is_rmid_match(struct task_struct *t, struct rdtgroup *r)
@@ -2202,7 +2230,7 @@ static void rdt_move_group_tasks(struct rdtgroup *from, struct rdtgroup *to,
 	for_each_process_thread(p, t) {
 		if (!from || is_closid_match(t, from) ||
 		    is_rmid_match(t, from)) {
-			t->closid = to->closid;
+			resctrl_set_closid(t, to->closid);
 			t->rmid = to->mon.rmid;
 
 #ifdef CONFIG_SMP
