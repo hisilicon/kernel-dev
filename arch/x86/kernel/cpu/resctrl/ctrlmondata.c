@@ -80,6 +80,7 @@ int parse_bw(struct rdt_parse_data *data, struct resctrl_schema *s,
 {
 	unsigned long bw_val;
 	struct rdt_resource *r = s->res;
+	u32 closid = data->rdtgrp->closid;
 	enum resctrl_conf_type t = s->conf_type;
 	struct resctrl_staged_config *cfg = &d->staged_config[t];
 
@@ -90,8 +91,14 @@ int parse_bw(struct rdt_parse_data *data, struct resctrl_schema *s,
 
 	if (!bw_validate(data->buf, &bw_val, r))
 		return -EINVAL;
+
+	if (is_mba_sc(r)) {
+		d->mba_sc[closid].mbps_val = bw_val;
+		return 0;
+	}
+
 	cfg->new_ctrl = bw_val;
-	cfg->hw_closid = resctrl_closid_cdp_map(data->rdtgrp->closid, t);
+	cfg->hw_closid = resctrl_closid_cdp_map(closid, t);
 	cfg->new_ctrl_type = t;
 	cfg->have_new_ctrl = true;
 
@@ -269,15 +276,14 @@ next:
 
 static void apply_config(struct rdt_hw_domain *hw_dom,
 			 struct resctrl_staged_config *cfg,
-			 cpumask_var_t cpu_mask, bool mba_sc)
+			 cpumask_var_t cpu_mask)
 {
 	u32 hw_closid_val = hwclosid_val(cfg->hw_closid);
 	struct rdt_domain *dom = &hw_dom->resctrl;
-	u32 *dc = !mba_sc ? hw_dom->ctrl_val : hw_dom->mbps_val;
 
-	if (cfg->new_ctrl != dc[hw_closid_val]) {
+	if (cfg->new_ctrl != hw_dom->ctrl_val[hw_closid_val]) {
 		cpumask_set_cpu(cpumask_any(&dom->cpu_mask), cpu_mask);
-		dc[hw_closid_val] = cfg->new_ctrl;
+		hw_dom->ctrl_val[hw_closid_val] = cfg->new_ctrl;
 		cfg->have_new_ctrl = false;
 	}
 }
@@ -290,7 +296,6 @@ int resctrl_arch_update_domains(struct rdt_resource *r)
 	struct msr_param msr_param;
 	cpumask_var_t cpu_mask;
 	struct rdt_domain *d;
-	bool mba_sc;
 	u32 hw_closid_val;
 	int cpu, i;
 
@@ -299,7 +304,6 @@ int resctrl_arch_update_domains(struct rdt_resource *r)
 
 	msr_param.res = r;
 
-	mba_sc = is_mba_sc(r);
 	list_for_each_entry(d, &r->domains, list) {
 		hw_dom = resctrl_to_arch_dom(d);
 		for (i = 0; i < ARRAY_SIZE(d->staged_config); i++) {
@@ -307,7 +311,7 @@ int resctrl_arch_update_domains(struct rdt_resource *r)
 			if (!cfg->have_new_ctrl)
 				continue;
 
-			apply_config(hw_dom, cfg, cpu_mask, mba_sc);
+			apply_config(hw_dom, cfg, cpu_mask);
 
 			hw_closid_val = hwclosid_val(cfg->hw_closid);
 			if (!msr_param_init) {
@@ -325,11 +329,7 @@ int resctrl_arch_update_domains(struct rdt_resource *r)
 
 	msr_param.high += 1;
 
-	/*
-	 * Avoid writing the control msr with control values when
-	 * MBA software controller is enabled
-	 */
-	if (cpumask_empty(cpu_mask) || mba_sc)
+	if (cpumask_empty(cpu_mask))
 		goto done;
 	cpu = get_cpu();
 	/* Update resource control msr on this CPU if it's in cpu_mask. */
@@ -420,6 +420,14 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 
 	list_for_each_entry(s, &resctrl_all_schema, list) {
 		r = s->res;
+
+		/*
+		 * Writes to mba_sc resources update the software controller,
+		 * not the control msr.
+		 */
+		if (is_mba_sc(r))
+			continue;
+
 		ret = resctrl_arch_update_domains(r);
 		if (ret)
 			goto out;
@@ -447,10 +455,7 @@ void resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
 	u32 hw_closid_val = hwclosid_val(hw_closid);
 	struct rdt_hw_domain *hw_dom = resctrl_to_arch_dom(d);
 
-	if (!is_mba_sc(r))
-		*value = hw_dom->ctrl_val[hw_closid_val];
-	else
-		*value = hw_dom->mbps_val[hw_closid_val];
+	*value = hw_dom->ctrl_val[hw_closid_val];
 }
 
 static void show_doms(struct seq_file *s, struct resctrl_schema *schema, int closid)
@@ -466,8 +471,14 @@ static void show_doms(struct seq_file *s, struct resctrl_schema *schema, int clo
 		if (sep)
 			seq_puts(s, ";");
 
-		hw_closid = resctrl_closid_cdp_map(closid, schema->conf_type);
-		resctrl_arch_get_config(r, dom, hw_closid, &ctrl_val);
+		if (is_mba_sc(r)) {
+			ctrl_val = dom->mba_sc[closid].mbps_val;
+		} else {
+			hw_closid = resctrl_closid_cdp_map(closid,
+				schema->conf_type);
+			resctrl_arch_get_config(r, dom, hw_closid, &ctrl_val);
+		}
+
 		seq_printf(s, r->format_str, dom->id, max_data_width,
 			   ctrl_val);
 		sep = true;
