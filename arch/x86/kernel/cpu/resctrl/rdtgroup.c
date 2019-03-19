@@ -570,7 +570,7 @@ static void move_myself(struct callback_head *head)
 	if (atomic_dec_and_test(&rdtgrp->waitcount) &&
 	    (rdtgrp->flags & RDT_DELETED)) {
 		resctrl_set_closid(current, 0);
-		current->rmid = 0;
+		resctrl_arch_set_rmid(current, 0);
 		kfree(rdtgrp);
 	}
 
@@ -618,10 +618,10 @@ static int __rdtgroup_move_task(struct task_struct *tsk,
 		 */
 		if (rdtgrp->type == RDTCTRL_GROUP) {
 			resctrl_set_closid(tsk, rdtgrp->closid);
-			tsk->rmid = rdtgrp->mon.rmid;
+			resctrl_arch_set_rmid(tsk, rdtgrp->mon.rmid);
 		} else if (rdtgrp->type == RDTMON_GROUP) {
 			if (resctrl_match_closid(tsk, parent_closid)) {
-				tsk->rmid = rdtgrp->mon.rmid;
+				resctrl_arch_set_rmid(tsk, rdtgrp->mon.rmid);
 			} else {
 				rdt_last_cmd_puts("Can't move task to different control group\n");
 				ret = -EINVAL;
@@ -639,8 +639,8 @@ static bool is_closid_match(struct task_struct *t, struct rdtgroup *r)
 
 static bool is_rmid_match(struct task_struct *t, struct rdtgroup *r)
 {
-	return (rdt_mon_capable &&
-	       (r->type == RDTMON_GROUP) && (t->rmid == r->mon.rmid));
+	return (rdt_mon_capable && (r->type == RDTMON_GROUP) &&
+		resctrl_arch_match_rmid(t, r->mon.rmid));
 }
 
 /**
@@ -2231,7 +2231,7 @@ static void rdt_move_group_tasks(struct rdtgroup *from, struct rdtgroup *to,
 		if (!from || is_closid_match(t, from) ||
 		    is_rmid_match(t, from)) {
 			resctrl_set_closid(t, to->closid);
-			t->rmid = to->mon.rmid;
+			resctrl_arch_set_rmid(t, to->mon.rmid);
 
 #ifdef CONFIG_SMP
 			/*
