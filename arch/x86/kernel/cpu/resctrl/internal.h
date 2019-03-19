@@ -473,8 +473,6 @@ void free_rmid(u32 rmid);
 int rdt_get_mon_l3_config(struct rdt_resource *r);
 void mon_event_count(void *info);
 int rdtgroup_mondata_show(struct seq_file *m, void *arg);
-void rmdir_mondata_subdir_allrdtgrp(struct rdt_resource *r,
-				    unsigned int dom_id);
 void mon_event_read(struct rmid_read *rr, struct rdt_domain *d,
 		    struct rdtgroup *rdtgrp, int evtid, int first);
 void mbm_setup_overflow_handler(struct rdt_domain *dom,
