@@ -115,7 +115,7 @@ static bool rmid_dirty(struct rmid_entry *entry)
  */
 void __check_limbo(struct rdt_domain *d, bool force_free)
 {
-	struct rdt_resource *r = resctrl_arch_get_resource(RDT_RESOURCE_L3);
+	u32 rmid_limit = resctrl_arch_system_num_rmid();
 	struct rmid_entry *entry;
 	u32 crmid = 1, nrmid;
 
@@ -126,8 +126,8 @@ void __check_limbo(struct rdt_domain *d, bool force_free)
 	 * RMID and move it to the free list when the counter reaches 0.
 	 */
 	for (;;) {
-		nrmid = find_next_bit(d->rmid_busy_llc, r->num_rmid, crmid);
-		if (nrmid >= r->num_rmid)
+		nrmid = find_next_bit(d->rmid_busy_llc, rmid_limit, crmid);
+		if (nrmid >= rmid_limit)
 			break;
 
 		entry = __rmid_entry(nrmid);
@@ -144,7 +144,9 @@ void __check_limbo(struct rdt_domain *d, bool force_free)
 
 bool has_busy_rmid(struct rdt_resource *r, struct rdt_domain *d)
 {
-	return find_first_bit(d->rmid_busy_llc, r->num_rmid) != r->num_rmid;
+	u32 rmid_limit = resctrl_arch_system_num_rmid();
+
+	return find_first_bit(d->rmid_busy_llc, rmid_limit) != rmid_limit;
 }
 
 /*
@@ -556,10 +558,10 @@ void mbm_setup_overflow_handler(struct rdt_domain *dom, unsigned long delay_ms)
 
 static int dom_data_init(struct rdt_resource *r)
 {
+	u32 nr_rmids = resctrl_arch_system_num_rmid();
 	struct rmid_entry *entry = NULL;
-	int i, nr_rmids;
+	int i;
 
-	nr_rmids = r->num_rmid;
 	rmid_ptrs = kcalloc(nr_rmids, sizeof(struct rmid_entry), GFP_KERNEL);
 	if (!rmid_ptrs)
 		return -ENOMEM;
@@ -620,10 +622,10 @@ int rdt_get_mon_l3_config(struct rdt_resource *r)
 {
 	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
 	unsigned int cl_size = boot_cpu_data.x86_cache_size;
+	u32 rmid_limit = resctrl_arch_system_num_rmid();
 	int ret;
 
 	hw_res->mon_scale = boot_cpu_data.x86_cache_occ_scale;
-	r->num_rmid = boot_cpu_data.x86_cache_max_rmid + 1;
 
 	/*
 	 * A reasonable upper limit on the max threshold is the number
@@ -632,7 +634,7 @@ int rdt_get_mon_l3_config(struct rdt_resource *r)
 	 *
 	 * For a 35MB LLC and 56 RMIDs, this is ~1.8% of the LLC.
 	 */
-	resctrl_cqm_threshold = cl_size * 1024 / r->num_rmid;
+	resctrl_cqm_threshold = cl_size * 1024 / rmid_limit;
 
 	/* h/w works in units of "boot_cpu_data.x86_cache_occ_scale" */
 	resctrl_cqm_threshold /= hw_res->mon_scale;

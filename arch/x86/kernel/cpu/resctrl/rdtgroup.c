@@ -47,6 +47,8 @@ static struct kernfs_root *rdt_root;
 struct rdtgroup rdtgroup_default;
 LIST_HEAD(rdt_all_groups);
 
+static bool resctrl_cdp_enabled;
+
 /* list of entries for the schemata file */
 LIST_HEAD(resctrl_all_schema);
 
@@ -101,28 +103,28 @@ void rdt_last_cmd_printf(const char *fmt, ...)
  * - Our choices on how to configure each resource become progressively more
  *   limited as the number of resources grows.
  */
-static int closid_free_map;
-static int closid_free_map_len;
+static u32 closid_free_map;
+static u32 closid_free_map_len;
 
-int closids_supported(void)
+u32 closids_supported(void)
 {
 	return closid_free_map_len;
 }
 
 static void closid_init(void)
 {
-	struct rdt_resource *r;
-	int rdt_min_closid = 32;
+	closid_free_map_len = resctrl_arch_system_num_closid();
 
-	/* Compute rdt_min_closid across all resources */
-	for_each_alloc_capable_rdt_resource(r)
-		rdt_min_closid = min(rdt_min_closid, r->num_closid);
+	/* while closid_free_map is a u32 */
+	closid_free_map_len = min(closid_free_map_len, (u32)RESCTRL_MAX_CLOSID);
 
-	closid_free_map = BIT_MASK(rdt_min_closid) - 1;
+	if (resctrl_cdp_enabled)
+		closid_free_map_len /= 2;
+
+	closid_free_map = BIT_MASK(closid_free_map_len) - 1;
 
 	/* CLOSID 0 is always reserved for the default group */
 	closid_free_map &= ~1;
-	closid_free_map_len = rdt_min_closid;
 }
 
 static int closid_alloc(void)
@@ -766,10 +768,11 @@ static int rdt_last_cmd_status_show(struct kernfs_open_file *of,
 static int rdt_num_closids_show(struct kernfs_open_file *of,
 				struct seq_file *seq, void *v)
 {
-	struct resctrl_schema *s = of->kn->parent->priv;
-	struct rdt_resource *r = s->res;
-
-	seq_printf(seq, "%d\n", r->num_closid);
+	/*
+	 * Export closid_free_map_len not the arch's value as we may have
+	 * reduced this for CDP.
+	 */
+	seq_printf(seq, "%d\n", closid_free_map_len);
 	return 0;
 }
 
@@ -918,9 +921,7 @@ static int rdt_min_bw_show(struct kernfs_open_file *of,
 static int rdt_num_rmids_show(struct kernfs_open_file *of,
 			      struct seq_file *seq, void *v)
 {
-	struct rdt_resource *r = of->kn->parent->priv;
-
-	seq_printf(seq, "%d\n", r->num_rmid);
+	seq_printf(seq, "%d\n", resctrl_arch_system_num_rmid());
 
 	return 0;
 }
@@ -1785,15 +1786,8 @@ static int cdp_set_enabled(struct rdt_hw_resource *hw_res, bool enable)
 
 static void cdp_disable_all(void)
 {
-	struct rdt_resource *l2 = &rdt_resources_all[RDT_RESOURCE_L2].resctrl;
-	struct rdt_resource *l3 = &rdt_resources_all[RDT_RESOURCE_L3].resctrl;
-
-	if (l2->cdp_enabled)
-		l2->num_closid *= 2;
-	if (l3->cdp_enabled)
-		l3->num_closid *= 2;
-
 	resctrl_arch_set_cdp_enabled(false);
+	resctrl_cdp_enabled = false;
 }
 
 int resctrl_arch_set_cdp_enabled(bool enable)
@@ -1815,19 +1809,13 @@ static int try_to_enable_cdp(int level)
 {
 	int err;
 	struct rdt_resource *r = resctrl_arch_get_resource(level);
-	struct rdt_resource *l2 = resctrl_arch_get_resource(RDT_RESOURCE_L2);
-	struct rdt_resource *l3 = resctrl_arch_get_resource(RDT_RESOURCE_L3);
 
 	if (!r->cdp_capable)
 		return -EINVAL;
 
 	err = resctrl_arch_set_cdp_enabled(true);
-	if (!err) {
-		if (l2->cdp_enabled)
-			l2->num_closid /= 2;
-		if (l3->cdp_enabled)
-			l3->num_closid /= 2;
-	}
+	if (!err)
+		resctrl_cdp_enabled = true;
 
 	return err;
 }
