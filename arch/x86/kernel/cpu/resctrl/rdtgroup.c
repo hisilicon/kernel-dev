@@ -75,6 +75,12 @@ static struct kernfs_node *kn_mongrp;
 /* Kernel fs node for "mon_data" directory under root */
 static struct kernfs_node *kn_mondata;
 
+/*
+ * Used to store the max resource data width
+ * to display the schemata in a tabular format
+ */
+int max_data_width;
+
 static struct seq_buf last_cmd_status;
 static char last_cmd_status_buf[512];
 
@@ -2052,6 +2058,12 @@ static int add_schema(enum resctrl_conf_type t, struct rdt_resource *r)
 
 	WARN_ON_ONCE(strlen(r->name) + strlen(suffix) + 1 > RESCTRL_NAME_LEN);
 	snprintf(s->name, sizeof(s->name), "%s%s", r->name, suffix);
+
+	/*
+	 * Choose a width for the resource data based on the resource that has
+	 * widest cbm/data_width.
+	 */
+	max_data_width = max(max_data_width, r->data_width);
 
 	INIT_LIST_HEAD(&s->list);
 	list_add(&s->list, &resctrl_all_schema);
