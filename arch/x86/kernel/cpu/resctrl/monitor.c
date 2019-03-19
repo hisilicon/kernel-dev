@@ -82,7 +82,7 @@ static inline struct rmid_entry *__rmid_entry(u32 rmid)
 	return entry;
 }
 
-static u64 __rmid_read(u32 rmid, u32 eventid)
+int resctrl_arch_rmid_read(u32 rmid, enum resctrl_event_id eventid, u64 *res)
 {
 	u64 val;
 
@@ -97,12 +97,22 @@ static u64 __rmid_read(u32 rmid, u32 eventid)
 	wrmsr(MSR_IA32_QM_EVTSEL, eventid, rmid);
 	rdmsrl(MSR_IA32_QM_CTR, val);
 
-	return val;
+	if (val & RMID_VAL_ERROR)
+		return -EIO;
+	if (val & RMID_VAL_UNAVAIL)
+		return -EINVAL;
+
+	*res = val;
+
+	return 0;
 }
 
 static bool rmid_dirty(struct rmid_entry *entry)
 {
-	u64 val = __rmid_read(entry->rmid, QOS_L3_OCCUP_EVENT_ID);
+	u64 val = 0;
+
+	if (resctrl_arch_rmid_read(entry->rmid, QOS_L3_OCCUP_EVENT_ID, &val))
+		return true;
 
 	return val >= resctrl_cqm_threshold;
 }
@@ -174,15 +184,17 @@ static void add_rmid_to_limbo(struct rmid_entry *entry)
 {
 	struct rdt_resource *r = resctrl_arch_get_resource(RDT_RESOURCE_L3);
 	struct rdt_domain *d;
-	int cpu;
-	u64 val;
+	int cpu, ret;
+	u64 val = 0;
 
 	entry->busy = 0;
 	cpu = get_cpu();
 	list_for_each_entry(d, &r->domains, list) {
 		if (cpumask_test_cpu(cpu, &d->cpu_mask)) {
-			val = __rmid_read(entry->rmid, QOS_L3_OCCUP_EVENT_ID);
-			if (val <= resctrl_cqm_threshold)
+			ret = resctrl_arch_rmid_read(entry->rmid,
+						     QOS_L3_OCCUP_EVENT_ID,
+						    &val);
+			if (ret || val <= resctrl_cqm_threshold)
 				continue;
 		}
 
@@ -231,13 +243,12 @@ static u64 mbm_overflow_count(u64 prev_msr, u64 cur_msr)
 static int __mon_event_count(u32 rmid, struct rmid_read *rr)
 {
 	struct mbm_state *m;
-	u64 chunks, tval;
+	u64 chunks, tval = 0;
 
-	tval = __rmid_read(rmid, rr->evtid);
-	if (tval & (RMID_VAL_ERROR | RMID_VAL_UNAVAIL)) {
-		rr->val = tval;
+	rr->err = resctrl_arch_rmid_read(rmid, rr->evtid, &tval);
+	if (rr->err)
 		return -EINVAL;
-	}
+
 	switch (rr->evtid) {
 	case QOS_L3_OCCUP_EVENT_ID:
 		rr->val += tval;
@@ -251,7 +262,7 @@ static int __mon_event_count(u32 rmid, struct rmid_read *rr)
 	default:
 		/*
 		 * Code would never reach here because
-		 * an invalid event id would fail the __rmid_read.
+		 * an invalid event id would fail the resctrl_arch_rmid_read()
 		 */
 		return -EINVAL;
 	}
@@ -279,10 +290,9 @@ static void mbm_bw_count(u32 rmid, struct rmid_read *rr)
 	struct rdt_resource *r = resctrl_arch_get_resource(RDT_RESOURCE_L3);
 	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
 	struct mbm_state *m = &rr->d->mbm_local[rmid];
-	u64 tval, cur_bw, chunks;
+	u64 tval = 0, cur_bw, chunks;
 
-	tval = __rmid_read(rmid, rr->evtid);
-	if (tval & (RMID_VAL_ERROR | RMID_VAL_UNAVAIL))
+	if (resctrl_arch_rmid_read(rmid, rr->evtid, &tval))
 		return;
 
 	chunks = mbm_overflow_count(m->prev_bw_msr, tval);

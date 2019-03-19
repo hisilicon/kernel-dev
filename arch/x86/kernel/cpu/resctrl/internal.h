@@ -22,14 +22,6 @@
 
 #define L2_QOS_CDP_ENABLE		0x01ULL
 
-/*
- * Event IDs are used to program IA32_QM_EVTSEL before reading event
- * counter from IA32_QM_CTR
- */
-#define QOS_L3_OCCUP_EVENT_ID		0x01
-#define QOS_L3_MBM_TOTAL_EVENT_ID	0x02
-#define QOS_L3_MBM_LOCAL_EVENT_ID	0x03
-
 #define CQM_LIMBOCHECK_INTERVAL	1000
 
 #define MBM_CNTR_WIDTH			24
@@ -37,10 +29,6 @@
 #define MAX_MBA_BW			100u
 #define MBA_IS_LINEAR			0x4
 #define MAX_MBA_BW_AMD			0x800
-
-#define RMID_VAL_ERROR			BIT_ULL(63)
-#define RMID_VAL_UNAVAIL		BIT_ULL(62)
-
 
 struct rdt_fs_context {
 	struct kernfs_fs_context	kfc;
@@ -64,7 +52,7 @@ DECLARE_STATIC_KEY_FALSE(rdt_enable_key);
  * @name:		name of the event
  */
 struct mon_evt {
-	u32			evtid;
+	enum resctrl_event_id	evtid;
 	char			*name;
 	struct list_head	list;
 };
@@ -89,6 +77,7 @@ struct rmid_read {
 	struct rdt_domain	*d;
 	int			evtid;
 	bool			first;
+	int			err;
 	u64			val;
 };
 
