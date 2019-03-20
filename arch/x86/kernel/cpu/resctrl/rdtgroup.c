@@ -3247,7 +3247,7 @@ static int resctrl_domain_setup_mon_state(struct rdt_resource *r,
 					  struct rdt_domain *d)
 {
 	size_t tsize;
-	u32 rmid_limit = resctrl_arch_system_num_rmid();
+	u32 rmid_limit = resctrl_arch_num_rmid_idx();
 
 	if (is_llc_occupancy_enabled()) {
 		d->rmid_busy_llc = bitmap_zalloc(rmid_limit, GFP_KERNEL);
