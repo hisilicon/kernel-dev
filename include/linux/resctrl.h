@@ -5,6 +5,7 @@
 #ifndef __LINUX_RESCTRL_H
 #define __LINUX_RESCTRL_H
 
+#include <linux/bug.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/resctrl_types.h>
