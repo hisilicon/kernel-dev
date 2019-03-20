@@ -30,6 +30,7 @@
 #include "internal.h"
 
 struct rmid_entry {
+	hw_closid_t			hw_closid;
 	u32				rmid;
 	int				busy;
 	struct list_head		list;
@@ -73,12 +74,15 @@ unsigned int rdt_mon_features;
  */
 unsigned int resctrl_rmid_realloc_threshold;
 
-static inline struct rmid_entry *__rmid_entry(u32 rmid)
+static inline struct rmid_entry *__rmid_entry(rmid_idx_t idx)
 {
+	rmid_idx_t found_idx;
 	struct rmid_entry *entry;
 
-	entry = &rmid_ptrs[rmid];
-	WARN_ON(entry->rmid != rmid);
+	entry = &rmid_ptrs[idx];
+
+	found_idx = resctrl_arch_rmid_idx_encode(entry->hw_closid, entry->rmid);
+	WARN_ON_ONCE(found_idx != idx);
 
 	return entry;
 }
@@ -127,7 +131,7 @@ static bool rmid_dirty(struct rmid_entry *entry)
  */
 void __check_limbo(struct rdt_domain *d, bool force_free)
 {
-	u32 rmid_limit = resctrl_arch_system_num_rmid();
+	u32 rmid_idx_limit = resctrl_arch_num_rmid_idx();
 	struct rmid_entry *entry;
 	u32 crmid = 1, nrmid;
 
@@ -138,8 +142,8 @@ void __check_limbo(struct rdt_domain *d, bool force_free)
 	 * RMID and move it to the free list when the counter reaches 0.
 	 */
 	for (;;) {
-		nrmid = find_next_bit(d->rmid_busy_llc, rmid_limit, crmid);
-		if (nrmid >= rmid_limit)
+		nrmid = find_next_bit(d->rmid_busy_llc, rmid_idx_limit, crmid);
+		if (nrmid >= rmid_idx_limit)
 			break;
 
 		entry = __rmid_entry(nrmid);
@@ -156,9 +160,9 @@ void __check_limbo(struct rdt_domain *d, bool force_free)
 
 bool has_busy_rmid(struct rdt_resource *r, struct rdt_domain *d)
 {
-	u32 rmid_limit = resctrl_arch_system_num_rmid();
+	u32 idx_limit = resctrl_arch_num_rmid_idx();
 
-	return find_first_bit(d->rmid_busy_llc, rmid_limit) != rmid_limit;
+	return find_first_bit(d->rmid_busy_llc, idx_limit) != idx_limit;
 }
 
 /*
@@ -221,14 +225,16 @@ static void add_rmid_to_limbo(struct rmid_entry *entry)
 
 void free_rmid(u32 rmid)
 {
+	hw_closid_t tmp = {0}; // temporary
 	struct rmid_entry *entry;
+	rmid_idx_t idx = resctrl_arch_rmid_idx_encode(tmp, rmid);
 
 	if (!rmid)
 		return;
 
 	lockdep_assert_held(&rdtgroup_mutex);
 
-	entry = __rmid_entry(rmid);
+	entry = __rmid_entry(idx);
 
 	if (is_llc_occupancy_enabled())
 		add_rmid_to_limbo(entry);
@@ -574,25 +580,26 @@ void mbm_setup_overflow_handler(struct rdt_domain *dom, unsigned long delay_ms,
 
 static int dom_data_init(struct rdt_resource *r)
 {
-	u32 nr_rmids = resctrl_arch_system_num_rmid();
+	u32 nr_rmid_idxs = resctrl_arch_num_rmid_idx();
 	struct rmid_entry *entry = NULL;
 	int i;
 
-	rmid_ptrs = kcalloc(nr_rmids, sizeof(struct rmid_entry), GFP_KERNEL);
+	rmid_ptrs = kcalloc(nr_rmid_idxs, sizeof(struct rmid_entry),
+			    GFP_KERNEL);
 	if (!rmid_ptrs)
 		return -ENOMEM;
 
-	for (i = 0; i < nr_rmids; i++) {
+	for (i = 0; i < nr_rmid_idxs; i++) {
 		entry = &rmid_ptrs[i];
 		INIT_LIST_HEAD(&entry->list);
 
-		entry->rmid = i;
+		resctrl_arch_rmid_idx_decode(i, &entry->hw_closid, &entry->rmid);
 		list_add_tail(&entry->list, &rmid_free_lru);
 	}
 
 	/*
-	 * RMID 0 is special and is always allocated. It's used for all
-	 * tasks that are not monitored.
+	 * CLOSID 0 RMID 0 is special and is always allocated. It's used for
+	 * all tasks that are not monitored.
 	 */
 	entry = __rmid_entry(0);
 	list_del(&entry->list);

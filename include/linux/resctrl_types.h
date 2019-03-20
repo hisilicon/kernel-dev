@@ -34,4 +34,13 @@ enum resctrl_resource_level {
 	RDT_NUM_RESOURCES,
 };
 
+/*
+ * RDT's events count based on rmid, a value independent from closid.
+ * MPAM's monitors match based on partid and optionally pmg, they are not
+ * independent numbers.
+ * To make resctrl work independtly of this, we deal with 'rmid_idx' which
+ * encodes the closid/partid and rmid/pmg.
+ */
+typedef u32 rmid_idx_t;
+
 #endif /* __LINUX_RESCTRL_TYPES_H */
