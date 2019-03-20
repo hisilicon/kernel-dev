@@ -189,7 +189,8 @@ int resctrl_arch_update_one(struct rdt_resource *r, struct rdt_domain *d,
 void resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
 			     hw_closid_t hw_closid, u32 *value);
 
-int resctrl_arch_rmid_read(u32 rmid, enum resctrl_event_id eventid, u64 *res);
+int resctrl_arch_rmid_read(hw_closid_t hw_closid, u32 rmid,
+			   enum resctrl_event_id eventid, u64 *res);
 
 /* Enable/Disable CDP on all applicable resources */
 int resctrl_arch_set_cdp_enabled(bool enable);
