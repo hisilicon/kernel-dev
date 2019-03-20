@@ -8,6 +8,7 @@
 #include <linux/jump_label.h>
 #include <linux/percpu.h>
 #include <linux/sched.h>
+#include <linux/resctrl_types.h>
 
 #include <asm/processor.h>
 
@@ -157,6 +158,27 @@ static inline void resctrl_arch_set_cpu_default_closid(int cpu,
 static inline void resctrl_arch_set_cpu_default_rmid(int cpu, u32 rmid)
 {
 	per_cpu(pqr_state.default_rmid, cpu) = rmid;
+}
+
+static inline rmid_idx_t resctrl_arch_rmid_idx_encode(hw_closid_t closid,
+						      u32 rmid)
+{
+	/* On x86, the closid is not relevant to the rmid space */
+	return rmid;
+}
+
+static inline void resctrl_arch_rmid_idx_decode(rmid_idx_t idx,
+						hw_closid_t *closid,
+						u32 *rmid)
+{
+	*closid = as_hwclosid_t(0);
+	*rmid = idx;
+}
+
+static inline rmid_idx_t resctrl_arch_num_rmid_idx(void)
+{
+	/* On x86, rmid is the rmid_idx */
+	return resctrl_arch_system_num_rmid();
 }
 
 #endif /* _ASM_RESCTRL_H_ */
