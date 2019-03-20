@@ -2360,10 +2360,12 @@ static void free_all_child_rdtgrp(struct rdtgroup *rdtgrp)
 {
 	struct rdtgroup *sentry, *stmp;
 	struct list_head *head;
+	hw_closid_t hw_closid;
 
 	head = &rdtgrp->mon.crdtgrp_list;
 	list_for_each_entry_safe(sentry, stmp, head, mon.crdtgrp_list) {
-		free_rmid(sentry->mon.rmid);
+		hw_closid = resctrl_closid_cdp_map(sentry->closid, CDP_BOTH);
+		free_rmid(hw_closid, sentry->mon.rmid);
 		list_del(&sentry->mon.crdtgrp_list);
 		kfree(sentry);
 	}
@@ -2375,6 +2377,7 @@ static void free_all_child_rdtgrp(struct rdtgroup *rdtgrp)
 static void rmdir_all_sub(void)
 {
 	struct rdtgroup *rdtgrp, *tmp;
+	hw_closid_t hw_closid;
 
 	/* Move all tasks to the default resource group */
 	rdt_move_group_tasks(NULL, &rdtgroup_default, NULL);
@@ -2399,7 +2402,8 @@ static void rmdir_all_sub(void)
 		cpumask_or(&rdtgroup_default.cpu_mask,
 			   &rdtgroup_default.cpu_mask, &rdtgrp->cpu_mask);
 
-		free_rmid(rdtgrp->mon.rmid);
+		hw_closid = resctrl_closid_cdp_map(rdtgrp->closid, CDP_BOTH);
+		free_rmid(hw_closid, rdtgrp->mon.rmid);
 
 		kernfs_remove(rdtgrp->kn);
 		list_del(&rdtgrp->rdtgroup_list);
@@ -2815,6 +2819,7 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 {
 	struct rdtgroup *prdtgrp, *rdtgrp;
 	struct kernfs_node *kn;
+	hw_closid_t hw_closid;
 	uint files = 0;
 	int ret;
 
@@ -2889,7 +2894,8 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 	}
 
 	if (resctrl_arch_mon_capable()) {
-		ret = alloc_rmid();
+		hw_closid = resctrl_closid_cdp_map(rdtgrp->closid, CDP_BOTH);
+		ret = alloc_rmid(hw_closid);
 		if (ret < 0) {
 			rdt_last_cmd_puts("Out of RMIDs\n");
 			goto out_destroy;
@@ -2910,7 +2916,7 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 	return 0;
 
 out_idfree:
-	free_rmid(rdtgrp->mon.rmid);
+	free_rmid(hw_closid, rdtgrp->mon.rmid);
 out_destroy:
 	kernfs_remove(rdtgrp->kn);
 out_closid_free:
@@ -2925,8 +2931,10 @@ out_unlock:
 
 static void mkdir_rdt_prepare_clean(struct rdtgroup *rgrp)
 {
+	hw_closid_t hw_closid = resctrl_closid_cdp_map(rgrp->closid, CDP_BOTH);
+
 	kernfs_remove(rgrp->kn);
-	free_rmid(rgrp->mon.rmid);
+	free_rmid(hw_closid, rgrp->mon.rmid);
 	kfree(rgrp);
 }
 
@@ -3052,6 +3060,7 @@ static int rdtgroup_rmdir_mon(struct kernfs_node *kn, struct rdtgroup *rdtgrp,
 			      cpumask_var_t tmpmask)
 {
 	struct rdtgroup *prdtgrp = rdtgrp->mon.parent;
+	hw_closid_t hw_closid;
 	int cpu;
 
 	/* Give any tasks back to the parent group */
@@ -3069,7 +3078,8 @@ static int rdtgroup_rmdir_mon(struct kernfs_node *kn, struct rdtgroup *rdtgrp,
 	update_closid_rmid(tmpmask, NULL);
 
 	rdtgrp->flags = RDT_DELETED;
-	free_rmid(rdtgrp->mon.rmid);
+	hw_closid = resctrl_closid_cdp_map(rdtgrp->closid, CDP_BOTH);
+	free_rmid(hw_closid, rdtgrp->mon.rmid);
 
 	/*
 	 * Remove the rdtgrp from the parent ctrl_mon group's list
@@ -3106,6 +3116,7 @@ static int rdtgroup_rmdir_ctrl(struct kernfs_node *kn, struct rdtgroup *rdtgrp,
 			       cpumask_var_t tmpmask)
 {
 	int cpu;
+	hw_closid_t hw_closid;
 
 	/* Give any tasks back to the default group */
 	rdt_move_group_tasks(rdtgrp, &rdtgroup_default, tmpmask);
@@ -3127,8 +3138,9 @@ static int rdtgroup_rmdir_ctrl(struct kernfs_node *kn, struct rdtgroup *rdtgrp,
 	cpumask_or(tmpmask, tmpmask, &rdtgrp->cpu_mask);
 	update_closid_rmid(tmpmask, NULL);
 
+	hw_closid = resctrl_closid_cdp_map(rdtgrp->closid, CDP_BOTH);
+	free_rmid(hw_closid, rdtgrp->mon.rmid);
 	closid_free(rdtgrp->closid);
-	free_rmid(rdtgrp->mon.rmid);
 
 	/*
 	 * Free all the child monitor group rmids.

@@ -190,10 +190,9 @@ static struct rmid_entry *resctrl_find_free_rmid(hw_closid_t hw_closid)
  * However we keep track of which packages the RMIDs
  * are used to optimize the limbo list management.
  */
-int alloc_rmid(void)
+int alloc_rmid(hw_closid_t hw_closid)
 {
 	struct rmid_entry *entry;
-	hw_closid_t hw_closid = {0}; // temporary
 
 	lockdep_assert_held(&rdtgroup_mutex);
 
@@ -243,10 +242,9 @@ static void add_rmid_to_limbo(struct rmid_entry *entry)
 		list_add_tail(&entry->list, &rmid_free_lru);
 }
 
-void free_rmid(u32 rmid)
+void free_rmid(hw_closid_t hw_closid, u32 rmid)
 {
 	struct rmid_entry *entry;
-	hw_closid_t hw_closid = {0}; // temporary
 	rmid_idx_t idx = resctrl_arch_rmid_idx_encode(hw_closid, rmid);
 
 	if (!rmid)
