@@ -165,6 +165,26 @@ bool has_busy_rmid(struct rdt_resource *r, struct rdt_domain *d)
 	return find_first_bit(d->rmid_busy_llc, idx_limit) != idx_limit;
 }
 
+static struct rmid_entry *resctrl_find_free_rmid(hw_closid_t hw_closid)
+{
+	rmid_idx_t iter_idx, tgt_idx;
+	struct rmid_entry *iter;
+
+	if (list_empty(&rmid_free_lru))
+		return rmid_limbo_count ? ERR_PTR(-EBUSY) : ERR_PTR(-ENOSPC);
+
+	list_for_each_entry(iter, &rmid_free_lru, list) {
+		iter_idx = resctrl_arch_rmid_idx_encode(iter->hw_closid,
+							iter->rmid);
+		tgt_idx = resctrl_arch_rmid_idx_encode(hw_closid, iter->rmid);
+
+		if (iter_idx == tgt_idx)
+			return iter;
+	}
+
+	return ERR_PTR(-ENOSPC);
+}
+
 /*
  * As of now the RMIDs allocation is global.
  * However we keep track of which packages the RMIDs
@@ -173,17 +193,17 @@ bool has_busy_rmid(struct rdt_resource *r, struct rdt_domain *d)
 int alloc_rmid(void)
 {
 	struct rmid_entry *entry;
+	hw_closid_t hw_closid = {0}; // temporary
 
 	lockdep_assert_held(&rdtgroup_mutex);
 
-	if (list_empty(&rmid_free_lru))
-		return rmid_limbo_count ? -EBUSY : -ENOSPC;
+	entry = resctrl_find_free_rmid(hw_closid);
+	if (!IS_ERR(entry)) {
+		list_del(&entry->list);
+		return entry->rmid;
+	}
 
-	entry = list_first_entry(&rmid_free_lru,
-				 struct rmid_entry, list);
-	list_del(&entry->list);
-
-	return entry->rmid;
+	return PTR_ERR(entry);
 }
 
 static void add_rmid_to_limbo(struct rmid_entry *entry)
@@ -225,9 +245,9 @@ static void add_rmid_to_limbo(struct rmid_entry *entry)
 
 void free_rmid(u32 rmid)
 {
-	hw_closid_t tmp = {0}; // temporary
 	struct rmid_entry *entry;
-	rmid_idx_t idx = resctrl_arch_rmid_idx_encode(tmp, rmid);
+	hw_closid_t hw_closid = {0}; // temporary
+	rmid_idx_t idx = resctrl_arch_rmid_idx_encode(hw_closid, rmid);
 
 	if (!rmid)
 		return;
