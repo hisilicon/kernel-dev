@@ -183,4 +183,8 @@ static inline rmid_idx_t resctrl_arch_num_rmid_idx(void)
 	return resctrl_arch_system_num_rmid();
 }
 
+bool resctrl_arch_is_llc_occupancy_enabled(void);
+bool resctrl_arch_is_mbm_total_enabled(void);
+bool resctrl_arch_is_mbm_local_enabled(void);
+
 #endif /* _ASM_RESCTRL_H_ */
