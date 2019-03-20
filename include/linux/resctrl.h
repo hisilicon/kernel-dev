@@ -204,6 +204,12 @@ struct resctrl_cpu_sync
 
 void resctrl_arch_update_cpu_defaults(void *info);
 
+static inline bool resctrl_is_mbm_enabled(void)
+{
+	return (resctrl_arch_is_mbm_total_enabled() ||
+		resctrl_arch_is_mbm_local_enabled());
+}
+
 /**
  * @list:	Member of resctrl's schema list
  * @name:	Name visible in the schemata file
