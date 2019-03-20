@@ -219,6 +219,8 @@ struct rdt_resource *resctrl_arch_get_resource(enum resctrl_resource_level l);
 struct rdt_domain *resctrl_arch_find_domain(struct rdt_resource *r, int id);
 int resctrl_arch_update_domains(struct rdt_resource *r);
 
+struct rdt_domain *resctrl_get_domain_from_cpu(int cpu, struct rdt_resource *r);
+
 /*
  * Update the ctrl_val and apply this config right now.
  * Must be called one one of the domains cpus.
