@@ -1265,7 +1265,8 @@ static ssize_t rdtgroup_mode_write(struct kernfs_open_file *of,
 				goto out;
 		}
 		rdtgrp->mode = RDT_MODE_EXCLUSIVE;
-	} else if (!strcmp(buf, "pseudo-locksetup")) {
+	} else if (IS_ENABLED(RESCTRL_FS_PSEUDO_LOCK) &&
+		   !strcmp(buf, "pseudo-locksetup")) {
 		ret = rdtgroup_locksetup_enter(rdtgrp);
 		if (ret)
 			goto out;
@@ -2171,9 +2172,11 @@ static int rdt_get_tree(struct fs_context *fc)
 		rdtgroup_default.mon.mon_data_kn = kn_mondata;
 	}
 
-	ret = rdt_pseudo_lock_init();
-	if (ret)
-		goto out_mondata;
+	if (IS_ENABLED(RESCTRL_FS_PSEUDO_LOCK)) {
+		ret = rdt_pseudo_lock_init();
+		if (ret)
+			goto out_mondata;
+	}
 
 	ret = kernfs_get_tree(fc);
 	if (ret < 0)
@@ -2195,7 +2198,8 @@ static int rdt_get_tree(struct fs_context *fc)
 	goto out;
 
 out_psl:
-	rdt_pseudo_lock_release();
+	if (IS_ENABLED(RESCTRL_FS_PSEUDO_LOCK))
+		rdt_pseudo_lock_release();
 out_mondata:
 	if (resctrl_arch_mon_capable())
 		kernfs_remove(kn_mondata);
@@ -2459,7 +2463,8 @@ static void rdt_kill_sb(struct super_block *sb)
 
 	cdp_disable_all();
 	rmdir_all_sub();
-	rdt_pseudo_lock_release();
+	if (IS_ENABLED(CONFIG_RESCTRL_FS_PSEUDO_LOCK))
+		rdt_pseudo_lock_release();
 	rdtgroup_default.mode = RDT_MODE_SHAREABLE;
 	destroy_schemata_list();
 	resctrl_arch_disable_alloc();
