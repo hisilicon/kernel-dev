@@ -652,6 +652,7 @@ out:
 int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 {
 	int ret;
+	hw_closid_t hw_closid;
 	struct rdt_resource *l2 = resctrl_arch_get_resource(RDT_RESOURCE_L2);
 	struct rdt_resource *l3 = resctrl_arch_get_resource(RDT_RESOURCE_L3);
 
@@ -737,7 +738,8 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 	 * anymore when this group would be used for pseudo-locking. This
 	 * is safe to call on platforms not capable of monitoring.
 	 */
-	free_rmid(rdtgrp->mon.rmid);
+	hw_closid = resctrl_closid_cdp_map(rdtgrp->closid, CDP_BOTH);
+	free_rmid(hw_closid, rdtgrp->mon.rmid);
 
 	ret = 0;
 	goto out;
@@ -760,9 +762,11 @@ out:
 int rdtgroup_locksetup_exit(struct rdtgroup *rdtgrp)
 {
 	int ret;
+	hw_closid_t hw_closid;
 
+	hw_closid = resctrl_closid_cdp_map(rdtgrp->closid, CDP_BOTH);
 	if (resctrl_arch_mon_capable()) {
-		ret = alloc_rmid();
+		ret = alloc_rmid(hw_closid);
 		if (ret < 0) {
 			rdt_last_cmd_puts("Out of RMIDs\n");
 			return ret;
@@ -772,7 +776,7 @@ int rdtgroup_locksetup_exit(struct rdtgroup *rdtgrp)
 
 	ret = rdtgroup_locksetup_user_restore(rdtgrp);
 	if (ret) {
-		free_rmid(rdtgrp->mon.rmid);
+		free_rmid(hw_closid, rdtgrp->mon.rmid);
 		return ret;
 	}
 
