@@ -2844,6 +2844,18 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 	*r = rdtgrp;
 	rdtgrp->mon.parent = prdtgrp;
 	rdtgrp->type = rtype;
+
+	/* allocate the closid. */
+	if (rtype == RDTCTRL_GROUP) {
+		ret = closid_alloc();
+		if (ret < 0) {
+			rdt_last_cmd_puts("Out of CLOSIDs\n");
+			goto out_free_rgrp;
+		}
+		rdtgrp->closid = ret;
+	} else {
+		rdtgrp->closid = prdtgrp->closid;
+	}
 	INIT_LIST_HEAD(&rdtgrp->mon.crdtgrp_list);
 
 	/* kernfs creates the directory for rdtgrp */
@@ -2851,7 +2863,7 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 	if (IS_ERR(kn)) {
 		ret = PTR_ERR(kn);
 		rdt_last_cmd_puts("kernfs create error\n");
-		goto out_free_rgrp;
+		goto out_closid_free;
 	}
 	rdtgrp->kn = kn;
 
@@ -2901,6 +2913,9 @@ out_idfree:
 	free_rmid(rdtgrp->mon.rmid);
 out_destroy:
 	kernfs_remove(rdtgrp->kn);
+out_closid_free:
+	if (rtype == RDTCTRL_GROUP)
+		closid_free(rdtgrp->closid);
 out_free_rgrp:
 	kfree(rdtgrp);
 out_unlock:
@@ -2934,7 +2949,6 @@ static int rdtgroup_mkdir_mon(struct kernfs_node *parent_kn,
 		return ret;
 
 	prgrp = rdtgrp->mon.parent;
-	rdtgrp->closid = prgrp->closid;
 
 	/*
 	 * Add the rdtgrp to the list of rdtgrps the parent
@@ -2956,7 +2970,6 @@ static int rdtgroup_mkdir_ctrl_mon(struct kernfs_node *parent_kn,
 {
 	struct rdtgroup *rdtgrp;
 	struct kernfs_node *kn;
-	u32 closid;
 	int ret;
 
 	ret = mkdir_rdt_prepare(parent_kn, prgrp_kn, name, mode, RDTCTRL_GROUP,
@@ -2965,18 +2978,9 @@ static int rdtgroup_mkdir_ctrl_mon(struct kernfs_node *parent_kn,
 		return ret;
 
 	kn = rdtgrp->kn;
-	ret = closid_alloc();
-	if (ret < 0) {
-		rdt_last_cmd_puts("Out of CLOSIDs\n");
-		goto out_common_fail;
-	}
-	closid = ret;
-	ret = 0;
-
-	rdtgrp->closid = closid;
 	ret = rdtgroup_init_alloc(rdtgrp);
 	if (ret < 0)
-		goto out_id_free;
+		goto out_common_fail;
 
 	list_add(&rdtgrp->rdtgroup_list, &rdt_all_groups);
 
@@ -2996,8 +3000,6 @@ static int rdtgroup_mkdir_ctrl_mon(struct kernfs_node *parent_kn,
 
 out_del_list:
 	list_del(&rdtgrp->rdtgroup_list);
-out_id_free:
-	closid_free(closid);
 out_common_fail:
 	mkdir_rdt_prepare_clean(rdtgrp);
 out_unlock:
