@@ -988,7 +988,7 @@ struct task_struct {
 	/* cg_list protected by css_set_lock and tsk->alloc_lock: */
 	struct list_head		cg_list;
 #endif
-#ifdef CONFIG_X86_CPU_RESCTRL
+#ifdef CONFIG_ARCH_HAS_CPU_RESCTRL
 	u32				closid;
 	u32				rmid;
 #endif
