@@ -87,7 +87,8 @@ static inline struct rmid_entry *__rmid_entry(rmid_idx_t idx)
 	return entry;
 }
 
-int resctrl_arch_rmid_read(u32 rmid, enum resctrl_event_id eventid, u64 *res)
+int resctrl_arch_rmid_read(hw_closid_t closid, u32 rmid,
+			   enum resctrl_event_id eventid, u64 *res)
 {
 	u64 val;
 
@@ -117,7 +118,7 @@ static bool rmid_dirty(struct rmid_entry *entry)
 {
 	u64 val = 0;
 
-	if (resctrl_arch_rmid_read(entry->rmid, QOS_L3_OCCUP_EVENT_ID, &val))
+	if (resctrl_arch_rmid_read(entry->hw_closid, entry->rmid, QOS_L3_OCCUP_EVENT_ID, &val))
 		return true;
 
 	return val >= resctrl_rmid_realloc_threshold;
@@ -218,7 +219,8 @@ static void add_rmid_to_limbo(struct rmid_entry *entry)
 	cpu = get_cpu();
 	list_for_each_entry(d, &r->domains, list) {
 		if (cpumask_test_cpu(cpu, &d->cpu_mask)) {
-			ret = resctrl_arch_rmid_read(entry->rmid,
+			ret = resctrl_arch_rmid_read(entry->hw_closid,
+						     entry->rmid,
 						     QOS_L3_OCCUP_EVENT_ID,
 						    &val);
 			if (ret || val <= resctrl_rmid_realloc_threshold)
@@ -262,10 +264,12 @@ void free_rmid(hw_closid_t hw_closid, u32 rmid)
 
 static int __mon_event_count(u32 rmid, struct rmid_read *rr)
 {
+	hw_closid_t hw_closid;
 	struct mbm_state *m;
 	u64 tval = 0;
 
-	rr->err = resctrl_arch_rmid_read(rmid, rr->evtid, &tval);
+	hw_closid = resctrl_closid_cdp_map(rr->rgrp->closid, CDP_BOTH);
+	rr->err = resctrl_arch_rmid_read(hw_closid, rmid, rr->evtid, &tval);
 	if (rr->err)
 		return -EINVAL;
 
@@ -308,8 +312,10 @@ static void mbm_bw_count(u32 rmid, struct rmid_read *rr)
 {
 	struct mbm_state *m = &rr->d->mbm_local[rmid];
 	u64 tval = 0, cur_bw, chunks;
+	hw_closid_t hw_closid;
 
-	if (resctrl_arch_rmid_read(rmid, rr->evtid, &tval))
+	hw_closid = resctrl_closid_cdp_map(rr->rgrp->closid, CDP_BOTH);
+	if (resctrl_arch_rmid_read(hw_closid, rmid, rr->evtid, &tval))
 		return;
 
 	chunks = tval - m->prev_bw_msr;
@@ -465,12 +471,15 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 	}
 }
 
-static void mbm_update(struct rdt_domain *d, int rmid)
+static void mbm_update(struct rdt_domain *d, struct rdtgroup *prgrp, int rmid)
 {
 	struct rmid_read rr;
 
 	rr.first = false;
 	rr.d = d;
+
+	/* The parent control group is used to find closid. */
+	rr.rgrp = prgrp;
 
 	/*
 	 * This is protected from concurrent reads from user
@@ -556,11 +565,11 @@ void mbm_handle_overflow(struct work_struct *work)
 	d = container_of(work, struct rdt_domain, mbm_over.work);
 
 	list_for_each_entry(prgrp, &rdt_all_groups, rdtgroup_list) {
-		mbm_update(d, prgrp->mon.rmid);
+		mbm_update(d, prgrp, prgrp->mon.rmid);
 
 		head = &prgrp->mon.crdtgrp_list;
 		list_for_each_entry(crgrp, head, mon.crdtgrp_list)
-			mbm_update(d, crgrp->mon.rmid);
+			mbm_update(d, prgrp, crgrp->mon.rmid);
 
 		if (is_mba_sc(NULL))
 			update_mba_bw(prgrp, d);
