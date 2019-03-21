@@ -92,6 +92,8 @@
 #define HCR_HOST_NVHE_FLAGS (HCR_RW | HCR_API | HCR_APK)
 #define HCR_HOST_VHE_FLAGS (HCR_RW | HCR_TGE | HCR_E2H)
 
+#define MPAMHCR_HOST_FLAGS	0
+
 /* TCR_EL2 Registers bits */
 #define TCR_EL2_RES1		((1 << 31) | (1 << 23))
 #define TCR_EL2_TBI		(1 << 20)

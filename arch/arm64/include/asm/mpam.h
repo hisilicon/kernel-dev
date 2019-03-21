@@ -110,8 +110,17 @@ static inline void _mpam_thread_switch(struct task_struct *next)
 		write_sysreg_s(new_regval, SYS_MPAM0_EL1);
 	}
 }
+
+static inline u64 _mpam_get_current_regval(void)
+{
+	struct mpam_cpu_state *local_state = this_cpu_ptr(&mpam_cpu_state);
+
+	return local_state->current_regval;
+}
+
 #else
 static inline void _mpam_thread_switch(struct task_struct *next) { }
+static inline u64 _mpam_get_current_regval(void) { return 0; }
 #endif /* CONFIG_ARCH_HAS_CPU_RESCTRL */
 
 #endif /* __ASM__MPAM_H */
