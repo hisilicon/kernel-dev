@@ -506,6 +506,14 @@ static inline bool id_aa64pfr0_sve(u64 pfr0)
 	return val > 0;
 }
 
+static inline bool id_aa64pfr0_mpam(u64 pfr0)
+{
+	u32 val = cpuid_feature_extract_unsigned_field(pfr0,
+						       ID_AA64PFR0_MPAM_SHIFT);
+
+	return val > 0;
+}
+
 void __init setup_cpu_features(void);
 void check_local_cpu_capabilities(void);
 
@@ -615,6 +623,12 @@ static inline bool system_uses_irq_prio_masking(void)
 {
 	return IS_ENABLED(CONFIG_ARM64_PSEUDO_NMI) &&
 	       cpus_have_const_cap(ARM64_HAS_IRQ_PRIO_MASKING);
+}
+
+static inline bool cpus_support_mpam(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_MPAM) &&
+		cpus_have_const_cap(ARM64_MPAM);
 }
 
 #define ARM64_SSBD_UNKNOWN		-1
