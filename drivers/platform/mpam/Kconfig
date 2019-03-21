@@ -2,3 +2,4 @@
 # CPU resources, not containers or cgroups etc.
 config ARM_CPU_RESCTRL
 	bool
+	select RESCTRL_FS

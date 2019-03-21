@@ -448,6 +448,7 @@ int resctrl_arch_update_one(struct rdt_resource *r, struct rdt_domain *d,
 
 static void resource_reset_cfg(struct mpam_resctrl_res *res,
 			       struct mpam_resctrl_dom *dom)
+
 {
 	int i;
 	struct rdt_resource *r = &res->resctrl_res;
@@ -599,4 +600,59 @@ int mpam_resctrl_cpu_offline(unsigned int cpu)
 	}
 
 	return 0;
+}
+
+int mpam_resctrl_rmid_read(u16 closid, u32 rmid, enum resctrl_event_id eventid,
+			   u64 *val)
+{
+	u16 mon_id;
+	int err = -EINVAL, cpu;
+	unsigned long timeout;
+	struct rdt_domain *d;
+	struct mpam_resctrl_res *res;
+	struct mpam_resctrl_dom *dom;
+	struct mpam_component_sync_args mon_cfg;
+
+	lockdep_assert_cpus_held();
+
+	*val = 0;
+	res = mpam_resctrl_events[eventid];
+	if (!res)
+		return -EINVAL;
+
+	/* rmid_read seems to be implicitly for 'this' domain */
+	cpu = get_cpu();
+	d = resctrl_get_domain_from_cpu(cpu, &res->resctrl_res);
+	dom = container_of(d, struct mpam_resctrl_dom, resctrl_dom);
+	put_cpu();
+
+	if (eventid == QOS_L3_OCCUP_EVENT_ID) {
+		err = mpam_alloc_csu_mon(res->class);
+		if (err < 0)
+			return err;
+		mon_id = err;
+
+		mon_cfg.mon = mon_id;
+		mon_cfg.partid = closid;
+		mon_cfg.pmg = rmid;
+		mon_cfg.match_pmg = true;
+
+		timeout = READ_ONCE(jiffies) + (NRDY_TIMEOUT*SEC_CONVERSION);
+		do {
+			if (time_after(READ_ONCE(jiffies), timeout)) {
+				err = -ETIMEDOUT;
+				break;
+			}
+
+			err = mpam_component_configure_mon(dom->comp, &mon_cfg, val);
+			if (err == -EBUSY)
+				cond_resched();
+			else if (err)
+				break;
+		} while (err == -EBUSY);
+
+		mpam_free_csu_mon(res->class, mon_id);
+	}
+
+	return err;
 }
