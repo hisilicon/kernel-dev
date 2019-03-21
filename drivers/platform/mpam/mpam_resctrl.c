@@ -119,7 +119,7 @@ static void mpam_resctrl_pick_event_mbm_total(void)
 	 * to measure bandwidth in a resctrl like way, we need to leave a
 	 * counter running all the time. This is really unlikely.
 	 */
-	num_counters = mpam_resctrl_num_closid() * mpam_resctrl_num_rmid();
+	num_counters = resctrl_arch_num_rmid_idx();
 
 	if (mpam_has_feature(mpam_feat_msmon_mbwu, class->features)) {
 		if (class->num_mbwu_mon >= num_counters) {
@@ -585,3 +585,62 @@ struct rdt_domain *mpam_resctrl_find_domain(struct rdt_resource *r, int id)
 	return &comp->resctrl_domain;
 }
 
+int mpam_resctrl_rmid_read(u16 closid, u32 rmid, enum resctrl_event_id eventid,
+			   u64 *res)
+{
+	u16 mon_id;
+	int err = -EINVAL, cpu;
+	unsigned long timeout;
+	struct rdt_domain *dom;
+	struct mpam_class *class;
+	struct mpam_component *comp;
+	struct mpam_component_cfg_update mon_cfg;
+
+	lockdep_assert_cpus_held();
+
+	*res = 0;
+	class = mpam_resctrl_events[eventid];
+	if ( !class)
+		return -EINVAL;
+
+	/* rmid_read seems to be implicitly for 'this' domain */
+	cpu = get_cpu();
+	dom = resctrl_get_domain_from_cpu(cpu, &class->resctrl_res);
+	comp = container_of(dom, struct mpam_component, resctrl_domain);
+	put_cpu();
+
+	if (eventid == QOS_L3_OCCUP_EVENT_ID) {
+		err = mpam_alloc_csu_mon(class);
+		if (err < 0)
+			return err;
+		mon_id = err;
+
+		mon_cfg.mon = mon_id;
+		mon_cfg.partid = closid;
+		mon_cfg.pmg = rmid;
+		mon_cfg.match_pmg = true;
+		mon_cfg.feat = mpam_feat_msmon_csu;
+
+		err = mpam_component_configure_mon(class, comp, &mon_cfg);
+		if (err) {
+			mpam_free_csu_mon(class, mon_id);
+			return err;
+		}
+
+		timeout = READ_ONCE(jiffies) + (NRDY_TIMEOUT*SEC_CONVERSION);
+		do {
+			if (time_after(READ_ONCE(jiffies), timeout)) {
+				err = -ETIMEDOUT;
+				break;
+			}
+
+			err = mpam_component_read_mon(class, comp, &mon_cfg, res);
+			if (err == -EBUSY)
+				cond_resched();
+		} while (err == -EBUSY);
+
+		mpam_free_csu_mon(class, mon_id);
+	}
+
+	return err;
+}

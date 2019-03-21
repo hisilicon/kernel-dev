@@ -1,6 +1,6 @@
 config RESCTRL_FS
 	bool "CPU Resource Control Filesystem (resctrl)"
-	depends on X86_CPU_RESCTRL
+	depends on ARCH_HAS_CPU_RESCTRL
 	select KERNFS
 	help
 	  Resctrl is a filesystem interface to control allocation and

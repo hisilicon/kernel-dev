@@ -11,6 +11,12 @@
 #include <linux/resctrl.h>
 #include <linux/sizes.h>
 
+/*
+ * how long we will schedule round the monitors waiting for their values to
+ * settle.
+ */
+#define NRDY_TIMEOUT	1	/* second */
+
 /* System wide properties */
 struct mpam_sysprops {
 	u16 max_partid;

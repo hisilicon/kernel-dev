@@ -105,6 +105,9 @@ void mpam_reset_devices(void);
  */
 void mpam_discovery_complete(void);
 
+/* The number of bits needed to encode our maximum pmg */
+u8 mpam_pmg_bits(void);
+
 /* Do we export anything 'alloc_capable' or 'mon_capable' via resctrl? */
 bool mpam_resctrl_alloc_capable(void);
 bool mpam_resctrl_mon_capable(void);
@@ -131,6 +134,7 @@ void mpam_resctrl_get_config(struct rdt_resource *r, struct rdt_domain *d,
 int mpam_resctrl_update_one(struct rdt_resource *r, struct rdt_domain *d,
 			    u16 hw_closid, u32 cfg_val);
 struct rdt_domain *resctrl_arch_find_domain(struct rdt_resource *r, int id);
-
+int mpam_resctrl_rmid_read(u16 hw_closid, u32 rmid,
+			   enum resctrl_event_id eventid, u64 *res);
 
 #endif /* __LINUX_ARM_MPAM_H */
