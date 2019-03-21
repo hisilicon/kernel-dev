@@ -3,3 +3,4 @@
 config ARM_CPU_RESCTRL
 	bool
 	depends on ARM64
+	select RESCTRL_FS

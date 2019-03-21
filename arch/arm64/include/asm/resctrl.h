@@ -115,11 +115,42 @@ static inline void resctrl_arch_set_cpu_default_rmid(int cpu, u32 rmid)
 	mpam_set_default_pmg(cpu, rmid, rmid);
 }
 
+static inline int resctrl_arch_rmid_read(hw_closid_t hw_closid, u32 rmid,
+					 enum resctrl_event_id eventid,
+					 u64 *res)
+{
+	return mpam_resctrl_rmid_read(hwclosid_val(hw_closid), rmid, eventid,
+				      res);
+}
+
+static inline rmid_idx_t resctrl_arch_rmid_idx_encode(hw_closid_t closid,
+						      u32 rmid)
+{
+	u8 shift = mpam_pmg_bits();
+
+	return hwclosid_val(closid)<<shift | rmid;
+}
+
+static inline void resctrl_arch_rmid_idx_decode(rmid_idx_t idx,
+						hw_closid_t *closid, u32 *rmid)
+{
+	u8 shift = mpam_pmg_bits();
+
+	*closid = as_hwclosid_t(idx >> shift);
+	*rmid = (idx & ~(shift - 1));
+}
+
+static inline rmid_idx_t resctrl_arch_num_rmid_idx(void)
+{
+	u8 shift = mpam_pmg_bits();
+
+	return mpam_resctrl_num_closid()<<shift;
+}
+
 /* cache lockdown works differently on arm */
 static inline u64 resctrl_arch_get_prefetch_disable_bits(void) { return 0; }
 static inline int resctrl_arch_pseudo_lock_fn(void *p) { return -EOPNOTSUPP; }
 static inline int resctrl_arch_measure_cycles_lat_fn(void *p) { return -EOPNOTSUPP; }
 static inline int resctrl_arch_measure_l2_residency(void *p) { return -EOPNOTSUPP; }
 static inline int resctrl_arch_measure_l3_residency(void *p) { return -EOPNOTSUPP; }
-
 #endif /* __ASM_RESCTRL_H__ */
