@@ -18,6 +18,7 @@
 #include <asm/kvm_arm.h>
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmio.h>
+#include <asm/mpam_hwdef.h>
 #include <asm/ptrace.h>
 #include <asm/cputype.h>
 #include <asm/virt.h>
@@ -472,6 +473,13 @@ static inline void __hyp_text __kvm_skip_instr(struct kvm_vcpu *vcpu)
 
 	write_sysreg_el2(vcpu->arch.ctxt.gp_regs.regs.pstate, SYS_SPSR);
 	write_sysreg_el2(*vcpu_pc(vcpu), SYS_ELR);
+}
+
+static inline u64 vcpu_get_mpam_hcr(struct kvm_vcpu *vcpu)
+{
+	u64 val = BIT(MPAMHCR_TRAP_MPAMIDR);
+
+	return val;
 }
 
 #endif /* __ARM64_KVM_EMULATE_H__ */
