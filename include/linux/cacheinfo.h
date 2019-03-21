@@ -120,7 +120,7 @@ int acpi_find_last_cache_level(unsigned int cpu);
 const struct attribute_group *cache_get_priv_group(struct cacheinfo *this_leaf);
 
 /* Get the id of a particular cache on @cpu. cpuhp lock must held. */
-static inline int get_cpu_cacheinfo_id(int cpu, int level)
+static inline struct cacheinfo *get_cpu_cache_leaf(int cpu, int level)
 {
 	struct cpu_cacheinfo *ci = get_cpu_cacheinfo(cpu);
 	int i;
@@ -128,12 +128,19 @@ static inline int get_cpu_cacheinfo_id(int cpu, int level)
 	for (i = 0; i < ci->num_leaves; i++) {
 		if ((ci->info_list[i].type == CACHE_TYPE_UNIFIED) &&
 		    (ci->info_list[i].level == level)){
-			if (ci->info_list[i].attributes & CACHE_ID)
-				return ci->info_list[i].id;
-			return -1;
+			return &ci->info_list[i];
 		}
 	}
 
+	return NULL;
+}
+
+static inline int get_cpu_cacheinfo_id(int cpu, int level)
+{
+	struct cacheinfo *leaf = get_cpu_cache_leaf(cpu, level);
+
+	if (leaf && leaf->attributes & CACHE_ID)
+		return leaf->id;
 	return -1;
 }
 
