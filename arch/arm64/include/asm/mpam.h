@@ -4,6 +4,7 @@
 #ifndef __ASM__MPAM_H
 #define __ASM__MPAM_H
 
+#include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/jump_label.h>
 #include <linux/percpu.h>
@@ -29,6 +30,16 @@ static inline bool system_supports_mpam(void)
 		return static_branch_unlikely(&arm64_system_has_mpam);
 
 	return false;
+}
+
+
+/* Enable system wide support */
+static inline void __enable_system_mpam_cpuslocked(void)
+{
+	lockdep_assert_cpus_held();
+
+	if (IS_ENABLED(CONFIG_ARM64_MPAM))
+		static_branch_enable_cpuslocked(&arm64_system_has_mpam);
 }
 
 /* check whether all CPUs have MPAM support */
@@ -111,6 +122,20 @@ static inline void _mpam_thread_switch(struct task_struct *next)
 	}
 }
 
+static inline void mpam_set_default_partid(int cpu, u16 partid_d, u16 partid_i)
+{
+	u32 val = mpam_partid_to_task(partid_d, partid_i);
+
+	per_cpu(mpam_cpu_state, cpu).default_partid = val;
+}
+
+static inline void mpam_set_default_pmg(int cpu, u8 pmg_d, u8 pmg_i)
+{
+	u32 val = mpam_pmg_to_task(pmg_d, pmg_i);
+
+	per_cpu(mpam_cpu_state, cpu).default_pmg = val;
+}
+
 static inline u64 _mpam_get_current_regval(void)
 {
 	struct mpam_cpu_state *local_state = this_cpu_ptr(&mpam_cpu_state);
@@ -122,5 +147,8 @@ static inline u64 _mpam_get_current_regval(void)
 static inline void _mpam_thread_switch(struct task_struct *next) { }
 static inline u64 _mpam_get_current_regval(void) { return 0; }
 #endif /* CONFIG_ARCH_HAS_CPU_RESCTRL */
+
+u16 mpam_cpu_max_partids(void);
+u16 mpam_cpu_max_pmgs(void);
 
 #endif /* __ASM__MPAM_H */
