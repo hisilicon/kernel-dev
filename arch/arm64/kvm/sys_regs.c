@@ -76,6 +76,31 @@ static bool write_to_read_only(struct kvm_vcpu *vcpu,
 	return false;
 }
 
+#define DO_SYSREGS(macro)			\
+	macro(CSSELR,	1,	1)		\
+	macro(SCTLR,	1,	12)		\
+	macro(ACTLR,	1,	1)		\
+	macro(CPACR,	1,	12)		\
+	macro(TTBR0,	1,	12)		\
+	macro(TTBR1,	1,	12)		\
+	macro(TCR,	1,	12)		\
+	macro(ESR,	1,	12)		\
+	macro(AFSR0,	1,	12)		\
+	macro(AFSR1,	1,	12)		\
+	macro(FAR,	1,	12)		\
+	macro(MAIR,	1,	12)		\
+	macro(VBAR,	1,	12)		\
+	macro(CONTEXTIDR, 1,	12)		\
+	macro(TPIDR,	0,	0)		\
+	macro(TPIDRRO,	0,	0)		\
+	macro(TPIDR,	1,	1)		\
+	macro(AMAIR,	1,	12)		\
+	macro(CNTKCTL,	1,	12)		\
+	macro(PAR,	1,	1)		\
+	macro(DACR32,	2,	2)		\
+	macro(IFSR32,	2,	2)		\
+	macro(DBGVCR32,	2,	2)
+
 u64 vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg)
 {
 	if (!vcpu->arch.sysregs_loaded_on_cpu)
@@ -90,30 +115,12 @@ u64 vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg)
 	 * own MPIDR_EL1 and MPIDR_EL1 is accessed for VCPU A from VCPU B's
 	 * thread when emulating cross-VCPU communication.
 	 */
+#define READ_SYSREG(reg, guest_el, hyp_el)			\
+	case reg##_EL##guest_el:				\
+		return read_sysreg_s(SYS_##reg##_EL##hyp_el);
+
 	switch (reg) {
-	case CSSELR_EL1:	return read_sysreg_s(SYS_CSSELR_EL1);
-	case SCTLR_EL1:		return read_sysreg_s(sctlr_EL12);
-	case ACTLR_EL1:		return read_sysreg_s(SYS_ACTLR_EL1);
-	case CPACR_EL1:		return read_sysreg_s(cpacr_EL12);
-	case TTBR0_EL1:		return read_sysreg_s(ttbr0_EL12);
-	case TTBR1_EL1:		return read_sysreg_s(ttbr1_EL12);
-	case TCR_EL1:		return read_sysreg_s(tcr_EL12);
-	case ESR_EL1:		return read_sysreg_s(esr_EL12);
-	case AFSR0_EL1:		return read_sysreg_s(afsr0_EL12);
-	case AFSR1_EL1:		return read_sysreg_s(afsr1_EL12);
-	case FAR_EL1:		return read_sysreg_s(far_EL12);
-	case MAIR_EL1:		return read_sysreg_s(mair_EL12);
-	case VBAR_EL1:		return read_sysreg_s(vbar_EL12);
-	case CONTEXTIDR_EL1:	return read_sysreg_s(contextidr_EL12);
-	case TPIDR_EL0:		return read_sysreg_s(SYS_TPIDR_EL0);
-	case TPIDRRO_EL0:	return read_sysreg_s(SYS_TPIDRRO_EL0);
-	case TPIDR_EL1:		return read_sysreg_s(SYS_TPIDR_EL1);
-	case AMAIR_EL1:		return read_sysreg_s(amair_EL12);
-	case CNTKCTL_EL1:	return read_sysreg_s(cntkctl_EL12);
-	case PAR_EL1:		return read_sysreg_s(SYS_PAR_EL1);
-	case DACR32_EL2:	return read_sysreg_s(SYS_DACR32_EL2);
-	case IFSR32_EL2:	return read_sysreg_s(SYS_IFSR32_EL2);
-	case DBGVCR32_EL2:	return read_sysreg_s(SYS_DBGVCR32_EL2);
+	DO_SYSREGS(READ_SYSREG)
 	}
 
 immediate_read:
@@ -133,30 +140,13 @@ void vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg)
 	 * should never be listed below, because the the MPIDR should only be
 	 * set once, before running the VCPU, and never changed later.
 	 */
+#define WRITE_SYSREG(reg, guest_el, hyp_el)			\
+	case reg##_EL##guest_el:				\
+		write_sysreg_s(val, SYS_##reg##_EL##hyp_el);	\
+		return;
+
 	switch (reg) {
-	case CSSELR_EL1:	write_sysreg_s(val, SYS_CSSELR_EL1);	return;
-	case SCTLR_EL1:		write_sysreg_s(val, sctlr_EL12);	return;
-	case ACTLR_EL1:		write_sysreg_s(val, SYS_ACTLR_EL1);	return;
-	case CPACR_EL1:		write_sysreg_s(val, cpacr_EL12);	return;
-	case TTBR0_EL1:		write_sysreg_s(val, ttbr0_EL12);	return;
-	case TTBR1_EL1:		write_sysreg_s(val, ttbr1_EL12);	return;
-	case TCR_EL1:		write_sysreg_s(val, tcr_EL12);		return;
-	case ESR_EL1:		write_sysreg_s(val, esr_EL12);		return;
-	case AFSR0_EL1:		write_sysreg_s(val, afsr0_EL12);	return;
-	case AFSR1_EL1:		write_sysreg_s(val, afsr1_EL12);	return;
-	case FAR_EL1:		write_sysreg_s(val, far_EL12);		return;
-	case MAIR_EL1:		write_sysreg_s(val, mair_EL12);		return;
-	case VBAR_EL1:		write_sysreg_s(val, vbar_EL12);		return;
-	case CONTEXTIDR_EL1:	write_sysreg_s(val, contextidr_EL12);	return;
-	case TPIDR_EL0:		write_sysreg_s(val, SYS_TPIDR_EL0);	return;
-	case TPIDRRO_EL0:	write_sysreg_s(val, SYS_TPIDRRO_EL0);	return;
-	case TPIDR_EL1:		write_sysreg_s(val, SYS_TPIDR_EL1);	return;
-	case AMAIR_EL1:		write_sysreg_s(val, amair_EL12);	return;
-	case CNTKCTL_EL1:	write_sysreg_s(val, cntkctl_EL12);	return;
-	case PAR_EL1:		write_sysreg_s(val, SYS_PAR_EL1);	return;
-	case DACR32_EL2:	write_sysreg_s(val, SYS_DACR32_EL2);	return;
-	case IFSR32_EL2:	write_sysreg_s(val, SYS_IFSR32_EL2);	return;
-	case DBGVCR32_EL2:	write_sysreg_s(val, SYS_DBGVCR32_EL2);	return;
+	DO_SYSREGS(WRITE_SYSREG)
 	}
 
 immediate_write:

@@ -138,7 +138,7 @@ static inline unsigned long *__vcpu_elr_el1(const struct kvm_vcpu *vcpu)
 static inline unsigned long vcpu_read_elr_el1(const struct kvm_vcpu *vcpu)
 {
 	if (vcpu->arch.sysregs_loaded_on_cpu)
-		return read_sysreg_el1(elr);
+		return read_sysreg_el1(SYS_ELR);
 	else
 		return *__vcpu_elr_el1(vcpu);
 }
@@ -146,7 +146,7 @@ static inline unsigned long vcpu_read_elr_el1(const struct kvm_vcpu *vcpu)
 static inline void vcpu_write_elr_el1(const struct kvm_vcpu *vcpu, unsigned long v)
 {
 	if (vcpu->arch.sysregs_loaded_on_cpu)
-		write_sysreg_el1(v, elr);
+		write_sysreg_el1(v, SYS_ELR);
 	else
 		*__vcpu_elr_el1(vcpu) = v;
 }
@@ -198,7 +198,7 @@ static inline unsigned long vcpu_read_spsr(const struct kvm_vcpu *vcpu)
 		return vcpu_read_spsr32(vcpu);
 
 	if (vcpu->arch.sysregs_loaded_on_cpu)
-		return read_sysreg_el1(spsr);
+		return read_sysreg_el1(SYS_SPSR);
 	else
 		return vcpu_gp_regs(vcpu)->spsr[KVM_SPSR_EL1];
 }
@@ -211,7 +211,7 @@ static inline void vcpu_write_spsr(struct kvm_vcpu *vcpu, unsigned long v)
 	}
 
 	if (vcpu->arch.sysregs_loaded_on_cpu)
-		write_sysreg_el1(v, spsr);
+		write_sysreg_el1(v, SYS_SPSR);
 	else
 		vcpu_gp_regs(vcpu)->spsr[KVM_SPSR_EL1] = v;
 }
@@ -463,13 +463,13 @@ static inline void kvm_skip_instr(struct kvm_vcpu *vcpu, bool is_wide_instr)
  */
 static inline void __hyp_text __kvm_skip_instr(struct kvm_vcpu *vcpu)
 {
-	*vcpu_pc(vcpu) = read_sysreg_el2(elr);
-	vcpu->arch.ctxt.gp_regs.regs.pstate = read_sysreg_el2(spsr);
+	*vcpu_pc(vcpu) = read_sysreg_el2(SYS_ELR);
+	vcpu->arch.ctxt.gp_regs.regs.pstate = read_sysreg_el2(SYS_SPSR);
 
 	kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
 
-	write_sysreg_el2(vcpu->arch.ctxt.gp_regs.regs.pstate, spsr);
-	write_sysreg_el2(*vcpu_pc(vcpu), elr);
+	write_sysreg_el2(vcpu->arch.ctxt.gp_regs.regs.pstate, SYS_SPSR);
+	write_sysreg_el2(*vcpu_pc(vcpu), SYS_ELR);
 }
 
 static inline u64 vcpu_get_mpam_hcr(struct kvm_vcpu *vcpu)
