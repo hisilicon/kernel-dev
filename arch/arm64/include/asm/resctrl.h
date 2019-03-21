@@ -114,4 +114,12 @@ static inline void resctrl_arch_set_cpu_default_rmid(int cpu, u32 rmid)
 {
 	mpam_set_default_pmg(cpu, rmid, rmid);
 }
+
+/* cache lockdown works differently on arm */
+static inline u64 resctrl_arch_get_prefetch_disable_bits(void) { return 0; }
+static inline int resctrl_arch_pseudo_lock_fn(void *p) { return -EOPNOTSUPP; }
+static inline int resctrl_arch_measure_cycles_lat_fn(void *p) { return -EOPNOTSUPP; }
+static inline int resctrl_arch_measure_l2_residency(void *p) { return -EOPNOTSUPP; }
+static inline int resctrl_arch_measure_l3_residency(void *p) { return -EOPNOTSUPP; }
+
 #endif /* __ASM_RESCTRL_H__ */
