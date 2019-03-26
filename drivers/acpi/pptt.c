@@ -432,17 +432,51 @@ static void cache_setup_acpi_cpu(struct acpi_table_header *table,
 	}
 }
 
+
+typedef bool (*node_check)(struct acpi_table_header *table_hdr,
+			   struct acpi_pptt_processor *cpu);
+static bool flag_package(struct acpi_table_header *table_hdr,
+			 struct acpi_pptt_processor *cpu)
+{
+	return cpu->flags & ACPI_PPTT_PHYSICAL_PACKAGE;
+}
+
+static bool flag_identical(struct acpi_table_header *table_hdr,
+			   struct acpi_pptt_processor *cpu)
+{
+	struct acpi_pptt_processor *next;
+
+	/* heterogeneous machines must use PPTT revision > 1 */
+	if (table_hdr->revision < 2)
+		return false;
+
+	/* Locate the last node in the tree with IDENTICAL set */
+	if (cpu->flags & ACPI_PPTT_ACPI_IDENTICAL) {
+		next = fetch_pptt_node(table_hdr, cpu->parent);
+		if (!(next && next->flags & ACPI_PPTT_ACPI_IDENTICAL))
+			return true;
+	}
+
+	return false;
+}
+
+static bool flag_none(struct acpi_table_header *table_hdr,
+		      struct acpi_pptt_processor *cpu)
+{
+	return false;
+}
+
 /* Passing level values greater than this will result in search termination */
 #define PPTT_ABORT_PACKAGE 0xFF
 
-static struct acpi_pptt_processor *acpi_find_processor_package_id(struct acpi_table_header *table_hdr,
-								  struct acpi_pptt_processor *cpu,
-								  int level, int flag)
+static struct acpi_pptt_processor *acpi_find_processor_tag_id(struct acpi_table_header *table_hdr,
+							      struct acpi_pptt_processor *cpu,
+							      int level, node_check chk)
 {
 	struct acpi_pptt_processor *prev_node;
 
 	while (cpu && level) {
-		if (cpu->flags & flag)
+		if (chk(table_hdr, cpu))
 			break;
 		pr_debug("level %d\n", level);
 		prev_node = fetch_pptt_node(table_hdr, cpu->parent);
@@ -473,15 +507,15 @@ static void acpi_pptt_warn_missing(void)
  * Return: Unique value, or -ENOENT if unable to locate cpu
  */
 static int topology_get_acpi_cpu_tag(struct acpi_table_header *table,
-				     unsigned int cpu, int level, int flag)
+				     unsigned int cpu, int level, node_check chk)
 {
 	struct acpi_pptt_processor *cpu_node;
 	u32 acpi_cpu_id = get_acpi_id_for_cpu(cpu);
 
 	cpu_node = acpi_find_processor_node(table, acpi_cpu_id);
 	if (cpu_node) {
-		cpu_node = acpi_find_processor_package_id(table, cpu_node,
-							  level, flag);
+		cpu_node = acpi_find_processor_tag_id(table, cpu_node,
+							  level, chk);
 		/*
 		 * As per specification if the processor structure represents
 		 * an actual processor, then ACPI processor ID must be valid.
@@ -498,7 +532,7 @@ static int topology_get_acpi_cpu_tag(struct acpi_table_header *table,
 	return -ENOENT;
 }
 
-static int find_acpi_cpu_topology_tag(unsigned int cpu, int level, int flag)
+static int find_acpi_cpu_topology_tag(unsigned int cpu, int level, node_check chk)
 {
 	struct acpi_table_header *table;
 	acpi_status status;
@@ -509,7 +543,7 @@ static int find_acpi_cpu_topology_tag(unsigned int cpu, int level, int flag)
 		acpi_pptt_warn_missing();
 		return -ENOENT;
 	}
-	retval = topology_get_acpi_cpu_tag(table, cpu, level, flag);
+	retval = topology_get_acpi_cpu_tag(table, cpu, level, chk);
 	pr_debug("Topology Setup ACPI cpu %d, level %d ret = %d\n",
 		 cpu, level, retval);
 	acpi_put_table(table);
@@ -601,7 +635,7 @@ int cache_setup_acpi(unsigned int cpu)
  */
 int find_acpi_cpu_topology(unsigned int cpu, int level)
 {
-	return find_acpi_cpu_topology_tag(cpu, level, 0);
+	return find_acpi_cpu_topology_tag(cpu, level, flag_none);
 }
 
 /**
@@ -658,7 +692,7 @@ int find_acpi_cpu_cache_topology(unsigned int cpu, int level)
 int find_acpi_cpu_topology_package(unsigned int cpu)
 {
 	return find_acpi_cpu_topology_tag(cpu, PPTT_ABORT_PACKAGE,
-					  ACPI_PPTT_PHYSICAL_PACKAGE);
+					  flag_package);
 }
 
 /**
@@ -674,8 +708,8 @@ int find_acpi_cpu_topology_package(unsigned int cpu)
  *
  * The returned ID can be used to group peers with identical implementation.
  *
- * The search terminates when a level is found with the identical implementation
- * flag set or we reach a root node.
+ * The search terminates when a level is found without the identical
+ * implementation flag set following a node with it set, or we reach the root.
  *
  * Return: -ENOENT if the PPTT doesn't exist, or the cpu cannot be found.
  * Otherwise returns a value which represents a group of identical cores
@@ -684,5 +718,5 @@ int find_acpi_cpu_topology_package(unsigned int cpu)
 int find_acpi_cpu_topology_hetero_id(unsigned int cpu)
 {
 	return find_acpi_cpu_topology_tag(cpu, PPTT_ABORT_PACKAGE,
-					  ACPI_PPTT_ACPI_IDENTICAL);
+					  flag_identical);
 }
