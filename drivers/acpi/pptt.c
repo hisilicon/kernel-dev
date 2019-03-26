@@ -660,3 +660,29 @@ int find_acpi_cpu_topology_package(unsigned int cpu)
 	return find_acpi_cpu_topology_tag(cpu, PPTT_ABORT_PACKAGE,
 					  ACPI_PPTT_PHYSICAL_PACKAGE);
 }
+
+/**
+ * find_acpi_cpu_topology_hetero_id() - Determine a unique implementation
+ * @cpu: Kernel logical cpu number
+ *
+ * Determine a unique heterogeneous ID for the given CPU. CPUs with the same
+ * implementation should have matching IDs. Since this is a tree we can only
+ * detect implementations where the heterogeneous flag is the parent to all
+ * matching cores. AKA if a two socket machine has two different core types
+ * in each socket this will end up being represented as four unique core types
+ * rather than two.
+ *
+ * The returned ID can be used to group peers with identical implementation.
+ *
+ * The search terminates when a level is found with the identical implementation
+ * flag set or we reach a root node.
+ *
+ * Return: -ENOENT if the PPTT doesn't exist, or the cpu cannot be found.
+ * Otherwise returns a value which represents a group of identical cores
+ * similar to this cpu.
+ */
+int find_acpi_cpu_topology_hetero_id(unsigned int cpu)
+{
+	return find_acpi_cpu_topology_tag(cpu, PPTT_ABORT_PACKAGE,
+					  ACPI_PPTT_ACPI_IDENTICAL);
+}
