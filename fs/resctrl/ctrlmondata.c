@@ -511,3 +511,40 @@ out:
 	rdtgroup_kn_unlock(of->kn);
 	return ret;
 }
+
+/*
+ * As the architecure has to provide resctrl_arch_update_one(), we can use it
+ * to implement a __weak, cross-call heavy, version of
+ * resctrl_arch_update_domains().
+ *
+ * Apply the staged configurations one domain at a time with
+ * resctrl_arch_update_one()
+ */
+int __weak resctrl_arch_update_domains(struct rdt_resource *r)
+{
+	int i, err = 0;
+	struct rdt_domain *d;
+	struct resctrl_staged_config *resctrl_cfg;
+
+	lockdep_assert_cpus_held();
+
+	list_for_each_entry(d, &r->domains, list) {
+		for (i = 0; i < ARRAY_SIZE(d->staged_config); i++) {
+			resctrl_cfg = &d->staged_config[i];
+			if (!resctrl_cfg->have_new_ctrl)
+				continue;
+
+			err = resctrl_arch_update_one(r, d,
+						      resctrl_cfg->hw_closid,
+						      resctrl_cfg->new_ctrl);
+			if (err)
+				break;
+
+			resctrl_cfg->have_new_ctrl = false;
+		}
+		if (err)
+			break;
+	}
+
+	return err;
+}
