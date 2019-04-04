@@ -1,0 +1,38 @@
+MPAM branch snapshot: v5.1+
+
+This snapshot exists to give the full context for any x86 resctrl changes.
+
+MPAM spec:
+https://developer.arm.com/docs/ddi0598/latest
+
+
+KNOWN ISSUES:
+* The ACPI table has an alpha status, and the definition of PPTT has changed
+  in the meantime. All the table parsing code needs to be re-written once there
+  is a new version of the spec.
+
+* This branch has only been tested on the FVP model, which doesn't do anything
+  with the MPAM configuration values. Testing focussed on cpuhp and lockdep.
+
+* MB: This doesn't probe succesfully on the model, and I haven't found any
+  x86 hardware that has the feature, so that code has never run.
+
+* NULL pointer dereference in __rdtgroup_cbm_overlaps() somewhere around
+  "x86/resctrl: Stop rdt_cdp_peer_get() referencing CODE/DATA enums directly".
+  Unable to reproduce.
+
+* Double list_add() in __check_limbo() on
+  "x86/resctrl: Remove the CODE/DATA illusionary caches". Haven't spotted
+  it yet.
+
+ * The model doesn't suport the performance-counters, so the monitor code has
+   never run. resctrl calls the arch code via IPI, but MPAM's NRDY bit means
+   we have to be able to sleep in there. This is currently known-broken.
+
+ * Exclusive reservations don't work as they overlap with devices.
+   This in turn is because we don't have GIC/SMMU support yet, and these
+   will continue to use partid=0.
+
+ * partid=0 should be reserved for the unknown hardware, but we let user-space
+   play with it. This also affects the kernel, which is not (currently) the
+   intention.
