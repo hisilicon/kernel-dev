@@ -546,20 +546,23 @@ static int uacce_fops_open(struct inode *inode, struct file *filep)
 	if (!uacce->ops->get_queue)
 		return -EINVAL;
 
+	if (!try_module_get(uacce->pdev->driver->owner))
+		return -ENODEV;
+
 	ret = uacce_dev_open_check(uacce);
 	if (ret)
-		return ret;
+		goto open_err;
 #ifdef CONFIG_IOMMU_SVA
 	if (uacce->ops->flags & UACCE_DEV_PASID) {
 		ret = iommu_sva_bind_device(uacce->pdev, current->mm, &pasid,
 					    IOMMU_SVA_FEAT_IOPF, NULL);
 		if (ret)
-			return ret;
+			goto open_err;
 	}
 #endif
 	ret = uacce->ops->get_queue(uacce, pasid, &q);
 	if (ret < 0)
-		return ret;
+		goto open_err;
 
 	q->pasid = pasid;
 	q->uacce = uacce;
@@ -570,6 +573,9 @@ static int uacce_fops_open(struct inode *inode, struct file *filep)
 	filep->private_data = q;
 
 	return 0;
+open_err:
+	module_put(uacce->pdev->driver->owner);
+	return ret;
 }
 
 static int uacce_fops_release(struct inode *inode, struct file *filep)
@@ -629,6 +635,7 @@ static int uacce_fops_release(struct inode *inode, struct file *filep)
 
 	dev_dbg(&uacce->dev, "uacce state switch to INIT\n");
 	atomic_set(&uacce->state, UACCE_ST_INIT);
+	module_put(uacce->pdev->driver->owner);
 	return 0;
 }
 
@@ -745,19 +752,19 @@ static int uacce_fops_mmap(struct file *filep, struct vm_area_struct *vma)
 
 		flags = UACCE_QFRF_MAP | UACCE_QFRF_MMAP;
 
-		if(uacce->ops->flags & UACCE_DEV_NOIOMMU)
+		if (uacce->ops->flags & UACCE_DEV_NOIOMMU)
 			flags |= UACCE_QFRF_DMA;
 		break;
 
 	case UACCE_QFRT_DKO:
 		flags = UACCE_QFRF_MAP | UACCE_QFRF_KMAP;
 
-		if(uacce->ops->flags & UACCE_DEV_NOIOMMU)
+		if (uacce->ops->flags & UACCE_DEV_NOIOMMU)
 			flags |= UACCE_QFRF_DMA;
 		break;
 
 	case UACCE_QFRT_DUS:
-		if(q->uacce->ops->flags & UACCE_DEV_DRVMAP_DUS) {
+		if (q->uacce->ops->flags & UACCE_DEV_DRVMAP_DUS) {
 			flags = UACCE_QFRF_SELFMT;
 			break;
 		}
@@ -953,7 +960,7 @@ static int uacce_create_chrdev(struct uacce *uacce)
 	uacce->dev.class = uacce_class;
 	uacce->dev.groups = uacce_dev_attr_groups;
 	uacce->dev.parent = uacce->pdev;
-	dev_set_name(&uacce->dev, "%s-%d",uacce->drv_name, uacce->dev_id);
+	dev_set_name(&uacce->dev, "%s-%d", uacce->drv_name, uacce->dev_id);
 	ret = cdev_device_add(&uacce->cdev, &uacce->dev);
 	if (ret)
 		goto err_with_idr;
