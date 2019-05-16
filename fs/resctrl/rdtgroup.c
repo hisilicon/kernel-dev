@@ -1755,6 +1755,23 @@ static int set_mba_sc(bool mba_sc)
 	return 0;
 }
 
+/*
+ *  If the architecture has nothing to do when toggling CDP, this is all
+ *  resctrl expects to see.
+ */
+int __weak resctrl_arch_set_cdp_enabled(bool enabled)
+{
+	enum resctrl_resource_level i;
+	struct rdt_resource *r;
+
+	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
+		r = resctrl_arch_get_resource(i);
+		if (r->cdp_capable)
+			r->cdp_enabled = enabled;
+	}
+
+	return 0;
+}
 
 static int try_to_enable_cdp(int level)
 {
