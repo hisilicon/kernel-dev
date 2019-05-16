@@ -504,4 +504,11 @@ config EDAC_ASPEED
 	  First, ECC must be configured in the bootloader. Then, this driver
 	  will expose error counters via the EDAC kernel framework.
 
+config EDAC_HISILICON_DDRC
+	tristate "Hisilicon Hip0x DDR3/4 DRAM Controller"
+	depends on ARM64
+	help
+	  Support for error detection and correction of DDRC
+	  on the Hisilicon Hip0x family of SoCs
+
 endif # EDAC

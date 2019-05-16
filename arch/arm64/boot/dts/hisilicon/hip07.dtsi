@@ -998,6 +998,25 @@
 		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	p0_mbigen_peri_a: interrupt-controller@40080000 {
+		compatible = "hisilicon,mbigen-v2";
+		reg = <0x0 0x40080000 0x0 0x10000>;
+
+		p0_mbigen_ddrc0_a: ddrc0_a_intc {
+			msi-parent = <&p0_its_peri_a 0x120ce>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
+		};
+
+		p0_mbigen_ddrc1_a: ddrc1_a_intc {
+			msi-parent = <&p0_its_peri_a 0x121ce>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
+		};
+	};
+
 	p0_mbigen_peri_b: interrupt-controller@60080000 {
 		compatible = "hisilicon,mbigen-v2";
 		reg = <0x0 0x60080000 0x0 0x10000>;
@@ -1007,6 +1026,20 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			num-pins = <1>;
+		};
+
+		p0_mbigen_ddrc0_b: ddrc0_b_intc {
+			msi-parent = <&p0_its_peri_b 0x120ce>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
+		};
+
+		p0_mbigen_ddrc1_b: ddrc1_b_intc {
+			msi-parent = <&p0_its_peri_b 0x121ce>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
 		};
 	};
 
@@ -1149,6 +1182,44 @@
 			num-pins = <3>;
 		};
 	};
+
+        p1_mbigen_peri_a: interrupt-controller@40040080000 {
+                compatible = "hisilicon,mbigen-v2";
+                reg = <0x400 0x40080000 0x0 0x10000>;
+
+                p1_mbigen_ddrc0_a: ddrc0_a_intc {
+                        msi-parent = <&p1_its_peri_a 0x120ce>;
+                        interrupt-controller;
+                        #interrupt-cells = <2>;
+                        num-pins = <3>;
+                };
+
+                p1_mbigen_ddrc1_a: ddrc1_a_intc {
+                        msi-parent = <&p1_its_peri_a 0x121ce>;
+                        interrupt-controller;
+                        #interrupt-cells = <2>;
+                        num-pins = <3>;
+                };
+        };
+
+        p1_mbigen_peri_b: interrupt-controller@40060080000 {
+                compatible = "hisilicon,mbigen-v2";
+                reg = <0x400 0x60080000 0x0 0x10000>;
+
+                p1_mbigen_ddrc0_b: ddrc0_b_intc {
+                        msi-parent = <&p1_its_peri_b 0x120ce>;
+                        interrupt-controller;
+                        #interrupt-cells = <2>;
+                        num-pins = <3>;
+                };
+
+                p1_mbigen_ddrc1_b: ddrc1_b_intc {
+                        msi-parent = <&p1_its_peri_b 0x121ce>;
+                        interrupt-controller;
+                        #interrupt-cells = <2>;
+                        num-pins = <3>;
+                };
+        };
 
 	/**
 	 *  HiSilicon erratum 161010801: This describes the limitation
@@ -1887,5 +1958,76 @@
 				     <607 1>, <608 4>;
 		};
 
+		p0_edacmc@40340000 {
+			compatible = "hisilicon,hip07-edac-ddrc";
+			reg = <0x0 0x40340000 0x0 0x10000>;
+			interrupt-parent = <&p0_mbigen_ddrc0_a>;
+			interrupts =	<814 4>,
+					<815 4>,
+					<816 4>;
+		};
+
+		p0_edacmc@40350000 {
+			compatible = "hisilicon,hip07-edac-ddrc";
+			reg = <0x0 0x40350000 0x0 0x10000>;
+			interrupt-parent = <&p0_mbigen_ddrc1_a>;
+			interrupts =    <817 4>,
+					<818 4>,
+					<819 4>;
+		};
+
+		p0_edacmc@60340000 {
+			compatible = "hisilicon,hip07-edac-ddrc";
+			reg = <0x0 0x60340000 0x0 0x10000>;
+			interrupt-parent = <&p0_mbigen_ddrc0_b>;
+			interrupts =	<814 4>,
+					<815 4>,
+					<816 4>;
+		};
+
+		p0_edacmc@60350000 {
+			compatible = "hisilicon,hip07-edac-ddrc";
+			reg = <0x0 0x60350000 0x0 0x10000>;
+			interrupt-parent = <&p0_mbigen_ddrc1_b>;
+			interrupts =	<817 4>,
+					<818 4>,
+					<819 4>;
+		};
+
+                p1_edacmc@40040340000 {
+                        compatible = "hisilicon,hip07-edac-ddrc";
+                        reg = <0x400 0x40340000 0x0 0x10000>;
+                        interrupt-parent = <&p1_mbigen_ddrc0_a>;
+                        interrupts =    <814 4>,
+                                        <815 4>,
+                                        <816 4>;
+                };
+
+                p1_edacmc@40040350000 {
+                        compatible = "hisilicon,hip07-edac-ddrc";
+                        reg = <0x400 0x40350000 0x0 0x10000>;
+                        interrupt-parent = <&p1_mbigen_ddrc1_a>;
+                        interrupts =    <817 4>,
+                                        <818 4>,
+                                        <819 4>;
+                };
+
+                p1_edacmc@40060340000 {
+                        compatible = "hisilicon,hip07-edac-ddrc";
+                        reg = <0x400 0x60340000 0x0 0x10000>;
+                        interrupt-parent = <&p1_mbigen_ddrc0_b>;
+                        interrupts =    <814 4>,
+                                        <815 4>,
+                                        <816 4>;
+                };
+
+                p1_edacmc@40060350000 {
+                        compatible = "hisilicon,hip07-edac-ddrc";
+                        reg = <0x400 0x60350000 0x0 0x10000>;
+                        interrupt-parent = <&p1_mbigen_ddrc1_b>;
+                        interrupts =    <817 4>,
+                                        <818 4>,
+                                        <819 4>;
+                };
 	};
 };
