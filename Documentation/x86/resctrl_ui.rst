@@ -13,9 +13,11 @@ User Interface for Resource Control feature
 
 Intel refers to this feature as Intel Resource Director Technology(Intel(R) RDT).
 AMD refers to this feature as AMD Platform Quality of Service(AMD QoS).
+ARM refers to thsi feature as Memory Partitioning and Monitoring (MPAM).
 
-This feature is enabled by the CONFIG_X86_CPU_RESCTRL and the x86 /proc/cpuinfo
-flag bits:
+This feature is enabled by the CONFIG_RESCTRL_FS, and its arch-specific
+dependencies.
+On x86 there are also /proc/cpuinfo flag bits:
 
 =============================================	================================
 RDT (Resource Director Technology) Allocation	"rdt_a"
@@ -25,6 +27,10 @@ CQM (Cache QoS Monitoring)			"cqm_llc", "cqm_occup_llc"
 MBM (Memory Bandwidth Monitoring)		"cqm_mbm_total", "cqm_mbm_local"
 MBA (Memory Bandwidth Allocation)		"mba"
 =============================================	================================
+
+To test whether the system supports resctrl, read the registered filesystems:
+
+ # cat /proc/filesystems | grep resctrl
 
 To use the feature mount the file system::
 
@@ -362,8 +368,8 @@ be looked up at "info/MB/bandwidth_gran". The available bandwidth
 control steps are: min_bw + N * bw_gran. Intermediate values are rounded
 to the next control step available on the hardware.
 
-The bandwidth throttling is a core specific mechanism on some of Intel
-SKUs. Using a high bandwidth and a low bandwidth setting on two threads
+The bandwidth throttling is a core specific mechanism on some CPUs.
+Using a high bandwidth and a low bandwidth setting on two threads
 sharing a core will result in both threads being throttled to use the
 low bandwidth. The fact that Memory bandwidth allocation(MBA) is a core
 specific mechanism where as memory bandwidth monitoring(MBM) is done at
