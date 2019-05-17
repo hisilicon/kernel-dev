@@ -1,0 +1,5 @@
+config HISI_DJTAG
+        bool "hisilicon djtag r/w interface via syscon"
+	depends on ARM64
+        help
+          This enables support djtag r/w for some modules.

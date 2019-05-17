@@ -1221,6 +1221,46 @@
                 };
         };
 
+	p0_pa_sysctrl: system-controller@40010000 {
+		compatible = "hisilicon,hip05-sysctrl", "syscon";
+		reg = <0x0 0x40010000 0x0 0x10000>;
+	};
+
+	p0_pb_sysctrl: system-controller@60010000 {
+		compatible = "hisilicon,hip05-sysctrl", "syscon";
+		reg = <0x0 0x60010000 0x0 0x10000>;
+	};
+
+	p0_djtag0: djtag@p0_0 {
+		compatible = "hisilicon,hi1382-djtag";
+		syscon = <&p0_pa_sysctrl>;
+	};
+
+	p0_djtag1: djtag@p0_1 {
+		compatible = "hisilicon,hi1382-djtag";
+		syscon = <&p0_pb_sysctrl>;
+	};
+
+	p1_pa_sysctrl: system-controller@40040010000 {
+		compatible = "hisilicon,hip05-sysctrl", "syscon";
+		reg = <0x400 0x40010000 0x0 0x10000>;
+	};
+
+	p1_pb_sysctrl: system-controller@40060010000 {
+		compatible = "hisilicon,hip05-sysctrl", "syscon";
+		reg = <0x400 0x60010000 0x0 0x10000>;
+	};
+
+	p1_djtag0: djtag@p1_0 {
+		compatible = "hisilicon,hi1382-djtag";
+		syscon = <&p1_pa_sysctrl>;
+	};
+
+	p1_djtag1: djtag@p1_1 {
+		compatible = "hisilicon,hi1382-djtag";
+		syscon = <&p1_pb_sysctrl>;
+	};
+
 	/**
 	 *  HiSilicon erratum 161010801: This describes the limitation
 	 *  of HiSilicon platforms hip06/hip07 to support the SMMUv3
