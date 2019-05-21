@@ -1022,6 +1022,14 @@
                         #interrupt-cells = <2>;
                         num-pins = <13>;
                 };
+
+                p0_mbigen_llc_a: llc_a_intc {
+                        msi-parent = <&p0_its_peri_a 0x120d0>;
+                        interrupt-controller;
+                        #interrupt-cells = <2>;
+                        num-pins = <17>;
+                };
+
 	};
 
 	p0_mbigen_peri_b: interrupt-controller@60080000 {
@@ -1054,6 +1062,13 @@
                         interrupt-controller;
                         #interrupt-cells = <2>;
                         num-pins = <13>;
+                };
+
+                p0_mbigen_llc_b: llc_b_intc {
+                        msi-parent = <&p0_its_peri_b 0x120d0>;
+                        interrupt-controller;
+                        #interrupt-cells = <2>;
+                        num-pins = <17>;
                 };
 	};
 
@@ -1221,6 +1236,13 @@
                         #interrupt-cells = <2>;
                         num-pins = <13>;
                 };
+
+                p1_mbigen_llc_a: llc_a_intc {
+                        msi-parent = <&p1_its_peri_a 0x120d0>;
+                        interrupt-controller;
+                        #interrupt-cells = <2>;
+                        num-pins = <17>;
+                };
         };
 
         p1_mbigen_peri_b: interrupt-controller@40060080000 {
@@ -1246,6 +1268,13 @@
                         interrupt-controller;
                         #interrupt-cells = <2>;
                         num-pins = <13>;
+                };
+
+                p1_mbigen_llc_b: llc_b_intc {
+                        msi-parent = <&p1_its_peri_b 0x120d0>;
+                        interrupt-controller;
+                        #interrupt-cells = <2>;
+                        num-pins = <17>;
                 };
         };
 
@@ -2176,6 +2205,102 @@
 					<843 4>,
 					<844 4>;
 			djtag = <&p1_djtag1>;
+		};
+
+		p0_edac_llc_a {
+			compatible = "hisilicon,hi1382-llc-edac";
+			reg = <0x0 0x40080000 0x0 0x10000>;
+			interrupt-parent = <&p0_mbigen_llc_a>;
+			interrupts =	<832 4>,
+					<833 4>,
+					<834 4>,
+					<835 4>,
+					<836 4>,
+					<837 4>,
+					<838 4>,
+					<839 4>,
+					<840 4>,
+					<841 4>,
+					<842 4>,
+					<843 4>,
+					<844 4>,
+					<845 4>,
+					<846 4>,
+					<847 4>,
+					<848 4>;
+			djtag = <&p0_djtag0>;
+		};
+
+		p0_edac_llc_b {
+			compatible = "hisilicon,hi1382-llc-edac";
+			reg = <0x0 0x60080000 0x0 0x10000>;
+			interrupt-parent = <&p0_mbigen_llc_b>;
+			interrupts =	<832 4>,
+					<833 4>,
+					<834 4>,
+					<835 4>,
+					<836 4>,
+					<837 4>,
+					<838 4>,
+					<839 4>,
+					<840 4>,
+					<841 4>,
+					<842 4>,
+					<843 4>,
+					<844 4>,
+					<845 4>,
+					<846 4>,
+					<847 4>,
+					<848 4>;
+			djtag = <&p0_djtag1>;
+		};
+
+		p1_edac_llc_a {
+			compatible = "hisilicon,hi1382-llc-edac";
+			reg = <0x400 0x40080000 0x0 0x10000>;
+			interrupt-parent = <&p1_mbigen_llc_a>;
+			interrupts =	<832 4>,
+					<833 4>,
+					<834 4>,
+					<835 4>,
+					<836 4>,
+					<837 4>,
+					<838 4>,
+					<839 4>,
+					<840 4>,
+					<841 4>,
+					<842 4>,
+					<843 4>,
+					<844 4>,
+					<845 4>,
+					<846 4>,
+					<847 4>,
+					<848 4>;
+			djtag = <&p1_djtag0>;
+		};
+
+		p1_edac_llc_b {
+			compatible = "hisilicon,hi1382-llc-edac";
+			reg = <0x400 0x60080000 0x0 0x10000>;
+			interrupt-parent = <&p1_mbigen_llc_b>;
+			interrupts =	<832 4>,
+					<833 4>,
+					<834 4>,
+					<835 4>,
+					<836 4>,
+					<837 4>,
+					<838 4>,
+					<839 4>,
+					<840 4>,
+					<841 4>,
+					<842 4>,
+					<843 4>,
+					<844 4>,
+					<845 4>,
+					<846 4>,
+					<847 4>,
+					<848 4>;
+			djtag = <&p0_djtag1>;
 		};
 	};
 };

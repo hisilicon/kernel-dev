@@ -86,3 +86,4 @@ obj-$(CONFIG_EDAC_QCOM)			+= qcom_edac.o
 obj-$(CONFIG_EDAC_ASPEED)		+= aspeed_edac.o
 obj-$(CONFIG_EDAC_HISILICON_DDRC)	+= hisi_edac_ddrc_v2.o
 obj-$(CONFIG_EDAC_HISILICON_HHA)	+= hisi_edac_hha_v2.o
+obj-$(CONFIG_EDAC_HISILICON_LLC)	+= hisi_edac_llc_v2.o

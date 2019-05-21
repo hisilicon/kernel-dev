@@ -519,5 +519,13 @@ config EDAC_HISILICON_HHA
           Support for error detection and correction of HHA
           on the Hisilicon Hip0x family of SoCs
 
+config EDAC_HISILICON_LLC
+        tristate "Hisilicon Last Level Cache"
+        depends on ARM64
+        select HISI_DJATG
+        help
+          Support for error detection and correction of
+          Hisilicon Last Level Cache on the Hisilicon
+          Hip0x family of SoCs
 
 endif # EDAC
