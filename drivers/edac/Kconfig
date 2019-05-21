@@ -511,4 +511,13 @@ config EDAC_HISILICON_DDRC
 	  Support for error detection and correction of DDRC
 	  on the Hisilicon Hip0x family of SoCs
 
+config EDAC_HISILICON_HHA
+        tristate "Hisilicon Hip0x HHA"
+        depends on ARM64
+        select HISI_DJATG
+        help
+          Support for error detection and correction of HHA
+          on the Hisilicon Hip0x family of SoCs
+
+
 endif # EDAC
