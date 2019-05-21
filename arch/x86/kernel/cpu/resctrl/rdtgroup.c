@@ -2541,8 +2541,15 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct rdt_resource *r,
 	for (i = 0; i < closids_supported(); i++, ctrl++) {
 		if (closid_allocated(i) && i != closid) {
 			mode = rdtgroup_mode_by_closid(i);
-			if (mode == RDT_MODE_PSEUDO_LOCKSETUP)
-				break;
+			if (mode == RDT_MODE_PSEUDO_LOCKSETUP) {
+				/*
+				 * ctrl values for locksetup aren't relevant
+				 * until the schemata is written, and the mode
+				 * becomes RDT_MODE_PSEUDO_LOCKED.
+				 */
+				continue;
+			}
+
 			/*
 			 * If CDP is active include peer domain's
 			 * usage to ensure there is no overlap
