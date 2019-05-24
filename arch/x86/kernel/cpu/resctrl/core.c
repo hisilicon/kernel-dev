@@ -40,9 +40,6 @@
  */
 DEFINE_MUTEX(domain_list_lock);
 
-/* Mutex to protect rdtgroup access. */
-DEFINE_MUTEX(rdtgroup_mutex);
-
 /*
  * The cached resctrl_pqr_state is strictly per CPU and can never be
  * updated from a remote CPU. Functions which modify the state
@@ -190,14 +187,6 @@ static inline void cache_alloc_hsw_probe(void)
 	r->alloc_capable = true;
 
 	rdt_alloc_capable = true;
-}
-
-bool is_mba_sc(struct rdt_resource *r)
-{
-	if (!r)
-		r = resctrl_arch_get_resource(RDT_RESOURCE_MBA);
-
-	return r->membw.mba_sc;
 }
 
 /*
@@ -359,19 +348,6 @@ cat_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
 
 	for (i = m->low; i < m->high; i++)
 		wrmsrl(hw_res->msr_base + i, hw_dom->ctrl_val[i]);
-}
-
-struct rdt_domain *resctrl_get_domain_from_cpu(int cpu, struct rdt_resource *r)
-{
-	struct rdt_domain *d;
-
-	list_for_each_entry(d, &r->domains, list) {
-		/* Find the domain that contains this CPU */
-		if (cpumask_test_cpu(cpu, &d->cpu_mask))
-			return d;
-	}
-
-	return NULL;
 }
 
 void rdt_ctrl_update(void *arg)
