@@ -13334,6 +13334,14 @@ L:	reiserfs-devel@vger.kernel.org
 S:	Supported
 F:	fs/reiserfs/
 
+RESCTRL - CPU RESOURCE ALLOCATION FILE SYSTEM
+M:	Fenghua Yu <fenghua.yu@intel.com>
+M:	Reinette Chatre <reinette.chatre@intel.com>
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+F:	fs/resctrl/
+F:	Documentation/fs/resctrl*
+
 REMOTE PROCESSOR (REMOTEPROC) SUBSYSTEM
 M:	Ohad Ben-Cohen <ohad@wizery.com>
 M:	Bjorn Andersson <bjorn.andersson@linaro.org>
