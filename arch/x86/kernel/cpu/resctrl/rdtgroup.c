@@ -37,7 +37,6 @@
 
 #include <uapi/linux/magic.h>
 
-#include <asm/resctrl_sched.h>
 #include "internal.h"
 
 DEFINE_STATIC_KEY_FALSE(rdt_enable_key);

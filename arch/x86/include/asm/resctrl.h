@@ -16,6 +16,8 @@ typedef struct { u32 val; } hw_closid_t;
 #define as_hwclosid_t(x)	((hw_closid_t){(x)})
 #define hwclosid_val(x)		(x.val)
 
+#define IA32_PQR_ASSOC	0x0c8f
+
 #define RMID_VAL_ERROR			BIT_ULL(63)
 #define RMID_VAL_UNAVAIL		BIT_ULL(62)
 #define MBM_CNTR_WIDTH			24
@@ -181,6 +183,54 @@ static inline rmid_idx_t resctrl_arch_num_rmid_idx(void)
 {
 	/* On x86, rmid is the rmid_idx */
 	return resctrl_arch_system_num_rmid();
+}
+
+/*
+ * __resctrl_sched_in() - Writes the task's CLOSid/RMID to IA32_PQR_MSR
+ *
+ * Following considerations are made so that this has minimal impact
+ * on scheduler hot path:
+ * - This will stay as no-op unless we are running on an Intel SKU
+ *   which supports resource control or monitoring and we enable by
+ *   mounting the resctrl file system.
+ * - Caches the per cpu CLOSid/RMID values and does the MSR write only
+ *   when a task with a different CLOSid/RMID is scheduled in.
+ * - We allocate RMIDs/CLOSids globally in order to keep this as
+ *   simple as possible.
+ * Must be called with preemption disabled.
+ */
+static inline void __resctrl_sched_in(void)
+{
+	struct resctrl_pqr_state *state = this_cpu_ptr(&pqr_state);
+	u32 closid = state->default_closid;
+	u32 rmid = state->default_rmid;
+
+	/*
+	 * If this task has a closid/rmid assigned, use it.
+	 * Else use the closid/rmid assigned to this cpu.
+	 */
+	if (static_branch_likely(&rdt_alloc_enable_key)) {
+		if (current->closid)
+			closid = current->closid;
+	}
+
+	if (static_branch_likely(&rdt_mon_enable_key)) {
+		if (current->rmid)
+			rmid = current->rmid;
+	}
+
+	if (closid != state->cur_closid || rmid != state->cur_rmid) {
+		state->cur_closid = closid;
+		state->cur_rmid = rmid;
+		wrmsr(IA32_PQR_ASSOC, rmid, closid);
+	}
+}
+
+static inline void resctrl_sched_in(void)
+{
+	if (IS_ENABLED(CONFIG_X86_CPU_RESCTRL) &&
+	    static_branch_likely(&rdt_enable_key))
+		__resctrl_sched_in();
 }
 
 bool resctrl_arch_is_llc_occupancy_enabled(void);

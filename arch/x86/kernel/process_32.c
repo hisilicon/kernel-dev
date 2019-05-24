@@ -33,6 +33,7 @@
 #include <linux/personality.h>
 #include <linux/percpu.h>
 #include <linux/prctl.h>
+#include <linux/resctrl.h>
 #include <linux/ftrace.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
@@ -53,7 +54,6 @@
 #include <asm/debugreg.h>
 #include <asm/switch_to.h>
 #include <asm/vm86.h>
-#include <asm/resctrl_sched.h>
 #include <asm/proto.h>
 
 #include "process.h"
