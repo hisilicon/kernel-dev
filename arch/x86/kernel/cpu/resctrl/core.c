@@ -30,7 +30,6 @@
 #include <linux/cpuhotplug.h>
 
 #include <asm/intel-family.h>
-#include <asm/resctrl_sched.h>
 #include "internal.h"
 
 /*
