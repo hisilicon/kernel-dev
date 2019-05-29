@@ -621,7 +621,8 @@ csio_shost_init(struct csio_hw *hw, struct device *dev,
 	/* Link common lnode to this lnode */
 	ln->dev_num = (shost->host_no << 16);
 
-	shost->can_queue = CSIO_MAX_QUEUE;
+	shost->can_queue = CSIO_MAX_QUEUE - 1;
+	shost->nr_reserved_cmds = 1;
 	shost->this_id = -1;
 	shost->unique_id = shost->host_no;
 	shost->max_cmd_len = 16; /* Max CDB length supported */
