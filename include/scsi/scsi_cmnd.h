@@ -159,6 +159,9 @@ static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
 	return *(struct scsi_driver **)cmd->request->rq_disk->private_data;
 }
 
+struct scsi_cmnd *scsi_get_reserved_cmd(struct Scsi_Host *shost);
+void scsi_put_reserved_cmd(struct scsi_cmnd *);
+
 extern void scsi_put_command(struct scsi_cmnd *);
 extern void scsi_finish_command(struct scsi_cmnd *cmd);
 
