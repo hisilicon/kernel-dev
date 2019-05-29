@@ -272,29 +272,27 @@ static void aac_queue_init(struct aac_dev * dev, struct aac_queue * q, u32 *mem,
 	q->entries = qsize;
 }
 
+static bool aac_io_completion_iter(struct scsi_cmnd *command, void *data,
+				   bool reserved)
+{
+	int *active = data;
+
+	if (!reserved && command->SCp.phase == AAC_OWNER_FIRMWARE)
+		(*active)++;
+	return true;
+}
+
 static void aac_wait_for_io_completion(struct aac_dev *aac)
 {
-	unsigned long flagv = 0;
 	int i = 0;
+	struct Scsi_Host *shost = aac->scsi_host_ptr;
 
 	for (i = 60; i; --i) {
-		struct scsi_device *dev;
-		struct scsi_cmnd *command;
 		int active = 0;
 
-		__shost_for_each_device(dev, aac->scsi_host_ptr) {
-			spin_lock_irqsave(&dev->list_lock, flagv);
-			list_for_each_entry(command, &dev->cmd_list, list) {
-				if (command->SCp.phase == AAC_OWNER_FIRMWARE) {
-					active++;
-					break;
-				}
-			}
-			spin_unlock_irqrestore(&dev->list_lock, flagv);
-			if (active)
-				break;
+		scsi_host_tagset_busy_iter(shost, aac_io_completion_iter,
+					   &active);
 
-		}
 		/*
 		 * We can exit If all the commands are complete
 		 */

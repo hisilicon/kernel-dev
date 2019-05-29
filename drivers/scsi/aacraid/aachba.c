@@ -809,7 +809,6 @@ int aac_probe_container(struct aac_dev *dev, int cid)
 		kfree(scsidev);
 		return -ENOMEM;
 	}
-	scsicmd->list.next = NULL;
 	scsicmd->scsi_done = (void (*)(struct scsi_cmnd*))aac_probe_container_callback1;
 
 	scsicmd->device = scsidev;
@@ -2639,76 +2638,92 @@ static void synchronize_callback(void *context, struct fib *fibptr)
 	cmd->scsi_done(cmd);
 }
 
+struct aac_synchronize_iter_data {
+	u64 lba;
+	u32 count;
+	int active;
+};
+
+static bool aac_synchronize_iter(struct scsi_cmnd *cmd, void *data,
+				 bool reserved)
+{
+	struct aac_synchronize_iter_data *iter_data = data;
+	u64 cmnd_lba;
+	u32 cmnd_count;
+
+	if (cmd->SCp.phase != AAC_OWNER_FIRMWARE || reserved)
+		return true;
+
+	if (cmd->cmnd[0] == WRITE_6) {
+		cmnd_lba = ((cmd->cmnd[1] & 0x1F) << 16) |
+			(cmd->cmnd[2] << 8) |
+			cmd->cmnd[3];
+		cmnd_count = cmd->cmnd[4];
+		if (cmnd_count == 0)
+			cmnd_count = 256;
+	} else if (cmd->cmnd[0] == WRITE_16) {
+		cmnd_lba = ((u64)cmd->cmnd[2] << 56) |
+			((u64)cmd->cmnd[3] << 48) |
+			((u64)cmd->cmnd[4] << 40) |
+			((u64)cmd->cmnd[5] << 32) |
+			((u64)cmd->cmnd[6] << 24) |
+			(cmd->cmnd[7] << 16) |
+			(cmd->cmnd[8] << 8) |
+			cmd->cmnd[9];
+		cmnd_count = (cmd->cmnd[10] << 24) |
+			(cmd->cmnd[11] << 16) |
+			(cmd->cmnd[12] << 8) |
+			cmd->cmnd[13];
+	} else if (cmd->cmnd[0] == WRITE_12) {
+		cmnd_lba = ((u64)cmd->cmnd[2] << 24) |
+			(cmd->cmnd[3] << 16) |
+			(cmd->cmnd[4] << 8) |
+			cmd->cmnd[5];
+		cmnd_count = (cmd->cmnd[6] << 24) |
+			(cmd->cmnd[7] << 16) |
+			(cmd->cmnd[8] << 8) |
+			cmd->cmnd[9];
+	} else if (cmd->cmnd[0] == WRITE_10) {
+		cmnd_lba = ((u64)cmd->cmnd[2] << 24) |
+			(cmd->cmnd[3] << 16) |
+			(cmd->cmnd[4] << 8) |
+			cmd->cmnd[5];
+		cmnd_count = (cmd->cmnd[7] << 8) |
+			cmd->cmnd[8];
+	} else
+		return true;
+
+	if (((cmnd_lba + cmnd_count) < iter_data->lba) ||
+	    (iter_data->count && ((iter_data->lba + iter_data->count) < cmnd_lba)))
+		return true;
+
+	++iter_data->active;
+	return true;
+}
+
 static int aac_synchronize(struct scsi_cmnd *scsicmd)
 {
 	int status;
 	struct fib *cmd_fibcontext;
 	struct aac_synchronize *synchronizecmd;
-	struct scsi_cmnd *cmd;
 	struct scsi_device *sdev = scsicmd->device;
 	int active = 0;
 	struct aac_dev *aac;
 	u64 lba = ((u64)scsicmd->cmnd[2] << 24) | (scsicmd->cmnd[3] << 16) |
 		(scsicmd->cmnd[4] << 8) | scsicmd->cmnd[5];
 	u32 count = (scsicmd->cmnd[7] << 8) | scsicmd->cmnd[8];
-	unsigned long flags;
+	struct aac_synchronize_iter_data iter_data = {
+		.lba = lba,
+		.count = count,
+		.active = 0,
+	};
 
 	/*
 	 * Wait for all outstanding queued commands to complete to this
 	 * specific target (block).
 	 */
-	spin_lock_irqsave(&sdev->list_lock, flags);
-	list_for_each_entry(cmd, &sdev->cmd_list, list)
-		if (cmd->SCp.phase == AAC_OWNER_FIRMWARE) {
-			u64 cmnd_lba;
-			u32 cmnd_count;
-
-			if (cmd->cmnd[0] == WRITE_6) {
-				cmnd_lba = ((cmd->cmnd[1] & 0x1F) << 16) |
-					(cmd->cmnd[2] << 8) |
-					cmd->cmnd[3];
-				cmnd_count = cmd->cmnd[4];
-				if (cmnd_count == 0)
-					cmnd_count = 256;
-			} else if (cmd->cmnd[0] == WRITE_16) {
-				cmnd_lba = ((u64)cmd->cmnd[2] << 56) |
-					((u64)cmd->cmnd[3] << 48) |
-					((u64)cmd->cmnd[4] << 40) |
-					((u64)cmd->cmnd[5] << 32) |
-					((u64)cmd->cmnd[6] << 24) |
-					(cmd->cmnd[7] << 16) |
-					(cmd->cmnd[8] << 8) |
-					cmd->cmnd[9];
-				cmnd_count = (cmd->cmnd[10] << 24) |
-					(cmd->cmnd[11] << 16) |
-					(cmd->cmnd[12] << 8) |
-					cmd->cmnd[13];
-			} else if (cmd->cmnd[0] == WRITE_12) {
-				cmnd_lba = ((u64)cmd->cmnd[2] << 24) |
-					(cmd->cmnd[3] << 16) |
-					(cmd->cmnd[4] << 8) |
-					cmd->cmnd[5];
-				cmnd_count = (cmd->cmnd[6] << 24) |
-					(cmd->cmnd[7] << 16) |
-					(cmd->cmnd[8] << 8) |
-					cmd->cmnd[9];
-			} else if (cmd->cmnd[0] == WRITE_10) {
-				cmnd_lba = ((u64)cmd->cmnd[2] << 24) |
-					(cmd->cmnd[3] << 16) |
-					(cmd->cmnd[4] << 8) |
-					cmd->cmnd[5];
-				cmnd_count = (cmd->cmnd[7] << 8) |
-					cmd->cmnd[8];
-			} else
-				continue;
-			if (((cmnd_lba + cmnd_count) < lba) ||
-			  (count && ((lba + count) < cmnd_lba)))
-				continue;
-			++active;
-			break;
-		}
-
-	spin_unlock_irqrestore(&sdev->list_lock, flags);
+	scsi_host_tagset_busy_iter(sdev->host, aac_synchronize_iter,
+				   &iter_data);
 
 	/*
 	 *	Yield the processor (requeue for later)

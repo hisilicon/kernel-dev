@@ -622,54 +622,63 @@ static int aac_ioctl(struct scsi_device *sdev, unsigned int cmd,
 	return aac_do_ioctl(dev, cmd, arg);
 }
 
+struct incomplete_fib_iter_data {
+	int fwcnt;
+	int ehcnt;
+	int llcnt;
+	int mlcnt;
+	int krlcnt;
+};
+
+static bool aac_incomplete_fib_iter(struct scsi_cmnd *scmd, void *data,
+				    bool reserved)
+{
+	struct incomplete_fib_iter_data *iter_data = data;
+
+	if (reserved)
+		return true;
+
+	switch (scmd->SCp.phase) {
+	case AAC_OWNER_FIRMWARE:
+		iter_data->fwcnt++;
+		break;
+	case AAC_OWNER_ERROR_HANDLER:
+		iter_data->ehcnt++;
+		break;
+	case AAC_OWNER_LOWLEVEL:
+		iter_data->llcnt++;
+		break;
+	case AAC_OWNER_MIDLEVEL:
+		iter_data->mlcnt++;
+		break;
+	default:
+		iter_data->krlcnt++;
+		break;
+	}
+	return true;
+}
+
 static int get_num_of_incomplete_fibs(struct aac_dev *aac)
 {
-
-	unsigned long flags;
-	struct scsi_device *sdev = NULL;
 	struct Scsi_Host *shost = aac->scsi_host_ptr;
-	struct scsi_cmnd *scmnd = NULL;
-	struct device *ctrl_dev;
+	struct device *ctrl_dev = &aac->pdev->dev;
+	struct incomplete_fib_iter_data iter_data = {
+		.mlcnt  = 0,
+		.llcnt  = 0,
+		.ehcnt  = 0,
+		.fwcnt  = 0,
+		.krlcnt = 0,
+	};
 
-	int mlcnt  = 0;
-	int llcnt  = 0;
-	int ehcnt  = 0;
-	int fwcnt  = 0;
-	int krlcnt = 0;
+	scsi_host_tagset_busy_iter(shost, aac_incomplete_fib_iter, &iter_data);
 
-	__shost_for_each_device(sdev, shost) {
-		spin_lock_irqsave(&sdev->list_lock, flags);
-		list_for_each_entry(scmnd, &sdev->cmd_list, list) {
-			switch (scmnd->SCp.phase) {
-			case AAC_OWNER_FIRMWARE:
-				fwcnt++;
-				break;
-			case AAC_OWNER_ERROR_HANDLER:
-				ehcnt++;
-				break;
-			case AAC_OWNER_LOWLEVEL:
-				llcnt++;
-				break;
-			case AAC_OWNER_MIDLEVEL:
-				mlcnt++;
-				break;
-			default:
-				krlcnt++;
-				break;
-			}
-		}
-		spin_unlock_irqrestore(&sdev->list_lock, flags);
-	}
+	dev_info(ctrl_dev, "outstanding cmd: midlevel-%d\n", iter_data.mlcnt);
+	dev_info(ctrl_dev, "outstanding cmd: lowlevel-%d\n", iter_data.llcnt);
+	dev_info(ctrl_dev, "outstanding cmd: error handler-%d\n", iter_data.ehcnt);
+	dev_info(ctrl_dev, "outstanding cmd: firmware-%d\n", iter_data.fwcnt);
+	dev_info(ctrl_dev, "outstanding cmd: kernel-%d\n", iter_data.krlcnt);
 
-	ctrl_dev = &aac->pdev->dev;
-
-	dev_info(ctrl_dev, "outstanding cmd: midlevel-%d\n", mlcnt);
-	dev_info(ctrl_dev, "outstanding cmd: lowlevel-%d\n", llcnt);
-	dev_info(ctrl_dev, "outstanding cmd: error handler-%d\n", ehcnt);
-	dev_info(ctrl_dev, "outstanding cmd: firmware-%d\n", fwcnt);
-	dev_info(ctrl_dev, "outstanding cmd: kernel-%d\n", krlcnt);
-
-	return mlcnt + llcnt + ehcnt + fwcnt;
+	return iter_data.mlcnt + iter_data.llcnt + iter_data.ehcnt + iter_data.fwcnt;
 }
 
 static int aac_eh_abort(struct scsi_cmnd* cmd)
@@ -1675,7 +1684,6 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->irq = pdev->irq;
 	shost->unique_id = unique_id;
 	shost->max_cmd_len = 16;
-	shost->use_cmd_list = 1;
 	shost->max_id = MAXIMUM_NUM_CONTAINERS;
 	shost->max_lun = AAC_MAX_LUN;
 	shost->nr_reserved_cmds = AAC_NUM_MGT_FIB;
