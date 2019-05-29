@@ -385,6 +385,8 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		goto prob_end;
 	}
+	shost->nr_reserved_cmds = 1;
+	shost->can_queue--;
 	snic = shost_priv(shost);
 	snic->shost = shost;
 
