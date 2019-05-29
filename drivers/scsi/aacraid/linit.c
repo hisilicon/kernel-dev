@@ -681,14 +681,87 @@ static int get_num_of_incomplete_fibs(struct aac_dev *aac)
 	return iter_data.mlcnt + iter_data.llcnt + iter_data.ehcnt + iter_data.fwcnt;
 }
 
+struct aac_eh_abort_iter_data {
+	struct aac_dev *aac;
+	struct scsi_cmnd *cmd;
+	int ret;
+};
+
+static bool aac_eh_abort_busy_iter(struct scsi_cmnd *cmd, void *data,
+				   bool reserved)
+{
+	struct aac_eh_abort_iter_data *iter_data = data;
+	struct aac_dev *aac = iter_data->aac;
+	struct fib *fib = &aac->fibs[cmd->request->tag];
+
+	if (cmd != iter_data->cmd)
+		return true;
+
+	if (*(u8 *)fib->hw_fib_va != 0 &&
+	    (fib->flags & FIB_CONTEXT_FLAG_NATIVE_HBA) &&
+	    (fib->callback_data == cmd)) {
+		iter_data->ret = SUCCESS;
+		return false;
+	}
+	return true;
+}
+
+static bool aac_eh_abort_cmd_iter(struct scsi_cmnd *cmd, void *data,
+				  bool reserved)
+{
+	struct aac_eh_abort_iter_data *iter_data = data;
+	struct fib *fib = &iter_data->aac->fibs[cmd->request->tag];
+
+	if (cmd != iter_data->cmd)
+		return true;
+
+	if (fib->hw_fib_va->header.XferState &&
+	    (fib->flags & FIB_CONTEXT_FLAG) &&
+	    (fib->callback_data == iter_data->cmd)) {
+		fib->flags |= FIB_CONTEXT_FLAG_TIMED_OUT;
+		cmd->SCp.phase = AAC_OWNER_ERROR_HANDLER;
+		iter_data->ret = SUCCESS;
+	}
+	return true;
+}
+
+static bool aac_eh_abort_tur_iter(struct scsi_cmnd *cmd, void *data,
+				  bool reserved)
+{
+	struct aac_eh_abort_iter_data *iter_data = data;
+	struct fib *fib = &iter_data->aac->fibs[cmd->request->tag];
+	struct scsi_cmnd *command;
+
+	if (cmd != iter_data->cmd)
+		return true;
+
+	command = fib->callback_data;
+	if ((fib->hw_fib_va->header.XferState &
+	     cpu_to_le32(Async | NoResponseExpected)) &&
+	    (fib->flags & FIB_CONTEXT_FLAG) &&
+	    ((command)) && (command->device == cmd->device)) {
+		fib->flags |= FIB_CONTEXT_FLAG_TIMED_OUT;
+		command->SCp.phase = AAC_OWNER_ERROR_HANDLER;
+		if (command == cmd)
+			iter_data->ret = SUCCESS;
+	}
+	return true;
+}
+
 static int aac_eh_abort(struct scsi_cmnd* cmd)
 {
 	struct scsi_device * dev = cmd->device;
 	struct Scsi_Host * host = dev->host;
 	struct aac_dev * aac = (struct aac_dev *)host->hostdata;
-	int count, found;
+	int count;
 	u32 bus, cid;
 	int ret = FAILED;
+	struct aac_eh_abort_iter_data iter_data = {
+		.aac = aac,
+		.cmd = cmd,
+		.ret = FAILED,
+	};
+
 
 	if (aac_adapter_check_health(aac))
 		return ret;
@@ -705,17 +778,9 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 		 AAC_DRIVERNAME,
 		 host->host_no, sdev_channel(dev), sdev_id(dev), (int)dev->lun);
 
-		found = 0;
-		for (count = 0; count < (host->can_queue + AAC_NUM_MGT_FIB); ++count) {
-			fib = &aac->fibs[count];
-			if (*(u8 *)fib->hw_fib_va != 0 &&
-				(fib->flags & FIB_CONTEXT_FLAG_NATIVE_HBA) &&
-				(fib->callback_data == cmd)) {
-				found = 1;
-				break;
-			}
-		}
-		if (!found)
+		scsi_host_tagset_busy_iter(host, aac_eh_abort_busy_iter,
+					   &iter_data);
+		if (iter_data.ret == FAILED)
 			return ret;
 
 		/* start a HBA_TMF_ABORT_TASK TMF request */
@@ -773,49 +838,18 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 			 * Mark associated FIB to not complete,
 			 * eh handler does this
 			 */
-			for (count = 0;
-				count < (host->can_queue + AAC_NUM_MGT_FIB);
-				++count) {
-				struct fib *fib = &aac->fibs[count];
-
-				if (fib->hw_fib_va->header.XferState &&
-				(fib->flags & FIB_CONTEXT_FLAG) &&
-				(fib->callback_data == cmd)) {
-					fib->flags |=
-						FIB_CONTEXT_FLAG_TIMED_OUT;
-					cmd->SCp.phase =
-						AAC_OWNER_ERROR_HANDLER;
-					ret = SUCCESS;
-				}
-			}
+			scsi_host_tagset_busy_iter(host, aac_eh_abort_cmd_iter,
+						   &iter_data);
+			ret = iter_data.ret;
 			break;
 		case TEST_UNIT_READY:
 			/*
 			 * Mark associated FIB to not complete,
 			 * eh handler does this
 			 */
-			for (count = 0;
-				count < (host->can_queue + AAC_NUM_MGT_FIB);
-				++count) {
-				struct scsi_cmnd *command;
-				struct fib *fib = &aac->fibs[count];
-
-				command = fib->callback_data;
-
-				if ((fib->hw_fib_va->header.XferState &
-					cpu_to_le32
-					(Async | NoResponseExpected)) &&
-					(fib->flags & FIB_CONTEXT_FLAG) &&
-					((command)) &&
-					(command->device == cmd->device)) {
-					fib->flags |=
-						FIB_CONTEXT_FLAG_TIMED_OUT;
-					command->SCp.phase =
-						AAC_OWNER_ERROR_HANDLER;
-					if (command == cmd)
-						ret = SUCCESS;
-				}
-			}
+			scsi_host_tagset_busy_iter(host, aac_eh_abort_tur_iter,
+						   &iter_data);
+			ret = iter_data.ret;
 			break;
 		}
 	}
@@ -1010,6 +1044,36 @@ static int aac_eh_target_reset(struct scsi_cmnd *cmd)
 	return ret;
 }
 
+static bool aac_eh_bus_reset_iter(struct scsi_cmnd *cmd, void *data,
+				  bool reserved)
+{
+	struct Scsi_Host *host = cmd->device->host;
+	struct aac_dev *aac = (struct aac_dev *)host->hostdata;
+	struct fib *fib = &aac->fibs[cmd->request->tag];
+	int *cmd_bus = data;
+
+	if (fib->hw_fib_va->header.XferState &&
+	    (fib->flags & FIB_CONTEXT_FLAG) &&
+	    (fib->flags & FIB_CONTEXT_FLAG_SCSI_CMD)) {
+		struct aac_hba_map_info *info;
+		u32 bus, cid;
+
+		if (cmd != (struct scsi_cmnd *)fib->callback_data)
+			return true;
+		bus = aac_logical_to_phys(scmd_channel(cmd));
+		if (bus != *cmd_bus)
+			return true;
+		cid = scmd_id(cmd);
+		info = &aac->hba_map[bus][cid];
+		if (bus >= AAC_MAX_BUSES || cid >= AAC_MAX_TARGETS ||
+		    info->devtype != AAC_DEVTYPE_NATIVE_RAW) {
+			fib->flags |= FIB_CONTEXT_FLAG_EH_RESET;
+			cmd->SCp.phase = AAC_OWNER_ERROR_HANDLER;
+		}
+	}
+	return true;
+}
+
 /*
  *	aac_eh_bus_reset	- Bus reset command handling
  *	@scsi_cmd:	SCSI command block causing the reset
@@ -1024,32 +1088,10 @@ static int aac_eh_bus_reset(struct scsi_cmnd* cmd)
 	u32 cmd_bus;
 	int status = 0;
 
-
 	cmd_bus = aac_logical_to_phys(scmd_channel(cmd));
+
 	/* Mark the assoc. FIB to not complete, eh handler does this */
-	for (count = 0; count < (host->can_queue + AAC_NUM_MGT_FIB); ++count) {
-		struct fib *fib = &aac->fibs[count];
-
-		if (fib->hw_fib_va->header.XferState &&
-		    (fib->flags & FIB_CONTEXT_FLAG) &&
-		    (fib->flags & FIB_CONTEXT_FLAG_SCSI_CMD)) {
-			struct aac_hba_map_info *info;
-			u32 bus, cid;
-
-			cmd = (struct scsi_cmnd *)fib->callback_data;
-			bus = aac_logical_to_phys(scmd_channel(cmd));
-			if (bus != cmd_bus)
-				continue;
-			cid = scmd_id(cmd);
-			info = &aac->hba_map[bus][cid];
-			if (bus >= AAC_MAX_BUSES || cid >= AAC_MAX_TARGETS ||
-			    info->devtype != AAC_DEVTYPE_NATIVE_RAW) {
-				fib->flags |= FIB_CONTEXT_FLAG_EH_RESET;
-				cmd->SCp.phase = AAC_OWNER_ERROR_HANDLER;
-			}
-		}
-	}
-
+	scsi_host_tagset_busy_iter(host, aac_eh_bus_reset_iter, &cmd_bus);
 	pr_err("%s: Host adapter reset request. SCSI hang ?\n", AAC_DRIVERNAME);
 
 	/*
