@@ -650,3 +650,30 @@ void scsi_flush_work(struct Scsi_Host *shost)
 	flush_workqueue(shost->work_q);
 }
 EXPORT_SYMBOL_GPL(scsi_flush_work);
+
+struct scsi_host_tagset_busy_iter_data {
+	scsi_host_busy_iter_fn *fn;
+	void *priv;
+};
+
+static bool scsi_host_tagset_busy_iter_fn(struct request *req, void *priv,
+					  bool reserved)
+{
+	struct scsi_host_tagset_busy_iter_data *iter_data = priv;
+	struct scsi_cmnd *sc = blk_mq_rq_to_pdu(req);
+
+	return iter_data->fn(sc, iter_data->priv, reserved);
+}
+
+void scsi_host_tagset_busy_iter(struct Scsi_Host *shost,
+				scsi_host_busy_iter_fn *fn, void *priv)
+{
+	struct scsi_host_tagset_busy_iter_data iter_data = {
+		.fn = fn,
+		.priv = priv,
+	};
+
+	blk_mq_tagset_busy_iter(&shost->tag_set, scsi_host_tagset_busy_iter_fn,
+				&iter_data);
+}
+EXPORT_SYMBOL_GPL(scsi_host_tagset_busy_iter);
