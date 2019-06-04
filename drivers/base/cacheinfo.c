@@ -241,6 +241,25 @@ struct cacheinfo *cacheinfo_shared_cpu_map_search(void *fw_token)
 	return NULL;
 }
 
+void cacheinfo_print(void)
+{
+	struct cacheinfo *iter;
+	unsigned int cpu, index;
+	struct cpu_cacheinfo *cpu_ci;
+
+	for_each_online_cpu(cpu) {
+		cpu_ci = get_cpu_cacheinfo(cpu);
+
+		for (index = 0; index < cache_leaves(cpu); index++) {
+			iter = cpu_ci->info_list + index;
+			pr_info("cache_id 0x%x cache_type %d cache_level %d fw_token %px shared_cpu_map  %*pbl\n",
+				iter->id, iter->type, iter->level,
+				iter->fw_token,
+				cpumask_pr_args(&iter->shared_cpu_map));
+		}
+	}
+}
+
 static int cache_shared_cpu_map_setup(unsigned int cpu)
 {
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
