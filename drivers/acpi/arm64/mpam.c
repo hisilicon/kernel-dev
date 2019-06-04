@@ -211,6 +211,8 @@ int __init acpi_mpam_parse(void)
 	acpi_status status;
 	int ret;
 
+	cacheinfo_print();
+
 	if (acpi_disabled || !mpam_cpus_have_feature())
 		return 0;
 
