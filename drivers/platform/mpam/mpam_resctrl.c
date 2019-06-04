@@ -399,6 +399,7 @@ static int mpam_resctrl_allocate_dummy_resource(enum resctrl_resource_level l)
 	if (!class)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&class->resctrl_res.domains);
+	INIT_LIST_HEAD(&class->resctrl_res.evt_list);
 	INIT_LIST_HEAD(&class->components);
 
 	/* list_emtpy(&class->classes_list_rcu) is how we spot dummy classes */
