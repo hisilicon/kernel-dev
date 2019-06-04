@@ -431,7 +431,7 @@ int mpam_resctrl_init(void)
 		mpam_resctrl_exports[i]->resctrl_res.rid = i;
 	}
 
-	if (!exposed_alloc_capable || exposed_mon_capable)
+	if (!exposed_alloc_capable && !exposed_mon_capable)
 		return -EOPNOTSUPP;
 
 	return resctrl_init();
