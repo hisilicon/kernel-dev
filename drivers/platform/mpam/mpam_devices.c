@@ -135,7 +135,6 @@ static struct mpam_component * __init mpam_component_alloc(int id)
 		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&comp->devices);
-	//INIT_LIST_HEAD(&comp->resctrl_domain.list);
 	INIT_LIST_HEAD(&comp->class_list);
 
 	comp->comp_id = id;
@@ -548,6 +547,7 @@ static void mpam_enable(struct work_struct *work)
 
 	mutex_lock(&mpam_devices_lock);
 	mpam_enable_squash_features();
+	mpam_resctrl_setup();
 	mutex_unlock(&mpam_devices_lock);
 }
 
@@ -841,6 +841,8 @@ static int mpam_cpu_online(unsigned int cpu)
 	if (err < 0)
 		return err;
 
+	mpam_resctrl_cpu_online(cpu);
+
 	return 0;
 }
 
@@ -853,6 +855,8 @@ static int mpam_cpu_offline(unsigned int cpu)
 		cpumask_clear_cpu(cpu, &dev->online_affinity);
 
 	mutex_unlock(&mpam_devices_lock);
+
+	mpam_resctrl_cpu_offline(cpu);
 
 	return 0;
 }

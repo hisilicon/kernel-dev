@@ -6,6 +6,7 @@
 
 #include <linux/cacheinfo.h>
 #include <linux/cpumask.h>
+#include <linux/resctrl_types.h>
 #include <linux/types.h>
 
 /* Bits for irq:flags, must match the ACPI definition */
@@ -103,5 +104,15 @@ void mpam_reset_devices(void);
  * all devices have been probed.
  */
 void mpam_discovery_complete(void);
+
+/* Do we export anything 'alloc_capable' or 'mon_capable' via resctrl? */
+bool mpam_resctrl_alloc_capable(void);
+bool mpam_resctrl_mon_capable(void);
+
+u32 mpam_resctrl_num_closid(void);
+u32 mpam_resctrl_num_rmid(void);
+
+/* Get the specific resctrl resource */
+struct rdt_resource *mpam_resctrl_get_resource(enum resctrl_resource_level l);
 
 #endif /* __LINUX_ARM_MPAM_H */
