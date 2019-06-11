@@ -10,7 +10,21 @@
 
 typedef struct { u16 val; } hw_closid_t;
 
+#define resctrl_arch_get_resource(l)	mpam_resctrl_get_resource(l)
+
+#define resctrl_arch_alloc_capable()	mpam_resctrl_alloc_capable()
+#define resctrl_arch_mon_capable()	mpam_resctrl_mon_capable()
 #define resctrl_arch_is_mbm_total_enabled()	false
 #define resctrl_arch_is_mbm_local_enabled()	false
+
+static inline u32 resctrl_arch_system_num_rmid(void)
+{
+	return mpam_resctrl_num_rmid();
+}
+
+static inline u32 resctrl_arch_system_num_closid(void)
+{
+	return mpam_resctrl_num_closid();
+}
 
 #endif /* __ASM_RESCTRL_H__ */

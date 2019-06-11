@@ -173,8 +173,23 @@ struct mpam_class
 	struct list_head        classes_list;
 };
 
+struct mpam_resctrl_dom {
+	struct mpam_component	*comp;
+	struct rdt_domain	resctrl_dom;
+};
+
+struct mpam_resctrl_res {
+	struct mpam_class	*class;
+	struct rdt_resource	resctrl_res;
+};
+
 /* List of all classes */
 extern struct list_head mpam_classes;
+
+int mpam_resctrl_cpu_online(unsigned int cpu);
+int mpam_resctrl_cpu_offline(unsigned int cpu);
+
+int mpam_resctrl_setup(void);
 
 /* Size of the memory mapped registers: 4K of feature page then 2x 4K bitmap registers */
 #define SZ_MPAM_DEVICE	(3 * SZ_4K)
