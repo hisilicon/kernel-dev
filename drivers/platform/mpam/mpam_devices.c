@@ -1310,6 +1310,9 @@ static int mpam_cpu_online(unsigned int cpu)
 	}
 	srcu_read_unlock(&mpam_srcu, idx);
 
+	if (mpam_is_enabled())
+		mpam_resctrl_online_cpu(cpu);
+
 	return 0;
 }
 
@@ -1368,6 +1371,9 @@ static int mpam_cpu_offline(unsigned int cpu)
 		mutex_unlock(&msc->lock);
 	}
 	srcu_read_unlock(&mpam_srcu, idx);
+
+	if (mpam_is_enabled())
+		mpam_resctrl_offline_cpu(cpu);
 
 	return 0;
 }
@@ -2028,6 +2034,12 @@ static void mpam_enable_once(void)
 	} while (0);
 	mutex_unlock(&mpam_list_lock);
 	cpus_read_unlock();
+
+	if (!err) {
+		err = mpam_resctrl_setup();
+		if (err)
+			pr_err("Failed to initialise resctrl: %d\n", err);
+	}
 
 	if (err) {
 		schedule_work(&mpam_broken_work);
