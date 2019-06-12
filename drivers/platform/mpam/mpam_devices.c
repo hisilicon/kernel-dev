@@ -49,6 +49,13 @@ struct mpam_sysprops mpam_sysprops;
  */
 static struct work_struct mpam_enable_work;
 
+#ifdef CONFIG_LOCKDEP
+void mpam_class_list_lock_held(void)
+{
+	lockdep_assert_held(&mpam_devices_lock);
+}
+#endif /* CONFIG_LOCKDEP */
+
 struct mpam_device_sync
 {
 	struct mpam_component *comp;

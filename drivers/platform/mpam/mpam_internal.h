@@ -185,6 +185,11 @@ struct mpam_resctrl_res {
 
 /* List of all classes */
 extern struct list_head mpam_classes;
+#ifdef CONFIG_LOCKDEP
+void mpam_class_list_lock_held(void);
+#else
+static inline mpam_class_list_lock_held(void) { }
+#endif
 
 int mpam_resctrl_cpu_online(unsigned int cpu);
 int mpam_resctrl_cpu_offline(unsigned int cpu);
