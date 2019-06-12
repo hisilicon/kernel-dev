@@ -10,7 +10,6 @@
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/printk.h>
-#include <linux/rculist.h>
 #include <linux/resctrl.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -69,9 +68,82 @@ struct rdt_resource *mpam_resctrl_get_resource(enum resctrl_resource_level l)
 	return &mpam_resctrl_exports[l].resctrl_res;
 }
 
+/* Test whether we can export MPAM_CLASS_CACHE:{2,3}? */
+static void mpam_resctrl_pick_caches(void)
+{
+	struct mpam_class *class;
+	struct mpam_resctrl_res *res;
+
+	mpam_class_list_lock_held();
+
+	list_for_each_entry(class, &mpam_classes, classes_list) {
+		if (class->type != MPAM_CLASS_CACHE)
+			continue;
+
+		if (class->level != 2 && class->level != 3)
+			continue;
+
+		if (!mpam_has_feature(mpam_feat_cpor_part, class->features) &&
+		    !mpam_has_feature(mpam_feat_msmon_csu, class->features))
+			continue;
+
+		if (!mpam_has_feature(mpam_feat_msmon_csu, class->features) &&
+		    mpam_sysprops.max_partid <= 1)
+			continue;
+
+		if (class->cpbm_wd > RESCTRL_MAX_CBM)
+			continue;
+
+		if (class->level == 2) {
+			res = &mpam_resctrl_exports[RDT_RESOURCE_L2];
+			res->resctrl_res.name = "L2";
+		} else {
+			res = &mpam_resctrl_exports[RDT_RESOURCE_L3];
+			res->resctrl_res.name = "L3";
+		}
+		res->class = class;
+	}
+}
+
 static int mpam_resctrl_resource_init(struct mpam_resctrl_res *res)
 {
-	/* TODO: initialise the resctrl resources */
+	struct mpam_class *class = res->class;
+	struct rdt_resource *r = &res->resctrl_res;
+
+	/* Is this one of the two well-known caches? */
+	if (class != mpam_resctrl_exports[RDT_RESOURCE_MBA].class) {
+		r->cache.cbm_len = class->cpbm_wd;
+		r->cache.arch_has_sparse_bitmaps = true;
+
+		/* mpam_devices will reject empty bitmaps */
+		r->cache.min_cbm_bits = 1;
+
+		/* TODO: kill these properties off as they are derivatives */
+		r->format_str = "%d=%0*x";
+		r->fflags = RFTYPE_RES_CACHE;
+		r->default_ctrl = BIT_MASK(class->cpbm_wd) - 1;
+		r->data_width = (class->cpbm_wd + 3) / 4;
+
+		/*
+		 * Which bits are shared with other ...things...
+		 * Unknown devices use partid-0 which uses all the bitmap
+		 * fields. Until we configured the SMMU and GIC not to do this
+		 * 'all the bits' is the correct answer here.
+		 */
+		r->cache.shareable_bits = r->default_ctrl;
+
+		if (mpam_has_feature(mpam_feat_cpor_part, class->features)) {
+			r->alloc_capable = true;
+			exposed_alloc_capable = true;
+		}
+
+		/*
+		 * While this is a CPU-interface feature of MPAM, we only tell
+		 * resctrl about it for caches, as that seems to be how x86
+		 * works, and thus what resctrl expects.
+		 */
+		r->cdp_capable = true;
+	}
 
 	return 0;
 }
@@ -90,7 +162,7 @@ int mpam_resctrl_setup(void)
 		res->resctrl_res.rid = i;
 	}
 
-	/* TODO: pick MPAM classes to map to resctrl resources */
+	mpam_resctrl_pick_caches();
 
 	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
 		res = &mpam_resctrl_exports[i];
