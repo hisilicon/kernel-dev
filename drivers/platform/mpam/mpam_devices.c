@@ -181,6 +181,8 @@ static void mpam_class_destroy(struct mpam_class *class)
 	list_for_each_entry_safe(comp, tmp, &class->components, class_list) {
 		mpam_devices_destroy(comp);
 		list_del(&comp->class_list);
+		if (comp->cfg)
+			kfree(comp->cfg);
 		kfree(comp);
 	}
 }
@@ -429,6 +431,36 @@ static int mpam_device_probe(struct mpam_device *dev)
 	return 0;
 }
 
+static int __allocate_component_cfg(struct mpam_component *comp)
+{
+	lockdep_assert_held(&mpam_devices_lock);	// reading mpam_sysprop
+
+	comp->cfg = kcalloc(mpam_sysprops.max_partid, sizeof(*comp->cfg),
+			    GFP_KERNEL);
+	if (!comp->cfg)
+		return -ENOMEM;
+	return 0;
+}
+
+static int mpam_allocate_config(void)
+{
+	int err = 0;
+	struct mpam_class *class;
+	struct mpam_component *comp;
+
+	lockdep_assert_held(&mpam_devices_lock);
+
+	list_for_each_entry(class, &mpam_classes, classes_list) {
+		list_for_each_entry(comp, &class->components, class_list) {
+			err = __allocate_component_cfg(comp);
+			if (err)
+				break;
+		}
+	}
+
+	return err;
+}
+
 /*
  * If device doesn't match class feature/configuration, do the right thing.
  * For 'num' properties we can just take the minimum.
@@ -533,6 +565,7 @@ static void mpam_enable_squash_features(void)
  */
 static void mpam_enable(struct work_struct *work)
 {
+	int err;
 	struct mpam_device *dev;
 	bool all_devices_probed = true;
 
@@ -554,7 +587,9 @@ static void mpam_enable(struct work_struct *work)
 
 	mutex_lock(&mpam_devices_lock);
 	mpam_enable_squash_features();
-	mpam_resctrl_setup();
+	err = mpam_allocate_config();
+	if (!err)
+		mpam_resctrl_setup();
 	mutex_unlock(&mpam_devices_lock);
 }
 

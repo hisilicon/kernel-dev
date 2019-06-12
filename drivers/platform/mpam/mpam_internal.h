@@ -75,6 +75,26 @@ static inline bool mpam_has_part_sel(mpam_features_t supported)
 	return supported & mask;
 }
 
+struct mpam_config {
+
+	/*
+	 * The biggest config we could pass around is 4K, but resctrl's max
+	 * cbm is u32, so we only need the full-size config during reset.
+	 * Just in case a cache with a >u32 bitmap is exported for another
+	 * reason, we need to track which bits of the configuration are valid.
+	 */
+	mpam_features_t valid;
+
+	u32     cpbm;
+	u32     mbw_pbm;
+	u16     mbw_max;
+};
+typedef struct mpam_config mpam_config_t;
+
+static inline bool mpam_config_is_empty(mpam_config_t *cfg)
+{
+	return (!cfg->cpbm || !cfg->mbw_pbm || !cfg->mbw_max);
+}
 
 /*
  * An mpam_device corresponds to an MSC, an interface to a component's cache
@@ -131,6 +151,8 @@ struct mpam_component
 
 	struct cpumask          fw_affinity;
 
+	/* Array of configuration values, indexed by partid. */
+	mpam_config_t		*cfg;
 
 	/* member of mpam_class:components */
 	struct list_head        class_list;
@@ -173,9 +195,17 @@ struct mpam_class
 	struct list_head        classes_list;
 };
 
+typedef u32 resctrl_config_t;
+
 struct mpam_resctrl_dom {
 	struct mpam_component	*comp;
 	struct rdt_domain	resctrl_dom;
+
+	/*
+	 * Array of resctrl provided configuration values, indexed by
+	 * hw_closid.
+	 */
+	resctrl_config_t	*resctrl_cfg;
 };
 
 struct mpam_resctrl_res {
