@@ -180,12 +180,41 @@ int mpam_resctrl_setup(void)
 	return 0;
 }
 
+static void mpam_update_from_resctrl_cfg(struct mpam_resctrl_res *res,
+					 resctrl_config_t resctrl_cfg,
+					 mpam_config_t *mpam_cfg)
+{
+	/* Is this one of the two well-known caches? */
+	if (res != &mpam_resctrl_exports[RDT_RESOURCE_MBA]) {
+		/*
+		 * Nothing clever here as mpam_resctrl_pick_caches()
+		 * capped the size at RESCTRL_MAX_CBM.
+		 */
+		mpam_cfg->cpbm = resctrl_cfg;
+		mpam_set_feature(mpam_feat_cpor_part, &mpam_cfg->valid);
+	}
+}
+
+static void resource_reset_cfg(struct mpam_resctrl_res *res,
+			       struct mpam_resctrl_dom *dom)
+{
+	int i;
+	struct rdt_resource *r = &res->resctrl_res;
+
+	for (i = 0; i < mpam_resctrl_num_closid(); i++) {
+		dom->resctrl_cfg[i] = r->default_ctrl;
+		mpam_update_from_resctrl_cfg(res, r->default_ctrl,
+					     &dom->comp->cfg[i]);
+	}
+}
+
 static int mpam_resctrl_setup_domain(unsigned int cpu,
 				     struct mpam_resctrl_res *res)
 {
 	struct mpam_resctrl_dom *dom;
 	struct mpam_class *class = res->class;
 	struct mpam_component *comp_iter, *comp;
+	u16 num_cfgs = mpam_resctrl_num_closid();
 
 	comp = NULL;
 	list_for_each_entry(comp_iter, &class->components, class_list) {
@@ -207,6 +236,15 @@ static int mpam_resctrl_setup_domain(unsigned int cpu,
 	INIT_LIST_HEAD(&dom->resctrl_dom.list);
 	dom->resctrl_dom.id = comp->comp_id;
 	cpumask_set_cpu(cpu, &dom->resctrl_dom.cpu_mask);
+	dom->resctrl_cfg = kcalloc(num_cfgs, sizeof(*dom->resctrl_cfg),
+				   GFP_KERNEL);
+	if (!dom->resctrl_cfg) {
+		kfree(dom);
+		return -ENOMEM;
+	}
+
+	/* Resctrl expects resources to be reset over domain offline/online */
+	resource_reset_cfg(res, dom);
 
 	/* TODO: this list should be sorted */
 	list_add_tail(&dom->resctrl_dom.list, &res->resctrl_res.domains);
@@ -279,6 +317,7 @@ int mpam_resctrl_cpu_offline(unsigned int cpu)
 
 		list_del(&d->list);
 		dom = container_of(d, struct mpam_resctrl_dom, resctrl_dom);
+		kfree(dom->resctrl_cfg);
 		kfree(dom);
 	}
 
