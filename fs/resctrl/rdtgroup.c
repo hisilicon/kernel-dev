@@ -3119,19 +3119,6 @@ out:
 	return ret;
 }
 
-struct rdt_domain *resctrl_get_domain_from_cpu(int cpu, struct rdt_resource *r)
-{
-	struct rdt_domain *d;
-
-	list_for_each_entry(d, &r->domains, list) {
-		/* Find the domain that contains this CPU */
-		if (cpumask_test_cpu(cpu, &d->cpu_mask))
-			return d;
-	}
-
-	return NULL;
-}
-
 /*
  * Allocate any resource specific monitor arrays.
  * Called from cpuhp callbacks before resctrl_online_domain().
