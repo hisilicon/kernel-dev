@@ -625,7 +625,8 @@ static void mpam_reset_device_bitmap(struct mpam_device *dev, u16 reg, u16 wd)
 		mpam_write_reg(dev, reg, bm);
 }
 
-static void mpam_reset_device_partid(struct mpam_device *dev, u16 partid)
+static void mpam_reset_device_partid(struct mpam_device *dev, u16 partid,
+				     struct mpam_config *cfg)
 {
 	u16 cmax = GENMASK(dev->cmax_wd, 0);
 	u16 bwa_fract = GENMASK(15, dev->bwa_wd);
@@ -644,17 +645,36 @@ static void mpam_reset_device_partid(struct mpam_device *dev, u16 partid)
 	if (mpam_has_feature(mpam_feat_ccap_part, dev->features))
 		mpam_write_reg(dev, MPAMCFG_CMAX, cmax);
 
-	if (mpam_has_feature(mpam_feat_cpor_part, dev->features))
-		mpam_reset_device_bitmap(dev, MPAMCFG_CPBM, dev->cpbm_wd);
+	if (mpam_has_feature(mpam_feat_cpor_part, dev->features)) {
+		if (cfg && mpam_has_feature(mpam_feat_cpor_part, cfg->valid)) {
+			/*
+			 * cpor_part being valid implies the bitmap fits in a
+			 * single write.
+			 */
+			mpam_write_reg(dev, MPAMCFG_CMAX, cfg->cpbm);
+		} else {
+			mpam_reset_device_bitmap(dev, MPAMCFG_CPBM,
+						 dev->cpbm_wd);
+		}
+	}
 
-	if (mpam_has_feature(mpam_feat_mbw_part, dev->features))
-		mpam_reset_device_bitmap(dev, MPAMCFG_MBW_PBM, dev->mbw_pbm_bits);
+	if (mpam_has_feature(mpam_feat_mbw_part, dev->features)) {
+		if (cfg && mpam_has_feature(mpam_feat_mbw_max, cfg->valid))
+			mpam_write_reg(dev, MPAMCFG_CMAX, cfg->mbw_pbm);
+		else
+			mpam_reset_device_bitmap(dev, MPAMCFG_MBW_PBM,
+						 dev->mbw_pbm_bits);
+	}
 
 	if (mpam_has_feature(mpam_feat_mbw_min, dev->features))
 		mpam_write_reg(dev, MPAMCFG_MBW_MIN, bwa_fract);
 
-	if (mpam_has_feature(mpam_feat_mbw_max, dev->features))
-		mpam_write_reg(dev, MPAMCFG_MBW_MAX, bwa_fract);
+	if (mpam_has_feature(mpam_feat_mbw_max, dev->features)) {
+		if (cfg && mpam_has_feature(mpam_feat_mbw_max, cfg->valid))
+			mpam_write_reg(dev, MPAMCFG_CMAX, cfg->mbw_max);
+		else
+			mpam_write_reg(dev, MPAMCFG_MBW_MAX, bwa_fract);
+	}
 
 	if (mpam_has_feature(mpam_feat_mbw_prop, dev->features))
 		mpam_write_reg(dev, MPAMCFG_MBW_PROP, bwa_fract);
@@ -684,23 +704,27 @@ static void mpam_reset_device_partid(struct mpam_device *dev, u16 partid)
  * Called from cpuhp callbacks and with the cpus_read_lock() held from
  * mpam_reset_devices().
  */
-static void mpam_reset_device(struct mpam_device *dev)
+static void mpam_reset_device(struct mpam_component *comp,
+			      struct mpam_device *dev)
 {
 	u16 partid;
 
 	lockdep_assert_held(&dev->lock);
 
 	for (partid = 0; partid < mpam_sysprops.max_partid; partid++)
-		mpam_reset_device_partid(dev, partid);
+		mpam_reset_device_partid(dev, partid, NULL);
 
 }
 
-static int mpam_device_apply_config(struct mpam_device *dev)
+static int mpam_device_apply_config(struct mpam_component *comp,
+				    struct mpam_device *dev)
 {
+	u16 partid;
 	int ret = 0;
 
 	spin_lock(&dev->lock);
-	mpam_reset_device(dev);
+	for (partid = 0; partid < mpam_sysprops.max_partid; partid++)
+		mpam_reset_device_partid(dev, partid, &comp->cfg[partid]);
 	spin_unlock(&dev->lock);
 
 	return ret;
@@ -724,7 +748,7 @@ static void mpam_component_config_sync_local(void *_ctx)
 			continue;
 
 		/* Apply new configuration to this device */
-		err = mpam_device_apply_config(dev);
+		err = mpam_device_apply_config(comp, dev);
 		if (err)
 			cmpxchg(&ctx->first_error, 0, err);
 	}
@@ -837,7 +861,7 @@ static int __online_devices(struct mpam_component *comp, int cpu)
 		}
 
 		if (cpumask_empty(&dev->online_affinity))
-			mpam_reset_device(dev);
+			mpam_reset_device(comp, dev);
 
 		cpumask_set_cpu(cpu, &dev->online_affinity);
 		spin_unlock(&dev->lock);
