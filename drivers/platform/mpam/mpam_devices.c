@@ -4,6 +4,7 @@
 #define pr_fmt(fmt) "mpam: " fmt
 
 #include <linux/arm_mpam.h>
+#include <linux/atomic.h>
 #include <linux/bitmap.h>
 #include <linux/bits.h>
 #include <linux/cacheinfo.h>
@@ -70,6 +71,9 @@ struct mpam_device_sync
 
 	/* sync_args is NULL for a reset */
 	struct mpam_component_sync_args *sync_args;
+
+	bool configure_mon;
+	atomic64_t mon_value;
 
 	/*
 	 * If the device is reachable from one of these cpus, it has been
@@ -893,10 +897,78 @@ static int mpam_device_apply_config_locked(struct mpam_component *comp,
 	return ret;
 }
 
+static int mpam_device_frob_mon(struct mpam_device *dev,
+				struct mpam_device_sync *ctx)
+{
+	u16 mon;
+	u32 csu, clt, flt, cur_clt, cur_flt;
+
+	lockdep_assert_held(&dev->lock);
+
+	if (mpam_broken)
+		return -EIO;
+
+	if (!mpam_has_feature(mpam_feat_msmon_csu, dev->features))
+		return -EOPNOTSUPP;
+
+	if (!ctx->sync_args)
+		return -EINVAL;
+
+	mon = ctx->sync_args->mon;
+
+	mpam_write_reg(dev, MSMON_CFG_MON_SEL, mon);
+	wmb(); /* subsequent writes must be applied to this mon */
+
+	/*
+	 * We don't bother with capture as we don't expose a way of measuring
+	 * multiple partid:pmg with a single capture.
+	 */
+	clt = MSMON_CFG_x_CTL_MATCH_PARTID;
+	if (ctx->sync_args->match_pmg)
+		clt |= MSMON_CFG_x_CTL_MATCH_PMG;
+	flt = ctx->sync_args->partid |
+	      (ctx->sync_args->pmg << MSMON_CFG_MBWU_FLT_PMG_SHIFT);
+
+	/*
+	 * We read the existing configuration to avoid re-writing the same
+	 * values.
+	 */
+	cur_flt = mpam_read_reg(dev, MSMON_CFG_CSU_FLT);
+	cur_clt = mpam_read_reg(dev, MSMON_CFG_CSU_CLT);
+
+	if (cur_flt != flt || cur_clt != (clt | MSMON_CFG_x_CTL_EN)) {
+		mpam_write_reg(dev, MSMON_CFG_CSU_FLT, flt);
+
+		/*
+		 * Write the ctl with the enable bit cleared, reset the counter, then
+		 * enable counter.
+		 */
+		mpam_write_reg(dev, MSMON_CFG_CSU_CLT, clt);
+		wmb();
+
+		mpam_write_reg(dev, MSMON_CSU, 0);
+		wmb();
+
+		clt |= MSMON_CFG_x_CTL_EN;
+		mpam_write_reg(dev, MSMON_CFG_CSU_CLT, clt);
+		wmb();
+	}
+
+	csu = mpam_read_reg(dev, MSMON_CSU);
+	if (csu & MSMON___NRDY)
+		return -EBUSY;
+
+	csu = csu & MSMON___VALUE;
+	atomic64_add(csu, &ctx->mon_value);
+
+	return 0;
+}
+
+
 /* Update all newly reachable devices. Call with cpus_read_lock() held. */
 static void mpam_component_config_sync_local(void *_ctx)
 {
-	int err;
+	int err = 0;
 	u16 partid;
 	unsigned long flags;
 	struct mpam_device *dev;
@@ -918,7 +990,11 @@ static void mpam_component_config_sync_local(void *_ctx)
 		spin_lock_irqsave(&dev->lock, flags);
 		if (sync_args) {
 			partid = sync_args->partid;
-			mpam_reset_device_partid(dev, partid, &comp->cfg[partid]);
+			if (ctx->configure_mon)
+				err = mpam_device_frob_mon(dev, ctx);
+			else
+				mpam_reset_device_partid(dev, partid,
+							 &comp->cfg[partid]);
 		} else {
 			err = mpam_device_apply_config_locked(comp, dev);
 		}
@@ -930,35 +1006,27 @@ static void mpam_component_config_sync_local(void *_ctx)
 	cpumask_set_cpu(smp_processor_id(), &ctx->updated_on);
 }
 
-/* Call with cpuhp lock held, sync_args may be NULL */
-int mpam_component_config_sync(struct mpam_component *comp,
-			       struct mpam_component_sync_args *sync_args)
+int __do_device_sync(struct mpam_component *comp, struct mpam_device_sync *ctx)
 {
 	int cpu;
 	struct mpam_device *dev;
-	struct mpam_device_sync ctx;
 
 	/* The online_affinity masks must not change while we do this */
 	lockdep_assert_cpus_held();
 
-	ctx.comp = comp;
-	ctx.first_error = 0;
-	ctx.sync_args = sync_args;
-	cpumask_clear(&ctx.updated_on);
-
 	cpu = get_cpu();
 	/* Update any devices we can reach locally */
 	if (cpumask_test_cpu(cpu, &comp->fw_affinity))
-		mpam_component_config_sync_local(&ctx);
+		mpam_component_config_sync_local(ctx);
 	put_cpu();
 
 	/* Find the set of other CPUs we need to run on to update this component */
 	list_for_each_entry(dev, &comp->devices, comp_list) {
-		if (ctx.first_error)
+		if (ctx->first_error)
 			break;
 
 		if (cpumask_intersects(&dev->online_affinity,
-				       &ctx.updated_on))
+				       &ctx->updated_on))
 			continue;
 
 		/*
@@ -967,10 +1035,50 @@ int mpam_component_config_sync(struct mpam_component *comp,
 		 */
 		cpu = cpumask_any(&dev->online_affinity);
 		smp_call_function_single(cpu, mpam_component_config_sync_local,
-					 &ctx, 1);
+					 ctx, 1);
 	}
 
-	return ctx.first_error;
+	return ctx->first_error;
+}
+
+int mpam_component_config_sync(struct mpam_component *comp,
+			       struct mpam_component_sync_args *sync_args)
+{
+	struct mpam_device_sync ctx;
+
+	ctx.comp =  comp;
+	ctx.sync_args = sync_args;
+	ctx.first_error = 0;
+	ctx.configure_mon = false;
+	cpumask_clear(&ctx.updated_on);
+
+	return __do_device_sync(comp, &ctx);
+}
+
+
+int mpam_component_configure_mon(struct mpam_component *comp,
+				 struct mpam_component_sync_args *sync_args,
+				 u64 *result)
+{
+	int ret;
+	struct mpam_device_sync ctx;
+
+	*result = 0;
+
+	if (!sync_args)
+		return -EINVAL;
+
+	ctx.comp =  comp;
+	ctx.sync_args = sync_args;
+	ctx.first_error = 0;
+	ctx.configure_mon = true;
+	cpumask_clear(&ctx.updated_on);
+
+	ret = __do_device_sync(comp, &ctx);
+	if (!ret)
+		*result = atomic64_read(&ctx.mon_value);
+
+	return ret;
 }
 
 /*
