@@ -234,6 +234,11 @@ struct mpam_component_sync_args
 {
 	/* Caller specifies these values: */
 	u16 partid;
+
+	/* mpam_component_config_sync() expects these too: */
+	u8      mon;
+	bool    match_pmg;
+	u8      pmg;
 };
 
 /*
@@ -242,6 +247,15 @@ struct mpam_component_sync_args
  */
 int mpam_component_config_sync(struct mpam_component *comp,
 			       struct mpam_component_sync_args *sync_args);
+
+/*
+ * Like mpam_component_config_sync(), but for programing and reading a CSU
+ * monitor.
+ */
+int mpam_component_configure_mon(struct mpam_component *comp,
+				 struct mpam_component_sync_args *sync_args,
+				 u64 *result);
+
 
 int mpam_resctrl_cpu_online(unsigned int cpu);
 int mpam_resctrl_cpu_offline(unsigned int cpu);
