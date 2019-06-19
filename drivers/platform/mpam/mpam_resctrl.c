@@ -603,7 +603,7 @@ struct rdt_domain *mpam_resctrl_find_domain(struct rdt_resource *r, int id)
 
 	class = container_of(r, struct mpam_class, resctrl_res);
 	comp = mpam_component_get(class, id, false);
-	if (!comp)
+	if (IS_ERR(comp))
 		return NULL;
 
 	return &comp->resctrl_domain;
