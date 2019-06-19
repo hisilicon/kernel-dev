@@ -42,9 +42,10 @@ struct mon_evt {
 union mon_data_bits {
 	void *priv;
 	struct {
-		unsigned int rid	: 10;
-		unsigned int evtid	: 8;
-		unsigned int domid	: 14;
+		unsigned long rid	: 10;
+		unsigned long evtid	: 8;
+		unsigned long domid	: 32;
+		unsigned long resv	: 14;
 	} u;
 };
 
