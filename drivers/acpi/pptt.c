@@ -472,10 +472,12 @@ void acpi_pptt_min_physid_from_cpu_node(struct acpi_table_header *table_hdr,
 				    iter->length);
 	}
 
-	acpi_processor_id = cpu_node->acpi_processor_id;
-	cpu_node_phys_id = acpi_id_to_phys_cpuid(acpi_processor_id);
-	if (!invalid_phys_cpuid(cpu_node_phys_id))
-		*min_physid = min(*min_physid, cpu_node_phys_id);
+	if (leaf) {
+		acpi_processor_id = cpu_node->acpi_processor_id;
+		cpu_node_phys_id = acpi_id_to_phys_cpuid(acpi_processor_id);
+		if (!invalid_phys_cpuid(cpu_node_phys_id))
+			*min_physid = min(*min_physid, cpu_node_phys_id);
+	}
 }
 
 static void acpi_pptt_label_cache(struct cacheinfo *this_leaf,
