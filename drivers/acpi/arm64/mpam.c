@@ -205,6 +205,54 @@ static int __init acpi_mpam_parse_table(struct acpi_table_header *table,
 	return ret;
 }
 
+static int __init acpi_mpam_force_create(void)
+{
+	struct mpam_device *dev;
+	int ret = 0;
+
+	ret = mpam_discovery_start();
+	if (ret)
+		return ret;
+
+	/* L3_0 cache_id, addr: 5242880(0x80000),0x000098b90000 */
+	dev = mpam_device_create_cache(3, 0x80000, NULL,
+				       0x000098b90000);
+	if (IS_ERR(dev)) {
+		pr_err("L3_0 create failed\n");
+		goto out;
+	}
+
+	/* L3_1 cache_id, addr: 1572864(0x180000),0x000090b90000 */
+	dev = mpam_device_create_cache(3, 0x180000, NULL,
+				       0x000090b90000);
+	if (IS_ERR(dev)) {
+		pr_err("L3_1 create failed\n");
+		goto out;
+	}
+
+	/* L3_2 cache_id, addr: 2621440(0x280000),0x200098b90000 */
+	dev = mpam_device_create_cache(3, 0x280000, NULL,
+				       0x200098b90000);
+	if (IS_ERR(dev)) {
+		pr_err("L3_2 create failed\n");
+		goto out;
+	}
+
+	/* L3_3 cache_id, addr: 3670016(0x380000),0x200090b90000 */
+	dev = mpam_device_create_cache(3, 0x380000, NULL,
+				       0x200090b90000);
+	if (IS_ERR(dev)) {
+		pr_err("L3_3 create failed\n");
+		goto out;
+	}
+	mpam_discovery_complete();
+	return 0;
+
+out:
+	mpam_discovery_failed();
+	return PTR_ERR(dev);
+}
+
 int __init acpi_mpam_parse(void)
 {
 	struct acpi_table_header *mpam, *pptt;
@@ -212,6 +260,7 @@ int __init acpi_mpam_parse(void)
 	int ret;
 
 	cacheinfo_print();
+	acpi_mpam_force_create();
 
 	if (acpi_disabled || !mpam_cpus_have_feature())
 		return 0;
