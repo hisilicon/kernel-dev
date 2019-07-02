@@ -51,6 +51,7 @@
 #include <asm/exception.h>
 #include <asm/system_misc.h>
 #include <asm/sysreg.h>
+#include <asm/ras.h>
 
 static const char *handler[]= {
 	"Synchronous Abort",
@@ -902,6 +903,8 @@ asmlinkage void do_serror(struct pt_regs *regs, unsigned int esr)
 
 	if (!was_in_nmi)
 		nmi_enter();
+
+	arch_arm_ras_report_error();
 
 	/* non-RAS errors are not containable */
 	if (!arm64_is_ras_serror(esr) || arm64_is_fatal_ras_serror(regs, esr))
