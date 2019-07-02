@@ -48,6 +48,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/traps.h>
+#include <asm/ras.h>
 
 struct fault_info {
 	int	(*fn)(unsigned long addr, unsigned int esr,
@@ -641,6 +642,8 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 	void __user *siaddr;
 
 	inf = esr_to_fault_info(esr);
+
+	arch_arm_ras_report_error();
 
 	/*
 	 * Return value ignored as we rely on signal merging.
