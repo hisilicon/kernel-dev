@@ -27,6 +27,7 @@
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <linux/ptrace.h>
 #include <linux/rbtree.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
@@ -92,10 +93,21 @@ struct vfio_dma {
 	struct rb_root		pfn_list;	/* Ex-user pinned pfn list */
 };
 
+/* Bond between group and mm */
+struct vfio_sva_handle {
+	struct iommu_sva	*handle;
+	int			pasid;
+	struct mm_struct	*mm;
+	spinlock_t		lock;		/* protects mm pointer */
+	struct list_head	next;
+};
+
 struct vfio_group {
 	struct iommu_group	*iommu_group;
 	struct list_head	next;
 	bool			mdev_group;	/* An mdev group */
+	bool			sva_enabled;
+	struct list_head	sva_handles;
 };
 
 struct vfio_iova {
@@ -1220,6 +1232,180 @@ static int vfio_iommu_replay(struct vfio_iommu *iommu,
 	return 0;
 }
 
+static int vfio_iommu_sva_exit(struct device *dev, struct iommu_sva *handle,
+			       void *data)
+{
+	struct vfio_sva_handle *sva = data;
+
+	/*
+	 * IOMMU ensures that data is valid until we return - it won't allow a
+	 * concurrent unbind() to complete. We do need the sva->lock to
+	 * serialize against replay, which attempts to take a reference to
+	 * sva->mm to copy the bindings to a new group.
+	 */
+	spin_lock(&sva->lock);
+	sva->mm = NULL;
+	spin_unlock(&sva->lock);
+	return 0;
+}
+
+static struct iommu_sva_ops vfio_sva_ops = {
+	.mm_exit = vfio_iommu_sva_exit,
+};
+
+static int vfio_iommu_sva_init(struct device *dev, void *data)
+{
+	return iommu_dev_enable_feature(dev, IOMMU_DEV_FEAT_SVA);
+}
+
+static int vfio_iommu_sva_shutdown(struct device *dev, void *data)
+{
+	return iommu_dev_disable_feature(dev, IOMMU_DEV_FEAT_SVA);
+}
+
+static int vfio_iommu_bind_group(struct vfio_iommu *iommu,
+				 struct vfio_group *group,
+				 struct mm_struct *mm,
+				 int *pasid)
+{
+	int ret;
+	bool enabled_sva = false;
+	struct vfio_sva_handle *sva;
+
+	if (!group->sva_enabled) {
+		ret = iommu_group_for_each_dev(group->iommu_group, NULL,
+					       vfio_iommu_sva_init);
+		if (ret)
+			return ret;
+
+		group->sva_enabled = enabled_sva = true;
+	}
+
+	sva = kzalloc(sizeof(*sva), GFP_KERNEL);
+	if (!sva) {
+		ret = -ENOMEM;
+		goto out_shutdown;
+	}
+
+	spin_lock_init(&sva->lock);
+	sva->mm = mm;
+
+	sva->handle = iommu_sva_bind_group(group->iommu_group, mm, sva);
+	if (IS_ERR(sva->handle)) {
+		ret = PTR_ERR(sva->handle);
+		goto out_free;
+	}
+
+	ret = iommu_sva_set_ops(sva->handle, &vfio_sva_ops);
+	if (ret)
+		goto out_unbind;
+
+	sva->pasid = iommu_sva_get_pasid(sva->handle);
+	if (sva->pasid == IOMMU_PASID_INVALID)
+		goto out_unbind;
+	if (pasid)
+		*pasid = sva->pasid;
+
+	list_add(&sva->next, &group->sva_handles);
+
+	return 0;
+
+out_unbind:
+	iommu_sva_unbind_device(sva->handle);
+out_free:
+	kfree(sva);
+out_shutdown:
+	if (enabled_sva) {
+		iommu_group_for_each_dev(group->iommu_group, NULL,
+					 vfio_iommu_sva_shutdown);
+		group->sva_enabled = false;
+	}
+	return ret;
+}
+
+static void vfio_iommu_unbind_group(struct vfio_group *group, int pasid)
+{
+	struct vfio_sva_handle *sva;
+
+	list_for_each_entry(sva, &group->sva_handles, next) {
+		if (sva->pasid == pasid) {
+			iommu_sva_unbind_device(sva->handle);
+			list_del(&sva->next);
+			kfree(sva);
+			break;
+		}
+	}
+}
+
+static void vfio_iommu_unbind_group_all(struct vfio_group *group)
+{
+	struct vfio_sva_handle *sva, *next;
+
+	list_for_each_entry_safe(sva, next, &group->sva_handles, next) {
+		iommu_sva_unbind_device(sva->handle);
+		list_del(&sva->next);
+		kfree(sva);
+	}
+}
+
+static void vfio_iommu_unbind(struct vfio_iommu *iommu, int pasid)
+{
+	struct vfio_group *group;
+	struct vfio_domain *domain;
+
+	list_for_each_entry(domain, &iommu->domain_list, next)
+		list_for_each_entry(group, &domain->group_list, next)
+			vfio_iommu_unbind_group(group, pasid);
+}
+
+static int vfio_iommu_replay_bind(struct vfio_iommu *iommu,
+				  struct vfio_group *group)
+{
+	int ret = 0;
+	struct vfio_domain *domain;
+	struct vfio_sva_handle *sva;
+	struct vfio_group *old_group;
+
+	domain = list_first_entry_or_null(&iommu->domain_list,
+					  struct vfio_domain, next);
+	if (!domain)
+		return 0;
+
+	old_group = list_first_entry_or_null(&domain->group_list,
+					     struct vfio_group, next);
+	if (!old_group)
+		return 0;
+
+	list_for_each_entry(sva, &old_group->sva_handles, next) {
+		struct mm_struct *mm = NULL;
+
+		/*
+		 * Ensure that mm doesn't exit while we're binding it to the new
+		 * group, by taking a reference. Serialize against the mm_exit
+		 * handler that clears sva->mm when the process exits. mm_users
+		 * may already be zero if the mm is exiting but our mm_exit
+		 * handler hasn't yet been called.
+		 */
+		spin_lock(&sva->lock);
+		if (sva->mm && mmget_not_zero(sva->mm))
+			mm = sva->mm;
+		spin_unlock(&sva->lock);
+		if (!mm)
+			continue;
+
+		ret = vfio_iommu_bind_group(iommu, group, mm, NULL);
+		mmput(mm);
+
+		if (ret)
+			goto out_unbind;
+	}
+	return 0;
+
+out_unbind:
+	vfio_iommu_unbind_group_all(group);
+	return ret;
+}
+
 /*
  * We change our unmap behavior slightly depending on whether the IOMMU
  * supports fine-grained superpages.  IOMMUs like AMD-Vi will use a superpage
@@ -1610,6 +1796,42 @@ static void vfio_iommu_iova_insert_copy(struct vfio_iommu *iommu,
 
 	list_splice_tail(iova_copy, iova);
 }
+
+static int vfio_iommu_try_attach_group(struct vfio_iommu *iommu,
+				       struct vfio_group *group,
+				       struct vfio_domain *cur_domain,
+				       struct vfio_domain *new_domain)
+{
+	/*
+	 * Try to match an existing compatible domain.  We don't want to
+	 * preclude an IOMMU driver supporting multiple bus_types and being
+	 * able to include different bus_types in the same IOMMU domain, so
+	 * we test whether the domains use the same iommu_ops rather than
+	 * testing if they're on the same bus_type.
+	 */
+	if (new_domain->domain->ops != cur_domain->domain->ops ||
+	    new_domain->prot != cur_domain->prot)
+		return 1;
+
+	vfio_iommu_detach_group(cur_domain, group);
+	if (vfio_iommu_attach_group(new_domain, group))
+		goto out_reattach;
+
+	if (vfio_iommu_replay_bind(iommu, group))
+		goto out_detach;
+
+	return 0;
+
+out_detach:
+	vfio_iommu_detach_group(new_domain, group);
+
+out_reattach:
+	if (vfio_iommu_attach_group(cur_domain, group))
+		return -EINVAL;
+
+	return 1;
+}
+
 static int vfio_iommu_type1_attach_group(void *iommu_data,
 					 struct iommu_group *iommu_group)
 {
@@ -1647,6 +1869,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 		goto out_free;
 	}
 
+	INIT_LIST_HEAD(&group->sva_handles);
 	group->iommu_group = iommu_group;
 
 	/* Determine bus_type in order to allocate a domain */
@@ -1753,27 +1976,15 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	if (iommu_capable(bus, IOMMU_CAP_CACHE_COHERENCY))
 		domain->prot |= IOMMU_CACHE;
 
-	/*
-	 * Try to match an existing compatible domain.  We don't want to
-	 * preclude an IOMMU driver supporting multiple bus_types and being
-	 * able to include different bus_types in the same IOMMU domain, so
-	 * we test whether the domains use the same iommu_ops rather than
-	 * testing if they're on the same bus_type.
-	 */
 	list_for_each_entry(d, &iommu->domain_list, next) {
-		if (d->domain->ops == domain->domain->ops &&
-		    d->prot == domain->prot) {
-			vfio_iommu_detach_group(domain, group);
-			if (!vfio_iommu_attach_group(d, group)) {
-				list_add(&group->next, &d->group_list);
-				iommu_domain_free(domain->domain);
-				kfree(domain);
-				goto done;
-			}
-
-			ret = vfio_iommu_attach_group(domain, group);
-			if (ret)
-				goto out_domain;
+		ret = vfio_iommu_try_attach_group(iommu, group, domain, d);
+		if (ret < 0) {
+			goto out_domain;
+		} else if (!ret) {
+			list_add(&group->next, &d->group_list);
+			iommu_domain_free(domain->domain);
+			kfree(domain);
+			goto done;
 		}
 	}
 
@@ -1781,6 +1992,10 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 
 	/* replay mappings on new domains */
 	ret = vfio_iommu_replay(iommu, domain);
+	if (ret)
+		goto out_detach;
+
+	ret = vfio_iommu_replay_bind(iommu, group);
 	if (ret)
 		goto out_detach;
 
@@ -1981,6 +2196,12 @@ static void vfio_iommu_type1_detach_group(void *iommu_data,
 		if (!group)
 			continue;
 
+		vfio_iommu_unbind_group_all(group);
+		if (group->sva_enabled) {
+			iommu_group_for_each_dev(iommu_group, NULL,
+						 vfio_iommu_sva_shutdown);
+			group->sva_enabled = false;
+		}
 		vfio_iommu_detach_group(domain, group);
 		list_del(&group->next);
 		kfree(group);
@@ -2172,6 +2393,123 @@ out_unlock:
 	return ret;
 }
 
+static struct mm_struct *vfio_iommu_get_mm_by_vpid(pid_t vpid)
+{
+	struct mm_struct *mm;
+	struct task_struct *task;
+
+	task = find_get_task_by_vpid(vpid);
+	if (!task)
+		return ERR_PTR(-ESRCH);
+
+	/* Ensure that current has RW access on the mm */
+	mm = mm_access(task, PTRACE_MODE_ATTACH_REALCREDS);
+	put_task_struct(task);
+
+	if (!mm)
+		return ERR_PTR(-ESRCH);
+
+	return mm;
+}
+
+static long vfio_iommu_type1_bind_process(struct vfio_iommu *iommu,
+					  void __user *arg,
+					  struct vfio_iommu_type1_bind *bind)
+{
+	struct vfio_iommu_type1_bind_process params;
+	int pasid = IOMMU_PASID_INVALID;
+	struct vfio_domain *domain;
+	struct vfio_group *group;
+	struct mm_struct *mm;
+	unsigned long minsz;
+	int new_pasid;
+	int ret = 0;
+
+	minsz = sizeof(*bind) + sizeof(params);
+	if (bind->argsz < minsz)
+		return -EINVAL;
+
+	arg += sizeof(*bind);
+	if (copy_from_user(&params, arg, sizeof(params)))
+		return -EFAULT;
+
+	if (params.flags & ~VFIO_IOMMU_BIND_PID)
+		return -EINVAL;
+
+	if (params.flags & VFIO_IOMMU_BIND_PID) {
+		mm = vfio_iommu_get_mm_by_vpid(params.pid);
+		if (IS_ERR(mm))
+			return PTR_ERR(mm);
+	} else {
+		mm = get_task_mm(current);
+		if (!mm)
+			return -EINVAL;
+	}
+
+	mutex_lock(&iommu->lock);
+	if (!IS_IOMMU_CAP_DOMAIN_IN_CONTAINER(iommu)) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	list_for_each_entry(domain, &iommu->domain_list, next) {
+		list_for_each_entry(group, &domain->group_list, next) {
+			ret = vfio_iommu_bind_group(iommu, group, mm,
+						    &new_pasid);
+			if (ret)
+				goto out_unbind;
+
+			if (WARN_ON(pasid != IOMMU_PASID_INVALID && 
+				    pasid != new_pasid))
+				goto out_unbind;
+			pasid = new_pasid;
+		}
+	}
+
+	params.pasid = pasid;
+	ret = copy_to_user(arg, &params, sizeof(params)) ? -EFAULT : 0;
+	if (ret)
+		goto out_unbind;
+
+	mutex_unlock(&iommu->lock);
+	mmput(mm);
+	return 0;
+
+out_unbind:
+	/* Undo all binds that already succeeded */
+	vfio_iommu_unbind(iommu, params.pasid);
+
+out_unlock:
+	mutex_unlock(&iommu->lock);
+	mmput(mm);
+	return ret;
+}
+
+static long vfio_iommu_type1_unbind_process(struct vfio_iommu *iommu,
+					    void __user *arg,
+					    struct vfio_iommu_type1_bind *bind)
+{
+	unsigned long minsz;
+	struct vfio_iommu_type1_bind_process params;
+
+	minsz = sizeof(*bind) + sizeof(params);
+	if (bind->argsz < minsz)
+		return -EINVAL;
+
+	arg += sizeof(*bind);
+	if (copy_from_user(&params, arg, sizeof(params)))
+		return -EFAULT;
+
+	if (params.flags & ~VFIO_IOMMU_BIND_PID)
+		return -EINVAL;
+
+	mutex_lock(&iommu->lock);
+	vfio_iommu_unbind(iommu, params.pasid);
+	mutex_unlock(&iommu->lock);
+
+	return 0;
+}
+
 static long vfio_iommu_type1_ioctl(void *iommu_data,
 				   unsigned int cmd, unsigned long arg)
 {
@@ -2276,6 +2614,44 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 
 		return copy_to_user((void __user *)arg, &unmap, minsz) ?
 			-EFAULT : 0;
+
+	} else if (cmd == VFIO_IOMMU_BIND) {
+		struct vfio_iommu_type1_bind bind;
+
+		minsz = offsetofend(struct vfio_iommu_type1_bind, flags);
+
+		if (copy_from_user(&bind, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		if (bind.argsz < minsz)
+			return -EINVAL;
+
+		switch (bind.flags) {
+		case VFIO_IOMMU_BIND_PROCESS:
+			return vfio_iommu_type1_bind_process(iommu, (void *)arg,
+							     &bind);
+		default:
+			return -EINVAL;
+		}
+
+	} else if (cmd == VFIO_IOMMU_UNBIND) {
+		struct vfio_iommu_type1_bind bind;
+
+		minsz = offsetofend(struct vfio_iommu_type1_bind, flags);
+
+		if (copy_from_user(&bind, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		if (bind.argsz < minsz)
+			return -EINVAL;
+
+		switch (bind.flags) {
+		case VFIO_IOMMU_BIND_PROCESS:
+			return vfio_iommu_type1_unbind_process(iommu, (void *)arg,
+							       &bind);
+		default:
+			return -EINVAL;
+		}
 	}
 
 	return -ENOTTY;
