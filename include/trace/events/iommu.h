@@ -245,6 +245,96 @@ TRACE_EVENT(dev_page_response,
 	)
 );
 
+DECLARE_EVENT_CLASS(io_mm,
+	    TP_PROTO(int pasid),
+	    TP_ARGS(pasid),
+	    TP_STRUCT__entry(
+		__field(int, pasid)
+	    ),
+	    TP_fast_assign(
+		__entry->pasid = pasid;
+	    ),
+	    TP_printk("pasid=%d", __entry->pasid)
+);
+
+DEFINE_EVENT(io_mm, io_mm_alloc,
+	    TP_PROTO(int pasid),
+	    TP_ARGS(pasid)
+);
+
+DEFINE_EVENT(io_mm, io_mm_reuse,
+	    TP_PROTO(int pasid),
+	    TP_ARGS(pasid)
+);
+
+DEFINE_EVENT(io_mm, io_mm_free,
+	    TP_PROTO(int pasid),
+	    TP_ARGS(pasid)
+);
+
+DECLARE_EVENT_CLASS(io_mm_dev,
+	    TP_PROTO(int pasid, struct device *dev),
+	    TP_ARGS(pasid, dev),
+	    TP_STRUCT__entry(
+		__string(dev, dev_name(dev))
+		__field(int, pasid)
+	    ),
+	    TP_fast_assign(
+		__assign_str(dev, dev_name(dev));
+		__entry->pasid = pasid;
+	    ),
+	    TP_printk("pasid=%d dev=%s", __entry->pasid, __get_str(dev))
+);
+
+DEFINE_EVENT(io_mm_dev, io_mm_attach_alloc,
+	     TP_PROTO(int pasid, struct device *dev),
+	     TP_ARGS(pasid, dev)
+);
+
+DEFINE_EVENT(io_mm_dev, io_mm_attach_get,
+	     TP_PROTO(int pasid, struct device *dev),
+	     TP_ARGS(pasid, dev)
+);
+
+DEFINE_EVENT(io_mm_dev, io_mm_detach,
+	     TP_PROTO(int pasid, struct device *dev),
+	     TP_ARGS(pasid, dev)
+);
+
+DEFINE_EVENT(io_mm_dev, io_mm_exit,
+	     TP_PROTO(int pasid, struct device *dev),
+	     TP_ARGS(pasid, dev)
+);
+
+DEFINE_EVENT(io_mm_dev, io_mm_unbind_put,
+	     TP_PROTO(int pasid, struct device *dev),
+	     TP_ARGS(pasid, dev)
+);
+
+DEFINE_EVENT(io_mm_dev, io_mm_unbind_free,
+	     TP_PROTO(int pasid, struct device *dev),
+	     TP_ARGS(pasid, dev)
+);
+
+TRACE_EVENT(io_mm_invalidate,
+	    TP_PROTO(int pasid, unsigned long start,
+		     unsigned long end),
+	    TP_ARGS(pasid, start, end),
+	    TP_STRUCT__entry(
+		__field(int, pasid)
+		__field(u64, start)
+		__field(u64, end)
+	    ),
+	    TP_fast_assign(
+		__entry->pasid = pasid;
+		__entry->start = start;
+		__entry->end = end;
+	    ),
+	    TP_printk("pasid=%d start=0x%llx end=0x%llx",
+		__entry->pasid, __entry->start, __entry->end
+	    )
+);
+
 #endif /* _TRACE_IOMMU_H */
 
 /* This part must be outside protection */

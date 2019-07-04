@@ -12,6 +12,8 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
+#include <trace/events/iommu.h>
+
 #include "iommu-sva.h"
 
 /**
@@ -120,6 +122,7 @@ struct io_mm {
 struct iommu_bond {
 	struct iommu_sva		sva;
 	struct io_mm __rcu		*io_mm;
+	int				pasid; /* XXX only for tracing */
 
 	struct list_head		mm_head;
 	void				*drvdata;
@@ -168,6 +171,7 @@ static struct mmu_notifier *io_mm_alloc(struct mm_struct *mm, void *privdata)
 		ret = PTR_ERR(io_mm->ctx);
 		goto err_free_pasid;
 	}
+	trace_io_mm_alloc(io_mm->pasid);
 	return &io_mm->notifier;
 
 err_free_pasid:
@@ -184,6 +188,7 @@ static void io_mm_free(struct mmu_notifier *mn)
 	WARN_ON(!list_empty(&io_mm->devices));
 
 	io_mm->ops->release(io_mm->ctx);
+	trace_io_mm_free(io_mm->pasid);
 	ioasid_free(io_mm->pasid);
 	kfree(io_mm);
 }
@@ -248,6 +253,7 @@ io_mm_attach(struct device *dev, struct io_mm *io_mm, void *drvdata)
 
 	bond->sva.dev	= dev;
 	bond->drvdata	= drvdata;
+	bond->pasid	= io_mm->pasid;
 	refcount_set(&bond->refs, 1);
 	RCU_INIT_POINTER(bond->io_mm, io_mm);
 
@@ -276,6 +282,7 @@ io_mm_attach(struct device *dev, struct io_mm *io_mm, void *drvdata)
 		io_mm_put(io_mm);
 		kfree(bond);
 		mutex_unlock(&iommu_sva_lock);
+		trace_io_mm_attach_get(io_mm->pasid, dev);
 		return &tmp->sva;
 	}
 
@@ -288,6 +295,7 @@ io_mm_attach(struct device *dev, struct io_mm *io_mm, void *drvdata)
 	if (ret)
 		goto err_remove;
 
+	trace_io_mm_attach_alloc(io_mm->pasid, dev);
 	return &bond->sva;
 
 err_remove:
@@ -331,6 +339,8 @@ static void io_mm_detach_locked(struct iommu_bond *bond)
 		}
 	}
 
+	trace_io_mm_detach(bond->pasid, bond->sva.dev);
+
 	io_mm->ops->detach(bond->sva.dev, io_mm->pasid, io_mm->ctx,
 			   detach_domain);
 
@@ -361,6 +371,8 @@ static void io_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 		struct device *dev = bond->sva.dev;
 		struct iommu_sva *sva = &bond->sva;
 
+		trace_io_mm_exit(io_mm->pasid, dev);
+
 		if (sva->ops && sva->ops->mm_exit &&
 		    sva->ops->mm_exit(dev, sva, bond->drvdata))
 			dev_WARN(dev, "possible leak of PASID %u",
@@ -385,6 +397,11 @@ static void io_mm_invalidate_range(struct mmu_notifier *mn,
 	list_for_each_entry_rcu(bond, &io_mm->devices, mm_head)
 		io_mm->ops->invalidate(bond->sva.dev, io_mm->pasid, io_mm->ctx,
 				       start, end - start);
+
+	if (!list_empty(&io_mm->devices)) {
+		WARN_ON(io_mm->pasid == INVALID_IOASID);
+		trace_io_mm_invalidate(io_mm->pasid, start, end);
+	}
 	rcu_read_unlock();
 }
 
@@ -434,9 +451,12 @@ static void iommu_sva_unbind_locked(struct iommu_bond *bond)
 	struct device *dev = bond->sva.dev;
 	struct iommu_sva_param *param = dev->iommu_param->sva_param;
 
-	if (!refcount_dec_and_test(&bond->refs))
+	if (!refcount_dec_and_test(&bond->refs)) {
+		trace_io_mm_unbind_put(bond->pasid, dev);
 		return;
+	}
 
+	trace_io_mm_unbind_free(bond->pasid, dev);
 	io_mm_detach_locked(bond);
 	param->nr_bonds--;
 	kfree_rcu(bond, rcu_head);
