@@ -3048,6 +3048,52 @@ int iommu_aux_get_pasid(struct iommu_domain *domain, struct device *dev)
 }
 EXPORT_SYMBOL_GPL(iommu_aux_get_pasid);
 
+struct iommu_sva_bind_group_data {
+	unsigned int flags;
+	struct iommu_sva *handle;
+};
+
+static int iommu_group_do_bind_dev(struct device *dev, void *data)
+{
+	struct iommu_sva_bind_group_data *bind = data;
+	const struct iommu_ops *ops = dev->bus->iommu_ops;
+
+	if (!ops || !ops->sva_bind)
+		return -ENODEV;
+
+	bind->handle = ops->sva_bind(dev, bind->flags);
+	return PTR_ERR_OR_ZERO(bind->handle);
+}
+
+struct iommu_sva *
+iommu_sva_bind_group(struct iommu_group *group, unsigned int flags)
+{
+	int ret = -EINVAL;
+	struct iommu_sva_bind_group_data data = {
+		.flags = flags,
+	};
+
+	/* Ensure device count and domain don't change while we're binding */
+	mutex_lock(&group->mutex);
+
+	/*
+	 * To keep things simple, SVA currently doesn't support IOMMU groups
+	 * with more than one device. Existing SVA-capable systems are not
+	 * affected by the problems that required IOMMU groups (lack of ACS
+	 * isolation, device ID aliasing and other hardware issues).
+	 */
+	if (iommu_group_device_count(group) != 1)
+		goto out_unlock;
+
+	ret = __iommu_group_for_each_dev(group, &data,
+					 iommu_group_do_bind_dev);
+out_unlock:
+	mutex_unlock(&group->mutex);
+
+	return ret ? ERR_PTR(ret) : data.handle;
+}
+EXPORT_SYMBOL_GPL(iommu_sva_bind_group);
+
 /**
  * iommu_sva_bind_device() - Bind the current process address space to a device
  * @dev: the device
@@ -3066,32 +3112,14 @@ EXPORT_SYMBOL_GPL(iommu_aux_get_pasid);
 struct iommu_sva *
 iommu_sva_bind_device(struct device *dev, unsigned int flags)
 {
+	struct iommu_sva *handle;
 	struct iommu_group *group;
-	struct iommu_sva *handle = ERR_PTR(-EINVAL);
-	const struct iommu_ops *ops = dev->bus->iommu_ops;
-
-	if (!ops || !ops->sva_bind)
-		return ERR_PTR(-ENODEV);
 
 	group = iommu_group_get(dev);
 	if (!group)
 		return ERR_PTR(-ENODEV);
 
-	/* Ensure device count and domain don't change while we're binding */
-	mutex_lock(&group->mutex);
-
-	/*
-	 * To keep things simple, SVA currently doesn't support IOMMU groups
-	 * with more than one device. Existing SVA-capable systems are not
-	 * affected by the problems that required IOMMU groups (lack of ACS
-	 * isolation, device ID aliasing and other hardware issues).
-	 */
-	if (iommu_group_device_count(group) != 1)
-		goto out_unlock;
-
-	handle = ops->sva_bind(dev, flags);
-out_unlock:
-	mutex_unlock(&group->mutex);
+	handle = iommu_sva_bind_group(group, flags);
 	iommu_group_put(group);
 
 	return handle;
