@@ -5,9 +5,11 @@
  * Copyright (C) 2018 ARM Ltd.
  */
 
+#include <linux/debugfs.h>
 #include <linux/idr.h>
 #include <linux/ioasid.h>
 #include <linux/iommu.h>
+#include <linux/module.h>
 #include <linux/sched/mm.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -15,6 +17,8 @@
 #include <trace/events/iommu.h>
 
 #include "iommu-sva.h"
+
+static atomic_t sva_nr_mms = ATOMIC_INIT(0);
 
 /**
  * DOC: io_mm model
@@ -172,6 +176,7 @@ static struct mmu_notifier *io_mm_alloc(struct mm_struct *mm, void *privdata)
 		goto err_free_pasid;
 	}
 	trace_io_mm_alloc(io_mm->pasid);
+	atomic_inc(&sva_nr_mms);
 	return &io_mm->notifier;
 
 err_free_pasid:
@@ -188,6 +193,7 @@ static void io_mm_free(struct mmu_notifier *mn)
 	WARN_ON(!list_empty(&io_mm->devices));
 
 	io_mm->ops->release(io_mm->ctx);
+	atomic_dec(&sva_nr_mms);
 	trace_io_mm_free(io_mm->pasid);
 	ioasid_free(io_mm->pasid);
 	kfree(io_mm);
@@ -614,3 +620,11 @@ struct mm_struct *iommu_sva_find(int pasid)
 	return ioasid_find(&shared_pasid, pasid, __mmget_not_zero);
 }
 EXPORT_SYMBOL_GPL(iommu_sva_find);
+
+static int __init make_debugfs(void)
+{
+	debugfs_create_atomic_t("sva_io_mms", 0444, NULL, &sva_nr_mms);
+	return 0;
+}
+
+module_init(make_debugfs);
