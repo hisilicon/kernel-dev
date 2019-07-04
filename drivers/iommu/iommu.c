@@ -164,6 +164,7 @@ static struct iommu_param *iommu_get_dev_param(struct device *dev)
 		return NULL;
 
 	mutex_init(&param->lock);
+	mutex_init(&param->sva_lock);
 	dev->iommu_param = param;
 	return param;
 }

@@ -102,6 +102,13 @@ config IOMMU_DMA
 	select IRQ_MSI_IOMMU
 	select NEED_SG_DMA_LENGTH
 
+# Shared Virtual Addressing library
+config IOMMU_SVA
+	bool
+	select IOASID
+	select IOMMU_API
+	select MMU_NOTIFIER
+
 config FSL_PAMU
 	bool "Freescale IOMMU support"
 	depends on PCI

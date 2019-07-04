@@ -368,6 +368,7 @@ struct iommu_fault_param {
  * struct iommu_param - collection of per-device IOMMU data
  *
  * @fault_param: IOMMU detected device fault reporting data
+ * @sva_param: IOMMU parameter for SVA
  *
  * TODO: migrate other per device data pointers under iommu_dev_data, e.g.
  *	struct iommu_group	*iommu_group;
@@ -376,6 +377,8 @@ struct iommu_fault_param {
 struct iommu_param {
 	struct mutex lock;
 	struct iommu_fault_param *fault_param;
+	struct mutex sva_lock;
+	struct iommu_sva_param *sva_param;
 };
 
 int  iommu_device_register(struct iommu_device *iommu);
