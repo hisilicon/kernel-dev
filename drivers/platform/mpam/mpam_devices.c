@@ -346,7 +346,7 @@ static void mpam_probe_update_sysprops(u16 max_partid, u8 max_pmg)
 }
 
 u8 mpam_pmg_bits(void) {
-	return ilog2(mpam_sysprops.max_pmg);
+	return (mpam_sysprops.max_pmg) ? ilog2(mpam_sysprops.max_pmg) : 0;
 }
 
 static int mpam_device_probe(struct mpam_device *dev)
