@@ -245,6 +245,33 @@ static int __init acpi_mpam_force_create(void)
 		pr_err("L3_3 create failed\n");
 		goto out;
 	}
+
+	/* memory_controller_0 */
+	dev = mpam_device_create_memory(0, 0x000098c10000);
+	if (IS_ERR(dev)) {
+		pr_err("memory_controller_0 create failed\n");
+		goto out;
+	}
+
+	/* memory_controller_1 */
+	dev = mpam_device_create_memory(1, 0x000090c10000);
+	if (IS_ERR(dev)) {
+		pr_err("memory_controller_1 create failed\n");
+		goto out;
+	}
+	/* memory_controller_2 */
+	dev = mpam_device_create_memory(2, 0x200098c10000);
+	if (IS_ERR(dev)) {
+		pr_err("memory_controller_2 create failed\n");
+		goto out;
+	}
+	/* memory_controller_3 */
+	dev = mpam_device_create_memory(3, 0x200090c10000);
+	if (IS_ERR(dev)) {
+		pr_err("memory_controller_3 create failed\n");
+		goto out;
+	}
+
 	mpam_discovery_complete();
 	return 0;
 
