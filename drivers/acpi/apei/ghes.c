@@ -48,6 +48,7 @@
 #include <linux/sched/clock.h>
 #include <linux/uuid.h>
 #include <linux/ras.h>
+#include "linux/edac_non_standard.h"
 
 #include <acpi/actbl1.h>
 #include <acpi/ghes.h>
@@ -525,6 +526,10 @@ static void ghes_do_proc(struct ghes *ghes,
 			log_non_standard_event(sec_type, fru_id, fru_text,
 					       sec_sev, err,
 					       gdata->error_data_length);
+
+			edac_report_non_standard_error(sec_type, fru_id,
+						       fru_text, sec_sev, err,
+						       gdata->error_data_length);
 		}
 	}
 }
