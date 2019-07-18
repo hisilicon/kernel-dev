@@ -32,9 +32,6 @@
  */
 DEFINE_MUTEX(domain_list_lock);
 
-/* Mutex to protect rdtgroup access. */
-DEFINE_MUTEX(rdtgroup_mutex);
-
 /*
  * The cached resctrl_pqr_state is strictly per CPU and can never be
  * updated from a remote CPU. Functions which modify the state
@@ -182,14 +179,6 @@ static inline void cache_alloc_hsw_probe(void)
 	r->alloc_capable = true;
 
 	rdt_alloc_capable = true;
-}
-
-bool is_mba_sc(struct rdt_resource *r)
-{
-	if (!r)
-		r = resctrl_arch_get_resource(RDT_RESOURCE_MBA);
-
-	return r->membw.mba_sc;
 }
 
 /*

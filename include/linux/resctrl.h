@@ -8,9 +8,16 @@
 #include <linux/bug.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
+#include <linux/kernfs.h>
+#include <linux/fs_context.h>
 #include <linux/resctrl_types.h>
 
 #include <asm/resctrl.h>
+
+#define MBM_OVERFLOW_INTERVAL		1000
+#define CQM_LIMBOCHECK_INTERVAL		1000
+#define MAX_MBA_BW			100u
+#define MAX_MBA_BW_AMD			0x800
 
 /* Closids are stored as a bitmap in a u32 */
 #define RESCTRL_MAX_CLOSID 32
@@ -207,6 +214,208 @@ struct rdt_resource {
 
 	struct list_head	evt_list;
 	unsigned long		fflags;
+};
+
+
+struct rdt_fs_context {
+	struct kernfs_fs_context	kfc;
+	bool				enable_cdpl2;
+	bool				enable_cdpl3;
+	bool				enable_mba_mbps;
+};
+
+static inline struct rdt_fs_context *rdt_fc2context(struct fs_context *fc)
+{
+	struct kernfs_fs_context *kfc = fc->fs_private;
+
+	return container_of(kfc, struct rdt_fs_context, kfc);
+}
+
+/**
+ * struct mon_evt - Entry in the event list of a resource
+ * @evtid:		event id
+ * @name:		name of the event
+ */
+struct mon_evt {
+	enum resctrl_event_id	evtid;
+	char			*name;
+	struct list_head	list;
+};
+
+/**
+ * struct mon_data_bits - Monitoring details for each event file
+ * @rid:               Resource id associated with the event file.
+ * @evtid:             Event id associated with the event file
+ * @domid:             The domain to which the event file belongs
+ */
+union mon_data_bits {
+	void *priv;
+	struct {
+		unsigned int rid	: 10;
+		unsigned int evtid	: 8;
+		unsigned int domid	: 14;
+	} u;
+};
+
+struct rmid_read {
+	struct rdtgroup		*rgrp;
+	struct rdt_domain	*d;
+	int			evtid;
+	bool			first;
+	int			err;
+	u64			val;
+};
+
+enum rdt_group_type {
+	RDTCTRL_GROUP = 0,
+	RDTMON_GROUP,
+	RDT_NUM_GROUP,
+};
+
+/**
+ * enum rdtgrp_mode - Mode of a RDT resource group
+ * @RDT_MODE_SHAREABLE: This resource group allows sharing of its allocations
+ * @RDT_MODE_EXCLUSIVE: No sharing of this resource group's allocations allowed
+ * @RDT_MODE_PSEUDO_LOCKSETUP: Resource group will be used for Pseudo-Locking
+ * @RDT_MODE_PSEUDO_LOCKED: No sharing of this resource group's allocations
+ *                          allowed AND the allocations are Cache Pseudo-Locked
+ *
+ * The mode of a resource group enables control over the allowed overlap
+ * between allocations associated with different resource groups (classes
+ * of service). User is able to modify the mode of a resource group by
+ * writing to the "mode" resctrl file associated with the resource group.
+ *
+ * The "shareable", "exclusive", and "pseudo-locksetup" modes are set by
+ * writing the appropriate text to the "mode" file. A resource group enters
+ * "pseudo-locked" mode after the schemata is written while the resource
+ * group is in "pseudo-locksetup" mode.
+ */
+enum rdtgrp_mode {
+	RDT_MODE_SHAREABLE = 0,
+	RDT_MODE_EXCLUSIVE,
+	RDT_MODE_PSEUDO_LOCKSETUP,
+	RDT_MODE_PSEUDO_LOCKED,
+
+	/* Must be last */
+	RDT_NUM_MODES,
+};
+
+/**
+ * struct mongroup - store mon group's data in resctrl fs.
+ * @mon_data_kn		kernlfs node for the mon_data directory
+ * @parent:			parent rdtgrp
+ * @crdtgrp_list:		child rdtgroup node list
+ * @rmid:			rmid for this rdtgroup
+ */
+struct mongroup {
+	struct kernfs_node	*mon_data_kn;
+	struct rdtgroup		*parent;
+	struct list_head	crdtgrp_list;
+	u32			rmid;
+};
+
+/**
+ * struct rdtgroup - store rdtgroup's data in resctrl file system.
+ * @kn:				kernfs node
+ * @rdtgroup_list:		linked list for all rdtgroups
+ * @closid:			closid for this rdtgroup
+ * @cpu_mask:			CPUs assigned to this rdtgroup
+ * @flags:			status bits
+ * @waitcount:			how many cpus expect to find this
+ *				group when they acquire rdtgroup_mutex
+ * @type:			indicates type of this rdtgroup - either
+ *				monitor only or ctrl_mon group
+ * @mon:			mongroup related data
+ * @mode:			mode of resource group
+ * @plr:			pseudo-locked region
+ */
+struct rdtgroup {
+	struct kernfs_node		*kn;
+	struct list_head		rdtgroup_list;
+	u32				closid;
+	struct cpumask			cpu_mask;
+	int				flags;
+	atomic_t			waitcount;
+	enum rdt_group_type		type;
+	struct mongroup			mon;
+	enum rdtgrp_mode		mode;
+	struct pseudo_lock_region	*plr;
+};
+
+
+/* rdtgroup.flags */
+#define	RDT_DELETED		1
+
+/* rftype.flags */
+#define RFTYPE_FLAGS_CPUS_LIST	1
+
+/*
+ * Define the file type flags for base and info directories.
+ */
+#define RFTYPE_INFO			BIT(0)
+#define RFTYPE_BASE			BIT(1)
+#define RF_CTRLSHIFT			4
+#define RF_MONSHIFT			5
+#define RF_TOPSHIFT			6
+#define RFTYPE_CTRL			BIT(RF_CTRLSHIFT)
+#define RFTYPE_MON			BIT(RF_MONSHIFT)
+#define RFTYPE_TOP			BIT(RF_TOPSHIFT)
+#define RFTYPE_RES_CACHE		BIT(8)
+#define RFTYPE_RES_MB			BIT(9)
+#define RF_CTRL_INFO			(RFTYPE_INFO | RFTYPE_CTRL)
+#define RF_MON_INFO			(RFTYPE_INFO | RFTYPE_MON)
+#define RF_TOP_INFO			(RFTYPE_INFO | RFTYPE_TOP)
+#define RF_CTRL_BASE			(RFTYPE_BASE | RFTYPE_CTRL)
+
+/* List of all resource groups */
+extern struct list_head rdt_all_groups;
+
+extern int max_data_width;
+
+/**
+ * struct rftype - describe each file in the resctrl file system
+ * @name:	File name
+ * @mode:	Access mode
+ * @kf_ops:	File operations
+ * @flags:	File specific RFTYPE_FLAGS_* flags
+ * @fflags:	File specific RF_* or RFTYPE_* flags
+ * @seq_show:	Show content of the file
+ * @write:	Write to the file
+ */
+struct rftype {
+	char			*name;
+	umode_t			mode;
+	struct kernfs_ops	*kf_ops;
+	unsigned long		flags;
+	unsigned long		fflags;
+
+	int (*seq_show)(struct kernfs_open_file *of,
+			struct seq_file *sf, void *v);
+	/*
+	 * write() is the generic write callback which maps directly to
+	 * kernfs write operation and overrides all other operations.
+	 * Maximum write size is determined by ->max_write_len.
+	 */
+	ssize_t (*write)(struct kernfs_open_file *of,
+			 char *buf, size_t nbytes, loff_t off);
+};
+
+/**
+ * struct mbm_state - status for each MBM counter in each domain
+ * @chunks:	Total data moved in bytes
+ * @prev_msr	Value of IA32_QM_CTR for this RMID last time we read it
+ * @prev_bw_msr:Value of previous IA32_QM_CTR for bandwidth counting
+ * @prev_bw	The most recent bandwidth in MBps
+ * @delta_bw	Difference between the current and previous bandwidth
+ * @delta_comp	Indicates whether to compute the delta_bw
+ */
+struct mbm_state {
+	u64	chunks;
+	u64	prev_msr;
+	u64	prev_bw_msr;
+	u32	prev_bw;
+	u32	delta_bw;
+	bool	delta_comp;
 };
 
 /*
