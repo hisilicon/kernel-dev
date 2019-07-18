@@ -617,7 +617,6 @@ static void move_myself(struct callback_head *head)
 static int __rdtgroup_move_task(struct task_struct *tsk,
 				struct rdtgroup *rdtgrp)
 {
-	u32 parent_closid = rdtgrp->mon.parent->closid;
 	struct task_move_callback *callback;
 	int ret;
 
@@ -652,6 +651,8 @@ static int __rdtgroup_move_task(struct task_struct *tsk,
 			resctrl_set_closid(tsk, rdtgrp->closid);
 			resctrl_arch_set_rmid(tsk, rdtgrp->mon.rmid);
 		} else if (rdtgrp->type == RDTMON_GROUP) {
+			u32 parent_closid = rdtgrp->mon.parent->closid;
+
 			if (resctrl_match_closid(tsk, parent_closid)) {
 				resctrl_arch_set_rmid(tsk, rdtgrp->mon.rmid);
 			} else {
