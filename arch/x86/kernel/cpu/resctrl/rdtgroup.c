@@ -3235,6 +3235,22 @@ static int rdtgroup_show_options(struct seq_file *seq, struct kernfs_root *kf)
 	return 0;
 }
 
+/* call with cpus_read_lock() held */
+struct rdt_domain * __weak resctrl_arch_find_domain(struct rdt_resource *r, int id)
+{
+	struct rdt_domain *d;
+
+	if (!r)
+		return NULL;
+
+	list_for_each_entry(d, &r->domains, list) {
+		if (d->id == id)
+			return d;
+	}
+
+	return NULL;
+}
+
 static struct kernfs_syscall_ops rdtgroup_kf_syscall_ops = {
 	.mkdir		= rdtgroup_mkdir,
 	.rmdir		= rdtgroup_rmdir,
