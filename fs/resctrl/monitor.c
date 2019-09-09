@@ -600,36 +600,45 @@ static int dom_data_init(struct rdt_resource *r)
 	return 0;
 }
 
-static struct mon_evt llc_occupancy_event = {
-	.name		= "llc_occupancy",
-	.evtid		= QOS_L3_OCCUP_EVENT_ID,
-};
+struct mon_evt *alloc_mon_evt(char *name, enum resctrl_event_id id)
+{
+	struct mon_evt *evt;
 
-static struct mon_evt mbm_total_event = {
-	.name		= "mbm_total_bytes",
-	.evtid		= QOS_L3_MBM_TOTAL_EVENT_ID,
-};
+	evt = kzalloc(sizeof(*evt), GFP_KERNEL);
+	if (!evt)
+		return NULL;
 
-static struct mon_evt mbm_local_event = {
-	.name		= "mbm_local_bytes",
-	.evtid		= QOS_L3_MBM_LOCAL_EVENT_ID,
-};
-
+	INIT_LIST_HEAD(&evt->list);
+	evt->name = name;
+	evt->evtid = id;
+	return evt;
+}
 /*
  * Initialize the event list for the resource.
  *
  * Note that MBM events are also part of RDT_RESOURCE_L3 resource
  * because as per the SDM the total and local memory bandwidth
  * are enumerated as part of L3 monitoring.
+ * FixMe: Check evt NULL return and handle it.
  */
 static void l3_mon_evt_init(struct rdt_resource *r)
 {
-	if (resctrl_arch_is_llc_occupancy_enabled())
-		list_add_tail(&llc_occupancy_event.list, &r->evt_list);
-	if (resctrl_arch_is_mbm_total_enabled())
-		list_add_tail(&mbm_total_event.list, &r->evt_list);
-	if (resctrl_arch_is_mbm_local_enabled())
-		list_add_tail(&mbm_local_event.list, &r->evt_list);
+	struct mon_evt *evt;
+
+	if (resctrl_arch_is_llc_occupancy_enabled()) {
+		evt = alloc_mon_evt("llc_occupancy", QOS_L3_OCCUP_EVENT_ID);
+		list_add_tail(&evt->list, &r->evt_list);
+	}
+	if (resctrl_arch_is_mbm_total_enabled()) {
+		evt = alloc_mon_evt("mbm_total_bytes",
+				    QOS_L3_MBM_TOTAL_EVENT_ID);
+		list_add_tail(&evt->list, &r->evt_list);
+	}
+	if (resctrl_arch_is_mbm_local_enabled()) {
+		evt = alloc_mon_evt("mbm_local_bytes",
+				    QOS_L3_MBM_LOCAL_EVENT_ID);
+		list_add_tail(&evt->list, &r->evt_list);
+	}
 }
 
 int resctrl_mon_resource_init(void)
