@@ -65,8 +65,29 @@ mpam_device_create_cache(u8 level_idx, int cache_id,
 static inline struct mpam_device *
 mpam_device_create_memory(int nid, phys_addr_t hwpage_address)
 {
+	struct cpumask dev_affinity;
+
+	cpumask_clear(&dev_affinity);
+
+	switch (nid) {
+	case 0:
+		bitmap_set(cpumask_bits(&dev_affinity), 0, 32);
+		break;
+	case 1:
+		bitmap_set(cpumask_bits(&dev_affinity), 32, 32);
+		break;
+	case 2:
+		bitmap_set(cpumask_bits(&dev_affinity), 64, 32);
+		break;
+	case 3:
+		bitmap_set(cpumask_bits(&dev_affinity), 96, 32);
+		break;
+	default:
+		cpumask_copy(&dev_affinity, cpu_possible_mask);
+	}
+
 	return __mpam_device_create(~0, MPAM_CLASS_MEMORY, nid,
-				    cpu_possible_mask, hwpage_address);
+				    &dev_affinity, hwpage_address);
 }
 
 /*
