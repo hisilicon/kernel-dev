@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-note */
 /* Copyright (c) 2018-2019 HiSilicon Limited. */
 #ifndef _UAPIUUACCE_H
 #define _UAPIUUACCE_H
@@ -52,5 +52,10 @@ enum uacce_qfrt {
 	UACCE_QFRT_MAX,
 };
 #define UACCE_QFRT_INVALID UACCE_QFRT_MAX
+
+/* Pass DMA SS region slice size by granularity 64KB */
+#define UACCE_GRAN_SIZE			0x10000ull
+#define UACCE_GRAN_SHIFT		16
+#define UACCE_GRAN_NUM_MASK		0xfffull
 
 #endif

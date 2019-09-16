@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0+ */
 /* Copyright (c) 2018-2019 HiSilicon Limited. */
 #ifndef HISI_ACC_QM_H
 #define HISI_ACC_QM_H
@@ -79,8 +79,6 @@
 			 QM_ACC_GET_TASK_TIMEOUT | QM_DB_TIMEOUT | \
 			 QM_OF_FIFO_OF)
 #define QM_BASE_CE			QM_ECC_1BIT
-#define QM_HW_VER1_ID			0x20
-#define QM_HW_VER2_ID			0x21
 
 #define QM_DFX_QN_SHIFT			16
 #define QM_VF_CNT_MASK			0xffffffc0
@@ -108,8 +106,8 @@ enum qp_state {
 
 enum qm_hw_ver {
 	QM_HW_UNKNOWN = -1,
-	QM_HW_V1 = 1,
-	QM_HW_V2,
+	QM_HW_V1 = 0x20,
+	QM_HW_V2 = 0x21,
 };
 
 enum qm_fun_type {
@@ -120,6 +118,7 @@ enum qm_fun_type {
 enum qm_debug_file {
 	CURRENT_Q,
 	CLEAR_ENABLE,
+	QM_STATE,
 	DEBUG_FILE_NUM,
 };
 
@@ -130,6 +129,7 @@ struct debugfs_file {
 };
 
 struct qm_debug {
+	u32 curr_qm_qp_num;
 	struct dentry *debug_root;
 	struct dentry *qm_d;
 	struct debugfs_file files[DEBUG_FILE_NUM];
@@ -281,6 +281,7 @@ struct hisi_qm {
 	dma_addr_t reserve_dma;
 #endif
 	struct workqueue_struct *wq;
+	struct work_struct work;
 	/* design for module not support aer, such as rde */
 	int (*abnormal_fix)(struct hisi_qm *qm);
 };
@@ -324,7 +325,6 @@ struct hisi_qp {
 	u16 pasid;
 	struct uacce_queue *uacce_q;
 #endif
-	struct work_struct work;
 };
 
 int hisi_qm_init(struct hisi_qm *qm);
@@ -341,12 +341,23 @@ int hisi_qp_wait(struct hisi_qp *qp);
 int hisi_qm_get_free_qp_num(struct hisi_qm *qm);
 int hisi_qm_get_vft(struct hisi_qm *qm, u32 *base, u32 *number);
 int hisi_qm_set_vft(struct hisi_qm *qm, u32 fun_num, u32 base, u32 number);
-void hisi_qm_cnt_regs_clear(struct hisi_qm *qm);
+void hisi_qm_debug_regs_clear(struct hisi_qm *qm);
 int hisi_qm_debug_init(struct hisi_qm *qm);
 void hisi_qm_hw_error_init(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
 			   u32 msi);
-int hisi_qm_hw_error_handle(struct hisi_qm *qm);
+pci_ers_result_t hisi_qm_hw_error_handle(struct hisi_qm *qm);
 void hisi_qm_clear_queues(struct hisi_qm *qm);
 enum qm_hw_ver hisi_qm_get_hw_version(struct pci_dev *pdev);
 int hisi_qm_restart(struct hisi_qm *qm);
+
+struct hisi_acc_sgl_pool;
+struct hisi_acc_hw_sgl *hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
+	struct scatterlist *sgl, struct hisi_acc_sgl_pool *pool,
+	u32 index, dma_addr_t *hw_sgl_dma);
+void hisi_acc_sg_buf_unmap(struct device *dev, struct scatterlist *sgl,
+			   struct hisi_acc_hw_sgl *hw_sgl);
+struct hisi_acc_sgl_pool *hisi_acc_create_sgl_pool(struct device *dev,
+						   u32 count, u32 sge_nr);
+void hisi_acc_free_sgl_pool(struct device *dev,
+			    struct hisi_acc_sgl_pool *pool);
 #endif

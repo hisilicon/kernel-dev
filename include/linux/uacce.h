@@ -15,7 +15,7 @@ struct uacce;
 
 #define UACCE_QFRF_MAP		BIT(0)	/* map to current queue */
 #define UACCE_QFRF_MMAP		BIT(1)	/* map to user space */
-#define UACCE_QFRF_KMAP 	BIT(2)	/* map to kernel space */
+#define UACCE_QFRF_KMAP		BIT(2)	/* map to kernel space */
 #define UACCE_QFRF_DMA		BIT(3)	/* use dma api for the region */
 #define UACCE_QFRF_SELFMT	BIT(4)	/* self maintained qfr */
 
@@ -30,16 +30,23 @@ struct uacce_err_isolate {
 	atomic_t is_isolate;
 };
 
+struct uacce_dma_slice {
+	void *kaddr;	/* kernel address for ss */
+	dma_addr_t dma;	/* dma address, if created by dma api */
+	u32 size;	/* Size of this dma slice */
+	u32 total_num;	/* Total slices in this dma list */
+};
+
 struct uacce_qfile_region {
 	enum uacce_qfrt type;
 	unsigned long iova;	/* iova share between user and device space */
 	struct page **pages;
-	unsigned int nr_pages;
+	unsigned long nr_pages;
 	int prot;
 	unsigned int flags;
 	struct list_head qs;	/* qs sharing the same region, for ss */
-	void *kaddr;		/* kernel addr, for dko */
-	dma_addr_t dma;		/* dma address, if created by dma api */
+	void *kaddr;		/* kernel address for dko */
+	struct uacce_dma_slice *dma_list;
 };
 
 /**
@@ -64,7 +71,7 @@ struct uacce_ops {
 	void (*stop_queue)(struct uacce_queue *q);
 	int (*is_q_updated)(struct uacce_queue *q);
 	void (*mask_notify)(struct uacce_queue *q, int event_mask);
-	int (*mmap)(struct uacce_queue *q, struct vm_area_struct *vma, 
+	int (*mmap)(struct uacce_queue *q, struct vm_area_struct *vma,
 		    struct uacce_qfile_region *qfr);
 	int (*reset)(struct uacce *uacce);
 	int (*reset_queue)(struct uacce_queue *q);
