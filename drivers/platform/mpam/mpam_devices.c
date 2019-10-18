@@ -974,7 +974,7 @@ static int mpam_device_frob_mon(struct mpam_device *dev,
 	 * We don't bother with capture as we don't expose a way of measuring
 	 * multiple partid:pmg with a single capture.
 	 */
-	clt = MSMON_CFG_x_CTL_MATCH_PARTID;
+	clt = MSMON_CFG_x_CTL_MATCH_PARTID | MSMON_CFG_x_CSU_TYPE;
 	if (ctx->sync_args->match_pmg)
 		clt |= MSMON_CFG_x_CTL_MATCH_PMG;
 	flt = ctx->sync_args->partid |
@@ -1124,6 +1124,7 @@ int mpam_component_configure_mon(struct mpam_component *comp,
 	ctx.first_error = 0;
 	ctx.configure_mon = true;
 	cpumask_clear(&ctx.updated_on);
+	atomic64_set(&ctx.mon_value, 0);
 
 	ret = __do_device_sync(comp, &ctx);
 	if (!ret)

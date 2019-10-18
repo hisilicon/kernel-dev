@@ -537,6 +537,8 @@ int mpam_resctrl_init(void);
 #define MSMON_CFG_MBWU_CTL_SUBTYPE_MAX                  3
 #define MSMON_CFG_MBWU_CTL_SUBTYPE_MASK                 0x3
 
+#define MSMON_CFG_x_CSU_TYPE	0x43
+
 /*
  * MSMON_CFG_MBWU_FLT - Memory system performance monitor configure memory
  *                     bandwidth usage monitor filter register
