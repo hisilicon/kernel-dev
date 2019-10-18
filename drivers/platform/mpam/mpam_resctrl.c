@@ -84,6 +84,11 @@ bool mpam_resctrl_mbm_total_enabled(void)
 	return (mpam_resctrl_events[QOS_L3_MBM_TOTAL_EVENT_ID] != NULL);
 }
 
+bool mpam_resctrl_mbm_local_enabled(void)
+{
+	return (mpam_resctrl_events[QOS_L3_MBM_LOCAL_EVENT_ID] != NULL);
+}
+
 bool mpam_resctrl_llc_occupancy_enabled(void)
 {
 	return (mpam_resctrl_events[QOS_L3_OCCUP_EVENT_ID] != NULL);
@@ -106,6 +111,23 @@ static void mpam_resctrl_pick_event_l3_occup(void)
 
 	exposed_mon_capable = true;
 	res->resctrl_res.mon_capable = true;
+	res->resctrl_res.csu_mon_capable = true;
+}
+
+static void mpam_resctrl_pick_event_mbm_local(void)
+{
+	struct mpam_resctrl_res *res;
+
+	res = &mpam_resctrl_exports[RDT_RESOURCE_MBA];
+	if (!res->class)
+		return;
+
+	if (mpam_has_feature(mpam_feat_msmon_mbwu, res->class->features)) {
+		res->resctrl_res.mbwu_mon_capable = true;
+		mpam_resctrl_events[QOS_L3_MBM_LOCAL_EVENT_ID] = res;
+	}
+
+	return;
 }
 
 static void mpam_resctrl_pick_event_mbm_total(void)
@@ -343,6 +365,7 @@ int mpam_resctrl_setup(void)
 
 	mpam_resctrl_pick_event_l3_occup();
 	mpam_resctrl_pick_event_mbm_total();
+	mpam_resctrl_pick_event_mbm_local();
 
 	for (i = 0; i < RDT_NUM_RESOURCES; i++) {
 		res = &mpam_resctrl_exports[i];

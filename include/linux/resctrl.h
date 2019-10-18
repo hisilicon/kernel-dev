@@ -198,6 +198,8 @@ struct rdt_resource {
 	bool			cdp_enabled;
 	bool			alloc_capable;
 	bool			mon_capable;
+	bool			csu_mon_capable;
+	bool			mbwu_mon_capable;
 	bool			cdp_capable;
 
 	int			cache_level;

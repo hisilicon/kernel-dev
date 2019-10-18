@@ -629,16 +629,16 @@ static void l3_mon_evt_init(struct rdt_resource *r)
 {
 	struct mon_evt *evt;
 
-	if (resctrl_arch_is_llc_occupancy_enabled()) {
+	if (resctrl_arch_is_llc_occupancy_enabled() && r->csu_mon_capable) {
 		evt = alloc_mon_evt("llc_occupancy", QOS_L3_OCCUP_EVENT_ID);
 		list_add_tail(&evt->list, &r->evt_list);
 	}
-	if (resctrl_arch_is_mbm_total_enabled()) {
+	if (resctrl_arch_is_mbm_total_enabled() && r->mbwu_mon_capable) {
 		evt = alloc_mon_evt("mbm_total_bytes",
 				    QOS_L3_MBM_TOTAL_EVENT_ID);
 		list_add_tail(&evt->list, &r->evt_list);
 	}
-	if (resctrl_arch_is_mbm_local_enabled()) {
+	if (resctrl_arch_is_mbm_local_enabled() && r->mbwu_mon_capable) {
 		evt = alloc_mon_evt("mbm_local_bytes",
 				    QOS_L3_MBM_LOCAL_EVENT_ID);
 		list_add_tail(&evt->list, &r->evt_list);
