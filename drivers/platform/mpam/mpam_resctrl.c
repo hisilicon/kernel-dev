@@ -646,12 +646,34 @@ int mpam_resctrl_cpu_offline(unsigned int cpu)
 	return 0;
 }
 
+static int mpam_resctrl_configure_mon(struct mpam_resctrl_dom *dom,
+				   struct mpam_component_sync_args *mon_cfg,
+				   u64 *val)
+{
+	unsigned long timeout;
+	int err = -EINVAL;
+
+	timeout = READ_ONCE(jiffies) + (NRDY_TIMEOUT*SEC_CONVERSION);
+	do {
+		if (time_after(READ_ONCE(jiffies), timeout)) {
+			err = -ETIMEDOUT;
+			break;
+		}
+
+		err = mpam_component_configure_mon(dom->comp, mon_cfg, val);
+		if (err == -EBUSY)
+			cond_resched();
+		else if (err)
+			break;
+	} while (err == -EBUSY);
+
+	return err;
+}
+
 int mpam_resctrl_rmid_read(u16 closid, u32 rmid, enum resctrl_event_id eventid,
 			   u64 *val)
 {
-	u16 mon_id;
 	int err = -EINVAL, cpu;
-	unsigned long timeout;
 	struct rdt_domain *d;
 	struct mpam_resctrl_res *res;
 	struct mpam_resctrl_dom *dom;
@@ -670,32 +692,27 @@ int mpam_resctrl_rmid_read(u16 closid, u32 rmid, enum resctrl_event_id eventid,
 	dom = container_of(d, struct mpam_resctrl_dom, resctrl_dom);
 	put_cpu();
 
+	mon_cfg.partid = closid;
+	mon_cfg.pmg = rmid;
+	mon_cfg.match_pmg = true;
+	mon_cfg.eventid = eventid;
+
 	if (eventid == QOS_L3_OCCUP_EVENT_ID) {
 		err = mpam_alloc_csu_mon(res->class);
 		if (err < 0)
 			return err;
-		mon_id = err;
 
-		mon_cfg.mon = mon_id;
-		mon_cfg.partid = closid;
-		mon_cfg.pmg = rmid;
-		mon_cfg.match_pmg = true;
+		mon_cfg.mon = err;
+		err = mpam_resctrl_configure_mon(dom, &mon_cfg, val);
+		mpam_free_csu_mon(res->class, mon_cfg.mon);
+	} else if (eventid == QOS_L3_MBM_LOCAL_EVENT_ID) {
+		err = mpam_alloc_mbwu_mon(res->class);
+		if (err < 0)
+			return err;
 
-		timeout = READ_ONCE(jiffies) + (NRDY_TIMEOUT*SEC_CONVERSION);
-		do {
-			if (time_after(READ_ONCE(jiffies), timeout)) {
-				err = -ETIMEDOUT;
-				break;
-			}
-
-			err = mpam_component_configure_mon(dom->comp, &mon_cfg, val);
-			if (err == -EBUSY)
-				cond_resched();
-			else if (err)
-				break;
-		} while (err == -EBUSY);
-
-		mpam_free_csu_mon(res->class, mon_id);
+		mon_cfg.mon = err;
+		err = mpam_resctrl_configure_mon(dom, &mon_cfg, val);
+		mpam_free_mbwu_mon(res->class, mon_cfg.mon);
 	}
 
 	return err;

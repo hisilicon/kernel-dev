@@ -948,24 +948,62 @@ static int mpam_device_apply_config_locked(struct mpam_component *comp,
 	return ret;
 }
 
-static int mpam_device_frob_mon(struct mpam_device *dev,
-				struct mpam_device_sync *ctx)
+static u32 mpam_device_read_mbwu_mon(struct mpam_device *dev,
+				struct mpam_component_sync_args *sync_args)
 {
 	u16 mon;
-	u32 csu, clt, flt, cur_clt, cur_flt;
+	u32 clt, flt, cur_clt, cur_flt;
 
-	lockdep_assert_held(&dev->lock);
+	mon = sync_args->mon;
 
-	if (mpam_broken)
-		return -EIO;
+	mpam_write_reg(dev, MSMON_CFG_MON_SEL, mon);
+	wmb(); /* subsequent writes must be applied to this mon */
 
-	if (!mpam_has_feature(mpam_feat_msmon_csu, dev->features))
-		return -EOPNOTSUPP;
+	/*
+	 * We don't bother with capture as we don't expose a way of measuring
+	 * multiple partid:pmg with a single capture.
+	 */
+	clt = MSMON_CFG_x_CTL_MATCH_PARTID | MSMON_CFG_x_MBWU_TYPE;
+	if (sync_args->match_pmg)
+		clt |= MSMON_CFG_x_CTL_MATCH_PMG;
+	flt = sync_args->partid |
+	      (sync_args->pmg << MSMON_CFG_MBWU_FLT_PMG_SHIFT);
 
-	if (!ctx->sync_args)
-		return -EINVAL;
+	/*
+	 * We read the existing configuration to avoid re-writing the same
+	 * values.
+	 */
+	cur_flt = mpam_read_reg(dev, MSMON_CFG_MBWU_FLT);
+	cur_clt = mpam_read_reg(dev, MSMON_CFG_MBWU_CTL);
 
-	mon = ctx->sync_args->mon;
+	if (cur_flt != flt || cur_clt != (clt | MSMON_CFG_x_CTL_EN)) {
+		mpam_write_reg(dev, MSMON_CFG_MBWU_FLT, flt);
+
+		/*
+		 * Write the ctl with the enable bit cleared, reset the
+		 * counter, then enable counter.
+		 */
+		mpam_write_reg(dev, MSMON_CFG_MBWU_CTL, clt);
+		wmb();
+
+		mpam_write_reg(dev, MSMON_MBWU, 0);
+		wmb();
+
+		clt |= MSMON_CFG_x_CTL_EN;
+		mpam_write_reg(dev, MSMON_CFG_MBWU_CTL, clt);
+		wmb();
+	}
+
+	return mpam_read_reg(dev, MSMON_MBWU);
+}
+
+static u32 mpam_device_read_csu_mon(struct mpam_device *dev,
+				  struct mpam_component_sync_args *sync_args)
+{
+	u16 mon;
+	u32 clt, flt, cur_clt, cur_flt;
+
+	mon = sync_args->mon;
 
 	mpam_write_reg(dev, MSMON_CFG_MON_SEL, mon);
 	wmb(); /* subsequent writes must be applied to this mon */
@@ -975,10 +1013,10 @@ static int mpam_device_frob_mon(struct mpam_device *dev,
 	 * multiple partid:pmg with a single capture.
 	 */
 	clt = MSMON_CFG_x_CTL_MATCH_PARTID | MSMON_CFG_x_CSU_TYPE;
-	if (ctx->sync_args->match_pmg)
+	if (sync_args->match_pmg)
 		clt |= MSMON_CFG_x_CTL_MATCH_PMG;
-	flt = ctx->sync_args->partid |
-	      (ctx->sync_args->pmg << MSMON_CFG_MBWU_FLT_PMG_SHIFT);
+	flt = sync_args->partid |
+	      (sync_args->pmg << MSMON_CFG_CSU_FLT_PMG_SHIFT);
 
 	/*
 	 * We read the existing configuration to avoid re-writing the same
@@ -991,8 +1029,8 @@ static int mpam_device_frob_mon(struct mpam_device *dev,
 		mpam_write_reg(dev, MSMON_CFG_CSU_FLT, flt);
 
 		/*
-		 * Write the ctl with the enable bit cleared, reset the counter, then
-		 * enable counter.
+		 * Write the ctl with the enable bit cleared, reset the
+		 * counter, then enable counter.
 		 */
 		mpam_write_reg(dev, MSMON_CFG_CSU_CLT, clt);
 		wmb();
@@ -1005,13 +1043,37 @@ static int mpam_device_frob_mon(struct mpam_device *dev,
 		wmb();
 	}
 
-	csu = mpam_read_reg(dev, MSMON_CSU);
-	if (csu & MSMON___NRDY)
+	return mpam_read_reg(dev, MSMON_CSU);
+}
+
+static int mpam_device_frob_mon(struct mpam_device *dev,
+				struct mpam_device_sync *ctx)
+{
+	struct mpam_component_sync_args *sync_args = ctx->sync_args;
+	u32 val;
+
+	lockdep_assert_held(&dev->lock);
+
+	if (mpam_broken)
+		return -EIO;
+
+	if (!sync_args)
+		return -EINVAL;
+
+	if (sync_args->eventid == QOS_L3_OCCUP_EVENT_ID &&
+	    mpam_has_feature(mpam_feat_msmon_csu, dev->features))
+		val = mpam_device_read_csu_mon(dev, sync_args);
+	else if (sync_args->eventid == QOS_L3_MBM_LOCAL_EVENT_ID &&
+		 mpam_has_feature(mpam_feat_msmon_mbwu, dev->features))
+		val = mpam_device_read_mbwu_mon(dev, sync_args);
+	else
+		return -EOPNOTSUPP;
+
+	if (val & MSMON___NRDY)
 		return -EBUSY;
 
-	csu = csu & MSMON___VALUE;
-	atomic64_add(csu, &ctx->mon_value);
-
+	val = val & MSMON___VALUE;
+	atomic64_add(val, &ctx->mon_value);
 	return 0;
 }
 

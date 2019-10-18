@@ -247,6 +247,7 @@ struct mpam_component_sync_args
 	u16 partid;
 
 	/* mpam_component_config_sync() expects these too: */
+	enum resctrl_event_id eventid;
 	u8      mon;
 	bool    match_pmg;
 	u8      pmg;
@@ -537,6 +538,7 @@ int mpam_resctrl_init(void);
 #define MSMON_CFG_MBWU_CTL_SUBTYPE_MAX                  3
 #define MSMON_CFG_MBWU_CTL_SUBTYPE_MASK                 0x3
 
+#define MSMON_CFG_x_MBWU_TYPE	0x42
 #define MSMON_CFG_x_CSU_TYPE	0x43
 
 /*
