@@ -2093,7 +2093,7 @@ static int rdt_get_tree(struct fs_context *fc)
 	if (resctrl_arch_alloc_capable() || resctrl_arch_mon_capable())
 		resctrl_mounted = true;
 
-	if (resctrl_is_mbm_enabled()) {
+	if (resctrl_arch_is_mbm_total_enabled()) {
 		list_for_each_entry(dom, &l3->domains, list)
 			mbm_setup_overflow_handler(dom, MBM_OVERFLOW_INTERVAL, -1);
 	}
@@ -3205,7 +3205,7 @@ void resctrl_offline_domain(struct rdt_resource *r, struct rdt_domain *d)
 	if (resctrl_mounted)
 		rmdir_mondata_subdir_allrdtgrp(r, d->id);
 
-	if (resctrl_is_mbm_enabled())
+	if (resctrl_arch_is_mbm_total_enabled())
 		cancel_delayed_work(&d->mbm_over);
 	if (resctrl_arch_is_llc_occupancy_enabled() &&  has_busy_rmid(r, d)) {
 		/*
@@ -3243,7 +3243,7 @@ int resctrl_online_domain(struct rdt_resource *r, struct rdt_domain *d)
 		return err;
 	}
 
-	if (resctrl_is_mbm_enabled()) {
+	if (resctrl_arch_is_mbm_total_enabled()) {
 		INIT_DELAYED_WORK(&d->mbm_over, mbm_handle_overflow);
 		mbm_setup_overflow_handler(d, MBM_OVERFLOW_INTERVAL, -1);
 	}
@@ -3300,10 +3300,11 @@ void resctrl_offline_cpu(unsigned int cpu)
 
 	d = resctrl_get_domain_from_cpu(cpu, l3);
 	if (d) {
-		if (resctrl_is_mbm_enabled() && cpu == d->mbm_work_cpu) {
+		if (resctrl_arch_is_mbm_total_enabled() && cpu == d->mbm_work_cpu) {
 			cancel_delayed_work(&d->mbm_over);
 			mbm_setup_overflow_handler(d, 0, cpu);
 		}
+
 		if (resctrl_arch_is_llc_occupancy_enabled() &&
 		    cpu == d->cqm_work_cpu && has_busy_rmid(l3, d)) {
 			cancel_delayed_work(&d->cqm_limbo);
