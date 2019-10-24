@@ -865,7 +865,7 @@ static void mpam_reset_device_partid(struct mpam_device *dev, u16 partid,
 			 * cpor_part being valid implies the bitmap fits in a
 			 * single write.
 			 */
-			mpam_write_reg(dev, MPAMCFG_CMAX, cfg->cpbm);
+			mpam_write_reg(dev, MPAMCFG_CPBM, cfg->cpbm);
 		} else {
 			mpam_reset_device_bitmap(dev, MPAMCFG_CPBM,
 						 dev->cpbm_wd);
