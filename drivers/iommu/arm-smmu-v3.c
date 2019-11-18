@@ -36,6 +36,8 @@
 
 #include <linux/amba/bus.h>
 
+#include <trace/events/iommu.h>
+
 #include "io-pgtable-arm.h"
 #include "iommu-sva.h"
 
@@ -1623,6 +1625,8 @@ static int arm_smmu_page_response(struct device *dev,
 		default:
 			return -EINVAL;
 		}
+		trace_smmu_resume(cmd.resume.sid, cmd.resume.stag,
+				  cmd.resume.resp);
 	} else if (master->pri_supported) {
 		cmd.opcode		= CMDQ_OP_PRI_RESP;
 		cmd.substream_valid	= pasid_valid &&
@@ -1692,6 +1696,7 @@ static void arm_smmu_sync_cd(struct arm_smmu_domain *smmu_domain,
 		for (i = 0; i < master->num_streams; i++) {
 			cmd.cfgi.sid = master->streams[i].id;
 			arm_smmu_cmdq_batch_add(smmu, &cmds, &cmd);
+			trace_smmu_cdsync(cmd.cfgi.sid, cmd.cfgi.ssid, cmd.cfgi.leaf);
 		}
 	}
 	spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
@@ -1720,6 +1725,7 @@ static void arm_smmu_write_cd_l1_desc(__le64 *dst,
 	u64 val = (l1_desc->l2ptr_dma & CTXDESC_L1_DESC_L2PTR_MASK) |
 		  CTXDESC_L1_DESC_V;
 
+	trace_smmu_l1cdwrite(val);
 	/* See comment in arm_smmu_write_ctx_desc() */
 	WRITE_ONCE(*dst, cpu_to_le64(val));
 }
@@ -1829,6 +1835,7 @@ static int __arm_smmu_write_ctx_desc(struct arm_smmu_domain *smmu_domain,
 	 *   field within an aligned 64-bit span of a structure can be altered
 	 *   without first making the structure invalid.
 	 */
+	trace_smmu_cdwrite(val);
 	WRITE_ONCE(cdptr[0], cpu_to_le64(val));
 	arm_smmu_sync_cd(smmu_domain, ssid, true);
 	return 0;
@@ -2358,6 +2365,8 @@ static int arm_smmu_handle_evt(struct arm_smmu_device *smmu, u64 *evt)
 	u32 sid = FIELD_GET(EVTQ_0_SID, evt[0]);
 	struct iommu_fault_event fault_evt = { };
 	struct iommu_fault *flt = &fault_evt.fault;
+
+	trace_smmu_evt(evt[0], evt[1], evt[2], evt[3]);
 
 	/* Stage-2 is always pinned at the moment */
 	if (evt[1] & EVTQ_1_S2)

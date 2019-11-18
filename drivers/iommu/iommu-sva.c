@@ -390,6 +390,7 @@ static void io_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 		io_mm_detach_locked(bond);
 	}
 	mutex_unlock(&iommu_sva_lock);
+	trace_io_mm_release_done(1);
 }
 
 static void io_mm_invalidate_range(struct mmu_notifier *mn,

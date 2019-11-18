@@ -217,6 +217,81 @@ TRACE_EVENT(dev_fault,
 	)
 );
 
+TRACE_EVENT(smmu_evt,
+	TP_PROTO(u64 w1, u64 w2, u64 w3, u64 w4),
+	TP_ARGS(w1, w2, w3, w4),
+	TP_STRUCT__entry(
+		__field(u64, w1)
+		__field(u64, w2)
+		__field(u64, w3)
+		__field(u64, w4)
+	),
+	TP_fast_assign(
+		__entry->w1 = w1;
+		__entry->w2 = w2;
+		__entry->w3 = w3;
+		__entry->w4 = w4;
+	),
+	TP_printk("0x%016llx 0x%016llx 0x%016llx 0x%016llx",
+		__entry->w1,
+		__entry->w2,
+		__entry->w3,
+		__entry->w4
+	)
+);
+
+TRACE_EVENT(smmu_resume,
+	TP_PROTO(u32 sid, u32 stag, u32 resp),
+	TP_ARGS(sid, stag, resp),
+	TP_STRUCT__entry(
+		__field(u32, sid)
+		__field(u32, stag)
+		__field(u32, resp)
+	),
+	TP_fast_assign(
+		__entry->sid = sid;
+		__entry->stag = stag;
+		__entry->resp = resp;
+	),
+	TP_printk("sid=0x%x stag=0x%x resp=0x%x",
+		__entry->sid,
+		__entry->stag,
+		__entry->resp
+	)
+);
+
+TRACE_EVENT(smmu_cdsync,
+	    TP_PROTO(u32 sid, u32 ssid, u8 leaf),
+	    TP_ARGS(sid, ssid, leaf),
+	    TP_STRUCT__entry(
+		__field(u32, sid)
+		__field(u32, ssid)
+		__field(u8, leaf)),
+	    TP_fast_assign(
+		__entry->sid = sid;
+		__entry->ssid = ssid;
+		__entry->leaf = leaf;
+		),
+	    TP_printk("sid=0x%x ssid=0x%x leaf=%d",
+		      __entry->sid, __entry->ssid, __entry->leaf)
+);
+
+TRACE_EVENT(smmu_cdwrite,
+	    TP_PROTO(u64 val),
+	    TP_ARGS(val),
+	    TP_STRUCT__entry(__field(u64, val)),
+	    TP_fast_assign(__entry->val = val),
+	    TP_printk("0x%llx", __entry->val)
+);
+
+TRACE_EVENT(smmu_l1cdwrite,
+	    TP_PROTO(u64 val),
+	    TP_ARGS(val),
+	    TP_STRUCT__entry(__field(u64, val)),
+	    TP_fast_assign(__entry->val = val),
+	    TP_printk("0x%llx", __entry->val)
+);
+
 TRACE_EVENT(dev_page_response,
 
 	TP_PROTO(struct device *dev,  struct iommu_page_response *msg),
@@ -243,6 +318,14 @@ TRACE_EVENT(dev_page_response,
 		__entry->pasid,
 		__entry->grpid
 	)
+);
+
+TRACE_EVENT(iopf,
+	    TP_PROTO(int errn),
+	    TP_ARGS(errn),
+	    TP_STRUCT__entry(__field(int, errn)),
+	    TP_fast_assign(__entry->errn = errn),
+	    TP_printk("err %x", __entry->errn)
 );
 
 DECLARE_EVENT_CLASS(io_mm,
@@ -284,6 +367,11 @@ DECLARE_EVENT_CLASS(io_mm_dev,
 		__entry->pasid = pasid;
 	    ),
 	    TP_printk("pasid=%d dev=%s", __entry->pasid, __get_str(dev))
+);
+
+DEFINE_EVENT(io_mm_dev, iopf_flush,
+	    TP_PROTO(int pasid, struct device *dev),
+	    TP_ARGS(pasid, dev)
 );
 
 DEFINE_EVENT(io_mm_dev, io_mm_attach_alloc,
@@ -334,6 +422,14 @@ TRACE_EVENT(io_mm_invalidate,
 		__entry->pasid, __entry->start, __entry->end
 	    )
 );
+
+TRACE_EVENT(io_mm_release_done,
+	    TP_PROTO(int dummy),
+	    TP_ARGS(dummy),
+	    TP_STRUCT__entry(__field(int, dummy)),
+	    TP_fast_assign(__entry->dummy = dummy;),
+	    TP_printk("%d", __entry->dummy)
+	   );
 
 #endif /* _TRACE_IOMMU_H */
 
