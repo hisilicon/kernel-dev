@@ -122,6 +122,7 @@ struct perf_stat_config {
 	struct runtime_stat	*stats;
 	int			 stats_num;
 	const char		*csv_sep;
+	const char		*metrics_file;
 	struct stats		*walltime_nsecs_stats;
 	struct rusage		 ru_data;
 	struct perf_cpu_map		*aggr_map;

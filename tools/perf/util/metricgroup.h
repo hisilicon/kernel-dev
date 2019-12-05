@@ -6,6 +6,7 @@
 #include <linux/rbtree.h>
 #include <stdbool.h>
 
+struct evlist;
 struct evsel;
 struct option;
 struct rblist;
@@ -29,7 +30,8 @@ struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 					 bool create);
 int metricgroup__parse_groups(const struct option *opt,
 			const char *str,
-			struct rblist *metric_events);
+			struct rblist *metric_events,
+			const char *metrics_file);
 
 void metricgroup__print(bool metrics, bool groups, char *filter,
 			bool raw, bool details);

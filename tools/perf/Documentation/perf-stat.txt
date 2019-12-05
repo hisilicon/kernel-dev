@@ -264,6 +264,9 @@ For a group all metrics from the group are added.
 The events from the metrics are automatically measured.
 See perf list output for the possble metrics and metricgroups.
 
+--metrics-file file::
+Read metrics definitions from file in addition to compiled in metrics.
+
 -A::
 --no-aggr::
 Do not aggregate counts across all monitored CPUs.

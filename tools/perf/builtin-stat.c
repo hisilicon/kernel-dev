@@ -838,7 +838,8 @@ static int parse_metric_groups(const struct option *opt,
 			       const char *str,
 			       int unset __maybe_unused)
 {
-	return metricgroup__parse_groups(opt, str, &stat_config.metric_events);
+	return metricgroup__parse_groups(opt, str, &stat_config.metric_events,
+					 stat_config.metrics_file);
 }
 
 static struct option stat_options[] = {
@@ -923,6 +924,8 @@ static struct option stat_options[] = {
 	OPT_CALLBACK('M', "metrics", &evsel_list, "metric/metric group list",
 		     "monitor specified metrics or metric groups (separated by ,)",
 		     parse_metric_groups),
+	OPT_STRING(0, "metrics-file", &stat_config.metrics_file, "file path",
+		   "file with metrics definitions"),
 	OPT_BOOLEAN_FLAG(0, "all-kernel", &stat_config.all_kernel,
 			 "Configure all used events to run in kernel space.",
 			 PARSE_OPT_EXCLUSIVE),
@@ -1436,7 +1439,7 @@ static int add_default_attributes(void)
 			struct option opt = { .value = &evsel_list };
 
 			return metricgroup__parse_groups(&opt, "transaction",
-							 &stat_config.metric_events);
+							 &stat_config.metric_events, NULL);
 		}
 
 		if (pmu_have_event("cpu", "cycles-ct") &&

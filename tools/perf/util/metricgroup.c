@@ -22,6 +22,7 @@
 #include <linux/string.h>
 #include <linux/zalloc.h>
 #include <subcmd/parse-options.h>
+#include <api/fs/fs.h>
 
 struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 					 struct evsel *evsel,
@@ -452,11 +453,15 @@ static int add_metric(const char *name, const char *expr, const char *unit,
 }
 
 static int metricgroup__add_metric(const char *metric, struct strbuf *events,
-				   struct list_head *group_list)
+				   struct list_head *group_list,
+				   const char *metrics_file)
 {
 	struct pmu_events_map *map = perf_pmu__find_map(NULL);
+	struct parse_ctx ctx;
 	struct pmu_event *pe;
 	int ret = -EINVAL;
+	size_t size;
+	char *buf;
 	int i;
 
 	if (!map)
@@ -479,13 +484,35 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 				 pe->unit,
 				 events, group_list);
 		if (ret)
-			break;
+			return ret;
 	}
+
+	if (!metrics_file)
+		return 0;
+
+	if (filename__read_str(metrics_file, &buf, &size)) {
+		pr_err("failed to read metrics file: %s\n", metrics_file);
+		return -1;
+	}
+
+	expr__ctx_init(&ctx);
+	expr__parse_multi(&ctx, buf);
+
+	for (i = 0; i < ctx.cnt; i++) {
+		ret = add_metric(ctx.id[i], ctx.expr[i], "U",
+				 events, group_list);
+		if (ret)
+			goto out;
+	}
+
+out:
+	free(buf);
 	return ret;
 }
 
 static int metricgroup__add_metric_list(const char *list, struct strbuf *events,
-				        struct list_head *group_list)
+				        struct list_head *group_list,
+					const char *metrics_file)
 {
 	char *llist, *nlist, *p;
 	int ret = -EINVAL;
@@ -499,7 +526,8 @@ static int metricgroup__add_metric_list(const char *list, struct strbuf *events,
 	strbuf_addf(events, "%s", "");
 
 	while ((p = strsep(&llist, ",")) != NULL) {
-		ret = metricgroup__add_metric(p, events, group_list);
+		ret = metricgroup__add_metric(p, events, group_list,
+					      metrics_file);
 		if (ret == -EINVAL) {
 			fprintf(stderr, "Cannot find metric or group `%s'\n",
 					p);
@@ -526,7 +554,8 @@ static void metricgroup__free_egroups(struct list_head *group_list)
 
 int metricgroup__parse_groups(const struct option *opt,
 			   const char *str,
-			   struct rblist *metric_events)
+			   struct rblist *metric_events,
+			   const char *metrics_file)
 {
 	struct parse_events_error parse_error;
 	struct evlist *perf_evlist = *(struct evlist **)opt->value;
@@ -536,7 +565,8 @@ int metricgroup__parse_groups(const struct option *opt,
 
 	if (metric_events->nr_entries == 0)
 		metricgroup__rblist_init(metric_events);
-	ret = metricgroup__add_metric_list(str, &extra_events, &group_list);
+	ret = metricgroup__add_metric_list(str, &extra_events, &group_list,
+					   metrics_file);
 	if (ret)
 		return ret;
 	pr_debug("adding %s\n", extra_events.buf);
