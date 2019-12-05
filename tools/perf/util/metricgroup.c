@@ -399,13 +399,65 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 	strlist__delete(metriclist);
 }
 
+static int add_metric(const char *name, const char *expr, const char *unit,
+		      struct strbuf *events, struct list_head *group_list)
+{
+	bool no_group = false;
+	struct egroup *eg;
+	const char **ids;
+	int idnum, j;
+
+	pr_debug("metric expr %s for %s\n", expr, name);
+
+	if (expr__find_other(expr, NULL, &ids, &idnum) < 0)
+		return -1;
+
+	if (events->len > 0)
+		strbuf_addf(events, ",");
+
+	for (j = 0; j < idnum; j++) {
+		pr_debug("found event %s\n", ids[j]);
+		/*
+		 * Duration time maps to a software event and can make
+		 * groups not count. Always use it outside a
+		 * group.
+		 */
+		if (!strcmp(ids[j], "duration_time")) {
+			if (j > 0)
+				strbuf_addf(events, "}:W,");
+			strbuf_addf(events, "duration_time");
+			no_group = true;
+			continue;
+		}
+		strbuf_addf(events, "%s%s",
+			j == 0 || no_group ? "{" : ",",
+			ids[j]);
+		no_group = false;
+	}
+
+	if (!no_group)
+		strbuf_addf(events, "}:W");
+
+	eg = malloc(sizeof(struct egroup));
+	if (!eg)
+		return -ENOMEM;
+
+	eg->ids         = ids;
+	eg->idnum       = idnum;
+	eg->metric_name = name;
+	eg->metric_expr = expr;
+	eg->metric_unit = unit;
+	list_add_tail(&eg->nd, group_list);
+	return 0;
+}
+
 static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 				   struct list_head *group_list)
 {
 	struct pmu_events_map *map = perf_pmu__find_map(NULL);
 	struct pmu_event *pe;
 	int ret = -EINVAL;
-	int i, j;
+	int i;
 
 	if (!map)
 		return 0;
@@ -417,55 +469,17 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 			break;
 		if (!pe->metric_expr)
 			continue;
-		if (match_metric(pe->metric_group, metric) ||
-		    match_metric(pe->metric_name, metric)) {
-			const char **ids;
-			int idnum;
-			struct egroup *eg;
-			bool no_group = false;
 
-			pr_debug("metric expr %s for %s\n", pe->metric_expr, pe->metric_name);
+		if (!match_metric(pe->metric_group, metric) &&
+		    !match_metric(pe->metric_name, metric))
+			continue;
 
-			if (expr__find_other(pe->metric_expr,
-					     NULL, &ids, &idnum) < 0)
-				continue;
-			if (events->len > 0)
-				strbuf_addf(events, ",");
-			for (j = 0; j < idnum; j++) {
-				pr_debug("found event %s\n", ids[j]);
-				/*
-				 * Duration time maps to a software event and can make
-				 * groups not count. Always use it outside a
-				 * group.
-				 */
-				if (!strcmp(ids[j], "duration_time")) {
-					if (j > 0)
-						strbuf_addf(events, "}:W,");
-					strbuf_addf(events, "duration_time");
-					no_group = true;
-					continue;
-				}
-				strbuf_addf(events, "%s%s",
-					j == 0 || no_group ? "{" : ",",
-					ids[j]);
-				no_group = false;
-			}
-			if (!no_group)
-				strbuf_addf(events, "}:W");
-
-			eg = malloc(sizeof(struct egroup));
-			if (!eg) {
-				ret = -ENOMEM;
-				break;
-			}
-			eg->ids = ids;
-			eg->idnum = idnum;
-			eg->metric_name = pe->metric_name;
-			eg->metric_expr = pe->metric_expr;
-			eg->metric_unit = pe->unit;
-			list_add_tail(&eg->nd, group_list);
-			ret = 0;
-		}
+		ret = add_metric(pe->metric_name,
+				 pe->metric_expr,
+				 pe->unit,
+				 events, group_list);
+		if (ret)
+			break;
 	}
 	return ret;
 }
