@@ -437,6 +437,8 @@ config ARM_SMMU_V3
 	select IOMMU_API
 	select IOMMU_SVA
 	select IOMMU_IO_PGTABLE_LPAE
+	select PCI_PRI
+	select PCI_PASID
 	select GENERIC_MSI_IRQ_DOMAIN
 	help
 	  Support for implementations of the ARM System MMU architecture
