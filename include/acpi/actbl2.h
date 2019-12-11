@@ -930,6 +930,8 @@ struct acpi_mpam_header
 	u32			overflow_flags;
 	u32			error_interrupt;
 	u32			error_flags;
+	u32			not_ready_max;
+	u32			data_sect_offset;
 };
 
 /* Values for subtable type in ACPI_MPAM_NODE_HEADER */
