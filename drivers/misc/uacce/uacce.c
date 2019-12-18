@@ -11,6 +11,9 @@ static dev_t uacce_devt;
 static DEFINE_MUTEX(uacce_mutex);
 static DEFINE_XARRAY_ALLOC(uacce_xa);
 
+static bool uacce_nosva;
+module_param(uacce_nosva, bool, 0444);
+
 static int uacce_start_queue(struct uacce_queue *q)
 {
 	int ret = 0;
@@ -583,6 +586,9 @@ struct uacce_device *uacce_alloc(struct device *parent,
 	uacce = kzalloc(sizeof(struct uacce_device), GFP_KERNEL);
 	if (!uacce)
 		return ERR_PTR(-ENOMEM);
+
+	if (uacce_nosva)
+		flags &= ~UACCE_DEV_SVA;
 
 	if (flags & UACCE_DEV_SVA) {
 		ret = iommu_dev_enable_feature(parent, IOMMU_DEV_FEAT_SVA);
