@@ -45,7 +45,7 @@ static inline void resctrl_sched_in(void)
 	/*
 	 * We depend on the dsb() in __switch_to() to finish any writes
 	 * that had the old mpam partid. This allows us to re-allocate that
-	 * partid after the last task has finished using it.
+	 * partid after the last task has finished  using it.
 	 */
 	dsb(ishst);
 }

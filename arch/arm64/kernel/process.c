@@ -38,6 +38,7 @@
 #include <trace/events/power.h>
 #include <linux/percpu.h>
 #include <linux/thread_info.h>
+#include <linux/resctrl.h>
 
 #include <asm/alternative.h>
 #include <asm/arch_gicv3.h>
@@ -443,12 +444,6 @@ void uao_thread_switch(struct task_struct *next)
 	}
 }
 
-static void mpam_thread_switch(struct task_struct *next)
-{
-	if (system_supports_mpam() && next->active_mm != &init_mm)
-		_mpam_thread_switch(next);
-}
-
 /*
  * We store our current task in sp_el0, which is clobbered by userspace. Keep a
  * shadow copy so that we can restore this upon entry from userspace.
@@ -478,7 +473,6 @@ __notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 	entry_task_switch(next);
 	uao_thread_switch(next);
 	ptrauth_thread_switch(next);
-	mpam_thread_switch(next);
 
 	/*
 	 * Complete any pending TLB or cache maintenance on this CPU in case
@@ -490,6 +484,9 @@ __notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 
 	/* the actual thread switch */
 	last = cpu_switch_to(prev, next);
+
+	/* Load the ARM64 MPAM register if supported. */
+	resctrl_sched_in();
 
 	return last;
 }

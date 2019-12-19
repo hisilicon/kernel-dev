@@ -119,6 +119,7 @@ static inline void _mpam_thread_switch(struct task_struct *next)
 	if (local_state->current_regval != new_regval) {
 		local_state->current_regval = new_regval;
 		write_sysreg_s(new_regval, SYS_MPAM0_EL1);
+		write_sysreg_s(new_regval, SYS_MPAM1_EL1);
 	}
 }
 
