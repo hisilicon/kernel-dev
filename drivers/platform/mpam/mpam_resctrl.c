@@ -434,6 +434,7 @@ static void mpam_update_from_resctrl_cfg(struct mpam_resctrl_res *res,
 			/* .. the number of fractions we can represent */
 			range = (1ULL << res->class->bwa_wd) - 1;
 			mpam_cfg->mbw_max = (resctrl_cfg * range) / MAX_MBA_BW;
+			mpam_set_feature(mpam_feat_mbw_max, &mpam_cfg->valid);
 		}
 	} else {
 		/*

@@ -885,7 +885,7 @@ static void mpam_reset_device_partid(struct mpam_device *dev, u16 partid,
 
 	if (mpam_has_feature(mpam_feat_mbw_max, dev->features)) {
 		if (cfg && mpam_has_feature(mpam_feat_mbw_max, cfg->valid))
-			mpam_write_reg(dev, MPAMCFG_CMAX, cfg->mbw_max);
+			mpam_write_reg(dev, MPAMCFG_MBW_MAX, cfg->mbw_max);
 		else
 			mpam_write_reg(dev, MPAMCFG_MBW_MAX, bwa_fract);
 	}
