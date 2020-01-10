@@ -18,6 +18,11 @@
 #define UACCE_CMD_PUT_Q		_IO('W', 1)
 
 /*
+ * UACCE_CMD_GET_SS_DMA: Get dma address of ss region
+ */
+#define UACCE_CMD_GET_SS_DMA    _IOR('W', 100, unsigned long)
+
+/*
  * UACCE Device flags:
  * UACCE_DEV_SVA: Shared Virtual Addresses
  *		  Support PASID
@@ -29,10 +34,12 @@
  * enum uacce_qfrt: queue file region type
  * @UACCE_QFRT_MMIO: device mmio region
  * @UACCE_QFRT_DUS: device user share region
+ * @UACCE_QFRT_SS: static share memory for user
  */
 enum uacce_qfrt {
 	UACCE_QFRT_MMIO = 0,
 	UACCE_QFRT_DUS = 1,
+	UACCE_QFRT_SS = 2,
 };
 
 #endif
