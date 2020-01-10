@@ -6,7 +6,7 @@
 #include <uapi/misc/uacce/uacce.h>
 
 #define UACCE_NAME		"uacce"
-#define UACCE_MAX_REGION	2
+#define UACCE_MAX_REGION	3
 #define UACCE_MAX_NAME_SIZE	64
 
 struct uacce_queue;
@@ -15,9 +15,15 @@ struct uacce_device;
 /**
  * struct uacce_qfile_region - structure of queue file region
  * @type: type of the region
+ * @kaddr: kernel addr of the qfr
+ * @dma: dma address
+ * @nr_pages: number of pages
  */
 struct uacce_qfile_region {
 	enum uacce_qfrt type;
+	void *kaddr;
+	dma_addr_t dma;
+	int nr_pages;
 };
 
 /**
