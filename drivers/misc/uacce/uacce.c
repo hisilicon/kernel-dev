@@ -39,6 +39,7 @@ out_with_lock:
 static int uacce_put_queue(struct uacce_queue *q)
 {
 	struct uacce_device *uacce = q->uacce;
+	int i;
 
 	mutex_lock(&uacce_mutex);
 
@@ -52,11 +53,44 @@ static int uacce_put_queue(struct uacce_queue *q)
 	     uacce->ops->put_queue)
 		uacce->ops->put_queue(q);
 
+	for (i = 0; i < UACCE_MAX_REGION; i++) {
+		struct uacce_qfile_region *qfr = q->qfrs[i];
+
+		if (qfr && qfr->kaddr) {
+			dma_free_coherent(uacce->parent,
+					  qfr->nr_pages << PAGE_SHIFT,
+					  qfr->kaddr, qfr->dma);
+			qfr->kaddr = NULL;
+		}
+	}
+
 	q->state = UACCE_Q_ZOMBIE;
 out:
 	mutex_unlock(&uacce_mutex);
 
 	return 0;
+}
+
+static long uacce_get_ss_dma(struct uacce_queue *q, void __user *arg)
+{
+	struct uacce_device *uacce = q->uacce;
+	long ret = 0;
+	unsigned long dma = 0;
+
+	if ((uacce->flags & UACCE_DEV_SVA))
+		return -EINVAL;
+
+	mutex_lock(&uacce_mutex);
+	if (q->qfrs[UACCE_QFRT_SS])
+		dma = q->qfrs[UACCE_QFRT_SS]->dma;
+	else
+		ret = -EINVAL;
+	mutex_unlock(&uacce_mutex);
+
+	if (copy_to_user(arg, &dma, sizeof(dma)))
+		ret = -EFAULT;
+
+	return ret;
 }
 
 static long uacce_fops_unl_ioctl(struct file *filep,
@@ -71,6 +105,9 @@ static long uacce_fops_unl_ioctl(struct file *filep,
 
 	case UACCE_CMD_PUT_Q:
 		return uacce_put_queue(q);
+
+	case UACCE_CMD_GET_SS_DMA:
+		return uacce_get_ss_dma(q, (void __user *)arg);
 
 	default:
 		if (!uacce->ops->ioctl)
@@ -265,12 +302,21 @@ static vm_fault_t uacce_vma_fault(struct vm_fault *vmf)
 static void uacce_vma_close(struct vm_area_struct *vma)
 {
 	struct uacce_queue *q = vma->vm_private_data;
+	struct uacce_device *uacce = q->uacce;
 	struct uacce_qfile_region *qfr = NULL;
+	int nr_pages = vma_pages(vma);
 
 	if (vma->vm_pgoff < UACCE_MAX_REGION)
 		qfr = q->qfrs[vma->vm_pgoff];
 
+	if (qfr->kaddr) {
+		dma_free_coherent(uacce->parent, nr_pages << PAGE_SHIFT,
+				  qfr->kaddr, qfr->dma);
+		qfr->kaddr = NULL;
+	}
+
 	kfree(qfr);
+	q->qfrs[vma->vm_pgoff] = NULL;
 }
 
 static const struct vm_operations_struct uacce_vm_ops = {
@@ -284,6 +330,8 @@ static int uacce_fops_mmap(struct file *filep, struct vm_area_struct *vma)
 	struct uacce_device *uacce = q->uacce;
 	struct uacce_qfile_region *qfr;
 	enum uacce_qfrt type = UACCE_MAX_REGION;
+	int nr_pages = vma_pages(vma);
+	unsigned long vm_pgoff;
 	int ret = 0;
 
 	if (vma->vm_pgoff < UACCE_MAX_REGION)
@@ -336,6 +384,40 @@ static int uacce_fops_mmap(struct file *filep, struct vm_area_struct *vma)
 			goto out_with_lock;
 		break;
 
+	case UACCE_QFRT_SS:
+		if (q->state != UACCE_Q_STARTED) {
+			ret = -EINVAL;
+			goto out_with_lock;
+		}
+
+		if (uacce->flags & UACCE_DEV_SVA) {
+			ret = -EINVAL;
+			goto out_with_lock;
+		}
+
+		qfr->kaddr = dma_alloc_coherent(uacce->parent,
+						nr_pages << PAGE_SHIFT,
+						&qfr->dma, GFP_KERNEL);
+		if (!qfr->kaddr) {
+			ret = -ENOMEM;
+			goto out_with_lock;
+		}
+		qfr->nr_pages = nr_pages;
+
+		/*
+		 * dma_mmap_coherent() requires vm_pgoff as 0
+		 * restore vm_pfoff to initial value for mmap()
+		 */
+		vm_pgoff = vma->vm_pgoff;
+		vma->vm_pgoff = 0;
+		ret = dma_mmap_coherent(uacce->parent, vma, qfr->kaddr,
+					qfr->dma,
+					nr_pages << PAGE_SHIFT);
+		vma->vm_pgoff = vm_pgoff;
+		if (ret)
+			goto err_with_pages;
+		break;
+
 	default:
 		ret = -EINVAL;
 		goto out_with_lock;
@@ -346,6 +428,10 @@ static int uacce_fops_mmap(struct file *filep, struct vm_area_struct *vma)
 
 	return ret;
 
+err_with_pages:
+	if (qfr->kaddr)
+		dma_free_coherent(uacce->parent, nr_pages << PAGE_SHIFT,
+				  qfr->kaddr, qfr->dma);
 out_with_lock:
 	mutex_unlock(&uacce_mutex);
 	kfree(qfr);
