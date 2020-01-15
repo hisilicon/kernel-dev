@@ -1582,14 +1582,8 @@ static int qm_alloc_uacce(struct hisi_qm *qm)
 	if (IS_ERR(uacce))
 		return PTR_ERR(uacce);
 
-	if (uacce->flags & UACCE_DEV_SVA) {
+	if (uacce->flags & UACCE_DEV_SVA)
 		qm->use_sva = true;
-	} else {
-		/* only consider sva case */
-		uacce_remove(uacce);
-		qm->uacce = NULL;
-		return -EINVAL;
-	}
 
 	uacce->is_vf = pdev->is_virtfn;
 	uacce->priv = qm;
