@@ -1,0 +1,42 @@
+[
+   {
+	    "ArchStdEvent": "CYCLES"
+	    "Compat": "HIP08"
+   },
+   {
+	    "ArchStdEvent": "TRANSACTION"
+	    "Compat": "HIP08"
+   },
+   {
+	    "ArchStdEvent": "TLB_MISS"
+	    "Compat": "HIP08"
+   },
+   {
+	    "ArchStdEvent": "CONFIG_CACHE_MISS"
+	    "Compat": "HIP08"
+   },
+   {
+	    "ArchStdEvent": "TRANS_TABLE_WALK_ACCESS"
+	    "Compat": "HIP08"
+   },
+   {
+	    "ArchStdEvent": "CONFIG_STRUCT_ACCESS"
+	    "Compat": "HIP08"
+   },
+   {
+	    "ArchStdEvent": "PCIE_ATS_TRANS_RQ"
+	    "Compat": "HIP08"
+   },
+   {
+	    "ArchStdEvent": "PCIE_ATS_TRANS_PASSED"
+	    "Compat": "HIP08"
+   },
+   {
+	    "EventCode": "0x8a",
+	    "EventName": "L1_TLB",
+	    "BriefDescription": "SMMUv3 PMCG L1 TABLE transation",
+	    "PublicDescription": "SMMUv3 PMCG L1 TABLE transation",
+	    "Unit": "smmuv3_pmcg",
+	    "Compat": "HIP08"
+   },
+]
