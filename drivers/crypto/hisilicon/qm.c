@@ -1729,6 +1729,9 @@ void hisi_qm_release_qp(struct hisi_qp *qp)
 	idr_remove(&qm->qp_idr, qp->qp_id);
 
 	up_write(&qm->qps_lock);
+
+	// TODO: check that this fixes something.
+	//flush_work(&qm->work);
 }
 EXPORT_SYMBOL_GPL(hisi_qm_release_qp);
 
