@@ -1196,6 +1196,8 @@ void hisi_qm_release_qp(struct hisi_qp *qp)
 	struct qm_dma *qdma = &qp->qdma;
 	struct device *dev = &qm->pdev->dev;
 
+	destroy_workqueue(qp->wq);
+
 	if (qm->use_dma_api && qdma->va)
 		dma_free_coherent(dev, qdma->size, qdma->va, qdma->dma);
 
