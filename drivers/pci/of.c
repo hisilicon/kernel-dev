@@ -575,7 +575,6 @@ int pci_parse_request_of_pci_ranges(struct device *dev,
 	return err;
 }
 EXPORT_SYMBOL_GPL(pci_parse_request_of_pci_ranges);
-
 #endif /* CONFIG_PCI */
 
 /**
