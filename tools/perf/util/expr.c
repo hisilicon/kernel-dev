@@ -57,6 +57,11 @@ int expr__parse(double *final_val, struct parse_ctx *ctx, const char *expr)
 	return __expr__parse(final_val, ctx, expr, EXPR_PARSE);
 }
 
+int expr__parse_multi(struct parse_ctx *ctx, const char *expr)
+{
+	return __expr__parse(NULL, ctx, expr, EXPR_MULTI);
+}
+
 static bool
 already_seen(const char *val, const char *one, const char **other,
 	     int num_other)

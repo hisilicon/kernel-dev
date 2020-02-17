@@ -63,5 +63,12 @@ int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 		zfree(&other[i]);
 	free((void *)other);
 
+	expr__ctx_init(&ctx);
+	expr__parse_multi(&ctx, "IPC = INSTRUCTIONS / CYCLES ; CPI = CYCLES / INSTRUCTIONS ;");
+	TEST_ASSERT_VAL("parse multi count", ctx.cnt == 2);
+	TEST_ASSERT_VAL("parse multi id", !strcmp(ctx.id[0], "IPC"));
+	TEST_ASSERT_VAL("parse multi id", !strcmp(ctx.id[1], "CPI"));
+	TEST_ASSERT_VAL("parse multi expr", !strcmp(ctx.expr[0], " INSTRUCTIONS / CYCLES "));
+	TEST_ASSERT_VAL("parse multi expr", !strcmp(ctx.expr[1], " CYCLES / INSTRUCTIONS "));
 	return 0;
 }

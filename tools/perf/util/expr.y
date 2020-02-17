@@ -24,9 +24,10 @@
 	char	*str;
 }
 
-%token EXPR_PARSE EXPR_OTHER EXPR_ERROR
+%token EXPR_PARSE EXPR_OTHER EXPR_MULTI EXPR_ERROR
 %token <num> NUMBER
 %token <str> ID
+%token <str> ALL
 %token MIN MAX IF ELSE SMT_ON
 %left MIN MAX IF
 %left '|'
@@ -66,6 +67,16 @@ start:
 EXPR_PARSE all_expr
 |
 EXPR_OTHER all_other
+|
+EXPR_MULTI all_multi
+
+all_multi: all_multi ID '=' ALL ';'
+{
+	ctx->id[ctx->cnt] = $2;
+	ctx->expr[ctx->cnt] = $4;
+	ctx->cnt++;
+}
+|
 
 all_other: all_other other
 |

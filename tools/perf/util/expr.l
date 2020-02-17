@@ -41,8 +41,11 @@ static int str(yyscan_t scanner, int token)
 }
 %}
 
+%x multi
+
 number		[0-9]+
 symbol		[0-9a-zA-Z_\.:@\\]+
+all		[^;]+
 
 %%
 	{
@@ -55,6 +58,12 @@ symbol		[0-9a-zA-Z_\.:@\\]+
 			return start_token;
 		}
 	}
+
+<multi>{
+
+{all}		{ BEGIN(INITIAL); return str(yyscanner, ALL); }
+
+}
 
 max		{ return MAX; }
 min		{ return MIN; }
@@ -74,6 +83,8 @@ else		{ return ELSE; }
 "("		{ return '('; }
 ")"		{ return ')'; }
 ","		{ return ','; }
+";"		{ return ';'; }
+"="		{ BEGIN(multi); return '='; }
 .		{ }
 %%
 
