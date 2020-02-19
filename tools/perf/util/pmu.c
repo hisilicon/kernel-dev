@@ -595,6 +595,7 @@ static struct perf_cpu_map *__pmu_cpumask(const char *path)
  * Uncore PMUs have a "cpumask" file under sysfs. CPU PMUs (e.g. on arm/arm64)
  * may have a "cpus" file.
  */
+#define CPUS_TEMPLATE_ID	"%s/bus/event_source/devices/%s/namespace/name"
 #define CPUS_TEMPLATE_UNCORE	"%s/bus/event_source/devices/%s/cpumask"
 #define CPUS_TEMPLATE_CPU	"%s/bus/event_source/devices/%s/cpus"
 
@@ -632,6 +633,39 @@ static bool pmu_is_uncore(const char *name)
 	snprintf(path, PATH_MAX, CPUS_TEMPLATE_UNCORE, sysfs, name);
 	return file_available(path);
 }
+
+static char *pmu_id(const char *name)
+{
+	char path[PATH_MAX], *id;
+	const char *sysfs;
+	FILE *file;
+	int n;
+
+	sysfs = sysfs__mountpoint();
+	snprintf(path, PATH_MAX, CPUS_TEMPLATE_ID, sysfs, name);
+
+	id = malloc(PATH_MAX);
+	if (!id)
+		return NULL;
+
+	file = fopen(path, "r");
+	if (!file) {
+		free(id);
+		return NULL;
+	}
+
+	n = fscanf(file, "%s", id);
+
+	fclose(file);
+
+	if (!n) {
+		free(id);
+		return NULL;
+	}
+
+	return id;
+}
+
 
 /*
  *  PMU CORE devices have different name other than cpu in sysfs on some
@@ -839,6 +873,8 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	pmu->name = strdup(name);
 	pmu->type = type;
 	pmu->is_uncore = pmu_is_uncore(name);
+	if (pmu->is_uncore)
+		pmu->id = pmu_id(name);
 	pmu->max_precise = pmu_max_precise(name);
 	pmu_add_cpu_aliases(&aliases, pmu);
 
