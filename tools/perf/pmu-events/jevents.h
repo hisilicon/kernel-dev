@@ -3,7 +3,7 @@
 #define JEVENTS_H 1
 
 int json_events(const char *fn,
-		int (*func)(void *data, char *name, char *event, char *desc,
+		int (*func)(void *data, char *name, char * compat, char *event, char *desc,
 				char *long_desc,
 				char *pmu,
 				char *unit, char *perpkg, char *metric_expr,

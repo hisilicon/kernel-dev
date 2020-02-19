@@ -53,6 +53,23 @@
 int verbose;
 char *prog;
 
+static LIST_HEAD(sys_event_tables);
+
+struct sys_event_table {
+	struct list_head list;
+	char *name;
+};
+
+static void free_sys_event_tables(void)
+{
+	struct sys_event_table *et, *next;
+
+	list_for_each_entry_safe(et, next, &sys_event_tables, list) {
+		free(et->name);
+		free(et);
+	}
+}
+
 int eprintf(int level, int var, const char *fmt, ...)
 {
 
@@ -320,7 +337,7 @@ static void print_events_table_prefix(FILE *fp, const char *tblname)
 	close_table = 1;
 }
 
-static int print_events_table_entry(void *data, char *name, char *event,
+static int print_events_table_entry(void *data, char *name, char *compat, char *event,
 				    char *desc, char *long_desc,
 				    char *pmu, char *unit, char *perpkg,
 				    char *metric_expr,
@@ -339,6 +356,9 @@ static int print_events_table_entry(void *data, char *name, char *event,
 
 	if (name)
 		fprintf(outfp, "\t.name = \"%s\",\n", name);
+	if (compat)
+		fprintf(outfp, "\t.compat = \"%s\",\n", compat);
+
 	if (event)
 		fprintf(outfp, "\t.event = \"%s\",\n", event);
 	fprintf(outfp, "\t.desc = \"%s\",\n", desc);
@@ -367,6 +387,7 @@ static int print_events_table_entry(void *data, char *name, char *event,
 struct event_struct {
 	struct list_head list;
 	char *name;
+	char *compat;
 	char *event;
 	char *desc;
 	char *long_desc;
@@ -420,7 +441,7 @@ static void free_arch_std_events(void)
 	}
 }
 
-static int save_arch_std_events(void *data, char *name, char *event,
+static int save_arch_std_events(void *data, char *name, char *compat, char *event,
 				char *desc, char *long_desc, char *pmu,
 				char *unit, char *perpkg, char *metric_expr,
 				char *metric_name, char *metric_group,
@@ -512,7 +533,7 @@ try_fixup(const char *fn, char *arch_std, char **event, char **desc,
 
 /* Call func with each event in the json file */
 int json_events(const char *fn,
-	  int (*func)(void *data, char *name, char *event, char *desc,
+	  int (*func)(void *data, char *name, char *compat, char *event, char *desc,
 		      char *long_desc,
 		      char *pmu, char *unit, char *perpkg,
 		      char *metric_expr,
@@ -536,7 +557,7 @@ int json_events(const char *fn,
 	EXPECT(tokens->type == JSMN_ARRAY, tokens, "expected top level array");
 	tok = tokens + 1;
 	for (i = 0; i < tokens->size; i++) {
-		char *event = NULL, *desc = NULL, *name = NULL;
+		char *event = NULL, *desc = NULL, *name = NULL, *compat = NULL;
 		char *long_desc = NULL;
 		char *extra_desc = NULL;
 		char *pmu = NULL;
@@ -582,6 +603,8 @@ int json_events(const char *fn,
 				free(code);
 			} else if (json_streq(map, field, "EventName")) {
 				addfield(map, &name, "", "", val);
+			} else if (json_streq(map, field, "Compat")) {
+				addfield(map, &compat, "", "", val);
 			} else if (json_streq(map, field, "BriefDescription")) {
 				addfield(map, &desc, "", "", val);
 				fixdesc(desc);
@@ -676,13 +699,14 @@ int json_events(const char *fn,
 			if (err)
 				goto free_strings;
 		}
-		err = func(data, name, real_event(name, event), desc, long_desc,
+		err = func(data, name, compat, real_event(name, event), desc, long_desc,
 			   pmu, unit, perpkg, metric_expr, metric_name,
 			   metric_group, deprecated);
 free_strings:
+		free(name);
+		free(compat);
 		free(event);
 		free(desc);
-		free(name);
 		free(long_desc);
 		free(extra_desc);
 		free(pmu);
@@ -745,6 +769,25 @@ static char *file_name_to_table_name(char *fname)
 	return tblname;
 }
 
+static bool is_sys_dir(char *fname)
+{
+	char *pos;
+
+	while (true) {
+		pos = strchr(fname, '/');
+
+		if (!pos) {
+			if (!strcmp(fname, "sys"))
+				return true;
+			return false;
+		}
+
+		fname = pos + 1;
+	}
+
+	return false;
+}
+
 static void print_mapping_table_prefix(FILE *outfp)
 {
 	fprintf(outfp, "struct pmu_events_map pmu_events_map[] = {\n");
@@ -764,6 +807,22 @@ static void print_mapping_table_suffix(FILE *outfp)
 
 	/* and finally, the closing curly bracket for the struct */
 	fprintf(outfp, "};\n");
+}
+
+static int process_system_event_tables(FILE *outfp)
+{
+	struct sys_event_table *sys_event_table;
+
+	fprintf(outfp, "struct pmu_sys_events pmu_sys_event_tables[] = {");
+
+	list_for_each_entry(sys_event_table, &sys_event_tables, list) {
+		fprintf(outfp, "\n\t{\n\t\t.table = %s,\n\t},", sys_event_table->name);
+	}
+	fprintf(outfp, "\n\t{\n\t\t.table = 0\n\t},");
+
+	fprintf(outfp, "\n};\n");
+
+	return 0;
 }
 
 static int process_mapfile(FILE *outfp, char *fpath)
@@ -1010,6 +1069,16 @@ static int process_one_file(const char *fpath, const struct stat *sb,
 			return -1;
 		}
 
+		if (is_sys_dir(bname)) {
+			struct sys_event_table *sys_event_table = malloc(sizeof(*sys_event_table));
+
+			if (!sys_event_table)
+				return -1;
+
+			sys_event_table->name = strdup(tblname);
+			list_add_tail(&sys_event_table->list, &sys_event_tables);
+		}
+
 		print_events_table_prefix(eventsfp, tblname);
 		return 0;
 	}
@@ -1161,7 +1230,6 @@ int main(int argc, char *argv[])
 	} else if (rc < 0) {
 		/* Make build fail */
 		fclose(eventsfp);
-		free_arch_std_events();
 		ret = 1;
 		goto out_free_mapfile;
 	} else if (rc) {
@@ -1171,27 +1239,30 @@ int main(int argc, char *argv[])
 	if (close_table)
 		print_events_table_suffix(eventsfp);
 
-	if (!mapfile) {
-		pr_info("%s: No CPU->JSON mapping?\n", prog);
-		goto empty_map;
+	if (mapfile) {
+		if (process_mapfile(eventsfp, mapfile)) {
+			pr_err("%s: Error processing mapfile %s\n", prog, mapfile);
+			/* Make build fail */
+			fclose(eventsfp);
+			ret = 1;
+		}
+	} else {
+		pr_err("%s: No CPU->JSON mapping?\n", prog);
 	}
 
-	if (process_mapfile(eventsfp, mapfile)) {
-		pr_info("%s: Error processing mapfile %s\n", prog, mapfile);
-		/* Make build fail */
-		fclose(eventsfp);
-		free_arch_std_events();
-		ret = 1;
+	if (process_system_event_tables(eventsfp)) {
+			fclose(eventsfp);
+			ret = 1;
 	}
-
 
 	goto out_free_mapfile;
 
 empty_map:
 	fclose(eventsfp);
 	create_empty_mapping(output_file);
-	free_arch_std_events();
 out_free_mapfile:
+	free_arch_std_events();
+	free_sys_event_tables();
 	free(mapfile);
 	return ret;
 }
