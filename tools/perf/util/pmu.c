@@ -21,7 +21,6 @@
 #include "pmu.h"
 #include "parse-events.h"
 #include "header.h"
-#include "pmu-events/pmu-events.h"
 #include "string2.h"
 #include "strbuf.h"
 #include "fncache.h"
@@ -822,6 +821,78 @@ new_alias:
 	}
 }
 
+void pmu_for_each_event(struct perf_pmu *pmu, pmu_event_iter_fn fn, void *data)
+{
+	struct pmu_event *pe;
+	int i = 0;
+
+	while (1) {
+		struct pmu_sys_events *event_table;
+		int j = 0;
+
+		event_table = &pmu_sys_event_tables[i++];
+
+		if (!event_table->table) {
+			break;
+		}
+
+		while (1) {
+			int ret;
+
+			pe = &event_table->table[j++];
+
+			if (!pe->name && !pe->metric_group && !pe->metric_name)
+				break;
+
+			ret = fn(pmu, pe, data);
+			if (ret)
+				break;
+		}
+	}
+}
+
+struct pmu_sys_event_iter_data {
+	struct list_head *head;
+};
+
+static int pmu_add_sys_aliases_iter_fn(struct perf_pmu *pmu, struct pmu_event *pe, void *data)
+{
+	struct pmu_sys_event_iter_data *idata = data;
+
+	if (!pe->name) {
+		if (pe->metric_group || pe->metric_name)
+			return 0;
+		return -EINVAL;
+	}
+
+	if (!pe->compat || !pe->pmu)
+		return 0;
+
+	if (!strcmp(pmu->id, pe->compat) && pmu_uncore_alias_match(pe->pmu, pmu->name)) {
+		__perf_pmu__new_alias(idata->head, NULL, (char *)pe->name,
+						(char *)pe->desc, (char *)pe->event,
+						(char *)pe->long_desc, (char *)pe->topic,
+						(char *)pe->unit, (char *)pe->perpkg,
+						(char *)pe->metric_expr,
+						(char *)pe->metric_name,
+						(char *)pe->deprecated);
+	}
+
+	return 0;
+}
+
+static void pmu_add_sys_aliases(struct list_head *head, struct perf_pmu *pmu)
+{
+	struct pmu_sys_event_iter_data idata = {
+		.head = head,
+	};
+
+	if (!pmu->id)
+		return;
+
+	pmu_for_each_event(pmu, pmu_add_sys_aliases_iter_fn, &idata);
+}
+
 struct perf_event_attr * __weak
 perf_pmu__get_default_config(struct perf_pmu *pmu __maybe_unused)
 {
@@ -877,6 +948,7 @@ static struct perf_pmu *pmu_lookup(const char *name)
 		pmu->id = pmu_id(name);
 	pmu->max_precise = pmu_max_precise(name);
 	pmu_add_cpu_aliases(&aliases, pmu);
+	pmu_add_sys_aliases(&aliases, pmu);
 
 	INIT_LIST_HEAD(&pmu->format);
 	INIT_LIST_HEAD(&pmu->aliases);
