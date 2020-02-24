@@ -258,6 +258,7 @@ static struct map {
 	{ "hisi_sccl,l3c", "hisi_sccl,l3c" },
 	/* it's not realistic to keep adding these, we need something more scalable ... */
 	{ "smmuv3_pmcg", "smmuv3_pmcg" },
+	{ "imx8_ddr", "imx8_ddr" },
 	{ "L3PMC", "amd_l3" },
 	{}
 };
