@@ -515,18 +515,31 @@ static int metricgroup__add_metric_pmu_event(struct pmu_event *pe, const char *m
 	return 0;
 }
 
+struct metricgroup_add_iter_data {
+	const char *metric;
+	struct strbuf *events;
+	struct list_head *group_list;
+	int *ret;
+};
+
+static int metricgroup__add_metric_sys_event_iter(struct pmu_event *pe, void *data)
+{
+	struct metricgroup_add_iter_data *d = data;
+
+	return (*d->ret = metricgroup__add_metric_pmu_event(pe, d->metric, d->events, d->group_list));
+}
+
 static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 				   struct list_head *group_list)
 {
 	struct pmu_events_map *map = perf_pmu__find_map(NULL);
 	struct pmu_event *pe;
+	struct perf_pmu *pmu = NULL;
 	int ret = -EINVAL;
 	int i;
 
-	if (!map)
-		return 0;
 
-	for (i = 0; ; i++) {
+	for (i = 0; map; i++) {
 		pe = &map->table[i];
 
 		if (!pe->name && !pe->metric_group && !pe->metric_name)
@@ -537,8 +550,25 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 		ret = metricgroup__add_metric_pmu_event(pe, metric, events, group_list);
 		if (ret)
 			return ret;
-
 	}
+
+	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+		struct metricgroup_iter_data data = {
+			.fn = metricgroup__add_metric_sys_event_iter,
+			.data = (void *) &(struct metricgroup_add_iter_data){
+				.metric = metric,
+				.events = events,
+				.group_list = group_list,
+				.ret = &ret,
+			},
+		};
+
+		if ( !pmu->id)
+			continue;
+
+		pmu_for_each_event(pmu, metricgroup__sys_event_iter, &data);
+	}
+
 	return ret;
 }
 
