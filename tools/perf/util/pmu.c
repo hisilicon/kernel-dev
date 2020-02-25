@@ -242,8 +242,8 @@ static void perf_pmu_assign_str(char *name, const char *field, char **old_str,
 
 	if (*new_str) {	/* Have new string, check with old */
 		if (strcasecmp(*old_str, *new_str))
-			pr_debug("alias %s differs in field '%s'\n",
-				 name, field);
+			pr_debug2("alias %s differs in field '%s'\n",
+				  name, field);
 		zfree(old_str);
 	} else		/* Nothing new --> keep old string */
 		return;
