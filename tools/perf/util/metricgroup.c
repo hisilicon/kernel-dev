@@ -355,18 +355,51 @@ static void metricgroup__print_pmu_event(struct pmu_event *pe, bool metricgroups
 	}
 }
 
+struct metricgroup_print_sys_iter_data {
+	struct strlist *metriclist;
+	bool metricgroups;
+	char *filter;
+	bool raw;
+	bool details;
+	struct rblist *groups;
+};
+
+typedef int (*metricgroup_sys_event_iter_fn)(struct pmu_event *pe, void *);
+
+struct metricgroup_iter_data {
+	metricgroup_sys_event_iter_fn fn;
+	void *data;
+};
+
+static int metricgroup__sys_event_iter(struct perf_pmu *pmu, struct pmu_event *pe, void *data)
+{
+	struct metricgroup_iter_data *d = data;
+
+	if (!pe->metric_expr ||!pe->compat || strcmp(pe->compat, pmu->id))
+		return 0;
+
+	return d->fn(pe, d->data);
+}
+
+static int metricgroup__print_sys_event_iter(struct pmu_event *pe, void *data)
+{
+	struct metricgroup_print_sys_iter_data *d = data;
+
+	metricgroup__print_pmu_event(pe, d->metricgroups, d->filter, d->raw, d->details, d->groups, d->metriclist);
+
+	return 0;
+}
+
 void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 			bool raw, bool details)
 {
 	struct pmu_events_map *map = perf_pmu__find_map(NULL);
 	struct pmu_event *pe;
+	struct perf_pmu *pmu = NULL;
 	int i;
 	struct rblist groups;
 	struct rb_node *node, *next;
 	struct strlist *metriclist = NULL;
-
-	if (!map)
-		return;
 
 	if (!metricgroups) {
 		metriclist = strlist__new(NULL, NULL);
@@ -378,7 +411,7 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 	groups.node_new = mep_new;
 	groups.node_cmp = mep_cmp;
 	groups.node_delete = mep_delete;
-	for (i = 0; ; i++) {
+	for (i = 0; map; i++) {
 		pe = &map->table[i];
 
 		if (!pe->name && !pe->metric_group && !pe->metric_name)
@@ -387,6 +420,25 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 			continue;
 
 		metricgroup__print_pmu_event(pe, metricgroups, filter, raw, details, &groups, metriclist);
+	}
+
+	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+		struct metricgroup_iter_data data = {
+			.fn = metricgroup__print_sys_event_iter,
+			.data = (void *) &(struct metricgroup_print_sys_iter_data){
+				.metriclist = metriclist,
+				.metricgroups = metricgroups,
+				.filter = filter,
+				.raw = raw,
+				.details = details,
+				.groups = &groups,
+			},
+		};
+
+		if (!pmu->id)
+			continue;
+
+		pmu_for_each_event(pmu, metricgroup__sys_event_iter, &data);
 	}
 
 	if (metricgroups && !raw)
