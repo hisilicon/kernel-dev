@@ -1,11 +1,20 @@
 [
    {
-	    "PublicDescription": "Calculate bytes all masters read from ddr0 based on read-cycles event.",
-	    "BriefDescription": "Bytes of all masters read from ddr0",
+	    "PublicDescription": "calculate bytes all masters read from ddr0 based on read-cycles event",
+	    "BriefDescription": "bytes of all masters read from ddr0",
 	    "MetricName": "imx8mm_ddr0_read.all",
-	    "MetricExpr": "imx8_ddr.write/imx8_ddr.cycles",
+	    "MetricExpr": "imx8_ddr0.read_cycles * 4 * 4",
 	    "ScaleUnit": "9.765625e-4MB",
-	    "Unit": "i.MX8,DDRC"
+	    "Unit": "imx8_ddr",
+	    "Compat": "i.MX8MM"
+    },
+    {
+	    "PublicDescription": "calculate bytes all masters write to ddr0 based on write-cycles event",
+	    "BriefDescription": "bytes of all masters write to ddr0",
+	    "MetricName": "imx8mm_ddr0_write.all",
+	    "MetricExpr": "imx8_ddr0.write_cycles * 4 * 4",
+	    "ScaleUnit": "9.765625e-4MB",
+	    "Unit": "imx8_ddr",
 	    "Compat": "i.MX8MM"
     }
 ]

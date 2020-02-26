@@ -1,27 +1,37 @@
  [
    {
+           "EventCode": "0x00",
+           "EventName": "imx8_ddr0.cycles",
+           "BriefDescription": "ddr0 cycles event",
+           "Unit": "imx8_ddr",
+           "Compat": "i.MX8MM"
+   },
+   {
+           "EventCode": "0x2a",
+           "EventName": "imx8_ddr0.read_cycles",
+           "BriefDescription": "ddr0 read-cycles event",
+           "Unit": "imx8_ddr",
+           "Compat": "i.MX8MM"
+   },
+   {
+           "EventCode": "0x2b",
+           "EventName": "imx8_ddr0.write_cycles",
+           "BriefDescription": "ddr0 write-cycles event",
+           "Unit": "imx8_ddr",
+           "Compat": "i.MX8MM"
+   },
+   {
            "EventCode": "0x35",
-           "EventName": "imx8_ddr.read",
-           "BriefDescription": "DDRC total read operations",
-           "PublicDescription": "DDRC total read operations",
-           "Unit": "imx8_ddr"
+           "EventName": "imx8_ddr0.read",
+           "BriefDescription": "ddr0 read event",
+           "Unit": "imx8_ddr",
            "Compat": "i.MX8MM"
    },
    {
            "EventCode": "0x38",
-           "EventName": "imx8_ddr.write",
-           "BriefDescription": "DDRC total write operations",
-           "PublicDescription": "DDRC total write operations",
-           "Unit": "imx8_ddr"
-           "Compat": "i.MX8MM"
-   },
-   {
-           "EventCode": "0x00",
-           "EventName": "imx8_ddr.cycles",
-           "BriefDescription": "DDRC total cycles",
-           "PublicDescription": "DDRC total cycles",
-           "Unit": "imx8_ddr"
+           "EventName": "imx8_ddr0.write",
+           "BriefDescription": "ddr0 write event",
+           "Unit": "imx8_ddr",
            "Compat": "i.MX8MM"
    }
 ]
-
