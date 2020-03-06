@@ -604,6 +604,7 @@ struct Scsi_Host {
 	 * Number of reserved commands, if any.
 	 */
 	unsigned nr_reserved_cmds;
+	struct request_queue *reserved_cmd_q;
 
 	unsigned active_mode:2;
 	unsigned unchecked_isa_dma:1;

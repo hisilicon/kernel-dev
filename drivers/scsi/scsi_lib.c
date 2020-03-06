@@ -1881,6 +1881,7 @@ struct request_queue *scsi_mq_alloc_queue(struct scsi_device *sdev)
 int scsi_mq_setup_tags(struct Scsi_Host *shost)
 {
 	unsigned int cmd_size, sgl_size;
+	int ret;
 
 	sgl_size = max_t(unsigned int, sizeof(struct scatterlist),
 				scsi_mq_inline_sgl_size(shost));
@@ -1904,11 +1905,25 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 		BLK_ALLOC_POLICY_TO_MQ_FLAG(shost->hostt->tag_alloc_policy);
 	shost->tag_set.driver_data = shost;
 
-	return blk_mq_alloc_tag_set(&shost->tag_set);
+	ret = blk_mq_alloc_tag_set(&shost->tag_set);
+	if (ret)
+		return ret;
+
+	if (shost->nr_reserved_cmds) {
+		shost->reserved_cmd_q = blk_mq_init_queue(&shost->tag_set);
+		if (IS_ERR(shost->reserved_cmd_q)) {
+			blk_mq_free_tag_set(&shost->tag_set);
+			ret = PTR_ERR(shost->reserved_cmd_q);
+			shost->reserved_cmd_q = NULL;
+		}
+	}
+	return ret;
 }
 
 void scsi_mq_destroy_tags(struct Scsi_Host *shost)
 {
+	if (shost->reserved_cmd_q)
+		blk_cleanup_queue(shost->reserved_cmd_q);
 	blk_mq_free_tag_set(&shost->tag_set);
 }
 
