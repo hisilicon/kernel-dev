@@ -607,7 +607,7 @@ config FCOE
 
 config FCOE_FNIC
 	tristate "Cisco FNIC Driver"
-	depends on PCI && X86
+	depends on PCI
 	depends on LIBFCOE
 	help
 	  This is support for the Cisco PCI-Express FCoE HBA.
