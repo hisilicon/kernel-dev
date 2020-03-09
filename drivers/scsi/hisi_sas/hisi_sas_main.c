@@ -476,8 +476,10 @@ static int hisi_sas_task_prep(struct sas_task *task,
 			} else {
 				scsi_cmnd = task->uldd_task;
 			}
+		} else if (task->slow_task) {
+			scsi_cmnd = task->slow_task->scmd;
 		}
-		rc  = hisi_sas_slot_index_alloc(hisi_hba, scsi_cmnd);
+		rc = hisi_sas_slot_index_alloc(hisi_hba, scsi_cmnd);
 	}
 	if (rc < 0)
 		goto err_out_dif_dma_unmap;
@@ -2650,6 +2652,7 @@ int hisi_sas_probe(struct platform_device *pdev,
 	} else {
 		shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
 		shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;
+		shost->nr_reserved_cmds = HISI_SAS_RESERVED_IPTT;
 	}
 
 	sha->sas_ha_name = DRV_NAME;
