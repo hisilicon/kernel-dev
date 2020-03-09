@@ -56,6 +56,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 {
 	int res, retry;
 	struct sas_task *task = NULL;
+	struct sas_ha_struct *sha = dev->port->ha;
 	struct sas_internal *i =
 		to_sas_internal(dev->port->ha->core.shost->transportt);
 
@@ -66,7 +67,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 			break;
 		}
 
-		task = sas_alloc_slow_task(GFP_KERNEL);
+		task = sas_alloc_slow_task(GFP_KERNEL, sha);
 		if (!task) {
 			res = -ENOMEM;
 			break;

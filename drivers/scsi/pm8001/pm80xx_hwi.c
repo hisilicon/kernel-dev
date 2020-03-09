@@ -1625,7 +1625,7 @@ static void pm80xx_send_abort_all(struct pm8001_hba_info *pm8001_ha,
 		return;
 	}
 
-	task = sas_alloc_slow_task(GFP_ATOMIC);
+	task = sas_alloc_slow_task(GFP_ATOMIC, pm8001_ha->sas);
 
 	if (!task) {
 		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk("cannot "
@@ -1676,7 +1676,7 @@ static void pm80xx_send_read_log(struct pm8001_hba_info *pm8001_ha,
 	struct inbound_queue_table *circularQ;
 	u32 opc = OPC_INB_SATA_HOST_OPSTART;
 
-	task = sas_alloc_slow_task(GFP_ATOMIC);
+	task = sas_alloc_slow_task(GFP_ATOMIC, pm8001_ha->sas);
 
 	if (!task) {
 		PM8001_FAIL_DBG(pm8001_ha,

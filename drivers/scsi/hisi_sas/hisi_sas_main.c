@@ -1182,12 +1182,13 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 {
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = sas_dev->hisi_hba;
+	struct sas_ha_struct *sha = &hisi_hba->sha;
 	struct device *dev = hisi_hba->dev;
 	struct sas_task *task;
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		task = sas_alloc_slow_task(GFP_KERNEL);
+		task = sas_alloc_slow_task(GFP_KERNEL, sha);
 		if (!task)
 			return -ENOMEM;
 
@@ -2022,9 +2023,10 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			      struct domain_device *device, int abort_flag,
 			      int tag, struct hisi_sas_dq *dq)
 {
-	struct sas_task *task;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
+	struct sas_ha_struct *sha = &hisi_hba->sha;
 	struct device *dev = hisi_hba->dev;
+	struct sas_task *task;
 	int res;
 
 	/*
@@ -2036,7 +2038,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	if (!hisi_hba->hw->prep_abort)
 		return TMF_RESP_FUNC_FAILED;
 
-	task = sas_alloc_slow_task(GFP_KERNEL);
+	task = sas_alloc_slow_task(GFP_KERNEL, sha);
 	if (!task)
 		return -ENOMEM;
 
