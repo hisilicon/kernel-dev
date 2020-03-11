@@ -1332,6 +1332,56 @@ int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_start_qp);
 
+static int qm_dump_sqc(struct hisi_qp *qp, dma_addr_t dma_addr)
+{
+	return qm_mb(qp->qm, QM_MB_CMD_SQC, dma_addr, qp->qp_id, 1);
+}
+
+static int qm_dump_cqc(struct hisi_qp *qp, dma_addr_t dma_addr)
+{
+	return qm_mb(qp->qm, QM_MB_CMD_CQC, dma_addr, qp->qp_id, 1);
+}
+
+static int qm_qp_has_no_task(struct hisi_qp *qp)
+{
+	size_t size = sizeof(struct qm_sqc) + sizeof(struct qm_sqc);
+	struct device *dev = &qp->qm->pdev->dev;
+	dma_addr_t dma_addr;
+	int i = 0, ret = 0;
+	void *addr;
+
+	addr = kzalloc(size, GFP_KERNEL);
+	if (!addr)
+		return -ENOMEM;
+
+	dma_addr = dma_map_single(dev, addr, size, DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, dma_addr)) {
+		kfree(addr);
+		return -ENOMEM;
+	}
+
+	while (i++ < 100) {
+		ret = qm_dump_sqc(qp, dma_addr);
+		if (ret)
+			goto out;
+
+		ret = qm_dump_cqc(qp, dma_addr + sizeof(struct qm_sqc));
+		if (ret)
+			goto out;
+
+		if (((struct qm_sqc *)addr)->tail ==
+		    ((struct qm_cqc *)(addr + sizeof(struct qm_sqc)))->tail)
+			goto out;
+
+		msleep(20);
+	}
+
+out:
+	dma_unmap_single(dev, dma_addr, size, DMA_FROM_DEVICE);
+	kfree(addr);
+	return ret;
+}
+
 /**
  * hisi_qm_stop_qp() - Stop a qp in qm.
  * @qp: The qp we want to stop.
@@ -1341,20 +1391,15 @@ EXPORT_SYMBOL_GPL(hisi_qm_start_qp);
 int hisi_qm_stop_qp(struct hisi_qp *qp)
 {
 	struct device *dev = &qp->qm->pdev->dev;
-	int i = 0;
+	int ret;
 
 	/* it is stopped */
 	if (test_bit(QP_STOP, &qp->qp_status.flags))
 		return 0;
 
-	while (atomic_read(&qp->qp_status.used)) {
-		i++;
-		msleep(20);
-		if (i == 10) {
-			dev_err(dev, "Cannot drain out data for stopping, Force to stop!\n");
-			return 0;
-		}
-	}
+	ret = qm_qp_has_no_task(qp);
+	if (ret)
+		dev_err(dev, "Cannot drain out data for stopping!\n");
 
 	set_bit(QP_STOP, &qp->qp_status.flags);
 

@@ -386,6 +386,12 @@ static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 	/* clear ZIP hw error source if having */
 	writel(HZIP_CORE_INT_MASK_ALL, qm->io_base + HZIP_CORE_INT_SOURCE);
 
+	if (qm->ver == QM_HW_V2)
+		/* ignore ras */
+		writel(0xc, qm->io_base + HZIP_CORE_INT_MASK_REG);
+	else
+		writel(0, qm->io_base + HZIP_CORE_INT_MASK_REG);
+
 	/* configure error type */
 	writel(0x1, qm->io_base + HZIP_CORE_INT_RAS_CE_ENB);
 	writel(0x0, qm->io_base + HZIP_CORE_INT_RAS_FE_ENB);
