@@ -346,7 +346,7 @@ int vfio_pci_iommu_dev_fault_handler(struct iommu_fault *fault, void *data)
 	struct iommu_fault *new =
 		(struct iommu_fault *)(vdev->fault_pages + reg->offset +
 			reg->head * reg->entry_size);
-	int head, tail, size;
+	int head, tail, size, ext_irq_index;
 	int ret = 0;
 
 	if (fault->type != IOMMU_FAULT_DMA_UNRECOV)
@@ -367,7 +367,19 @@ int vfio_pci_iommu_dev_fault_handler(struct iommu_fault *fault, void *data)
 	reg->head = (head + 1) % size;
 unlock:
 	mutex_unlock(&vdev->fault_queue_lock);
-	return ret;
+	if (ret)
+		return ret;
+
+	ext_irq_index = vfio_pci_get_ext_irq_index(vdev, VFIO_IRQ_TYPE_NESTED,
+						   VFIO_IRQ_SUBTYPE_DMA_FAULT);
+	if (ext_irq_index < 0)
+		return -EINVAL;
+
+	mutex_lock(&vdev->igate);
+	if (vdev->ext_irqs[ext_irq_index].trigger)
+		eventfd_signal(vdev->ext_irqs[ext_irq_index].trigger, 1);
+	mutex_unlock(&vdev->igate);
+	return 0;
 }
 
 #define DMA_FAULT_RING_LENGTH 512
@@ -517,6 +529,12 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	}
 
 	ret = vfio_pci_init_dma_fault_region(vdev);
+	if (ret)
+		goto disable_exit;
+
+	ret = vfio_pci_register_irq(vdev, VFIO_IRQ_TYPE_NESTED,
+				    VFIO_IRQ_SUBTYPE_DMA_FAULT,
+				    VFIO_IRQ_INFO_EVENTFD);
 	if (ret)
 		goto disable_exit;
 
