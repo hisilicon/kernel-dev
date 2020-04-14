@@ -101,6 +101,7 @@ struct vfio_mm;
 #if IS_ENABLED(CONFIG_VFIO_PASID)
 extern struct vfio_mm *vfio_mm_get_from_task(struct task_struct *task);
 extern void vfio_mm_put(struct vfio_mm *vmm);
+extern struct ioasid_set *vfio_mm_ioasid_set(struct vfio_mm *vmm);
 extern int vfio_pasid_alloc(struct vfio_mm *vmm, int min, int max);
 extern void vfio_pasid_free_range(struct vfio_mm *vmm,
 				  ioasid_t min, ioasid_t max);
@@ -112,6 +113,11 @@ static inline struct vfio_mm *vfio_mm_get_from_task(struct task_struct *task)
 
 static inline void vfio_mm_put(struct vfio_mm *vmm)
 {
+}
+
+static inline struct ioasid_set *vfio_mm_ioasid_set(struct vfio_mm *vmm)
+{
+	return -ENOTTY;
 }
 
 static inline int vfio_pasid_alloc(struct vfio_mm *vmm, int min, int max)
