@@ -108,6 +108,10 @@ config IOMMU_SVA_LIB
 	bool
 	select IOASID
 
+config IOMMU_PAGE_FAULT
+	bool
+	depends on IOMMU_SVA_LIB
+
 config FSL_PAMU
 	bool "Freescale IOMMU support"
 	depends on PCI
