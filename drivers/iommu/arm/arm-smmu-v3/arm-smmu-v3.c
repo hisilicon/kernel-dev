@@ -1598,6 +1598,8 @@ static irqreturn_t arm_smmu_evtq_thread(int irq, void *dev)
 	struct arm_smmu_device *smmu = dev;
 	struct arm_smmu_queue *q = &smmu->evtq.q;
 	struct arm_smmu_ll_queue *llq = &q->llq;
+	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
+				      DEFAULT_RATELIMIT_BURST);
 	u64 evt[EVTQ_ENT_DWORDS];
 
 	do {
@@ -1606,7 +1608,7 @@ static irqreturn_t arm_smmu_evtq_thread(int irq, void *dev)
 
 			ret = arm_smmu_handle_evt(smmu, evt);
 
-			if (ret) {
+			if (ret && __ratelimit(&rs)) {
 				dev_info(smmu->dev, "event 0x%02x received:\n",
 					 id);
 				for (i = 0; i < ARRAY_SIZE(evt); ++i)
