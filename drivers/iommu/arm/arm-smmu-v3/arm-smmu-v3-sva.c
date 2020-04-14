@@ -374,6 +374,8 @@ void arm_smmu_sva_unbind(struct iommu_sva *handle)
 
 	if (master->stall_enabled)
 		arm_smmu_flush_evtq(master->smmu);
+	else if (master->pri_supported)
+		arm_smmu_flush_priq(master->smmu);
 	iopf_queue_flush_dev(handle->dev);
 
 	mutex_lock(&sva_lock);
@@ -440,7 +442,7 @@ bool arm_smmu_sva_supported(struct arm_smmu_device *smmu)
 
 static bool arm_smmu_iopf_supported(struct arm_smmu_master *master)
 {
-	return master->stall_enabled;
+	return master->stall_enabled || master->pri_supported;
 }
 
 bool arm_smmu_master_sva_supported(struct arm_smmu_master *master)
@@ -471,6 +473,15 @@ int arm_smmu_master_enable_sva(struct arm_smmu_master *master)
 		ret = iopf_queue_add_device(master->smmu->evtq.iopf, dev);
 		if (ret)
 			return ret;
+	} else if (master->pri_supported) {
+		ret = iopf_queue_add_device(master->smmu->priq.iopf, dev);
+		if (ret)
+			return ret;
+
+		if (arm_smmu_enable_pri(master)) {
+			iopf_queue_remove_device(master->smmu->priq.iopf, dev);
+			return ret;
+		}
 	}
 
 	ret = iommu_register_device_fault_handler(dev, iommu_queue_iopf, dev);
@@ -484,6 +495,8 @@ int arm_smmu_master_enable_sva(struct arm_smmu_master *master)
 	return 0;
 
 err_disable_iopf:
+	arm_smmu_disable_pri(master);
+	iopf_queue_remove_device(master->smmu->priq.iopf, dev);
 	iopf_queue_remove_device(master->smmu->evtq.iopf, dev);
 	return ret;
 }
@@ -502,6 +515,8 @@ int arm_smmu_master_disable_sva(struct arm_smmu_master *master)
 	mutex_unlock(&sva_lock);
 
 	iommu_unregister_device_fault_handler(dev);
+	arm_smmu_disable_pri(master);
+	iopf_queue_remove_device(master->smmu->priq.iopf, dev);
 	iopf_queue_remove_device(master->smmu->evtq.iopf, dev);
 
 	return 0;
