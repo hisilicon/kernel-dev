@@ -2467,6 +2467,42 @@ static int vfio_cache_inv_fn(struct device *dev, void *data)
 	return iommu_cache_invalidate(dc->domain, dev, &ustruct->info);
 }
 
+static int
+vfio_bind_msi(struct vfio_iommu *iommu,
+	      dma_addr_t giova, phys_addr_t gpa, size_t size)
+{
+	struct vfio_domain *d;
+	int ret = 0;
+
+	mutex_lock(&iommu->lock);
+
+	list_for_each_entry(d, &iommu->domain_list, next) {
+		ret = iommu_bind_guest_msi(d->domain, giova, gpa, size);
+		if (ret)
+			goto unwind;
+	}
+	goto unlock;
+unwind:
+	list_for_each_entry_continue_reverse(d, &iommu->domain_list, next) {
+		iommu_unbind_guest_msi(d->domain, giova);
+	}
+unlock:
+	mutex_unlock(&iommu->lock);
+	return ret;
+}
+
+static void
+vfio_unbind_msi(struct vfio_iommu *iommu, dma_addr_t giova)
+{
+	struct vfio_domain *d;
+
+	mutex_lock(&iommu->lock);
+	list_for_each_entry(d, &iommu->domain_list, next) {
+		iommu_unbind_guest_msi(d->domain, giova);
+	}
+	mutex_unlock(&iommu->lock);
+}
+
 static struct mm_struct *vfio_iommu_get_mm_by_vpid(pid_t vpid)
 {
 	struct mm_struct *mm;
@@ -2726,6 +2762,25 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 					    &ustruct);
 		mutex_unlock(&iommu->lock);
 		return ret;
+	} else if (cmd == VFIO_IOMMU_SET_MSI_BINDING) {
+		struct vfio_iommu_type1_set_msi_binding ustruct;
+
+		minsz = offsetofend(struct vfio_iommu_type1_set_msi_binding,
+				    size);
+
+		if (copy_from_user(&ustruct, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		if (ustruct.argsz < minsz)
+			return -EINVAL;
+
+		if (ustruct.flags == VFIO_IOMMU_UNBIND_MSI)
+			vfio_unbind_msi(iommu, ustruct.iova);
+		else if (ustruct.flags == VFIO_IOMMU_BIND_MSI)
+			return vfio_bind_msi(iommu, ustruct.iova, ustruct.gpa,
+						ustruct.size);
+		else
+			return -EINVAL;
 	} else if (cmd == VFIO_IOMMU_BIND) {
 		struct vfio_iommu_type1_bind bind;
 
