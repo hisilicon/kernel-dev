@@ -2393,6 +2393,43 @@ out_unlock:
 	return ret;
 }
 
+static void
+vfio_detach_pasid_table(struct vfio_iommu *iommu)
+{
+	struct vfio_domain *d;
+
+	mutex_lock(&iommu->lock);
+
+	list_for_each_entry(d, &iommu->domain_list, next) {
+		iommu_detach_pasid_table(d->domain);
+	}
+	mutex_unlock(&iommu->lock);
+}
+
+static int
+vfio_attach_pasid_table(struct vfio_iommu *iommu,
+			struct vfio_iommu_type1_set_pasid_table *ustruct)
+{
+	struct vfio_domain *d;
+	int ret = 0;
+
+	mutex_lock(&iommu->lock);
+
+	list_for_each_entry(d, &iommu->domain_list, next) {
+		ret = iommu_attach_pasid_table(d->domain, &ustruct->config);
+		if (ret)
+			goto unwind;
+	}
+	goto unlock;
+unwind:
+	list_for_each_entry_continue_reverse(d, &iommu->domain_list, next) {
+		iommu_detach_pasid_table(d->domain);
+	}
+unlock:
+	mutex_unlock(&iommu->lock);
+	return ret;
+}
+
 static struct mm_struct *vfio_iommu_get_mm_by_vpid(pid_t vpid)
 {
 	struct mm_struct *mm;
@@ -2615,6 +2652,25 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 		return copy_to_user((void __user *)arg, &unmap, minsz) ?
 			-EFAULT : 0;
 
+	} else if (cmd == VFIO_IOMMU_SET_PASID_TABLE) {
+		struct vfio_iommu_type1_set_pasid_table ustruct;
+
+		minsz = offsetofend(struct vfio_iommu_type1_set_pasid_table,
+				    config);
+
+		if (copy_from_user(&ustruct, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		if (ustruct.argsz < minsz)
+			return -EINVAL;
+
+		if (ustruct.flags & VFIO_PASID_TABLE_FLAG_SET)
+			return vfio_attach_pasid_table(iommu, &ustruct);
+		else if (ustruct.flags & VFIO_PASID_TABLE_FLAG_UNSET) {
+			vfio_detach_pasid_table(iommu);
+			return 0;
+		} else
+			return -EINVAL;
 	} else if (cmd == VFIO_IOMMU_BIND) {
 		struct vfio_iommu_type1_bind bind;
 
