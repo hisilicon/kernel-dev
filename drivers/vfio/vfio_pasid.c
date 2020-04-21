@@ -220,6 +220,8 @@ void vfio_pasid_free_range(struct vfio_mm *vmm,
 	 * IOASID core will notify PASID users (e.g. IOMMU driver) to
 	 * teardown necessary structures depending on the to-be-freed
 	 * PASID.
+	 * Hold pasid_lock also avoids race with PASID usages like bind/
+	 * unbind page tables to requested PASID.
 	 */
 	mutex_lock(&vmm->pasid_lock);
 	while ((vid = vfio_find_pasid(vmm, min, max)) != NULL)
@@ -227,6 +229,30 @@ void vfio_pasid_free_range(struct vfio_mm *vmm,
 	mutex_unlock(&vmm->pasid_lock);
 }
 EXPORT_SYMBOL_GPL(vfio_pasid_free_range);
+
+int vfio_mm_for_each_pasid(struct vfio_mm *vmm, void *data,
+			   void (*fn)(ioasid_t id, void *data))
+{
+	int ret;
+
+	mutex_lock(&vmm->pasid_lock);
+	ret = ioasid_set_for_each_ioasid(vmm->ioasid_set, fn, data);
+	mutex_unlock(&vmm->pasid_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(vfio_mm_for_each_pasid);
+
+void vfio_mm_pasid_lock(struct vfio_mm *vmm)
+{
+	mutex_lock(&vmm->pasid_lock);
+}
+EXPORT_SYMBOL_GPL(vfio_mm_pasid_lock);
+
+void vfio_mm_pasid_unlock(struct vfio_mm *vmm)
+{
+	mutex_unlock(&vmm->pasid_lock);
+}
+EXPORT_SYMBOL_GPL(vfio_mm_pasid_unlock);
 
 static int __init vfio_pasid_init(void)
 {
