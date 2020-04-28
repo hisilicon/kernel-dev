@@ -340,7 +340,7 @@ struct iommu_pasid_smmuv3 {
 	__u32	version;
 	__u8	s1fmt;
 	__u8	s1dss;
-	__u8	padding[2];
+	__u16	s1cdmax;
 };
 
 /**

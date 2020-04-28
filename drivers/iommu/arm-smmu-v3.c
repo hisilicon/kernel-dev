@@ -4323,14 +4323,9 @@ static int arm_smmu_attach_pasid_table(struct iommu_domain *domain,
 		smmu_domain->abort = false;
 		break;
 	case IOMMU_PASID_CONFIG_TRANSLATE:
-		/*
-		 * we currently support a single CD so s1fmt and s1dss
-		 * fields are also ignored
-		 */
-		if (cfg->pasid_bits)
-			goto out;
-
-
+		smmu_domain->s1_cfg.cdcfg.cdtab_dma = cfg->base_ptr;
+		smmu_domain->s1_cfg.s1fmt = cfg->smmuv3.s1fmt;
+		smmu_domain->s1_cfg.s1cdmax = cfg->smmuv3.s1cdmax;
 		smmu_domain->s1_cfg.cdcfg.cdtab_dma = cfg->base_ptr;
 		smmu_domain->abort = false;
 		smmu_domain->s1_cfg_valid = true;
