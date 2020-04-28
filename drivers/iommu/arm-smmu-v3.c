@@ -3519,6 +3519,9 @@ static int arm_smmu_enable_pasid(struct arm_smmu_master *master)
 		return -ENODEV;
 
 	pdev = to_pci_dev(master->dev);
+	dev_info(&pdev->dev, "%s[force ret succ]:master->ssid_bits 0x%x\n",
+			     __func__, master->ssid_bits);
+	return 0;
 
 	features = pci_pasid_features(pdev);
 	if (features < 0)
@@ -4065,7 +4068,10 @@ static int arm_smmu_add_device(struct device *dev)
 		goto err_free_master;
 
 	master->ssid_bits = min(smmu->ssid_bits, fwspec->num_pasid_bits);
-
+	smmu->ssid_bits =  master->ssid_bits = 0x10;
+	master->stall_enabled = true;
+	dev_info(dev, "%s:[HACK: assign ssid_bits & enable stall]: smmu->ssid_bits 0x%x\n",
+		      __func__, smmu->ssid_bits);
 	/*
 	 * Note that PASID must be enabled before, and disabled after ATS:
 	 * PCI Express Base 4.0r1.0 - 10.5.1.3 ATS Control Register
@@ -4436,6 +4442,9 @@ static bool arm_smmu_dev_has_feature(struct device *dev,
 
 	switch (feat) {
 	case IOMMU_DEV_FEAT_SVA:
+		dev_info(dev, "%s:[HACK: Return IOMMU_DEV_FEAT_SVA support] master->ssid_bits 0x%x\n",
+			      __func__, master->ssid_bits);
+		return true;
 		if (!(master->smmu->features & ARM_SMMU_FEAT_SVA))
 			return false;
 
@@ -4458,7 +4467,9 @@ static bool arm_smmu_dev_feature_enabled(struct device *dev,
 
 	switch (feat) {
 	case IOMMU_DEV_FEAT_SVA:
-		return iommu_sva_enabled(dev);
+		dev_info(dev, "%s:[HACK: Return false]\n", __func__);
+		return false;
+		/* return iommu_sva_enabled(dev); */
 	case IOMMU_DEV_FEAT_AUX:
 		return master->auxd_enabled;
 	default:
@@ -4481,6 +4492,8 @@ static int arm_smmu_dev_enable_sva(struct device *dev)
 	if (ret)
 		return ret;
 
+	dev_info(dev, "%s:[HACK: return succ after iommu_sva_enable\n", __func__);
+	return 0;
 	if (master->stall_enabled) {
 		ret = iopf_queue_add_device(master->smmu->evtq.iopf, dev);
 		if (ret)
