@@ -4355,9 +4355,6 @@ static int arm_smmu_attach_pasid_table(struct iommu_domain *domain,
 	if (smmu_domain->stage != ARM_SMMU_DOMAIN_NESTED)
 		goto out;
 
-	printk("%s:cfg->config %d cfg->smmuv3.s1cdmax 0x%x cfg->smmuv3.s1fmt 0x%x, cfg->smmuv3.s1dss 0x%x\n",
-	      __func__, cfg->config, cfg->smmuv3.s1cdmax, cfg->smmuv3.s1fmt, cfg->smmuv3.s1dss);
-
 	switch (cfg->config) {
 	case IOMMU_PASID_CONFIG_ABORT:
 		smmu_domain->s1_cfg_valid = false;
@@ -4375,6 +4372,10 @@ static int arm_smmu_attach_pasid_table(struct iommu_domain *domain,
 		smmu_domain->abort = false;
 		smmu_domain->s1_cfg_valid = true;
 		break;
+	case IOMMU_PASID_CONFIG_CD_INV:
+		arm_smmu_sync_cd(smmu_domain, cfg->pasid, true);
+		ret = 0;
+		goto out;
 	default:
 		goto out;
 	}

@@ -365,8 +365,10 @@ struct iommu_pasid_table_config {
 #define IOMMU_PASID_CONFIG_TRANSLATE	1
 #define IOMMU_PASID_CONFIG_BYPASS	2
 #define IOMMU_PASID_CONFIG_ABORT	3
+#define IOMMU_PASID_CONFIG_CD_INV	4
 	__u8	config;
-	__u8    padding[6];
+	__u32	pasid;
+	__u8    padding[2];
 	union {
 		struct iommu_pasid_smmuv3 smmuv3;
 	};
