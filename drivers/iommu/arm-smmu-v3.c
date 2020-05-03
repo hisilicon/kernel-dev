@@ -2549,7 +2549,7 @@ static int arm_smmu_handle_evt(struct arm_smmu_device *smmu, u64 *evt)
 			.addr = FIELD_GET(EVTQ_2_ADDR, evt[2]),
 		};
 
-		if (ssid_valid)
+		if (ssid_valid && master->pri_supported)
 			flt->prm.flags |= IOMMU_FAULT_PAGE_REQUEST_PASID_VALID;
 	} else {
 		flt->type = IOMMU_FAULT_DMA_UNRECOV;
