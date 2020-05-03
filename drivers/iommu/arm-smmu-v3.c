@@ -4492,8 +4492,6 @@ static int arm_smmu_dev_enable_sva(struct device *dev)
 	if (ret)
 		return ret;
 
-	dev_info(dev, "%s:[HACK: return succ after iommu_sva_enable\n", __func__);
-	return 0;
 	if (master->stall_enabled) {
 		ret = iopf_queue_add_device(master->smmu->evtq.iopf, dev);
 		if (ret)
