@@ -2506,55 +2506,6 @@ arm_smmu_find_master(struct arm_smmu_device *smmu, u32 sid)
 	return master;
 }
 
-/* Populates the record fields according to the input SMMU event */
-static bool arm_smmu_transcode_fault(u64 *evt, u8 type,
-				     struct iommu_fault_unrecoverable *record)
-{
-	const struct arm_smmu_fault_propagation_data *data;
-	u32 fields;
-
-	if (type >= ARRAY_SIZE(fault_propagation))
-		return false;
-
-	data = &fault_propagation[type];
-	if (!data->reason)
-		return false;
-
-	fields = data->fields;
-
-	if (data->s1_check & FIELD_GET(EVTQ_1_S2, evt[1]))
-		return false; /* S2 related fault, don't propagate */
-
-	if (fields & IOMMU_FAULT_UNRECOV_PASID_VALID)
-		record->pasid = FIELD_GET(EVTQ_0_SSID, evt[0]);
-	else {
-		/* all other transcoded errors have SSV */
-		if (FIELD_GET(EVTQ_0_SSV, evt[0])) {
-			record->pasid = FIELD_GET(EVTQ_0_SSID, evt[0]);
-			fields |= IOMMU_FAULT_UNRECOV_PASID_VALID;
-		}
-	}
-
-	if (fields & IOMMU_FAULT_UNRECOV_ADDR_VALID) {
-		if (FIELD_GET(EVTQ_1_READ, evt[1]))
-			record->perm = IOMMU_FAULT_PERM_READ;
-		else
-			record->perm = IOMMU_FAULT_PERM_WRITE;
-		if (FIELD_GET(EVTQ_1_PRIV, evt[1]))
-			record->perm |= IOMMU_FAULT_PERM_PRIV;
-		if (FIELD_GET(EVTQ_1_EXEC, evt[1]))
-			record->perm |= IOMMU_FAULT_PERM_EXEC;
-		record->addr = evt[2];
-	}
-
-	if (fields & IOMMU_FAULT_UNRECOV_FETCH_ADDR_VALID)
-		record->fetch_addr = FIELD_GET(EVTQ_3_FETCH_ADDR, evt[3]);
-
-	record->flags = fields;
-	record->reason = data->reason;
-	return true;
-}
-
 /* IRQ and event handlers */
 static int arm_smmu_handle_evt(struct arm_smmu_device *smmu, u64 *evt)
 {
@@ -2566,7 +2517,6 @@ static int arm_smmu_handle_evt(struct arm_smmu_device *smmu, u64 *evt)
 	u32 sid = FIELD_GET(EVTQ_0_SID, evt[0]);
 	struct iommu_fault_event fault_evt = { };
 	struct iommu_fault *flt = &fault_evt.fault;
-	bool nested;
 
 	trace_smmu_evt(evt[0], evt[1], evt[2], evt[3]);
 
@@ -2577,24 +2527,6 @@ static int arm_smmu_handle_evt(struct arm_smmu_device *smmu, u64 *evt)
 	master = arm_smmu_find_master(smmu, sid);
 	if (!master)
 		return -EINVAL;
-
-	nested = (master->domain->stage == ARM_SMMU_DOMAIN_NESTED);
-	if (nested) {
-		fault_evt.fault.type = IOMMU_FAULT_DMA_UNRECOV;
-		if (arm_smmu_transcode_fault(evt, type,
-					     &fault_evt.fault.event)) {
-			/*
-			 * Only S1 related faults should be reported to the
-			 * guest and must not flood the host log.
-			 * Also a fault handler should have been registered
-			 * to guarantee the full nested functionality
-			 */
-			dev_info(master->dev, "%s: report event to guest \n", __func__);
-			WARN_ON_ONCE(iommu_report_device_fault(master->dev,
-							       &fault_evt));
-			return 0;
-		}
-	}
 
 	if (evt[1] & EVTQ_1_READ)
 		perm |= IOMMU_FAULT_PERM_READ;
@@ -2689,7 +2621,7 @@ static irqreturn_t arm_smmu_evtq_thread(int irq, void *dev)
 				num_handled = 0;
 			}
 
-			if (__ratelimit(&rs)) {
+			if (ret && __ratelimit(&rs)) {
 				dev_info(smmu->dev, "event 0x%02x received:\n", id);
 				for (i = 0; i < ARRAY_SIZE(evt); ++i)
 					dev_info(smmu->dev, "\t0x%016llx\n",
