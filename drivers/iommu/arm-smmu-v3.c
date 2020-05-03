@@ -4308,6 +4308,18 @@ static int arm_smmu_attach_pasid_table(struct iommu_domain *domain,
 		arm_smmu_sync_cd(smmu_domain, cfg->pasid, true);
 		ret = 0;
 		goto out;
+	case IOMMU_PASID_CONFIG_PAGE_RESP:
+		/*
+		 * ToDo: Move this. This is not the right place
+		 * for this. But for the prototype just re-using
+		 * the VFIO_IOMMU_SET_PASID_TABLE.
+		 */
+		spin_lock_irqsave(&smmu_domain->devices_lock, flags);
+		list_for_each_entry(master, &smmu_domain->devices, domain_head)
+			iommu_page_response(master->dev, &cfg->page_resp);
+		spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
+		ret = 0;
+		goto out;
 	default:
 		goto out;
 	}

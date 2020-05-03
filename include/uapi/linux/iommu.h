@@ -354,6 +354,7 @@ struct iommu_pasid_smmuv3 {
  *          be translated, bypassed or aborted.
  * @padding: reserved for future use (should be zero)
  * @smmuv3: table information when @format is %IOMMU_PASID_FORMAT_SMMUV3
+ * @page_resp: to support STALL mode(temp for prototype).
  */
 struct iommu_pasid_table_config {
 #define PASID_TABLE_CFG_VERSION_1 1
@@ -366,11 +367,13 @@ struct iommu_pasid_table_config {
 #define IOMMU_PASID_CONFIG_BYPASS	2
 #define IOMMU_PASID_CONFIG_ABORT	3
 #define IOMMU_PASID_CONFIG_CD_INV	4
+#define IOMMU_PASID_CONFIG_PAGE_RESP	5
 	__u8	config;
 	__u32	pasid;
 	__u8    padding[2];
 	union {
 		struct iommu_pasid_smmuv3 smmuv3;
+		struct iommu_page_response page_resp;
 	};
 };
 
