@@ -2551,6 +2551,8 @@ static int arm_smmu_handle_evt(struct arm_smmu_device *smmu, u64 *evt)
 
 		if (ssid_valid)
 			flt->prm.flags |= IOMMU_FAULT_PAGE_REQUEST_PASID_VALID;
+		if (master->pri_supported)
+			flt->prm.flags |= IOMMU_FAULT_PAGE_REQUEST_PRI_SUPPORT;
 	} else {
 		flt->type = IOMMU_FAULT_DMA_UNRECOV;
 		flt->event = (struct iommu_fault_unrecoverable) {

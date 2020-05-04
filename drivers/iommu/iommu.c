@@ -1196,8 +1196,7 @@ int iommu_page_response(struct device *dev,
 	if (!param || !param->fault_param)
 		return -EINVAL;
 
-	if (msg->version != IOMMU_PAGE_RESP_VERSION_1 ||
-	    msg->flags & ~IOMMU_PAGE_RESP_PASID_VALID)
+	if (msg->version != IOMMU_PAGE_RESP_VERSION_1)
 		return -EINVAL;
 
 	/* Only send response if there is a fault report pending */
@@ -1212,7 +1211,17 @@ int iommu_page_response(struct device *dev,
 	 */
 	list_for_each_entry(evt, &param->fault_param->faults, list) {
 		prm = &evt->fault.prm;
-		pasid_valid = prm->flags & IOMMU_FAULT_PAGE_REQUEST_PASID_VALID;
+		pasid_valid = false;
+
+		/*
+		 * For an implementation that supports only STALL model, but
+		 * no PRI, page response doesn't need pasid param. eg. smmuv3
+		 * identifies the stalled transaction using StreamID and
+		 * STAG(grpid) parameter.
+		 */
+		if ((prm->flags & IOMMU_FAULT_PAGE_REQUEST_PASID_VALID) &&
+		    (prm->flags & IOMMU_FAULT_PAGE_REQUEST_PRI_SUPPORT))
+			pasid_valid = true;
 
 		if ((pasid_valid && prm->pasid != msg->pasid) ||
 		    prm->grpid != msg->grpid)
