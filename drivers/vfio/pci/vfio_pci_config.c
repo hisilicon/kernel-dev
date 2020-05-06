@@ -1758,7 +1758,6 @@ static int vfio_pci_add_pasid_cap(struct vfio_pci_core_device *vdev,
 
 	memcpy(&vpasid_cap, &pasid_cap, len);
 
-	vpasid_cap.id = 0x18;
 	vpasid_cap.next = 0;
 	/* clear the control reg for guest */
 	memset(&vpasid_cap.control_reg, 0x0,
@@ -1851,7 +1850,6 @@ static int vfio_pci_add_pri_cap(struct vfio_pci_core_device *vdev,
 
 	memcpy(&vpri_cap, &pri_cap, len);
 
-	vpri_cap.id = 0x19;
 	vpri_cap.next = 0;
 	/* clear the control reg for guest */
 	memset(&vpri_cap.control_reg, 0x0,
