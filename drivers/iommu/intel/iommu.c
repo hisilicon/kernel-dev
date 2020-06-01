@@ -1849,6 +1849,7 @@ static struct dmar_domain *alloc_domain(int flags)
 	if (first_level_by_default())
 		domain->flags |= DOMAIN_FLAG_USE_FIRST_LEVEL;
 	domain->has_iotlb_device = false;
+	domain->pasid_set = host_pasid_set;
 	INIT_LIST_HEAD(&domain->devices);
 
 	return domain;
@@ -6016,6 +6017,22 @@ static bool intel_iommu_is_attach_deferred(struct iommu_domain *domain,
 	return attach_deferred(dev);
 }
 
+static int __domain_config_ioasid_set(struct dmar_domain *domain,
+				      struct ioasid_set *set)
+{
+	if (!(domain->flags & DOMAIN_FLAG_NESTING_MODE))
+		return -ENODEV;
+
+	if (domain->pasid_set != host_pasid_set &&
+	    domain->pasid_set != set) {
+		pr_warn_ratelimited("multi ioasid_set setting to domain");
+		return -EBUSY;
+	}
+
+	domain->pasid_set = set;
+	return 0;
+}
+
 static int
 intel_iommu_domain_set_attr(struct iommu_domain *domain,
 			    enum iommu_attr attr, void *data)
@@ -6039,6 +6056,15 @@ intel_iommu_domain_set_attr(struct iommu_domain *domain,
 		}
 		spin_unlock_irqrestore(&device_domain_lock, flags);
 		break;
+	case DOMAIN_ATTR_IOASID_SET:
+	{
+		struct ioasid_set *set = (struct ioasid_set *)data;
+
+		spin_lock_irqsave(&device_domain_lock, flags);
+		ret = __domain_config_ioasid_set(dmar_domain, set);
+		spin_unlock_irqrestore(&device_domain_lock, flags);
+		break;
+	}
 	default:
 		ret = -EINVAL;
 		break;
