@@ -1899,6 +1899,7 @@ static int qm_drain_qp(struct hisi_qp *qp)
 		}
 
 		usleep_range(WAIT_PERIOD_US_MIN, WAIT_PERIOD_US_MAX);
+		msleep(20);
 	}
 
 	qm_ctx_free(qm, size, addr, &dma_addr);
