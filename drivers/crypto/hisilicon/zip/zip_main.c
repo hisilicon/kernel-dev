@@ -311,8 +311,11 @@ static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 	writel(HZIP_CORE_INT_RAS_NFE_ENABLE,
 		qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
 
-	/* enable ZIP hw error interrupts */
-	writel(0, qm->io_base + HZIP_CORE_INT_MASK_REG);
+	if (qm->ver == QM_HW_V2)
+		/* ignore ras */
+		writel(0xc, qm->io_base + HZIP_CORE_INT_MASK_REG);
+	else
+		writel(0, qm->io_base + HZIP_CORE_INT_MASK_REG);
 
 	/* enable ZIP block master OOO when m-bit error occur */
 	val = readl(qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
