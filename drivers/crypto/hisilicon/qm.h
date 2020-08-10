@@ -253,6 +253,7 @@ struct hisi_qp_status {
 	u16 sq_tail;
 	u16 cq_head;
 	bool cqc_phase;
+	bool updated;
 	atomic_t flags;
 };
 
@@ -271,6 +272,7 @@ struct hisi_qp {
 	dma_addr_t sqe_dma;
 	dma_addr_t cqe_dma;
 
+	spinlock_t qp_lock;
 	struct hisi_qp_status qp_status;
 	struct hisi_qp_ops *hw_ops;
 	void *qp_ctx;
