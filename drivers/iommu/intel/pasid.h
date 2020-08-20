@@ -99,6 +99,7 @@ static inline bool pasid_pte_is_present(struct pasid_entry *pte)
 }
 
 extern u32 intel_pasid_max_id;
+extern struct ioasid_set *host_pasid_set;
 int intel_pasid_alloc_id(void *ptr, int start, int end, gfp_t gfp);
 void intel_pasid_free_id(int pasid);
 void *intel_pasid_lookup_id(int pasid);

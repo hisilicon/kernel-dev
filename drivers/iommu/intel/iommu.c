@@ -42,6 +42,7 @@
 #include <linux/crash_dump.h>
 #include <linux/numa.h>
 #include <linux/swiotlb.h>
+#include <linux/ioasid.h>
 #include <asm/irq_remapping.h>
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
@@ -102,6 +103,9 @@
  * we could change this to advertise the real page sizes we support.
  */
 #define INTEL_IOMMU_PGSIZES	(~0xFFFUL)
+
+/* PASIDs used by host SVM */
+struct ioasid_set *host_pasid_set;
 
 static inline int agaw_to_level(int agaw)
 {
@@ -3146,8 +3150,8 @@ static void intel_vcmd_ioasid_free(ioasid_t ioasid, void *data)
 	 * Sanity check the ioasid owner is done at upper layer, e.g. VFIO
 	 * We can only free the PASID when all the devices are unbound.
 	 */
-	if (ioasid_find(NULL, ioasid, NULL)) {
-		pr_alert("Cannot free active IOASID %d\n", ioasid);
+	if (IS_ERR(ioasid_find(host_pasid_set, ioasid, NULL))) {
+		pr_err("Cannot free IOASID %d, not in system set\n", ioasid);
 		return;
 	}
 	vcmd_free_pasid(iommu, ioasid);
@@ -3330,6 +3334,19 @@ static int __init init_dmars(void)
 	ret = si_domain_init(hw_pass_through);
 	if (ret)
 		goto free_iommu;
+
+	/* PASID is needed for scalable mode irrespective to SVM */
+	if (intel_iommu_sm) {
+		ioasid_install_capacity(intel_pasid_max_id);
+		/* We should not run out of IOASIDs at boot */
+		host_pasid_set = ioasid_alloc_set(NULL, PID_MAX_DEFAULT,
+						IOASID_SET_TYPE_NULL);
+		if (IS_ERR_OR_NULL(host_pasid_set)) {
+			pr_err("Failed to enable host PASID allocator %lu\n",
+				PTR_ERR(host_pasid_set));
+			intel_iommu_sm = 0;
+		}
+	}
 
 	/*
 	 * for each drhd
@@ -5158,7 +5175,7 @@ static void auxiliary_unlink_device(struct dmar_domain *domain,
 	domain->auxd_refcnt--;
 
 	if (!domain->auxd_refcnt && domain->default_pasid > 0)
-		ioasid_free(domain->default_pasid);
+		ioasid_free(host_pasid_set, domain->default_pasid);
 }
 
 static int aux_domain_add_dev(struct dmar_domain *domain,
@@ -5176,7 +5193,7 @@ static int aux_domain_add_dev(struct dmar_domain *domain,
 		int pasid;
 
 		/* No private data needed for the default pasid */
-		pasid = ioasid_alloc(NULL, PASID_MIN,
+		pasid = ioasid_alloc(host_pasid_set, PASID_MIN,
 				     pci_max_pasids(to_pci_dev(dev)) - 1,
 				     NULL);
 		if (pasid == INVALID_IOASID) {
@@ -5219,7 +5236,7 @@ attach_failed:
 	spin_unlock(&iommu->lock);
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 	if (!domain->auxd_refcnt && domain->default_pasid > 0)
-		ioasid_free(domain->default_pasid);
+		ioasid_free(host_pasid_set, domain->default_pasid);
 
 	return ret;
 }
