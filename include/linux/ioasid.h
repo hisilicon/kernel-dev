@@ -75,6 +75,10 @@ int ioasid_attach_data(ioasid_t ioasid, void *data);
 int ioasid_register_allocator(struct ioasid_allocator_ops *allocator);
 void ioasid_unregister_allocator(struct ioasid_allocator_ops *allocator);
 void ioasid_is_in_set(struct ioasid_set *set, ioasid_t ioasid);
+int ioasid_get(struct ioasid_set *set, ioasid_t ioasid);
+int ioasid_get_locked(struct ioasid_set *set, ioasid_t ioasid);
+void ioasid_put(struct ioasid_set *set, ioasid_t ioasid);
+void ioasid_put_locked(struct ioasid_set *set, ioasid_t ioasid);
 int ioasid_set_for_each_ioasid(struct ioasid_set *sdata,
 			       void (*fn)(ioasid_t id, void *data),
 			       void *data);

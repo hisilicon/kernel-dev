@@ -711,6 +711,119 @@ int ioasid_set_for_each_ioasid(struct ioasid_set *set,
 EXPORT_SYMBOL_GPL(ioasid_set_for_each_ioasid);
 
 /**
+ * IOASID refcounting rules
+ * - ioasid_alloc() set initial refcount to 1
+ *
+ * - ioasid_free() decrement and test refcount.
+ *     If refcount is 0, ioasid will be freed. Deleted from the system-wide
+ *     xarray as well as per set xarray. The IOASID will be returned to the
+ *     pool and available for new allocations.
+ *
+ *     If recount is non-zero, mark IOASID as IOASID_STATE_FREE_PENDING.
+ *     No new reference can be added. The IOASID is not returned to the pool
+ *     for reuse.
+ *     After free, ioasid_get() will return error but ioasid_find() and other
+ *     non refcount adding APIs will continue to work until the last reference
+ *     is dropped
+ *
+ * - ioasid_get() get a reference on an active IOASID
+ *
+ * - ioasid_put() decrement and test refcount of the IOASID.
+ *     If refcount is 0, ioasid will be freed. Deleted from the system-wide
+ *     xarray as well as per set xarray. The IOASID will be returned to the
+ *     pool and available for new allocations.
+ *     Do nothing if refcount is non-zero.
+ *
+ * - ioasid_find() does not take reference, caller must hold reference
+ *
+ * ioasid_free() can be called multiple times without error until all refs are
+ * dropped.
+ */
+
+int ioasid_get_locked(struct ioasid_set *set, ioasid_t ioasid)
+{
+	struct ioasid_data *data;
+
+	data = xa_load(&active_allocator->xa, ioasid);
+	if (!data) {
+		pr_err("Trying to get unknown IOASID %u\n", ioasid);
+		return -EINVAL;
+	}
+	if (data->state == IOASID_STATE_FREE_PENDING) {
+		pr_err("Trying to get IOASID being freed%u\n", ioasid);
+		return -EBUSY;
+	}
+
+	if (set && data->set != set) {
+		pr_err("Trying to get IOASID not in set%u\n", ioasid);
+		/* data found but does not belong to the set */
+		return -EACCES;
+	}
+	refcount_inc(&data->users);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ioasid_get_locked);
+
+/**
+ * ioasid_get - Obtain a reference of an ioasid
+ * @set
+ * @ioasid
+ *
+ * Check set ownership if @set is non-null.
+ */
+int ioasid_get(struct ioasid_set *set, ioasid_t ioasid)
+{
+	int ret = 0;
+
+	spin_lock(&ioasid_allocator_lock);
+	ret = ioasid_get_locked(set, ioasid);
+	spin_unlock(&ioasid_allocator_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ioasid_get);
+
+void ioasid_put_locked(struct ioasid_set *set, ioasid_t ioasid)
+{
+	struct ioasid_data *data;
+
+	data = xa_load(&active_allocator->xa, ioasid);
+	if (!data) {
+		pr_err("Trying to put unknown IOASID %u\n", ioasid);
+		return;
+	}
+
+	if (set && data->set != set) {
+		pr_err("Trying to drop IOASID not in the set %u\n", ioasid);
+		return;
+	}
+
+	if (!refcount_dec_and_test(&data->users)) {
+		pr_debug("%s: IOASID %d has %d remainning users\n",
+			__func__, ioasid, refcount_read(&data->users));
+		return;
+	}
+	ioasid_do_free(data);
+}
+EXPORT_SYMBOL_GPL(ioasid_put_locked);
+
+/**
+ * ioasid_put - Drop a reference of an ioasid
+ * @set
+ * @ioasid
+ *
+ * Check set ownership if @set is non-null.
+ */
+void ioasid_put(struct ioasid_set *set, ioasid_t ioasid)
+{
+	spin_lock(&ioasid_allocator_lock);
+	ioasid_put_locked(set, ioasid);
+	spin_unlock(&ioasid_allocator_lock);
+}
+EXPORT_SYMBOL_GPL(ioasid_put);
+
+/**
  * ioasid_find - Find IOASID data
  * @set: the IOASID set
  * @ioasid: the IOASID to find
