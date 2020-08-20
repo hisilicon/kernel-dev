@@ -21,6 +21,7 @@ enum ioasid_state {
  * struct ioasid_data - Meta data about ioasid
  *
  * @id:		Unique ID
+ * @spid:	Private ID unique within a set
  * @users	Number of active users
  * @state	Track state of the IOASID
  * @set		Meta data of the set this IOASID belongs to
@@ -29,6 +30,7 @@ enum ioasid_state {
  */
 struct ioasid_data {
 	ioasid_t id;
+	ioasid_t spid;
 	struct ioasid_set *set;
 	refcount_t users;
 	enum ioasid_state state;
@@ -318,6 +320,58 @@ int ioasid_attach_data(ioasid_t ioasid, void *data)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ioasid_attach_data);
+
+/**
+ * ioasid_attach_spid - Attach ioasid_set private ID to an IOASID
+ *
+ * @ioasid: the ID to attach
+ * @spid:   the ioasid_set private ID of @ioasid
+ *
+ * For IOASID that is already allocated, private ID within the set can be
+ * attached via this API. Future lookup can be done via ioasid_find.
+ */
+int ioasid_attach_spid(ioasid_t ioasid, ioasid_t spid)
+{
+	struct ioasid_data *ioasid_data;
+	int ret = 0;
+
+	spin_lock(&ioasid_allocator_lock);
+	ioasid_data = xa_load(&active_allocator->xa, ioasid);
+
+	if (!ioasid_data) {
+		pr_err("No IOASID entry %d to attach SPID %d\n",
+			ioasid, spid);
+		ret = -ENOENT;
+		goto done_unlock;
+	}
+	ioasid_data->spid = spid;
+
+done_unlock:
+	spin_unlock(&ioasid_allocator_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ioasid_attach_spid);
+
+ioasid_t ioasid_find_by_spid(struct ioasid_set *set, ioasid_t spid)
+{
+	struct ioasid_data *entry;
+	unsigned long index;
+
+	if (!xa_load(&ioasid_sets, set->sid)) {
+		pr_warn("Invalid set\n");
+		return INVALID_IOASID;
+	}
+
+	xa_for_each(&set->xa, index, entry) {
+		if (spid == entry->spid) {
+			pr_debug("Found ioasid %lu by spid %u\n", index, spid);
+			refcount_inc(&entry->users);
+			return index;
+		}
+	}
+	return INVALID_IOASID;
+}
+EXPORT_SYMBOL_GPL(ioasid_find_by_spid);
 
 /**
  * ioasid_alloc - Allocate an IOASID

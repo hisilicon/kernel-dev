@@ -72,6 +72,8 @@ bool ioasid_is_active(ioasid_t ioasid);
 
 void *ioasid_find(struct ioasid_set *set, ioasid_t ioasid, bool (*getter)(void *));
 int ioasid_attach_data(ioasid_t ioasid, void *data);
+int ioasid_attach_spid(ioasid_t ioasid, ioasid_t spid);
+ioasid_t ioasid_find_by_spid(struct ioasid_set *set, ioasid_t spid);
 int ioasid_register_allocator(struct ioasid_allocator_ops *allocator);
 void ioasid_unregister_allocator(struct ioasid_allocator_ops *allocator);
 void ioasid_is_in_set(struct ioasid_set *set, ioasid_t ioasid);
@@ -122,6 +124,16 @@ static inline void ioasid_unregister_allocator(struct ioasid_allocator_ops *allo
 }
 
 static inline int ioasid_attach_data(ioasid_t ioasid, void *data)
+{
+	return -ENOTSUPP;
+}
+
+staic inline int ioasid_attach_spid(ioasid_t ioasid, ioasid_t spid)
+{
+	return -ENOTSUPP;
+}
+
+static inline ioasid_t ioasid_find_by_spid(struct ioasid_set *set, ioasid_t spid)
 {
 	return -ENOTSUPP;
 }
