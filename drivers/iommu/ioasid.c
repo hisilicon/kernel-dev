@@ -9,8 +9,35 @@
 #include <linux/spinlock.h>
 #include <linux/xarray.h>
 #include <linux/ioasid.h>
+#include <linux/sched/mm.h>
 
 static DEFINE_XARRAY_ALLOC(ioasid_sets);
+/*
+ * An IOASID could have multiple consumers where each consumeer may have
+ * hardware contexts associated with IOASIDs.
+ * When a status change occurs, such as IOASID is being freed, notifier chains
+ * are used to keep the consumers in sync.
+ * This is a publisher-subscriber pattern where publisher can change the
+ * state of each IOASID, e.g. alloc/free, bind IOASID to a device and mm.
+ * On the other hand, subscribers gets notified for the state change and
+ * keep local states in sync.
+ *
+ * Currently, the notifier is global. A further optimization could be per
+ * IOASID set notifier chain.
+ */
+static ATOMIC_NOTIFIER_HEAD(ioasid_chain);
+
+/* List to hold pending notification block registrations */
+static LIST_HEAD(ioasid_nb_pending_list);
+static DEFINE_SPINLOCK(ioasid_nb_lock);
+struct ioasid_set_nb {
+	struct list_head	list;
+	struct notifier_block	*nb;
+	void			*token;
+	struct ioasid_set	*set;
+	bool			active;
+};
+
 enum ioasid_state {
 	IOASID_STATE_INACTIVE,
 	IOASID_STATE_ACTIVE,
@@ -388,6 +415,7 @@ EXPORT_SYMBOL_GPL(ioasid_find_by_spid);
 ioasid_t ioasid_alloc(struct ioasid_set *set, ioasid_t min, ioasid_t max,
 		      void *private)
 {
+	struct ioasid_nb_args args;
 	struct ioasid_data *data;
 	void *adata;
 	ioasid_t id = INVALID_IOASID;
@@ -439,8 +467,14 @@ ioasid_t ioasid_alloc(struct ioasid_set *set, ioasid_t min, ioasid_t max,
 		goto exit_free;
 	}
 	set->nr_ioasids++;
-	goto done_unlock;
+	args.id = id;
+	/* Set private ID is not attached during allocation */
+	args.spid = INVALID_IOASID;
+	args.set = set;
+	atomic_notifier_call_chain(&set->nh, IOASID_ALLOC, &args);
 
+	spin_unlock(&ioasid_allocator_lock);
+	return id;
 exit_free:
 	kfree(data);
 done_unlock:
@@ -473,6 +507,7 @@ static void ioasid_do_free(struct ioasid_data *data)
 
 static void ioasid_free_locked(struct ioasid_set *set, ioasid_t ioasid)
 {
+	struct ioasid_nb_args args;
 	struct ioasid_data *data;
 
 	data = xa_load(&active_allocator->xa, ioasid);
@@ -485,7 +520,16 @@ static void ioasid_free_locked(struct ioasid_set *set, ioasid_t ioasid)
 		pr_warn("Cannot free IOASID %u due to set ownership\n", ioasid);
 		return;
 	}
+
 	data->state = IOASID_STATE_FREE_PENDING;
+	/* Notify all users that this IOASID is being freed */
+	args.id = ioasid;
+	args.spid = data->spid;
+	args.pdata = data->private;
+	args.set = data->set;
+	atomic_notifier_call_chain(&ioasid_chain, IOASID_FREE, &args);
+	/* Notify the ioasid_set for per set users */
+	atomic_notifier_call_chain(&set->nh, IOASID_FREE, &args);
 
 	if (!refcount_dec_and_test(&data->users))
 		return;
@@ -507,6 +551,28 @@ void ioasid_free(struct ioasid_set *set, ioasid_t ioasid)
 	spin_unlock(&ioasid_allocator_lock);
 }
 EXPORT_SYMBOL_GPL(ioasid_free);
+
+static void ioasid_add_pending_nb(struct ioasid_set *set)
+{
+	struct ioasid_set_nb *curr;
+
+	if (set->type != IOASID_SET_TYPE_MM)
+		return;
+
+	/*
+	 * Check if there are any pending nb requests for the given token, if so
+	 * add them to the notifier chain.
+	 */
+	spin_lock(&ioasid_nb_lock);
+	list_for_each_entry(curr, &ioasid_nb_pending_list, list) {
+		if (curr->token == set->token && !curr->active) {
+			atomic_notifier_chain_register(&set->nh, curr->nb);
+			curr->set = set;
+			curr->active = true;
+		}
+	}
+	spin_unlock(&ioasid_nb_lock);
+}
 
 /**
  * ioasid_alloc_set - Allocate a new IOASID set for a given token
@@ -595,6 +661,13 @@ struct ioasid_set *ioasid_alloc_set(void *token, ioasid_t quota, int type)
 	sdata->quota = quota;
 	sdata->sid = id;
 	refcount_set(&sdata->ref, 1);
+	ATOMIC_INIT_NOTIFIER_HEAD(&sdata->nh);
+
+	/*
+	 * Check if there are any pending nb requests for the given token, if so
+	 * add them to the notifier chain.
+	 */
+	ioasid_add_pending_nb(sdata);
 
 	/*
 	 * Per set XA is used to store private IDs within the set, get ready
@@ -610,6 +683,30 @@ exit_unlock:
 	return sdata;
 }
 EXPORT_SYMBOL_GPL(ioasid_alloc_set);
+
+
+/*
+ * ioasid_find_mm_set - Retrieve IOASID set with mm token
+ * Take a reference of the set if found.
+ */
+static struct ioasid_set *ioasid_find_mm_set(struct mm_struct *token)
+{
+	struct ioasid_set *sdata, *set = NULL;
+	unsigned long index;
+
+	spin_lock(&ioasid_allocator_lock);
+
+	xa_for_each(&ioasid_sets, index, sdata) {
+		if (sdata->type == IOASID_SET_TYPE_MM && sdata->token == token) {
+			refcount_inc(&sdata->ref);
+			set = sdata;
+			goto exit_unlock;
+		}
+	}
+exit_unlock:
+	spin_unlock(&ioasid_allocator_lock);
+	return set;
+}
 
 void ioasid_set_get_locked(struct ioasid_set *set)
 {
@@ -632,6 +729,8 @@ EXPORT_SYMBOL_GPL(ioasid_set_get);
 
 void ioasid_set_put_locked(struct ioasid_set *set)
 {
+	struct ioasid_nb_args args = { 0 };
+	struct ioasid_set_nb *curr;
 	struct ioasid_data *entry;
 	unsigned long index;
 
@@ -667,8 +766,24 @@ void ioasid_set_put_locked(struct ioasid_set *set)
 done_destroy:
 	/* Return the quota back to system pool */
 	ioasid_capacity_avail += set->quota;
-	kfree_rcu(set, rcu);
 
+	/* Restore pending status of the set NBs */
+	spin_lock(&ioasid_nb_lock);
+	list_for_each_entry(curr, &ioasid_nb_pending_list, list) {
+		if (curr->token == set->token) {
+			if (curr->active)
+				curr->active = false;
+			else
+				pr_warn("Set token exists but not active!\n");
+		}
+	}
+	spin_unlock(&ioasid_nb_lock);
+
+	args.set = set;
+	atomic_notifier_call_chain(&ioasid_chain, IOASID_SET_FREE, &args);
+
+	kfree_rcu(set, rcu);
+	pr_debug("Set freed %d\n", set->sid);
 	/*
 	 * Token got released right away after the ioasid_set is freed.
 	 * If a new set is created immediately with the newly released token,
@@ -920,6 +1035,167 @@ unlock:
 	return priv;
 }
 EXPORT_SYMBOL_GPL(ioasid_find);
+
+int ioasid_register_notifier(struct ioasid_set *set, struct notifier_block *nb)
+{
+	if (set)
+		return atomic_notifier_chain_register(&set->nh, nb);
+	else
+		return atomic_notifier_chain_register(&ioasid_chain, nb);
+}
+EXPORT_SYMBOL_GPL(ioasid_register_notifier);
+
+void ioasid_unregister_notifier(struct ioasid_set *set,
+				struct notifier_block *nb)
+{
+	struct ioasid_set_nb *curr;
+
+	spin_lock(&ioasid_nb_lock);
+	/*
+	 * Pending list is registered with a token without an ioasid_set,
+	 * therefore should not be unregistered directly.
+	 */
+	list_for_each_entry(curr, &ioasid_nb_pending_list, list) {
+		if (curr->nb == nb) {
+			pr_warn("Cannot unregister NB from pending list\n");
+			spin_unlock(&ioasid_nb_lock);
+			return;
+		}
+	}
+	spin_unlock(&ioasid_nb_lock);
+
+	if (set)
+		atomic_notifier_chain_unregister(&set->nh, nb);
+	else
+		atomic_notifier_chain_unregister(&ioasid_chain, nb);
+}
+EXPORT_SYMBOL_GPL(ioasid_unregister_notifier);
+
+int ioasid_register_notifier_mm(struct mm_struct *mm, struct notifier_block *nb)
+{
+	struct ioasid_set_nb *curr;
+	struct ioasid_set *set;
+	int ret = 0;
+
+	if (!mm)
+		return -EINVAL;
+
+	spin_lock(&ioasid_nb_lock);
+
+	/* Check for duplicates, nb is unique per set */
+	list_for_each_entry(curr, &ioasid_nb_pending_list, list) {
+		if (curr->token == mm && curr->nb == nb) {
+			ret = -EBUSY;
+			goto exit_unlock;
+		}
+	}
+
+	/* Check if the token has an existing set */
+	set = ioasid_find_mm_set(mm);
+	if (IS_ERR_OR_NULL(set)) {
+		/* Add to the rsvd list as inactive */
+		curr->active = false;
+	} else {
+		/* REVISIT: Only register empty set for now. Can add an option
+		 * in the future to playback existing PASIDs.
+		 */
+		if (set->nr_ioasids) {
+			pr_warn("IOASID set %d not empty\n", set->sid);
+			ret = -EBUSY;
+			goto exit_unlock;
+		}
+		curr = kzalloc(sizeof(*curr), GFP_ATOMIC);
+		if (!curr) {
+			ret = -ENOMEM;
+			goto exit_unlock;
+		}
+		curr->token = mm;
+		curr->nb = nb;
+		curr->active = true;
+		curr->set = set;
+
+		/* Set already created, add to the notifier chain */
+		atomic_notifier_chain_register(&set->nh, nb);
+		/*
+		 * Do not hold a reference, if the set gets destroyed, the nb
+		 * entry will be marked inactive.
+		 */
+		ioasid_set_put(set);
+	}
+
+	list_add(&curr->list, &ioasid_nb_pending_list);
+
+exit_unlock:
+	spin_unlock(&ioasid_nb_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ioasid_register_notifier_mm);
+
+void ioasid_unregister_notifier_mm(struct mm_struct *mm, struct notifier_block *nb)
+{
+	struct ioasid_set_nb *curr;
+
+	spin_lock(&ioasid_nb_lock);
+	list_for_each_entry(curr, &ioasid_nb_pending_list, list) {
+		if (curr->token == mm && curr->nb == nb) {
+			list_del(&curr->list);
+			goto exit_free;
+		}
+	}
+	pr_warn("No ioasid set found for mm token %llx\n",  (u64)mm);
+	goto done_unlock;
+
+exit_free:
+	if (curr->active) {
+		pr_debug("mm set active, unregister %llx\n",
+			(u64)mm);
+		atomic_notifier_chain_unregister(&curr->set->nh, nb);
+	}
+	kfree(curr);
+done_unlock:
+	spin_unlock(&ioasid_nb_lock);
+	return;
+}
+EXPORT_SYMBOL_GPL(ioasid_unregister_notifier_mm);
+
+/**
+ * ioasid_notify - Send notification on a given IOASID for status change.
+ *                 Used by publishers when the status change may affect
+ *                 subscriber's internal state.
+ *
+ * @ioasid:	The IOASID to which the notification will send
+ * @cmd:	The notification event
+ * @flags:	Special instructions, e.g. notify with a set or global
+ */
+int ioasid_notify(ioasid_t ioasid, enum ioasid_notify_val cmd, unsigned int flags)
+{
+	struct ioasid_data *ioasid_data;
+	struct ioasid_nb_args args = { 0 };
+	int ret = 0;
+
+	spin_lock(&ioasid_allocator_lock);
+	ioasid_data = xa_load(&active_allocator->xa, ioasid);
+	if (!ioasid_data) {
+		pr_err("Trying to notify unknown IOASID %u\n", ioasid);
+		spin_unlock(&ioasid_allocator_lock);
+		return -EINVAL;
+	}
+
+	args.id = ioasid;
+	args.set = ioasid_data->set;
+	args.pdata = ioasid_data->private;
+	args.spid = ioasid_data->spid;
+	if (flags & IOASID_NOTIFY_ALL) {
+		ret = atomic_notifier_call_chain(&ioasid_chain, cmd, &args);
+	} else if (flags & IOASID_NOTIFY_SET) {
+		ret = atomic_notifier_call_chain(&ioasid_data->set->nh,
+						 cmd, &args);
+	}
+	spin_unlock(&ioasid_allocator_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ioasid_notify);
 
 MODULE_AUTHOR("Jean-Philippe Brucker <jean-philippe.brucker@arm.com>");
 MODULE_AUTHOR("Jacob Pan <jacob.jun.pan@linux.intel.com>");
