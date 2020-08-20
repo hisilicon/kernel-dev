@@ -475,6 +475,11 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 	}
 
 	mutex_unlock(&pasid_mutex);
+	/*
+	 * Notify KVM new host-guest PASID bind is ready. KVM will set up
+	 * PASID translation table to support guest ENQCMD.
+	 */
+	ioasid_notify(data->hpasid, IOASID_BIND, IOASID_NOTIFY_SET);
 	return ret;
 }
 
@@ -514,6 +519,8 @@ int intel_svm_unbind_gpasid(struct device *dev, int pasid)
 				 * and perform cleanup.
 				 */
 				ioasid_attach_data(pasid, NULL);
+				ioasid_notify(pasid, IOASID_UNBIND,
+					IOASID_NOTIFY_SET);
 				kfree(svm);
 			}
 		}
