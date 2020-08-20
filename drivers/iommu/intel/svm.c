@@ -410,6 +410,7 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 		if (data->flags & IOMMU_SVA_GPASID_VAL) {
 			svm->gpasid = data->gpasid;
 			svm->flags |= SVM_FLAG_GUEST_PASID;
+			ioasid_attach_spid(data->hpasid, data->gpasid);
 		}
 		svm->iommu = iommu;
 		/*
@@ -521,6 +522,7 @@ int intel_svm_unbind_gpasid(struct device *dev, int pasid)
 				ioasid_attach_data(pasid, NULL);
 				ioasid_notify(pasid, IOASID_UNBIND,
 					IOASID_NOTIFY_SET);
+				ioasid_attach_spid(pasid, INVALID_IOASID);
 				kfree(svm);
 			}
 		}
