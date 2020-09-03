@@ -293,7 +293,9 @@ static LIST_HEAD(global_svm_list);
 	list_for_each_entry((sdev), &(svm)->devs, list)	\
 		if ((d) != (sdev)->dev) {} else
 
-static int pasid_to_svm_sdev(struct device *dev, unsigned int pasid,
+static int pasid_to_svm_sdev(struct device *dev,
+			     struct ioasid_set *set,
+			     unsigned int pasid,
 			     struct intel_svm **rsvm,
 			     struct intel_svm_dev **rsdev)
 {
@@ -307,7 +309,7 @@ static int pasid_to_svm_sdev(struct device *dev, unsigned int pasid,
 	if (pasid == INVALID_IOASID || pasid >= PASID_MAX)
 		return -EINVAL;
 
-	svm = ioasid_find(NULL, pasid, NULL);
+	svm = ioasid_find(set, pasid, NULL);
 	if (IS_ERR(svm))
 		return PTR_ERR(svm);
 
@@ -344,6 +346,7 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 	struct intel_svm_dev *sdev = NULL;
 	struct dmar_domain *dmar_domain;
 	struct intel_svm *svm = NULL;
+	unsigned long flags;
 	int ret = 0;
 
 	if (WARN_ON(!iommu) || !data)
@@ -377,7 +380,9 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 	dmar_domain = to_dmar_domain(domain);
 
 	mutex_lock(&pasid_mutex);
-	ret = pasid_to_svm_sdev(dev, data->hpasid, &svm, &sdev);
+	spin_lock_irqsave(&device_domain_lock, flags);
+	ret = pasid_to_svm_sdev(dev, dmar_domain->pasid_set,
+				data->hpasid, &svm, &sdev);
 	if (ret)
 		goto out;
 
@@ -395,7 +400,7 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 
 	if (!svm) {
 		/* We come here when PASID has never been bond to a device. */
-		svm = kzalloc(sizeof(*svm), GFP_KERNEL);
+		svm = kzalloc(sizeof(*svm), GFP_ATOMIC);
 		if (!svm) {
 			ret = -ENOMEM;
 			goto out;
@@ -415,7 +420,7 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 		ioasid_attach_data(data->hpasid, svm);
 		INIT_LIST_HEAD_RCU(&svm->devs);
 	}
-	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
+	sdev = kzalloc(sizeof(*sdev), GFP_ATOMIC);
 	if (!sdev) {
 		ret = -ENOMEM;
 		goto out;
@@ -427,7 +432,7 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 		sdev->users = 1;
 
 	/* Set up device context entry for PASID if not enabled already */
-	ret = intel_iommu_enable_pasid(iommu, sdev->dev);
+	ret = intel_iommu_enable_pasid_locked(iommu, sdev->dev);
 	if (ret) {
 		dev_err_ratelimited(dev, "Failed to enable PASID capability\n");
 		kfree(sdev);
@@ -462,6 +467,7 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 	init_rcu_head(&sdev->rcu);
 	list_add_rcu(&sdev->list, &svm->devs);
  out:
+	spin_unlock_irqrestore(&device_domain_lock, flags);
 	if (!IS_ERR_OR_NULL(svm) && list_empty(&svm->devs)) {
 		ioasid_attach_data(data->hpasid, NULL);
 		kfree(svm);
@@ -480,15 +486,22 @@ int intel_svm_unbind_gpasid(struct iommu_domain *domain,
 			    struct device *dev, u32 pasid)
 {
 	struct intel_iommu *iommu = device_to_iommu(dev, NULL, NULL);
+	struct dmar_domain *dmar_domain;
 	struct intel_svm_dev *sdev;
 	struct intel_svm *svm;
+	unsigned long flags;
 	int ret;
 
 	if (WARN_ON(!iommu))
 		return -EINVAL;
 
+	dmar_domain = to_dmar_domain(domain);
+
 	mutex_lock(&pasid_mutex);
-	ret = pasid_to_svm_sdev(dev, pasid, &svm, &sdev);
+	spin_lock_irqsave(&device_domain_lock, flags);
+	ret = pasid_to_svm_sdev(dev, dmar_domain->pasid_set,
+				pasid, &svm, &sdev);
+	spin_unlock_irqrestore(&device_domain_lock, flags);
 	if (ret)
 		goto out;
 
@@ -712,7 +725,8 @@ static int intel_svm_unbind_mm(struct device *dev, int pasid)
 	if (!iommu)
 		goto out;
 
-	ret = pasid_to_svm_sdev(dev, pasid, &svm, &sdev);
+	ret = pasid_to_svm_sdev(dev, host_pasid_set,
+				pasid, &svm, &sdev);
 	if (ret)
 		goto out;
 
@@ -1204,7 +1218,8 @@ int intel_svm_page_response(struct device *dev,
 		goto out;
 	}
 
-	ret = pasid_to_svm_sdev(dev, prm->pasid, &svm, &sdev);
+	ret = pasid_to_svm_sdev(dev, host_pasid_set,
+				prm->pasid, &svm, &sdev);
 	if (ret || !sdev) {
 		ret = -ENODEV;
 		goto out;
