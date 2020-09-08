@@ -154,15 +154,19 @@ EXPORT_SYMBOL(iommu_put_dma_cookie);
  * @list: Reserved region list from iommu_get_resv_regions()
  *
  * IOMMU drivers can use this to implement their .get_resv_regions callback
- * for general non-IOMMU-specific reservations. Currently, this covers GICv3
- * ITS region reservation on ACPI based ARM platforms that may require HW MSI
- * reservation.
+ * for general non-IOMMU-specific reservations. Currently this covers,
+ *  - GICv3 ITS region reservation on ACPI based ARM platforms that may
+ *    require HW MSI reservation.
+ *  - ACPI IORT RMR memory range reservations that require a unity mapping
+ *    in the SMMU for a given endpoint device.
  */
 void iommu_dma_get_resv_regions(struct device *dev, struct list_head *list)
 {
 
-	if (!is_of_node(dev_iommu_fwspec_get(dev)->iommu_fwnode))
+	if (!is_of_node(dev_iommu_fwspec_get(dev)->iommu_fwnode)) {
 		iort_iommu_msi_get_resv_regions(dev, list);
+		iort_dev_rmr_get_resv_regions(dev, list);
+	}
 
 }
 EXPORT_SYMBOL(iommu_dma_get_resv_regions);
