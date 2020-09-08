@@ -38,6 +38,7 @@ void iort_dma_setup(struct device *dev, u64 *dma_addr, u64 *size);
 const struct iommu_ops *iort_iommu_configure_id(struct device *dev,
 						const u32 *id_in);
 int iort_iommu_msi_get_resv_regions(struct device *dev, struct list_head *head);
+int iort_dev_rmr_get_resv_regions(struct device *dev, struct list_head *head);
 #else
 static inline void acpi_iort_init(void) { }
 static inline u32 iort_msi_map_id(struct device *dev, u32 id)
@@ -54,6 +55,9 @@ static inline const struct iommu_ops *iort_iommu_configure_id(
 { return NULL; }
 static inline
 int iort_iommu_msi_get_resv_regions(struct device *dev, struct list_head *head)
+{ return 0; }
+static inline
+int iort_dev_rmr_get_resv_regions(struct device *dev, struct list_head *head)
 { return 0; }
 #endif
 
