@@ -39,6 +39,26 @@ struct iort_fwnode {
 static LIST_HEAD(iort_fwnode_list);
 static DEFINE_SPINLOCK(iort_fwnode_lock);
 
+struct iort_rmr_id {
+	u32  sid;
+	struct acpi_iort_node *smmu;
+};
+
+/*
+ * One entry for IORT RMR.
+ */
+struct iort_rmr_entry {
+	struct list_head list;
+
+	unsigned int rmr_ids_num;
+	struct iort_rmr_id *rmr_ids;
+
+	unsigned int rmr_desc_num;
+	struct acpi_iort_rmr_desc *rmr_desc;
+};
+
+static LIST_HEAD(iort_rmr_list);         /* list of RMR regions from ACPI */
+
 /**
  * iort_set_fwnode() - Create iort_fwnode and use it to register
  *		       iommu data in the iort_fwnode_list
@@ -392,7 +412,8 @@ static struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
 		if (node->type == ACPI_IORT_NODE_NAMED_COMPONENT ||
 		    node->type == ACPI_IORT_NODE_PCI_ROOT_COMPLEX ||
 		    node->type == ACPI_IORT_NODE_SMMU_V3 ||
-		    node->type == ACPI_IORT_NODE_PMCG) {
+		    node->type == ACPI_IORT_NODE_PMCG ||
+		    node->type == ACPI_IORT_NODE_RMR) {
 			*id_out = map->output_base;
 			return parent;
 		}
@@ -1652,6 +1673,67 @@ static void __init iort_enable_acs(struct acpi_iort_node *iort_node)
 static inline void iort_enable_acs(struct acpi_iort_node *iort_node) { }
 #endif
 
+static int __init iort_parse_rmr(struct acpi_iort_node *iort_node)
+{
+	struct iort_rmr_id *rmr_ids, *ids;
+	struct iort_rmr_entry *e;
+	struct acpi_iort_rmr *rmr;
+	u32 map_count = iort_node->mapping_count;
+	int i, ret = 0;
+
+	if (iort_node->type != ACPI_IORT_NODE_RMR)
+		return 0;
+
+	if (!iort_node->mapping_offset || !map_count) {
+		pr_err(FW_BUG "[node %p type %d] ID mapping is invalid\n",
+		       iort_node, iort_node->type);
+		ret = -EINVAL;
+		goto out_err;
+	}
+
+	rmr_ids = kzalloc(sizeof(*rmr_ids) * map_count, GFP_KERNEL);
+	if (!rmr_ids) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
+
+	/* Retrieve associated smmu and stream id */
+	ids = rmr_ids;
+	for (i = 0; i < map_count; i++, ids++) {
+		ids->smmu = iort_node_get_id(iort_node, &ids->sid, i);
+		if (!ids->smmu) {
+			pr_warn(FW_BUG "[map index %d] Invalid mapping for RMR node %p\n",
+				i, iort_node);
+			ret = -EINVAL;
+			goto out_err_free;
+		}
+	}
+
+	/* Retrieve RMR data */
+	rmr = (struct acpi_iort_rmr *)iort_node->node_data;
+
+	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	if (!e) {
+		ret = -ENOMEM;
+		goto out_err_free;
+	}
+
+	e->rmr_ids_num = map_count;
+	e->rmr_ids = rmr_ids;
+	e->rmr_desc_num = rmr->rmr_count;
+	e->rmr_desc = ACPI_ADD_PTR(struct acpi_iort_rmr_desc, iort_node,
+				   rmr->rmr_offset);
+	list_add_tail(&e->list, &iort_rmr_list);
+
+	return 0;
+
+out_err_free:
+	kfree(rmr_ids);
+out_err:
+	pr_warn("Failed to parse IORT RMR (%d), skipping...\n", ret);
+	return ret;
+}
+
 static void __init iort_init_platform_devices(void)
 {
 	struct acpi_iort_node *iort_node, *iort_end;
@@ -1679,6 +1761,8 @@ static void __init iort_init_platform_devices(void)
 		}
 
 		iort_enable_acs(iort_node);
+
+		iort_parse_rmr(iort_node);
 
 		ops = iort_get_dev_cfg(iort_node);
 		if (ops) {
