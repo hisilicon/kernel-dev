@@ -13,6 +13,7 @@
 #include <linux/pci.h>
 #include <linux/seq_file.h>
 #include <linux/topology.h>
+#include <linux/uacce.h>
 
 #include "sec.h"
 
@@ -895,6 +896,12 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret < 0) {
 		pr_err("Failed to register driver to crypto.\n");
 		goto err_qm_stop;
+	}
+
+	if (qm->uacce) {
+		ret = uacce_register(qm->uacce);
+		if (ret)
+			goto err_alg_unregister;
 	}
 
 	if (qm->fun_type == QM_HW_PF && vfs_num) {
