@@ -842,6 +842,60 @@ static inline int iort_add_device_replay(const struct iommu_ops *ops,
 	return err;
 }
 
+static bool iort_dev_has_rmr(struct device *dev, struct iort_rmr_entry *e)
+{
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+	struct acpi_iort_node *iommu;
+	struct iort_rmr_id *rmr_ids = e->rmr_ids;
+	int i, j;
+
+	iommu = iort_get_iort_node(fwspec->iommu_fwnode);
+
+	for (i = 0; i < e->rmr_ids_num; i++, rmr_ids++) {
+		for (j = 0; j < fwspec->num_ids; j++) {
+			if (rmr_ids->sid == fwspec->ids[j] &&
+			    rmr_ids->smmu == iommu)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * iort_dev_rmr_get_resv_regions - RMR Reserved region driver helper
+ * @dev: Device from iommu_get_resv_regions()
+ * @head: Reserved region list from iommu_get_resv_regions()
+ *
+ * Returns: 0 on success, <0 failure
+ */
+int iort_dev_rmr_get_resv_regions(struct device *dev, struct list_head *head)
+{
+	struct iort_rmr_entry *e;
+
+	list_for_each_entry(e, &iort_rmr_list, list) {
+		struct iommu_resv_region *region;
+		struct acpi_iort_rmr_desc *rmr;
+		int prot = IOMMU_READ | IOMMU_WRITE |
+			   IOMMU_NOEXEC | IOMMU_MMIO;
+
+		if (!iort_dev_has_rmr(dev, e))
+			continue;
+
+		rmr = e->rmr_desc;
+		region = iommu_alloc_resv_region(rmr->base_address,
+						 rmr->length, prot,
+						 IOMMU_RESV_DIRECT);
+		if (!region) {
+			dev_err(dev, "Out of memory allocating RMR regions\n");
+			return -ENOMEM;
+		}
+		list_add_tail(&region->list, head);
+	}
+
+	return 0;
+}
+
 /**
  * iort_iommu_msi_get_resv_regions - Reserved region driver helper
  * @dev: Device from iommu_get_resv_regions()
@@ -1117,6 +1171,8 @@ int iort_iommu_msi_get_resv_regions(struct device *dev, struct list_head *head)
 const struct iommu_ops *iort_iommu_configure_id(struct device *dev,
 						const u32 *input_id)
 { return NULL; }
+int iort_dev_rmr_get_resv_regions(struct device *dev, struct list_head *head)
+{ return 0; }
 #endif
 
 static int nc_dma_get_range(struct device *dev, u64 *size)
