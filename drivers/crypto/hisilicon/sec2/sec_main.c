@@ -74,6 +74,10 @@
 
 #define SEC_USER0_SMMU_NORMAL		(BIT(23) | BIT(15))
 #define SEC_USER1_SMMU_NORMAL		(BIT(31) | BIT(23) | BIT(15) | BIT(7))
+#define SEC_USER1_SMMU_SVA		(BIT(31) | BIT(24) | BIT(23) | BIT(16) | \
+					 BIT(15) | BIT(8) | BIT(7) | BIT(0))
+#define SEC_USER1_SMMU_MASK		(~(BIT(31) | BIT(24) | BIT(23) | BIT(16) | \
+					   BIT(15) | BIT(8) | BIT(7) | BIT(0)))
 #define SEC_CORE_INT_STATUS_M_ECC	BIT(2)
 
 #define SEC_DELAY_10_US			10
@@ -299,7 +303,11 @@ static int sec_engine_init(struct hisi_qm *qm)
 	writel_relaxed(reg, SEC_ADDR(qm, SEC_INTERFACE_USER_CTRL0_REG));
 
 	reg = readl_relaxed(SEC_ADDR(qm, SEC_INTERFACE_USER_CTRL1_REG));
-	reg |= SEC_USER1_SMMU_NORMAL;
+	reg &= SEC_USER1_SMMU_MASK;
+	if (qm->use_sva)
+		reg |= SEC_USER1_SMMU_SVA;
+	else
+		reg |= SEC_USER1_SMMU_NORMAL;
 	writel_relaxed(reg, SEC_ADDR(qm, SEC_INTERFACE_USER_CTRL1_REG));
 
 	writel(SEC_SINGLE_PORT_MAX_TRANS,
