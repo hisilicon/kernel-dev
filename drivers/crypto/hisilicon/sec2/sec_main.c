@@ -769,6 +769,7 @@ static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
 	int ret;
 
+	qm->algs = "cipher\ndigest\naead\n";
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
 	qm->sqe_size = SEC_SQE_SIZE;

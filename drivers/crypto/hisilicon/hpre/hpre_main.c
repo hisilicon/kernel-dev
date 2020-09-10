@@ -767,6 +767,7 @@ static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		return -EINVAL;
 	}
 
+	qm->algs = "rsa\ndh\n";
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
 	qm->sqe_size = HPRE_SQE_SIZE;
