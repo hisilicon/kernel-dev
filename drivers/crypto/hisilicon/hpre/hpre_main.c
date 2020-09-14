@@ -254,6 +254,32 @@ static void disable_flr_of_bme(struct hisi_qm *qm)
 	writel(PEH_AXUSER_CFG_ENABLE, HPRE_ADDR(qm, QM_PEH_AXUSER_CFG_ENABLE));
 }
 
+
+static void hpre_pasid_enable(struct hisi_qm *qm)
+{
+	u32 val;
+
+	val = readl_relaxed(HPRE_ADDR(qm, HPRE_DATA_RUSER_CFG));
+	val |= BIT(HPRE_PASID_EN_BIT);
+	writel_relaxed(val, HPRE_ADDR(qm, HPRE_DATA_RUSER_CFG));
+	val = readl_relaxed(HPRE_ADDR(qm, HPRE_DATA_WUSER_CFG));
+	val |= BIT(HPRE_PASID_EN_BIT);
+	writel_relaxed(val, HPRE_ADDR(qm, HPRE_DATA_WUSER_CFG));
+}
+
+static void hpre_pasid_disable(struct hisi_qm *qm)
+{
+	u32 val;
+
+	val = readl_relaxed(HPRE_ADDR(qm, HPRE_DATA_RUSER_CFG));
+	val &= ~BIT(HPRE_PASID_EN_BIT);
+	writel_relaxed(val, HPRE_ADDR(qm, HPRE_DATA_RUSER_CFG));
+	val = readl_relaxed(HPRE_ADDR(qm, HPRE_DATA_WUSER_CFG));
+	val &= ~BIT(HPRE_PASID_EN_BIT);
+	writel_relaxed(val, HPRE_ADDR(qm, HPRE_DATA_WUSER_CFG));
+}
+
+
 static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
@@ -278,6 +304,10 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 	writel(0x0, HPRE_ADDR(qm, HPRE_POISON_BYPASS));
 	writel(0x0, HPRE_ADDR(qm, HPRE_COMM_CNT_CLR_CE));
 	writel(0x0, HPRE_ADDR(qm, HPRE_ECC_BYPASS));
+
+	/* Enable data buffer pasid */
+	if (qm->use_sva)
+		hpre_pasid_enable(qm);
 
 	writel(HPRE_BD_USR_MASK, HPRE_ADDR(qm, HPRE_BD_ARUSR_CFG));
 	writel(HPRE_BD_USR_MASK, HPRE_ADDR(qm, HPRE_BD_AWUSR_CFG));
@@ -913,6 +943,8 @@ static void hpre_remove(struct pci_dev *pdev)
 		}
 	}
 	if (qm->fun_type == QM_HW_PF) {
+		if (qm->use_sva)
+			hpre_pasid_disable(qm);
 		hpre_cnt_regs_clear(qm);
 		qm->debug.curr_qm_qp_num = 0;
 	}
