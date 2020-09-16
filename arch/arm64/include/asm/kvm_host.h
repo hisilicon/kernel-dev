@@ -376,6 +376,7 @@ struct kvm_vcpu_arch {
 #ifdef CONFIG_ARM64_TWED
 	/* Dynamic WFE trap delay */
 	u8 twed_val;
+	bool twed_dirty;
 #endif
 };
 
@@ -595,7 +596,6 @@ void kvm_arm_vcpu_ptrauth_trap(struct kvm_vcpu *vcpu);
 
 static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
-static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
 
 void kvm_arm_init_debug(void);
@@ -696,8 +696,12 @@ bool kvm_arm_vcpu_is_finalized(struct kvm_vcpu *vcpu);
 	twed_enable)
 extern bool twed_enable;
 extern unsigned char twed_default;
+void kvm_arm_grow_twed(struct kvm_vcpu *vcpu);
+void kvm_arm_shrink_twed(struct kvm_vcpu *vcpu);
 #else
 #define has_twed()		false
+static inline void kvm_arm_grow_twed(struct kvm_vcpu *vcpu) {};
+static inline void kvm_arm_shrink_twed(struct kvm_vcpu *vcpu) {};
 #endif
 
 #define kvm_arm_vcpu_sve_finalized(vcpu) \

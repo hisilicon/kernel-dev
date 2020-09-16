@@ -107,6 +107,7 @@ static inline void vcpu_set_wfx_traps(struct kvm_vcpu *vcpu)
 static inline void vcpu_twed_init(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.twed_val = (u8)twed_default;
+	vcpu->arch.twed_dirty = true;
 
 	vcpu->arch.hcr_el2 |= HCR_TWEDEN;
 }
@@ -115,11 +116,14 @@ static inline void vcpu_set_twed(struct kvm_vcpu *vcpu)
 {
 	u64 delay = vcpu->arch.twed_val;
 
-	if (delay > HCR_TWEDEL_MAX)
-		delay = HCR_TWEDEL_MAX;
+	if (vcpu->arch.twed_dirty) {
+		if (delay > HCR_TWEDEL_MAX)
+			delay = HCR_TWEDEL_MAX;
 
-	vcpu->arch.hcr_el2 &= ~HCR_TWEDEL_MASK;
-	vcpu->arch.hcr_el2 |= (delay << HCR_TWEDEL_SHIFT);
+		vcpu->arch.hcr_el2 &= ~HCR_TWEDEL_MASK;
+		vcpu->arch.hcr_el2 |= (delay << HCR_TWEDEL_SHIFT);
+		vcpu->arch.twed_dirty = false;
+	}
 }
 #else
 static inline void vcpu_twed_init(struct kvm_vcpu *vcpu) {};

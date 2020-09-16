@@ -66,6 +66,29 @@ module_param(twed_enable, bool, 0444);
 #define KVM_TWED_DEFAULT 0x7
 unsigned char twed_default = KVM_TWED_DEFAULT;
 module_param(twed_default, byte, 0444);
+
+static bool twed_dynamic;
+module_param(twed_dynamic, bool, 0444);
+
+void kvm_arm_grow_twed(struct kvm_vcpu *vcpu)
+{
+	u64 old = vcpu->arch.twed_val;
+
+	if (twed_dynamic && old < HCR_TWEDEL_MAX) {
+		vcpu->arch.twed_val += 1;
+		vcpu->arch.twed_dirty = true;
+	}
+}
+
+void kvm_arm_shrink_twed(struct kvm_vcpu *vcpu)
+{
+	u64 old = vcpu->arch.twed_val;
+
+	if (twed_dynamic && old > 0) {
+		vcpu->arch.twed_val -= 1;
+		vcpu->arch.twed_dirty = true;
+	}
+}
 #endif
 
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
@@ -81,6 +104,12 @@ int kvm_arch_hardware_setup(void *opaque)
 int kvm_arch_check_processor_compat(void *opaque)
 {
 	return 0;
+}
+
+void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu)
+{
+	if (has_twed())
+		kvm_arm_shrink_twed(vcpu);
 }
 
 int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
