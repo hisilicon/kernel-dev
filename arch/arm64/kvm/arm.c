@@ -77,6 +77,7 @@ void kvm_arm_grow_twed(struct kvm_vcpu *vcpu)
 	if (twed_dynamic && old < HCR_TWEDEL_MAX) {
 		vcpu->arch.twed_val += 1;
 		vcpu->arch.twed_dirty = true;
+		trace_kvm_twed_update(vcpu->vcpu_id, vcpu->arch.twed_val, old);
 	}
 }
 
@@ -87,6 +88,7 @@ void kvm_arm_shrink_twed(struct kvm_vcpu *vcpu)
 	if (twed_dynamic && old > 0) {
 		vcpu->arch.twed_val -= 1;
 		vcpu->arch.twed_dirty = true;
+		trace_kvm_twed_update(vcpu->vcpu_id, vcpu->arch.twed_val, old);
 	}
 }
 #endif

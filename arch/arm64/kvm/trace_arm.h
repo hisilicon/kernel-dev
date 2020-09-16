@@ -367,6 +367,27 @@ TRACE_EVENT(kvm_timer_emulate,
 		  __entry->timer_idx, __entry->should_fire)
 );
 
+TRACE_EVENT(kvm_twed_update,
+	TP_PROTO(unsigned int vcpu_id, unsigned int new, unsigned int old),
+	TP_ARGS(vcpu_id, new, old),
+
+	TP_STRUCT__entry(
+		__field(	unsigned int,	vcpu_id		)
+		__field(	unsigned int,	new		)
+		__field(	unsigned int,	old		)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id	= vcpu_id;
+		__entry->new		= new;
+		__entry->old		= old;
+	),
+
+	TP_printk("vcpu %u old %u new %u (%s)",
+		  __entry->vcpu_id, __entry->old, __entry->new,
+		  __entry->old < __entry->new ? "grew" : "shrunk")
+);
+
 #endif /* _TRACE_ARM_ARM64_KVM_H */
 
 #undef TRACE_INCLUDE_PATH
