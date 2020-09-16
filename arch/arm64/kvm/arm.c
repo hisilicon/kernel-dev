@@ -59,6 +59,15 @@ static bool vgic_present;
 static DEFINE_PER_CPU(unsigned char, kvm_arm_hardware_enabled);
 DEFINE_STATIC_KEY_FALSE(userspace_irqchip_in_use);
 
+#ifdef CONFIG_ARM64_TWED
+bool twed_enable = true;
+module_param(twed_enable, bool, 0444);
+
+#define KVM_TWED_DEFAULT 0x7
+unsigned char twed_default = KVM_TWED_DEFAULT;
+module_param(twed_default, byte, 0444);
+#endif
+
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
 {
 	return kvm_vcpu_exiting_guest_mode(vcpu) == IN_GUEST_MODE;
@@ -267,6 +276,9 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.hw_mmu = &vcpu->kvm->arch.mmu;
 
+	if (has_twed())
+		vcpu_twed_init(vcpu);
+
 	err = kvm_vgic_vcpu_init(vcpu);
 	if (err)
 		return err;
@@ -348,10 +360,13 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	if (kvm_arm_is_pvtime_enabled(&vcpu->arch))
 		kvm_make_request(KVM_REQ_RECORD_STEAL, vcpu);
 
-	if (single_task_running())
+	if (single_task_running()) {
 		vcpu_clear_wfx_traps(vcpu);
-	else
+	} else {
+		if (has_twed())
+			vcpu_set_twed(vcpu);
 		vcpu_set_wfx_traps(vcpu);
+	}
 
 	if (vcpu_has_ptrauth(vcpu))
 		vcpu_ptrauth_disable(vcpu);

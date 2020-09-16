@@ -372,6 +372,11 @@ struct kvm_vcpu_arch {
 		u64 last_steal;
 		gpa_t base;
 	} steal;
+
+#ifdef CONFIG_ARM64_TWED
+	/* Dynamic WFE trap delay */
+	u8 twed_val;
+#endif
 };
 
 /* Pointer to the vcpu's SVE FFR for sve_{save,load}_state() */
@@ -684,6 +689,16 @@ int kvm_arm_setup_stage2(struct kvm *kvm, unsigned long type);
 
 int kvm_arm_vcpu_finalize(struct kvm_vcpu *vcpu, int feature);
 bool kvm_arm_vcpu_is_finalized(struct kvm_vcpu *vcpu);
+
+#ifdef CONFIG_ARM64_TWED
+#define has_twed()					\
+	(cpus_have_final_cap(ARM64_HAS_TWED) &&		\
+	twed_enable)
+extern bool twed_enable;
+extern unsigned char twed_default;
+#else
+#define has_twed()		false
+#endif
 
 #define kvm_arm_vcpu_sve_finalized(vcpu) \
 	((vcpu)->arch.flags & KVM_ARM64_VCPU_SVE_FINALIZED)

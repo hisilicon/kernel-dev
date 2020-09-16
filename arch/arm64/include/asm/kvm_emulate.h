@@ -102,6 +102,30 @@ static inline void vcpu_set_wfx_traps(struct kvm_vcpu *vcpu)
 	vcpu->arch.hcr_el2 |= HCR_TWI;
 }
 
+#ifdef CONFIG_ARM64_TWED
+#define HCR_TWEDEL_MAX	(UL(0xf))
+static inline void vcpu_twed_init(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.twed_val = (u8)twed_default;
+
+	vcpu->arch.hcr_el2 |= HCR_TWEDEN;
+}
+
+static inline void vcpu_set_twed(struct kvm_vcpu *vcpu)
+{
+	u64 delay = vcpu->arch.twed_val;
+
+	if (delay > HCR_TWEDEL_MAX)
+		delay = HCR_TWEDEL_MAX;
+
+	vcpu->arch.hcr_el2 &= ~HCR_TWEDEL_MASK;
+	vcpu->arch.hcr_el2 |= (delay << HCR_TWEDEL_SHIFT);
+}
+#else
+static inline void vcpu_twed_init(struct kvm_vcpu *vcpu) {};
+static inline void vcpu_set_twed(struct kvm_vcpu *vcpu) {};
+#endif
+
 static inline void vcpu_ptrauth_enable(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.hcr_el2 |= (HCR_API | HCR_APK);

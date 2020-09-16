@@ -1666,6 +1666,18 @@ config ARCH_RANDOM
 
 endmenu
 
+menu "ARMv8.6 architectural features"
+
+config ARM64_TWED
+	bool "Enable suppot for delayed trapping of WFE"
+	default y
+	help
+	  Delayed Trapping of WFE (part of the ARMv8.6 Extensions)
+	  provides a way to configure a delay in taking a trap of
+	  WFE caused by HCR_EL2.TWE.
+
+endmenu
+
 config ARM64_SVE
 	bool "ARM Scalable Vector Extension support"
 	default y

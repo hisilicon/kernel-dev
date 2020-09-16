@@ -12,6 +12,9 @@
 #include <asm/types.h>
 
 /* Hyp Configuration Register (HCR) bits */
+#define HCR_TWEDEL_SHIFT	60
+#define HCR_TWEDEL_MASK		GENMASK_ULL(63, 60)
+#define HCR_TWEDEN	(UL(1) << 59)
 #define HCR_FWB		(UL(1) << 46)
 #define HCR_API		(UL(1) << 41)
 #define HCR_APK		(UL(1) << 40)
