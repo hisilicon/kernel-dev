@@ -198,7 +198,7 @@ static inline int ioasid_attach_data(ioasid_t ioasid, void *data)
 	return -ENOTSUPP;
 }
 
-staic inline int ioasid_attach_spid(ioasid_t ioasid, ioasid_t spid)
+static inline int ioasid_attach_spid(ioasid_t ioasid, ioasid_t spid)
 {
 	return -ENOTSUPP;
 }
