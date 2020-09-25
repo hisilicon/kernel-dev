@@ -953,27 +953,29 @@ int ioasid_get(struct ioasid_set *set, ioasid_t ioasid)
 }
 EXPORT_SYMBOL_GPL(ioasid_get);
 
-void ioasid_put_locked(struct ioasid_set *set, ioasid_t ioasid)
+bool ioasid_put_locked(struct ioasid_set *set, ioasid_t ioasid)
 {
 	struct ioasid_data *data;
 
 	data = xa_load(&active_allocator->xa, ioasid);
 	if (!data) {
 		pr_err("Trying to put unknown IOASID %u\n", ioasid);
-		return;
+		return false;
 	}
 
 	if (set && data->set != set) {
 		pr_err("Trying to drop IOASID not in the set %u\n", ioasid);
-		return;
+		return false;
 	}
 
 	if (!refcount_dec_and_test(&data->users)) {
 		pr_debug("%s: IOASID %d has %d remainning users\n",
 			__func__, ioasid, refcount_read(&data->users));
-		return;
+		return false;
 	}
 	ioasid_do_free(data);
+
+	return true;
 }
 EXPORT_SYMBOL_GPL(ioasid_put_locked);
 
@@ -984,11 +986,15 @@ EXPORT_SYMBOL_GPL(ioasid_put_locked);
  *
  * Check set ownership if @set is non-null.
  */
-void ioasid_put(struct ioasid_set *set, ioasid_t ioasid)
+bool ioasid_put(struct ioasid_set *set, ioasid_t ioasid)
 {
+	bool ret;
+
 	spin_lock(&ioasid_allocator_lock);
-	ioasid_put_locked(set, ioasid);
+	ret = ioasid_put_locked(set, ioasid);
 	spin_unlock(&ioasid_allocator_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(ioasid_put);
 

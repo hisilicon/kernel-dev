@@ -11,7 +11,7 @@ static DEFINE_MUTEX(iommu_sva_lock);
 static struct ioasid_set * iommu_sva_pasid;
 
  /* Returns > 0 on success. */
-int iommu_sva_alloc_ioasid_set(int quota)
+int iommu_sva_alloc_ioasid_set(void)
 {
 	iommu_sva_pasid = ioasid_alloc_set(NULL, PID_MAX_DEFAULT,
 					   IOASID_SET_TYPE_NULL);
@@ -44,7 +44,7 @@ int iommu_sva_alloc_pasid(struct mm_struct *mm, ioasid_t min, ioasid_t max)
 	mutex_lock(&iommu_sva_lock);
 	if (mm->pasid) {
 		if (mm->pasid >= min && mm->pasid <= max)
-			ioasid_get(mm->pasid);
+			ioasid_get(iommu_sva_pasid, mm->pasid);
 		else
 			ret = -EOVERFLOW;
 	} else {
@@ -68,7 +68,7 @@ EXPORT_SYMBOL_GPL(iommu_sva_alloc_pasid);
 void iommu_sva_free_pasid(struct mm_struct *mm)
 {
 	mutex_lock(&iommu_sva_lock);
-	if (ioasid_put(mm->pasid))
+	if (ioasid_put(iommu_sva_pasid, mm->pasid))
 		mm->pasid = 0;
 	mutex_unlock(&iommu_sva_lock);
 }
