@@ -118,7 +118,6 @@ enum iommu_attr {
 	DOMAIN_ATTR_FSL_PAMUV1,
 	DOMAIN_ATTR_NESTING,	/* two stages of translation */
 	DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE,
-	DOMAIN_ATTR_IOASID_SET,
 	DOMAIN_ATTR_MAX,
 };
 
@@ -297,7 +296,8 @@ struct iommu_ops {
 	int (*sva_bind_gpasid)(struct iommu_domain *domain,
 			struct device *dev, struct iommu_gpasid_bind_data *data);
 
-	int (*sva_unbind_gpasid)(struct device *dev, int pasid);
+	int (*sva_unbind_gpasid)(struct iommu_domain *domain,
+				 struct device *dev, u32 pasid);
 
 	int (*def_domain_type)(struct device *dev);
 
@@ -434,7 +434,7 @@ extern int iommu_uapi_sva_bind_gpasid(struct iommu_domain *domain,
 extern int iommu_uapi_sva_unbind_gpasid(struct iommu_domain *domain,
 					struct device *dev, void __user *udata);
 extern int iommu_sva_unbind_gpasid(struct iommu_domain *domain,
-				   struct device *dev, ioasid_t pasid);
+				   struct device *dev, struct iommu_gpasid_bind_data *data);
 extern struct iommu_domain *iommu_get_domain_for_dev(struct device *dev);
 extern struct iommu_domain *iommu_get_dma_domain(struct device *dev);
 extern int iommu_map(struct iommu_domain *domain, unsigned long iova,
@@ -1058,7 +1058,7 @@ static inline int iommu_uapi_sva_unbind_gpasid(struct iommu_domain *domain,
 
 static inline int iommu_sva_unbind_gpasid(struct iommu_domain *domain,
 					  struct device *dev,
-					  ioasid_t pasid)
+					  struct iommu_gpasid_bind_data *data)
 {
 	return -ENODEV;
 }
