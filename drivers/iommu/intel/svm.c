@@ -413,7 +413,6 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 		 */
 		INIT_WORK(&svm->work, intel_svm_free_async_fn);
 		ioasid_attach_data(data->hpasid, svm);
-		ioasid_get(NULL, svm->pasid);
 		INIT_LIST_HEAD_RCU(&svm->devs);
 	}
 	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
