@@ -1053,6 +1053,7 @@ const struct iommu_ops *iort_iommu_configure_id(struct device *dev,
 		fwspec = dev_iommu_fwspec_get(dev);
 		if (fwspec && iort_pci_rc_supports_ats(node))
 			fwspec->flags |= IOMMU_FWSPEC_PCI_RC_ATS;
+		pci_fixup_device(pci_fixup_final, to_pci_dev(dev));
 	} else {
 		node = iort_scan_node(ACPI_IORT_NODE_NAMED_COMPONENT,
 				      iort_match_node_callback, dev);
