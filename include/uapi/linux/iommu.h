@@ -294,6 +294,36 @@ struct iommu_gpasid_bind_data_vtd {
 	__u32 emt;
 };
 
+/**
+ * struct iommu_gpasid_bind_data_smmuv3 - ARM SMMUv3 Stream Table Entry stage 1 related
+ *     information
+ * @version: API version of this structure
+ * @s1cdmax: Max CDs supported by guest
+ * @config: indicates whether the guest translation stage must
+ *          be translated, bypassed or aborted.
+ * @s1fmt: STE s1fmt (format of the CD table: single CD, linear table
+ *         or 2-level table)
+ * @s1dss: STE s1dss (specifies the behavior when @pasid_bits != 0
+ *         and no PASID is passed along with the incoming transaction)
+ * @padding: reserved for future use (should be zero)
+ *
+ * The PASID table is referred to as the Context Descriptor (CD) table on ARM
+ * SMMUv3. Please refer to the ARM SMMU 3.x spec (ARM IHI 0070A) for full
+ * details.
+ */
+struct iommu_gpasid_bind_data_smmuv3 {
+#define PASID_TABLE_SMMUV3_CFG_VERSION_1 1
+	__u32   version;
+	__u16   s1cdmax;
+#define IOMMU_PASID_CONFIG_TRANSLATE    1
+#define IOMMU_PASID_CONFIG_BYPASS       2
+#define IOMMU_PASID_CONFIG_ABORT        3
+	__u8    config;
+	__u8    s1fmt;
+	__u8    s1dss;
+	__u8    padding;
+};
+
 #define IOMMU_SVA_VTD_GPASID_MTS_MASK	(IOMMU_SVA_VTD_GPASID_CD | \
 					 IOMMU_SVA_VTD_GPASID_EMTE | \
 					 IOMMU_SVA_VTD_GPASID_PCD |  \
@@ -301,6 +331,7 @@ struct iommu_gpasid_bind_data_vtd {
 
 enum iommu_pasid_data_format {
 	IOMMU_PASID_FORMAT_INTEL_VTD = 1,
+	IOMMU_PASID_FORMAT_ARM_SMMUV3 = 2,
 	IOMMU_PASID_FORMAT_LAST,
 };
 
@@ -338,6 +369,7 @@ struct iommu_gpasid_bind_data {
 	/* Vendor specific data */
 	union {
 		struct iommu_gpasid_bind_data_vtd vtd;
+		struct iommu_gpasid_bind_data_smmuv3 smmuv3;
 	} vendor;
 };
 

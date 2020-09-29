@@ -3128,6 +3128,92 @@ static int arm_smmu_dev_disable_feature(struct device *dev,
 	}
 }
 
+static int arm_smmu_bind_pasid_table(struct iommu_domain *domain, struct device *dev,
+				       struct iommu_gpasid_bind_data *data)
+{
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+	struct arm_smmu_master *master;
+	struct arm_smmu_device *smmu;
+	struct iommu_gpasid_bind_data_smmuv3 *cfg;
+	unsigned long flags;
+	int ret = -EINVAL;
+
+	if (!data || data->format != IOMMU_PASID_FORMAT_ARM_SMMUV3)
+		return -EINVAL;
+
+	/* IOMMU core ensures argsz is more than the start of the union */
+	if (data->argsz < offsetofend(struct iommu_gpasid_bind_data, vendor.smmuv3))
+		return -EINVAL;
+
+	cfg = &data->vendor.smmuv3;
+
+	if (cfg->version != PASID_TABLE_SMMUV3_CFG_VERSION_1)
+		return -EINVAL;
+
+	mutex_lock(&smmu_domain->init_mutex);
+
+	smmu = smmu_domain->smmu;
+
+	if (!smmu)
+		goto out;
+
+	if (smmu_domain->stage != ARM_SMMU_DOMAIN_NESTED)
+		goto out;
+
+	switch (cfg->config) {
+	case IOMMU_PASID_CONFIG_ABORT:
+		smmu_domain->s1_cfg_valid = false;
+		smmu_domain->abort = true;
+		break;
+	case IOMMU_PASID_CONFIG_BYPASS:
+		smmu_domain->s1_cfg_valid = false;
+		smmu_domain->abort = false;
+		break;
+	case IOMMU_PASID_CONFIG_TRANSLATE:
+		smmu_domain->s1_cfg.cdcfg.cdtab_dma = data->gpgd;
+		smmu_domain->s1_cfg.s1fmt = cfg->s1fmt;
+		smmu_domain->s1_cfg.s1cdmax = cfg->s1cdmax;
+		smmu_domain->abort = false;
+		smmu_domain->s1_cfg_valid = true;
+		break;
+	default:
+		goto out;
+	}
+	spin_lock_irqsave(&smmu_domain->devices_lock, flags);
+	list_for_each_entry(master, &smmu_domain->devices, domain_head)
+		arm_smmu_install_ste_for_dev(master);
+	spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
+	ret = 0;
+out:
+	mutex_unlock(&smmu_domain->init_mutex);
+	return ret;
+}
+
+static int arm_smmu_unbind_pasid_table(struct iommu_domain *domain,
+				       struct device *dev, u32 pasid)
+{
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+	struct arm_smmu_master *master;
+	unsigned long flags;
+
+	mutex_lock(&smmu_domain->init_mutex);
+
+	if (smmu_domain->stage != ARM_SMMU_DOMAIN_NESTED)
+		goto unlock;
+
+	smmu_domain->s1_cfg_valid = false;
+	smmu_domain->abort = true;
+
+	spin_lock_irqsave(&smmu_domain->devices_lock, flags);
+	list_for_each_entry(master, &smmu_domain->devices, domain_head)
+		arm_smmu_install_ste_for_dev(master);
+	spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
+
+unlock:
+	mutex_unlock(&smmu_domain->init_mutex);
+	return 0;
+}
+
 static struct iommu_ops arm_smmu_ops = {
 	.capable		= arm_smmu_capable,
 	.domain_alloc		= arm_smmu_domain_alloc,
@@ -3152,6 +3238,8 @@ static struct iommu_ops arm_smmu_ops = {
 	.dev_disable_feat	= arm_smmu_dev_disable_feature,
 	.sva_bind		= arm_smmu_sva_bind,
 	.sva_unbind		= arm_smmu_sva_unbind,
+	.sva_bind_gpasid	= arm_smmu_bind_pasid_table,
+	.sva_unbind_gpasid	= arm_smmu_unbind_pasid_table,
 	.sva_get_pasid		= arm_smmu_sva_get_pasid,
 	.page_response		= arm_smmu_page_response,
 	.pgsize_bitmap		= -1UL, /* Restricted during device attach */
