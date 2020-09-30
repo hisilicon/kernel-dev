@@ -2811,6 +2811,42 @@ static int vfio_iommu_add_nesting_cap(struct vfio_iommu *iommu,
 	return vfio_info_add_capability(caps, &nesting_cap.header, size);
 }
 
+static int
+vfio_bind_msi(struct vfio_iommu *iommu,
+	      dma_addr_t giova, phys_addr_t gpa, size_t size)
+{
+	struct vfio_domain *d;
+	int ret = 0;
+
+	mutex_lock(&iommu->lock);
+
+	list_for_each_entry(d, &iommu->domain_list, next) {
+		ret = iommu_bind_guest_msi(d->domain, giova, gpa, size);
+		if (ret)
+			goto unwind;
+	}
+	goto unlock;
+unwind:
+	list_for_each_entry_continue_reverse(d, &iommu->domain_list, next) {
+		iommu_unbind_guest_msi(d->domain, giova);
+	}
+unlock:
+	mutex_unlock(&iommu->lock);
+	return ret;
+}
+
+static void
+vfio_unbind_msi(struct vfio_iommu *iommu, dma_addr_t giova)
+{
+	struct vfio_domain *d;
+
+	mutex_lock(&iommu->lock);
+	list_for_each_entry(d, &iommu->domain_list, next) {
+		iommu_unbind_guest_msi(d->domain, giova);
+	}
+	mutex_unlock(&iommu->lock);
+}
+
 static int vfio_iommu_type1_get_info(struct vfio_iommu *iommu,
 				     unsigned long arg)
 {
@@ -3207,6 +3243,29 @@ static long vfio_iommu_type1_nesting_op(struct vfio_iommu *iommu,
 	return ret;
 }
 
+static long vfio_iommu_type1_msi_op(struct vfio_iommu *iommu,
+					unsigned long arg)
+{
+	struct vfio_iommu_type1_set_msi_binding ustruct;
+	unsigned int minsz;
+
+	minsz = offsetofend(struct vfio_iommu_type1_set_msi_binding, size);
+
+	if (copy_from_user(&ustruct, (void __user *)arg, minsz))
+		return -EFAULT;
+
+	if (ustruct.argsz < minsz)
+		return -EINVAL;
+
+	if (ustruct.flags == VFIO_IOMMU_UNBIND_MSI)
+		vfio_unbind_msi(iommu, ustruct.iova);
+	else if (ustruct.flags == VFIO_IOMMU_BIND_MSI)
+		return vfio_bind_msi(iommu, ustruct.iova, ustruct.gpa,
+				     ustruct.size);
+	else
+		return -EINVAL;
+}
+
 static long vfio_iommu_type1_ioctl(void *iommu_data,
 				   unsigned int cmd, unsigned long arg)
 {
@@ -3227,6 +3286,8 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 		return vfio_iommu_type1_pasid_request(iommu, arg);
 	case VFIO_IOMMU_NESTING_OP:
 		return vfio_iommu_type1_nesting_op(iommu, arg);
+	case VFIO_IOMMU_SET_MSI_BINDING:
+		return vfio_iommu_type1_msi_op(iommu, arg);
 	default:
 		return -ENOTTY;
 	}
