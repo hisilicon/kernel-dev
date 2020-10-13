@@ -8,6 +8,8 @@
 #include <linux/fs_context.h>
 #include <linux/jump_label.h>
 
+#include <asm/resctrl.h>
+
 #define MSR_IA32_L3_QOS_CFG		0xc81
 #define MSR_IA32_L2_QOS_CFG		0xc82
 #define MSR_IA32_L3_CBM_BASE		0xc90
