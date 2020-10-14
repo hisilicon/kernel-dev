@@ -533,8 +533,11 @@ void mon_event_read(struct rmid_read *rr, struct rdt_resource *r,
 		    struct rdt_domain *d, struct rdtgroup *rdtgrp,
 		    int evtid, int first)
 {
+	/* When picking a cpu from cpu_mask, ensure it can't race with cpuhp */
+	lockdep_assert_held(&rdtgroup_mutex);
+
 	/*
-	 * setup the parameters to send to the IPI to read the data.
+	 * setup the parameters to pass to mon_event_count() to read the data.
 	 */
 	rr->rgrp = rdtgrp;
 	rr->evtid = evtid;
@@ -543,7 +546,7 @@ void mon_event_read(struct rmid_read *rr, struct rdt_resource *r,
 	rr->val = 0;
 	rr->first = first;
 
-	smp_call_function_any(&d->cpu_mask, mon_event_count, rr, 1);
+	smp_call_on_cpu(cpumask_any(&d->cpu_mask), mon_event_count, rr, false);
 }
 
 int rdtgroup_mondata_show(struct seq_file *m, void *arg)
