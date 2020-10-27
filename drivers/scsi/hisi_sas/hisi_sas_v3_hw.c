@@ -1386,7 +1386,7 @@ static void prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
 	u8 *buf_cmd;
-	int has_data = 0, hdr_tag = 0;
+	int has_data = 0;
 	u32 dw1 = 0, dw2 = 0;
 
 	hdr->dw0 = cpu_to_le32(port->id << CMD_HDR_PORT_OFF);
@@ -1425,8 +1425,8 @@ static void prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 	/* dw2 */
 	if (task->ata_task.use_ncq) {
 		struct ata_queued_cmd *qc = task->uldd_task;
+		int hdr_tag = qc->tag;
 
-		hdr_tag = qc->tag;
 		task->ata_task.fis.sector_count |= (u8) (hdr_tag << 3);
 		dw2 |= hdr_tag << CMD_HDR_NCQ_TAG_OFF;
 	}
