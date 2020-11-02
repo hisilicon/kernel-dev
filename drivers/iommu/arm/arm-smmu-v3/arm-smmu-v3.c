@@ -2660,6 +2660,68 @@ static void arm_smmu_iotlb_sync(struct iommu_domain *domain,
 				      gather->pgsize, true, smmu_domain);
 }
 
+static void arm_smmu_iotlb_sync_user(struct iommu_domain *domain,
+				     void *user_data, size_t data_len)
+{
+	struct iommu_hwpt_invalidate_arm_smmuv3 *inv_info = user_data;
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	struct arm_smmu_cmdq_ent cmd;
+	unsigned long iova = 0;
+	size_t granule_size;
+	size_t size = 0;
+	int ssid = 0;
+
+	if (domain->type != IOMMU_DOMAIN_NESTED || !smmu_domain->s2)
+		return;
+
+	if (!smmu || !inv_info)
+		return;
+
+	if (inv_info && data_len != sizeof(*inv_info))
+		return;
+
+	cmd.opcode = inv_info->opcode;
+	granule_size = inv_info->granule_size;
+
+	switch (inv_info->opcode) {
+	case CMDQ_OP_CFGI_CD:
+	case CMDQ_OP_CFGI_CD_ALL:
+		return arm_smmu_sync_cd(smmu_domain, inv_info->ssid, true);
+	case CMDQ_OP_TLBI_NH_VA:
+		if (!granule_size || !(granule_size & smmu->pgsize_bitmap) ||
+		    granule_size & ~(1ULL << __ffs(granule_size)))
+			return;
+
+		iova = inv_info->range.start;
+		size = inv_info->range.last - inv_info->range.start + 1;
+		if (!size)
+			return;
+
+		cmd.tlbi.asid = inv_info->asid;
+		cmd.tlbi.vmid = smmu_domain->s2->s2_cfg.vmid;
+		cmd.tlbi.leaf = inv_info->flags & IOMMU_SMMUV3_CMDQ_TLBI_VA_LEAF;
+		__arm_smmu_tlb_inv_range(&cmd, iova, size, granule_size, smmu_domain);
+		break;
+	case CMDQ_OP_TLBI_NH_ASID:
+		cmd.tlbi.asid = inv_info->asid;
+		fallthrough;
+	case CMDQ_OP_TLBI_NSNH_ALL:
+		cmd.tlbi.vmid = smmu_domain->s2->s2_cfg.vmid;
+		arm_smmu_cmdq_issue_cmd_with_sync(smmu, &cmd);
+		break;
+	case CMDQ_OP_ATC_INV:
+		ssid = inv_info->ssid;
+		iova = inv_info->range.start;
+		size = inv_info->range.last - inv_info->range.start + 1;
+		break;
+	default:
+		return;
+	}
+
+	arm_smmu_atc_inv_domain(smmu_domain, ssid, iova, size);
+}
+
 static phys_addr_t
 arm_smmu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova)
 {
@@ -3017,6 +3079,7 @@ static struct iommu_ops arm_smmu_ops = {
 		.unmap_pages		= arm_smmu_unmap_pages,
 		.flush_iotlb_all	= arm_smmu_flush_iotlb_all,
 		.iotlb_sync		= arm_smmu_iotlb_sync,
+		.iotlb_sync_user	= arm_smmu_iotlb_sync_user,
 		.iova_to_phys		= arm_smmu_iova_to_phys,
 		.enable_nesting		= arm_smmu_enable_nesting,
 		.free			= arm_smmu_domain_free,
