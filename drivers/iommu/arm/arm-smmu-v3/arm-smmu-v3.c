@@ -2066,35 +2066,6 @@ static void *arm_smmu_hw_info(struct device *dev, u32 *length, u32 *type)
 	return info;
 }
 
-static struct iommu_domain *arm_smmu_domain_alloc(unsigned type)
-{
-	struct arm_smmu_domain *smmu_domain;
-
-	if (type == IOMMU_DOMAIN_SVA)
-		return arm_smmu_sva_domain_alloc();
-
-	if (type != IOMMU_DOMAIN_UNMANAGED &&
-	    type != IOMMU_DOMAIN_DMA &&
-	    type != IOMMU_DOMAIN_IDENTITY)
-		return NULL;
-
-	/*
-	 * Allocate the domain and initialise some of its data structures.
-	 * We can't really do anything meaningful until we've added a
-	 * master.
-	 */
-	smmu_domain = kzalloc(sizeof(*smmu_domain), GFP_KERNEL);
-	if (!smmu_domain)
-		return NULL;
-
-	mutex_init(&smmu_domain->init_mutex);
-	INIT_LIST_HEAD(&smmu_domain->devices);
-	spin_lock_init(&smmu_domain->devices_lock);
-	INIT_LIST_HEAD(&smmu_domain->mmu_notifiers);
-
-	return &smmu_domain->domain;
-}
-
 static int arm_smmu_bitmap_alloc(unsigned long *map, int span)
 {
 	int idx, size = 1 << span;
@@ -2949,10 +2920,107 @@ static void arm_smmu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
 	arm_smmu_sva_remove_dev_pasid(domain, dev, pasid);
 }
 
+/**
+ * __arm_smmu_domain_alloc - Allocate a customizable iommu_domain
+ * @type: Type of the new iommu_domain, in form of IOMMU_DOMAIN_*
+ * @master: Optional master pointer for the allocation. If given, this will be
+ *          used to call arm_smmu_domain_finalise at the end of the allocation.
+ *          Otherwise, arm_smmu_domain_finalise will be done when the domain is
+ *          attached to a device.
+ * @user_cfg: Optional user configuration for the allocation. This allows the
+ *            caller, mainly user space, to customize the iommu_domain in the
+ *            arm_smmu_domain_finalise function that decodes the user_cfg data.
+ *
+ * This helper function is shared by domain_alloc_user() and domain_alloc().
+ * Unlike ops->domain_alloc has been so far only called by the iommu core that
+ * sets default values of domain->type, domain->ops and domain->pgsize_bitmap,
+ * the ops->domain_alloc_user could be directly called by the iommufd core. So,
+ * this function should set those default values for an ops->domain_alloc_user
+ * call. Note that domain->pgsize_bitmap is set in arm_smmu_domain_finalise().
+ */
+static struct iommu_domain *
+__arm_smmu_domain_alloc(unsigned type,
+			struct arm_smmu_master *master,
+			const struct iommu_hwpt_arm_smmuv3 *user_cfg)
+{
+	struct arm_smmu_domain *smmu_domain;
+	struct iommu_domain *domain;
+	int ret = 0;
+
+	if (type == IOMMU_DOMAIN_SVA)
+		return arm_smmu_sva_domain_alloc();
+
+	if (type != IOMMU_DOMAIN_UNMANAGED &&
+	    type != IOMMU_DOMAIN_DMA &&
+	    type != IOMMU_DOMAIN_IDENTITY)
+		return NULL;
+
+	/*
+	 * Allocate the domain and initialise some of its data structures.
+	 * We can't really finalise the domain unless a master is given.
+	 */
+	smmu_domain = kzalloc(sizeof(*smmu_domain), GFP_KERNEL);
+	if (!smmu_domain)
+		return NULL;
+	domain = &smmu_domain->domain;
+
+	domain->type = type;
+	domain->ops = arm_smmu_ops.default_domain_ops;
+
+	mutex_init(&smmu_domain->init_mutex);
+	INIT_LIST_HEAD(&smmu_domain->devices);
+	spin_lock_init(&smmu_domain->devices_lock);
+	INIT_LIST_HEAD(&smmu_domain->mmu_notifiers);
+
+	if (master) {
+		smmu_domain->smmu = master->smmu;
+		ret = arm_smmu_domain_finalise(domain, master, user_cfg);
+		if (ret) {
+			kfree(smmu_domain);
+			return NULL;
+		}
+	}
+
+	return domain;
+}
+
+static struct iommu_domain *arm_smmu_domain_alloc(unsigned type)
+{
+	return __arm_smmu_domain_alloc(type, NULL, NULL);
+}
+
+static struct iommu_domain *
+arm_smmu_domain_alloc_user(struct device *dev, enum iommu_hwpt_type hwpt_type,
+			   struct iommu_domain *parent,
+			   const struct iommu_user_data *user_data)
+{
+	const size_t min_len = offsetofend(struct iommu_hwpt_arm_smmuv3, out_event_uptr);
+	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
+	struct iommu_hwpt_arm_smmuv3 data, *user_cfg = NULL;
+	unsigned type = IOMMU_DOMAIN_UNMANAGED;
+
+	if (hwpt_type != IOMMU_HWPT_TYPE_DEFAULT &&
+	    hwpt_type != IOMMU_HWPT_TYPE_ARM_SMMUV3)
+		return ERR_PTR(-EINVAL);
+	if (hwpt_type == IOMMU_HWPT_TYPE_DEFAULT && user_data)
+		return ERR_PTR(-EINVAL);
+
+	if (user_data) {
+		int ret = iommu_copy_user_data(&data, user_data,
+					       sizeof(data), min_len);
+		if (ret)
+			return ERR_PTR(ret);
+		user_cfg = &data;
+	}
+
+	return __arm_smmu_domain_alloc(type, master, user_cfg);
+}
+
 static struct iommu_ops arm_smmu_ops = {
 	.capable		= arm_smmu_capable,
 	.hw_info		= arm_smmu_hw_info,
 	.domain_alloc		= arm_smmu_domain_alloc,
+	.domain_alloc_user	= arm_smmu_domain_alloc_user,
 	.probe_device		= arm_smmu_probe_device,
 	.release_device		= arm_smmu_release_device,
 	.set_dev_user_data	= arm_smmu_set_dev_user_data,
