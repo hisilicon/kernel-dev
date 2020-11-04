@@ -2,10 +2,13 @@
 #include <linux/compat.h>
 #include <linux/dma-mapping.h>
 #include <linux/iommu.h>
+#include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/uacce.h>
+
+#define UACCE_MAX_PIN_PAGE		(SZ_1G / PAGE_SIZE)
 
 static struct class *uacce_class;
 static dev_t uacce_devt;
@@ -14,6 +17,16 @@ static DEFINE_XARRAY_ALLOC(uacce_xa);
 
 static bool uacce_nosva;
 module_param(uacce_nosva, bool, 0444);
+
+struct uacce_pin_container {
+	struct xarray array;
+};
+
+struct pin_pages {
+	unsigned long first;
+	unsigned long nr_pages;
+	struct page **pages;
+};
 
 static int uacce_start_queue(struct uacce_queue *q)
 {
@@ -600,6 +613,167 @@ void uacce_remove(struct uacce_device *uacce)
 }
 EXPORT_SYMBOL_GPL(uacce_remove);
 
+
+int uacce_ctrl_open(struct inode *inode, struct file *file)
+{
+	struct uacce_pin_container *p;
+
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+	file->private_data = p;
+
+	xa_init(&p->array);
+
+	return 0;
+}
+
+int uacce_ctrl_release(struct inode *inode, struct file *file)
+{
+	struct uacce_pin_container *priv = file->private_data;
+	struct pin_pages *p;
+	unsigned long idx;
+
+	xa_for_each(&priv->array, idx, p) {
+		unpin_user_pages(p->pages, p->nr_pages);
+		xa_erase(&priv->array, p->first);
+		kfree(p->pages);
+		kfree(p);
+	}
+
+	xa_destroy(&priv->array);
+	kfree(priv);
+
+	return 0;
+}
+
+static int uacce_pin_page(struct uacce_pin_container *priv,
+			  struct uacce_pin_address *addr)
+{
+	unsigned int flags = FOLL_FORCE | FOLL_WRITE;
+	unsigned long first, last, nr_pages;
+	struct page **pages;
+	struct pin_pages *p;
+	int ret;
+
+	first = (addr->addr & PAGE_MASK) >> PAGE_SHIFT;
+	last = ((addr->addr + addr->size - 1) & PAGE_MASK) >> PAGE_SHIFT;
+	nr_pages = last - first + 1;
+
+	pages = kmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		return -ENOMEM;
+
+	p = kzalloc(sizeof(struct pin_pages), GFP_KERNEL);
+	if (!p) {
+		ret = -ENOMEM;
+		goto free;
+	}
+
+	ret = pin_user_pages(addr->addr & PAGE_MASK, nr_pages,
+			     flags | FOLL_LONGTERM, pages, NULL);
+	if (ret != nr_pages) {
+		pr_err("uacce: Failed to pin page\n");
+		goto free_p;
+	}
+	p->first = first;
+	p->nr_pages = nr_pages;
+	p->pages = pages;
+
+	ret = xa_err(xa_store(&priv->array, p->first, p, GFP_KERNEL));
+	if (ret)
+		goto unpin_pages;
+
+	return 0;
+
+unpin_pages:
+	unpin_user_pages(pages, nr_pages);
+free_p:
+	kfree(p);
+free:
+	kfree(pages);
+	return ret;
+}
+
+static int uacce_unpin_page(struct uacce_pin_container *priv,
+			    struct uacce_pin_address *addr)
+{
+	unsigned long first, last, nr_pages;
+	struct pin_pages *p;
+
+	first = (addr->addr & PAGE_MASK) >> PAGE_SHIFT;
+	last = ((addr->addr + addr->size - 1) & PAGE_MASK) >> PAGE_SHIFT;
+	nr_pages = last - first + 1;
+
+	/* find pin_pages */
+	p = xa_load(&priv->array, first);
+	if (!p)
+		return -ENODEV;
+
+	if (p->nr_pages != nr_pages)
+		return -EINVAL;
+
+	/* unpin */
+	unpin_user_pages(p->pages, p->nr_pages);
+
+	/* release resource */
+	xa_erase(&priv->array, first);
+	kfree(p->pages);
+	kfree(p);
+
+	return 0;
+}
+
+static int uacce_pin_check_param(struct uacce_pin_address *addr)
+{
+	if (addr->size > UACCE_MAX_PIN_PAGE * PAGE_SIZE)
+		return -EINVAL;
+
+	return 0;
+}
+
+static long uacce_ctrl_unl_ioctl(struct file *filep, unsigned int cmd,
+				 unsigned long arg)
+{
+	struct uacce_pin_container *p = filep->private_data;
+	struct uacce_pin_address addr;
+	int ret;
+
+	if (copy_from_user(&addr, (void __user *)arg,
+			   sizeof(struct uacce_pin_address)))
+		return -EFAULT;
+
+	ret = uacce_pin_check_param(&addr);
+	if (ret) {
+		pr_err("uacce: Invalid pin input\n");
+		return -EINVAL;
+	}
+
+	switch (cmd) {
+	case UACCE_CMD_PIN:
+		return uacce_pin_page(p, &addr);
+
+	case UACCE_CMD_UNPIN:
+		return uacce_unpin_page(p, &addr);
+
+	default:
+		return -EINVAL;
+	}
+}
+
+const struct file_operations uacce_ctrl_fops = {
+	.owner = THIS_MODULE,
+	.open = uacce_ctrl_open,
+	.release = uacce_ctrl_release,
+	.unlocked_ioctl	= uacce_ctrl_unl_ioctl,
+};
+
+static struct miscdevice uacce_ctrl_miscdev = {
+	.name = "uacce_ctrl",
+	.minor = MISC_DYNAMIC_MINOR,
+	.fops = &uacce_ctrl_fops,
+};
+
 static int __init uacce_init(void)
 {
 	int ret;
@@ -610,13 +784,26 @@ static int __init uacce_init(void)
 
 	ret = alloc_chrdev_region(&uacce_devt, 0, MINORMASK, UACCE_NAME);
 	if (ret)
-		class_destroy(uacce_class);
+		goto destroy_class;
 
+	ret = misc_register(&uacce_ctrl_miscdev);
+	if (ret) {
+		pr_err("uacce: Pin misc registration failed\n");
+		goto unregister_cdev;
+	}
+
+	return 0;
+
+unregister_cdev:
+	unregister_chrdev_region(uacce_devt, MINORMASK);
+destroy_class:
+	class_destroy(uacce_class);
 	return ret;
 }
 
 static __exit void uacce_exit(void)
 {
+	misc_deregister(&uacce_ctrl_miscdev);
 	unregister_chrdev_region(uacce_devt, MINORMASK);
 	class_destroy(uacce_class);
 }
