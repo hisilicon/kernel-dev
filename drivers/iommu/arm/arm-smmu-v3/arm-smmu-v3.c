@@ -2999,9 +2999,19 @@ arm_smmu_cache_invalidate(struct iommu_domain *domain, struct device *dev,
 		} else {
 			return -EINVAL;
 		}
-	}
-	if (inv_info->cache & IOMMU_CACHE_INV_TYPE_PASID ||
-	    inv_info->cache & IOMMU_CACHE_INV_TYPE_DEV_IOTLB) {
+	} else if (inv_info->cache & IOMMU_CACHE_INV_TYPE_PASID) {
+		if (inv_info->granularity == IOMMU_INV_GRANU_PASID) {
+			struct iommu_inv_pasid_info *info =
+				&inv_info->granu.pasid_info;
+
+			if (!(info->flags & IOMMU_INV_PASID_FLAGS_PASID))
+				return -EINVAL;
+
+			arm_smmu_sync_cd(smmu_domain, info->pasid, true);
+		} else {
+			return -ENOENT;
+		}
+	} else { /* IOMMU_CACHE_INV_TYPE_DEV_IOTLB */
 		return -ENOENT;
 	}
 	return 0;
