@@ -619,6 +619,9 @@ static void qm_cq_head_update(struct hisi_qp *qp)
 static void qm_poll_qp(struct hisi_qp *qp, struct hisi_qm *qm)
 {
 	if (qp->event_cb) {
+		spin_lock(&qp->qp_lock);
+		qp->qp_status.updated = true;
+		spin_unlock(&qp->qp_lock);
 		qp->event_cb(qp);
 		return;
 	}
@@ -754,9 +757,11 @@ static void qm_init_qp_status(struct hisi_qp *qp)
 {
 	struct hisi_qp_status *qp_status = &qp->qp_status;
 
+	spin_lock_init(&qp->qp_lock);
 	qp_status->sq_tail = 0;
 	qp_status->cq_head = 0;
 	qp_status->cqc_phase = true;
+	qp_status->updated = false;
 	atomic_set(&qp_status->used, 0);
 }
 
@@ -2154,8 +2159,22 @@ static long hisi_qm_uacce_ioctl(struct uacce_queue *q, unsigned int cmd,
 	return 0;
 }
 
+static int hisi_qm_is_q_updated(struct uacce_queue *q)
+{
+	struct hisi_qp *qp = q->priv;
+	bool updated;
+
+	spin_lock(&qp->qp_lock);
+	updated = qp->qp_status.updated;
+	qp->qp_status.updated = false;
+	spin_unlock(&qp->qp_lock);
+
+	return updated;
+}
+
 static const struct uacce_ops uacce_qm_ops = {
 	.get_available_instances = hisi_qm_get_available_instances,
+	.is_q_updated = hisi_qm_is_q_updated,
 	.get_queue = hisi_qm_uacce_get_queue,
 	.put_queue = hisi_qm_uacce_put_queue,
 	.start_queue = hisi_qm_uacce_start_queue,
