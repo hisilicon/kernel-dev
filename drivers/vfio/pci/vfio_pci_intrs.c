@@ -643,7 +643,7 @@ static int vfio_pci_set_ext_irq_trigger(struct vfio_pci_device *vdev,
 {
 	int i;
 
-	if (start != 0 || count > 1)
+	if (start != 0 || count > 1 || !vdev->num_ext_irqs)
 		return -EINVAL;
 
 	index = array_index_nospec(index,
