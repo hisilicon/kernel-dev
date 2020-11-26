@@ -435,7 +435,7 @@ bool arm_smmu_sva_supported(struct arm_smmu_device *smmu)
 
 static bool arm_smmu_iopf_supported(struct arm_smmu_master *master)
 {
-	return false;
+	return master->stall_enabled;
 }
 
 bool arm_smmu_master_sva_supported(struct arm_smmu_master *master)
@@ -459,23 +459,45 @@ bool arm_smmu_master_sva_enabled(struct arm_smmu_master *master)
 
 int arm_smmu_master_enable_sva(struct arm_smmu_master *master)
 {
+	int ret;
+	struct device *dev = master->dev;
+
+	if (master->stall_enabled) {
+		ret = iopf_queue_add_device(master->smmu->evtq.iopf, dev);
+		if (ret)
+			return ret;
+	}
+
+	ret = iommu_register_device_fault_handler(dev, iommu_queue_iopf, dev);
+	if (ret)
+		goto err_disable_iopf;
+
 	mutex_lock(&sva_lock);
 	master->sva_enabled = true;
 	mutex_unlock(&sva_lock);
 
 	return 0;
+
+err_disable_iopf:
+	iopf_queue_remove_device(master->smmu->evtq.iopf, dev);
+	return ret;
 }
 
 int arm_smmu_master_disable_sva(struct arm_smmu_master *master)
 {
+	struct device *dev = master->dev;
+
 	mutex_lock(&sva_lock);
 	if (!list_empty(&master->bonds)) {
-		dev_err(master->dev, "cannot disable SVA, device is bound\n");
+		dev_err(dev, "cannot disable SVA, device is bound\n");
 		mutex_unlock(&sva_lock);
 		return -EBUSY;
 	}
 	master->sva_enabled = false;
 	mutex_unlock(&sva_lock);
+
+	iommu_unregister_device_fault_handler(dev);
+	iopf_queue_remove_device(master->smmu->evtq.iopf, dev);
 
 	return 0;
 }

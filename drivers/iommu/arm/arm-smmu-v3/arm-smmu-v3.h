@@ -156,26 +156,6 @@
 #define ARM_SMMU_PRIQ_IRQ_CFG1		0xd8
 #define ARM_SMMU_PRIQ_IRQ_CFG2		0xdc
 
-/* Events */
-#define ARM_SMMU_EVT_F_UUT		0x01
-#define ARM_SMMU_EVT_C_BAD_STREAMID	0x02
-#define ARM_SMMU_EVT_F_STE_FETCH	0x03
-#define ARM_SMMU_EVT_C_BAD_STE		0x04
-#define ARM_SMMU_EVT_F_BAD_ATS_TREQ	0x05
-#define ARM_SMMU_EVT_F_STREAM_DISABLED	0x06
-#define ARM_SMMU_EVT_F_TRANSL_FORBIDDEN	0x07
-#define ARM_SMMU_EVT_C_BAD_SUBSTREAMID	0x08
-#define ARM_SMMU_EVT_F_CD_FETCH		0x09
-#define ARM_SMMU_EVT_C_BAD_CD		0x0a
-#define ARM_SMMU_EVT_F_WALK_EABT	0x0b
-#define ARM_SMMU_EVT_F_TRANSLATION	0x10
-#define ARM_SMMU_EVT_F_ADDR_SIZE	0x11
-#define ARM_SMMU_EVT_F_ACCESS		0x12
-#define ARM_SMMU_EVT_F_PERMISSION	0x13
-#define ARM_SMMU_EVT_F_TLB_CONFLICT	0x20
-#define ARM_SMMU_EVT_F_CFG_CONFLICT	0x21
-#define ARM_SMMU_EVT_E_PAGE_REQUEST	0x24
-
 #define ARM_SMMU_REG_SZ			0xe00
 
 /* Common MSI config fields */
@@ -382,6 +362,13 @@
 #define CMDQ_PRI_1_GRPID		GENMASK_ULL(8, 0)
 #define CMDQ_PRI_1_RESP			GENMASK_ULL(13, 12)
 
+#define CMDQ_RESUME_0_SID		GENMASK_ULL(63, 32)
+#define CMDQ_RESUME_0_RESP_TERM		0UL
+#define CMDQ_RESUME_0_RESP_RETRY	1UL
+#define CMDQ_RESUME_0_RESP_ABORT	2UL
+#define CMDQ_RESUME_0_RESP		GENMASK_ULL(13, 12)
+#define CMDQ_RESUME_1_STAG		GENMASK_ULL(15, 0)
+
 #define CMDQ_SYNC_0_CS			GENMASK_ULL(13, 12)
 #define CMDQ_SYNC_0_CS_NONE		0
 #define CMDQ_SYNC_0_CS_IRQ		1
@@ -397,15 +384,25 @@
 #define EVTQ_MAX_SZ_SHIFT		(Q_MAX_SZ_SHIFT - EVTQ_ENT_SZ_SHIFT)
 
 #define EVTQ_0_ID			GENMASK_ULL(7, 0)
-#define EVTQ_0_SSV			GENMASK_ULL(11, 11)
-#define EVTQ_0_SUBSTREAMID		GENMASK_ULL(31, 12)
-#define EVTQ_0_STREAMID			GENMASK_ULL(63, 32)
-#define EVTQ_1_PNU			GENMASK_ULL(33, 33)
-#define EVTQ_1_IND			GENMASK_ULL(34, 34)
-#define EVTQ_1_RNW			GENMASK_ULL(35, 35)
-#define EVTQ_1_S2			GENMASK_ULL(39, 39)
-#define EVTQ_1_CLASS			GENMASK_ULL(40, 41)
-#define EVTQ_3_FETCH_ADDR		GENMASK_ULL(51, 3)
+
+#define EVT_ID_TRANSLATION_FAULT	0x10
+#define EVT_ID_ADDR_SIZE_FAULT		0x11
+#define EVT_ID_ACCESS_FAULT		0x12
+#define EVT_ID_PERMISSION_FAULT		0x13
+
+#define EVTQ_0_SSV			(1UL << 11)
+#define EVTQ_0_SSID			GENMASK_ULL(31, 12)
+#define EVTQ_0_SID			GENMASK_ULL(63, 32)
+#define EVTQ_1_STAG			GENMASK_ULL(15, 0)
+#define EVTQ_1_STALL			(1UL << 31)
+#define EVTQ_1_PRIV			(1UL << 33)
+#define EVTQ_1_EXEC			(1UL << 34)
+#define EVTQ_1_READ			(1UL << 35)
+#define EVTQ_1_S2			(1UL << 39)
+#define EVTQ_1_CLASS			GENMASK_ULL(41, 40)
+#define EVTQ_1_TT_READ			(1UL << 44)
+#define EVTQ_2_ADDR			GENMASK_ULL(63, 0)
+#define EVTQ_3_IPA			GENMASK_ULL(51, 12)
 
 /* PRI queue */
 #define PRIQ_ENT_SZ_SHIFT		4
@@ -501,6 +498,13 @@ struct arm_smmu_cmdq_ent {
 			enum pri_resp		resp;
 		} pri;
 
+		#define CMDQ_OP_RESUME		0x44
+		struct {
+			u32			sid;
+			u16			stag;
+			u8			resp;
+		} resume;
+
 		#define CMDQ_OP_CMD_SYNC	0x46
 		struct {
 			u64			msiaddr;
@@ -559,6 +563,7 @@ struct arm_smmu_cmdq_batch {
 
 struct arm_smmu_evtq {
 	struct arm_smmu_queue		q;
+	struct iopf_queue		*iopf;
 	u32				max_stalls;
 };
 
@@ -700,6 +705,7 @@ struct arm_smmu_master {
 	struct arm_smmu_stream		*streams;
 	unsigned int			num_streams;
 	bool				ats_enabled;
+	bool				stall_enabled;
 	bool				sva_enabled;
 	struct list_head		bonds;
 	unsigned int			ssid_bits;
@@ -719,6 +725,7 @@ struct arm_smmu_domain {
 
 	struct io_pgtable_ops		*pgtbl_ops;
 	bool				non_strict;
+	bool				stall_enabled;
 	atomic_t			nr_ats_masters;
 
 	enum arm_smmu_domain_stage	stage;
@@ -738,57 +745,6 @@ static inline struct arm_smmu_domain *to_smmu_domain(struct iommu_domain *dom)
 {
 	return container_of(dom, struct arm_smmu_domain, domain);
 }
-
-/* fault propagation */
-struct arm_smmu_fault_propagation_data {
-	enum iommu_fault_reason reason;
-	bool s1_check;
-	u32 fields; /* IOMMU_FAULT_UNRECOV_*_VALID bits */
-};
-
-/*
- * Describes how SMMU faults translate into generic IOMMU faults
- * and if they need to be reported externally
- */
-static const struct arm_smmu_fault_propagation_data fault_propagation[] = {
-[ARM_SMMU_EVT_F_UUT]			= { },
-[ARM_SMMU_EVT_C_BAD_STREAMID]		= { },
-[ARM_SMMU_EVT_F_STE_FETCH]		= { },
-[ARM_SMMU_EVT_C_BAD_STE]		= { },
-[ARM_SMMU_EVT_F_BAD_ATS_TREQ]		= { },
-[ARM_SMMU_EVT_F_STREAM_DISABLED]	= { },
-[ARM_SMMU_EVT_F_TRANSL_FORBIDDEN]	= { },
-[ARM_SMMU_EVT_C_BAD_SUBSTREAMID]	= {IOMMU_FAULT_REASON_PASID_INVALID,
-					   false,
-					   IOMMU_FAULT_UNRECOV_PASID_VALID
-					  },
-[ARM_SMMU_EVT_F_CD_FETCH]		= {IOMMU_FAULT_REASON_PASID_FETCH,
-					   false,
-					   IOMMU_FAULT_UNRECOV_FETCH_ADDR_VALID
-					  },
-[ARM_SMMU_EVT_C_BAD_CD]			= {IOMMU_FAULT_REASON_BAD_PASID_ENTRY,
-					   false,
-					  },
-[ARM_SMMU_EVT_F_WALK_EABT]		= {IOMMU_FAULT_REASON_WALK_EABT, true,
-					   IOMMU_FAULT_UNRECOV_ADDR_VALID |
-					   IOMMU_FAULT_UNRECOV_FETCH_ADDR_VALID
-					  },
-[ARM_SMMU_EVT_F_TRANSLATION]		= {IOMMU_FAULT_REASON_PTE_FETCH, true,
-					   IOMMU_FAULT_UNRECOV_ADDR_VALID
-					  },
-[ARM_SMMU_EVT_F_ADDR_SIZE]		= {IOMMU_FAULT_REASON_OOR_ADDRESS, true,
-					   IOMMU_FAULT_UNRECOV_ADDR_VALID
-					  },
-[ARM_SMMU_EVT_F_ACCESS]			= {IOMMU_FAULT_REASON_ACCESS, true,
-					   IOMMU_FAULT_UNRECOV_ADDR_VALID
-					  },
-[ARM_SMMU_EVT_F_PERMISSION]		= {IOMMU_FAULT_REASON_PERMISSION, true,
-					   IOMMU_FAULT_UNRECOV_ADDR_VALID
-					  },
-[ARM_SMMU_EVT_F_TLB_CONFLICT]		= { },
-[ARM_SMMU_EVT_F_CFG_CONFLICT]		= { },
-[ARM_SMMU_EVT_E_PAGE_REQUEST]		= { },
-};
 
 extern struct xarray arm_smmu_asid_xa;
 extern struct mutex arm_smmu_asid_lock;
