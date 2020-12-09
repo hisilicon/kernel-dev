@@ -1308,11 +1308,11 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_master *master, u32 sid,
 			 * legacy (2d stage only) or true nested mode
 			 */
 			s2_cfg->set = true;
+			nested = true;
 			break;
 		default:
 			break;
 		}
-		nested = s1_cfg->set && s2_cfg->set;
 		translate = s1_cfg->set || s2_cfg->set;
 	}
 
