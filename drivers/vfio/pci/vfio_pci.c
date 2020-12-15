@@ -482,15 +482,14 @@ unlock:
 
 #define DMA_FAULT_RING_LENGTH 512
 
-static int vfio_pci_dma_fault_init(struct vfio_pci_device *vdev)
+static int vfio_pci_dma_fault_init(struct vfio_pci_device *vdev,
+				   struct iommu_domain *domain)
 {
 	struct vfio_region_dma_fault *header;
-	struct iommu_domain *domain;
 	size_t size;
 	bool nested;
 	int ret;
 
-	domain = iommu_get_domain_for_dev(&vdev->pdev->dev);
 	ret = iommu_domain_get_attr(domain, DOMAIN_ATTR_NESTING, &nested);
 	if (ret || !nested)
 		return ret;
@@ -570,15 +569,14 @@ static void dma_response_inject(struct work_struct *work)
 
 #define DMA_FAULT_RESPONSE_RING_LENGTH 512
 
-static int vfio_pci_dma_fault_response_init(struct vfio_pci_device *vdev)
+static int vfio_pci_dma_fault_response_init(struct vfio_pci_device *vdev,
+					    struct iommu_domain *domain)
 {
 	struct vfio_region_dma_fault_response *header;
-	struct iommu_domain *domain;
 	size_t size;
 	bool nested;
 	int ret;
 
-	domain = iommu_get_domain_for_dev(&vdev->pdev->dev);
 	ret = iommu_domain_get_attr(domain, DOMAIN_ATTR_NESTING, &nested);
 	if (ret || !nested)
 		return ret;
@@ -634,6 +632,7 @@ out:
 static int vfio_pci_enable(struct vfio_pci_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
+	struct iommu_domain *domain;
 	int ret;
 	u16 cmd;
 	u8 msix_pos;
@@ -642,7 +641,6 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 
 	/* Don't allow our initial saved state to include busmaster */
 	pci_clear_master(pdev);
-
 	ret = pci_enable_device(pdev);
 	if (ret)
 		return ret;
@@ -729,13 +727,17 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 		}
 	}
 
-	ret = vfio_pci_dma_fault_init(vdev);
-	if (ret)
-		goto disable_exit;
+	/* Avoid dma fault handle init for noiommu case */
+	domain = iommu_get_domain_for_dev(&pdev->dev);
+	if (domain) {
+		ret = vfio_pci_dma_fault_init(vdev, domain);
+		if (ret)
+			goto disable_exit;
 
-	ret = vfio_pci_dma_fault_response_init(vdev);
-	if (ret)
-		goto disable_exit;
+		ret = vfio_pci_dma_fault_response_init(vdev, domain);
+		if (ret)
+			goto disable_exit;
+	}
 
 	vfio_pci_probe_mmaps(vdev);
 
@@ -751,7 +753,7 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 	struct pci_dev *pdev = vdev->pdev;
 	struct vfio_pci_dummy_resource *dummy_res, *tmp;
 	struct vfio_pci_ioeventfd *ioeventfd, *ioeventfd_tmp;
-	int i, bar;
+	int i, bar, ret;
 
 	/* Stop the device from further DMA */
 	pci_clear_master(pdev);
@@ -760,7 +762,8 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 				VFIO_IRQ_SET_ACTION_TRIGGER,
 				vdev->irq_type, 0, 0, NULL);
 
-	WARN_ON(iommu_unregister_device_fault_handler(&vdev->pdev->dev));
+	ret = iommu_unregister_device_fault_handler(&vdev->pdev->dev);
+	WARN_ON(ret == -EBUSY);
 
 	for (i = 0; i < vdev->num_ext_irqs; i++)
 		vfio_pci_set_irqs_ioctl(vdev, VFIO_IRQ_SET_DATA_NONE |
