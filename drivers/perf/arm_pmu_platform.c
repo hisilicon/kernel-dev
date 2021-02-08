@@ -44,20 +44,32 @@ static int probe_current_pmu(struct arm_pmu *pmu,
 
 static int pmu_parse_percpu_irq(struct arm_pmu *pmu, int irq)
 {
-	int cpu, ret;
+//	int cpu, ret;
+	int cpu;
 	struct pmu_hw_events __percpu *hw_events = pmu->hw_events;
 	struct platform_device	*pdev = pmu->plat_device;
-
+	static int count = 0;
 	dev_err(&pdev->dev, "%s0 supported_cpus=%*pbl\n", __func__, cpumask_pr_args(&pmu->supported_cpus));
+	
 
-	ret = irq_get_percpu_devid_partition(irq, &pmu->supported_cpus);
-	if (ret)
-		return ret;
+//	ret = irq_get_percpu_devid_partition(irq, &pmu->supported_cpus);
+//	if (ret)
+//		return ret;
+
+	for_each_possible_cpu(cpu) {
+		if (count == 0 && cpu < 32)
+			cpumask_set_cpu(cpu, &pmu->supported_cpus);
+		if (count == 1 && cpu >= 32)
+			cpumask_set_cpu(cpu, &pmu->supported_cpus);
+	}
+		
 
 	dev_err(&pdev->dev, "%s1 supported_cpus=%*pbl\n", __func__, cpumask_pr_args(&pmu->supported_cpus));
-
+	
 	for_each_cpu(cpu, &pmu->supported_cpus)
 		per_cpu(hw_events->irq, cpu) = irq;
+
+	count++;
 
 	return 0;
 }
