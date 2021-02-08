@@ -99,7 +99,12 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 	struct platform_device *pdev = pmu->plat_device;
 	struct pmu_hw_events __percpu *hw_events = pmu->hw_events;
 
+
 	num_irqs = platform_irq_count(pdev);
+
+	dev_err(&pdev->dev, "%s pmu=%pS num_iqs=%d\n", 
+		__func__, pmu, num_irqs);
+
 	if (num_irqs < 0) {
 		pr_err("unable to count PMU IRQs\n");
 		return num_irqs;
@@ -118,8 +123,15 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 
 	if (num_irqs == 1) {
 		int irq = platform_get_irq(pdev, 0);
-		if (irq && irq_is_percpu_devid(irq))
+		
+		dev_err(&pdev->dev, "%s1 pmu=%pS num_iqs=%d\n", 
+			__func__, pmu, num_irqs);
+		if (irq && irq_is_percpu_devid(irq)) {
+			
+			dev_err(&pdev->dev, "%s2 pmu=%pS num_iqs=%d\n", 
+				__func__, pmu, num_irqs);
 			return pmu_parse_percpu_irq(pmu, irq);
+			}
 	}
 
 	if (nr_cpu_ids != 1 && !pmu_has_irq_affinity(pdev->dev.of_node)) {
@@ -129,6 +141,9 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 
 	for (i = 0; i < num_irqs; i++) {
 		int cpu, irq;
+		
+		dev_err(&pdev->dev, "%s3 pmu=%pS num_iqs=%d i=%d\n", 
+			__func__, pmu, num_irqs, i);
 
 		irq = platform_get_irq(pdev, i);
 		if (WARN_ON(irq <= 0))
