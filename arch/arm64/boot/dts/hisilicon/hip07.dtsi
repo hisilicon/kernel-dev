@@ -999,7 +999,7 @@
 	};
 
 	pmu_1 {
-		compatible = "arm,cortex-a72-pmu";
+		compatible = "arm,cortex-a57-pmu";
 		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-affinity = <&cpu4>,
 				     <&cpu5>,
