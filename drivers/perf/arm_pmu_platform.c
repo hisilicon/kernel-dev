@@ -46,10 +46,15 @@ static int pmu_parse_percpu_irq(struct arm_pmu *pmu, int irq)
 {
 	int cpu, ret;
 	struct pmu_hw_events __percpu *hw_events = pmu->hw_events;
+	struct platform_device	*pdev = pmu->plat_device;
+
+	dev_err(&pdev->dev, "%s0 supported_cpus=%*pbl\n", __func__, cpumask_pr_args(&pmu->supported_cpus));
 
 	ret = irq_get_percpu_devid_partition(irq, &pmu->supported_cpus);
 	if (ret)
 		return ret;
+
+	dev_err(&pdev->dev, "%s1 supported_cpus=%*pbl\n", __func__, cpumask_pr_args(&pmu->supported_cpus));
 
 	for_each_cpu(cpu, &pmu->supported_cpus)
 		per_cpu(hw_events->irq, cpu) = irq;
