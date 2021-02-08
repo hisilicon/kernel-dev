@@ -146,6 +146,8 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 			__func__, pmu, num_irqs, i);
 
 		irq = platform_get_irq(pdev, i);
+			dev_err(&pdev->dev, "%s3 pmu=%pS num_iqs=%d i=%d irq=%d\n", 
+				__func__, pmu, num_irqs, i, irq);
 		if (WARN_ON(irq <= 0))
 			continue;
 
@@ -155,6 +157,8 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 		}
 
 		cpu = pmu_parse_irq_affinity(pdev->dev.of_node, i);
+			dev_err(&pdev->dev, "%s4 pmu=%pS num_iqs=%d i=%d irq=%d cpu=%d\n", 
+				__func__, pmu, num_irqs, i, irq, cpu);
 		if (cpu < 0)
 			return cpu;
 		if (cpu >= nr_cpu_ids)
@@ -164,6 +168,9 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 			pr_warn("multiple PMU IRQs for the same CPU detected\n");
 			return -EINVAL;
 		}
+		
+		dev_err(&pdev->dev, "%s5 pmu=%pS num_iqs=%d i=%d irq=%d cpu=%d\n", 
+			__func__, pmu, num_irqs, i, irq, cpu);
 
 		per_cpu(hw_events->irq, cpu) = irq;
 		cpumask_set_cpu(cpu, &pmu->supported_cpus);
