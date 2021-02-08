@@ -191,15 +191,20 @@ static struct arm_pmu *arm_pmu_acpi_find_alloc_pmu(void)
 	struct arm_pmu *pmu;
 	int cpu;
 
+	pr_err("%s cpuid=0x%lx current=%d\n", __func__, cpuid, smp_processor_id());
+
 	for_each_possible_cpu(cpu) {
 		pmu = per_cpu(probed_pmus, cpu);
 		if (!pmu || pmu->acpi_cpuid != cpuid)
 			continue;
+		
+		pr_err("%s1 cpuid=0x%lx current=%d pmu=%pS\n", __func__, cpuid, smp_processor_id(), pmu);
 
 		return pmu;
 	}
 
 	pmu = armpmu_alloc_atomic();
+	pr_err("%s2 cpuid=0x%lx current=%d pmu=%pS\n", __func__, cpuid, smp_processor_id(), pmu);
 	if (!pmu) {
 		pr_warn("Unable to allocate PMU for CPU%d\n",
 			smp_processor_id());
