@@ -11,7 +11,7 @@
         "PublicDescription": "Bad Speculation L1 topdown metric",
         "BriefDescription": "Bad Speculation L1 topdown metric",
         "MetricGroup": "TopDownL1",
-        "MetricName": "badspeculation"
+        "MetricName": "bad_speculation"
     },
     {
         "MetricExpr": "(INST_SPEC - INST_RETIRED)/ (cycles * 4)",
@@ -19,5 +19,40 @@
         "BriefDescription": "Retiring L1 topdown metric",
         "MetricGroup": "TopDownL1",
         "MetricName": "retiring"
+    },
+    {
+        "MetricExpr": "armv8_pmuv3_0@event\\=0x201d@ / cycles",
+        "PublicDescription": "Fetch latency bound L2 topdown metric",
+        "BriefDescription": "Fetch latency bound L2 topdown metric",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "fetch_latency_bound"
+    },
+    {
+        "MetricExpr": "frontend_bound - fetch_latency_bound",
+        "PublicDescription": "Fetch bandwidth bound L2 topdown metric",
+        "BriefDescription": "Fetch bandwidth bound L2 topdown metric",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "fetch_bandwidth_bound"
+    },
+    {
+        "MetricExpr": "(bad_speculation * BR_MIS_PRED)/ (cycles * armv8_pmuv3_0@event\\=0x2013@)",
+        "PublicDescription": "Retiring L2 topdown metric",
+        "BriefDescription": "Retiring L2 topdown metric",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "branch_mispredicts"
+    },
+    {
+        "MetricExpr": "((armv8_pmuv3_0@event\\=0x30@ - armv8_pmuv3_0@event\\=0x2e@ * 15) + (armv8_pmuv3_0@event\\=0x2e@ * 100)) / cycles",
+        "PublicDescription": "Idle by itlb miss L3 topdown metric",
+        "BriefDescription": "Idle by itlb miss L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "idle_by_itlb_miss"
+    },
+    {
+        "MetricExpr": "((armv8_pmuv3_0@event\\=0x27@ - armv8_pmuv3_0@event\\=0x28@ * 15) + (armv8_pmuv3_0@event\\=0x28@ * 100)) / cycles",
+        "PublicDescription": "Idle by icache miss L3 topdown metric",
+        "BriefDescription": "Idle by icache miss L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "idle_by_icache_miss"
     },
 ]
