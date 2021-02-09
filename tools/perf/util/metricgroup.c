@@ -25,6 +25,7 @@
 #include "util.h"
 #include <asm/bug.h>
 #include "cgroup.h"
+#include "cpumap.h"
 
 struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 					 struct evsel *evsel,
@@ -618,12 +619,13 @@ static int metricgroup__print_sys_event_iter(struct pmu_event *pe, void *data)
 void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 			bool raw, bool details)
 {
-	struct pmu_events_map *map = perf_pmu__find_map(NULL);
 	struct pmu_event *pe;
 	int i;
 	struct rblist groups;
 	struct rb_node *node, *next;
 	struct strlist *metriclist = NULL;
+
+	struct perf_pmu *pmu = NULL;
 
 	if (!metricgroups) {
 		metriclist = strlist__new(NULL, NULL);
@@ -635,19 +637,35 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 	groups.node_new = mep_new;
 	groups.node_cmp = mep_cmp;
 	groups.node_delete = mep_delete;
-	for (i = 0; map; i++) {
-		pe = &map->table[i];
+	while ((pmu = perf_pmu__scan(pmu))) {
+		char buf[100];
 
-		if (!pe->name && !pe->metric_group && !pe->metric_name)
-			break;
-		if (!pe->metric_expr)
+		struct pmu_events_map *map;
+		struct pmu_events_map *map1 = perf_pmu__find_map(NULL);
+
+		if (!is_pmu_core(pmu->name))
 			continue;
-		if (metricgroup__print_pmu_event(pe, metricgroups, filter,
-						 raw, details, &groups,
-						 metriclist) < 0)
-			return;
-	}
+		map = perf_pmu__find_map(pmu);
+		pr_err("%s pmu=%p name=%s map=%p map1=%p pmu->cpus=%p\n", __func__, pmu, pmu->name, map, map1, pmu->cpus);
+		if (pmu->cpus) {
+			cpu_map__snprint(pmu->cpus, buf, sizeof(buf));
+			pr_err("%s2 pmu=%p name=%s map=%p map1=%p pmu->cpus=%p buf=%s\n",
+				__func__, pmu, pmu->name, map, map1, pmu->cpus, buf);
+		}
+		for (i = 0; map; i++) {
+			pe = &map->table[i];
 
+			if (!pe->name && !pe->metric_group && !pe->metric_name)
+				break;
+			if (!pe->metric_expr)
+				continue;
+			if (metricgroup__print_pmu_event(pe, metricgroups, filter,
+							 raw, details, &groups,
+							 metriclist) < 0)
+				return;
+		}
+	}
+	
 	{
 		struct metricgroup_iter_data data = {
 			.fn = metricgroup__print_sys_event_iter,
