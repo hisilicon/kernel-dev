@@ -1,0 +1,9 @@
+[
+    {
+        "MetricExpr": "L1D_CACHE_RD * L1D_CACHE_WR",
+        "PublicDescription": "test a72 metric",
+        "BriefDescription": "test a72 metric",
+        "MetricGroup": "",
+        "MetricName": "test_a72_metric"
+    }
+]
