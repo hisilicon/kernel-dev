@@ -1,0 +1,9 @@
+[
+    {
+        "MetricExpr": "armv8_pmuv3_0@event\\=0x2014@ / (4 * cycles)",
+        "PublicDescription": "Frontend bound L1 topdown metric",
+        "BriefDescription": "Frontend bound L1 topdown metric",
+        "MetricGroup": "TopDownL1",
+        "MetricName": "frontend_bound"
+    }
+]
