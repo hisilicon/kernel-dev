@@ -516,6 +516,8 @@ static int metricgroup__print_pmu_event(struct pmu_event *pe,
 	const char *g;
 	char *omg, *mg;
 
+	pr_err("%s pe=%p metric_name=%s\n", __func__, pe, pe->metric_name);
+
 	g = pe->metric_group;
 	if (!g && pe->metric_name) {
 		if (pe->name)
