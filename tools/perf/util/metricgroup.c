@@ -1115,23 +1115,33 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	LIST_HEAD(list);
 	int i, ret;
 	bool has_match = false;
+	struct perf_pmu *pmu = NULL;
 
-	map_for_each_metric(pe, i, map, metric) {
-		has_match = true;
-		m = NULL;
+	while ((pmu = perf_pmu__scan(pmu))) {
 
-		ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
-		if (ret)
-			goto out;
+		if (!is_pmu_core(pmu->name))
+			continue;
+		map = perf_pmu__find_map(pmu);
+		if (!map)
+			continue;
 
-		/*
-		 * Process any possible referenced metrics
-		 * included in the expression.
-		 */
-		ret = resolve_metric(metric_no_group,
-				     &list, map, &ids);
-		if (ret)
-			goto out;
+		map_for_each_metric(pe, i, map, metric) {
+			has_match = true;
+			m = NULL;
+
+			ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
+			if (ret)
+				goto out;
+
+			/*
+			 * Process any possible referenced metrics
+			 * included in the expression.
+			 */
+			ret = resolve_metric(metric_no_group,
+					     &list, map, &ids);
+			if (ret)
+				goto out;
+		}
 	}
 
 	{
