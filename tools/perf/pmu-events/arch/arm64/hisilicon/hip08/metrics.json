@@ -5,5 +5,19 @@
         "BriefDescription": "Frontend bound L1 topdown metric",
         "MetricGroup": "TopDownL1",
         "MetricName": "frontend_bound"
-    }
+    },
+    {
+        "MetricExpr": "armv8_pmuv3_0@event\\=0x201d@ / (cycles * 4)",
+        "PublicDescription": "Bad Speculation L1 topdown metric",
+        "BriefDescription": "Bad Speculation L1 topdown metric",
+        "MetricGroup": "TopDownL1",
+        "MetricName": "badspeculation"
+    },
+    {
+        "MetricExpr": "(INST_SPEC - INST_RETIRED)/ (cycles * 4)",
+        "PublicDescription": "Retiring L1 topdown metric",
+        "BriefDescription": "Retiring L1 topdown metric",
+        "MetricGroup": "TopDownL1",
+        "MetricName": "retiring"
+    },
 ]
