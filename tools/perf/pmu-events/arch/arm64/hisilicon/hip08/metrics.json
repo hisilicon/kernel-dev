@@ -55,4 +55,32 @@
         "MetricGroup": "TopDownL3",
         "MetricName": "idle_by_icache_miss"
     },
+    {
+        "MetricExpr": "(armv8_pmuv3_0@event\\=0x30@ - armv8_pmuv3_0@event\\=0x2e@)",
+        "PublicDescription": "L1 TLB L4 topdown metric",
+        "BriefDescription": "L1 TLB L4 topdown metric",
+        "MetricGroup": "TopDownL4",
+        "MetricName": "l1_tlb"
+    },
+    {
+        "MetricExpr": "(armv8_pmuv3_0@event\\=0x2e@)",
+        "PublicDescription": "L2 TLB L4 topdown metric",
+        "BriefDescription": "L2 TLB L4 topdown metric",
+        "MetricGroup": "TopDownL4",
+        "MetricName": "l2_tlb"
+    },
+    {
+        "MetricExpr": "(armv8_pmuv3_0@event\\=0x2e@)",
+        "PublicDescription": "L1 MISS L4 topdown metric",
+        "BriefDescription": "L1 MISS L4 topdown metric",
+        "MetricGroup": "TopDownL4",
+        "MetricName": "l1_miss"
+    },
+    {
+        "MetricExpr": "(armv8_pmuv3_0@event\\=0x27@ - armv8_pmuv3_0@event\\=0x28@)",
+        "PublicDescription": "L2 MISS L4 topdown metric",
+        "BriefDescription": "L2 MISS L4 topdown metric",
+        "MetricGroup": "TopDownL4",
+        "MetricName": "l2_miss"
+    },
 ]
