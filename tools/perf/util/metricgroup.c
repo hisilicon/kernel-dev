@@ -1115,33 +1115,23 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	LIST_HEAD(list);
 	int i, ret;
 	bool has_match = false;
-	struct perf_pmu *pmu = NULL;
 
-	while ((pmu = perf_pmu__scan(pmu))) {
+	map_for_each_metric(pe, i, map, metric) {
+		has_match = true;
+		m = NULL;
 
-		if (!is_pmu_core(pmu->name))
-			continue;
-		map = perf_pmu__find_map(pmu);
-		if (!map)
-			continue;
+		ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
+		if (ret)
+			goto out;
 
-		map_for_each_metric(pe, i, map, metric) {
-			has_match = true;
-			m = NULL;
-
-			ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
-			if (ret)
-				goto out;
-
-			/*
-			 * Process any possible referenced metrics
-			 * included in the expression.
-			 */
-			ret = resolve_metric(metric_no_group,
-					     &list, map, &ids);
-			if (ret)
-				goto out;
-		}
+		/*
+		 * Process any possible referenced metrics
+		 * included in the expression.
+		 */
+		ret = resolve_metric(metric_no_group,
+				     &list, map, &ids);
+		if (ret)
+			goto out;
 	}
 
 	{
@@ -1283,11 +1273,22 @@ int metricgroup__parse_groups(const struct option *opt,
 			      struct rblist *metric_events)
 {
 	struct evlist *perf_evlist = *(struct evlist **)opt->value;
-	struct pmu_events_map *map = perf_pmu__find_map(NULL);
+	struct perf_pmu *pmu = NULL;
 
+	while ((pmu = perf_pmu__scan(pmu))) {
+		struct pmu_events_map *map;
+		int ret;
 
-	return parse_groups(perf_evlist, str, metric_no_group,
+		if (!is_pmu_core(pmu->name))
+			continue;
+		map = perf_pmu__find_map(pmu);
+
+		ret = parse_groups(perf_evlist, str, metric_no_group,
 			    metric_no_merge, NULL, metric_events, map);
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
 int metricgroup__parse_groups_test(struct evlist *evlist,
