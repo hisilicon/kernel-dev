@@ -876,6 +876,18 @@ struct vfio_device *vfio_device_get_from_dev(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(vfio_device_get_from_dev);
 
+struct kvm *vfio_kvm_get_from_dev(struct device *dev)
+{
+	struct vfio_group *group;
+
+	group = vfio_group_get_from_dev(dev);
+	if (!group)
+		return NULL;
+
+	return group->kvm;
+}
+EXPORT_SYMBOL_GPL(vfio_kvm_get_from_dev);
+
 static struct vfio_device *vfio_device_get_from_name(struct vfio_group *group,
 						     char *buf)
 {
