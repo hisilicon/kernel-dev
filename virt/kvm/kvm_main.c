@@ -51,6 +51,7 @@
 #include <linux/io.h>
 #include <linux/lockdep.h>
 #include <linux/kthread.h>
+#include <linux/vfio.h>
 
 #include <asm/processor.h>
 #include <asm/ioctl.h>
@@ -2848,6 +2849,30 @@ bool kvm_vcpu_wake_up(struct kvm_vcpu *vcpu)
 	return false;
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_wake_up);
+
+int kvm_pinned_vmid_get(struct device *dev)
+{
+	struct kvm *kvm;
+
+	kvm = vfio_kvm_get_from_dev(dev);
+	if (!kvm)
+		return -EINVAL;
+
+	return kvm_arch_pinned_vmid_get(kvm);
+}
+EXPORT_SYMBOL_GPL(kvm_pinned_vmid_get);
+
+int kvm_pinned_vmid_put(struct device *dev)
+{
+	struct kvm *kvm;
+
+	kvm = vfio_kvm_get_from_dev(dev);
+	if (!kvm)
+		return -EINVAL;
+
+	return kvm_arch_pinned_vmid_put(kvm);
+}
+EXPORT_SYMBOL_GPL(kvm_pinned_vmid_put);
 
 #ifndef CONFIG_S390
 /*

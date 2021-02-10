@@ -836,6 +836,8 @@ bool kvm_vcpu_wake_up(struct kvm_vcpu *vcpu);
 void kvm_vcpu_kick(struct kvm_vcpu *vcpu);
 int kvm_vcpu_yield_to(struct kvm_vcpu *target);
 void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu, bool usermode_vcpu_not_eligible);
+int kvm_pinned_vmid_get(struct device *dev);
+int kvm_pinned_vmid_put(struct device *dev);
 
 void kvm_flush_remote_tlbs(struct kvm *kvm);
 void kvm_reload_remote_mmus(struct kvm *kvm);
@@ -1477,5 +1479,20 @@ static inline void kvm_handle_signal_exit(struct kvm_vcpu *vcpu)
 	vcpu->stat.signal_exits++;
 }
 #endif /* CONFIG_KVM_XFER_TO_GUEST_WORK */
+
+#ifdef CONFIG_HAVE_KVM_PINNED_VMID
+int kvm_arch_pinned_vmid_get(struct kvm *kvm);
+int kvm_arch_pinned_vmid_put(struct kvm *kvm);
+#else
+static inline int kvm_arch_pinned_vmid_get(struct kvm *kvm)
+{
+	return -EINVAL;
+}
+
+static inline int kvm_arch_pinned_vmid_put(struct kvm *kvm)
+{
+	return -EINVAL;
+}
+#endif
 
 #endif
