@@ -704,6 +704,9 @@ struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu)
 		return NULL;
 
 	pr_err("%s cpuid=%s pmu name=%s\n", __func__, cpuid, pmu->name);
+	if (!strcmp(pmu->name, "armv8_pmuv3_1"))
+		cpuid = (char *)"0x00000000410fd030";
+	pr_err("%s1 cpuid=%s pmu name=%s\n", __func__, cpuid, pmu->name);
 
 	i = 0;
 	for (;;) {
@@ -716,7 +719,7 @@ struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu)
 		if (!strcmp_cpuid_str(map->cpuid, cpuid))
 			break;
 	}
-	free(cpuid);
+	//free(cpuid);
 	return map;
 }
 
