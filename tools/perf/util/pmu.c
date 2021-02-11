@@ -696,11 +696,14 @@ struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu)
 	char *cpuid = perf_pmu__getcpuid(pmu);
 	int i;
 
+
 	/* on some platforms which uses cpus map, cpuid can be NULL for
 	 * PMUs other than CORE PMUs.
 	 */
 	if (!cpuid)
 		return NULL;
+
+	pr_err("%s cpuid=%s pmu name=%s\n", __func__, cpuid, pmu->name);
 
 	i = 0;
 	for (;;) {
