@@ -1,12 +1,5 @@
 [
     {
-        "MetricExpr": "L1D_CACHE_RD * L1D_CACHE_REFILL_RD",
-        "PublicDescription": "test a72 metric",
-        "BriefDescription": "test a72 metric",
-        "MetricGroup": "",
-        "MetricName": "test_a72_metric"
-    },
-    {
         "MetricExpr": "EXC_IRQ * BUS_ACCESS_WR",
         "PublicDescription": "test a72_a53 metric",
         "BriefDescription": "test a72_a53 metric",
