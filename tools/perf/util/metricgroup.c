@@ -1115,14 +1115,20 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	LIST_HEAD(list);
 	int i, ret;
 	bool has_match = false;
+	
+	pr_err("%s metric=%s map=%p\n", __func__, metric, map);
 
 	map_for_each_metric(pe, i, map, metric) {
 		has_match = true;
 		m = NULL;
+		
+		pr_err("%s1 metric=%s pe name=%s map=%p\n", __func__, metric, pe->name, map);
 
 		ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
-		if (ret)
+		if (ret) {
+			pr_err("%s4 err ret=%d metric=%s pe name=%s map=%p\n", __func__, ret, metric, pe->name, map);
 			goto out;
+		}
 
 		/*
 		 * Process any possible referenced metrics
@@ -1130,8 +1136,10 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		 */
 		ret = resolve_metric(metric_no_group,
 				     &list, map, &ids);
-		if (ret)
+		if (ret) {
+			pr_err("%s5 err ret=%d metric=%s pe name=%s map=%p\n", __func__, ret, metric, pe->name, map);
 			goto out;
+		}
 	}
 
 	{
