@@ -5,5 +5,12 @@
         "BriefDescription": "test a72 metric",
         "MetricGroup": "",
         "MetricName": "test_a72_metric"
+    },
+    {
+        "MetricExpr": "L1D_CACHE_RD * L1D_CACHE_WR",
+        "PublicDescription": "test a72 metric2",
+        "BriefDescription": "test a72 metric2",
+        "MetricGroup": "",
+        "MetricName": "test_a72_metric2"
     }
 ]
