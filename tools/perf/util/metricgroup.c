@@ -1116,13 +1116,13 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	int i, ret;
 	bool has_match = false;
 	
-	pr_err("%s metric=%s map=%p\n", __func__, metric, map);
+	pr_debug2("%s metric=%s map=%p\n", __func__, metric, map);
 
 	map_for_each_metric(pe, i, map, metric) {
 		has_match = true;
 		m = NULL;
 		
-		pr_err("%s1 metric=%s pe name=%s map=%p\n", __func__, metric, pe->name, map);
+		pr_debug2("%s1 metric=%s pe name=%s map=%p\n", __func__, metric, pe->name, map);
 
 		ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
 		if (ret) {
