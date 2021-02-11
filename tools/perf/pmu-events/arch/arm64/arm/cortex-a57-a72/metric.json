@@ -1,6 +1,6 @@
 [
     {
-        "MetricExpr": "L1D_CACHE_RD * L1D_CACHE_WR",
+        "MetricExpr": "L1D_CACHE_RD * L1D_CACHE_REFILL_RD",
         "PublicDescription": "test a72 metric",
         "BriefDescription": "test a72 metric",
         "MetricGroup": "",
