@@ -222,7 +222,7 @@ static bool cpus_map_matched(struct evsel *a, struct evsel *b)
 		if (a->core.cpus->map[i] != b->core.cpus->map[i]) {
 			pr_err("%s3 a (name=%s, pmu_name=%s) b (name=%s, pmu_name=%s) i=%d a map[i]=%d b map[i]=%d\n"
 				, __func__, a->name, a->pmu_name, b->name, b->pmu_name, i, a->core.cpus->map[i], b->core.cpus->map[i]);
-			return false;
+			return true;
 		}
 	}
 
