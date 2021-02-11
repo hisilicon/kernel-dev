@@ -705,11 +705,11 @@ struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu)
 
 //	pr_err("%s cpuid=%s pmu name=%s\n", __func__, cpuid, pmu->name);
 	if (!strcmp(pmu->name, "armv8_pmuv3_1")) {
-		static int count12;
-		if (count12 == 0)
-			pr_err("%s1 cpuid=0x00000000410fd030 pmu name=%s chnaged from %s\n", __func__, pmu->name, cpuid);
-		cpuid = (char *)"0x00000000410fd030";
-		count12++;
+//		static int count12;
+//		if (count12 == 0)
+//			pr_err("%s1 cpuid=0x00000000410fd030 pmu name=%s chnaged from %s\n", __func__, pmu->name, cpuid);
+//		cpuid = (char *)"0x00000000410fd030";
+//		count12++;
 	}
 //	pr_err("%s1 cpuid=%s pmu name=%s\n", __func__, cpuid, pmu->name);
 
