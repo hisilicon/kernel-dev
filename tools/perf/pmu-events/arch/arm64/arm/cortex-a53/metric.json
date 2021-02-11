@@ -1,6 +1,6 @@
 [
     {
-        "MetricExpr": "EXC_IRQ * BUS_ACCESS_WR",
+        "MetricExpr": "BUS_ACCESS_RD * BUS_ACCESS_WR",
         "PublicDescription": "test a72_a53 metric",
         "BriefDescription": "test a72_a53 metric",
         "MetricGroup": "",
