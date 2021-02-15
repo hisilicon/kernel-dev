@@ -2718,6 +2718,8 @@ err_out:
 	return NULL;
 }
 
+struct device *hisi_sas_dev;
+
 static int hisi_sas_interrupt_preinit(struct hisi_hba *hisi_hba)
 {
 	if (hisi_hba->hw->interrupt_preinit)
@@ -2735,6 +2737,8 @@ int hisi_sas_probe(struct platform_device *pdev,
 	struct asd_sas_port **arr_port;
 	struct sas_ha_struct *sha;
 	int rc, phy_nr, port_nr, i;
+	
+	hisi_sas_dev = dev;
 
 	shost = hisi_sas_shost_alloc(pdev, hw);
 	if (!shost)

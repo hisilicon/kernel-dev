@@ -109,7 +109,7 @@ extern void arm_smmu_cmdq_zero_cmpxchg(void);
 extern u64 arm_smmu_cmdq_get_tries(void);
 extern u64 arm_smmu_cmdq_get_cmpxcgh_fails(void);
 
-
+extern struct device *hisi_sas_dev;
 void smmu_test_core(int cpus)
 {
 	struct task_struct *tsk;
@@ -129,8 +129,11 @@ void smmu_test_core(int cpus)
 		}
 	}
 
+	if (!dev)
+		dev = hisi_sas_dev;
 	if (!dev) {
 		pr_err("%s could not find dev\n", __func__);
+		return;
 	}
 
 
