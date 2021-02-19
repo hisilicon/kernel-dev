@@ -308,7 +308,7 @@ static const struct kernel_param_ops sec_uacce_mode_ops = {
  * uacce_mode = 0 means sec only register to crypto,
  * uacce_mode = 1 means sec both register to crypto and uacce.
  */
-static u32 uacce_mode = UACCE_MODE_NOUACCE;
+static u32 uacce_mode = IS_ENABLED(CONFIG_CRYPTO_DEV_HISI_DEFAULT_UACCE_ON);
 module_param_cb(uacce_mode, &sec_uacce_mode_ops, &uacce_mode, 0444);
 MODULE_PARM_DESC(uacce_mode, UACCE_MODE_DESC);
 

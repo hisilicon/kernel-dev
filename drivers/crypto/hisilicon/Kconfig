@@ -48,6 +48,14 @@ config CRYPTO_DEV_HISI_QM
 	  HiSilicon accelerator engines use a common queue management
 	  interface. Specific engine driver may use this module.
 
+config CRYPTO_DEV_HISI_DEFAULT_UACCE_ON
+	bool "Enable uacce by default"
+	depends on UACCE
+	help
+	  Default to enabling uacce support for the accelerator drivers.
+	  When n, uacce is disabled by default, and can be enabled with the
+	  uacce_mode module parameter.
+
 config CRYPTO_DEV_HISI_ZIP
 	tristate "Support for HiSilicon ZIP accelerator"
 	depends on PCI && PCI_MSI
