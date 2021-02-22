@@ -25,6 +25,7 @@
 #include <asm/fpsimd.h>
 #include <asm/kvm.h>
 #include <asm/kvm_asm.h>
+#include <linux/refcount.h>
 #include <asm/thread_info.h>
 
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
@@ -65,6 +66,7 @@ struct kvm_vmid {
 	/* The VMID generation used for the virt. memory system */
 	u64    vmid_gen;
 	u32    vmid;
+	refcount_t   pinned;
 };
 
 struct kvm_s2_mmu {

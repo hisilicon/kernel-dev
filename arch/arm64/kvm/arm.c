@@ -56,6 +56,19 @@ static atomic64_t kvm_vmid_gen = ATOMIC64_INIT(1);
 static u32 kvm_next_vmid;
 static DEFINE_SPINLOCK(kvm_vmid_lock);
 
+static bool kvm_pinned_vmid_enable;
+
+static int __init early_pinned_vmid_enable(char *buf)
+{
+	return strtobool(buf, &kvm_pinned_vmid_enable);
+}
+
+early_param("kvm-arm.pinned_vmid_enable", early_pinned_vmid_enable);
+
+static DEFINE_IDA(kvm_pinned_vmids);
+static u32 kvm_pinned_vmid_start;
+static u32 kvm_pinned_vmid_end;
+
 static bool vgic_present;
 
 static DEFINE_PER_CPU(unsigned char, kvm_arm_hardware_enabled);
@@ -475,6 +488,10 @@ void force_vm_exit(const cpumask_t *mask)
 static bool need_new_vmid_gen(struct kvm_vmid *vmid)
 {
 	u64 current_vmid_gen = atomic64_read(&kvm_vmid_gen);
+
+	if (refcount_read(&vmid->pinned))
+		return false;
+
 	smp_rmb(); /* Orders read of kvm_vmid_gen and kvm->arch.vmid */
 	return unlikely(READ_ONCE(vmid->vmid_gen) != current_vmid_gen);
 }
@@ -485,6 +502,8 @@ static bool need_new_vmid_gen(struct kvm_vmid *vmid)
  */
 static void update_vmid(struct kvm_vmid *vmid)
 {
+	unsigned int vmid_bits;
+
 	if (!need_new_vmid_gen(vmid))
 		return;
 
@@ -521,7 +540,12 @@ static void update_vmid(struct kvm_vmid *vmid)
 
 	vmid->vmid = kvm_next_vmid;
 	kvm_next_vmid++;
-	kvm_next_vmid &= (1 << kvm_get_vmid_bits()) - 1;
+	if (kvm_pinned_vmid_enable)
+		vmid_bits = kvm_get_vmid_bits() - 1;
+	else
+		vmid_bits = kvm_get_vmid_bits();
+
+	kvm_next_vmid &= (1 << vmid_bits) - 1;
 
 	smp_wmb();
 	WRITE_ONCE(vmid->vmid_gen, atomic64_read(&kvm_vmid_gen));
@@ -567,6 +591,71 @@ static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 	ret = kvm_arm_pmu_v3_enable(vcpu);
 
 	return ret;
+}
+
+int kvm_arch_pinned_vmid_get(struct kvm *kvm)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vmid *kvm_vmid;
+	int ret;
+
+	if (!kvm_pinned_vmid_enable || !atomic_read(&kvm->online_vcpus))
+		return -EINVAL;
+
+	vcpu = kvm_get_vcpu(kvm, 0);
+	if (!vcpu)
+		return -EINVAL;
+
+	kvm_vmid = &vcpu->arch.hw_mmu->vmid;
+
+	spin_lock(&kvm_vmid_lock);
+
+	if (refcount_inc_not_zero(&kvm_vmid->pinned)) {
+		spin_unlock(&kvm_vmid_lock);
+		return kvm_vmid->vmid;
+	}
+
+	ret = ida_alloc_range(&kvm_pinned_vmids, kvm_pinned_vmid_start,
+			      kvm_pinned_vmid_end, GFP_KERNEL);
+	if (ret < 0) {
+		spin_unlock(&kvm_vmid_lock);
+		return ret;
+	}
+
+	force_vm_exit(cpu_all_mask);
+	kvm_call_hyp(__kvm_flush_vm_context);
+
+	kvm_vmid->vmid = (u32)ret;
+	refcount_set(&kvm_vmid->pinned, 1);
+	spin_unlock(&kvm_vmid_lock);
+
+	return ret;
+}
+
+int kvm_arch_pinned_vmid_put(struct kvm *kvm)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vmid *kvm_vmid;
+
+	if (!kvm_pinned_vmid_enable)
+		return -EINVAL;
+
+	vcpu = kvm_get_vcpu(kvm, 0);
+	if (!vcpu)
+		return -EINVAL;
+
+	kvm_vmid = &vcpu->arch.hw_mmu->vmid;
+
+	spin_lock(&kvm_vmid_lock);
+
+	if (!refcount_read(&kvm_vmid->pinned))
+		goto out;
+
+	if (refcount_dec_and_test(&kvm_vmid->pinned))
+		ida_free(&kvm_pinned_vmids, kvm_vmid->vmid);
+out:
+	spin_unlock(&kvm_vmid_lock);
+	return 0;
 }
 
 bool kvm_arch_intc_initialized(struct kvm *kvm)
@@ -1680,6 +1769,16 @@ static void check_kvm_target_cpu(void *ret)
 	*(int *)ret = kvm_target_cpu();
 }
 
+static void kvm_arm_pinned_vmid_init(void)
+{
+	unsigned int vmid_bits = kvm_get_vmid_bits();
+
+	kvm_pinned_vmid_start = (1 << (vmid_bits - 1));
+	kvm_pinned_vmid_end = (1 << vmid_bits) - 1;
+
+	kvm_info("Pinned VMID[0x%x - 0x%x] enabled\n", kvm_pinned_vmid_start, kvm_pinned_vmid_end);
+}
+
 struct kvm_vcpu *kvm_mpidr_to_vcpu(struct kvm *kvm, unsigned long mpidr)
 {
 	struct kvm_vcpu *vcpu;
@@ -1789,6 +1888,9 @@ int kvm_arch_init(void *opaque)
 		kvm_info("VHE mode initialized successfully\n");
 	else
 		kvm_info("Hyp mode initialized successfully\n");
+
+	if (kvm_pinned_vmid_enable)
+		kvm_arm_pinned_vmid_init();
 
 	return 0;
 
