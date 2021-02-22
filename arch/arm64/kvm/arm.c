@@ -181,8 +181,16 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_vgic_destroy(kvm);
 
 	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-		if (kvm->vcpus[i]) {
-			kvm_vcpu_destroy(kvm->vcpus[i]);
+		struct kvm_vcpu *vcpu = kvm->vcpus[i];
+
+		if (vcpu) {
+			struct kvm_vmid *vmid = &vcpu->arch.hw_mmu->vmid;
+
+			if (refcount_read(&vmid->pinned)) {
+				ida_free(&kvm_pinned_vmids, vmid->vmid);
+				refcount_set(&vmid->pinned, 0);
+			}
+			kvm_vcpu_destroy(vcpu);
 			kvm->vcpus[i] = NULL;
 		}
 	}
