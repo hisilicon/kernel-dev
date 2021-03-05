@@ -62,8 +62,8 @@ static void handle_host_hcall(unsigned long func_id,
 	case KVM_HOST_SMCCC_FUNC(__kvm_enable_ssbs):
 		__kvm_enable_ssbs();
 		break;
-	case KVM_HOST_SMCCC_FUNC(__vgic_v3_get_ich_vtr_el2):
-		ret = __vgic_v3_get_ich_vtr_el2();
+	case KVM_HOST_SMCCC_FUNC(__vgic_v3_get_gic_config):
+		ret = __vgic_v3_get_gic_config();
 		break;
 	case KVM_HOST_SMCCC_FUNC(__vgic_v3_read_vmcr):
 		ret = __vgic_v3_read_vmcr();
