@@ -356,7 +356,7 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 
 	if (pdev->vendor == PCI_VENDOR_ID_NVIDIA &&
 	    IS_ENABLED(CONFIG_VFIO_PCI_NVLINK2)) {
-		ret = vfio_pci_nvdia_v100_nvlink2_init(vdev);
+		ret = vfio_pci_nvidia_v100_nvlink2_init(vdev);
 		if (ret && ret != -ENODEV) {
 			pci_warn(pdev, "Failed to setup NVIDIA NV2 RAM region\n");
 			goto disable_exit;

@@ -62,37 +62,12 @@ TRACE_EVENT(vfio_pci_nvgpu_mmap,
 			__entry->ua, __entry->size, __entry->ret)
 );
 
-TRACE_EVENT(vfio_pci_npu2_mmap,
-	TP_PROTO(struct pci_dev *pdev, unsigned long hpa, unsigned long ua,
-			unsigned long size, int ret),
-	TP_ARGS(pdev, hpa, ua, size, ret),
-
-	TP_STRUCT__entry(
-		__field(const char *, name)
-		__field(unsigned long, hpa)
-		__field(unsigned long, ua)
-		__field(unsigned long, size)
-		__field(int, ret)
-	),
-
-	TP_fast_assign(
-		__entry->name = dev_name(&pdev->dev),
-		__entry->hpa = hpa;
-		__entry->ua = ua;
-		__entry->size = size;
-		__entry->ret = ret;
-	),
-
-	TP_printk("%s: %lx -> %lx size=%lx ret=%d", __entry->name, __entry->hpa,
-			__entry->ua, __entry->size, __entry->ret)
-);
-
 #endif /* _TRACE_VFIO_PCI_H */
 
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH ../../drivers/vfio/pci
 #undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_FILE trace
+#define TRACE_INCLUDE_FILE nvlink2gpu_trace
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>

@@ -205,10 +205,10 @@ static inline int vfio_pci_igd_init(struct vfio_pci_core_device *vdev)
 }
 #endif
 #ifdef CONFIG_VFIO_PCI_NVLINK2
-extern int vfio_pci_nvdia_v100_nvlink2_init(struct vfio_pci_core_device *vdev);
+extern int vfio_pci_nvidia_v100_nvlink2_init(struct vfio_pci_core_device *vdev);
 extern int vfio_pci_ibm_npu2_init(struct vfio_pci_core_device *vdev);
 #else
-static inline int vfio_pci_nvdia_v100_nvlink2_init(struct vfio_pci_core_device *vdev)
+static inline int vfio_pci_nvidia_v100_nvlink2_init(struct vfio_pci_core_device *vdev)
 {
 	return -ENODEV;
 }

@@ -5,7 +5,7 @@ obj-$(CONFIG_VFIO_PCI) += vfio-pci.o
 
 vfio-pci-core-y := vfio_pci_core.o vfio_pci_intrs.o vfio_pci_rdwr.o vfio_pci_config.o
 vfio-pci-core-$(CONFIG_VFIO_PCI_IGD) += vfio_pci_igd.o
-vfio-pci-core-$(CONFIG_VFIO_PCI_NVLINK2) += vfio_pci_nvlink2.o
+vfio-pci-core-$(CONFIG_VFIO_PCI_NVLINK2) += vfio_pci_nvlink2gpu.o vfio_pci_npu2.o
 vfio-pci-core-$(CONFIG_S390) += vfio_pci_zdev.o
 
 vfio-pci-y := vfio_pci.o
