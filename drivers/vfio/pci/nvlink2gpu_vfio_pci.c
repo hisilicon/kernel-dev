@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * VFIO PCI NVIDIA Whitherspoon GPU support a.k.a. NVLink2.
+ * VFIO PCI NVIDIA NVLink2 GPUs support.
  *
  * Copyright (C) 2018 IBM Corp.  All rights reserved.
  *     Author: Alexey Kardashevskiy <aik@ozlabs.ru>
@@ -12,6 +12,9 @@
  *	Author: Alex Williamson <alex.williamson@redhat.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/pci.h>
 #include <linux/uaccess.h>
@@ -21,9 +24,14 @@
 #include <asm/kvm_ppc.h>
 
 #include "vfio_pci_core.h"
+#include "nvlink2gpu_vfio_pci.h"
 
 #define CREATE_TRACE_POINTS
 #include "nvlink2gpu_trace.h"
+
+#define DRIVER_VERSION  "0.1"
+#define DRIVER_AUTHOR   "Alexey Kardashevskiy <aik@ozlabs.ru>"
+#define DRIVER_DESC     "NVLINK2GPU VFIO PCI - User Level meta-driver for NVIDIA NVLink2 GPUs"
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(vfio_pci_nvgpu_mmap_fault);
 EXPORT_TRACEPOINT_SYMBOL_GPL(vfio_pci_nvgpu_mmap);
@@ -37,6 +45,10 @@ struct vfio_pci_nvgpu_data {
 	struct mm_iommu_table_group_mem_t *mem; /* Pre-registered RAM descr. */
 	struct pci_dev *gpdev;
 	struct notifier_block group_notifier;
+};
+
+struct nv_vfio_pci_device {
+	struct vfio_pci_core_device	vdev;
 };
 
 static size_t vfio_pci_nvgpu_rw(struct vfio_pci_core_device *vdev,
@@ -207,7 +219,8 @@ static int vfio_pci_nvgpu_group_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-int vfio_pci_nvidia_v100_nvlink2_init(struct vfio_pci_core_device *vdev)
+static int
+vfio_pci_nvidia_v100_nvlink2_init(struct vfio_pci_core_device *vdev)
 {
 	int ret;
 	u64 reg[2];
@@ -293,3 +306,135 @@ free_exit:
 
 	return ret;
 }
+
+static void nvlink2gpu_vfio_pci_release(void *device_data)
+{
+	struct vfio_pci_core_device *vdev = device_data;
+
+	mutex_lock(&vdev->reflck->lock);
+	if (!(--vdev->refcnt)) {
+		vfio_pci_vf_token_user_add(vdev, -1);
+		vfio_pci_core_spapr_eeh_release(vdev);
+		vfio_pci_core_disable(vdev);
+	}
+	mutex_unlock(&vdev->reflck->lock);
+
+	module_put(THIS_MODULE);
+}
+
+static int nvlink2gpu_vfio_pci_open(void *device_data)
+{
+	struct vfio_pci_core_device *vdev = device_data;
+	int ret = 0;
+
+	if (!try_module_get(THIS_MODULE))
+		return -ENODEV;
+
+	mutex_lock(&vdev->reflck->lock);
+
+	if (!vdev->refcnt) {
+		ret = vfio_pci_core_enable(vdev);
+		if (ret)
+			goto error;
+
+		ret = vfio_pci_nvidia_v100_nvlink2_init(vdev);
+		if (ret && ret != -ENODEV) {
+			pci_warn(vdev->pdev,
+				 "Failed to setup NVIDIA NV2 RAM region\n");
+			vfio_pci_core_disable(vdev);
+			goto error;
+		}
+		ret = 0;
+		vfio_pci_probe_mmaps(vdev);
+		vfio_pci_core_spapr_eeh_open(vdev);
+		vfio_pci_vf_token_user_add(vdev, 1);
+	}
+	vdev->refcnt++;
+error:
+	mutex_unlock(&vdev->reflck->lock);
+	if (ret)
+		module_put(THIS_MODULE);
+	return ret;
+}
+
+static const struct vfio_device_ops nvlink2gpu_vfio_pci_ops = {
+	.name		= "nvlink2gpu-vfio-pci",
+	.open		= nvlink2gpu_vfio_pci_open,
+	.release	= nvlink2gpu_vfio_pci_release,
+	.ioctl		= vfio_pci_core_ioctl,
+	.read		= vfio_pci_core_read,
+	.write		= vfio_pci_core_write,
+	.mmap		= vfio_pci_core_mmap,
+	.request	= vfio_pci_core_request,
+	.match		= vfio_pci_core_match,
+};
+
+static int nvlink2gpu_vfio_pci_probe(struct pci_dev *pdev,
+		const struct pci_device_id *id)
+{
+	struct nv_vfio_pci_device *nvdev;
+	int ret;
+
+	nvdev = kzalloc(sizeof(*nvdev), GFP_KERNEL);
+	if (!nvdev)
+		return -ENOMEM;
+
+	ret = vfio_pci_core_register_device(&nvdev->vdev, pdev,
+			&nvlink2gpu_vfio_pci_ops);
+	if (ret)
+		goto out_free;
+
+	return 0;
+
+out_free:
+	kfree(nvdev);
+	return ret;
+}
+
+static void nvlink2gpu_vfio_pci_remove(struct pci_dev *pdev)
+{
+	struct vfio_device *vdev = dev_get_drvdata(&pdev->dev);
+	struct vfio_pci_core_device *core_vpdev = vfio_device_data(vdev);
+	struct nv_vfio_pci_device *nvdev;
+
+	nvdev = container_of(core_vpdev, struct nv_vfio_pci_device, vdev);
+
+	vfio_pci_core_unregister_device(core_vpdev);
+	kfree(nvdev);
+}
+
+static const struct pci_device_id nvlink2gpu_vfio_pci_table[] = {
+	{ PCI_VDEVICE(NVIDIA, 0x1DB1) }, /* GV100GL-A NVIDIA Tesla V100-SXM2-16GB */
+	{ PCI_VDEVICE(NVIDIA, 0x1DB5) }, /* GV100GL-A NVIDIA Tesla V100-SXM2-32GB */
+	{ PCI_VDEVICE(NVIDIA, 0x1DB8) }, /* GV100GL-A NVIDIA Tesla V100-SXM3-32GB */
+	{ PCI_VDEVICE(NVIDIA, 0x1DF5) }, /* GV100GL-B NVIDIA Tesla V100-SXM2-16GB */
+	{ 0, }
+};
+
+static struct pci_driver nvlink2gpu_vfio_pci_driver = {
+	.name			= "nvlink2gpu-vfio-pci",
+	.id_table		= nvlink2gpu_vfio_pci_table,
+	.probe			= nvlink2gpu_vfio_pci_probe,
+	.remove			= nvlink2gpu_vfio_pci_remove,
+#ifdef CONFIG_PCI_IOV
+	.sriov_configure	= vfio_pci_core_sriov_configure,
+#endif
+	.err_handler		= &vfio_pci_core_err_handlers,
+};
+
+#ifdef CONFIG_VFIO_PCI_DRIVER_COMPAT
+struct pci_driver *get_nvlink2gpu_vfio_pci_driver(struct pci_dev *pdev)
+{
+	if (pci_match_id(nvlink2gpu_vfio_pci_driver.id_table, pdev))
+		return &nvlink2gpu_vfio_pci_driver;
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(get_nvlink2gpu_vfio_pci_driver);
+#endif
+
+module_pci_driver(nvlink2gpu_vfio_pci_driver);
+
+MODULE_VERSION(DRIVER_VERSION);
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESC);

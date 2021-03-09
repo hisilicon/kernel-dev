@@ -14,18 +14,27 @@
  *	Author: Alex Williamson <alex.williamson@redhat.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
+#include <linux/list.h>
 #include <linux/sched/mm.h>
 #include <linux/mmu_context.h>
 #include <asm/kvm_ppc.h>
 
 #include "vfio_pci_core.h"
+#include "npu2_vfio_pci.h"
 
 #define CREATE_TRACE_POINTS
 #include "npu2_trace.h"
+
+#define DRIVER_VERSION  "0.1"
+#define DRIVER_AUTHOR   "Alexey Kardashevskiy <aik@ozlabs.ru>"
+#define DRIVER_DESC     "NPU2 VFIO PCI - User Level meta-driver for POWER9 NPU NVLink2 HBA"
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(vfio_pci_npu2_mmap);
 
@@ -34,6 +43,10 @@ struct vfio_pci_npu2_data {
 	unsigned long mmio_atsd; /* ATSD physical address */
 	unsigned long gpu_tgt; /* TGT address of corresponding GPU RAM */
 	unsigned int link_speed; /* The link speed from DT's ibm,nvlink-speed */
+};
+
+struct npu2_vfio_pci_device {
+	struct vfio_pci_core_device	vdev;
 };
 
 static size_t vfio_pci_npu2_rw(struct vfio_pci_core_device *vdev,
@@ -120,7 +133,7 @@ static const struct vfio_pci_regops vfio_pci_npu2_regops = {
 	.add_capability = vfio_pci_npu2_add_capability,
 };
 
-int vfio_pci_ibm_npu2_init(struct vfio_pci_core_device *vdev)
+static int vfio_pci_ibm_npu2_init(struct vfio_pci_core_device *vdev)
 {
 	int ret;
 	struct vfio_pci_npu2_data *data;
@@ -220,3 +233,132 @@ free_exit:
 
 	return ret;
 }
+
+static void npu2_vfio_pci_release(void *device_data)
+{
+	struct vfio_pci_core_device *vdev = device_data;
+
+	mutex_lock(&vdev->reflck->lock);
+	if (!(--vdev->refcnt)) {
+		vfio_pci_vf_token_user_add(vdev, -1);
+		vfio_pci_core_spapr_eeh_release(vdev);
+		vfio_pci_core_disable(vdev);
+	}
+	mutex_unlock(&vdev->reflck->lock);
+
+	module_put(THIS_MODULE);
+}
+
+static int npu2_vfio_pci_open(void *device_data)
+{
+	struct vfio_pci_core_device *vdev = device_data;
+	int ret = 0;
+
+	if (!try_module_get(THIS_MODULE))
+		return -ENODEV;
+
+	mutex_lock(&vdev->reflck->lock);
+
+	if (!vdev->refcnt) {
+		ret = vfio_pci_core_enable(vdev);
+		if (ret)
+			goto error;
+
+		ret = vfio_pci_ibm_npu2_init(vdev);
+		if (ret && ret != -ENODEV) {
+			pci_warn(vdev->pdev,
+				 "Failed to setup NVIDIA NV2 ATSD region\n");
+			vfio_pci_core_disable(vdev);
+			goto error;
+		}
+		ret = 0;
+		vfio_pci_probe_mmaps(vdev);
+		vfio_pci_core_spapr_eeh_open(vdev);
+		vfio_pci_vf_token_user_add(vdev, 1);
+	}
+	vdev->refcnt++;
+error:
+	mutex_unlock(&vdev->reflck->lock);
+	if (ret)
+		module_put(THIS_MODULE);
+	return ret;
+}
+
+static const struct vfio_device_ops npu2_vfio_pci_ops = {
+	.name		= "npu2-vfio-pci",
+	.open		= npu2_vfio_pci_open,
+	.release	= npu2_vfio_pci_release,
+	.ioctl		= vfio_pci_core_ioctl,
+	.read		= vfio_pci_core_read,
+	.write		= vfio_pci_core_write,
+	.mmap		= vfio_pci_core_mmap,
+	.request	= vfio_pci_core_request,
+	.match		= vfio_pci_core_match,
+};
+
+static int npu2_vfio_pci_probe(struct pci_dev *pdev,
+		const struct pci_device_id *id)
+{
+	struct npu2_vfio_pci_device *npvdev;
+	int ret;
+
+	npvdev = kzalloc(sizeof(*npvdev), GFP_KERNEL);
+	if (!npvdev)
+		return -ENOMEM;
+
+	ret = vfio_pci_core_register_device(&npvdev->vdev, pdev,
+			&npu2_vfio_pci_ops);
+	if (ret)
+		goto out_free;
+
+	return 0;
+
+out_free:
+	kfree(npvdev);
+	return ret;
+}
+
+static void npu2_vfio_pci_remove(struct pci_dev *pdev)
+{
+	struct vfio_device *vdev = dev_get_drvdata(&pdev->dev);
+	struct vfio_pci_core_device *core_vpdev = vfio_device_data(vdev);
+	struct npu2_vfio_pci_device *npvdev;
+
+	npvdev = container_of(core_vpdev, struct npu2_vfio_pci_device, vdev);
+
+	vfio_pci_core_unregister_device(core_vpdev);
+	kfree(npvdev);
+}
+
+static const struct pci_device_id npu2_vfio_pci_table[] = {
+	{ PCI_VDEVICE(IBM, 0x04ea) },
+	{ 0, }
+};
+
+static struct pci_driver npu2_vfio_pci_driver = {
+	.name			= "npu2-vfio-pci",
+	.id_table		= npu2_vfio_pci_table,
+	.probe			= npu2_vfio_pci_probe,
+	.remove			= npu2_vfio_pci_remove,
+#ifdef CONFIG_PCI_IOV
+	.sriov_configure	= vfio_pci_core_sriov_configure,
+#endif
+	.err_handler		= &vfio_pci_core_err_handlers,
+};
+
+#ifdef CONFIG_VFIO_PCI_DRIVER_COMPAT
+struct pci_driver *get_npu2_vfio_pci_driver(struct pci_dev *pdev)
+{
+	if (pci_match_id(npu2_vfio_pci_driver.id_table, pdev))
+		return &npu2_vfio_pci_driver;
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(get_npu2_vfio_pci_driver);
+#endif
+
+module_pci_driver(npu2_vfio_pci_driver);
+
+MODULE_VERSION(DRIVER_VERSION);
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESC);

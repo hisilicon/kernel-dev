@@ -27,6 +27,10 @@
 #include <linux/uaccess.h>
 
 #include "vfio_pci_core.h"
+#ifdef CONFIG_VFIO_PCI_DRIVER_COMPAT
+#include "npu2_vfio_pci.h"
+#include "nvlink2gpu_vfio_pci.h"
+#endif
 
 #define DRIVER_VERSION  "0.2"
 #define DRIVER_AUTHOR   "Alex Williamson <alex.williamson@redhat.com>"
@@ -142,13 +146,47 @@ static const struct vfio_device_ops vfio_pci_ops = {
 	.match		= vfio_pci_core_match,
 };
 
+/*
+ * This layer is used for backward compatibility. Hopefully it will be
+ * removed in the future.
+ */
+static struct pci_driver *vfio_pci_get_compat_driver(struct pci_dev *pdev)
+{
+	switch (pdev->vendor) {
+	case PCI_VENDOR_ID_NVIDIA:
+		switch (pdev->device) {
+		case 0x1db1:
+		case 0x1db5:
+		case 0x1db8:
+		case 0x1df5:
+			return get_nvlink2gpu_vfio_pci_driver(pdev);
+		default:
+			return NULL;
+		}
+	case PCI_VENDOR_ID_IBM:
+		switch (pdev->device) {
+		case 0x04ea:
+			return get_npu2_vfio_pci_driver(pdev);
+		default:
+			return NULL;
+		}
+	}
+
+	return NULL;
+}
+
 static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct vfio_pci_device *vpdev;
+	struct pci_driver *driver;
 	int ret;
 
 	if (vfio_pci_is_denylisted(pdev))
 		return -EINVAL;
+
+	driver = vfio_pci_get_compat_driver(pdev);
+	if (driver)
+		return driver->probe(pdev, id);
 
 	vpdev = kzalloc(sizeof(*vpdev), GFP_KERNEL);
 	if (!vpdev)
@@ -167,14 +205,21 @@ out_free:
 
 static void vfio_pci_remove(struct pci_dev *pdev)
 {
-	struct vfio_device *vdev = dev_get_drvdata(&pdev->dev);
-	struct vfio_pci_core_device *core_vpdev = vfio_device_data(vdev);
-	struct vfio_pci_device *vpdev;
+	struct pci_driver *driver;
 
-	vpdev = container_of(core_vpdev, struct vfio_pci_device, vdev);
+	driver = vfio_pci_get_compat_driver(pdev);
+	if (driver) {
+		driver->remove(pdev);
+	} else {
+		struct vfio_device *vdev = dev_get_drvdata(&pdev->dev);
+		struct vfio_pci_core_device *core_vpdev;
+		struct vfio_pci_device *vpdev;
 
-	vfio_pci_core_unregister_device(core_vpdev);
-	kfree(vpdev);
+		core_vpdev = vfio_device_data(vdev);
+		vpdev = container_of(core_vpdev, struct vfio_pci_device, vdev);
+		vfio_pci_core_unregister_device(core_vpdev);
+		kfree(vpdev);
+	}
 }
 
 static int vfio_pci_sriov_configure(struct pci_dev *pdev, int nr_virtfn)
