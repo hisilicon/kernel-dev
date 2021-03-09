@@ -19,7 +19,7 @@
 #include <linux/sched/mm.h>
 #include <linux/mmu_context.h>
 #include <asm/kvm_ppc.h>
-#include "vfio_pci_private.h"
+#include "vfio_pci_core.h"
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
