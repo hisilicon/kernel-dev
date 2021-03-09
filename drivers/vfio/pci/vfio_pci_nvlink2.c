@@ -39,7 +39,7 @@ struct vfio_pci_nvgpu_data {
 	struct notifier_block group_notifier;
 };
 
-static size_t vfio_pci_nvgpu_rw(struct vfio_pci_device *vdev,
+static size_t vfio_pci_nvgpu_rw(struct vfio_pci_core_device *vdev,
 		char __user *buf, size_t count, loff_t *ppos, bool iswrite)
 {
 	unsigned int i = VFIO_PCI_OFFSET_TO_INDEX(*ppos) - VFIO_PCI_NUM_REGIONS;
@@ -89,7 +89,7 @@ static size_t vfio_pci_nvgpu_rw(struct vfio_pci_device *vdev,
 	return count;
 }
 
-static void vfio_pci_nvgpu_release(struct vfio_pci_device *vdev,
+static void vfio_pci_nvgpu_release(struct vfio_pci_core_device *vdev,
 		struct vfio_pci_region *region)
 {
 	struct vfio_pci_nvgpu_data *data = region->data;
@@ -136,7 +136,7 @@ static const struct vm_operations_struct vfio_pci_nvgpu_mmap_vmops = {
 	.fault = vfio_pci_nvgpu_mmap_fault,
 };
 
-static int vfio_pci_nvgpu_mmap(struct vfio_pci_device *vdev,
+static int vfio_pci_nvgpu_mmap(struct vfio_pci_core_device *vdev,
 		struct vfio_pci_region *region, struct vm_area_struct *vma)
 {
 	int ret;
@@ -171,7 +171,7 @@ static int vfio_pci_nvgpu_mmap(struct vfio_pci_device *vdev,
 	return ret;
 }
 
-static int vfio_pci_nvgpu_add_capability(struct vfio_pci_device *vdev,
+static int vfio_pci_nvgpu_add_capability(struct vfio_pci_core_device *vdev,
 		struct vfio_pci_region *region, struct vfio_info_cap *caps)
 {
 	struct vfio_pci_nvgpu_data *data = region->data;
@@ -207,7 +207,7 @@ static int vfio_pci_nvgpu_group_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-int vfio_pci_nvdia_v100_nvlink2_init(struct vfio_pci_device *vdev)
+int vfio_pci_nvdia_v100_nvlink2_init(struct vfio_pci_core_device *vdev)
 {
 	int ret;
 	u64 reg[2];
@@ -304,7 +304,7 @@ struct vfio_pci_npu2_data {
 	unsigned int link_speed; /* The link speed from DT's ibm,nvlink-speed */
 };
 
-static size_t vfio_pci_npu2_rw(struct vfio_pci_device *vdev,
+static size_t vfio_pci_npu2_rw(struct vfio_pci_core_device *vdev,
 		char __user *buf, size_t count, loff_t *ppos, bool iswrite)
 {
 	unsigned int i = VFIO_PCI_OFFSET_TO_INDEX(*ppos) - VFIO_PCI_NUM_REGIONS;
@@ -328,7 +328,7 @@ static size_t vfio_pci_npu2_rw(struct vfio_pci_device *vdev,
 	return count;
 }
 
-static int vfio_pci_npu2_mmap(struct vfio_pci_device *vdev,
+static int vfio_pci_npu2_mmap(struct vfio_pci_core_device *vdev,
 		struct vfio_pci_region *region, struct vm_area_struct *vma)
 {
 	int ret;
@@ -349,7 +349,7 @@ static int vfio_pci_npu2_mmap(struct vfio_pci_device *vdev,
 	return ret;
 }
 
-static void vfio_pci_npu2_release(struct vfio_pci_device *vdev,
+static void vfio_pci_npu2_release(struct vfio_pci_core_device *vdev,
 		struct vfio_pci_region *region)
 {
 	struct vfio_pci_npu2_data *data = region->data;
@@ -358,7 +358,7 @@ static void vfio_pci_npu2_release(struct vfio_pci_device *vdev,
 	kfree(data);
 }
 
-static int vfio_pci_npu2_add_capability(struct vfio_pci_device *vdev,
+static int vfio_pci_npu2_add_capability(struct vfio_pci_core_device *vdev,
 		struct vfio_pci_region *region, struct vfio_info_cap *caps)
 {
 	struct vfio_pci_npu2_data *data = region->data;
@@ -388,7 +388,7 @@ static const struct vfio_pci_regops vfio_pci_npu2_regops = {
 	.add_capability = vfio_pci_npu2_add_capability,
 };
 
-int vfio_pci_ibm_npu2_init(struct vfio_pci_device *vdev)
+int vfio_pci_ibm_npu2_init(struct vfio_pci_core_device *vdev)
 {
 	int ret;
 	struct vfio_pci_npu2_data *data;

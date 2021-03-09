@@ -24,7 +24,7 @@
 /*
  * Add the Base PCI Function information to the device info region.
  */
-static int zpci_base_cap(struct zpci_dev *zdev, struct vfio_pci_device *vdev,
+static int zpci_base_cap(struct zpci_dev *zdev, struct vfio_pci_core_device *vdev,
 			 struct vfio_info_cap *caps)
 {
 	struct vfio_device_info_cap_zpci_base cap = {
@@ -45,7 +45,7 @@ static int zpci_base_cap(struct zpci_dev *zdev, struct vfio_pci_device *vdev,
 /*
  * Add the Base PCI Function Group information to the device info region.
  */
-static int zpci_group_cap(struct zpci_dev *zdev, struct vfio_pci_device *vdev,
+static int zpci_group_cap(struct zpci_dev *zdev, struct vfio_pci_core_device *vdev,
 			  struct vfio_info_cap *caps)
 {
 	struct vfio_device_info_cap_zpci_group cap = {
@@ -66,7 +66,7 @@ static int zpci_group_cap(struct zpci_dev *zdev, struct vfio_pci_device *vdev,
 /*
  * Add the device utility string to the device info region.
  */
-static int zpci_util_cap(struct zpci_dev *zdev, struct vfio_pci_device *vdev,
+static int zpci_util_cap(struct zpci_dev *zdev, struct vfio_pci_core_device *vdev,
 			 struct vfio_info_cap *caps)
 {
 	struct vfio_device_info_cap_zpci_util *cap;
@@ -90,7 +90,7 @@ static int zpci_util_cap(struct zpci_dev *zdev, struct vfio_pci_device *vdev,
 /*
  * Add the function path string to the device info region.
  */
-static int zpci_pfip_cap(struct zpci_dev *zdev, struct vfio_pci_device *vdev,
+static int zpci_pfip_cap(struct zpci_dev *zdev, struct vfio_pci_core_device *vdev,
 			 struct vfio_info_cap *caps)
 {
 	struct vfio_device_info_cap_zpci_pfip *cap;
@@ -114,7 +114,7 @@ static int zpci_pfip_cap(struct zpci_dev *zdev, struct vfio_pci_device *vdev,
 /*
  * Add all supported capabilities to the VFIO_DEVICE_GET_INFO capability chain.
  */
-int vfio_pci_info_zdev_add_caps(struct vfio_pci_device *vdev,
+int vfio_pci_info_zdev_add_caps(struct vfio_pci_core_device *vdev,
 				struct vfio_info_cap *caps)
 {
 	struct zpci_dev *zdev = to_zpci(vdev->pdev);

@@ -21,7 +21,7 @@
 #define OPREGION_SIZE		(8 * 1024)
 #define OPREGION_PCI_ADDR	0xfc
 
-static size_t vfio_pci_igd_rw(struct vfio_pci_device *vdev, char __user *buf,
+static size_t vfio_pci_igd_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 			      size_t count, loff_t *ppos, bool iswrite)
 {
 	unsigned int i = VFIO_PCI_OFFSET_TO_INDEX(*ppos) - VFIO_PCI_NUM_REGIONS;
@@ -41,7 +41,7 @@ static size_t vfio_pci_igd_rw(struct vfio_pci_device *vdev, char __user *buf,
 	return count;
 }
 
-static void vfio_pci_igd_release(struct vfio_pci_device *vdev,
+static void vfio_pci_igd_release(struct vfio_pci_core_device *vdev,
 				 struct vfio_pci_region *region)
 {
 	memunmap(region->data);
@@ -52,7 +52,7 @@ static const struct vfio_pci_regops vfio_pci_igd_regops = {
 	.release	= vfio_pci_igd_release,
 };
 
-static int vfio_pci_igd_opregion_init(struct vfio_pci_device *vdev)
+static int vfio_pci_igd_opregion_init(struct vfio_pci_core_device *vdev)
 {
 	__le32 *dwordp = (__le32 *)(vdev->vconfig + OPREGION_PCI_ADDR);
 	u32 addr, size;
@@ -107,7 +107,7 @@ static int vfio_pci_igd_opregion_init(struct vfio_pci_device *vdev)
 	return ret;
 }
 
-static size_t vfio_pci_igd_cfg_rw(struct vfio_pci_device *vdev,
+static size_t vfio_pci_igd_cfg_rw(struct vfio_pci_core_device *vdev,
 				  char __user *buf, size_t count, loff_t *ppos,
 				  bool iswrite)
 {
@@ -200,7 +200,7 @@ static size_t vfio_pci_igd_cfg_rw(struct vfio_pci_device *vdev,
 	return count;
 }
 
-static void vfio_pci_igd_cfg_release(struct vfio_pci_device *vdev,
+static void vfio_pci_igd_cfg_release(struct vfio_pci_core_device *vdev,
 				     struct vfio_pci_region *region)
 {
 	struct pci_dev *pdev = region->data;
@@ -213,7 +213,7 @@ static const struct vfio_pci_regops vfio_pci_igd_cfg_regops = {
 	.release	= vfio_pci_igd_cfg_release,
 };
 
-static int vfio_pci_igd_cfg_init(struct vfio_pci_device *vdev)
+static int vfio_pci_igd_cfg_init(struct vfio_pci_core_device *vdev)
 {
 	struct pci_dev *host_bridge, *lpc_bridge;
 	int ret;
@@ -261,7 +261,7 @@ static int vfio_pci_igd_cfg_init(struct vfio_pci_device *vdev)
 	return 0;
 }
 
-int vfio_pci_igd_init(struct vfio_pci_device *vdev)
+int vfio_pci_igd_init(struct vfio_pci_core_device *vdev)
 {
 	int ret;
 
