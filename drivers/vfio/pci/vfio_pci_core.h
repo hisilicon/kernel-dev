@@ -10,6 +10,7 @@
 
 #include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/vfio.h>
 #include <linux/irqbypass.h>
 #include <linux/types.h>
 #include <linux/uuid.h>
@@ -100,48 +101,52 @@ struct vfio_pci_mmap_vma {
 };
 
 struct vfio_pci_core_device {
-	struct pci_dev		*pdev;
-	void __iomem		*barmap[PCI_STD_NUM_BARS];
-	bool			bar_mmap_supported[PCI_STD_NUM_BARS];
-	u8			*pci_config_map;
-	u8			*vconfig;
-	struct perm_bits	*msi_perm;
-	spinlock_t		irqlock;
-	struct mutex		igate;
-	struct vfio_pci_irq_ctx	*ctx;
-	int			num_ctx;
-	int			irq_type;
-	int			num_regions;
-	struct vfio_pci_region	*region;
-	u8			msi_qmax;
-	u8			msix_bar;
-	u16			msix_size;
-	u32			msix_offset;
-	u32			rbar[7];
-	bool			pci_2_3;
-	bool			virq_disabled;
-	bool			reset_works;
-	bool			extended_caps;
-	bool			bardirty;
-	bool			has_vga;
-	bool			needs_reset;
-	bool			nointx;
-	bool			needs_pm_restore;
-	struct pci_saved_state	*pci_saved_state;
-	struct pci_saved_state	*pm_save;
-	struct vfio_pci_reflck	*reflck;
-	int			refcnt;
-	int			ioeventfds_nr;
-	struct eventfd_ctx	*err_trigger;
-	struct eventfd_ctx	*req_trigger;
-	struct list_head	dummy_resources_list;
-	struct mutex		ioeventfds_lock;
-	struct list_head	ioeventfds_list;
+	/* below are the public fields used by vfio_pci drivers */
+	struct pci_dev			*pdev;
+	const struct vfio_device_ops	*vfio_pci_ops;
+	struct vfio_pci_reflck		*reflck;
+	int				refcnt;
+	struct vfio_pci_region		*region;
+	u8				*pci_config_map;
+	u8				*vconfig;
+
+	/* below are the private internal fields used by vfio_pci_core */
+	void __iomem			*barmap[PCI_STD_NUM_BARS];
+	bool				bar_mmap_supported[PCI_STD_NUM_BARS];
+	struct perm_bits		*msi_perm;
+	spinlock_t			irqlock;
+	struct mutex			igate;
+	struct vfio_pci_irq_ctx		*ctx;
+	int				num_ctx;
+	int				irq_type;
+	int				num_regions;
+	u8				msi_qmax;
+	u8				msix_bar;
+	u16				msix_size;
+	u32				msix_offset;
+	u32				rbar[7];
+	bool				pci_2_3;
+	bool				virq_disabled;
+	bool				reset_works;
+	bool				extended_caps;
+	bool				bardirty;
+	bool				has_vga;
+	bool				needs_reset;
+	bool				nointx;
+	bool				needs_pm_restore;
+	struct pci_saved_state		*pci_saved_state;
+	struct pci_saved_state		*pm_save;
+	int				ioeventfds_nr;
+	struct eventfd_ctx		*err_trigger;
+	struct eventfd_ctx		*req_trigger;
+	struct list_head		dummy_resources_list;
+	struct mutex			ioeventfds_lock;
+	struct list_head		ioeventfds_list;
 	struct vfio_pci_vf_token	*vf_token;
-	struct notifier_block	nb;
-	struct mutex		vma_lock;
-	struct list_head	vma_list;
-	struct rw_semaphore	memory_lock;
+	struct notifier_block		nb;
+	struct mutex			vma_lock;
+	struct list_head		vma_list;
+	struct rw_semaphore		memory_lock;
 };
 
 #define is_intx(vdev) (vdev->irq_type == VFIO_PCI_INTX_IRQ_INDEX)
@@ -224,5 +229,31 @@ static inline int vfio_pci_info_zdev_add_caps(struct vfio_pci_core_device *vdev,
 	return -ENODEV;
 }
 #endif
+
+/* Exported functions */
+struct vfio_pci_core_device *vfio_create_pci_device(struct pci_dev *pdev,
+		const struct vfio_device_ops *vfio_pci_ops);
+void vfio_destroy_pci_device(struct pci_dev *pdev);
+
+long vfio_pci_core_ioctl(void *device_data, unsigned int cmd,
+		unsigned long arg);
+ssize_t vfio_pci_core_read(void *device_data, char __user *buf, size_t count,
+		loff_t *ppos);
+ssize_t vfio_pci_core_write(void *device_data, const char __user *buf,
+		size_t count, loff_t *ppos);
+int vfio_pci_core_mmap(void *device_data, struct vm_area_struct *vma);
+void vfio_pci_core_request(void *device_data, unsigned int count);
+int vfio_pci_core_match(void *device_data, char *buf);
+
+void vfio_pci_core_disable(struct vfio_pci_core_device *vdev);
+int vfio_pci_core_enable(struct vfio_pci_core_device *vdev);
+void vfio_pci_core_spapr_eeh_open(struct vfio_pci_core_device *vdev);
+void vfio_pci_core_spapr_eeh_release(struct vfio_pci_core_device *vdev);
+void vfio_pci_vf_token_user_add(struct vfio_pci_core_device *vdev, int val);
+void vfio_pci_probe_mmaps(struct vfio_pci_core_device *vdev);
+
+int vfio_pci_core_sriov_configure(struct pci_dev *pdev, int nr_virtfn);
+
+extern const struct pci_error_handlers vfio_pci_core_err_handlers;
 
 #endif /* VFIO_PCI_CORE_H */
