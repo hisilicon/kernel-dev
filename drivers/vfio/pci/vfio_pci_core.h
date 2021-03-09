@@ -231,9 +231,10 @@ static inline int vfio_pci_info_zdev_add_caps(struct vfio_pci_core_device *vdev,
 #endif
 
 /* Exported functions */
-struct vfio_pci_core_device *vfio_create_pci_device(struct pci_dev *pdev,
+int vfio_pci_core_register_device(struct vfio_pci_core_device *vdev,
+		struct pci_dev *pdev,
 		const struct vfio_device_ops *vfio_pci_ops);
-void vfio_destroy_pci_device(struct pci_dev *pdev);
+void vfio_pci_core_unregister_device(struct vfio_pci_core_device *vdev);
 
 long vfio_pci_core_ioctl(void *device_data, unsigned int cmd,
 		unsigned long arg);

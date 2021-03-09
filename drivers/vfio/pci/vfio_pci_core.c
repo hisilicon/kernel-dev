@@ -1837,15 +1837,15 @@ static int vfio_pci_bus_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-struct vfio_pci_core_device *vfio_create_pci_device(struct pci_dev *pdev,
+int vfio_pci_core_register_device(struct vfio_pci_core_device *vdev,
+		struct pci_dev *pdev,
 		const struct vfio_device_ops *vfio_pci_ops)
 {
-	struct vfio_pci_core_device *vdev;
 	struct iommu_group *group;
 	int ret;
 
 	if (pdev->hdr_type != PCI_HEADER_TYPE_NORMAL)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	/*
 	 * Prevent binding to PFs with VFs enabled, the VFs might be in use
@@ -1857,18 +1857,12 @@ struct vfio_pci_core_device *vfio_create_pci_device(struct pci_dev *pdev,
 	 */
 	if (pci_num_vf(pdev)) {
 		pci_warn(pdev, "Cannot bind to PF with SR-IOV enabled\n");
-		return ERR_PTR(-EBUSY);
+		return -EBUSY;
 	}
 
 	group = vfio_iommu_group_get(&pdev->dev);
 	if (!group)
-		return ERR_PTR(-EINVAL);
-
-	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
-	if (!vdev) {
-		ret = -ENOMEM;
-		goto out_group_put;
-	}
+		return -EINVAL;
 
 	vdev->pdev = pdev;
 	vdev->vfio_pci_ops = vfio_pci_ops;
@@ -1884,7 +1878,7 @@ struct vfio_pci_core_device *vfio_create_pci_device(struct pci_dev *pdev,
 
 	ret = vfio_add_group_dev(&pdev->dev, vfio_pci_ops, vdev);
 	if (ret)
-		goto out_free;
+		goto out_group_put;
 
 	ret = vfio_pci_reflck_attach(vdev);
 	if (ret)
@@ -1928,7 +1922,7 @@ struct vfio_pci_core_device *vfio_create_pci_device(struct pci_dev *pdev,
 		vfio_pci_set_power_state(vdev, PCI_D3hot);
 	}
 
-	return vdev;
+	return 0;
 
 out_vf_token:
 	kfree(vdev->vf_token);
@@ -1936,22 +1930,22 @@ out_reflck:
 	vfio_pci_reflck_put(vdev->reflck);
 out_del_group_dev:
 	vfio_del_group_dev(&pdev->dev);
-out_free:
-	kfree(vdev);
 out_group_put:
 	vfio_iommu_group_put(group, &pdev->dev);
-	return ERR_PTR(ret);
+	return ret;
 }
-EXPORT_SYMBOL_GPL(vfio_create_pci_device);
+EXPORT_SYMBOL_GPL(vfio_pci_core_register_device);
 
-void vfio_destroy_pci_device(struct pci_dev *pdev)
+void vfio_pci_core_unregister_device(struct vfio_pci_core_device *vdev)
 {
-	struct vfio_pci_core_device *vdev;
+	struct pci_dev *pdev;
+	struct vfio_pci_core_device *g_vdev;
 
+	pdev = vdev->pdev;
 	pci_disable_sriov(pdev);
 
-	vdev = vfio_del_group_dev(&pdev->dev);
-	if (!vdev)
+	g_vdev = vfio_del_group_dev(&pdev->dev);
+	if (g_vdev != vdev)
 		return;
 
 	if (vdev->vf_token) {
@@ -1973,7 +1967,6 @@ void vfio_destroy_pci_device(struct pci_dev *pdev)
 		vfio_pci_set_power_state(vdev, PCI_D0);
 
 	kfree(vdev->pm_save);
-	kfree(vdev);
 
 	if (vfio_pci_is_vga(pdev)) {
 		vga_client_register(pdev, NULL, NULL, NULL);
@@ -1982,7 +1975,7 @@ void vfio_destroy_pci_device(struct pci_dev *pdev)
 				VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM);
 	}
 }
-EXPORT_SYMBOL_GPL(vfio_destroy_pci_device);
+EXPORT_SYMBOL_GPL(vfio_pci_core_unregister_device);
 
 static pci_ers_result_t vfio_pci_core_aer_err_detected(struct pci_dev *pdev,
 		pci_channel_state_t state)

@@ -19,6 +19,7 @@
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/list.h>
 #include <linux/notifier.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -30,6 +31,10 @@
 #define DRIVER_VERSION  "0.2"
 #define DRIVER_AUTHOR   "Alex Williamson <alex.williamson@redhat.com>"
 #define DRIVER_DESC     "VFIO PCI - User Level meta-driver"
+
+struct vfio_pci_device {
+	struct vfio_pci_core_device	vdev;
+};
 
 static char ids[1024] __initdata;
 module_param_string(ids, ids, sizeof(ids), 0);
@@ -139,21 +144,37 @@ static const struct vfio_device_ops vfio_pci_ops = {
 
 static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct vfio_pci_core_device *vdev;
+	struct vfio_pci_device *vpdev;
+	int ret;
 
 	if (vfio_pci_is_denylisted(pdev))
 		return -EINVAL;
 
-	vdev = vfio_create_pci_device(pdev, &vfio_pci_ops);
-	if (IS_ERR(vdev))
-		return PTR_ERR(vdev);
+	vpdev = kzalloc(sizeof(*vpdev), GFP_KERNEL);
+	if (!vpdev)
+		return -ENOMEM;
+
+	ret = vfio_pci_core_register_device(&vpdev->vdev, pdev, &vfio_pci_ops);
+	if (ret)
+		goto out_free;
 
 	return 0;
+
+out_free:
+	kfree(vpdev);
+	return ret;
 }
 
 static void vfio_pci_remove(struct pci_dev *pdev)
 {
-	vfio_destroy_pci_device(pdev);
+	struct vfio_device *vdev = dev_get_drvdata(&pdev->dev);
+	struct vfio_pci_core_device *core_vpdev = vfio_device_data(vdev);
+	struct vfio_pci_device *vpdev;
+
+	vpdev = container_of(core_vpdev, struct vfio_pci_device, vdev);
+
+	vfio_pci_core_unregister_device(core_vpdev);
+	kfree(vpdev);
 }
 
 static int vfio_pci_sriov_configure(struct pci_dev *pdev, int nr_virtfn)
