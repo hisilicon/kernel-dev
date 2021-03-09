@@ -30,6 +30,7 @@
 #ifdef CONFIG_VFIO_PCI_DRIVER_COMPAT
 #include "npu2_vfio_pci.h"
 #include "nvlink2gpu_vfio_pci.h"
+#include "igd_vfio_pci.h"
 #endif
 
 #define DRIVER_VERSION  "0.2"
@@ -170,6 +171,9 @@ static struct pci_driver *vfio_pci_get_compat_driver(struct pci_dev *pdev)
 		default:
 			return NULL;
 		}
+	case PCI_VENDOR_ID_INTEL:
+		if (pdev->class == PCI_CLASS_DISPLAY_VGA << 8)
+			return get_igd_vfio_pci_driver(pdev);
 	}
 
 	return NULL;

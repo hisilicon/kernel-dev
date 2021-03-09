@@ -196,15 +196,6 @@ extern u16 vfio_pci_memory_lock_and_enable(struct vfio_pci_core_device *vdev);
 extern void vfio_pci_memory_unlock_and_restore(struct vfio_pci_core_device *vdev,
 					       u16 cmd);
 
-#ifdef CONFIG_VFIO_PCI_IGD
-extern int vfio_pci_igd_init(struct vfio_pci_core_device *vdev);
-#else
-static inline int vfio_pci_igd_init(struct vfio_pci_core_device *vdev)
-{
-	return -ENODEV;
-}
-#endif
-
 #ifdef CONFIG_S390
 extern int vfio_pci_info_zdev_add_caps(struct vfio_pci_core_device *vdev,
 				       struct vfio_info_cap *caps);
