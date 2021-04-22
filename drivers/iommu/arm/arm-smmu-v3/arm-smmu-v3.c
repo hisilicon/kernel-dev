@@ -3266,9 +3266,18 @@ arm_smmu_cache_invalidate(struct iommu_domain *domain, struct device *dev,
 	if (inv_info->version != IOMMU_CACHE_INVALIDATE_INFO_VERSION_1)
 		return -EINVAL;
 
-	if (inv_info->cache & IOMMU_CACHE_INV_TYPE_PASID ||
-	    inv_info->cache & IOMMU_CACHE_INV_TYPE_DEV_IOTLB) {
-		return -ENOENT;
+	if (inv_info->cache & IOMMU_CACHE_INV_TYPE_PASID) {
+		if (inv_info->granularity == IOMMU_INV_GRANU_PASID) {
+			struct iommu_inv_pasid_info *info =
+				&inv_info->granu.pasid_info;
+
+			if (!(info->flags & IOMMU_INV_PASID_FLAGS_PASID))
+				return -EINVAL;
+			arm_smmu_sync_cd(smmu_domain, info->pasid, true);
+			return 0;
+		} else {
+			return -ENOENT;
+		}
 	}
 
 	if (!(inv_info->cache & IOMMU_CACHE_INV_TYPE_IOTLB))
