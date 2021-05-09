@@ -171,10 +171,10 @@ extern void vfio_pci_uninit_perm_bits(void);
 extern int vfio_config_init(struct vfio_pci_core_device *vdev);
 extern void vfio_config_free(struct vfio_pci_core_device *vdev);
 
-extern int vfio_pci_register_dev_region(struct vfio_pci_core_device *vdev,
-					unsigned int type, unsigned int subtype,
-					const struct vfio_pci_regops *ops,
-					size_t size, u32 flags, void *data);
+int vfio_pci_register_dev_region(struct vfio_pci_core_device *vdev,
+		unsigned int type, unsigned int subtype,
+		const struct vfio_pci_regops *ops,
+		size_t size, u32 flags, void *data);
 
 extern int vfio_pci_set_power_state(struct vfio_pci_core_device *vdev,
 				    pci_power_t state);
@@ -207,8 +207,6 @@ static inline int vfio_pci_info_zdev_add_caps(struct vfio_pci_core_device *vdev,
 #endif
 
 /* Will be exported for vfio pci drivers usage */
-void vfio_pci_core_cleanup(void);
-int vfio_pci_core_init(void);
 void vfio_pci_core_release(struct vfio_device *core_vdev);
 int vfio_pci_core_open(struct vfio_device *core_vdev);
 int vfio_pci_core_register_device(struct vfio_pci_core_device *vdev,
