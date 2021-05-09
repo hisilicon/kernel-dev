@@ -48,3 +48,12 @@ config VFIO_PCI_IGD
 	  and LPC bridge config space.
 
 	  To enable Intel IGD assignment through vfio-pci, say Y.
+
+config MLX5_VFIO_PCI
+	tristate "VFIO support for MLX5 PCI devices"
+	depends on VFIO_PCI_CORE && MLX5_CORE
+	help
+	  This provides a generic PCI support for MLX5 devices using the VFIO
+	  framework.
+
+	  If you don't know what to do here, say N.
