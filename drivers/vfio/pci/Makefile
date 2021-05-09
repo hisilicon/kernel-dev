@@ -7,3 +7,6 @@ obj-$(CONFIG_VFIO_PCI_CORE) += vfio-pci-core.o
 vfio-pci-y := vfio_pci.o
 vfio-pci-$(CONFIG_VFIO_PCI_IGD) += vfio_pci_igd.o
 obj-$(CONFIG_VFIO_PCI) += vfio-pci.o
+
+mlx5-vfio-pci-y := mlx5_vfio_pci.o mlx5_vfio_pci_cmd.o
+obj-$(CONFIG_MLX5_VFIO_PCI) += mlx5-vfio-pci.o
