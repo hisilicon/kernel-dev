@@ -289,7 +289,11 @@ Description:
 		will not bind to any driver.  This also allows devices to
 		opt-out of driver binding using a driver_override name such as
 		"none".  Only a single driver may be specified in the override,
-		there is no support for parsing delimiters.
+		there is no support for parsing delimiters.  The binding to the
+		device is allowed if and only if the matching driver has
+		enabled the driver_override alias in the ID table (by setting
+		a suitable bit in the "flags" field of pci_device_id
+		structure).
 
 What:		/sys/bus/pci/devices/.../numa_node
 Date:		Oct 2014

@@ -115,13 +115,6 @@ const struct pci_device_id *pci_match_id(const struct pci_device_id *ids,
 }
 EXPORT_SYMBOL(pci_match_id);
 
-static const struct pci_device_id pci_device_id_any = {
-	.vendor = PCI_ANY_ID,
-	.device = PCI_ANY_ID,
-	.subvendor = PCI_ANY_ID,
-	.subdevice = PCI_ANY_ID,
-};
-
 /**
  * pci_match_device - See if a device matches a driver's list of IDs
  * @drv: the PCI driver to match against
@@ -137,6 +130,7 @@ static const struct pci_device_id *pci_match_device(struct pci_driver *drv,
 {
 	struct pci_dynid *dynid;
 	const struct pci_device_id *found_id = NULL;
+	bool is_driver_override;
 
 	/* When driver_override is set, only bind to the matching driver */
 	if (dev->driver_override && strcmp(dev->driver_override, drv->name))
@@ -155,9 +149,17 @@ static const struct pci_device_id *pci_match_device(struct pci_driver *drv,
 	if (!found_id)
 		found_id = pci_match_id(drv->id_table, dev);
 
-	/* driver_override will always match, send a dummy id */
-	if (!found_id && dev->driver_override)
-		found_id = &pci_device_id_any;
+	/*
+	 * if and only if PCI_ID_F_DRIVER_OVERRIDE flag is set, driver_override
+	 * should be provided.
+	 */
+	if (found_id) {
+		is_driver_override =
+			(found_id->flags & PCI_ID_F_DRIVER_OVERRIDE) != 0;
+		if ((is_driver_override && !dev->driver_override) ||
+		    (dev->driver_override && !is_driver_override))
+			return NULL;
+	}
 
 	return found_id;
 }
