@@ -37,6 +37,8 @@
 #define DRIVER_AUTHOR	"Alex Williamson <alex.williamson@redhat.com>"
 #define DRIVER_DESC	"VFIO - User Level meta-driver"
 
+static DEFINE_MUTEX(reflck_lock);
+
 static struct vfio {
 	struct class			*class;
 	struct list_head		iommu_drivers_list;
@@ -95,6 +97,42 @@ module_param_named(enable_unsafe_noiommu_mode,
 		   noiommu, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(enable_unsafe_noiommu_mode, "Enable UNSAFE, no-IOMMU mode.  This mode provides no device isolation, no DMA translation, no host kernel protection, cannot be used for device assignment to virtual machines, requires RAWIO permissions, and will taint the kernel.  If you do not know what this is for, step away. (default: false)");
 #endif
+
+struct vfio_reflck *vfio_reflck_alloc(void)
+{
+	struct vfio_reflck *reflck;
+
+	reflck = kzalloc(sizeof(*reflck), GFP_KERNEL);
+	if (!reflck)
+		return ERR_PTR(-ENOMEM);
+
+	kref_init(&reflck->kref);
+	mutex_init(&reflck->lock);
+
+	return reflck;
+}
+EXPORT_SYMBOL_GPL(vfio_reflck_alloc);
+
+static void vfio_reflck_release(struct kref *kref)
+{
+	struct vfio_reflck *reflck = container_of(kref, struct vfio_reflck,
+						  kref);
+
+	mutex_destroy(&reflck->lock);
+	kfree(reflck);
+	mutex_unlock(&reflck_lock);
+}
+
+static void vfio_reflck_put(struct vfio_reflck *reflck)
+{
+	kref_put_mutex(&reflck->kref, vfio_reflck_release, &reflck_lock);
+}
+
+void vfio_reflck_get(struct vfio_reflck *reflck)
+{
+	kref_get(&reflck->kref);
+}
+EXPORT_SYMBOL_GPL(vfio_reflck_get);
 
 /*
  * vfio_iommu_group_{get,put} are only intended for VFIO bus driver probe
@@ -743,16 +781,28 @@ static int vfio_iommu_group_notifier(struct notifier_block *nb,
 int vfio_init_group_dev(struct vfio_device *device, struct device *dev,
 			const struct vfio_device_ops *ops)
 {
+	int ret = 0;
+
 	init_completion(&device->comp);
 	device->dev = dev;
 	device->ops = ops;
 
-	return 0;
+	mutex_lock(&reflck_lock);
+	if (ops->reflck_attach) {
+		ret = ops->reflck_attach(device);
+	} else {
+		device->reflck = vfio_reflck_alloc();
+		ret = PTR_ERR_OR_ZERO(device->reflck);
+	}
+	mutex_unlock(&reflck_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vfio_init_group_dev);
 
 void vfio_uninit_group_dev(struct vfio_device *device)
 {
+	vfio_reflck_put(device->reflck);
 }
 EXPORT_SYMBOL_GPL(vfio_uninit_group_dev);
 

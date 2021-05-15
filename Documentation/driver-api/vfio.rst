@@ -281,6 +281,7 @@ similar to a file operations structure::
 				 unsigned long arg);
 		int	(*mmap)(struct vfio_device *vdev,
 				struct vm_area_struct *vma);
+		int     (*reflck_attach)(struct vfio_device *vdev);
 	};
 
 Each function is passed the vdev that was originally registered
@@ -290,7 +291,10 @@ callbacks are issued when a new file descriptor is created for a
 device (via VFIO_GROUP_GET_DEVICE_FD).  The ioctl interface provides
 a direct pass through for VFIO_DEVICE_* ioctls.  The read/write/mmap
 interfaces implement the device region access defined by the device's
-own VFIO_DEVICE_GET_REGION_INFO ioctl.
+own VFIO_DEVICE_GET_REGION_INFO ioctl.  The reflck_attach interface implement
+reflck object creation for bus drivers that implement special internal refcnt
+mechanism per vfio device. This callback is optional and if not registered, the
+basic reflck mechanism in vfio core is used.
 
 
 PPC64 sPAPR implementation note

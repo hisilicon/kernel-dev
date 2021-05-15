@@ -538,7 +538,7 @@ static void vfio_pci_release(struct vfio_device *core_vdev)
 	struct vfio_pci_device *vdev =
 		container_of(core_vdev, struct vfio_pci_device, vdev);
 
-	mutex_lock(&vdev->reflck->lock);
+	mutex_lock(&core_vdev->reflck->lock);
 
 	if (!(--vdev->refcnt)) {
 		vfio_pci_vf_token_user_add(vdev, -1);
@@ -557,7 +557,7 @@ static void vfio_pci_release(struct vfio_device *core_vdev)
 		mutex_unlock(&vdev->igate);
 	}
 
-	mutex_unlock(&vdev->reflck->lock);
+	mutex_unlock(&core_vdev->reflck->lock);
 }
 
 static int vfio_pci_open(struct vfio_device *core_vdev)
@@ -566,7 +566,7 @@ static int vfio_pci_open(struct vfio_device *core_vdev)
 		container_of(core_vdev, struct vfio_pci_device, vdev);
 	int ret = 0;
 
-	mutex_lock(&vdev->reflck->lock);
+	mutex_lock(&core_vdev->reflck->lock);
 
 	if (!vdev->refcnt) {
 		ret = vfio_pci_enable(vdev);
@@ -578,7 +578,7 @@ static int vfio_pci_open(struct vfio_device *core_vdev)
 	}
 	vdev->refcnt++;
 error:
-	mutex_unlock(&vdev->reflck->lock);
+	mutex_unlock(&core_vdev->reflck->lock);
 	return ret;
 }
 
@@ -1858,6 +1858,45 @@ static int vfio_pci_match(struct vfio_device *core_vdev, char *buf)
 	return 1; /* Match */
 }
 
+static int vfio_pci_reflck_find(struct pci_dev *pdev, void *data)
+{
+	struct vfio_reflck **preflck = data;
+	struct vfio_device *device;
+
+	device = vfio_device_get_from_dev(&pdev->dev);
+	if (!device)
+		return 0;
+
+	if (pci_dev_driver(pdev) != &vfio_pci_driver) {
+		vfio_device_put(device);
+		return 0;
+	}
+
+	if (device->reflck) {
+		vfio_reflck_get(device->reflck);
+		*preflck = device->reflck;
+		vfio_device_put(device);
+		return 1;
+	}
+
+	vfio_device_put(device);
+	return 0;
+}
+
+static int vfio_pci_reflck_attach(struct vfio_device *core_vdev)
+{
+	struct vfio_pci_device *vdev =
+		container_of(core_vdev, struct vfio_pci_device, vdev);
+	bool slot = !pci_probe_reset_slot(vdev->pdev->slot);
+
+	if (pci_is_root_bus(vdev->pdev->bus) ||
+	    vfio_pci_for_each_slot_or_bus(vdev->pdev, vfio_pci_reflck_find,
+					  &core_vdev->reflck, slot) <= 0)
+		core_vdev->reflck = vfio_reflck_alloc();
+
+	return PTR_ERR_OR_ZERO(core_vdev->reflck);
+}
+
 static const struct vfio_device_ops vfio_pci_ops = {
 	.name		= "vfio-pci",
 	.open		= vfio_pci_open,
@@ -1868,10 +1907,8 @@ static const struct vfio_device_ops vfio_pci_ops = {
 	.mmap		= vfio_pci_mmap,
 	.request	= vfio_pci_request,
 	.match		= vfio_pci_match,
+	.reflck_attach	= vfio_pci_reflck_attach,
 };
-
-static int vfio_pci_reflck_attach(struct vfio_pci_device *vdev);
-static void vfio_pci_reflck_put(struct vfio_pci_reflck *reflck);
 
 static int vfio_pci_bus_notifier(struct notifier_block *nb,
 				 unsigned long action, void *data)
@@ -1998,10 +2035,6 @@ static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_group_put;
 	}
 
-	ret = vfio_init_group_dev(&vdev->vdev, &pdev->dev, &vfio_pci_ops);
-	if (ret)
-		goto out_free;
-
 	vdev->pdev = pdev;
 	vdev->irq_type = VFIO_PCI_NUM_IRQS;
 	mutex_init(&vdev->igate);
@@ -2013,12 +2046,12 @@ static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&vdev->vma_list);
 	init_rwsem(&vdev->memory_lock);
 
-	ret = vfio_pci_reflck_attach(vdev);
+	ret = vfio_init_group_dev(&vdev->vdev, &pdev->dev, &vfio_pci_ops);
 	if (ret)
-		goto out_uninit;
+		goto out_free;
 	ret = vfio_pci_vf_init(vdev);
 	if (ret)
-		goto out_reflck;
+		goto out_uninit;
 	ret = vfio_pci_vga_init(vdev);
 	if (ret)
 		goto out_vf;
@@ -2050,8 +2083,6 @@ out_power:
 		vfio_pci_set_power_state(vdev, PCI_D0);
 out_vf:
 	vfio_pci_vf_uninit(vdev);
-out_reflck:
-	vfio_pci_reflck_put(vdev->reflck);
 out_uninit:
 	vfio_uninit_group_dev(&vdev->vdev);
 out_free:
@@ -2071,7 +2102,6 @@ static void vfio_pci_remove(struct pci_dev *pdev)
 	vfio_unregister_group_dev(&vdev->vdev);
 
 	vfio_pci_vf_uninit(vdev);
-	vfio_pci_reflck_put(vdev->reflck);
 	vfio_uninit_group_dev(&vdev->vdev);
 	vfio_pci_vga_uninit(vdev);
 
@@ -2146,86 +2176,6 @@ static struct pci_driver vfio_pci_driver = {
 	.sriov_configure	= vfio_pci_sriov_configure,
 	.err_handler		= &vfio_err_handlers,
 };
-
-static DEFINE_MUTEX(reflck_lock);
-
-static struct vfio_pci_reflck *vfio_pci_reflck_alloc(void)
-{
-	struct vfio_pci_reflck *reflck;
-
-	reflck = kzalloc(sizeof(*reflck), GFP_KERNEL);
-	if (!reflck)
-		return ERR_PTR(-ENOMEM);
-
-	kref_init(&reflck->kref);
-	mutex_init(&reflck->lock);
-
-	return reflck;
-}
-
-static void vfio_pci_reflck_get(struct vfio_pci_reflck *reflck)
-{
-	kref_get(&reflck->kref);
-}
-
-static int vfio_pci_reflck_find(struct pci_dev *pdev, void *data)
-{
-	struct vfio_pci_reflck **preflck = data;
-	struct vfio_device *device;
-	struct vfio_pci_device *vdev;
-
-	device = vfio_device_get_from_dev(&pdev->dev);
-	if (!device)
-		return 0;
-
-	if (pci_dev_driver(pdev) != &vfio_pci_driver) {
-		vfio_device_put(device);
-		return 0;
-	}
-
-	vdev = container_of(device, struct vfio_pci_device, vdev);
-
-	if (vdev->reflck) {
-		vfio_pci_reflck_get(vdev->reflck);
-		*preflck = vdev->reflck;
-		vfio_device_put(device);
-		return 1;
-	}
-
-	vfio_device_put(device);
-	return 0;
-}
-
-static int vfio_pci_reflck_attach(struct vfio_pci_device *vdev)
-{
-	bool slot = !pci_probe_reset_slot(vdev->pdev->slot);
-
-	mutex_lock(&reflck_lock);
-
-	if (pci_is_root_bus(vdev->pdev->bus) ||
-	    vfio_pci_for_each_slot_or_bus(vdev->pdev, vfio_pci_reflck_find,
-					  &vdev->reflck, slot) <= 0)
-		vdev->reflck = vfio_pci_reflck_alloc();
-
-	mutex_unlock(&reflck_lock);
-
-	return PTR_ERR_OR_ZERO(vdev->reflck);
-}
-
-static void vfio_pci_reflck_release(struct kref *kref)
-{
-	struct vfio_pci_reflck *reflck = container_of(kref,
-						      struct vfio_pci_reflck,
-						      kref);
-
-	kfree(reflck);
-	mutex_unlock(&reflck_lock);
-}
-
-static void vfio_pci_reflck_put(struct vfio_pci_reflck *reflck)
-{
-	kref_put_mutex(&reflck->kref, vfio_pci_reflck_release, &reflck_lock);
-}
 
 static int vfio_pci_get_unused_devs(struct pci_dev *pdev, void *data)
 {

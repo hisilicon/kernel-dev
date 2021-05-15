@@ -19,51 +19,15 @@
 
 static struct fsl_mc_driver vfio_fsl_mc_driver;
 
-static DEFINE_MUTEX(reflck_lock);
-
-static void vfio_fsl_mc_reflck_get(struct vfio_fsl_mc_reflck *reflck)
+static int vfio_fsl_mc_reflck_attach(struct vfio_device *core_vdev)
 {
-	kref_get(&reflck->kref);
-}
-
-static void vfio_fsl_mc_reflck_release(struct kref *kref)
-{
-	struct vfio_fsl_mc_reflck *reflck = container_of(kref,
-						      struct vfio_fsl_mc_reflck,
-						      kref);
-
-	mutex_destroy(&reflck->lock);
-	kfree(reflck);
-	mutex_unlock(&reflck_lock);
-}
-
-static void vfio_fsl_mc_reflck_put(struct vfio_fsl_mc_reflck *reflck)
-{
-	kref_put_mutex(&reflck->kref, vfio_fsl_mc_reflck_release, &reflck_lock);
-}
-
-static struct vfio_fsl_mc_reflck *vfio_fsl_mc_reflck_alloc(void)
-{
-	struct vfio_fsl_mc_reflck *reflck;
-
-	reflck = kzalloc(sizeof(*reflck), GFP_KERNEL);
-	if (!reflck)
-		return ERR_PTR(-ENOMEM);
-
-	kref_init(&reflck->kref);
-	mutex_init(&reflck->lock);
-
-	return reflck;
-}
-
-static int vfio_fsl_mc_reflck_attach(struct vfio_fsl_mc_device *vdev)
-{
+	struct vfio_fsl_mc_device *vdev =
+		container_of(core_vdev, struct vfio_fsl_mc_device, vdev);
 	int ret = 0;
 
-	mutex_lock(&reflck_lock);
 	if (is_fsl_mc_bus_dprc(vdev->mc_dev)) {
-		vdev->reflck = vfio_fsl_mc_reflck_alloc();
-		ret = PTR_ERR_OR_ZERO(vdev->reflck);
+		core_vdev->reflck = vfio_reflck_alloc();
+		ret = PTR_ERR_OR_ZERO(core_vdev->reflck);
 	} else {
 		struct device *mc_cont_dev = vdev->mc_dev->dev.parent;
 		struct vfio_device *device;
@@ -72,23 +36,22 @@ static int vfio_fsl_mc_reflck_attach(struct vfio_fsl_mc_device *vdev)
 		device = vfio_device_get_from_dev(mc_cont_dev);
 		if (!device) {
 			ret = -ENODEV;
-			goto unlock;
+			goto out;
 		}
 
 		cont_vdev =
 			container_of(device, struct vfio_fsl_mc_device, vdev);
-		if (!cont_vdev || !cont_vdev->reflck) {
+		if (!cont_vdev || !cont_vdev->vdev.reflck) {
 			vfio_device_put(device);
 			ret = -ENODEV;
-			goto unlock;
+			goto out;
 		}
-		vfio_fsl_mc_reflck_get(cont_vdev->reflck);
-		vdev->reflck = cont_vdev->reflck;
+		vfio_reflck_get(cont_vdev->vdev.reflck);
+		vdev->vdev.reflck = cont_vdev->vdev.reflck;
 		vfio_device_put(device);
 	}
 
-unlock:
-	mutex_unlock(&reflck_lock);
+out:
 	return ret;
 }
 
@@ -142,7 +105,7 @@ static int vfio_fsl_mc_open(struct vfio_device *core_vdev)
 		container_of(core_vdev, struct vfio_fsl_mc_device, vdev);
 	int ret = 0;
 
-	mutex_lock(&vdev->reflck->lock);
+	mutex_lock(&core_vdev->reflck->lock);
 	if (!vdev->refcnt) {
 		ret = vfio_fsl_mc_regions_init(vdev);
 		if (ret)
@@ -150,7 +113,7 @@ static int vfio_fsl_mc_open(struct vfio_device *core_vdev)
 	}
 	vdev->refcnt++;
 out:
-	mutex_unlock(&vdev->reflck->lock);
+	mutex_unlock(&core_vdev->reflck->lock);
 
 	return ret;
 }
@@ -161,7 +124,7 @@ static void vfio_fsl_mc_release(struct vfio_device *core_vdev)
 		container_of(core_vdev, struct vfio_fsl_mc_device, vdev);
 	int ret;
 
-	mutex_lock(&vdev->reflck->lock);
+	mutex_lock(&core_vdev->reflck->lock);
 
 	if (!(--vdev->refcnt)) {
 		struct fsl_mc_device *mc_dev = vdev->mc_dev;
@@ -187,7 +150,7 @@ static void vfio_fsl_mc_release(struct vfio_device *core_vdev)
 		fsl_mc_cleanup_irq_pool(mc_cont);
 	}
 
-	mutex_unlock(&vdev->reflck->lock);
+	mutex_unlock(&core_vdev->reflck->lock);
 }
 
 static long vfio_fsl_mc_ioctl(struct vfio_device *core_vdev,
@@ -510,6 +473,7 @@ static const struct vfio_device_ops vfio_fsl_mc_ops = {
 	.read		= vfio_fsl_mc_read,
 	.write		= vfio_fsl_mc_write,
 	.mmap		= vfio_fsl_mc_mmap,
+	.reflck_attach	= vfio_fsl_mc_reflck_attach,
 };
 
 static int vfio_fsl_mc_bus_notifier(struct notifier_block *nb,
@@ -621,20 +585,16 @@ static int vfio_fsl_mc_probe(struct fsl_mc_device *mc_dev)
 		goto out_group_put;
 	}
 
+	vdev->mc_dev = mc_dev;
+	mutex_init(&vdev->igate);
+
 	ret = vfio_init_group_dev(&vdev->vdev, dev, &vfio_fsl_mc_ops);
 	if (ret)
 		goto out_kfree;
 
-	vdev->mc_dev = mc_dev;
-	mutex_init(&vdev->igate);
-
-	ret = vfio_fsl_mc_reflck_attach(vdev);
-	if (ret)
-		goto out_uninit;
-
 	ret = vfio_fsl_mc_init_device(vdev);
 	if (ret)
-		goto out_reflck;
+		goto out_uninit;
 
 	ret = vfio_register_group_dev(&vdev->vdev);
 	if (ret) {
@@ -660,8 +620,6 @@ out_device:
 	vfio_fsl_uninit_device(vdev);
 out_uninit:
 	vfio_uninit_group_dev(&vdev->vdev);
-out_reflck:
-	vfio_fsl_mc_reflck_put(vdev->reflck);
 out_kfree:
 	kfree(vdev);
 out_group_put:
@@ -680,7 +638,6 @@ static int vfio_fsl_mc_remove(struct fsl_mc_device *mc_dev)
 	dprc_remove_devices(mc_dev, NULL, 0);
 	vfio_fsl_uninit_device(vdev);
 	vfio_uninit_group_dev(&vdev->vdev);
-	vfio_fsl_mc_reflck_put(vdev->reflck);
 
 	kfree(vdev);
 	vfio_iommu_group_put(mc_dev->dev.iommu_group, dev);

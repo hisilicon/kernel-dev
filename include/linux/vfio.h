@@ -15,10 +15,16 @@
 #include <linux/poll.h>
 #include <uapi/linux/vfio.h>
 
+struct vfio_reflck {
+	struct kref		kref;
+	struct mutex		lock;
+};
+
 struct vfio_device {
 	struct device *dev;
 	const struct vfio_device_ops *ops;
 	struct vfio_group *group;
+	struct vfio_reflck *reflck;
 
 	/* Members below here are private, not for driver use */
 	refcount_t refcount;
@@ -40,6 +46,7 @@ struct vfio_device {
  * @match: Optional device name match callback (return: 0 for no-match, >0 for
  *         match, -errno for abort (ex. match with insufficient or incorrect
  *         additional args)
+ * @reflck_attach: Optional for bus drivers that need special reflck logic
  */
 struct vfio_device_ops {
 	char	*name;
@@ -54,6 +61,7 @@ struct vfio_device_ops {
 	int	(*mmap)(struct vfio_device *vdev, struct vm_area_struct *vma);
 	void	(*request)(struct vfio_device *vdev, unsigned int count);
 	int	(*match)(struct vfio_device *vdev, char *buf);
+	int	(*reflck_attach)(struct vfio_device *vdev);
 };
 
 extern struct iommu_group *vfio_iommu_group_get(struct device *dev);
@@ -66,6 +74,9 @@ int vfio_register_group_dev(struct vfio_device *device);
 void vfio_unregister_group_dev(struct vfio_device *device);
 extern struct vfio_device *vfio_device_get_from_dev(struct device *dev);
 extern void vfio_device_put(struct vfio_device *device);
+
+struct vfio_reflck *vfio_reflck_alloc(void);
+void vfio_reflck_get(struct vfio_reflck *reflck);
 
 /* events for the backend driver notify callback */
 enum vfio_iommu_notify_type {
