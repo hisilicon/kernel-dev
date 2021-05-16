@@ -621,13 +621,16 @@ static int vfio_fsl_mc_probe(struct fsl_mc_device *mc_dev)
 		goto out_group_put;
 	}
 
-	vfio_init_group_dev(&vdev->vdev, dev, &vfio_fsl_mc_ops);
+	ret = vfio_init_group_dev(&vdev->vdev, dev, &vfio_fsl_mc_ops);
+	if (ret)
+		goto out_kfree;
+
 	vdev->mc_dev = mc_dev;
 	mutex_init(&vdev->igate);
 
 	ret = vfio_fsl_mc_reflck_attach(vdev);
 	if (ret)
-		goto out_kfree;
+		goto out_uninit;
 
 	ret = vfio_fsl_mc_init_device(vdev);
 	if (ret)
@@ -655,6 +658,8 @@ out_group_dev:
 	vfio_unregister_group_dev(&vdev->vdev);
 out_device:
 	vfio_fsl_uninit_device(vdev);
+out_uninit:
+	vfio_uninit_group_dev(&vdev->vdev);
 out_reflck:
 	vfio_fsl_mc_reflck_put(vdev->reflck);
 out_kfree:
@@ -674,6 +679,7 @@ static int vfio_fsl_mc_remove(struct fsl_mc_device *mc_dev)
 
 	dprc_remove_devices(mc_dev, NULL, 0);
 	vfio_fsl_uninit_device(vdev);
+	vfio_uninit_group_dev(&vdev->vdev);
 	vfio_fsl_mc_reflck_put(vdev->reflck);
 
 	kfree(vdev);

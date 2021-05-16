@@ -122,14 +122,22 @@ static int vfio_mdev_probe(struct mdev_device *mdev)
 	if (!vdev)
 		return -ENOMEM;
 
-	vfio_init_group_dev(vdev, &mdev->dev, &vfio_mdev_dev_ops);
+	ret = vfio_init_group_dev(vdev, &mdev->dev, &vfio_mdev_dev_ops);
+	if (ret)
+		goto out_free;
+
 	ret = vfio_register_group_dev(vdev);
-	if (ret) {
-		kfree(vdev);
-		return ret;
-	}
+	if (ret)
+		goto out_uninit;
+
 	dev_set_drvdata(&mdev->dev, vdev);
 	return 0;
+
+out_uninit:
+	vfio_uninit_group_dev(vdev);
+out_free:
+	kfree(vdev);
+	return ret;
 }
 
 static void vfio_mdev_remove(struct mdev_device *mdev)
@@ -137,6 +145,7 @@ static void vfio_mdev_remove(struct mdev_device *mdev)
 	struct vfio_device *vdev = dev_get_drvdata(&mdev->dev);
 
 	vfio_unregister_group_dev(vdev);
+	vfio_uninit_group_dev(vdev);
 	kfree(vdev);
 }
 

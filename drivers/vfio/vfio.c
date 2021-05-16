@@ -740,14 +740,21 @@ static int vfio_iommu_group_notifier(struct notifier_block *nb,
 /**
  * VFIO driver API
  */
-void vfio_init_group_dev(struct vfio_device *device, struct device *dev,
-			 const struct vfio_device_ops *ops)
+int vfio_init_group_dev(struct vfio_device *device, struct device *dev,
+			const struct vfio_device_ops *ops)
 {
 	init_completion(&device->comp);
 	device->dev = dev;
 	device->ops = ops;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(vfio_init_group_dev);
+
+void vfio_uninit_group_dev(struct vfio_device *device)
+{
+}
+EXPORT_SYMBOL_GPL(vfio_uninit_group_dev);
 
 int vfio_register_group_dev(struct vfio_device *device)
 {
