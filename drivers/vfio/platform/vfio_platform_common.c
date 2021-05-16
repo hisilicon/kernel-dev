@@ -222,23 +222,23 @@ static void vfio_platform_release(struct vfio_device *core_vdev)
 {
 	struct vfio_platform_device *vdev =
 		container_of(core_vdev, struct vfio_platform_device, vdev);
+	const char *extra_dbg = NULL;
+	int ret;
 
+	lockdep_assert_held(&core_vdev->reflck->lock);
+
+	/* TODO: can we remove the driver_lock here ? */
 	mutex_lock(&driver_lock);
 
-	if (!(--vdev->refcnt)) {
-		const char *extra_dbg = NULL;
-		int ret;
-
-		ret = vfio_platform_call_reset(vdev, &extra_dbg);
-		if (ret && vdev->reset_required) {
-			dev_warn(vdev->device, "reset driver is required and reset call failed in release (%d) %s\n",
-				 ret, extra_dbg ? extra_dbg : "");
-			WARN_ON(1);
-		}
-		pm_runtime_put(vdev->device);
-		vfio_platform_regions_cleanup(vdev);
-		vfio_platform_irq_cleanup(vdev);
+	ret = vfio_platform_call_reset(vdev, &extra_dbg);
+	if (ret && vdev->reset_required) {
+		dev_warn(vdev->device, "reset driver is required and reset call failed in release (%d) %s\n",
+			 ret, extra_dbg ? extra_dbg : "");
+		WARN_ON(1);
 	}
+	pm_runtime_put(vdev->device);
+	vfio_platform_regions_cleanup(vdev);
+	vfio_platform_irq_cleanup(vdev);
 
 	mutex_unlock(&driver_lock);
 }
@@ -247,34 +247,33 @@ static int vfio_platform_open(struct vfio_device *core_vdev)
 {
 	struct vfio_platform_device *vdev =
 		container_of(core_vdev, struct vfio_platform_device, vdev);
+	const char *extra_dbg = NULL;
 	int ret;
 
+	lockdep_assert_held(&core_vdev->reflck->lock);
+
+	/* TODO: can we remove the driver_lock here ? */
 	mutex_lock(&driver_lock);
 
-	if (!vdev->refcnt) {
-		const char *extra_dbg = NULL;
+	ret = vfio_platform_regions_init(vdev);
+	if (ret)
+		goto err_reg;
 
-		ret = vfio_platform_regions_init(vdev);
-		if (ret)
-			goto err_reg;
+	ret = vfio_platform_irq_init(vdev);
+	if (ret)
+		goto err_irq;
 
-		ret = vfio_platform_irq_init(vdev);
-		if (ret)
-			goto err_irq;
+	ret = pm_runtime_get_sync(vdev->device);
+	if (ret < 0)
+		goto err_rst;
 
-		ret = pm_runtime_get_sync(vdev->device);
-		if (ret < 0)
-			goto err_rst;
-
-		ret = vfio_platform_call_reset(vdev, &extra_dbg);
-		if (ret && vdev->reset_required) {
-			dev_warn(vdev->device, "reset driver is required and reset call failed in open (%d) %s\n",
-				 ret, extra_dbg ? extra_dbg : "");
-			goto err_rst;
-		}
+	ret = vfio_platform_call_reset(vdev, &extra_dbg);
+	if (ret && vdev->reset_required) {
+		dev_warn(vdev->device, "reset driver is required and reset call failed in open (%d) %s\n",
+			 ret, extra_dbg ? extra_dbg : "");
+		goto err_rst;
 	}
 
-	vdev->refcnt++;
 
 	mutex_unlock(&driver_lock);
 	return 0;

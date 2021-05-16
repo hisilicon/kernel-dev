@@ -25,6 +25,7 @@ struct vfio_device {
 	const struct vfio_device_ops *ops;
 	struct vfio_group *group;
 	struct vfio_reflck *reflck;
+	int refcnt;
 
 	/* Members below here are private, not for driver use */
 	refcount_t refcount;

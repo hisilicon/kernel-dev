@@ -26,6 +26,8 @@ static int vfio_mdev_open(struct vfio_device *core_vdev)
 	struct mdev_device *mdev = to_mdev_device(core_vdev->dev);
 	struct mdev_parent *parent = mdev->type->parent;
 
+	lockdep_assert_held(&core_vdev->reflck->lock);
+
 	if (unlikely(!parent->ops->open))
 		return -EINVAL;
 
@@ -36,6 +38,8 @@ static void vfio_mdev_release(struct vfio_device *core_vdev)
 {
 	struct mdev_device *mdev = to_mdev_device(core_vdev->dev);
 	struct mdev_parent *parent = mdev->type->parent;
+
+	lockdep_assert_held(&core_vdev->reflck->lock);
 
 	if (likely(parent->ops->release))
 		parent->ops->release(mdev);

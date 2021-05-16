@@ -1409,11 +1409,36 @@ static int vfio_group_add_container_user(struct vfio_group *group)
 
 static const struct file_operations vfio_device_fops;
 
+static void vfio_device_release(struct vfio_device *device)
+{
+	mutex_lock(&device->reflck->lock);
+	if (!(--device->refcnt))
+		device->ops->release(device);
+	mutex_unlock(&device->reflck->lock);
+}
+
+static int vfio_device_open(struct vfio_device *device)
+{
+	int ret = 0;
+
+	mutex_lock(&device->reflck->lock);
+	if (!device->refcnt) {
+		ret = device->ops->open(device);
+		if (ret)
+			goto out_unlock;
+	}
+	device->refcnt++;
+out_unlock:
+	mutex_unlock(&device->reflck->lock);
+
+	return ret;
+}
+
 static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 {
 	struct vfio_device *device;
 	struct file *filep;
-	int ret;
+	int ret = 0;
 
 	if (0 == atomic_read(&group->container_users) ||
 	    !group->container->iommu_driver || !vfio_group_viable(group))
@@ -1431,7 +1456,7 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 		return -ENODEV;
 	}
 
-	ret = device->ops->open(device);
+	ret = vfio_device_open(device);
 	if (ret) {
 		module_put(device->dev->driver->owner);
 		vfio_device_put(device);
@@ -1444,7 +1469,7 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 	 */
 	ret = get_unused_fd_flags(O_CLOEXEC);
 	if (ret < 0) {
-		device->ops->release(device);
+		vfio_device_release(device);
 		module_put(device->dev->driver->owner);
 		vfio_device_put(device);
 		return ret;
@@ -1455,7 +1480,7 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 	if (IS_ERR(filep)) {
 		put_unused_fd(ret);
 		ret = PTR_ERR(filep);
-		device->ops->release(device);
+		vfio_device_release(device);
 		module_put(device->dev->driver->owner);
 		vfio_device_put(device);
 		return ret;
@@ -1613,7 +1638,7 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 {
 	struct vfio_device *device = filep->private_data;
 
-	device->ops->release(device);
+	vfio_device_release(device);
 
 	module_put(device->dev->driver->owner);
 

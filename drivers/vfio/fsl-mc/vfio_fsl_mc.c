@@ -103,54 +103,38 @@ static int vfio_fsl_mc_open(struct vfio_device *core_vdev)
 {
 	struct vfio_fsl_mc_device *vdev =
 		container_of(core_vdev, struct vfio_fsl_mc_device, vdev);
-	int ret = 0;
 
-	mutex_lock(&core_vdev->reflck->lock);
-	if (!vdev->refcnt) {
-		ret = vfio_fsl_mc_regions_init(vdev);
-		if (ret)
-			goto out;
-	}
-	vdev->refcnt++;
-out:
-	mutex_unlock(&core_vdev->reflck->lock);
+	lockdep_assert_held(&core_vdev->reflck->lock);
 
-	return ret;
+	return vfio_fsl_mc_regions_init(vdev);
 }
 
 static void vfio_fsl_mc_release(struct vfio_device *core_vdev)
 {
 	struct vfio_fsl_mc_device *vdev =
 		container_of(core_vdev, struct vfio_fsl_mc_device, vdev);
+	struct fsl_mc_device *mc_dev = vdev->mc_dev;
+	struct device *cont_dev = fsl_mc_cont_dev(&mc_dev->dev);
+	struct fsl_mc_device *mc_cont = to_fsl_mc_device(cont_dev);
 	int ret;
 
-	mutex_lock(&core_vdev->reflck->lock);
+	lockdep_assert_held(&core_vdev->reflck->lock);
 
-	if (!(--vdev->refcnt)) {
-		struct fsl_mc_device *mc_dev = vdev->mc_dev;
-		struct device *cont_dev = fsl_mc_cont_dev(&mc_dev->dev);
-		struct fsl_mc_device *mc_cont = to_fsl_mc_device(cont_dev);
+	vfio_fsl_mc_regions_cleanup(vdev);
 
-		vfio_fsl_mc_regions_cleanup(vdev);
-
-		/* reset the device before cleaning up the interrupts */
-		ret = dprc_reset_container(mc_cont->mc_io, 0,
-		      mc_cont->mc_handle,
-			  mc_cont->obj_desc.id,
-			  DPRC_RESET_OPTION_NON_RECURSIVE);
-
-		if (ret) {
-			dev_warn(&mc_cont->dev, "VFIO_FLS_MC: reset device has failed (%d)\n",
-				 ret);
-			WARN_ON(1);
-		}
-
-		vfio_fsl_mc_irqs_cleanup(vdev);
-
-		fsl_mc_cleanup_irq_pool(mc_cont);
+	/* reset the device before cleaning up the interrupts */
+	ret = dprc_reset_container(mc_cont->mc_io, 0, mc_cont->mc_handle,
+				   mc_cont->obj_desc.id,
+				   DPRC_RESET_OPTION_NON_RECURSIVE);
+	if (ret) {
+		dev_warn(&mc_cont->dev, "VFIO_FLS_MC: reset device has failed (%d)\n",
+			 ret);
+		WARN_ON(1);
 	}
 
-	mutex_unlock(&core_vdev->reflck->lock);
+	vfio_fsl_mc_irqs_cleanup(vdev);
+
+	fsl_mc_cleanup_irq_pool(mc_cont);
 }
 
 static long vfio_fsl_mc_ioctl(struct vfio_device *core_vdev,
