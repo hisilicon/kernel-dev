@@ -343,6 +343,17 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 	if (!vfio_vga_disabled() && vfio_pci_is_vga(pdev))
 		vdev->has_vga = true;
 
+	if (pdev->vendor == PCI_VENDOR_ID_HUAWEI &&
+		IS_ENABLED(CONFIG_VFIO_PCI_HISI_MIGRATION)) {
+		ret = vfio_pci_hisilicon_acc_init(vdev);
+		if (ret && ret != -ENODEV) {
+			dev_warn(&vdev->pdev->dev,
+				 "Failed to setup Hisilicon ACC region\n");
+			vfio_pci_disable(vdev);
+			return ret;
+		}
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_enable);
