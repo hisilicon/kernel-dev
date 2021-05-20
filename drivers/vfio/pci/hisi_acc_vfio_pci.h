@@ -76,6 +76,10 @@
 #define QM_EQC_DW0		0X3000
 #define QM_AEQC_DW0		0X3020
 
+struct hisi_acc_vfio_pci_device {
+	struct vfio_pci_core_device     vdev;
+};
+
 struct qm_mailbox {
 	__le16 w0;
 	__le16 queue_num;

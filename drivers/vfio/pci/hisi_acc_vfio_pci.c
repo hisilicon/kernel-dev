@@ -15,7 +15,7 @@
 #include "hisi_acc_vfio_pci.h"
 
 #define VDM_OFFSET(x) offsetof(struct vfio_device_migration_info, x)
-void vfio_pci_hisilicon_acc_uninit(struct acc_vf_migration *acc_vf_dev);
+static void vfio_pci_hisilicon_acc_uninit(struct acc_vf_migration *acc_vf_dev);
 static void vf_debugfs_exit(struct acc_vf_migration *acc_vf_dev);
 static struct dentry *mig_debugfs_root;
 static int mig_root_ref;
@@ -1244,7 +1244,7 @@ static int pci_dev_id_check(struct pci_dev *pdev)
 	return 0;
 }
 
-int vfio_pci_hisilicon_acc_init(struct vfio_pci_core_device *vdev)
+static int vfio_pci_hisilicon_acc_init(struct vfio_pci_core_device *vdev)
 {
 	struct acc_vf_migration *acc_vf_dev;
 	struct pci_dev *pdev = vdev->pdev;
@@ -1315,7 +1315,7 @@ register_error:
 	return ret;
 }
 
-void vfio_pci_hisilicon_acc_uninit(struct acc_vf_migration *acc_vf_dev)
+static void vfio_pci_hisilicon_acc_uninit(struct acc_vf_migration *acc_vf_dev)
 {
 	struct device *dev = &acc_vf_dev->vf_dev->dev;
 	struct hisi_qm *qm = acc_vf_dev->vf_qm;
@@ -1334,3 +1334,118 @@ void vfio_pci_hisilicon_acc_uninit(struct acc_vf_migration *acc_vf_dev)
 	kfree(acc_vf_dev);
 }
 
+static void hisi_acc_vfio_pci_release(void *device_data)
+{
+	struct vfio_pci_core_device *vdev = device_data;
+
+	mutex_lock(&vdev->reflck->lock);
+	if (!(--vdev->refcnt)) {
+		vfio_pci_vf_token_user_add(vdev, -1);
+		vfio_pci_core_spapr_eeh_release(vdev);
+		vfio_pci_core_disable(vdev);
+	}
+	mutex_unlock(&vdev->reflck->lock);
+
+	module_put(THIS_MODULE);
+}
+
+static int hisi_acc_vfio_pci_open(void *device_data)
+{
+	struct vfio_pci_core_device *vdev = device_data;
+	int ret = 0;
+
+	if (!try_module_get(THIS_MODULE))
+		return -ENODEV;
+
+	mutex_lock(&vdev->reflck->lock);
+
+	if (!vdev->refcnt) {
+		ret = vfio_pci_core_enable(vdev);
+		if (ret)
+			goto error;
+
+		ret = vfio_pci_hisilicon_acc_init(vdev);
+		if (ret && ret != -ENODEV) {
+			pci_warn(vdev->pdev, "Failed to setup HiSi ACC migration\n");
+			vfio_pci_core_disable(vdev);
+			goto error;
+		}
+		ret = 0;
+		vfio_pci_probe_mmaps(vdev);
+		vfio_pci_core_spapr_eeh_open(vdev);
+		vfio_pci_vf_token_user_add(vdev, 1);
+		pci_info(vdev->pdev, "Shameer: HiSi ACC migration- new driver\n");
+	}
+	vdev->refcnt++;
+error:
+	mutex_unlock(&vdev->reflck->lock);
+	if (ret)
+		module_put(THIS_MODULE);
+	return ret;
+}
+
+static const struct vfio_device_ops hisi_acc_vfio_pci_ops = {
+	.name		= "hisi-acc-vfio-pci",
+	.open		= hisi_acc_vfio_pci_open,
+	.release	= hisi_acc_vfio_pci_release,
+	.ioctl		= vfio_pci_core_ioctl,
+	.read		= vfio_pci_core_read,
+	.write		= vfio_pci_core_write,
+	.mmap		= vfio_pci_core_mmap,
+	.request	= vfio_pci_core_request,
+	.match		= vfio_pci_core_match,
+};
+
+static int hisi_acc_vfio_pci_probe(struct pci_dev *pdev,
+				   const struct pci_device_id *id)
+{
+	struct hisi_acc_vfio_pci_device *hisidev;
+	int ret;
+
+	hisidev = kzalloc(sizeof(*hisidev), GFP_KERNEL);
+	if (!hisidev)
+		return -ENOMEM;
+
+	ret = vfio_pci_core_register_device(&hisidev->vdev, pdev,
+					    &hisi_acc_vfio_pci_ops);
+	if (ret)
+		goto out_free;
+
+	return 0;
+
+out_free:
+	kfree(hisidev);
+	return ret;
+}
+
+static void hisi_acc_vfio_pci_remove(struct pci_dev *pdev)
+{
+	struct vfio_device *vdev = dev_get_drvdata(&pdev->dev);
+	struct vfio_pci_core_device *core_vpdev = vfio_device_data(vdev);
+	struct hisi_acc_vfio_pci_device *hisidev;
+
+	hisidev = container_of(core_vpdev, struct hisi_acc_vfio_pci_device, vdev);
+
+	vfio_pci_core_unregister_device(core_vpdev);
+	kfree(hisidev);
+}
+
+static const struct pci_device_id hisi_acc_vfio_pci_table[] = {
+	{ PCI_VDEVICE(HUAWEI, SEC_VF_DEVICE_ID), },
+	{ PCI_VDEVICE(HUAWEI, HPRE_VF_DEVICE_ID), },
+	{ PCI_VDEVICE(HUAWEI, ZIP_VF_DEVICE_ID), },
+	{ 0, }
+};
+
+static struct pci_driver hisi_acc_vfio_pci_driver = {
+	.name			= "hisi-acc-vfio-pci",
+	.id_table		= hisi_acc_vfio_pci_table,
+	.probe			= hisi_acc_vfio_pci_probe,
+	.remove			= hisi_acc_vfio_pci_remove,
+#ifdef CONFIG_PCI_IOV
+	.sriov_configure	= vfio_pci_core_sriov_configure,
+#endif
+	.err_handler		= &vfio_pci_core_err_handlers,
+};
+
+module_pci_driver(hisi_acc_vfio_pci_driver);

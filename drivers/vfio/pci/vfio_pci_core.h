@@ -207,15 +207,6 @@ static inline int vfio_pci_info_zdev_add_caps(struct vfio_pci_core_device *vdev,
 }
 #endif
 
-#ifdef CONFIG_VFIO_PCI_HISI_MIGRATION
-extern int vfio_pci_hisilicon_acc_init(struct vfio_pci_core_device *vdev);
-#else
-static inline int vfio_pci_hisilicon_acc_init(struct vfio_pci_core_device *vdev)
-{
-	return -ENODEV;
-}
-#endif
-
 /* Exported functions */
 int vfio_pci_core_register_device(struct vfio_pci_core_device *vdev,
 		struct pci_dev *pdev,
