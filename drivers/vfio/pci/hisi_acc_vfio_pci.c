@@ -1334,6 +1334,67 @@ static void vfio_pci_hisilicon_acc_uninit(struct acc_vf_migration *acc_vf_dev)
 	kfree(acc_vf_dev);
 }
 
+static long hisi_acc_vfio_pci_ioctl(void *device_data, unsigned int cmd,
+				    unsigned long arg)
+{
+	struct vfio_pci_core_device *vdev = device_data;
+	unsigned long minsz;
+
+	if (cmd == VFIO_DEVICE_GET_REGION_INFO) {
+		struct pci_dev *pdev = vdev->pdev;
+		struct vfio_region_info info;
+		struct vfio_info_cap caps = { .buf = NULL, .size = 0 };
+
+		minsz = offsetofend(struct vfio_region_info, offset);
+
+		if (copy_from_user(&info, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		if (info.argsz < minsz)
+			return -EINVAL;
+
+		if (info.index == VFIO_PCI_BAR2_REGION_INDEX) {
+			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
+
+			/* ToDo: Update the size here to hide migration region */
+			info.size = pci_resource_len(pdev, info.index);
+
+			if (!info.size)
+				info.flags = 0;
+			else
+				info.flags = VFIO_REGION_INFO_FLAG_READ |
+					VFIO_REGION_INFO_FLAG_WRITE |
+					VFIO_REGION_INFO_FLAG_MMAP;
+
+			if (caps.size) {
+				info.flags |= VFIO_REGION_INFO_FLAG_CAPS;
+				if (info.argsz < sizeof(info) + caps.size) {
+					info.argsz = sizeof(info) + caps.size;
+					info.cap_offset = 0;
+				} else {
+					vfio_info_cap_shift(&caps, sizeof(info));
+					if (copy_to_user((void __user *)arg +
+							  sizeof(info), caps.buf,
+							  caps.size)) {
+						kfree(caps.buf);
+						return -EFAULT;
+					}
+					info.cap_offset = sizeof(info);
+				}
+
+				kfree(caps.buf);
+			}
+			return copy_to_user((void __user *)arg, &info, minsz) ?
+					    -EFAULT : 0;
+		} else {
+			return vfio_pci_core_ioctl(device_data, cmd, arg);
+		}
+
+	} else {
+		return vfio_pci_core_ioctl(device_data, cmd, arg);
+	}
+}
+
 static void hisi_acc_vfio_pci_release(void *device_data)
 {
 	struct vfio_pci_core_device *vdev = device_data;
@@ -1388,7 +1449,7 @@ static const struct vfio_device_ops hisi_acc_vfio_pci_ops = {
 	.name		= "hisi-acc-vfio-pci",
 	.open		= hisi_acc_vfio_pci_open,
 	.release	= hisi_acc_vfio_pci_release,
-	.ioctl		= vfio_pci_core_ioctl,
+	.ioctl		= hisi_acc_vfio_pci_ioctl,
 	.read		= vfio_pci_core_read,
 	.write		= vfio_pci_core_write,
 	.mmap		= vfio_pci_core_mmap,
