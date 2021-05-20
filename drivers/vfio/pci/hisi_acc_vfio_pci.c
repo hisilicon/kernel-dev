@@ -12,7 +12,7 @@
 #include <linux/sysfs.h>
 #include <linux/vfio.h>
 
-#include "acc_vf_migration.h"
+#include "hisi_acc_vfio_pci.h"
 
 #define VDM_OFFSET(x) offsetof(struct vfio_device_migration_info, x)
 void vfio_pci_hisilicon_acc_uninit(struct acc_vf_migration *acc_vf_dev);

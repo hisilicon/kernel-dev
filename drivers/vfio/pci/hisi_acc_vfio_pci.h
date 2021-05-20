@@ -8,8 +8,8 @@
 #include <linux/pci.h>
 #include <linux/vfio.h>
 
-#include "../vfio_pci_core.h"
-#include "../../../drivers/crypto/hisilicon/qm.h"
+#include "vfio_pci_core.h"
+#include "../../drivers/crypto/hisilicon/qm.h"
 
 #define MIGRATION_REGION_SZ (sizeof(struct acc_vf_data) + \
 			      sizeof(struct vfio_device_migration_info))
