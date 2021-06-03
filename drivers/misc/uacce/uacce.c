@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include <linux/compat.h>
 #include <linux/dma-mapping.h>
+#include <linux/file.h>
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/poll.h>
@@ -11,6 +12,99 @@ static struct class *uacce_class;
 static dev_t uacce_devt;
 static DEFINE_MUTEX(uacce_mutex);
 static DEFINE_XARRAY_ALLOC(uacce_xa);
+
+static const struct file_operations uacce_fops;
+static struct uacce_qfile_region noiommu_ss_default_qfr = {
+	.type	=	UACCE_QFRT_SS,
+};
+
+static int cdev_get(struct device *dev, void *data)
+{
+	struct uacce_device *uacce;
+	struct device **t_dev = data;
+
+	uacce = container_of(dev, struct uacce_device, dev);
+	if (uacce->parent == *t_dev) {
+		*t_dev = dev;
+		return 1;
+	}
+
+	return 0;
+}
+
+/**
+ * dev_to_uacce - Get structure uacce device from its parent device
+ * @dev the device
+ */
+struct uacce_device *dev_to_uacce(struct device *dev)
+{
+	struct device **tdev = &dev;
+	int ret;
+
+	ret = class_for_each_device(uacce_class, NULL, tdev, cdev_get);
+	if (ret) {
+		dev = *tdev;
+		return container_of(dev, struct uacce_device, dev);
+	}
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(dev_to_uacce);
+
+/**
+ * uacce_hw_err_isolate - Try to isolate the uacce device with its VFs
+ * according to user's configuration of isolation strategy. Warning: this
+ * API should be called while there is no user on the device, or the users
+ * on this device are suspended by slot resetting preparation of PCI AER.
+ * @uacce the uacce device
+ */
+int uacce_hw_err_isolate(struct uacce_device *uacce)
+{
+	struct uacce_hw_err *err, *tmp, *hw_err;
+	struct uacce_err_isolate *isolate;
+	u32 count = 0;
+
+	if (!uacce)
+		return -EINVAL;
+	isolate = uacce->isolate;
+
+#define SECONDS_PER_HOUR	3600
+
+	/* all the hw errs are processed by PF driver */
+	if (uacce->is_vf || atomic_read(&isolate->is_isolate) ||
+		!isolate->hw_err_isolate_hz)
+		return 0;
+
+	hw_err = kzalloc(sizeof(*hw_err), GFP_ATOMIC);
+	if (!hw_err)
+		return -ENOMEM;
+	hw_err->tick_stamp = jiffies;
+	list_for_each_entry_safe(err, tmp, &isolate->hw_errs, list) {
+		if ((hw_err->tick_stamp - err->tick_stamp) / HZ >
+		    SECONDS_PER_HOUR) {
+			list_del(&err->list);
+			kfree(err);
+		} else {
+			count++;
+		}
+	}
+	list_add(&hw_err->list, &isolate->hw_errs);
+
+	if (count >= isolate->hw_err_isolate_hz)
+		atomic_set(&isolate->is_isolate, 1);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(uacce_hw_err_isolate);
+
+static void uacce_hw_err_destroy(struct uacce_device *uacce)
+{
+	struct uacce_hw_err *err, *tmp;
+
+	list_for_each_entry_safe(err, tmp, &uacce->isolate_data.hw_errs, list) {
+		list_del(&err->list);
+		kfree(err);
+	}
+}
 
 static int uacce_start_queue(struct uacce_queue *q)
 {
@@ -54,10 +148,138 @@ static int uacce_put_queue(struct uacce_queue *q)
 		uacce->ops->put_queue(q);
 
 	q->state = UACCE_Q_ZOMBIE;
+	q->filep = NULL;
+
+	atomic_dec(&uacce->ref);
 out:
 	mutex_unlock(&uacce_mutex);
 
 	return 0;
+}
+
+static long uacce_cmd_share_qfr(struct uacce_queue *src, int fd)
+{
+	struct device *dev = &src->uacce->dev;
+	struct file *filep = fget(fd);
+	struct uacce_queue *tgt;
+	int ret = -EINVAL;
+
+	if (!filep) {
+		dev_err(dev, "filep is NULL!\n");
+		return ret;
+	}
+
+	if (filep->f_op != &uacce_fops) {
+		dev_err(dev, "file ops mismatch!\n");
+		goto out_with_fd;
+	}
+
+	tgt = filep->private_data;
+	if (!tgt) {
+		dev_err(dev, "target queue is not exist!\n");
+		goto out_with_fd;
+	}
+
+	mutex_lock(&uacce_mutex);
+	if (tgt->state == UACCE_Q_ZOMBIE || src->state == UACCE_Q_ZOMBIE) {
+		dev_err(dev, "target or source queue is zombie!\n");
+		goto out_with_fd;
+	}
+
+	if (!src->qfrs[UACCE_QFRT_SS] || tgt->qfrs[UACCE_QFRT_SS]) {
+		dev_err(dev, "src q's SS not exists or target q's SS exists!\n");
+		goto out_with_fd;
+	}
+
+	/* In No-IOMMU mode, taget queue uses default SS qfr */
+	tgt->qfrs[UACCE_QFRT_SS] = &noiommu_ss_default_qfr;
+
+	ret = 0;
+
+out_with_fd:
+	mutex_unlock(&uacce_mutex);
+	fput(filep);
+
+	return ret;
+}
+
+static long uacce_get_ss_dma(struct uacce_queue *q, void __user *arg)
+{
+	struct uacce_device *uacce = q->uacce;
+	struct uacce_dma_slice *slice;
+	unsigned long slice_idx = 0;
+	unsigned long dma, size;
+	unsigned int max_idx;
+	long ret = -EFAULT;
+
+	if (q->state == UACCE_Q_ZOMBIE) {
+		dev_err(&uacce->dev, "queue is zombie!\n");
+		ret = -EINVAL;
+		goto param_check;
+	}
+
+	if (!q->qfrs[UACCE_QFRT_SS]) {
+		dev_err(&uacce->dev, "no ss dma region!\n");
+		ret = -EINVAL;
+		goto param_check;
+	}
+
+	slice = q->qfrs[UACCE_QFRT_SS]->dma_list;
+	if (copy_from_user(&slice_idx, arg, sizeof(unsigned long))) {
+		dev_err(&uacce->dev, "copy_from_user fail!\n");
+		goto param_check;
+	}
+
+	if (slice[0].total_num - 1 < slice_idx) {
+		dev_err(&uacce->dev, "no ss slice idx %ld err, total %u!\n",
+			slice_idx, slice[0].total_num);
+		ret = -EINVAL;
+		goto param_check;
+	}
+
+	dma = slice[slice_idx].dma;
+	size = slice[slice_idx].size;
+	if (!size) {
+		max_idx = slice[0].total_num - 1;
+		dev_err(&uacce->dev, "%ldth ss region[0x%lx, %lu] no exist, range[[0](0x%llx, %llu) -> [%u](0x%llx, %llu)]\n",
+			slice_idx, dma, size,
+			slice[0].dma, slice[0].size, max_idx,
+			slice[max_idx].dma, slice[max_idx].size);
+		ret = -ENODEV;
+		goto param_check;
+	}
+	dma = dma | ((size >> UACCE_GRAN_SHIFT) & UACCE_GRAN_NUM_MASK);
+	if (copy_to_user(arg, &dma, sizeof(unsigned long))) {
+		dev_err(&uacce->dev, "copy_to_user fail!\n");
+		goto param_check;
+	}
+
+	ret = (long)(slice[0].total_num - 1 - slice_idx);
+
+param_check:
+	return ret;
+}
+
+static void uacce_free_dma_buffers(struct uacce_queue *q)
+{
+	struct uacce_qfile_region *qfr = q->qfrs[UACCE_QFRT_SS];
+	struct device *pdev = q->uacce->parent;
+	int i = 0;
+
+	if (!qfr->dma_list)
+		return;
+	while (i < qfr->dma_list[0].total_num) {
+		WARN_ON(!qfr->dma_list[i].size || !qfr->dma_list[i].dma);
+		dev_dbg(pdev, "free dma qfr (kaddr=%lx, dma=%llx)\n",
+			(unsigned long)qfr->dma_list[i].kaddr,
+			qfr->dma_list[i].dma);
+		dma_free_coherent(pdev, qfr->dma_list[i].size,
+				  qfr->dma_list[i].kaddr,
+				  qfr->dma_list[i].dma);
+		i++;
+	}
+	kfree(qfr->dma_list);
+	qfr->dma_list = NULL;
 }
 
 static long uacce_fops_unl_ioctl(struct file *filep,
@@ -72,6 +294,12 @@ static long uacce_fops_unl_ioctl(struct file *filep,
 
 	case UACCE_CMD_PUT_Q:
 		return uacce_put_queue(q);
+
+	case UACCE_CMD_SHARE_SVAS:
+		return uacce_cmd_share_qfr(q, (int)arg);
+
+	case UACCE_CMD_GET_SS_DMA:
+		return uacce_get_ss_dma(q, (void __user *)arg);
 
 	default:
 		if (!uacce->ops->ioctl)
@@ -141,6 +369,7 @@ static int uacce_fops_open(struct inode *inode, struct file *filep)
 		goto out_with_mem;
 
 	q->uacce = uacce;
+	q->filep = filep;
 
 	if (uacce->ops->get_queue) {
 		ret = uacce->ops->get_queue(uacce, q->pasid, q);
@@ -148,6 +377,7 @@ static int uacce_fops_open(struct inode *inode, struct file *filep)
 			goto out_with_bond;
 	}
 
+	atomic_inc(&uacce->ref);
 	init_waitqueue_head(&q->wait);
 	filep->private_data = q;
 	uacce->inode = inode;
@@ -169,12 +399,19 @@ out_with_mem:
 static int uacce_fops_release(struct inode *inode, struct file *filep)
 {
 	struct uacce_queue *q = filep->private_data;
+	struct uacce_qfile_region *ss = q->qfrs[UACCE_QFRT_SS];
 
 	mutex_lock(&q->uacce->queues_lock);
 	list_del(&q->list);
 	mutex_unlock(&q->uacce->queues_lock);
 	uacce_put_queue(q);
 	uacce_unbind_queue(q);
+
+	if (ss && ss != &noiommu_ss_default_qfr) {
+		uacce_free_dma_buffers(q);
+		kfree(ss);
+	}
+
 	kfree(q);
 
 	return 0;
@@ -184,16 +421,228 @@ static void uacce_vma_close(struct vm_area_struct *vma)
 {
 	struct uacce_queue *q = vma->vm_private_data;
 	struct uacce_qfile_region *qfr = NULL;
+	struct device *dev = &q->uacce->dev;
 
-	if (vma->vm_pgoff < UACCE_MAX_REGION)
-		qfr = q->qfrs[vma->vm_pgoff];
+	if (vma->vm_pgoff >= UACCE_MAX_REGION)
+		return;
 
-	kfree(qfr);
+	qfr = q->qfrs[vma->vm_pgoff];
+	if (!qfr) {
+		dev_err(dev, "qfr NULL, type %lu!\n", vma->vm_pgoff);
+		return;
+	}
+
+	if (qfr->type == UACCE_QFRT_SS &&
+	    atomic_read(&current->active_mm->mm_users) > 0) {
+		uacce_free_dma_buffers(q);
+		kfree(qfr);
+		q->qfrs[vma->vm_pgoff] = NULL;
+	} else if (qfr->type != UACCE_QFRT_SS) {
+		kfree(qfr);
+		q->qfrs[vma->vm_pgoff] = NULL;
+	}
 }
 
 static const struct vm_operations_struct uacce_vm_ops = {
 	.close = uacce_vma_close,
 };
+
+static int get_sort_base(struct uacce_dma_slice *list, int low, int high,
+			 struct uacce_dma_slice *tmp)
+{
+	tmp->kaddr = list[low].kaddr;
+	tmp->size = list[low].size;
+	tmp->dma = list[low].dma;
+
+	if (low > high)
+		return -EINVAL;
+	else if (low == high)
+		return 0;
+
+	while (low < high) {
+		while (low < high && list[high].dma > tmp->dma)
+			high--;
+		list[low].kaddr = list[high].kaddr;
+		list[low].dma = list[high].dma;
+		list[low].size = list[high].size;
+		while (low < high && list[low].dma < tmp->dma)
+			low++;
+		list[high].kaddr = list[low].kaddr;
+		list[high].dma = list[low].dma;
+		list[high].size = list[low].size;
+	}
+	list[low].kaddr = tmp->kaddr;
+	list[low].dma = tmp->dma;
+	list[low].size = tmp->size;
+
+	return low;
+}
+
+static int uacce_sort_dma_buffers(struct uacce_dma_slice *list, int low,
+				   int high, struct uacce_dma_slice *tmp)
+{
+	int *idx_list;
+	int top = 0;
+	int pilot;
+
+	idx_list = kcalloc(list[0].total_num, sizeof(int),
+			   GFP_KERNEL | __GFP_ZERO);
+	if (!idx_list)
+		return -ENOMEM;
+
+	pilot = get_sort_base(list, low, high, tmp);
+	if (pilot <= 0) {
+		if (pilot)
+			pr_err("fail to sort base!\n");
+		kfree(idx_list);
+		return pilot;
+	}
+
+	if (pilot > low + 1) {
+		idx_list[top++] = low;
+		idx_list[top++] = pilot - 1;
+	}
+	if (pilot < high - 1) {
+		idx_list[top++] = pilot + 1;
+		idx_list[top++] = high;
+	}
+	while (top > 0) {
+		high = idx_list[--top];
+		low = idx_list[--top];
+		pilot = get_sort_base(list, low, high, tmp);
+		if (pilot > low + 1) {
+			idx_list[top++] = low;
+			idx_list[top++] = pilot - 1;
+		}
+		if (pilot < high - 1) {
+			idx_list[top++] = pilot + 1;
+			idx_list[top++] = high;
+		}
+	}
+
+	kfree(idx_list);
+	return 0;
+}
+
+static int uacce_alloc_dma_buffers(struct uacce_queue *q,
+				   struct vm_area_struct *vma)
+{
+	struct uacce_qfile_region *qfr = q->qfrs[UACCE_QFRT_SS];
+	unsigned long size = vma->vm_end - vma->vm_start;
+	unsigned long max_size = PAGE_SIZE << (MAX_ORDER - 1);
+	struct device *pdev = q->uacce->parent;
+	struct uacce_device *uacce = q->uacce;
+	unsigned long start = vma->vm_start;
+	struct uacce_dma_slice *slice;
+	int i, ss_num;
+
+	/*
+	 * When IOMMU closed, set maximum slice size is 128M,
+	 * when IOMMU opened, set maxinum slice size base on actual size
+	 */
+	if (uacce->flags & UACCE_DEV_IOMMU)
+		max_size = size;
+	else if (max_size > UACCE_GRAN_NUM_MASK << UACCE_GRAN_SHIFT)
+		max_size = (UACCE_GRAN_NUM_MASK + 1) << (UACCE_GRAN_SHIFT - 1);
+
+	ss_num = (size + max_size - 1) / max_size;
+
+	slice = kcalloc(ss_num + 1, sizeof(*slice), GFP_KERNEL | __GFP_ZERO);
+	if (!slice)
+		return -ENOMEM;
+
+	qfr->dma_list = slice;
+
+	for (i = 0; i < ss_num; i++) {
+		if (start + max_size > vma->vm_end)
+			size = vma->vm_end - start;
+		else
+			size = max_size;
+		dev_dbg(pdev, "allocate dma %ld pages\n",
+			(size + PAGE_SIZE - 1) >> PAGE_SHIFT);
+		slice[i].kaddr = dma_alloc_coherent(pdev, (size +
+						    PAGE_SIZE - 1) & PAGE_MASK,
+						    &slice[i].dma, GFP_KERNEL);
+		if (!slice[i].kaddr) {
+			dev_err(pdev, "Get dma slice(sz=%ld,dma=0x%llx) fail!\n",
+			size, slice[i].dma);
+			slice[0].total_num = i;
+			uacce_free_dma_buffers(q);
+			return -ENOMEM;
+		}
+		slice[i].size = (size + PAGE_SIZE - 1) & PAGE_MASK;
+		slice[i].total_num = ss_num;
+		start += size;
+	}
+
+	return uacce_sort_dma_buffers(slice, 0, slice[0].total_num - 1,
+				      &slice[ss_num]);
+}
+
+static int uacce_mmap_dma_buffers(struct uacce_queue *q,
+				  struct vm_area_struct *vma)
+{
+	struct uacce_qfile_region *qfr = q->qfrs[UACCE_QFRT_SS];
+	struct uacce_dma_slice *slice = qfr->dma_list;
+	struct device *pdev = q->uacce->parent;
+	unsigned long vm_pgoff;
+	int ret = 0;
+	int i = 0;
+
+	/*
+	 * dma_mmap_coherent() requires vm_pgoff as 0
+	 * restore vm_pfoff to initial value for mmap()
+	 */
+	vm_pgoff = vma->vm_pgoff;
+	vma->vm_pgoff = 0;
+	while (i < slice[0].total_num && slice[i].size) {
+		vma->vm_end = vma->vm_start + slice[i].size;
+		ret = dma_mmap_coherent(pdev, vma, slice[i].kaddr,
+					slice[i].dma,
+					slice[i].size);
+		if (ret) {
+			dev_err(pdev, "dma mmap fail(dma=0x%llx,size=0x%llx)!\n",
+				slice[i].dma, slice[i].size);
+			goto DMA_MMAP_FAIL;
+		}
+
+		i++;
+		vma->vm_start = vma->vm_end;
+	}
+
+	/* System unmap_region will clean the results, we need do nothing */
+DMA_MMAP_FAIL:
+	vma->vm_pgoff = vm_pgoff;
+	vma->vm_start = qfr->iova;
+	vma->vm_end = vma->vm_start + (qfr->nr_pages << PAGE_SHIFT);
+
+	return ret;
+}
+
+static int uacce_create_region(struct uacce_queue *q,
+					struct vm_area_struct *vma,
+					struct uacce_qfile_region *qfr)
+{
+	int ret;
+
+	qfr->iova = vma->vm_start;
+	qfr->nr_pages = vma_pages(vma);
+
+	/* allocate memory */
+	ret = uacce_alloc_dma_buffers(q, vma);
+	if (ret)
+		return ret;
+
+	ret = uacce_mmap_dma_buffers(q, vma);
+	if (ret)
+		goto err_with_pages;
+
+	return ret;
+
+err_with_pages:
+	uacce_free_dma_buffers(q);
+	return ret;
+}
 
 static int uacce_fops_mmap(struct file *filep, struct vm_area_struct *vma)
 {
@@ -229,6 +678,7 @@ static int uacce_fops_mmap(struct file *filep, struct vm_area_struct *vma)
 		goto out_with_lock;
 	}
 
+	q->qfrs[type] = qfr;
 	switch (type) {
 	case UACCE_QFRT_MMIO:
 	case UACCE_QFRT_DUS:
@@ -242,12 +692,18 @@ static int uacce_fops_mmap(struct file *filep, struct vm_area_struct *vma)
 			goto out_with_lock;
 		break;
 
+	case UACCE_QFRT_SS:
+
+		ret = uacce_create_region(q, vma, qfr);
+		if (ret)
+			goto out_with_lock;
+		break;
+
 	default:
 		ret = -EINVAL;
 		goto out_with_lock;
 	}
 
-	q->qfrs[type] = qfr;
 	mutex_unlock(&uacce_mutex);
 
 	return ret;
@@ -255,6 +711,7 @@ static int uacce_fops_mmap(struct file *filep, struct vm_area_struct *vma)
 out_with_lock:
 	mutex_unlock(&uacce_mutex);
 	kfree(qfr);
+	q->qfrs[type] = NULL;
 	return ret;
 }
 
@@ -339,20 +796,95 @@ static ssize_t region_dus_size_show(struct device *dev,
 		       uacce->qf_pg_num[UACCE_QFRT_DUS] << PAGE_SHIFT);
 }
 
+static ssize_t isolate_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct uacce_device *uacce = to_uacce_device(dev);
+
+	return sprintf(buf, "%d\n", atomic_read(&uacce->isolate->is_isolate));
+}
+
+static ssize_t isolate_strategy_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct uacce_device *uacce = to_uacce_device(dev);
+
+	return sprintf(buf, "%u\n", uacce->isolate->hw_err_isolate_hz);
+}
+
+static ssize_t isolate_strategy_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct uacce_device *uacce = to_uacce_device(dev);
+	unsigned long val = 0;
+
+#define MAX_ISOLATE_STRATEGY	65535
+
+	/* must be set by PF */
+	if (uacce->is_vf)
+		return -EINVAL;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val > MAX_ISOLATE_STRATEGY)
+		return -EINVAL;
+
+	if (atomic_read(&uacce->ref))
+		return -EBUSY;
+
+	uacce->isolate->hw_err_isolate_hz = val;
+
+	return count;
+}
+
+static ssize_t node_id_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct uacce_device *uacce = to_uacce_device(dev);
+	int node_id = -1;
+
+#ifdef CONFIG_NUMA
+	node_id = uacce->parent->numa_node;
+#endif
+	return sprintf(buf, "%d\n", node_id);
+}
+
+static ssize_t numa_distance_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct uacce_device *uacce = to_uacce_device(dev);
+	int distance = 0;
+
+#ifdef CONFIG_NUMA
+	distance = node_distance(uacce->parent->numa_node,
+		cpu_to_node(smp_processor_id()));
+#endif
+	return sprintf(buf, "%d\n", distance);
+}
 static DEVICE_ATTR_RO(api);
 static DEVICE_ATTR_RO(flags);
+static DEVICE_ATTR_RO(node_id);
 static DEVICE_ATTR_RO(available_instances);
 static DEVICE_ATTR_RO(algorithms);
 static DEVICE_ATTR_RO(region_mmio_size);
 static DEVICE_ATTR_RO(region_dus_size);
+static DEVICE_ATTR_RO(isolate);
+static DEVICE_ATTR_RW(isolate_strategy);
+static DEVICE_ATTR_RO(numa_distance);
 
 static struct attribute *uacce_dev_attrs[] = {
 	&dev_attr_api.attr,
 	&dev_attr_flags.attr,
+	&dev_attr_node_id.attr,
 	&dev_attr_available_instances.attr,
 	&dev_attr_algorithms.attr,
 	&dev_attr_region_mmio_size.attr,
 	&dev_attr_region_dus_size.attr,
+	&dev_attr_isolate.attr,
+	&dev_attr_isolate_strategy.attr,
+	&dev_attr_numa_distance.attr,
 	NULL,
 };
 
@@ -450,6 +982,8 @@ struct uacce_device *uacce_alloc(struct device *parent,
 		goto err_with_uacce;
 
 	INIT_LIST_HEAD(&uacce->queues);
+	INIT_LIST_HEAD(&uacce->isolate_data.hw_errs);
+
 	mutex_init(&uacce->queues_lock);
 	device_initialize(&uacce->dev);
 	uacce->dev.devt = MKDEV(MAJOR(uacce_devt), uacce->dev_id);
@@ -458,6 +992,9 @@ struct uacce_device *uacce_alloc(struct device *parent,
 	uacce->dev.parent = uacce->parent;
 	uacce->dev.release = uacce_release;
 	dev_set_name(&uacce->dev, "%s-%d", interface->name, uacce->dev_id);
+
+	if (flags & UACCE_DEV_NOIOMMU)
+		dev_warn(&uacce->dev, "register to noiommu mode, it's not safe for kernel\n");
 
 	return uacce;
 
@@ -521,6 +1058,7 @@ void uacce_remove(struct uacce_device *uacce)
 	if (uacce->cdev)
 		cdev_device_del(uacce->cdev, &uacce->dev);
 	xa_erase(&uacce_xa, uacce->dev_id);
+	uacce_hw_err_destroy(uacce);
 	put_device(&uacce->dev);
 }
 EXPORT_SYMBOL_GPL(uacce_remove);
