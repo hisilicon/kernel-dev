@@ -99,6 +99,15 @@ enum mig_debug_cmd {
 	MIG_DEV_SHOW,
 };
 
+static const char * const vf_dev_state[] = {
+	"Stop",
+	"Running",
+	"Saving",
+	"Running & Saving",
+	"Resuming",
+};
+
+#define QM_MATCH_SIZE		32L
 struct acc_vf_data {
 	/* QM match information */
 	u32 qp_num;

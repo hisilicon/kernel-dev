@@ -686,6 +686,7 @@ static int hisi_acc_vf_set_device_state(struct acc_vf_migration *acc_vf_dev,
 	struct vfio_device_migration_info *mig_ctl = acc_vf_dev->mig_ctl;
 	struct hisi_qm *pfqm = acc_vf_dev->pf_qm;
 	struct hisi_qm *vfqm = acc_vf_dev->vf_qm;
+	struct device *dev = &acc_vf_dev->vf_dev->dev;
 	int ret = 0;
 
 	if (state == mig_ctl->device_state)
@@ -748,6 +749,10 @@ static int hisi_acc_vf_set_device_state(struct acc_vf_migration *acc_vf_dev,
 	default:
 		return -EFAULT;
 	}
+
+	dev_info(dev, "migration state: %s ----------> %s!\n",
+		 vf_dev_state[mig_ctl->device_state],
+		 vf_dev_state[state]);
 
 	mig_ctl->device_state = state;
 
