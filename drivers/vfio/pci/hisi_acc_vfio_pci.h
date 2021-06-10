@@ -9,6 +9,8 @@
 #define VDM_OFFSET(x) offsetof(struct vfio_device_migration_info, x)
 #define MIGRATION_REGION_SZ (sizeof(struct acc_vf_data) + \
 			      sizeof(struct vfio_device_migration_info))
+#define VFIO_DEV_DBG_LEN		256
+#define VFIO_DBG_LOG_LEN		16
 
 #define HISI_SEC_VF_DEV_ID		0xa256
 #define HISI_HPRE_VF_DEV_ID		0xa259
@@ -89,6 +91,14 @@ enum vf_state {
 	VF_PREPARE,
 };
 
+enum mig_debug_cmd {
+	STATE_SAVE,
+	STATE_RESUME,
+	MB_TEST,
+	MIG_DATA_DUMP,
+	MIG_DEV_SHOW,
+};
+
 struct acc_vf_data {
 	/* QM match information */
 	u32 qp_num;
@@ -136,9 +146,11 @@ struct acc_vf_migration {
 	struct hisi_qm			*vf_qm;
 	int				vf_id;
 	bool				mig_ignore;
+	struct mutex			reflock;
 
 	struct vfio_device_migration_info *mig_ctl;
 	struct acc_vf_data		*vf_data;
+	struct dentry			*debug_root;
 };
 
 #endif /* HISI_ACC_VFIO_PCI_H */
