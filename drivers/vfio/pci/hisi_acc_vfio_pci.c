@@ -197,58 +197,64 @@ static int qm_rw_regs_read(struct hisi_qm *qm, struct acc_vf_data *vf_data)
 
 	ret = qm_read_reg(qm, QM_VF_AEQ_INT_MASK, &vf_data->aeq_int_mask, 1);
 	if (ret) {
-		dev_err(dev, "failed to read QM_VF_AEQ_INT_MASK!\n");
+		dev_err(dev, "failed to read QM_VF_AEQ_INT_MASK\n");
 		return ret;
 	}
 
 	ret = qm_read_reg(qm, QM_VF_EQ_INT_MASK, &vf_data->eq_int_mask, 1);
 	if (ret) {
-		dev_err(dev, "failed to read QM_VF_EQ_INT_MASK!\n");
+		dev_err(dev, "failed to read QM_VF_EQ_INT_MASK\n");
 		return ret;
 	}
 
 	ret = qm_read_reg(qm, QM_IFC_INT_SOURCE_V,
 			  &vf_data->ifc_int_source, 1);
 	if (ret) {
-		dev_err(dev, "failed to read QM_IFC_INT_SOURCE_V!\n");
+		dev_err(dev, "failed to read QM_IFC_INT_SOURCE_V\n");
 		return ret;
 	}
 
 	ret = qm_read_reg(qm, QM_IFC_INT_MASK, &vf_data->ifc_int_mask, 1);
 	if (ret) {
-		dev_err(dev, "failed to read QM_IFC_INT_MASK!\n");
+		dev_err(dev, "failed to read QM_IFC_INT_MASK\n");
 		return ret;
 	}
 
 	ret = qm_read_reg(qm, QM_IFC_INT_SET_V, &vf_data->ifc_int_set, 1);
 	if (ret) {
-		dev_err(dev, "failed to read QM_IFC_INT_SET_V!\n");
+		dev_err(dev, "failed to read QM_IFC_INT_SET_V\n");
+		return ret;
+	}
+
+	ret = qm_read_reg(qm, QM_QUE_ISO_CFG_V, &vf_data->que_iso_cfg, 1);
+	if (ret) {
+		dev_err(dev, "failed to read QM_QUE_ISO_CFG_V\n");
 		return ret;
 	}
 
 	ret = qm_read_reg(qm, QM_PAGE_SIZE, &vf_data->page_size, 1);
 	if (ret) {
-		dev_err(dev, "failed to read QM_PAGE_SIZE!\n");
+		dev_err(dev, "failed to read QM_PAGE_SIZE\n");
 		return ret;
 	}
 
 	ret = qm_read_reg(qm, QM_VF_STATE, &vf_data->vf_state, 1);
 	if (ret) {
-		dev_err(dev, "failed to read QM_VF_STATE!\n");
+		dev_err(dev, "failed to read QM_VF_STATE\n");
 		return ret;
 	}
 
 	/* QM_EQC_DW has 7 regs */
 	ret = qm_read_reg(qm, QM_EQC_DW0, vf_data->qm_eqc_dw, 7);
 	if (ret) {
-		dev_err(dev, "failed to read QM_EQC_DW!\n");
+		dev_err(dev, "failed to read QM_EQC_DW\n");
 		return ret;
 	}
 
 	/* QM_AEQC_DW has 7 regs */
 	ret = qm_read_reg(qm, QM_AEQC_DW0, vf_data->qm_aeqc_dw, 7);
 	if (ret) {
-		dev_err(dev, "failed to read QM_AEQC_DW!\n");
+		dev_err(dev, "failed to read QM_AEQC_DW\n");
 		return ret;
 	}
 
@@ -262,74 +268,94 @@ static int qm_rw_regs_write(struct hisi_qm *qm, struct acc_vf_data *vf_data)
 
 	/* check VF state */
 	if (unlikely(qm_wait_mb_ready(qm))) {
-		dev_err(&qm->pdev->dev, "QM device is not ready to write!\n");
+		dev_err(&qm->pdev->dev, "QM device is not ready to write\n");
 		return -EBUSY;
 	}
 
 	ret = qm_write_reg(qm, QM_VF_AEQ_INT_MASK, &vf_data->aeq_int_mask, 1);
 	if (ret) {
-		dev_err(dev, "failed to write QM_VF_AEQ_INT_MASK!\n");
+		dev_err(dev, "failed to write QM_VF_AEQ_INT_MASK\n");
 		return ret;
 	}
 
 	ret = qm_write_reg(qm, QM_VF_EQ_INT_MASK, &vf_data->eq_int_mask, 1);
 	if (ret) {
-		dev_err(dev, "failed to write QM_VF_EQ_INT_MASK!\n");
+		dev_err(dev, "failed to write QM_VF_EQ_INT_MASK\n");
 		return ret;
 	}
 
 	ret = qm_write_reg(qm, QM_IFC_INT_SOURCE_V,
 			   &vf_data->ifc_int_source, 1);
 	if (ret) {
-		dev_err(dev, "failed to write QM_IFC_INT_SOURCE_V!\n");
+		dev_err(dev, "failed to write QM_IFC_INT_SOURCE_V\n");
 		return ret;
 	}
 
 	ret = qm_write_reg(qm, QM_IFC_INT_MASK, &vf_data->ifc_int_mask, 1);
 	if (ret) {
-		dev_err(dev, "failed to write QM_IFC_INT_MASK!\n");
+		dev_err(dev, "failed to write QM_IFC_INT_MASK\n");
 		return ret;
 	}
 
 	ret = qm_write_reg(qm, QM_IFC_INT_SET_V, &vf_data->ifc_int_set, 1);
 	if (ret) {
-		dev_err(dev, "failed to write QM_IFC_INT_SET_V!\n");
+		dev_err(dev, "failed to write QM_IFC_INT_SET_V\n");
 		return ret;
 	}
 
 	ret = qm_write_reg(qm, QM_QUE_ISO_CFG_V, &vf_data->que_iso_cfg, 1);
 	if (ret) {
-		dev_err(dev, "failed to write QM_QUE_ISO_CFG_V!\n");
+		dev_err(dev, "failed to write QM_QUE_ISO_CFG_V\n");
 		return ret;
 	}
 
 	ret = qm_write_reg(qm, QM_PAGE_SIZE, &vf_data->page_size, 1);
 	if (ret) {
-		dev_err(dev, "failed to write QM_PAGE_SIZE!\n");
+		dev_err(dev, "failed to write QM_PAGE_SIZE\n");
 		return ret;
 	}
 
 	ret = qm_write_reg(qm, QM_VF_STATE, &vf_data->vf_state, 1);
 	if (ret) {
-		dev_err(dev, "failed to write QM_VF_STATE!\n");
+		dev_err(dev, "failed to write QM_VF_STATE\n");
 		return ret;
 	}
 
 	/* QM_EQC_DW has 7 regs */
 	ret = qm_write_reg(qm, QM_EQC_DW0, vf_data->qm_eqc_dw, 7);
 	if (ret) {
-		dev_err(dev, "failed to write QM_EQC_DW!\n");
+		dev_err(dev, "failed to write QM_EQC_DW\n");
 		return ret;
 	}
 
 	/* QM_AEQC_DW has 7 regs */
 	ret = qm_write_reg(qm, QM_AEQC_DW0, vf_data->qm_aeqc_dw, 7);
 	if (ret) {
-		dev_err(dev, "failed to write QM_AEQC_DW!\n");
+		dev_err(dev, "failed to write QM_AEQC_DW\n");
 		return ret;
 	}
 
 	return 0;
+}
+
+static void qm_db(struct hisi_qm *qm, u16 qn, u8 cmd,
+		  u16 index, u8 priority)
+{
+	u64 doorbell;
+	u64 dbase;
+	u16 randata = 0;
+
+	if (cmd == QM_DOORBELL_CMD_SQ || cmd == QM_DOORBELL_CMD_CQ)
+		dbase = QM_DOORBELL_SQ_CQ_BASE_V2;
+	else
+		dbase = QM_DOORBELL_EQ_AEQ_BASE_V2;
+
+	doorbell = qn | ((u64)cmd << QM_DB_CMD_SHIFT_V2) |
+		   ((u64)randata << QM_DB_RAND_SHIFT_V2) |
+		   ((u64)index << QM_DB_INDEX_SHIFT_V2)	 |
+		   ((u64)priority << QM_DB_PRIORITY_SHIFT_V2);
+
+	writeq(doorbell, qm->io_base + dbase);
 }
 
 /*
@@ -392,13 +418,9 @@ static void vf_qm_fun_restart(struct hisi_qm *qm,
 	struct device *dev = &qm->pdev->dev;
 	int i;
 
-	/**
-	 * When the system is rebooted, the SMMU page table is destroyed,
-	 * and the QP queue cannot be returned normally at this time.
-	 * if vf_ready == 0x2, don't need to restart QP.
-	 */
-	if (vf_data->vf_state == VF_PREPARE) {
-		dev_err(dev, "failed to restart VF!\n");
+	/* Check if we need to restart VF */
+	if (acc_vf_dev->mig_ignore || vf_data->vf_state == VF_PREPARE) {
+		dev_info(dev, "No need to restart VF\n");
 		return;
 	}
 
@@ -583,7 +605,7 @@ static int vf_qm_state_save(struct hisi_qm *qm,
 	 */
 	if (unlikely(qm_wait_dev_ready(qm))) {
 		acc_vf_dev->mig_ignore = true;
-		dev_err(&qm->pdev->dev, "QM device is not ready to read!\n");
+		dev_info(&qm->pdev->dev, "QM device is not ready to read, skip migration\n");
 		return 0;
 	}
 
@@ -694,10 +716,8 @@ static int hisi_acc_vf_set_device_state(struct acc_vf_migration *acc_vf_dev,
 
 	switch (state) {
 	case VFIO_DEVICE_STATE_RUNNING:
-		if (acc_vf_dev->mig_ignore)
-			return 0;
-
-		if (mig_ctl->device_state == VFIO_DEVICE_STATE_RESUMING) {
+		if (!acc_vf_dev->mig_ignore &&
+		    mig_ctl->device_state == VFIO_DEVICE_STATE_RESUMING) {
 			ret = hisi_acc_vf_ioremap(acc_vf_dev, state);
 			if (ret)
 				return ret;
@@ -730,12 +750,11 @@ static int hisi_acc_vf_set_device_state(struct acc_vf_migration *acc_vf_dev,
 		if (acc_vf_dev->mig_ignore) {
 			mig_ctl->data_size = 0;
 			mig_ctl->pending_bytes = 0;
-			goto out;
+		} else {
+			/* set the pending_byte and data_size */
+			mig_ctl->data_size = sizeof(struct acc_vf_data);
+			mig_ctl->pending_bytes = mig_ctl->data_size;
 		}
-
-		/* set the pending_byte and data_size */
-		mig_ctl->data_size = sizeof(struct acc_vf_data);
-		mig_ctl->pending_bytes = mig_ctl->data_size;
 		break;
 	case VFIO_DEVICE_STATE_STOP:
 		ret = hisi_acc_vf_ioremap(acc_vf_dev, state);

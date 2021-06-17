@@ -597,14 +597,13 @@ static void qm_db_v2(struct hisi_qm *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 	writeq(doorbell, io_base);
 }
 
-void qm_db(struct hisi_qm *qm, u16 qn, u8 cmd, u16 index, u8 priority)
+static void qm_db(struct hisi_qm *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 {
 	dev_dbg(&qm->pdev->dev, "QM doorbell request: qn=%u, cmd=%u, index=%u\n",
 		qn, cmd, index);
 
 	qm->ops->qm_db(qm, qn, cmd, index, priority);
 }
-EXPORT_SYMBOL_GPL(qm_db);
 
 static int qm_dev_mem_reset(struct hisi_qm *qm)
 {
