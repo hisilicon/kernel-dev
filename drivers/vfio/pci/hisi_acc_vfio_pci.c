@@ -428,45 +428,6 @@ static void vf_qm_fun_restart(struct hisi_qm *qm,
 		qm_db(qm, i, QM_DOORBELL_CMD_SQ, 0, 1);
 }
 
-static int vf_match_info_check(struct hisi_qm *qm,
-			       struct acc_vf_migration *acc_vf_dev)
-{
-	struct acc_vf_data *vf_data = acc_vf_dev->vf_data;
-	struct device *dev = &qm->pdev->dev;
-	u32 que_iso_state;
-	int ret;
-
-	/* vf acc dev type check */
-	if (vf_data->dev_id != acc_vf_dev->vf_dev->device) {
-		dev_err(dev, "failed to match VF devices!\n");
-		return -EINVAL;
-	}
-
-	/* vf qp num check */
-	ret = qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
-	if (ret || qm->qp_num <= 1) {
-		dev_err(dev, "failed to get vft qp nums!\n");
-		return ret;
-	}
-	if (vf_data->qp_num != qm->qp_num) {
-		dev_err(dev, "failed to match VF qp num!\n");
-		return -EINVAL;
-	}
-
-	/* vf isolation state check */
-	ret = qm_read_reg(qm, QM_QUE_ISO_CFG_V, &que_iso_state, 1);
-	if (ret) {
-		dev_err(dev, "failed to read QM_QUE_ISO_CFG_V!\n");
-		return ret;
-	}
-	if (vf_data->que_iso_cfg != que_iso_state) {
-		dev_err(dev, "failed to match isolation state!\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int vf_migration_data_recover(struct hisi_qm *qm,
 				     struct acc_vf_data *vf_data)
 {
@@ -780,6 +741,67 @@ out:
 	return ret;
 }
 
+static int hisi_acc_vf_match_check(struct acc_vf_migration *acc_vf_dev)
+{
+	struct vfio_device_migration_info *mig_ctl = acc_vf_dev->mig_ctl;
+	struct acc_vf_data *vf_data = acc_vf_dev->vf_data;
+	struct hisi_qm *qm = acc_vf_dev->vf_qm;
+	struct device *dev = &qm->pdev->dev;
+	u32 que_iso_state;
+	int ret;
+
+	/*
+	 * Check we are in the correct dev state and have enough data to
+	 * perform the check.
+	 */
+	if (mig_ctl->device_state != VFIO_DEVICE_STATE_RESUMING ||
+	    mig_ctl->pending_bytes != QM_MATCH_SIZE ||
+	    mig_ctl->data_size != QM_MATCH_SIZE)
+		return 0;
+
+	/* vf acc dev type check */
+	if (vf_data->dev_id != acc_vf_dev->vf_dev->device) {
+		dev_err(dev, "failed to match VF devices\n");
+		return -EINVAL;
+	}
+
+	ret = hisi_acc_vf_ioremap(acc_vf_dev, mig_ctl->device_state);
+	if (ret)
+		return ret;
+
+	/* vf qp num check */
+	ret = qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
+	if (ret || qm->qp_num <= 1) {
+		dev_err(dev, "failed to get vft qp nums\n");
+		goto out;
+	}
+	if (vf_data->qp_num != qm->qp_num) {
+		dev_err(dev, "failed to match VF qp num\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* vf isolation state check */
+	ret = qm_read_reg(qm, QM_QUE_ISO_CFG_V, &que_iso_state, 1);
+	if (ret) {
+		dev_err(dev, "failed to read QM_QUE_ISO_CFG_V\n");
+		goto out;
+	}
+	if (vf_data->que_iso_cfg != que_iso_state) {
+		dev_err(dev, "failed to match isolation state\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* clear the VF match data size */
+	mig_ctl->pending_bytes = 0;
+	mig_ctl->data_size = 0;
+
+out:
+	hisi_acc_vf_iounmap(acc_vf_dev);
+	return ret;
+}
+
 static int hisi_acc_vf_data_transfer(struct acc_vf_migration *acc_vf_dev,
 				     char __user *buf, size_t count, u64 pos,
 				     bool iswrite)
@@ -788,7 +810,7 @@ static int hisi_acc_vf_data_transfer(struct acc_vf_migration *acc_vf_dev,
 	void *data_addr = acc_vf_dev->vf_data;
 	int ret = 0;
 
-	if (!count)
+	if (!count || pos < mig_ctl->data_offset || pos > MIGRATION_REGION_SZ)
 		return -EINVAL;
 
 	data_addr += pos - mig_ctl->data_offset;
@@ -817,7 +839,6 @@ static size_t hisi_acc_vf_migrn_rw(struct vfio_pci_core_device *vdev,
 	struct vfio_device_migration_info *mig_ctl;
 	struct acc_vf_migration *acc_vf_dev;
 	u64 pos = *ppos & VFIO_PCI_OFFSET_MASK;
-	struct hisi_qm *qm;
 	struct device *dev;
 	u32 device_state;
 	int ret = 0;
@@ -826,7 +847,6 @@ static size_t hisi_acc_vf_migrn_rw(struct vfio_pci_core_device *vdev,
 		return -EINVAL;
 
 	acc_vf_dev = region->data;
-	qm = acc_vf_dev->vf_qm;
 	dev = &acc_vf_dev->vf_dev->dev;
 	mig_ctl = acc_vf_dev->mig_ctl;
 
@@ -856,25 +876,21 @@ static size_t hisi_acc_vf_migrn_rw(struct vfio_pci_core_device *vdev,
 		}
 		break;
 	case VDM_OFFSET(reserved):
-		ret = -EFAULT;
-		break;
+		return 0;
 	case VDM_OFFSET(pending_bytes):
-		if (count != sizeof(mig_ctl->pending_bytes)) {
-			ret = -EINVAL;
-			break;
-		}
+		if (count != sizeof(mig_ctl->pending_bytes))
+			return -EINVAL;
 
 		if (iswrite)
-			ret = -EFAULT;
+			return -EFAULT;
 		else
 			ret = copy_to_user(buf, &mig_ctl->pending_bytes,
 					   count) ? -EFAULT : count;
 		break;
 	case VDM_OFFSET(data_offset):
-		if (count != sizeof(mig_ctl->data_offset)) {
-			ret = -EINVAL;
-			break;
-		}
+		if (count != sizeof(mig_ctl->data_offset))
+			return -EINVAL;
+
 		if (iswrite)
 			ret = copy_from_user(&mig_ctl->data_offset, buf,
 					     count) ? -EFAULT : count;
@@ -883,49 +899,27 @@ static size_t hisi_acc_vf_migrn_rw(struct vfio_pci_core_device *vdev,
 					   count) ? -EFAULT : count;
 		break;
 	case VDM_OFFSET(data_size):
-		if (count != sizeof(mig_ctl->data_size)) {
-			ret = -EINVAL;
-			break;
-		}
+		if (count != sizeof(mig_ctl->data_size))
+			return -EINVAL;
 
-		if (iswrite)
+		if (iswrite) {
 			ret = copy_from_user(&mig_ctl->data_size, buf,
 					     count) ? -EFAULT : count;
-		else
+			if (ret > 0) {
+				/* Check whether the src and dst VF's match */
+				ret = hisi_acc_vf_match_check(acc_vf_dev);
+				if (!ret)
+					ret = count;
+			}
+		} else {
 			ret = copy_to_user(buf, &mig_ctl->data_size,
 					   count) ? -EFAULT : count;
+		}
 		break;
 	default:
-		ret = -EFAULT;
-		break;
-	}
-
-	/* Transfer data section */
-	if (pos >= mig_ctl->data_offset &&
-	    pos < MIGRATION_REGION_SZ) {
+		/* Transfer data */
 		ret = hisi_acc_vf_data_transfer(acc_vf_dev, buf,
 						count, pos, iswrite);
-		if (ret != count)
-			return ret;
-	}
-
-	if (mig_ctl->device_state == VFIO_DEVICE_STATE_RESUMING &&
-	    mig_ctl->pending_bytes == QM_MATCH_SIZE &&
-	    mig_ctl->data_size == QM_MATCH_SIZE) {
-		/* check the VF match information */
-		ret = hisi_acc_vf_ioremap(acc_vf_dev, mig_ctl->device_state);
-		if (ret)
-			return ret;
-
-		ret = vf_match_info_check(qm, acc_vf_dev);
-		if (!ret) {
-			/* clear the VF match data size */
-			mig_ctl->pending_bytes = 0;
-			mig_ctl->data_size = 0;
-
-			ret = count;
-		}
-		hisi_acc_vf_iounmap(acc_vf_dev);
 	}
 
 	return ret;
