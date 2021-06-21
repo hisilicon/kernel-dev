@@ -419,7 +419,7 @@ static void vf_qm_fun_restart(struct hisi_qm *qm,
 	int i;
 
 	/* Check if we need to restart VF */
-	if (acc_vf_dev->mig_ignore || vf_data->vf_state == VF_PREPARE) {
+	if (vf_data->vf_state == VF_PREPARE) {
 		dev_info(dev, "No need to restart VF\n");
 		return;
 	}
@@ -429,10 +429,15 @@ static void vf_qm_fun_restart(struct hisi_qm *qm,
 }
 
 static int vf_migration_data_recover(struct hisi_qm *qm,
-				     struct acc_vf_data *vf_data)
+				     struct acc_vf_migration *acc_vf_dev)
 {
 	struct device *dev = &qm->pdev->dev;
+	struct acc_vf_data *vf_data = acc_vf_dev->vf_data;
+	struct vfio_device_migration_info *mig_ctl = acc_vf_dev->mig_ctl;
 	int ret;
+
+	if (!mig_ctl->data_size)
+		return 0;
 
 	qm->eqe_dma = vf_data->eqe_dma;
 	qm->aeqe_dma = vf_data->aeqe_dma;
@@ -528,6 +533,7 @@ static int pf_qm_state_pre_save(struct hisi_qm *qm,
 				struct acc_vf_migration *acc_vf_dev)
 {
 	struct acc_vf_data *vf_data = acc_vf_dev->vf_data;
+	struct vfio_device_migration_info *mig_ctl = acc_vf_dev->mig_ctl;
 	struct device *dev = &qm->pdev->dev;
 	int vf_id = acc_vf_dev->vf_id;
 	int ret;
@@ -551,6 +557,9 @@ static int pf_qm_state_pre_save(struct hisi_qm *qm,
 		return ret;
 	}
 
+	mig_ctl->data_size = QM_MATCH_SIZE;
+	mig_ctl->pending_bytes = mig_ctl->data_size;
+
 	return 0;
 }
 
@@ -558,15 +567,18 @@ static int vf_qm_state_save(struct hisi_qm *qm,
 			    struct acc_vf_migration *acc_vf_dev)
 {
 	struct device *dev = &acc_vf_dev->vf_dev->dev;
+	struct vfio_device_migration_info *mig_ctl = acc_vf_dev->mig_ctl;
 	int ret;
+
+	mig_ctl->data_size = 0;
+	mig_ctl->pending_bytes = 0;
 
 	/*
 	 * check VM task driver state
 	 * if vf_ready == 0x1, skip migrate.
 	 */
 	if (unlikely(qm_wait_dev_ready(qm))) {
-		acc_vf_dev->mig_ignore = true;
-		dev_info(&qm->pdev->dev, "QM device is not ready to read, skip migration\n");
+		dev_info(&qm->pdev->dev, "QM device not ready, no data to transfer\n");
 		return 0;
 	}
 
@@ -597,6 +609,9 @@ static int vf_qm_state_save(struct hisi_qm *qm,
 		goto state_error;
 	}
 
+	mig_ctl->data_size = sizeof(struct acc_vf_data);
+	mig_ctl->pending_bytes = mig_ctl->data_size;
+
 	return 0;
 
 state_error:
@@ -611,7 +626,7 @@ static int vf_qm_state_resume(struct hisi_qm *qm,
 	int ret;
 
 	/* recover data to VF */
-	ret = vf_migration_data_recover(qm, acc_vf_dev->vf_data);
+	ret = vf_migration_data_recover(qm, acc_vf_dev);
 	if (ret) {
 		dev_err(dev, "failed to recover the VF!\n");
 		return ret;
@@ -677,8 +692,7 @@ static int hisi_acc_vf_set_device_state(struct acc_vf_migration *acc_vf_dev,
 
 	switch (state) {
 	case VFIO_DEVICE_STATE_RUNNING:
-		if (!acc_vf_dev->mig_ignore &&
-		    mig_ctl->device_state == VFIO_DEVICE_STATE_RESUMING) {
+		if (mig_ctl->device_state == VFIO_DEVICE_STATE_RESUMING) {
 			ret = hisi_acc_vf_ioremap(acc_vf_dev, state);
 			if (ret)
 				return ret;
@@ -694,9 +708,6 @@ static int hisi_acc_vf_set_device_state(struct acc_vf_migration *acc_vf_dev,
 		if (ret)
 			return ret;
 
-		/* set the pending_byte and match data size */
-		mig_ctl->data_size = QM_MATCH_SIZE;
-		mig_ctl->pending_bytes = mig_ctl->data_size;
 		break;
 	case VFIO_DEVICE_STATE_SAVING:
 		/* stop the vf function */
@@ -708,14 +719,6 @@ static int hisi_acc_vf_set_device_state(struct acc_vf_migration *acc_vf_dev,
 		if (ret)
 			goto out;
 
-		if (acc_vf_dev->mig_ignore) {
-			mig_ctl->data_size = 0;
-			mig_ctl->pending_bytes = 0;
-		} else {
-			/* set the pending_byte and data_size */
-			mig_ctl->data_size = sizeof(struct acc_vf_data);
-			mig_ctl->pending_bytes = mig_ctl->data_size;
-		}
 		break;
 	case VFIO_DEVICE_STATE_STOP:
 		ret = hisi_acc_vf_ioremap(acc_vf_dev, state);
@@ -1216,7 +1219,6 @@ static int hisi_acc_vfio_pci_init(struct vfio_pci_core_device *vdev)
 	acc_vf_dev->vf_id = vf_id;
 	acc_vf_dev->pf_dev = pf_dev;
 	acc_vf_dev->vf_dev = vf_dev;
-	acc_vf_dev->mig_ignore = false;
 	mutex_init(&acc_vf_dev->reflock);
 
 	ret = hisi_acc_vf_dev_init(pdev, pf_qm, acc_vf_dev);

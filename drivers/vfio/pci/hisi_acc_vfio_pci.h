@@ -154,7 +154,6 @@ struct acc_vf_migration {
 	struct hisi_qm			*pf_qm;
 	struct hisi_qm			*vf_qm;
 	int				vf_id;
-	bool				mig_ignore;
 	struct mutex			reflock;
 
 	struct vfio_device_migration_info *mig_ctl;
