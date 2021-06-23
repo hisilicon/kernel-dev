@@ -492,7 +492,7 @@ static bool qm_qp_avail_state(struct hisi_qm *qm, struct hisi_qp *qp,
 }
 
 /* return 0 mailbox ready, -ETIMEDOUT hardware timeout */
-static int qm_wait_mb_ready(struct hisi_qm *qm)
+int qm_wait_mb_ready(struct hisi_qm *qm)
 {
 	u32 val;
 
@@ -500,6 +500,7 @@ static int qm_wait_mb_ready(struct hisi_qm *qm)
 					  val, !((val >> QM_MB_BUSY_SHIFT) &
 					  0x1), POLL_PERIOD, POLL_TIMEOUT);
 }
+EXPORT_SYMBOL_GPL(qm_wait_mb_ready);
 
 /* 128 bit should be written to hardware at one time to trigger a mailbox */
 static void qm_mb_write(struct hisi_qm *qm, const void *src)
@@ -523,8 +524,8 @@ static void qm_mb_write(struct hisi_qm *qm, const void *src)
 		     : "memory");
 }
 
-static int qm_mb(struct hisi_qm *qm, u8 cmd, dma_addr_t dma_addr, u16 queue,
-		 bool op)
+int qm_mb(struct hisi_qm *qm, u8 cmd, dma_addr_t dma_addr, u16 queue,
+	  bool op)
 {
 	struct qm_mailbox mailbox;
 	int ret = 0;
@@ -563,6 +564,7 @@ busy_unlock:
 		atomic64_inc(&qm->debug.dfx.mb_err_cnt);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(qm_mb);
 
 static void qm_db_v1(struct hisi_qm *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 {
