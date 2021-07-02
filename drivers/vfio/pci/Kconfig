@@ -57,3 +57,12 @@ config MLX5_VFIO_PCI
 	  framework.
 
 	  If you don't know what to do here, say N.
+
+config HISI_ACC_VFIO_PCI
+	tristate "VFIO support for HiSilicon ACC devices"
+	depends on ARM64 && VFIO_PCI_CORE
+	help
+	  This provides generic PCI support for HiSilicon devices using the VFIO
+	  framework.
+
+	  If you don't know what to do here, say N.
