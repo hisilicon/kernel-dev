@@ -59,10 +59,14 @@ config MLX5_VFIO_PCI
 	  If you don't know what to do here, say N.
 
 config HISI_ACC_VFIO_PCI
-	tristate "VFIO support for HiSilicon ACC devices"
+	tristate "VFIO live migration support for HiSilicon ACC devices"
 	depends on ARM64 && VFIO_PCI_CORE
+	select CRYPTO_DEV_HISI_QM
+	depends on PCI && PCI_MSI
+	depends on UACCE || UACCE=n
+	depends on ACPI
 	help
-	  This provides generic PCI support for HiSilicon devices using the VFIO
-	  framework.
+	  This provides live migration support for HiSilicon ACC devices
+	  using the VFIO framework.
 
 	  If you don't know what to do here, say N.
