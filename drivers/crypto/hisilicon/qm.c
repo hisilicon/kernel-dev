@@ -5683,7 +5683,7 @@ static int hisi_qp_alloc_memory(struct hisi_qm *qm)
 	/* one more page for device or qp statuses */
 	qp_dma_size = qm->sqe_size * QM_Q_DEPTH +
 		      sizeof(struct qm_cqe) * QM_Q_DEPTH;
-	qp_dma_size = PAGE_ALIGN(qp_dma_size) + PAGE_SIZE;
+	qp_dma_size = PAGE_ALIGN(qp_dma_size);
 	for (i = 0; i < qm->qp_num; i++) {
 		ret = hisi_qp_memory_init(qm, qp_dma_size, i);
 		if (ret)
