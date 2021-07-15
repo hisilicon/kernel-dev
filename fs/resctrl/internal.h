@@ -24,6 +24,14 @@ static inline struct rdt_fs_context *rdt_fc2context(struct fs_context *fc)
 	return container_of(kfc, struct rdt_fs_context, kfc);
 }
 
+static inline bool is_mba_sc(struct rdt_resource *r)
+{
+	if (!r)
+		r = resctrl_arch_get_resource(RDT_RESOURCE_MBA);
+
+	return r->membw.mba_sc;
+}
+
 /**
  * struct mon_evt - Entry in the event list of a resource
  * @evtid:		event id

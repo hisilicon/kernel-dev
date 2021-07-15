@@ -3386,9 +3386,8 @@ static void clear_childcpus(struct rdtgroup *r, unsigned int cpu)
 	struct rdtgroup *cr;
 
 	list_for_each_entry(cr, &r->mon.crdtgrp_list, mon.crdtgrp_list) {
-		if (cpumask_test_and_clear_cpu(cpu, &cr->cpu_mask)) {
+		if (cpumask_test_and_clear_cpu(cpu, &cr->cpu_mask))
 			break;
-		}
 	}
 }
 
