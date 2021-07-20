@@ -10,10 +10,6 @@
 #define MIGRATION_REGION_SZ (sizeof(struct acc_vf_data) + \
 			      sizeof(struct vfio_device_migration_info))
 
-#define HISI_SEC_VF_DEV_ID		0xa256
-#define HISI_HPRE_VF_DEV_ID		0xa259
-#define HISI_ZIP_VF_DEV_ID		0xa251
-
 #define MB_POLL_PERIOD_US		10
 #define MB_POLL_TIMEOUT_US		1000
 #define QM_CACHE_WB_START		0x204

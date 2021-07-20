@@ -73,21 +73,21 @@ static int qm_check_int_state(struct acc_vf_migration *acc_vf_dev)
 
 	/* Check submodule task state */
 	switch (vf_pdev->device) {
-	case HISI_SEC_VF_DEV_ID:
+	case SEC_VF_PCI_DEVICE_ID:
 		state = acc_check_reg_state(qm, SEC_CORE_INT_STATUS);
 		if (state) {
 			dev_err(dev, "failed to check QM SEC Core INT state!\n");
 			return -EBUSY;
 		}
 		return 0;
-	case HISI_HPRE_VF_DEV_ID:
+	case HPRE_VF_PCI_DEVICE_ID:
 		state = acc_check_reg_state(qm, HPRE_HAC_INT_STATUS);
 		if (state) {
 			dev_err(dev, "failed to check QM HPRE HAC INT state!\n");
 			return -EBUSY;
 		}
 		return 0;
-	case HISI_ZIP_VF_DEV_ID:
+	case ZIP_VF_PCI_DEVICE_ID:
 		state = acc_check_reg_state(qm, HZIP_CORE_INT_STATUS);
 		if (state) {
 			dev_err(dev, "failed to check QM ZIP Core INT state!\n");
@@ -1202,9 +1202,9 @@ static void hisi_acc_vfio_pci_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id hisi_acc_vfio_pci_table[] = {
-	{ PCI_DRIVER_OVERRIDE_DEVICE_VFIO(PCI_VENDOR_ID_HUAWEI, HISI_SEC_VF_DEV_ID) },
-	{ PCI_DRIVER_OVERRIDE_DEVICE_VFIO(PCI_VENDOR_ID_HUAWEI, HISI_HPRE_VF_DEV_ID) },
-	{ PCI_DRIVER_OVERRIDE_DEVICE_VFIO(PCI_VENDOR_ID_HUAWEI, HISI_ZIP_VF_DEV_ID) },
+	{ PCI_DRIVER_OVERRIDE_DEVICE_VFIO(PCI_VENDOR_ID_HUAWEI, SEC_VF_PCI_DEVICE_ID) },
+	{ PCI_DRIVER_OVERRIDE_DEVICE_VFIO(PCI_VENDOR_ID_HUAWEI, HPRE_VF_PCI_DEVICE_ID) },
+	{ PCI_DRIVER_OVERRIDE_DEVICE_VFIO(PCI_VENDOR_ID_HUAWEI, ZIP_VF_PCI_DEVICE_ID) },
 	{ 0, }
 };
 
@@ -1215,9 +1215,6 @@ static struct pci_driver hisi_acc_vfio_pci_driver = {
 	.id_table		= hisi_acc_vfio_pci_table,
 	.probe			= hisi_acc_vfio_pci_probe,
 	.remove			= hisi_acc_vfio_pci_remove,
-#ifdef CONFIG_PCI_IOV
-	.sriov_configure	= vfio_pci_core_sriov_configure,
-#endif
 	.err_handler		= &vfio_pci_core_err_handlers,
 };
 
