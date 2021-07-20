@@ -33,6 +33,27 @@
 #define QM_WUSER_M_CFG_ENABLE		0x1000a8
 #define WUSER_M_CFG_ENABLE		0xffffffff
 
+/* mailbox */
+#define QM_MB_CMD_SQC_BT		0x4
+#define QM_MB_CMD_CQC_BT		0x5
+#define QM_MB_CMD_SQC_VFT_V2		0x6
+#define QM_MB_CMD_SEND_BASE		0x300
+#define QM_MB_BUSY_SHIFT		13
+#define QM_MB_OP_SHIFT			14
+#define QM_MB_CMD_DATA_ADDR_L		0x304
+#define QM_MB_CMD_DATA_ADDR_H		0x308
+#define QM_MB_MAX_WAIT_CNT		6000
+
+/* doorbell */
+#define QM_DOORBELL_CMD_SQ		0
+#define QM_DOORBELL_CMD_CQ		1
+#define QM_DOORBELL_SQ_CQ_BASE_V2	0x1000
+#define QM_DOORBELL_EQ_AEQ_BASE_V2	0x2000
+#define QM_DB_CMD_SHIFT_V2		12
+#define QM_DB_RAND_SHIFT_V2		16
+#define QM_DB_INDEX_SHIFT_V2		32
+#define QM_DB_PRIORITY_SHIFT_V2		48
+
 /* qm cache */
 #define QM_CACHE_CTL			0x100050
 #define SQC_CACHE_ENABLE		BIT(0)

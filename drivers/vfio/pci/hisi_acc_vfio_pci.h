@@ -4,7 +4,7 @@
 #ifndef HISI_ACC_VFIO_PCI_H
 #define HISI_ACC_VFIO_PCI_H
 
-#include "../../drivers/crypto/hisilicon/qm.h"
+#include <linux/hisi_acc_qm.h>
 
 #define VDM_OFFSET(x) offsetof(struct vfio_device_migration_info, x)
 #define MIGRATION_REGION_SZ (sizeof(struct acc_vf_data) + \
@@ -41,28 +41,6 @@
 #define QM_SQC_VFT_BASE_MASK_V2	GENMASK(15, 0)
 #define QM_SQC_VFT_NUM_SHIFT_V2	45
 #define QM_SQC_VFT_NUM_MASK_V2	GENMASK(9, 0)
-
-/* mailbox */
-#define QM_MB_CMD_SQC_BT		0x4
-#define QM_MB_CMD_CQC_BT		0x5
-#define QM_MB_CMD_SQC_VFT_V2		0x6
-
-#define QM_MB_CMD_SEND_BASE		0x300
-#define QM_MB_BUSY_SHIFT		13
-#define QM_MB_OP_SHIFT			14
-#define QM_MB_CMD_DATA_ADDR_L		0x304
-#define QM_MB_CMD_DATA_ADDR_H		0x308
-#define QM_MB_MAX_WAIT_CNT		6000
-
-/* doorbell */
-#define QM_DOORBELL_CMD_SQ		0
-#define QM_DOORBELL_CMD_CQ		1
-#define QM_DOORBELL_SQ_CQ_BASE_V2	0x1000
-#define QM_DOORBELL_EQ_AEQ_BASE_V2	0x2000
-#define QM_DB_CMD_SHIFT_V2		12
-#define QM_DB_RAND_SHIFT_V2		16
-#define QM_DB_INDEX_SHIFT_V2		32
-#define QM_DB_PRIORITY_SHIFT_V2	48
 
 /* RW regs */
 #define QM_REGS_MAX_LEN		7
