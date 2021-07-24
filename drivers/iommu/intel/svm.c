@@ -556,13 +556,9 @@ static struct iommu_sva *intel_svm_bind_mm(struct intel_iommu *iommu,
 		svm->flags = flags;
 		INIT_LIST_HEAD_RCU(&svm->devs);
 
-		if (!(flags & SVM_FLAG_SUPERVISOR_MODE)) {
-			svm->notifier.ops = &intel_mmuops;
-			ret = mmu_notifier_register(&svm->notifier, mm);
-			if (ret) {
-				kfree(svm);
-				return ERR_PTR(ret);
-			}
+		if ((flags & IOMMU_SVA_BIND_SUPERVISOR) && !ecap_srs(iommu->ecap)) {
+			pr_err("Supervisor PASID not supported.\n");
+			return -EINVAL;
 		}
 
 		ret = pasid_private_add(svm->pasid, svm);
@@ -1035,15 +1031,12 @@ prq_advance:
 	return IRQ_RETVAL(handled);
 }
 
-struct iommu_sva *intel_svm_bind(struct device *dev, struct mm_struct *mm, void *drvdata)
+struct iommu_sva *
+intel_svm_bind(struct device *dev, struct mm_struct *mm, unsigned int flags)
 {
 	struct intel_iommu *iommu = device_to_iommu(dev, NULL, NULL);
-	unsigned int flags = 0;
 	struct iommu_sva *sva;
 	int ret;
-
-	if (drvdata)
-		flags = *(unsigned int *)drvdata;
 
 	if (flags & SVM_FLAG_SUPERVISOR_MODE) {
 		if (!ecap_srs(iommu->ecap)) {
