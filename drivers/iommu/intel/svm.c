@@ -1032,7 +1032,7 @@ prq_advance:
 }
 
 struct iommu_sva *
-intel_svm_bind(struct device *dev, struct mm_struct *mm, unsigned int flags)
+intel_svm_bind(struct device *dev, unsigned int flags)
 {
 	struct intel_iommu *iommu = device_to_iommu(dev, NULL, NULL);
 	struct iommu_sva *sva;
