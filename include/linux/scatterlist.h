@@ -35,12 +35,8 @@ struct scatterlist {
 
 struct sg_table {
 	struct scatterlist *sgl;	/* the list */
-	unsigned int nents;		/* number of DMA mapped entries */
-	unsigned int orig_nents;	/* number of CPU mapped entries */
-	/* The fields below should be used internally only by
-	 * scatterlist implementation.
-	 */
-	unsigned int total_nents;	/* number of total entries in the table */
+	unsigned int nents;		/* number of mapped entries */
+	unsigned int orig_nents;	/* original size of list */
 };
 
 /*
