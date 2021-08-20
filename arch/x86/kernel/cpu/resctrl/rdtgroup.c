@@ -93,7 +93,7 @@ void rdt_last_cmd_printf(const char *fmt, ...)
  * - Our choices on how to configure each resource become progressively more
  *   limited as the number of resources grows.
  */
-static int closid_free_map;
+static unsigned long closid_free_map;
 static int closid_free_map_len;
 
 int closids_supported(void)
@@ -119,14 +119,17 @@ static void closid_init(void)
 
 static int closid_alloc(void)
 {
-	u32 closid = ffs(closid_free_map);
+	u32 closid;
 
-	if (closid == 0)
-		return -ENOSPC;
-	closid--;
-	closid_free_map &= ~(1 << closid);
+	for_each_set_bit(closid, &closid_free_map, closid_free_map_len) {
+		if (resctrl_closid_is_dirty(closid))
+			continue;
 
-	return closid;
+		clear_bit(closid, &closid_free_map);
+		return closid;
+	}
+
+	return -ENOSPC;
 }
 
 void closid_free(int closid)
