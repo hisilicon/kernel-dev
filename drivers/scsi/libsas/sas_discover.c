@@ -57,9 +57,9 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	if (!dev)
 		return -ENOMEM;
 
-	spin_lock_irq(&port->phy_list_lock);
+	spin_lock(&port->phy_list_lock);
 	if (list_empty(&port->phy_list)) {
-		spin_unlock_irq(&port->phy_list_lock);
+		spin_unlock(&port->phy_list_lock);
 		sas_put_device(dev);
 		return -ENODEV;
 	}
@@ -68,7 +68,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	memcpy(dev->frame_rcvd, phy->frame_rcvd, min(sizeof(dev->frame_rcvd),
 					     (size_t)phy->frame_rcvd_size));
 	spin_unlock(&phy->frame_rcvd_lock);
-	spin_unlock_irq(&port->phy_list_lock);
+	spin_unlock(&port->phy_list_lock);
 
 	if (dev->frame_rcvd[0] == 0x34 && port->oob_mode == SATA_OOB_MODE) {
 		struct dev_to_host_fis *fis =
@@ -156,10 +156,10 @@ static int sas_get_port_device(struct asd_sas_port *port)
 		spin_unlock_irq(&port->dev_list_lock);
 	}
 
-	spin_lock_irq(&port->phy_list_lock);
+	spin_lock(&port->phy_list_lock);
 	list_for_each_entry(phy, &port->phy_list, port_phy_el)
 		sas_phy_set_target(phy, dev);
-	spin_unlock_irq(&port->phy_list_lock);
+	spin_unlock(&port->phy_list_lock);
 
 	return 0;
 }
