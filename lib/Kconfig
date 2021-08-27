@@ -715,3 +715,6 @@ config PLDMFW
 
 config ASN1_ENCODER
        tristate
+
+config SPDM
+       tristate
