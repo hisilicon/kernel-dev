@@ -19,6 +19,9 @@ unsigned char *
 asn1_encode_tag(unsigned char *data, const unsigned char *end_data,
 		u32 tag, const unsigned char *string, int len);
 unsigned char *
+asn1_encode_integer_large_positive(unsigned char *data, const unsigned char *end_data,
+			  u32 tag, const unsigned char *integer, int len);
+unsigned char *
 asn1_encode_octet_string(unsigned char *data,
 			 const unsigned char *end_data,
 			 const unsigned char *string, u32 len);

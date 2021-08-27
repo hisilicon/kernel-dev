@@ -317,6 +317,60 @@ asn1_encode_tag(unsigned char *data, const unsigned char *end_data,
 }
 EXPORT_SYMBOL_GPL(asn1_encode_tag);
 
+unsigned char *
+asn1_encode_integer_large_positive(unsigned char *data, const unsigned char *end_data,
+				   u32 tag, const unsigned char *integer, int len)
+{
+	int data_len = end_data - data;
+	unsigned char *d = &data[2];
+	bool found = false;
+	int i;
+
+	if (WARN(tag > 30, "ASN.1 tag can't be > 30"))
+		return ERR_PTR(-EINVAL);
+
+	if (!integer && WARN(len > 127,
+			    "BUG: recode tag is too big (>127)"))
+		return ERR_PTR(-EINVAL);
+
+	if (IS_ERR(data))
+		return data;
+
+	if (data_len < 3)
+		return ERR_PTR(-EINVAL);
+
+
+	data[0] = _tagn(UNIV, PRIM, tag);
+	/* Leave space for length */
+	data_len -= 2;
+
+	for (i = 0; i < len; i++) {
+		int byte = integer[i];
+
+		if (!found && byte == 0)
+			continue;
+
+		/*
+		 * as per encode_integer
+		 */
+		if (!found && (byte & 0x80)) {
+			*d++ = 0;
+			data_len--;
+		}
+		found = true;
+		if (data_len == 0)
+			return ERR_PTR(-EINVAL);
+
+		*d++ = byte;
+		data_len--;
+	}
+
+	data[1] = d - data - 2;
+
+	return d;
+}
+EXPORT_SYMBOL_GPL(asn1_encode_integer_large_positive);
+
 /**
  * asn1_encode_octet_string() - encode an ASN.1 OCTET STRING
  * @data:	pointer to encode at
