@@ -198,6 +198,15 @@ config PCI_DOE
 	  used by a number of different protocols.
 	  DOE is defined in the Data Object Exchange ECN to the PCIe r5.0 spec.
 
+config PCI_CMA
+	tristate
+	select PCI_DOE
+	select ASN1_ENCODER
+	select SPDM
+	help
+	  This enables library support for the PCI Component Measurement and
+	  Authentication ECN. This uses DMTF SPDM 1.1
+
 choice
 	prompt "PCI Express hierarchy optimization setting"
 	default PCIE_BUS_DEFAULT

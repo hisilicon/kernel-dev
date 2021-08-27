@@ -19,6 +19,8 @@ struct pci_doe_prot {
 	u8 type;
 };
 
+#define PCI_DOE_PROTOCOL_DISCOVERY 0
+#define PCI_DOE_PROTOCOL_CMA 1
 struct workqueue_struct;
 
 enum pci_doe_state {

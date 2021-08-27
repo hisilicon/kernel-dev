@@ -20,8 +20,6 @@
 /* Maximum number of DOE instances in the system */
 #define PCI_DOE_MAX_CNT 65536
 
-#define PCI_DOE_PROTOCOL_DISCOVERY 0
-
 #define PCI_DOE_BUSY_MAX_RETRIES 16
 #define PCI_DOE_POLL_INTERVAL (HZ / 128)
 
