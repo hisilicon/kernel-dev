@@ -57,6 +57,7 @@ struct cxl_memdev {
  * @pdev: The PCI device associated with this CXL device.
  * @cxlmd: Logical memory device chardev / interface
  * @table_doe: Data exchange object mailbox used to read tables
+ * @cma_doe: Component measurement and authentication mailbox
  * @regs: Parsed register blocks
  * @payload_size: Size of space for payload
  *                (CXL 2.0 8.2.8.4.3 Mailbox Capabilities Register)
@@ -73,6 +74,7 @@ struct cxl_mem {
 	struct cxl_memdev *cxlmd;
 
 	struct pci_doe *table_doe;
+	struct pci_doe *cma_doe;
 	struct cxl_regs regs;
 
 	size_t payload_size;

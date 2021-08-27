@@ -17,6 +17,7 @@ config CXL_MEM
 	tristate "CXL.mem: Memory Devices"
 	default CXL_BUS
 	select PCI_DOE
+	select PCI_CMA
 	help
 	  The CXL.mem protocol allows a device to act as a provider of
 	  "System RAM" and/or "Persistent Memory" that is fully coherent

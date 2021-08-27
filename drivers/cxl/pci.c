@@ -2,10 +2,12 @@
 /* Copyright(c) 2020 Intel Corporation. All rights reserved. */
 #include <uapi/linux/cxl_mem.h>
 #include <linux/security.h>
+#include <linux/pci-cma.h>
 #include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/sizes.h>
 #include <linux/mutex.h>
+#include <linux/spdm.h>
 #include <linux/list.h>
 #include <linux/cdev.h>
 #include <linux/idr.h>
@@ -1723,6 +1725,7 @@ static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct cxl_memdev *cxlmd;
 	struct cxl_mem *cxlm;
+	struct spdm_state spdm_state;
 	int rc, irqs;
 
 	rc = pcim_enable_device(pdev);
@@ -1770,6 +1773,14 @@ static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	cxlm->table_doe = pci_doe_find(pdev, PCI_DVSEC_VENDOR_ID_CXL,
 				       CXL_DOE_PROTOCOL_TABLE_ACCESS);
 
+	cxlm->cma_doe = pci_doe_find(pdev, PCI_VENDOR_ID_PCI_SIG,
+				     PCI_DOE_PROTOCOL_CMA);
+
+	pci_cma_init(cxlm->cma_doe, &spdm_state);
+	rc = pci_cma_authenticate(&spdm_state);
+	if (rc)
+		return rc;
+
 	rc = cxl_mem_setup_regs(cxlm);
 	if (rc)
 		return rc;
@@ -1808,7 +1819,7 @@ static struct pci_driver cxl_mem_driver = {
 	.id_table		= cxl_mem_pci_tbl,
 	.probe			= cxl_mem_probe,
 	.driver	= {
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_FORCE_SYNCHRONOUS,
 	},
 };
 
