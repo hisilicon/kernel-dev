@@ -8,6 +8,7 @@
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
+#include <linux/pci-doe.h>
 
 /**
  * DOC: cxl objects
@@ -291,6 +292,16 @@ devm_cxl_add_passthrough_decoder(struct device *host, struct cxl_port *port)
 	return devm_cxl_add_decoder(host, port, 1, 0, 0, 1, PAGE_SIZE,
 				    CXL_DECODER_EXPANDER, 0);
 }
+
+#define CXL_DOE_PROTOCOL_COMPLIANCE 0
+#define CXL_DOE_PROTOCOL_TABLE_ACCESS 2
+
+/* Common to request and response */
+#define CXL_DOE_TABLE_ACCESS_3_CODE GENMASK(7, 0)
+#define   CXL_DOE_TABLE_ACCESS_3_CODE_READ 0
+#define CXL_DOE_TABLE_ACCESS_3_TYPE GENMASK(15, 8)
+#define   CXL_DOE_TABLE_ACCESS_3_TYPE_CDAT 0
+#define CXL_DOE_TABLE_ACCESS_3_ENTRY_HANDLE GENMASK(31, 16)
 
 extern struct bus_type cxl_bus_type;
 

@@ -15,6 +15,7 @@
 #include "pci.h"
 #include "cxl.h"
 #include "mem.h"
+#include "cdat.h"
 
 /**
  * DOC: cxl pci
@@ -917,6 +918,85 @@ static int cxl_mem_setup_mailbox(struct cxl_mem *cxlm)
 	return 0;
 }
 
+#define CDAT_DOE_REQ(entry_handle)					\
+	(FIELD_PREP(CXL_DOE_TABLE_ACCESS_REQ_CODE,			\
+		    CXL_DOE_TABLE_ACCESS_REQ_CODE_READ) |		\
+	 FIELD_PREP(CXL_DOE_TABLE_ACCESS_TABLE_TYPE,			\
+		    CXL_DOE_TABLE_ACCESS_TABLE_TYPE_CDATA) |		\
+	 FIELD_PREP(CXL_DOE_TABLE_ACCESS_ENTRY_HANDLE, (entry_handle)))
+
+static ssize_t cdat_get_length(struct pci_doe *doe)
+{
+	u32 cdat_request_pl = CDAT_DOE_REQ(0);
+	u32 cdat_response_pl[32];
+	struct pci_doe_exchange ex = {
+		.vid = PCI_DVSEC_VENDOR_ID_CXL,
+		.protocol = CXL_DOE_PROTOCOL_TABLE_ACCESS,
+		.request_pl = &cdat_request_pl,
+		.request_pl_sz = sizeof(cdat_request_pl),
+		.response_pl = cdat_response_pl,
+		.response_pl_sz = sizeof(cdat_response_pl),
+	};
+
+	ssize_t rc;
+
+	rc = pci_doe_exchange_sync(doe, &ex);
+	if (rc < 0)
+		return rc;
+	if (rc < 1)
+		return -EIO;
+
+	return cdat_response_pl[1];
+}
+
+static int cdat_to_buffer(struct pci_doe *doe, u32 *buffer, size_t length)
+{
+	int entry_handle = 0;
+	int rc;
+
+	do {
+		u32 cdat_request_pl = CDAT_DOE_REQ(entry_handle);
+		u32 cdat_response_pl[32];
+		struct pci_doe_exchange ex = {
+			.vid = PCI_DVSEC_VENDOR_ID_CXL,
+			.protocol = CXL_DOE_PROTOCOL_TABLE_ACCESS,
+			.request_pl = &cdat_request_pl,
+			.request_pl_sz = sizeof(cdat_request_pl),
+			.response_pl = cdat_response_pl,
+			.response_pl_sz = sizeof(cdat_response_pl),
+		};
+		size_t entry_dw;
+		u32 *entry;
+
+		rc = pci_doe_exchange_sync(doe, &ex);
+		if (rc < 0)
+			return rc;
+
+		entry = cdat_response_pl + 1;
+		entry_dw = rc / sizeof(u32);
+		/* Skip Header */
+		entry_dw -= 1;
+		entry_dw = min(length / 4, entry_dw);
+		memcpy(buffer, entry, entry_dw * sizeof(u32));
+		length -= entry_dw * sizeof(u32);
+		buffer += entry_dw;
+		entry_handle = FIELD_GET(CXL_DOE_TABLE_ACCESS_ENTRY_HANDLE, cdat_response_pl[0]);
+
+	} while (entry_handle != 0xFFFF);
+
+	return 0;
+}
+
+static void cxl_mem_free_irq_vectors(void *data)
+{
+	pci_free_irq_vectors(data);
+}
+
+static void cxl_mem_doe_unregister_all(void *data)
+{
+	pci_doe_unregister_all(data);
+}
+
 static struct cxl_mem *cxl_mem_create(struct pci_dev *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1152,6 +1232,8 @@ static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
 			goto free_maps;
 	}
 
+	
+
 free_maps:
 	list_for_each_entry_safe(map, n, &register_maps, list) {
 		list_del(&map->list);
@@ -1233,6 +1315,31 @@ static ssize_t pmem_size_show(struct device *dev, struct device_attribute *attr,
 	return sysfs_emit(buf, "%#llx\n", len);
 }
 
+static ssize_t CDAT_read(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *bin_attr, char *buf,
+			 loff_t offset, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+
+	return memory_read_from_buffer(buf, count, &offset, cxlmd->cdat_table,
+				       cxlmd->cdat_length);
+}
+
+static BIN_ATTR_RO(CDAT, 0);
+
+static umode_t cxl_memdev_bin_attr_is_visible(struct kobject *kobj,
+					      struct bin_attribute *attr, int i)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+
+	if ((attr == &bin_attr_CDAT) && cxlmd->cdat_table)
+		return 0400;
+
+	return 0;
+}
+
 static struct device_attribute dev_attr_pmem_size =
 	__ATTR(size, 0444, pmem_size_show, NULL);
 
@@ -1240,6 +1347,11 @@ static struct attribute *cxl_memdev_attributes[] = {
 	&dev_attr_firmware_version.attr,
 	&dev_attr_payload_max.attr,
 	&dev_attr_label_storage_size.attr,
+	NULL,
+};
+
+static struct bin_attribute *cxl_memdev_bin_attributes[] = {
+	&bin_attr_CDAT,
 	NULL,
 };
 
@@ -1255,6 +1367,8 @@ static struct attribute *cxl_memdev_ram_attributes[] = {
 
 static struct attribute_group cxl_memdev_attribute_group = {
 	.attrs = cxl_memdev_attributes,
+	.bin_attrs = cxl_memdev_bin_attributes,
+	.is_bin_visible = cxl_memdev_bin_attr_is_visible,
 };
 
 static struct attribute_group cxl_memdev_ram_attribute_group = {
@@ -1332,8 +1446,28 @@ err:
 	return ERR_PTR(rc);
 }
 
+static int cxl_cache_cdat_table(struct cxl_memdev *cxlmd)
+{
+	struct cxl_mem *cxlm = cxlmd->cxlm;
+	struct device *dev = &cxlmd->dev;
+	ssize_t cdat_length;
+
+	if (cxlm->table_doe == NULL)
+		return 0;
+
+	cdat_length = cdat_get_length(cxlm->table_doe);
+	if (cdat_length < 0)
+		return cdat_length;
+
+	cxlmd->cdat_length = cdat_length;
+	cxlmd->cdat_table = devm_kzalloc(dev->parent, cdat_length, GFP_KERNEL);
+
+	return cdat_to_buffer(cxlm->table_doe, cxlmd->cdat_table, cxlmd->cdat_length);
+}
+
 static struct cxl_memdev *devm_cxl_add_memdev(struct device *host,
 					      struct cxl_mem *cxlm)
+
 {
 	struct cxl_memdev *cxlmd;
 	struct device *dev;
@@ -1354,6 +1488,10 @@ static struct cxl_memdev *devm_cxl_add_memdev(struct device *host,
 	 * needed as this is ordered with cdev_add() publishing the device.
 	 */
 	cxlmd->cxlm = cxlm;
+
+	rc = cxl_cache_cdat_table(cxlmd);
+	if (rc)
+		goto err;
 
 	cdev = &cxlmd->cdev;
 	rc = cdev_device_add(cdev, dev);
@@ -1585,7 +1723,7 @@ static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct cxl_memdev *cxlmd;
 	struct cxl_mem *cxlm;
-	int rc;
+	int rc, irqs;
 
 	rc = pcim_enable_device(pdev);
 	if (rc)
@@ -1594,6 +1732,43 @@ static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	cxlm = cxl_mem_create(pdev);
 	if (IS_ERR(cxlm))
 		return PTR_ERR(cxlm);
+	/*
+	 * An implementation of a cxl type3 device may support an unknown
+	 * number of interrupts. Assume that number is not that large and
+	 * request them all.
+	 */
+	irqs = pci_msix_vec_count(pdev);
+	rc = pci_alloc_irq_vectors(pdev, irqs, irqs, PCI_IRQ_MSIX);
+	if (rc != irqs) {
+		/* No interrupt available - carry on */
+		dev_dbg(&pdev->dev, "No interrupts available for DOE\n");
+	} else {
+		/*
+		 * Enabling bus mastering could be done within the DOE
+		 * initialization, but as it potentially has other impacts
+		 * keep it within the driver.
+		 */
+		pci_set_master(pdev);
+		rc = devm_add_action_or_reset(&pdev->dev, cxl_mem_free_irq_vectors,
+					      pdev);
+		if (rc)
+			return rc;
+	}
+
+	/*
+	 * Find a DOE mailbox that supports CDAT.
+	 * Supporting other DOE protocols will require more complexity.
+	 */
+	rc = pci_doe_register_all(pdev);
+	if (rc < 0)
+		return rc;
+
+	rc = devm_add_action_or_reset(&pdev->dev, cxl_mem_doe_unregister_all, pdev);
+	if (rc)
+		return rc;
+
+	cxlm->table_doe = pci_doe_find(pdev, PCI_DVSEC_VENDOR_ID_CXL,
+				       CXL_DOE_PROTOCOL_TABLE_ACCESS);
 
 	rc = cxl_mem_setup_regs(cxlm);
 	if (rc)

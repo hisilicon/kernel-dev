@@ -40,18 +40,23 @@
  * @cdev: char dev core object for ioctl operations
  * @cxlm: pointer to the parent device driver data
  * @id: id number of this memdev instance.
+ * @cdat_table: cache of CDAT table
+ * @cdat_length: length of cached CDAT table
  */
 struct cxl_memdev {
 	struct device dev;
 	struct cdev cdev;
 	struct cxl_mem *cxlm;
 	int id;
+	void *cdat_table;
+	size_t cdat_length;
 };
 
 /**
  * struct cxl_mem - A CXL memory device
  * @pdev: The PCI device associated with this CXL device.
  * @cxlmd: Logical memory device chardev / interface
+ * @table_doe: Data exchange object mailbox used to read tables
  * @regs: Parsed register blocks
  * @payload_size: Size of space for payload
  *                (CXL 2.0 8.2.8.4.3 Mailbox Capabilities Register)
@@ -67,6 +72,7 @@ struct cxl_mem {
 	struct pci_dev *pdev;
 	struct cxl_memdev *cxlmd;
 
+	struct pci_doe *table_doe;
 	struct cxl_regs regs;
 
 	size_t payload_size;
