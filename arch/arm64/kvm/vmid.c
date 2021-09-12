@@ -43,7 +43,7 @@ static void flush_context(void)
 	bitmap_clear(vmid_map, 0, NUM_USER_VMIDS);
 
 	for_each_possible_cpu(cpu) {
-		vmid = atomic64_xchg_relaxed(&per_cpu(active_vmids, cpu), 0);
+		vmid = atomic64_read(&per_cpu(active_vmids, cpu));
 
 		/* Preserve reserved VMID */
 		if (vmid == 0)
@@ -125,32 +125,17 @@ void kvm_arm_vmid_clear_active(void)
 void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid)
 {
 	unsigned long flags;
-	unsigned int cpu;
-	u64 vmid, old_active_vmid;
+	u64 vmid;
 
 	vmid = atomic64_read(&kvm_vmid->id);
-
-	/*
-	 * Please refer comments in check_and_switch_context() in
-	 * arch/arm64/mm/context.c.
-	 */
-	old_active_vmid = atomic64_read(this_cpu_ptr(&active_vmids));
-	if (old_active_vmid && vmid_gen_match(vmid) &&
-	    atomic64_cmpxchg_relaxed(this_cpu_ptr(&active_vmids),
-				     old_active_vmid, vmid))
+	if (vmid_gen_match(vmid)) {
+		atomic64_set(this_cpu_ptr(&active_vmids), vmid);
 		return;
-
-	raw_spin_lock_irqsave(&cpu_vmid_lock, flags);
-
-	/* Check that our VMID belongs to the current generation. */
-	vmid = atomic64_read(&kvm_vmid->id);
-	if (!vmid_gen_match(vmid)) {
-		vmid = new_vmid(kvm_vmid);
-		atomic64_set(&kvm_vmid->id, vmid);
 	}
 
-	cpu = smp_processor_id();
-
+	raw_spin_lock_irqsave(&cpu_vmid_lock, flags);
+	vmid = new_vmid(kvm_vmid);
+	atomic64_set(&kvm_vmid->id, vmid);
 	atomic64_set(this_cpu_ptr(&active_vmids), vmid);
 	raw_spin_unlock_irqrestore(&cpu_vmid_lock, flags);
 }
