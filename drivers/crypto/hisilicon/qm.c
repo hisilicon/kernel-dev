@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/uacce.h>
 #include <linux/uaccess.h>
+#include <linux/iommu.h>
 #include <uapi/misc/uacce/hisi_qm.h>
 #include "qm.h"
 
@@ -3062,6 +3063,83 @@ static long hisi_qm_uacce_ioctl(struct uacce_queue *q, unsigned int cmd,
 	return 0;
 }
 
+static int qm_uacce_isolate_init(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	struct uacce_device *pf_uacce, *uacce;
+	struct device *pf_dev = &(pci_physfn(pdev)->dev);
+
+	uacce = qm->uacce;
+	if (uacce->is_vf) {
+		/* VF uses PF's isoalte data */
+		pf_uacce = dev_to_uacce(pf_dev);
+		if (!pf_uacce) {
+			pci_err(pdev, "fail to PF device!\n");
+			return -ENODEV;
+		}
+
+		uacce->isolate = &pf_uacce->isolate_data;
+	} else {
+		uacce->isolate = &uacce->isolate_data;
+	}
+
+	return 0;
+}
+
+static void qm_uacce_api_ver_init(struct hisi_qm *qm)
+{
+	struct uacce_device *uacce = qm->uacce;
+
+	if (uacce->flags & UACCE_DEV_IOMMU) {
+		qm->use_sva = uacce->flags & UACCE_DEV_SVA ? true : false;
+
+		if (qm->ver == QM_HW_V1)
+			uacce->api_ver = HISI_QM_API_VER_BASE;
+		else if (qm->ver == QM_HW_V2)
+			uacce->api_ver = HISI_QM_API_VER2_BASE;
+	} else {
+		qm->use_sva = false;
+
+		if (qm->ver == QM_HW_V1)
+			uacce->api_ver = HISI_QM_API_VER_BASE
+					 UACCE_API_VER_NOIOMMU_SUBFIX;
+		else if (qm->ver == QM_HW_V2)
+			uacce->api_ver = HISI_QM_API_VER2_BASE
+					 UACCE_API_VER_NOIOMMU_SUBFIX;
+	}
+}
+
+static int qm_uacce_base_init(struct hisi_qm *qm)
+{
+	unsigned long dus_page_nr, mmio_page_nr;
+	struct uacce_device *uacce = qm->uacce;
+	struct pci_dev *pdev = qm->pdev;
+
+	qm_uacce_api_ver_init(qm);
+
+	if (qm->ver == QM_HW_V1) {
+		mmio_page_nr = QM_DOORBELL_PAGE_NR;
+		uacce->api_ver = HISI_QM_API_VER_BASE;
+	} else {
+		mmio_page_nr = QM_DOORBELL_PAGE_NR +
+			QM_DOORBELL_SQ_CQ_BASE_V2 / PAGE_SIZE;
+		uacce->api_ver = HISI_QM_API_VER2_BASE;
+	}
+
+	uacce->is_vf = pdev->is_virtfn;
+	uacce->priv = qm;
+	uacce->algs = qm->algs;
+	uacce->parent = &pdev->dev;
+
+	dus_page_nr = (PAGE_SIZE - 1 + qm->sqe_size * QM_Q_DEPTH +
+		       sizeof(struct qm_cqe) * QM_Q_DEPTH) >> PAGE_SHIFT;
+
+	uacce->qf_pg_num[UACCE_QFRT_MMIO] = mmio_page_nr;
+	uacce->qf_pg_num[UACCE_QFRT_DUS]  = dus_page_nr;
+
+	return 0;
+}
+
 static const struct uacce_ops uacce_qm_ops = {
 	.get_available_instances = hisi_qm_get_available_instances,
 	.get_queue = hisi_qm_uacce_get_queue,
@@ -3077,61 +3155,64 @@ static int qm_alloc_uacce(struct hisi_qm *qm)
 {
 	struct pci_dev *pdev = qm->pdev;
 	struct uacce_device *uacce;
-	unsigned long mmio_page_nr;
-	unsigned long dus_page_nr;
-	struct uacce_interface interface = {
-		.flags = UACCE_DEV_SVA,
-		.ops = &uacce_qm_ops,
-	};
-	int ret;
+	struct uacce_interface interface;
+	int name_len, ret;
+
+	if (!qm->use_uacce)
+		return 0;
+
+	name_len = strlen(pdev->driver->name);
+	if (name_len >= UACCE_MAX_NAME_SIZE) {
+		pci_err(pdev, "The driver name(%d) is longer than %d!\n",
+			name_len, UACCE_MAX_NAME_SIZE);
+		return -EINVAL;
+	}
 
 	ret = strscpy(interface.name, pdev->driver->name,
 		      sizeof(interface.name));
 	if (ret < 0)
 		return -ENAMETOOLONG;
 
+	interface.flags = qm->use_iommu ? UACCE_DEV_IOMMU : UACCE_DEV_NOIOMMU;
+	if (qm->mode == UACCE_MODE_SVA) {
+		if (!qm->use_iommu) {
+			pci_err(pdev, "SMMU not opened, not support uacce mode 1!\n");
+			return -EINVAL;
+		}
+
+		interface.flags |= UACCE_DEV_SVA;
+	}
+
+	interface.ops = &uacce_qm_ops;
+
 	uacce = uacce_alloc(&pdev->dev, &interface);
 	if (IS_ERR(uacce))
 		return PTR_ERR(uacce);
 
-	if (uacce->flags & UACCE_DEV_SVA && qm->mode == UACCE_MODE_SVA) {
-		qm->use_sva = true;
-	} else {
-		/* only consider sva case */
-		uacce_remove(uacce);
-		qm->uacce = NULL;
-		return -EINVAL;
-	}
-
-	uacce->is_vf = pdev->is_virtfn;
-	uacce->priv = qm;
-	uacce->algs = qm->algs;
-
-	if (qm->ver == QM_HW_V1)
-		uacce->api_ver = HISI_QM_API_VER_BASE;
-	else if (qm->ver == QM_HW_V2)
-		uacce->api_ver = HISI_QM_API_VER2_BASE;
-	else
-		uacce->api_ver = HISI_QM_API_VER3_BASE;
-
-	if (qm->ver == QM_HW_V1)
-		mmio_page_nr = QM_DOORBELL_PAGE_NR;
-	else if (qm->ver == QM_HW_V2 || !qm->use_db_isolation)
-		mmio_page_nr = QM_DOORBELL_PAGE_NR +
-			QM_DOORBELL_SQ_CQ_BASE_V2 / PAGE_SIZE;
-	else
-		mmio_page_nr = qm->db_interval / PAGE_SIZE;
-
-	dus_page_nr = (PAGE_SIZE - 1 + qm->sqe_size * QM_Q_DEPTH +
-		       sizeof(struct qm_cqe) * QM_Q_DEPTH) >> PAGE_SHIFT;
-
-	uacce->qf_pg_num[UACCE_QFRT_MMIO] = mmio_page_nr;
-	uacce->qf_pg_num[UACCE_QFRT_DUS]  = dus_page_nr;
-
 	qm->uacce = uacce;
 
+	ret = qm_uacce_base_init(qm);
+	if (ret)
+		goto err_rm_uacce;
+
+	ret = qm_uacce_isolate_init(qm);
+	if (ret)
+		goto err_rm_uacce;
+
+	return ret;
+err_rm_uacce:
+	uacce_remove(qm->uacce);
 	return 0;
 }
+
+int qm_register_uacce(struct hisi_qm *qm)
+{
+	if (!qm->use_uacce)
+		return 0;
+
+	return uacce_register(qm->uacce);
+}
+EXPORT_SYMBOL_GPL(qm_register_uacce);
 
 /**
  * qm_frozen() - Try to froze QM to cut continuous queue request. If
@@ -3266,6 +3347,19 @@ static int hisi_qp_memory_init(struct hisi_qm *qm, size_t dma_size, int id)
 	return 0;
 }
 
+static inline bool is_iommu_used(struct device *dev)
+{
+	struct iommu_domain *domain;
+
+	domain = iommu_get_domain_for_dev(dev);
+	if (domain) {
+		dev_info(dev, "SMMU Opened, iommu type = %u\n", domain->type);
+		return domain->type & __IOMMU_DOMAIN_PAGING;
+	}
+
+	return false;
+}
+
 static void hisi_qm_pre_init(struct hisi_qm *qm)
 {
 	struct pci_dev *pdev = qm->pdev;
@@ -3277,11 +3371,25 @@ static void hisi_qm_pre_init(struct hisi_qm *qm)
 	else
 		qm->ops = &qm_hw_ops_v3;
 
+	switch (qm->mode) {
+	case UACCE_MODE_NOUACCE:
+		qm->use_uacce = false;
+		break;
+	case UACCE_MODE_SVA:
+	case UACCE_MODE_NOIOMMU:
+		qm->use_uacce = true;
+		break;
+	default:
+		pci_err(pdev, "uacce mode error!\n");
+		return;
+	}
+
 	pci_set_drvdata(pdev, qm);
 	mutex_init(&qm->mailbox_lock);
 	init_rwsem(&qm->qps_lock);
 	qm->qp_in_used = 0;
 	qm->misc_ctl = false;
+	qm->use_iommu = is_iommu_used(&pdev->dev);
 	if (qm->fun_type == QM_HW_PF && qm->ver > QM_HW_V2) {
 		if (!acpi_device_power_manageable(ACPI_COMPANION(&pdev->dev)))
 			dev_info(&pdev->dev, "_PS0 and _PR0 are not defined");
