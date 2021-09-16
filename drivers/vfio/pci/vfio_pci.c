@@ -289,6 +289,9 @@ static int vfio_pci_dma_fault_init(struct vfio_pci_core_device *vdev)
 	if (!domain)
 		return 0;
 
+	if (!domain->nested)
+		return 0;
+
 	mutex_init(&vdev->fault_queue_lock);
 
 	/*
@@ -373,6 +376,9 @@ static int vfio_pci_dma_fault_response_init(struct vfio_pci_core_device *vdev)
 
 	domain = iommu_get_domain_for_dev(&vdev->pdev->dev);
 	if (!domain)
+		return 0;
+
+	if (!domain->nested)
 		return 0;
 
 	mutex_init(&vdev->fault_response_queue_lock);
