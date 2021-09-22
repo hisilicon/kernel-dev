@@ -43,4 +43,15 @@ config VFIO_PCI_IGD
 
 	  To enable Intel IGD assignment through vfio-pci, say Y.
 endif
+
+config MLX5_VFIO_PCI
+	tristate "VFIO support for MLX5 PCI devices"
+	depends on MLX5_CORE
+	select VFIO_PCI_CORE
+	help
+	  This provides a PCI support for MLX5 devices using the VFIO
+	  framework. The device specific driver supports suspend/resume
+	  of the MLX5 device.
+
+	  If you don't know what to do here, say N.
 endif
