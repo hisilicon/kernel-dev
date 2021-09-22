@@ -1664,6 +1664,47 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 	return 0;
 }
 
+/**
+ * vfio_change_migration_state_allowed - Checks whether a migration state
+ *   transition is valid.
+ * @new_state: The new state to move to.
+ * @old_state: The old state.
+ * Return: true if the transition is valid.
+ */
+bool vfio_change_migration_state_allowed(u32 new_state, u32 old_state)
+{
+	enum { MAX_STATE = VFIO_DEVICE_STATE_RESUMING };
+	static const u8 vfio_from_state_table[MAX_STATE + 1][MAX_STATE + 1] = {
+		[VFIO_DEVICE_STATE_STOP] = {
+			[VFIO_DEVICE_STATE_RUNNING] = 1,
+			[VFIO_DEVICE_STATE_RESUMING] = 1,
+		},
+		[VFIO_DEVICE_STATE_RUNNING] = {
+			[VFIO_DEVICE_STATE_STOP] = 1,
+			[VFIO_DEVICE_STATE_SAVING] = 1,
+			[VFIO_DEVICE_STATE_SAVING | VFIO_DEVICE_STATE_RUNNING] = 1,
+		},
+		[VFIO_DEVICE_STATE_SAVING] = {
+			[VFIO_DEVICE_STATE_STOP] = 1,
+			[VFIO_DEVICE_STATE_RUNNING] = 1,
+		},
+		[VFIO_DEVICE_STATE_SAVING | VFIO_DEVICE_STATE_RUNNING] = {
+			[VFIO_DEVICE_STATE_RUNNING] = 1,
+			[VFIO_DEVICE_STATE_SAVING] = 1,
+		},
+		[VFIO_DEVICE_STATE_RESUMING] = {
+			[VFIO_DEVICE_STATE_RUNNING] = 1,
+			[VFIO_DEVICE_STATE_STOP] = 1,
+		},
+	};
+
+	if (new_state > MAX_STATE || old_state > MAX_STATE)
+		return false;
+
+	return vfio_from_state_table[old_state][new_state];
+}
+EXPORT_SYMBOL_GPL(vfio_change_migration_state_allowed);
+
 static long vfio_device_fops_unl_ioctl(struct file *filep,
 				       unsigned int cmd, unsigned long arg)
 {
