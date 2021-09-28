@@ -10,3 +10,6 @@ obj-$(CONFIG_VFIO_PCI) += vfio-pci.o
 
 mlx5-vfio-pci-y := mlx5_vfio_pci.o mlx5_vfio_pci_cmd.o
 obj-$(CONFIG_MLX5_VFIO_PCI) += mlx5-vfio-pci.o
+
+hisi-acc-vfio-pci-y := hisi_acc_vfio_pci.o
+obj-$(CONFIG_HISI_ACC_VFIO_PCI) += hisi-acc-vfio-pci.o
