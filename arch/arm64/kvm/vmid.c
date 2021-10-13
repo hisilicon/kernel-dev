@@ -41,7 +41,10 @@ static void flush_context(void)
 	u64 vmid;
 
 	bitmap_clear(vmid_map, 0, NUM_USER_VMIDS);
-
+	/*
+	 * Record active_asids and reserve. Note, we are not
+	 * setting the active_asid to 0 here.
+	 */
 	for_each_possible_cpu(cpu) {
 		vmid = atomic64_read(&per_cpu(active_vmids, cpu));
 
@@ -116,26 +119,32 @@ set_vmid:
 	return idx2vmid(vmid) | generation;
 }
 
-/* Call with preemption disabled */
+/* Called from vCPU sched out with preemption disabled */
 void kvm_arm_vmid_clear_active(void)
 {
 	atomic64_set(this_cpu_ptr(&active_vmids), 0);
 }
 
+/* Called from vCPU sched in */
 void kvm_arm_vmid_update(struct kvm_vmid *kvm_vmid)
 {
 	unsigned long flags;
 	u64 vmid;
 
+	/* Set the active_asid */
 	vmid = atomic64_read(&kvm_vmid->id);
-	if (vmid_gen_match(vmid)) {
-		atomic64_set(this_cpu_ptr(&active_vmids), vmid);
-		return;
-	}
+	atomic64_set(this_cpu_ptr(&active_vmids), vmid);
 
+	if (vmid_gen_match(vmid))
+		return;
+
+	/*Rollover. Hold lock */
 	raw_spin_lock_irqsave(&cpu_vmid_lock, flags);
-	vmid = new_vmid(kvm_vmid);
-	atomic64_set(&kvm_vmid->id, vmid);
+	vmid = atomic64_read(&kvm_vmid->id);
+	if (!vmid_gen_match(vmid)) {
+		vmid = new_vmid(kvm_vmid);
+		atomic64_set(&kvm_vmid->id, vmid);
+	}
 	atomic64_set(this_cpu_ptr(&active_vmids), vmid);
 	raw_spin_unlock_irqrestore(&cpu_vmid_lock, flags);
 }
