@@ -1683,6 +1683,7 @@ bool vfio_change_migration_state_allowed(u32 new_state, u32 old_state)
 			[VFIO_DEVICE_STATE_STOP] = 1,
 			[VFIO_DEVICE_STATE_SAVING] = 1,
 			[VFIO_DEVICE_STATE_SAVING | VFIO_DEVICE_STATE_RUNNING] = 1,
+			[VFIO_DEVICE_STATE_RESUMING] = 1,
 		},
 		[VFIO_DEVICE_STATE_SAVING] = {
 			[VFIO_DEVICE_STATE_STOP] = 1,

@@ -411,19 +411,24 @@ static int vf_qm_cache_wb(struct hisi_qm *qm)
 static void vf_qm_fun_reset(struct hisi_qm *qm,
 			    struct hisi_acc_vf_mig_info *vmig)
 {
+	struct device *dev = &vmig->vf_dev->dev;
 	struct acc_vf_data *vf_data = &vmig->vf_data;
 	int i;
 
-	if (vf_data->vf_state != VF_READY)
+	if (vf_data->vf_state != VF_READY) {
+		dev_info(dev, "%s: Shameer: No reset vf_data->vf_state %d\n",__func__, vf_data->vf_state);
 		return;
+	}
 
 	for (i = 0; i < qm->qp_num; i++)
 		qm_db(qm, i, QM_DOORBELL_CMD_SQ, 0, 1);
+	dev_info(dev, "%s: Shameer: Reset done vf_data->vf_state %d\n",__func__, vf_data->vf_state);
 }
 
 static int vf_qm_func_stop(struct hisi_qm *qm)
 {
-	return qm_mb(qm, QM_MB_CMD_PAUSE_QM, 0, 0, 0);
+	//return qm_mb(qm, QM_MB_CMD_PAUSE_QM, 0, 0, 0);
+	return 0;
 }
 
 static int pf_qm_get_qp_num(struct hisi_qm *qm, int vf_id, u32 *rbase)
@@ -545,11 +550,11 @@ static int vf_qm_state_save(struct hisi_acc_vf_mig_info *vmig)
 	vmig->data_size = 0;
 	vmig->pending_bytes = 0;
 
+#if 0
 	if (unlikely(qm_wait_dev_ready(vf_qm))) {
 		dev_info(dev, "QM device not ready, no data to transfer\n");
 		return 0;
 	}
-
 	/* First stop the ACC vf function */
 	ret = vf_qm_func_stop(vf_qm);
 	if (ret) {
@@ -562,7 +567,7 @@ static int vf_qm_state_save(struct hisi_acc_vf_mig_info *vmig)
 		dev_err(dev, "failed to check QM INT state!\n");
 		goto state_error;
 	}
-
+#endif
 	ret = vf_qm_cache_wb(vf_qm);
 	if (ret) {
 		dev_err(dev, "failed to writeback QM Cache!\n");
@@ -607,17 +612,145 @@ static int vf_qm_state_resume(struct hisi_acc_vf_mig_info *vmig)
 	return 0;
 }
 
+static void hisi_acc_start_device(struct hisi_acc_vf_mig_info *vmig)
+{
+	struct hisi_qm *vf_qm = &vmig->vf_qm;
+
+	vf_qm_fun_reset(vf_qm, vmig);
+
+}
+
+static int hisi_acc_post_copy(struct hisi_acc_vf_mig_info *vmig)
+{
+	struct hisi_qm *vf_qm = &vmig->vf_qm;
+	struct device *dev = &vmig->vf_dev->dev;
+	
+	if (unlikely(qm_wait_dev_ready(vf_qm))) {
+		dev_info(dev, "QM device not ready, no data to transfer\n");
+		return 0;
+	}
+	
+	return vf_qm_state_save(vmig);
+}
+
+static int hisi_acc_pre_copy(struct hisi_acc_vf_mig_info *vmig)
+{
+	return pf_qm_state_pre_save(vmig);	
+}
+
+static int hisi_acc_load_state(struct hisi_acc_vf_mig_info *vmig)
+{
+	struct device *dev = &vmig->vf_dev->dev;
+	struct hisi_qm *vf_qm = &vmig->vf_qm;
+	int ret;
+
+	if (!vmig->data_size)
+		return 0;
+
+	/* recover data to VF */
+	ret = vf_migration_data_recover(vf_qm, vmig);
+	if (ret) {
+		dev_err(dev, "failed to recover the VF!\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int hisi_acc_stop_device(struct hisi_acc_vf_mig_info *vmig)
+{
+	struct device *dev = &vmig->vf_dev->dev;
+	struct hisi_qm *vf_qm = &vmig->vf_qm;
+	int ret;
+
+	if (unlikely(qm_wait_dev_ready(vf_qm))) {
+		dev_info(dev, "QM device not ready, not stopping!\n");
+		return 0;
+	}
+
+	ret = vf_qm_func_stop(vf_qm);
+	if (ret) {
+		dev_err(dev, "failed to stop QM VF function!\n");
+		return ret;
+	}
+
+	ret = qm_check_int_state(vmig);
+	if (ret) {
+		dev_err(dev, "failed to check QM INT state!\n");
+		return ret;
+	}
+
+	return 0;
+
+}
 static int hisi_acc_vf_set_device_state(struct hisi_acc_vf_mig_info *vmig,
 					u32 state)
 {
 	int ret = 0;
+	u32 old_state = vmig->device_state;
+	struct device *dev = &vmig->vf_dev->dev;
 
+	dev_info(dev, "%s: Shameer: old_state %d, state %d\n",__func__, old_state, state); 
 	if (state == vmig->device_state)
 		return 0;
 
 	if (!vfio_change_migration_state_allowed(state, vmig->device_state))
 		return -EINVAL;
 
+	/* Running switches off */
+	if ((old_state & VFIO_DEVICE_STATE_RUNNING) !=
+	    (state & VFIO_DEVICE_STATE_RUNNING) &&
+	    (old_state & VFIO_DEVICE_STATE_RUNNING)) {
+		dev_info(dev, "%s: Shameer: Running switches off\n",__func__); 
+		ret = hisi_acc_stop_device(vmig);
+		if (ret)
+			return ret;
+
+		if ((state & VFIO_DEVICE_STATE_SAVING)) {
+			dev_info(dev, "%s: Shameer: Running switches off, post-copy\n",__func__); 
+			/* post-copy */
+			ret = hisi_acc_post_copy(vmig);
+		}
+	}
+
+	/* Resuming switches off */
+	if ((old_state & VFIO_DEVICE_STATE_RESUMING) !=
+	    (state & VFIO_DEVICE_STATE_RESUMING) &&
+	    (old_state & VFIO_DEVICE_STATE_RESUMING)) {
+		dev_info(dev, "%s: Shameer: Resumimg switches off\n",__func__); 
+		ret = hisi_acc_load_state(vmig);
+		if (ret)
+			return ret;
+	}
+
+	/* Saving switches on */
+	if ((old_state & VFIO_DEVICE_STATE_SAVING) !=
+	    (state & VFIO_DEVICE_STATE_SAVING) &&
+	    (state & VFIO_DEVICE_STATE_SAVING)) {
+		if ((state & VFIO_DEVICE_STATE_RUNNING)) {
+			dev_info(dev, "%s: Shameer: Saving switches on, pre-copy\n",__func__); 
+			/* pre-copy */
+			ret = hisi_acc_pre_copy(vmig);
+		} else {
+			dev_info(dev, "%s: Shameer: Saving switches on, post-copy\n",__func__); 
+			/* post-copy */
+			ret = hisi_acc_post_copy(vmig);
+		}
+
+		if (ret)
+			return ret;
+
+	}
+
+	/* Running switches on */
+	if ((old_state & VFIO_DEVICE_STATE_RUNNING) !=
+	    (state & VFIO_DEVICE_STATE_RUNNING) &&
+	    (state & VFIO_DEVICE_STATE_RUNNING))
+		hisi_acc_start_device(vmig);
+
+	vmig->device_state = state;
+	return 0;
+#if 0	
 	switch (state) {
 	case VFIO_DEVICE_STATE_RUNNING:
 		if (vmig->device_state == VFIO_DEVICE_STATE_RESUMING)
@@ -640,6 +773,7 @@ static int hisi_acc_vf_set_device_state(struct hisi_acc_vf_mig_info *vmig,
 		vmig->device_state = state;
 
 	return ret;
+#endif	
 }
 
 static int hisi_acc_vf_match_check(struct hisi_acc_vf_mig_info *vmig)
@@ -658,6 +792,7 @@ static int hisi_acc_vf_match_check(struct hisi_acc_vf_mig_info *vmig)
 	    vmig->data_size != QM_MATCH_SIZE)
 		return 0;
 
+	dev_info(dev, "Check VF device match, dev state 0x%x\n", vmig->device_state);
 	/* vf acc dev type check */
 	if (vf_data->dev_id != vmig->vf_dev->device) {
 		dev_err(dev, "failed to match VF devices\n");
@@ -731,6 +866,7 @@ static ssize_t hisi_acc_vf_migrn_rw(struct vfio_pci_core_device *vdev,
 	struct hisi_acc_vf_core_device *hisi_acc_vdev =
 		container_of(vdev, struct hisi_acc_vf_core_device, core_device);
 	struct hisi_acc_vf_mig_info *vmig = &hisi_acc_vdev->vmig;
+	struct device *dev = &vmig->vf_dev->dev;
 	u64 pos = *ppos & VFIO_PCI_OFFSET_MASK;
 	int ret;
 
@@ -764,7 +900,11 @@ static ssize_t hisi_acc_vf_migrn_rw(struct vfio_pci_core_device *vdev,
 	case VDM_OFFSET(pending_bytes):
 		if (iswrite)
 			return -EFAULT;
-
+		if (vmig->device_state == (VFIO_DEVICE_STATE_SAVING |
+                                    VFIO_DEVICE_STATE_RUNNING)) {
+			dev_info(dev, "%s: Shameer state 0x%x pending_bytes set 0\n",__func__, vmig->device_state);			
+			vmig->pending_bytes = 0;
+		}
 		ret = copy_to_user(buf, &vmig->pending_bytes, sizeof(vmig->pending_bytes));
 		if (ret)
 			return -EFAULT;
@@ -827,14 +967,14 @@ static int hisi_acc_vfio_pci_init(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 		pr_err("HiSi ACC qm driver not loaded\n");
 		return -EINVAL;
 	}
-
+#if 0
 	if (pf_qm->ver < QM_HW_V3) {
 		dev_err(&vf_dev->dev,
 			"Migration not supported, HW version: 0x%x\n",
 			 pf_qm->ver);
 		return -ENODEV;
 	}
-
+#endif
 	vf_qm->dev_name = pf_qm->dev_name;
 
 	/*
