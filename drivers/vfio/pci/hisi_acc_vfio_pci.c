@@ -1037,8 +1037,10 @@ static int hisi_acc_pci_rw_access_check(struct vfio_device *core_vdev,
 		resource_size_t end = pci_resource_len(vdev->pdev, index) / 2;
 
 		/* Check if access is for migration control region */
-		if (pos >= end)
+		if (pos >= end) {
+			printk("%s: Shameer pos >=end Err..\n", __func__);
 			return -EINVAL;
+		}
 
 		*new_count = min(count, (size_t)(end - pos));
 	}
@@ -1057,14 +1059,17 @@ static int hisi_acc_vfio_pci_mmap(struct vfio_device *core_vdev,
 	if (index == VFIO_PCI_BAR2_REGION_INDEX) {
 		u64 req_len, pgoff, req_start;
 		resource_size_t end = pci_resource_len(vdev->pdev, index) / 2;
-
+	
+		printk("%s: L1 Shameer vma->vm_start 0x%lx end 0x%lx\n", __func__, vma->vm_start, vma->vm_end);
 		req_len = vma->vm_end - vma->vm_start;
 		pgoff = vma->vm_pgoff &
 			((1U << (VFIO_PCI_OFFSET_SHIFT - PAGE_SHIFT)) - 1);
 		req_start = pgoff << PAGE_SHIFT;
-
-		if (req_start + req_len > end)
-			return -EINVAL;
+		printk("%s: Shameer req_start 0x%llx req_len 0x%llx end 0x%llx\n", __func__, req_start, req_len, end);
+		if (req_start + req_len > end) {
+			printk("%s: Shameer req_start + req_len > end Err..continue\n", __func__);
+			//return -EINVAL;
+		}
 	}
 
 	return vfio_pci_core_mmap(core_vdev, vma);

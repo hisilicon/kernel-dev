@@ -1440,6 +1440,7 @@ static int __vfio_pci_add_vma(struct vfio_pci_core_device *vdev,
  */
 static void vfio_pci_mmap_open(struct vm_area_struct *vma)
 {
+	printk("%s: Shameer vma->vm_start 0x%lx end 0x%lx\n", __func__, vma->vm_start, vma->vm_end);
 	zap_vma_ptes(vma, vma->vm_start, vma->vm_end - vma->vm_start);
 }
 
@@ -1448,6 +1449,7 @@ static void vfio_pci_mmap_close(struct vm_area_struct *vma)
 	struct vfio_pci_core_device *vdev = vma->vm_private_data;
 	struct vfio_pci_mmap_vma *mmap_vma;
 
+	printk("%s: Shameer vma->vm_start 0x%lx end 0x%lx\n", __func__, vma->vm_start, vma->vm_end);
 	mutex_lock(&vdev->vma_lock);
 	list_for_each_entry(mmap_vma, &vdev->vma_list, vma_next) {
 		if (mmap_vma->vma == vma) {
@@ -1469,6 +1471,7 @@ static vm_fault_t vfio_pci_mmap_fault(struct vm_fault *vmf)
 	mutex_lock(&vdev->vma_lock);
 	down_read(&vdev->memory_lock);
 
+	printk("%s: Shameer vma->vm_start 0x%lx end 0x%lx\n", __func__, vma->vm_start, vma->vm_end);
 	if (!__vfio_pci_memory_enabled(vdev)) {
 		ret = VM_FAULT_SIGBUS;
 		goto up_out;
@@ -1519,6 +1522,7 @@ int vfio_pci_core_mmap(struct vfio_device *core_vdev, struct vm_area_struct *vma
 	u64 phys_len, req_len, pgoff, req_start;
 	int ret;
 
+	printk("%s: L1 Shameer vma->vm_start 0x%lx end 0x%lx\n", __func__, vma->vm_start, vma->vm_end);
 	index = vma->vm_pgoff >> (VFIO_PCI_OFFSET_SHIFT - PAGE_SHIFT);
 
 	if (index >= VFIO_PCI_NUM_REGIONS + vdev->num_regions)
@@ -1541,14 +1545,18 @@ int vfio_pci_core_mmap(struct vfio_device *core_vdev, struct vm_area_struct *vma
 	if (!vdev->bar_mmap_supported[index])
 		return -EINVAL;
 
+	printk("%s: L2 Shameer vma->vm_start 0x%lx end 0x%lx\n", __func__, vma->vm_start, vma->vm_end);
 	phys_len = PAGE_ALIGN(pci_resource_len(pdev, index));
 	req_len = vma->vm_end - vma->vm_start;
 	pgoff = vma->vm_pgoff &
 		((1U << (VFIO_PCI_OFFSET_SHIFT - PAGE_SHIFT)) - 1);
 	req_start = pgoff << PAGE_SHIFT;
 
-	if (req_start + req_len > phys_len)
-		return -EINVAL;
+	printk("%s: L2 Shameer req_start 0x%llx req_len 0x%llx phys_len 0x%llx\n", __func__, req_start, req_len, phys_len);
+	if (req_start + req_len > phys_len) {
+		printk("%s: req_start + req_len > phys_len error, but continue\n", __func__);
+		//return -EINVAL;
+	}
 
 	/*
 	 * Even though we don't make use of the barmap for the mmap,
@@ -1562,6 +1570,7 @@ int vfio_pci_core_mmap(struct vfio_device *core_vdev, struct vm_area_struct *vma
 
 		vdev->barmap[index] = pci_iomap(pdev, index, 0);
 		if (!vdev->barmap[index]) {
+			printk("%s: pci_iomap error \n", __func__);
 			pci_release_selected_regions(pdev, 1 << index);
 			return -ENOMEM;
 		}

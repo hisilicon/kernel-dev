@@ -315,9 +315,9 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 
 	if (res->flags & IORESOURCE_PCI_FIXED)
 		return 0;
-
 	res->flags |= IORESOURCE_UNSET;
 	align = pci_resource_alignment(dev, res);
+	align = 0x10000;
 	if (!align) {
 		pci_info(dev, "BAR %d: can't assign %pR (bogus alignment)\n",
 			 resno, res);
@@ -325,6 +325,7 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	}
 
 	size = resource_size(res);
+	pci_info(dev, "%s: Shameer: resno %d size 0x%llx align 0x%llx\n",__func__, resno, size, align); 
 	ret = _pci_assign_resource(dev, resno, size, align);
 
 	/*
@@ -345,8 +346,11 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	res->flags &= ~IORESOURCE_UNSET;
 	res->flags &= ~IORESOURCE_STARTALIGN;
 	pci_info(dev, "BAR %d: assigned %pR\n", resno, res);
-	if (resno < PCI_BRIDGE_RESOURCES)
+	if (resno < PCI_BRIDGE_RESOURCES) {
+		pci_info(dev, "%s: Shameer: resno %d updating... \n", __func__, resno);
 		pci_update_resource(dev, resno);
+		pci_info(dev, "%s: Shameer: resno %d updated \n", __func__, resno);
+	}
 
 	return 0;
 }

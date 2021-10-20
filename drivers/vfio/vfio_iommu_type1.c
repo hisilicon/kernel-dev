@@ -1344,6 +1344,7 @@ static int vfio_dma_do_unmap(struct vfio_iommu *iommu,
 	bool invalidate_vaddr = unmap->flags & VFIO_DMA_UNMAP_FLAG_VADDR;
 	struct rb_node *n, *first_n;
 
+	printk("%s: Shameer size 0x%llx iova 0x%llx\n",__func__, size, iova);
 	mutex_lock(&iommu->lock);
 
 	pgshift = __ffs(iommu->pgsize_bitmap);
@@ -1600,7 +1601,8 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 	int ret = 0, prot = 0;
 	size_t pgsize;
 	struct vfio_dma *dma;
-
+	
+	printk("%s: Shameer vaddr 0x%lx size 0x%lx iova 0x%llx\n",__func__, vaddr, size, iova);
 	/* Verify that none of our __u64 fields overflow */
 	if (map->size != size || map->vaddr != vaddr || map->iova != iova)
 		return -EINVAL;

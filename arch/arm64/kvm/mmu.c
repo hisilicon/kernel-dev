@@ -1133,8 +1133,10 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	 * kvm_pgtable_stage2_map() should be called to change block size.
 	 */
 	if (fault_status == FSC_PERM && vma_pagesize == fault_granule) {
+		printk("%s: Shameer: call kvm_pgtable_stage2_relax_perms\n", __func__);
 		ret = kvm_pgtable_stage2_relax_perms(pgt, fault_ipa, prot);
 	} else {
+		printk("%s: Shameer: call kvm_pgtable_stage2_map\n", __func__);
 		ret = kvm_pgtable_stage2_map(pgt, fault_ipa, vma_pagesize,
 					     __pfn_to_phys(pfn), prot,
 					     memcache);
@@ -1198,6 +1200,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 	fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
 	is_iabt = kvm_vcpu_trap_is_iabt(vcpu);
 
+	printk("%s: Shameer fault_ipa 0x%llx \n",__func__, fault_ipa);
 	/* Synchronous External Abort? */
 	if (kvm_vcpu_abt_issea(vcpu)) {
 		/*
@@ -1497,7 +1500,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 	if (change != KVM_MR_CREATE && change != KVM_MR_MOVE &&
 			change != KVM_MR_FLAGS_ONLY)
 		return 0;
-
+	printk("%s: Shameer: memslot id %d userspace_addr(hva) 0x%lx size 0x%llx\n",__func__, mem->slot, hva, mem->memory_size);
 	/*
 	 * Prevent userspace from creating a memory region outside of the IPA
 	 * space addressable by the KVM guest IPA space.
@@ -1524,6 +1527,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 		if (!vma)
 			break;
 
+		printk("%s: Shameer: hva 0x%lx VMA start addr 0x%lx end 0x%lx\n",__func__, hva, vma->vm_start, vma->vm_end);
 		/*
 		 * VM_SHARED mappings are not allowed with MTE to avoid races
 		 * when updating the PG_mte_tagged page flag, see
@@ -1533,6 +1537,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 			return -EINVAL;
 
 		if (vma->vm_flags & VM_PFNMAP) {
+			printk("%s: Shameer: MMIO VMA start addr(hva) 0x%lx end 0x%lx\n",__func__, vma->vm_start, vma->vm_end);
 			/* IO region dirty page logging not allowed */
 			if (memslot->flags & KVM_MEM_LOG_DIRTY_PAGES) {
 				ret = -EINVAL;
