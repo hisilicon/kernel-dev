@@ -1091,7 +1091,7 @@ struct pci_driver *hisi_sec_get_pf_driver(void)
 {
         return &sec_pci_driver;
 }
-EXPORT_SYMBOL(hisi_sec2_get_pf_driver);
+EXPORT_SYMBOL(hisi_sec_get_pf_driver);
 
 static void sec_register_debugfs(void)
 {
