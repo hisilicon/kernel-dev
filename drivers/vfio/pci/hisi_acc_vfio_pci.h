@@ -109,8 +109,11 @@ struct hisi_acc_vf_mig_info {
 struct hisi_acc_vf_core_device {
 	struct vfio_pci_core_device core_device;
 	u8 migration_support:1;
+	u8 deferred_reset:1;
 	/* for migration state */
 	struct mutex state_mutex;
+	/* for reset handler */
+	spinlock_t reset_lock;
 	struct hisi_acc_vf_mig_info vmig;
 };
 #endif /* HISI_ACC_VFIO_PCI_H */

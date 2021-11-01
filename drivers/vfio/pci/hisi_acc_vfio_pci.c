@@ -782,6 +782,39 @@ static int hisi_acc_vf_data_transfer(struct hisi_acc_vf_core_device *vdev,
 	return count;
 }
 
+static void hisi_acc_state_mutex_unlock(struct hisi_acc_vf_core_device *vdev)
+{
+	struct hisi_acc_vf_mig_info *vmig = &vdev->vmig;
+again:
+	spin_lock(&vdev->reset_lock);
+	if (vdev->deferred_reset) {
+		vdev->deferred_reset = 0;
+		spin_unlock(&vdev->reset_lock);
+		vmig->vf_data.vf_qm_state = QM_NOT_READY;
+		vmig->device_state = VFIO_DEVICE_STATE_RUNNING;
+		goto again;
+	}
+	spin_unlock(&vdev->reset_lock);
+	mutex_unlock(&vdev->state_mutex);
+}
+
+static void hisi_acc_pci_aer_reset_done(struct pci_dev *pdev)
+{
+	struct hisi_acc_vf_core_device *vdev = dev_get_drvdata(&pdev->dev);
+
+	if (!vdev->migration_support)
+		return;
+
+	spin_lock(&vdev->reset_lock);
+	vdev->deferred_reset = 1;
+	if (!mutex_trylock(&vdev->state_mutex)) {
+		spin_unlock(&vdev->reset_lock);
+		return;
+	}
+	spin_unlock(&vdev->reset_lock);
+	hisi_acc_state_mutex_unlock(vdev);
+}
+
 static ssize_t
 hisi_acc_rw_data_size(struct hisi_acc_vf_core_device *vdev,
 		      char __user *buf, bool iswrite)
@@ -914,7 +947,7 @@ static ssize_t hisi_acc_vf_migrn_rw(struct vfio_pci_core_device *core_dev,
 		ret = -EFAULT;
 	}
 out:
-	mutex_unlock(&vdev->state_mutex);
+	hisi_acc_state_mutex_unlock(vdev);
 	return ret;
 }
 
@@ -1161,6 +1194,7 @@ static int hisi_acc_vfio_pci_probe(struct pci_dev *pdev, const struct pci_device
 		hisi_acc_vdev->migration_support = 1;
 		vmig->pf_qm = pf_qm;
 		mutex_init(&hisi_acc_vdev->state_mutex);
+		spin_lock_init(&hisi_acc_vdev->reset_lock);
 	}
 
 	ret = vfio_pci_core_register_device(&hisi_acc_vdev->core_device);
@@ -1194,12 +1228,17 @@ static const struct pci_device_id hisi_acc_vfio_pci_table[] = {
 
 MODULE_DEVICE_TABLE(pci, hisi_acc_vfio_pci_table);
 
+const struct pci_error_handlers hisi_acc_err_handlers = {
+	.reset_done = hisi_acc_pci_aer_reset_done,
+	.error_detected = vfio_pci_aer_err_detected,
+};
+
 static struct pci_driver hisi_acc_vfio_pci_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = hisi_acc_vfio_pci_table,
 	.probe = hisi_acc_vfio_pci_probe,
 	.remove = hisi_acc_vfio_pci_remove,
-	.err_handler = &vfio_pci_core_err_handlers,
+	.err_handler = &hisi_acc_err_handlers,
 };
 
 module_pci_driver(hisi_acc_vfio_pci_driver);
