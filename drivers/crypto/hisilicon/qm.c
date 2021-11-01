@@ -5999,6 +5999,44 @@ void hisi_qm_put_dfx_access(struct hisi_qm *qm)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_put_dfx_access);
 
+struct hisi_qm *hisi_qm_get_pf_qm(struct pci_dev *pdev)
+{
+	struct hisi_qm	*pf_qm;
+	struct pci_driver *(*fn)(void) = NULL;
+
+	if (!pdev->is_virtfn)
+		return NULL;
+
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_HUAWEI_SEC_VF:
+		fn = symbol_get(hisi_sec_get_pf_driver);
+		break;
+	case PCI_DEVICE_ID_HUAWEI_HPRE_VF:
+		fn = symbol_get(hisi_hpre_get_pf_driver);
+		break;
+	case PCI_DEVICE_ID_HUAWEI_ZIP_VF:
+		fn = symbol_get(hisi_zip_get_pf_driver);
+		break;
+	default:
+		return NULL;
+	}
+
+	if (!fn)
+		return NULL;
+
+	pf_qm = pci_iov_get_pf_drvdata(pdev, fn());
+
+	if (pdev->device == PCI_DEVICE_ID_HUAWEI_SEC_VF)
+		symbol_put(hisi_sec_get_pf_driver);
+	else if (pdev->device == PCI_DEVICE_ID_HUAWEI_HPRE_VF)
+		symbol_put(hisi_hpre_get_pf_driver);
+	else
+		symbol_put(hisi_zip_get_pf_driver);
+
+	return !IS_ERR(pf_qm) ? pf_qm : NULL;
+}
+EXPORT_SYMBOL_GPL(hisi_qm_get_pf_qm);
+
 /**
  * hisi_qm_pm_init() - Initialize qm runtime PM.
  * @qm: pointer to accelerator device.
