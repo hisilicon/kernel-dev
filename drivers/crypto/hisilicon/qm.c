@@ -3314,6 +3314,12 @@ static void hisi_qm_pci_uninit(struct hisi_qm *qm)
 	pci_disable_device(pdev);
 }
 
+static void hisi_qm_set_state(struct hisi_qm *qm, enum qm_state_reg state)
+{
+	if (qm->ver > QM_HW_V2)
+		writel(state, qm->io_base + QM_STATE_REG);
+}
+
 /**
  * hisi_qm_uninit() - Uninitialize qm.
  * @qm: The qm needed uninit.
@@ -3347,6 +3353,7 @@ void hisi_qm_uninit(struct hisi_qm *qm)
 	hisi_qm_pci_uninit(qm);
 	uacce_remove(qm->uacce);
 	qm->uacce = NULL;
+	hisi_qm_set_state(qm, QM_NOT_READY);
 
 	up_write(&qm->qps_lock);
 }
@@ -3556,6 +3563,7 @@ int hisi_qm_start(struct hisi_qm *qm)
 	if (!ret)
 		atomic_set(&qm->status.flags, QM_START);
 
+	hisi_qm_set_state(qm, QM_READY);
 err_unlock:
 	up_write(&qm->qps_lock);
 	return ret;
@@ -3652,6 +3660,7 @@ int hisi_qm_stop(struct hisi_qm *qm, enum qm_stop_reason r)
 
 	down_write(&qm->qps_lock);
 
+	hisi_qm_set_state(qm, QM_PREPARE);
 	qm->status.stop_reason = r;
 	if (!qm_avail_state(qm, QM_STOP)) {
 		ret = -EPERM;
@@ -5629,6 +5638,7 @@ static int hisi_qm_pci_init(struct hisi_qm *qm)
 		goto err_get_pci_res;
 	}
 
+	hisi_qm_set_state(qm, QM_PREPARE);
 	return 0;
 
 err_get_pci_res:
