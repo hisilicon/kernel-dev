@@ -473,6 +473,9 @@ retry:
 	if (!(data->rq_flags & RQF_ELV))
 		blk_mq_tag_busy(data->hctx);
 
+	if (data->flags & BLK_MQ_INTERNAL)
+		data->rq_flags |= RQF_INTERNAL;
+
 	/*
 	 * Try batched alloc if we want more than 1 tag.
 	 */
