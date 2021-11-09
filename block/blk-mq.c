@@ -349,6 +349,9 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	rq->mq_hctx = hctx;
 	rq->cmd_flags = data->cmd_flags;
 
+	if (data->flags & BLK_MQ_REQ_RESERVED)
+		rq->cmd_flags |= REQ_RESV;
+
 	if (data->flags & BLK_MQ_REQ_PM)
 		data->rq_flags |= RQF_PM;
 	if (blk_queue_io_stat(q))
