@@ -17,6 +17,7 @@ void iommufd_ioas_destroy(struct iommufd_object *obj)
 	rc = iopt_unmap_all(&ioas->iopt);
 	WARN_ON(rc);
 	iopt_destroy_table(&ioas->iopt);
+	mutex_destroy(&ioas->mutex);
 }
 
 struct iommufd_ioas *iommufd_ioas_alloc(struct iommufd_ctx *ictx)
@@ -31,6 +32,9 @@ struct iommufd_ioas *iommufd_ioas_alloc(struct iommufd_ctx *ictx)
 	rc = iopt_init_table(&ioas->iopt);
 	if (rc)
 		goto out_abort;
+
+	INIT_LIST_HEAD(&ioas->auto_domains);
+	mutex_init(&ioas->mutex);
 	return ioas;
 
 out_abort:
