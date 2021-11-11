@@ -599,8 +599,17 @@ static int vfio_platform_mmap(struct vfio_device *core_vdev, struct vm_area_stru
 	return -EINVAL;
 }
 
-static const struct vfio_device_ops vfio_platform_ops = {
+static void vfio_platform_release(struct vfio_device *vdev)
+{
+	struct vfio_platform_device *vpdev =
+		container_of(vdev, struct vfio_platform_device, vdev);
+
+	kfree(vpdev->name);
+}
+
+const struct vfio_device_ops vfio_platform_ops = {
 	.name		= "vfio-platform",
+	.release	= vfio_platform_release,
 	.open_device	= vfio_platform_open_device,
 	.close_device	= vfio_platform_close_device,
 	.ioctl		= vfio_platform_ioctl,
@@ -608,6 +617,7 @@ static const struct vfio_device_ops vfio_platform_ops = {
 	.write		= vfio_platform_write,
 	.mmap		= vfio_platform_mmap,
 };
+EXPORT_SYMBOL_GPL(vfio_platform_ops);
 
 static int vfio_platform_of_probe(struct vfio_platform_device *vdev,
 			   struct device *dev)
@@ -643,8 +653,6 @@ int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 			       struct device *dev)
 {
 	int ret;
-
-	vfio_init_group_dev(&vdev->vdev, dev, &vfio_platform_ops);
 
 	ret = vfio_platform_acpi_probe(vdev, dev);
 	if (ret)

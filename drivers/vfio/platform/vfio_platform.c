@@ -39,9 +39,11 @@ static int get_platform_irq(struct vfio_platform_device *vdev, int i)
 static int vfio_platform_probe(struct platform_device *pdev)
 {
 	struct vfio_platform_device *vdev;
+	struct device *dev = &pdev->dev;
 	int ret;
 
-	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
+	vdev = vfio_alloc_device(vfio_platform_device, vdev,
+				 dev, &vfio_platform_ops);
 	if (!vdev)
 		return -ENOMEM;
 
@@ -52,9 +54,10 @@ static int vfio_platform_probe(struct platform_device *pdev)
 	vdev->get_irq = get_platform_irq;
 	vdev->reset_required = reset_required;
 
-	ret = vfio_platform_probe_common(vdev, &pdev->dev);
+	ret = vfio_platform_probe_common(vdev, dev);
 	if (ret) {
-		kfree(vdev);
+		vdev->name = NULL;
+		vfio_put_device(&vdev->vdev);
 		return ret;
 	}
 	dev_set_drvdata(&pdev->dev, vdev);
@@ -66,7 +69,8 @@ static int vfio_platform_remove(struct platform_device *pdev)
 	struct vfio_platform_device *vdev = dev_get_drvdata(&pdev->dev);
 
 	vfio_platform_remove_common(vdev);
-	kfree(vdev);
+	vdev->name = NULL;
+	vfio_put_device(&vdev->vdev);
 	return 0;
 }
 

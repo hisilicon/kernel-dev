@@ -43,9 +43,11 @@ static int get_amba_irq(struct vfio_platform_device *vdev, int i)
 static int vfio_amba_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct vfio_platform_device *vdev;
+	struct device *dev = &adev->dev;
 	int ret;
 
-	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
+	vdev = vfio_alloc_device(vfio_platform_device, vdev,
+				 dev, &vfio_platform_ops);
 	if (!vdev)
 		return -ENOMEM;
 
@@ -61,10 +63,9 @@ static int vfio_amba_probe(struct amba_device *adev, const struct amba_id *id)
 	vdev->get_irq = get_amba_irq;
 	vdev->reset_required = false;
 
-	ret = vfio_platform_probe_common(vdev, &adev->dev);
+	ret = vfio_platform_probe_common(vdev, dev);
 	if (ret) {
-		kfree(vdev->name);
-		kfree(vdev);
+		vfio_put_device(&vdev->vdev);
 		return ret;
 	}
 
@@ -77,8 +78,7 @@ static void vfio_amba_remove(struct amba_device *adev)
 	struct vfio_platform_device *vdev = dev_get_drvdata(&adev->dev);
 
 	vfio_platform_remove_common(vdev);
-	kfree(vdev->name);
-	kfree(vdev);
+	vfio_put_device(&vdev->vdev);
 }
 
 static const struct amba_id pl330_ids[] = {
