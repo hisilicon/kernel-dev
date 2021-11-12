@@ -3173,6 +3173,7 @@ static struct scsi_host_template sht_v3_hw = {
 	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,
 	.host_reset             = hisi_sas_host_reset,
 	.host_tagset		= 1,
+	.cmd_size		= sizeof(struct sas_task),
 };
 
 static const struct hisi_sas_hw hisi_sas_v3_hw = {
