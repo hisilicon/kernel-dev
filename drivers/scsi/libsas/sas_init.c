@@ -29,7 +29,6 @@ struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd)
 	struct sas_task *task = sas_rq_to_task(rq);
 
 	if (task) {
-		memset(task, 0, sizeof(*task));
 		spin_lock_init(&task->task_state_lock);
 		task->task_state_flags = SAS_TASK_STATE_PENDING;
 	}
@@ -53,7 +52,6 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	if (!(rq->cmd_flags & REQ_RESV))
 		WARN_ON_ONCE(1);
 	task = sas_rq_to_task(rq);
-	memset(task, 0, sizeof(*task));
 
 	spin_lock_init(&task->task_state_lock);
 	task->task_state_flags = SAS_TASK_STATE_PENDING;
