@@ -692,8 +692,6 @@ static int hisi_sas_init_device(struct domain_device *device)
 
 int hisi_sas_slave_alloc(struct scsi_device *sdev)
 {
-	struct scsi_target *starget = sdev->sdev_target;
-	struct device *parent = starget->dev.parent;
 	struct domain_device *ddev;
 	int rc;
 
