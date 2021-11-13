@@ -528,7 +528,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	/* allocate and add */
 	transport_setup_device(dev);
-	if (shost->hostt->target_alloc) {
+	if (shost->hostt->target_alloc && !scsi_is_host_device(starget->dev.parent)) {
 		error = shost->hostt->target_alloc(starget);
 
 		if(error) {
