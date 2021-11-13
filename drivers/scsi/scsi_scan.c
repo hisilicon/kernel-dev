@@ -392,7 +392,7 @@ static void scsi_target_destroy(struct scsi_target *starget)
 	starget->state = STARGET_DEL;
 	transport_destroy_device(dev);
 	spin_lock_irqsave(shost->host_lock, flags);
-	if (shost->hostt->target_destroy)
+	if (shost->hostt->target_destroy && !scsi_is_host_device(starget->dev.parent))
 		shost->hostt->target_destroy(starget);
 	list_del_init(&starget->siblings);
 	spin_unlock_irqrestore(shost->host_lock, flags);
@@ -1043,7 +1043,8 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 
 	transport_configure_device(&sdev->sdev_gendev);
 
-	if (sdev->host->hostt->slave_configure) {
+	if (sdev->host->hostt->slave_configure &&
+	    !scsi_is_host_device(scsi_target(sdev)->dev.parent)) {
 		ret = sdev->host->hostt->slave_configure(sdev);
 		if (ret) {
 			/*

@@ -1455,7 +1455,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	blk_cleanup_queue(sdev->request_queue);
 	cancel_work_sync(&sdev->requeue_work);
 
-	if (sdev->host->hostt->slave_destroy)
+	if (sdev->host->hostt->slave_destroy && !scsi_is_host_device(scsi_target(sdev)->dev.parent))
 		sdev->host->hostt->slave_destroy(sdev);
 	transport_destroy_device(dev);
 
