@@ -1238,9 +1238,6 @@ int sas_slave_alloc(struct scsi_device *sdev)
 	struct scsi_target *starget = sdev->sdev_target;
 	struct device *parent = starget->dev.parent;
 
-	if (scsi_is_host_device(parent))
-		return 0;
-
 	if (dev_is_sata(sdev_to_domain_dev(sdev)) && sdev->lun)
 		return -ENXIO;
 

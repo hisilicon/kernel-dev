@@ -697,9 +697,6 @@ int hisi_sas_slave_alloc(struct scsi_device *sdev)
 	struct domain_device *ddev;
 	int rc;
 
-	if (scsi_is_host_device(parent))
-		return 0;
-
 	rc = sas_slave_alloc(sdev);
 	if (rc)
 		return rc;
