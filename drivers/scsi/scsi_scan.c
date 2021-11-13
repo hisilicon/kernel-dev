@@ -358,7 +358,8 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 
 	scsi_sysfs_device_initialize(sdev);
 
-	if (shost->hostt->slave_alloc) {
+	if (shost->hostt->slave_alloc &&
+	    !scsi_is_host_device(starget->dev.parent)) {
 		ret = shost->hostt->slave_alloc(sdev);
 		if (ret) {
 			/*
