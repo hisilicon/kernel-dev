@@ -2193,16 +2193,13 @@ static int sas_ex_try_unregister(struct domain_device *dev, u8 *changed_phy,
 static void sas_ex_register(struct domain_device *dev, u8 *changed_phy,
 			    int nr)
 {
-	struct expander_device *ex = &dev->ex_dev;
-	struct ex_phy *phy;
-	int res = 0;
 	int i;
 
 	for (i = 0; i < nr; i++) {
+		int res;
+
 		if (changed_phy[i] == 0xff)
 			continue;
-
-		phy = &ex->ex_phy[changed_phy[i]];
 
 		res = sas_discover_new(dev, changed_phy[i]);
 
