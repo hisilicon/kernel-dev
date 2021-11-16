@@ -14,6 +14,7 @@
 #include <linux/workqueue.h>
 #include <linux/poll.h>
 #include <uapi/linux/vfio.h>
+#include <linux/cdev.h>
 
 /*
  * VFIO devices can be placed in a set, this allows all devices to share this
@@ -36,7 +37,8 @@ struct vfio_device {
 	unsigned int migration_flags;
 
 	/* Members below here are private, not for driver use */
-	struct kref kref; /* object life circle */
+	struct device device;
+	struct cdev cdev;
 	struct rcu_head rcu;
 	refcount_t refcount; /* user count */
 	unsigned int open_count;
