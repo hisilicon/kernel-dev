@@ -75,6 +75,9 @@ struct vfio_device {
  */
 struct vfio_device_ops {
 	char	*name;
+	int	(*bind_iommufd)(struct vfio_device *vdev,
+				struct vfio_device_bind_iommufd *bind);
+	void	(*unbind_iommufd)(struct vfio_device *vdev);
 	int	(*open_device)(struct vfio_device *vdev);
 	void	(*close_device)(struct vfio_device *vdev);
 	void	(*release)(struct vfio_device *vdev);
