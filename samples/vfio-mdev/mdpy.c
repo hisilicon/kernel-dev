@@ -224,15 +224,15 @@ static int mdpy_probe(struct mdev_device *mdev)
 	u32 fbsize;
 	int ret;
 
-	mdev_state = kzalloc(sizeof(struct mdev_state), GFP_KERNEL);
+	mdev_state = vfio_alloc_device(mdev_state, vdev,
+				       &mdev->dev, &mdpy_dev_ops);
 	if (mdev_state == NULL)
 		return -ENOMEM;
-	vfio_init_group_dev(&mdev_state->vdev, &mdev->dev, &mdpy_dev_ops);
 
 	mdev_state->vconfig = kzalloc(MDPY_CONFIG_SPACE_SIZE, GFP_KERNEL);
 	if (mdev_state->vconfig == NULL) {
 		ret = -ENOMEM;
-		goto err_state;
+		goto err_out;
 	}
 
 	fbsize = roundup_pow_of_two(type->width * type->height * type->bytepp);
@@ -240,7 +240,7 @@ static int mdpy_probe(struct mdev_device *mdev)
 	mdev_state->memblk = vmalloc_user(fbsize);
 	if (!mdev_state->memblk) {
 		ret = -ENOMEM;
-		goto err_vconfig;
+		goto err_out;
 	}
 	dev_info(dev, "%s: %s (%dx%d)\n", __func__, type->name, type->width,
 		 type->height);
@@ -254,16 +254,11 @@ static int mdpy_probe(struct mdev_device *mdev)
 
 	ret = vfio_register_emulated_iommu_dev(&mdev_state->vdev);
 	if (ret)
-		goto err_mem;
+		goto err_out;
 	dev_set_drvdata(&mdev->dev, mdev_state);
 	return 0;
-err_mem:
-	vfree(mdev_state->memblk);
-err_vconfig:
-	kfree(mdev_state->vconfig);
-err_state:
-	vfio_uninit_group_dev(&mdev_state->vdev);
-	kfree(mdev_state);
+err_out:
+	vfio_put_device(&mdev_state->vdev);
 	return ret;
 }
 
@@ -274,10 +269,16 @@ static void mdpy_remove(struct mdev_device *mdev)
 	dev_info(&mdev->dev, "%s\n", __func__);
 
 	vfio_unregister_group_dev(&mdev_state->vdev);
+	vfio_put_device(&mdev_state->vdev);
+}
+
+static void mdpy_release(struct vfio_device *vdev)
+{
+	struct mdev_state *mdev_state =
+		container_of(vdev, struct mdev_state, vdev);
+
 	vfree(mdev_state->memblk);
 	kfree(mdev_state->vconfig);
-	vfio_uninit_group_dev(&mdev_state->vdev);
-	kfree(mdev_state);
 }
 
 static ssize_t mdpy_read(struct vfio_device *vdev, char __user *buf,
@@ -684,6 +685,7 @@ static struct attribute_group *mdev_type_groups[] = {
 };
 
 static const struct vfio_device_ops mdpy_dev_ops = {
+	.release = mdpy_release,
 	.read = mdpy_read,
 	.write = mdpy_write,
 	.ioctl = mdpy_ioctl,
