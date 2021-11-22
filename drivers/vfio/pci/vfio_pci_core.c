@@ -1786,11 +1786,17 @@ static void vfio_pci_vga_uninit(struct vfio_pci_core_device *vdev)
 					      VGA_RSRC_LEGACY_MEM);
 }
 
-void vfio_pci_core_init_device(struct vfio_pci_core_device *vdev,
-			       struct pci_dev *pdev,
-			       const struct vfio_device_ops *vfio_pci_ops)
+struct vfio_pci_core_device *
+vfio_pci_core_alloc_device(struct pci_dev *pdev,
+			   const struct vfio_device_ops *vfio_pci_ops)
 {
-	vfio_init_group_dev(&vdev->vdev, &pdev->dev, vfio_pci_ops);
+	struct vfio_pci_core_device *vdev;
+
+	vdev = vfio_alloc_device(vfio_pci_core_device, vdev,
+				 &pdev->dev, vfio_pci_ops);
+	if (!vdev)
+		goto out;
+
 	vdev->pdev = pdev;
 	vdev->irq_type = VFIO_PCI_NUM_IRQS;
 	mutex_init(&vdev->igate);
@@ -1802,19 +1808,30 @@ void vfio_pci_core_init_device(struct vfio_pci_core_device *vdev,
 	INIT_LIST_HEAD(&vdev->vma_list);
 	INIT_LIST_HEAD(&vdev->sriov_pfs_item);
 	init_rwsem(&vdev->memory_lock);
-}
-EXPORT_SYMBOL_GPL(vfio_pci_core_init_device);
 
-void vfio_pci_core_uninit_device(struct vfio_pci_core_device *vdev)
+out:
+	return vdev;
+}
+EXPORT_SYMBOL_GPL(vfio_pci_core_alloc_device);
+
+void vfio_pci_core_release(struct vfio_device *core_dev)
+{
+	struct vfio_pci_core_device *vdev =
+		container_of(core_dev, struct vfio_pci_core_device, vdev);
+
+	kfree(vdev->region);
+	kfree(vdev->pm_save);
+}
+EXPORT_SYMBOL_GPL(vfio_pci_core_release);
+
+void vfio_pci_core_dealloc_device(struct vfio_pci_core_device *vdev)
 {
 	mutex_destroy(&vdev->igate);
 	mutex_destroy(&vdev->ioeventfds_lock);
 	mutex_destroy(&vdev->vma_lock);
-	vfio_uninit_group_dev(&vdev->vdev);
-	kfree(vdev->region);
-	kfree(vdev->pm_save);
+	vfio_put_device(&vdev->vdev);
 }
-EXPORT_SYMBOL_GPL(vfio_pci_core_uninit_device);
+EXPORT_SYMBOL_GPL(vfio_pci_core_dealloc_device);
 
 int vfio_pci_core_register_device(struct vfio_pci_core_device *vdev)
 {
