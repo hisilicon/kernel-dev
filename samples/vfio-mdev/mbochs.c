@@ -520,10 +520,10 @@ static int mbochs_probe(struct mdev_device *mdev)
 	} while (!atomic_try_cmpxchg(&mbochs_avail_mbytes, &avail_mbytes,
 				     avail_mbytes - type->mbytes));
 
-	mdev_state = kzalloc(sizeof(struct mdev_state), GFP_KERNEL);
+	mdev_state = vfio_alloc_device(mdev_state, vdev,
+				       &mdev->dev, &mbochs_dev_ops);
 	if (mdev_state == NULL)
 		goto err_avail;
-	vfio_init_group_dev(&mdev_state->vdev, &mdev->dev, &mbochs_dev_ops);
 
 	mdev_state->vconfig = kzalloc(MBOCHS_CONFIG_SPACE_SIZE, GFP_KERNEL);
 	if (mdev_state->vconfig == NULL)
@@ -559,10 +559,7 @@ static int mbochs_probe(struct mdev_device *mdev)
 	dev_set_drvdata(&mdev->dev, mdev_state);
 	return 0;
 err_mem:
-	vfio_uninit_group_dev(&mdev_state->vdev);
-	kfree(mdev_state->pages);
-	kfree(mdev_state->vconfig);
-	kfree(mdev_state);
+	vfio_put_device(&mdev_state->vdev);
 err_avail:
 	atomic_add(type->mbytes, &mbochs_avail_mbytes);
 	return ret;
@@ -573,11 +570,17 @@ static void mbochs_remove(struct mdev_device *mdev)
 	struct mdev_state *mdev_state = dev_get_drvdata(&mdev->dev);
 
 	vfio_unregister_group_dev(&mdev_state->vdev);
-	vfio_uninit_group_dev(&mdev_state->vdev);
+	vfio_put_device(&mdev_state->vdev);
 	atomic_add(mdev_state->type->mbytes, &mbochs_avail_mbytes);
+}
+
+static void mbochs_release(struct vfio_device *vdev)
+{
+	struct mdev_state *mdev_state =
+		container_of(vdev, struct mdev_state, vdev);
+
 	kfree(mdev_state->pages);
 	kfree(mdev_state->vconfig);
-	kfree(mdev_state);
 }
 
 static ssize_t mbochs_read(struct vfio_device *vdev, char __user *buf,
@@ -1388,6 +1391,7 @@ static struct attribute_group *mdev_type_groups[] = {
 };
 
 static const struct vfio_device_ops mbochs_dev_ops = {
+	.release = mbochs_release,
 	.close_device = mbochs_close_device,
 	.read = mbochs_read,
 	.write = mbochs_write,
