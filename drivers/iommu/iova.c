@@ -50,6 +50,8 @@ static struct iova *to_iova(struct rb_node *node)
 
 int get_total_iovas(void *data, u64 *val);
 DEFINE_DEBUGFS_ATTRIBUTE(iova_fops, get_total_iovas, NULL, "%llu\n");
+int get_total_iovas_size(void *data, u64 *val);
+DEFINE_DEBUGFS_ATTRIBUTE(iova_fops_size, get_total_iovas_size, NULL, "%llu\n");
 
 void
 init_iova_domain(struct iova_domain *iovad, unsigned long granule,
@@ -81,6 +83,7 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->dentry = debugfs_create_dir(iovad->name, iova_debugfs_dir);
 	debugfs_create_atomic_t("too_big", 0444, iovad->dentry, &iovad->too_big);
 	debugfs_create_file_unsafe("total_iovas", 0644, iovad->dentry, iovad, &iova_fops);
+	debugfs_create_file_unsafe("total_iovas_size", 0644, iovad->dentry, iovad, &iova_fops_size);
 	rb_link_node(&iovad->anchor.node, NULL, &iovad->rbroot.rb_node);
 	rb_insert_color(&iovad->anchor.node, &iovad->rbroot);
 	cpuhp_state_add_instance_nocalls(CPUHP_IOMMU_IOVA_DEAD, &iovad->cpuhp_dead);
@@ -928,6 +931,39 @@ int get_total_iovas(void *data, u64 *val)
 		for (j = 0; j < rcache->depot_size; j++) {
 			struct iova_magazine *depot = rcache->depot[j];
 			total += depot->size;
+		}
+		spin_unlock(&rcache->lock);
+	}
+	*val = total;
+	return 0;
+}
+
+int get_total_iovas_size(void *data, u64 *val)
+{
+	struct iova_domain *iovad = data;
+	u64 total = 0;
+	int i;
+
+	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; i++) {
+		struct iova_rcache *rcache = &iovad->rcaches[i];
+		size_t iova_size = 4096 * (1 << i);
+		int cpu, j;
+
+		for_each_present_cpu(cpu) {
+			struct iova_cpu_rcache *cpu_rcache;
+			unsigned long flags;
+			cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
+			spin_lock_irqsave(&cpu_rcache->lock, flags);
+			if (cpu_rcache->loaded)
+				total += cpu_rcache->loaded->size * iova_size;
+			if (cpu_rcache->prev)
+				total += cpu_rcache->prev->size * iova_size;
+			spin_unlock_irqrestore(&cpu_rcache->lock, flags);
+		}
+		spin_lock(&rcache->lock);
+		for (j = 0; j < rcache->depot_size; j++) {
+			struct iova_magazine *depot = rcache->depot[j];
+			total += depot->size * iova_size;
 		}
 		spin_unlock(&rcache->lock);
 	}
