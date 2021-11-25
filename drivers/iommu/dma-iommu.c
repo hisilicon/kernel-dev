@@ -429,6 +429,9 @@ static int dma_info_to_prot(enum dma_data_direction dir, bool coherent,
 		return 0;
 	}
 }
+atomic64_t alloc_iova_count;
+atomic64_t alloc_iova_count32_try;
+atomic64_t alloc_iova_count32_fail;
 
 static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 		size_t size, u64 dma_limit, struct device *dev)
@@ -436,6 +439,7 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iova_domain *iovad = &cookie->iovad;
 	unsigned long shift, iova_len, iova = 0;
+	u64 _alloc_iova_count;
 
 	if (cookie->type == IOMMU_DMA_MSI_COOKIE) {
 		cookie->msi_iova += size;
@@ -458,10 +462,21 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 	if (domain->geometry.force_aperture)
 		dma_limit = min(dma_limit, (u64)domain->geometry.aperture_end);
 
+	_alloc_iova_count = atomic64_inc_return(&alloc_iova_count);
+
+	if ((_alloc_iova_count % 1000000) == 0)
+		pr_err("%s count=%lld 32try=%lld 32fail=%lld\n", __func__,
+				_alloc_iova_count,
+				atomic64_read(&alloc_iova_count32_try),
+				atomic64_read(&alloc_iova_count32_fail));
 	/* Try to get PCI devices a SAC address */
-	if (dma_limit > DMA_BIT_MASK(32) && !iommu_dma_forcedac && dev_is_pci(dev))
+	if (dma_limit > DMA_BIT_MASK(32) && !iommu_dma_forcedac && dev_is_pci(dev)) {
+		atomic64_inc(&alloc_iova_count32_try);
 		iova = alloc_iova_fast(iovad, iova_len,
 				       DMA_BIT_MASK(32) >> shift, false);
+		if (!iova)
+			atomic64_inc(&alloc_iova_count32_fail);
+	}
 
 	if (!iova)
 		iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift,
