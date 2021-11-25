@@ -12,6 +12,7 @@
 #include <linux/bitops.h>
 #include <linux/cpu.h>
 #include <linux/debugfs.h>
+#include <linux/percpu.h>
 
 /* The anchor node sits above the top of the usable address space */
 #define IOVA_ANCHOR	~0UL
@@ -47,6 +48,9 @@ static struct iova *to_iova(struct rb_node *node)
 	return rb_entry(node, struct iova, node);
 }
 
+int get_total_iovas(void *data, u64 *val);
+DEFINE_DEBUGFS_ATTRIBUTE(iova_fops, get_total_iovas, NULL, "%llu\n");
+
 void
 init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	unsigned long start_pfn)
@@ -76,6 +80,7 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->anchor.pfn_lo = iovad->anchor.pfn_hi = IOVA_ANCHOR;
 	iovad->dentry = debugfs_create_dir(iovad->name, iova_debugfs_dir);
 	debugfs_create_atomic_t("too_big", 0444, iovad->dentry, &iovad->too_big);
+	debugfs_create_file_unsafe("total_iovas", 0644, iovad->dentry, iovad, &iova_fops);
 	rb_link_node(&iovad->anchor.node, NULL, &iovad->rbroot.rb_node);
 	rb_insert_color(&iovad->anchor.node, &iovad->rbroot);
 	cpuhp_state_add_instance_nocalls(CPUHP_IOMMU_IOVA_DEAD, &iovad->cpuhp_dead);
@@ -896,6 +901,38 @@ static void iova_magazine_push(struct iova_magazine *mag, unsigned long pfn)
 	BUG_ON(iova_magazine_full(mag));
 
 	mag->pfns[mag->size++] = pfn;
+}
+
+int get_total_iovas(void *data, u64 *val)
+{
+	struct iova_domain *iovad = data;
+	u64 total = 0;
+	int i;
+
+	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; i++) {
+		struct iova_rcache *rcache = &iovad->rcaches[i];
+		int cpu, j;
+
+		for_each_present_cpu(cpu) {
+			struct iova_cpu_rcache *cpu_rcache;
+			unsigned long flags;
+			cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
+			spin_lock_irqsave(&cpu_rcache->lock, flags);
+			if (cpu_rcache->loaded)
+				total += cpu_rcache->loaded->size;
+			if (cpu_rcache->prev)
+				total += cpu_rcache->prev->size;
+			spin_unlock_irqrestore(&cpu_rcache->lock, flags);
+		}
+		spin_lock(&rcache->lock);
+		for (j = 0; j < rcache->depot_size; j++) {
+			struct iova_magazine *depot = rcache->depot[j];
+			total += depot->size;
+		}
+		spin_unlock(&rcache->lock);
+	}
+	*val = total;
+	return 0;
 }
 
 static void init_iova_rcaches(struct iova_domain *iovad)
