@@ -367,6 +367,8 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 	order = __ffs(domain->pgsize_bitmap);
 	base_pfn = max_t(unsigned long, 1, base >> order);
 
+	dev_err(dev, "%s iovad=%pS\n", __func__, iovad);
+
 	/* Check the domain allows at least some access to the device... */
 	if (domain->geometry.force_aperture) {
 		if (base > domain->geometry.aperture_end ||
