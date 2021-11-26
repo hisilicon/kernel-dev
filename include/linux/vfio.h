@@ -37,6 +37,7 @@ struct vfio_device {
 
 	/* Members below here are private, not for driver use */
 	struct kref kref; /* object life circle */
+	struct rcu_head rcu;
 	refcount_t refcount; /* user count */
 	unsigned int open_count;
 	struct completion comp;

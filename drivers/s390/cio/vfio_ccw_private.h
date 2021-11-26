@@ -71,7 +71,6 @@ struct vfio_ccw_crw {
 /**
  * struct vfio_ccw_private
  * @vdev: Embedded VFIO device
- * @rcu: head for kfree_rcu()
  * @sch: pointer to the subchannel
  * @state: internal state of the device
  * @completion: synchronization helper of the I/O completion
@@ -94,7 +93,6 @@ struct vfio_ccw_crw {
  */
 struct vfio_ccw_private {
 	struct vfio_device vdev;
-	struct rcu_head rcu;
 	struct subchannel	*sch;
 	int			state;
 	struct completion	*completion;
