@@ -469,22 +469,39 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 
 	return (dma_addr_t)iova << shift;
 }
-
+atomic64_t iommu_dma_free_iova_count;
+atomic64_t iommu_dma_free_iova_queue_iova;
+atomic64_t iommu_dma_free_iova_free_iova_fast;
 static void iommu_dma_free_iova(struct iommu_dma_cookie *cookie,
 		dma_addr_t iova, size_t size, struct iommu_iotlb_gather *gather)
 {
 	struct iova_domain *iovad = &cookie->iovad;
+	u64 _iommu_dma_free_iova_count = atomic64_inc_return(&iommu_dma_free_iova_count);
+
+	if ((_iommu_dma_free_iova_count % 5000000) == 0) {
+		pr_err("%s count=%lld queue_iova=%lld free_iova_fast=%lld\n",
+			__func__, _iommu_dma_free_iova_count,
+			atomic64_read(&iommu_dma_free_iova_queue_iova),
+			atomic64_read(&iommu_dma_free_iova_free_iova_fast));
+		atomic64_set(&iommu_dma_free_iova_count, 0);
+		atomic64_set(&iommu_dma_free_iova_queue_iova, 0);
+		atomic64_set(&iommu_dma_free_iova_free_iova_fast, 0);
+	}
+	
 
 	/* The MSI case is only ever cleaning up its most recent allocation */
 	if (cookie->type == IOMMU_DMA_MSI_COOKIE)
 		cookie->msi_iova -= size;
-	else if (gather && gather->queued)
+	else if (gather && gather->queued) {
+		atomic64_inc(&iommu_dma_free_iova_queue_iova);
 		queue_iova(iovad, iova_pfn(iovad, iova),
 				size >> iova_shift(iovad),
 				(unsigned long)gather->freelist);
-	else
+	} else {
+		atomic64_inc(&iommu_dma_free_iova_free_iova_fast);
 		free_iova_fast(iovad, iova_pfn(iovad, iova),
 				size >> iova_shift(iovad));
+	}
 }
 
 static void __iommu_dma_unmap(struct device *dev, dma_addr_t dma_addr,
