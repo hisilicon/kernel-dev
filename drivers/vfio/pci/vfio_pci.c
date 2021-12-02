@@ -128,6 +128,8 @@ static int vfio_pci_open_device(struct vfio_device *core_vdev)
 static const struct vfio_device_ops vfio_pci_ops = {
 	.name		= "vfio-pci",
 	.release	= vfio_pci_core_release,
+	.bind_iommufd	= vfio_pci_core_bind_iommufd,
+	.unbind_iommufd	= vfio_pci_core_unbind_iommufd,
 	.open_device	= vfio_pci_open_device,
 	.close_device	= vfio_pci_core_close_device,
 	.ioctl		= vfio_pci_core_ioctl,

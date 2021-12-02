@@ -4,6 +4,7 @@ config VFIO_PCI_CORE
 	tristate
 	select VFIO_VIRQFD
 	select IRQ_BYPASS_MANAGER
+	select IOMMUFD
 
 config VFIO_PCI_MMAP
 	def_bool y if !S390

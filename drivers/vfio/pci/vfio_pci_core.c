@@ -637,6 +637,52 @@ int vfio_pci_register_dev_region(struct vfio_pci_core_device *vdev,
 }
 EXPORT_SYMBOL_GPL(vfio_pci_register_dev_region);
 
+int vfio_pci_core_bind_iommufd(struct vfio_device *core_vdev,
+			       struct vfio_device_bind_iommufd *bind)
+{
+	struct vfio_pci_core_device *vdev =
+		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+	struct iommufd_device *idev;
+	u32 id;
+	int ret = 0;
+
+	mutex_lock(&vdev->idev_lock);
+
+	/* Allow only one iommufd per vfio_device */
+	if (vdev->idev) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+
+	idev = iommufd_bind_pci_device(bind->iommufd, vdev->pdev, &id);
+	if (IS_ERR(idev)) {
+		ret = PTR_ERR(idev);
+		goto out_unlock;
+	}
+
+	vdev->idev = idev;
+	bind->out_devid = id;
+
+out_unlock:
+	mutex_unlock(&vdev->idev_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(vfio_pci_core_bind_iommufd);
+
+void vfio_pci_core_unbind_iommufd(struct vfio_device *core_vdev)
+{
+	struct vfio_pci_core_device *vdev =
+		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+
+	mutex_lock(&vdev->idev_lock);
+	if (vdev->idev) {
+		iommufd_unbind_device(vdev->idev);
+		vdev->idev = NULL;
+	}
+	mutex_unlock(&vdev->idev_lock);
+}
+EXPORT_SYMBOL_GPL(vfio_pci_core_unbind_iommufd);
+
 long vfio_pci_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
 		unsigned long arg)
 {
@@ -1808,6 +1854,7 @@ vfio_pci_core_alloc_device(struct pci_dev *pdev,
 	INIT_LIST_HEAD(&vdev->vma_list);
 	INIT_LIST_HEAD(&vdev->sriov_pfs_item);
 	init_rwsem(&vdev->memory_lock);
+	mutex_init(&vdev->idev_lock);
 
 out:
 	return vdev;

@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/uuid.h>
 #include <linux/notifier.h>
+#include <linux/iommufd.h>
 
 #ifndef VFIO_PCI_CORE_H
 #define VFIO_PCI_CORE_H
@@ -139,6 +140,8 @@ struct vfio_pci_core_device {
 	struct mutex		vma_lock;
 	struct list_head	vma_list;
 	struct rw_semaphore	memory_lock;
+	struct mutex		idev_lock;
+	struct iommufd_device	*idev;
 };
 
 #define is_intx(vdev) (vdev->irq_type == VFIO_PCI_INTX_IRQ_INDEX)
@@ -221,6 +224,9 @@ static inline int vfio_pci_info_zdev_add_caps(struct vfio_pci_core_device *vdev,
 void vfio_pci_core_set_params(bool nointxmask, bool is_disable_vga,
 			      bool is_disable_idle_d3);
 void vfio_pci_core_release(struct vfio_device *core_dev);
+int vfio_pci_core_bind_iommufd(struct vfio_device *core_vdev,
+			       struct vfio_device_bind_iommufd *bind);
+void vfio_pci_core_unbind_iommufd(struct vfio_device *core_vdev);
 void vfio_pci_core_close_device(struct vfio_device *core_vdev);
 struct vfio_pci_core_device *
 vfio_pci_core_alloc_device(struct pci_dev *pdev,
