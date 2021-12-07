@@ -234,10 +234,12 @@ static int queue_remove_raw(struct arm_smmu_queue *q, u64 *ent)
 }
 
 /* High-level queue accessors */
-static int arm_smmu_cmdq_build_cmd(u64 *cmd, struct arm_smmu_cmdq_ent *ent)
+static int arm_smmu_cmdq_build_cmd(u64 *out_cmd, struct arm_smmu_cmdq_ent *ent)
 {
-	memset(cmd, 0, 1 << CMDQ_ENT_SZ_SHIFT);
-	cmd[0] |= FIELD_PREP(CMDQ_0_OP, ent->opcode);
+	int i;
+	u64 cmd[CMDQ_ENT_DWORDS] = {0};
+
+	cmd[0] = FIELD_PREP(CMDQ_0_OP, ent->opcode);
 
 	switch (ent->opcode) {
 	case CMDQ_OP_TLBI_EL2_ALL:
@@ -331,6 +333,9 @@ static int arm_smmu_cmdq_build_cmd(u64 *cmd, struct arm_smmu_cmdq_ent *ent)
 	default:
 		return -ENOENT;
 	}
+
+	for (i = 0; i < CMDQ_ENT_DWORDS; i++)
+		out_cmd[i] = cmd[i];
 
 	return 0;
 }
