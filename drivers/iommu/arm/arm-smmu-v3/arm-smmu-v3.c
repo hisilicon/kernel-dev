@@ -731,6 +731,13 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
  *   insert their own list of commands then all of the commands from one
  *   CPU will appear before any of the commands from the other CPU.
  */
+
+static DEFINE_PER_CPU(ktime_t, cmdlist);
+
+static atomic64_t tries;
+static atomic64_t cmpxchg_tries;
+
+
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n, bool sync)
 {
@@ -741,14 +748,21 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	struct arm_smmu_cmdq *cmdq = arm_smmu_get_cmdq(smmu);
 	struct arm_smmu_ll_queue llq, head;
 	int ret = 0;
+	ktime_t initial, final, *t;
+	int cpu;
 
 	llq.max_n_shift = cmdq->q.llq.max_n_shift;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
+	cpu = smp_processor_id();
+	t = &per_cpu(cmdlist, cpu);
+	initial = ktime_get();
 	llq.val = READ_ONCE(cmdq->q.llq.val);
+	atomic64_inc(&tries);
 	do {
 		u64 old;
+
 
 		while (!queue_has_space(&llq, n + sync)) {
 			local_irq_restore(flags);
@@ -762,8 +776,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 					     CMDQ_PROD_OWNED_FLAG;
 
 		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
+		atomic64_inc(&cmpxchg_tries);
 		if (old == llq.val)
 			break;
+		
 
 		llq.val = old;
 	} while (1);
@@ -847,8 +863,56 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 	}
 
+	final = ktime_get();
+	*t += final - initial;
+	
 	local_irq_restore(flags);
 	return ret;
+}
+
+ktime_t arm_smmu_cmdq_get_average_time(void)
+{
+	int cpu, cpus;
+	ktime_t total = 0;
+
+	for_each_online_cpu(cpu) {
+		ktime_t *t = &per_cpu(cmdlist, cpu);
+
+		if (*t > 100) {
+			total += *t;
+			cpus++;
+		}
+	}
+
+	return total / cpus;
+}
+
+
+u64 arm_smmu_cmdq_get_tries(void)
+{
+	return atomic64_read(&tries);
+}
+
+u64 arm_smmu_cmdq_get_cmpxcgh_fails(void)
+{
+	return atomic64_read(&cmpxchg_tries);
+}
+
+void arm_smmu_cmdq_zero_cmpxchg(void)
+{
+	atomic64_set(&tries, 0);
+	atomic64_set(&cmpxchg_tries, 0);
+}
+
+void arm_smmu_cmdq_zero_times(void)
+{
+	int cpu;
+	
+	for_each_online_cpu(cpu) {
+		ktime_t *t = &per_cpu(cmdlist, cpu);
+	
+		*t = 0;
+	}
 }
 
 static int __arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
@@ -3765,6 +3829,33 @@ static void __iomem *arm_smmu_ioremap(struct device *dev, resource_size_t start,
 	return devm_ioremap_resource(dev, &res);
 }
 
+
+
+extern void smmu_test_core(int cpus);
+
+static ssize_t smmu_test_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	u32 cpus;
+	int ret;
+
+	ret = kstrtou32(buf, 10, &cpus);
+	if (ret)
+		return ret;
+
+	smmu_test_core(cpus);
+	return count;
+}
+
+static DEVICE_ATTR_WO(smmu_test);
+
+static struct device_attribute *attrs[] = {
+	&dev_attr_smmu_test,
+	NULL,
+};
+
+
+
 static int arm_smmu_device_probe(struct platform_device *pdev)
 {
 	int irq, ret;
@@ -3786,6 +3877,8 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		if (ret == -ENODEV)
 			return ret;
 	}
+
+	device_create_file(dev, attrs[0]);
 
 	/* Set bypass mode according to firmware probing result */
 	bypass = !!ret;

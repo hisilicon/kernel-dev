@@ -24,3 +24,9 @@ config SCSI_HISI_SAS_DEBUGFS_DEFAULT_ENABLE
 	depends on SCSI_HISI_SAS
 	help
 		Set Y to default enable DEBUGFS for SCSI_HISI_SAS
+
+config SCSI_HISI_SAS_SMMU_TEST
+	tristate "HiSilicon SAS on PCI bus SMMU test"
+	depends on SCSI_HISI_SAS_PCI
+	help
+		None
