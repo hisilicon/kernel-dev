@@ -364,6 +364,48 @@ static void arm_smmu_cmdq_build_sync_cmd(u64 *cmd, struct arm_smmu_device *smmu,
 	arm_smmu_cmdq_build_cmd(cmd, &ent);
 }
 
+static void arm_smmu_cmdq_build_msipoll_sync_cmd(u64 *cmd, struct arm_smmu_device *smmu,
+					 struct arm_smmu_queue *q, u32 prod)
+{
+	static int test;
+	u64 cmd_sync_test[CMDQ_ENT_DWORDS];
+	
+	u64 *cmd_sync = &q->cmd_sync[0];
+	u64 msiaddr = q->base_dma + Q_IDX(&q->llq, prod) *
+			   q->ent_dwords * 8;
+
+	arm_smmu_cmdq_build_sync_cmd(cmd_sync_test, smmu, q, prod);
+
+	/*
+	 * Beware that Hi16xx adds an extra 32 bits of goodness to its MSI
+	 * payload, so the write will zero the entire command on that platform.
+	 */
+	cmd[0] = cmd_sync[0];
+	cmd[1] = msiaddr & CMDQ_SYNC_1_MSIADDR_MASK;
+
+	if ((cmd[0] != cmd_sync_test[0]) || (cmd[1] != cmd_sync_test[1])) {
+
+		if (test == 0) {
+			pr_err("%s fail [0] 0x%llx (good) vs 0x%llx [1] 0x%llx vs 0x %llx\n", __func__,
+			cmd_sync_test[0], cmd[0], cmd_sync_test[1], cmd[1]);
+			test = 1;
+		}
+	}
+}
+
+static void arm_smmu_cmdq_prebuild_sync_cmd(struct arm_smmu_device *smmu)
+{
+	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
+	struct arm_smmu_queue *q = &cmdq->q;
+	u64 *cmd_sync = &q->cmd_sync[0];
+
+	struct arm_smmu_cmdq_ent ent = {
+		.opcode = CMDQ_OP_CMD_SYNC,
+	};
+
+	arm_smmu_cmdq_build_cmd(cmd_sync, &ent);
+}
+
 static void __arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu,
 				     struct arm_smmu_queue *q)
 {
@@ -746,7 +788,6 @@ static atomic64_t cmpxchg_tries;
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n, bool sync)
 {
-	u64 cmd_sync[CMDQ_ENT_DWORDS];
 	u32 prod;
 	unsigned long flags;
 	bool owner;
@@ -798,9 +839,17 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 */
 	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n);
 	if (sync) {
+
 		prod = queue_inc_prod_n(&llq, n);
-		arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, &cmdq->q, prod);
-		queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+		if (smmu->options & ARM_SMMU_OPT_MSIPOLL) {
+			u64 cmd_sync[CMDQ_ENT_DWORDS];
+
+			arm_smmu_cmdq_build_msipoll_sync_cmd(cmd_sync, smmu, &cmdq->q, prod);
+			queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+		} else {
+			pr_err_once("%s cmd_sync=[0x%llx, 0x%llx]\n", __func__, cmdq->q.cmd_sync[0], cmdq->q.cmd_sync[1]);
+			queue_write(Q_ENT(&cmdq->q, prod), cmdq->q.cmd_sync, CMDQ_ENT_DWORDS);
+		}
 
 		/*
 		 * In order to determine completion of our CMD_SYNC, we must
@@ -3018,6 +3067,7 @@ static int arm_smmu_init_queues(struct arm_smmu_device *smmu)
 				      CMDQ_ENT_DWORDS, "cmdq");
 	if (ret)
 		return ret;
+	arm_smmu_cmdq_prebuild_sync_cmd(smmu);
 
 	ret = arm_smmu_cmdq_init(smmu);
 	if (ret)

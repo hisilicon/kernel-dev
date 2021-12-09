@@ -522,6 +522,7 @@ struct arm_smmu_ll_queue {
 struct arm_smmu_queue {
 	struct arm_smmu_ll_queue	llq;
 	int				irq; /* Wired interrupt */
+	u64 cmd_sync[CMDQ_ENT_DWORDS];
 
 	__le64				*base;
 	dma_addr_t			base_dma;
