@@ -661,6 +661,7 @@ int vfio_pci_core_bind_iommufd(struct vfio_device *core_vdev,
 	}
 
 	vdev->idev = idev;
+	vdev->ioas_id = IOMMUFD_INVALID_ID;
 	bind->out_devid = id;
 
 out_unlock:
@@ -676,12 +677,82 @@ void vfio_pci_core_unbind_iommufd(struct vfio_device *core_vdev)
 
 	mutex_lock(&vdev->idev_lock);
 	if (vdev->idev) {
+		if (vdev->ioas_id != IOMMUFD_INVALID_ID) {
+			vdev->iommufd = -1;
+			vdev->ioas_id = IOMMUFD_INVALID_ID;
+			iommufd_device_detach(vdev->idev);
+		}
 		iommufd_unbind_device(vdev->idev);
 		vdev->idev = NULL;
 	}
 	mutex_unlock(&vdev->idev_lock);
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_unbind_iommufd);
+
+int vfio_pci_core_attach_ioas(struct vfio_device *core_vdev,
+			      struct vfio_device_attach_ioas *attach)
+{
+	struct vfio_pci_core_device *vdev =
+		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+	u32 pt_id = attach->ioas_id;
+	int ret;
+
+	mutex_lock(&vdev->idev_lock);
+
+	if (!vdev->idev) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	/* Currently only allows one IOAS attach */
+	if (vdev->ioas_id != IOMMUFD_INVALID_ID) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+
+	/*
+	 * FIXME: needs to discuss the allow_unsage_interrupt. May want
+	 * to have this parameter in vfio scope.
+	 */
+	ret = iommufd_device_attach(vdev->idev, &pt_id,
+				    IOMMUFD_ATTACH_FLAGS_ALLOW_UNSAFE_INTERRUPT);
+	if (ret)
+		goto out_unlock;
+
+	vdev->iommufd = attach->iommufd;
+	vdev->ioas_id = attach->ioas_id;
+	attach->out_hwpt_id = pt_id;
+
+out_unlock:
+	mutex_unlock(&vdev->idev_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(vfio_pci_core_attach_ioas);
+
+void vfio_pci_core_detach_ioas(struct vfio_device *core_vdev,
+			       struct vfio_device_detach_ioas *detach)
+{
+	struct vfio_pci_core_device *vdev =
+		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+
+	mutex_lock(&vdev->idev_lock);
+
+	if (vdev->ioas_id == IOMMUFD_INVALID_ID)
+		goto out_unlock;
+
+	if (vdev->iommufd != detach->iommufd ||
+	    vdev->ioas_id != detach->ioas_id)
+		goto out_unlock;
+
+	vdev->iommufd = -1;
+	vdev->ioas_id = IOMMUFD_INVALID_ID;
+	iommufd_device_detach(vdev->idev);
+
+out_unlock:
+	mutex_unlock(&vdev->idev_lock);
+}
+EXPORT_SYMBOL_GPL(vfio_pci_core_detach_ioas);
 
 long vfio_pci_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
 		unsigned long arg)

@@ -11,6 +11,8 @@
 #include <linux/err.h>
 #include <linux/device.h>
 
+#define IOMMUFD_INVALID_ID  0
+
 struct pci_dev;
 struct iommufd_device;
 
