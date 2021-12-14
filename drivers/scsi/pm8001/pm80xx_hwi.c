@@ -3086,6 +3086,7 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			pm8001_dbg(pm8001_ha, IO,
 				   "DIRECT RESPONSE Length:%d\n",
 				   param);
+			WARN_ON(!in_atomic());
 			to = kmap_atomic(sg_page(sg_resp));
 			payload = to + sg_resp->offset;
 			for (i = 0; i < param; i++) {
@@ -4284,6 +4285,7 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 
 
 	smp_req = &task->smp_task.smp_req;
+	WARN_ON(!in_atomic());
 	to = kmap_atomic(sg_page(smp_req));
 	payload = to + smp_req->offset;
 
