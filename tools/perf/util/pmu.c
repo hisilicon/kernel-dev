@@ -1745,10 +1745,10 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 	for (j = 0; j < len; j++) {
 		/* Skip duplicates */
 		if (j > 0 && !strcmp(aliases[j].name, aliases[j - 1].name)) {
-			if (!aliases[j].pmu || !aliases[j - 1].pmu ||
-			    !strcmp(aliases[j].pmu, aliases[j - 1].pmu)) {
+		//	if (!aliases[j].pmu || !aliases[j - 1].pmu ||
+		//	    !strcmp(aliases[j].pmu, aliases[j - 1].pmu)) {
 				continue;
-			}
+		//	}
 		}
 
 		if (name_only) {
