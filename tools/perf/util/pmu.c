@@ -1664,7 +1664,6 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 	int numdesc = 0;
 	int columns = pager_get_columns();
 	char *topic = NULL;
-
 	pmu = NULL;
 	len = 0;
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
@@ -1679,11 +1678,15 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 	pmu = NULL;
 	j = 0;
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+		bool print = !strcmp(pmu->name, "hisi_sccl3_ddrc1");
+		if (print) pr_err("%s1 pmu=%s1\n", __func__, pmu->name);
 		list_for_each_entry(alias, &pmu->aliases, list) {
 			char *name = alias->desc ? alias->name :
 				format_alias(buf, sizeof(buf), pmu, alias);
 			bool is_cpu = is_pmu_core(pmu->name);
 
+			if (print) pr_err("%s2 pmu=%s name=%s cpu=%d\n", 
+			__func__, pmu->name, name, is_cpu);
 			if (alias->deprecated && !deprecated)
 				continue;
 
@@ -1730,8 +1733,15 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 	qsort(aliases, len, sizeof(struct sevent), cmp_sevent);
 	for (j = 0; j < len; j++) {
 		/* Skip duplicates */
+		/* Skip duplicates */
+		bool print = !aliases[j].is_cpu;//!strcmp(aliases[j].pmu, "hisi_sccl7_l3c4");
+		
+		if (print) pr_err("%s5 aliases[%d].name=%s,is_cpu=%d,pmu=%s\n", 
+			__func__, j, aliases[j].name, aliases[j].is_cpu, aliases[j].pmu);
 		if (j > 0 && !strcmp(aliases[j].name, aliases[j - 1].name))
 			continue;
+		if (print) pr_err("%s6 aliases[%d].name=%s,is_cpu=%d,pmu=%s\n", 
+			__func__, j, aliases[j].name, aliases[j].is_cpu, aliases[j].pmu);
 		if (name_only) {
 			printf("%s ", aliases[j].name);
 			continue;
