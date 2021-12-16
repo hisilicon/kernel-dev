@@ -296,7 +296,7 @@ static void nvme_retry_req(struct request *req)
 
 	nvme_req(req)->retries++;
 	blk_mq_requeue_request(req, false);
-	blk_mq_delay_kick_requeue_list(req->q, msec_to_jiffies(delay));
+	blk_mq_delay_kick_requeue_list(req->q, delay);
 }
 
 enum nvme_disposition {

@@ -1153,9 +1153,10 @@ void blk_mq_kick_requeue_list(struct request_queue *q)
 EXPORT_SYMBOL(blk_mq_kick_requeue_list);
 
 void blk_mq_delay_kick_requeue_list(struct request_queue *q,
-				    unsigned long jiffies)
+				    unsigned long msecs)
 {
-	kblockd_mod_delayed_work_on(WORK_CPU_UNBOUND, &q->requeue_work, jiffies);
+	kblockd_mod_delayed_work_on(WORK_CPU_UNBOUND, &q->requeue_work,
+				    msecs_to_jiffies(msecs));
 }
 EXPORT_SYMBOL(blk_mq_delay_kick_requeue_list);
 
@@ -1752,7 +1753,7 @@ out:
 		    (no_tag && list_empty_careful(&hctx->dispatch_wait.entry)))
 			blk_mq_run_hw_queue(hctx, true);
 		else if (needs_restart && needs_resource)
-			blk_mq_delay_run_hw_queue(hctx, msecs_to_jiffies(BLK_MQ_RESOURCE_DELAY));
+			blk_mq_delay_run_hw_queue(hctx, BLK_MQ_RESOURCE_DELAY);
 
 		blk_mq_update_dispatch_busy(hctx, true);
 		return false;
@@ -1844,13 +1845,13 @@ select_cpu:
  * __blk_mq_delay_run_hw_queue - Run (or schedule to run) a hardware queue.
  * @hctx: Pointer to the hardware queue to run.
  * @async: If we want to run the queue asynchronously.
- * @jiffies: jiffies of delay to wait before running the queue.
+ * @msecs: Milliseconds of delay to wait before running the queue.
  *
  * If !@async, try to run the queue now. Else, run the queue asynchronously and
  * with a delay of @msecs.
  */
 static void __blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async,
-					unsigned long jiffies)
+					unsigned long msecs)
 {
 	if (unlikely(blk_mq_hctx_stopped(hctx)))
 		return;
@@ -1866,19 +1867,20 @@ static void __blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async,
 		put_cpu();
 	}
 
-	kblockd_mod_delayed_work_on(blk_mq_hctx_next_cpu(hctx), &hctx->run_work, jiffies);
+	kblockd_mod_delayed_work_on(blk_mq_hctx_next_cpu(hctx), &hctx->run_work,
+				    msecs_to_jiffies(msecs));
 }
 
 /**
  * blk_mq_delay_run_hw_queue - Run a hardware queue asynchronously.
  * @hctx: Pointer to the hardware queue to run.
- * @jiffies: jiffies of delay to wait before running the queue.
+ * @msecs: Milliseconds of delay to wait before running the queue.
  *
  * Run a hardware queue asynchronously with a delay of @msecs.
  */
-void blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, unsigned long jiffies)
+void blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs)
 {
-	__blk_mq_delay_run_hw_queue(hctx, true, jiffies);
+	__blk_mq_delay_run_hw_queue(hctx, true, msecs);
 }
 EXPORT_SYMBOL(blk_mq_delay_run_hw_queue);
 
@@ -1981,9 +1983,9 @@ EXPORT_SYMBOL(blk_mq_run_hw_queues);
 /**
  * blk_mq_delay_run_hw_queues - Run all hardware queues asynchronously.
  * @q: Pointer to the request queue to run.
- * @jiffies: Milliseconds of delay to wait before running the queues.
+ * @msecs: Milliseconds of delay to wait before running the queues.
  */
-void blk_mq_delay_run_hw_queues(struct request_queue *q, unsigned long jiffies)
+void blk_mq_delay_run_hw_queues(struct request_queue *q, unsigned long msecs)
 {
 	struct blk_mq_hw_ctx *hctx, *sq_hctx;
 	int i;
@@ -2001,7 +2003,7 @@ void blk_mq_delay_run_hw_queues(struct request_queue *q, unsigned long jiffies)
 		 */
 		if (!sq_hctx || sq_hctx == hctx ||
 		    !list_empty_careful(&hctx->dispatch))
-			blk_mq_delay_run_hw_queue(hctx, jiffies);
+			blk_mq_delay_run_hw_queue(hctx, msecs);
 	}
 }
 EXPORT_SYMBOL(blk_mq_delay_run_hw_queues);

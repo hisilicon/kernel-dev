@@ -169,7 +169,7 @@ static void dm_end_request(struct request *clone, blk_status_t error)
 
 static void __dm_mq_kick_requeue_list(struct request_queue *q, unsigned long msecs)
 {
-	blk_mq_delay_kick_requeue_list(q, msec_to_jiffies(msecs));
+	blk_mq_delay_kick_requeue_list(q, msecs);
 }
 
 void dm_mq_kick_requeue_list(struct mapped_device *md)

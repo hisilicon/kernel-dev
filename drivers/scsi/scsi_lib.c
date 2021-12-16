@@ -1638,7 +1638,7 @@ static int scsi_mq_get_budget(struct request_queue *q)
 	 */
 	if (unlikely(scsi_device_busy(sdev) == 0 &&
 				!scsi_device_blocked(sdev)))
-		blk_mq_delay_run_hw_queues(sdev->request_queue, msecs_to_jiffies(SCSI_QUEUE_DELAY));
+		blk_mq_delay_run_hw_queues(sdev->request_queue, SCSI_QUEUE_DELAY);
 	return -1;
 }
 
