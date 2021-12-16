@@ -1120,13 +1120,13 @@ static void rnbd_clt_dev_kick_mq_queue(struct rnbd_clt_dev *dev,
 	struct rnbd_queue *q = hctx->driver_data;
 
 	if (delay != RNBD_DELAY_IFBUSY)
-		blk_mq_delay_run_hw_queue(hctx, delay);
+		blk_mq_delay_run_hw_queue(hctx, msec_to_jiffies(delay));
 	else if (!rnbd_clt_dev_add_to_requeue(dev, q))
 		/*
 		 * If session is not busy we have to restart
 		 * the queue ourselves.
 		 */
-		blk_mq_delay_run_hw_queue(hctx, 10/*ms*/);
+		blk_mq_delay_run_hw_queue(hctx, msec_to_jiffies(10)/*ms*/);
 }
 
 static blk_status_t rnbd_queue_rq(struct blk_mq_hw_ctx *hctx,

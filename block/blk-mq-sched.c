@@ -182,7 +182,7 @@ static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 
 	if (!count) {
 		if (run_queue)
-			blk_mq_delay_run_hw_queues(q, BLK_MQ_BUDGET_DELAY);
+			blk_mq_delay_run_hw_queues(q, msecs_to_jiffies(BLK_MQ_BUDGET_DELAY));
 	} else if (multi_hctxs) {
 		/*
 		 * Requests from different hctx may be dequeued from some
@@ -267,7 +267,7 @@ static int blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
 			 * no guarantee anyone will kick the queue.  Kick it
 			 * ourselves.
 			 */
-			blk_mq_delay_run_hw_queues(q, BLK_MQ_BUDGET_DELAY);
+			blk_mq_delay_run_hw_queues(q, msecs_to_jiffies(BLK_MQ_BUDGET_DELAY));
 			break;
 		}
 
