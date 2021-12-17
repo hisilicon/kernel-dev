@@ -88,4 +88,10 @@ void metricgroup__rblist_exit(struct rblist *metric_events);
 int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 				    struct rblist *new_metric_events,
 				    struct rblist *old_metric_events);
+int metricgroup__parse_groups_to_evlist(struct evlist *perf_evlist,
+					const char *str,
+					bool metric_no_group,
+					bool metric_no_merge,
+					struct rblist *metric_events);
+
 #endif
