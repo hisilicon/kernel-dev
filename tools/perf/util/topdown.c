@@ -56,3 +56,8 @@ __weak bool arch_topdown_sample_read(struct evsel *leader __maybe_unused)
 {
 	return false;
 }
+
+__weak bool arch_topdown_use_json_metrics(void)
+{
+	return false;
+}
