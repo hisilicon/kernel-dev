@@ -425,8 +425,9 @@ int sas_ex_phy_discover(struct domain_device *dev, int single)
 		}
 	}
 out_err:
-	kfree(disc_resp);
-	kfree(disc_req);
+	kfree_sensitive(disc_resp);
+	kfree_sensitive(disc_req);
+	
 	return res;
 }
 
