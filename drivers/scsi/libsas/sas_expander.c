@@ -206,6 +206,8 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id, void *rsp)
 	bool new_phy = !phy->phy;
 	char *type;
 
+	pr_err("%s phy_id=%d\n", __func__, phy_id);
+
 	if (new_phy) {
 		if (WARN_ON_ONCE(test_bit(SAS_HA_ATA_EH_ACTIVE, &ha->state)))
 			return;
@@ -253,6 +255,9 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id, void *rsp)
 	phy->attached_sata_ps   = dr->attached_sata_ps;
 	phy->attached_iproto = dr->iproto << 1;
 	phy->attached_tproto = dr->tproto << 1;
+	pr_err("%s2 phy_id=%d dr->tproto=%d dr->iproto=%d phy->attached_tproto=0x%x attached_sata_dev=%d linkrate=0x%x dr->attached_phy_id=0x%x dr->phy_id=0x%x dr->attached_dev_type=0x%x\n", 
+		__func__, phy_id, dr->tproto, dr->iproto, phy->attached_tproto, phy->attached_sata_dev, phy->linkrate, dr->attached_phy_id, dr->phy_id, dr->attached_dev_type);
+	pr_err("%s2.1 phy_id=%d dr->=%016llx dr->attached_sas_addr=%016llx\n", __func__, phy_id, SAS_ADDR(dr->sas_addr), SAS_ADDR(dr->attached_sas_addr));
 	/* help some expanders that fail to zero sas_address in the 'no
 	 * device' case
 	 */
@@ -271,6 +276,7 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id, void *rsp)
 	phy->phy->identify.device_type = dr->attached_dev_type;
 	phy->phy->identify.initiator_port_protocols = phy->attached_iproto;
 	phy->phy->identify.target_port_protocols = phy->attached_tproto;
+	pr_err("%s3 phy_id=%d phy->attached_tproto=0x%x\n", __func__, phy_id, phy->attached_tproto);
 	if (!phy->attached_tproto && dr->attached_sata_dev)
 		phy->phy->identify.target_port_protocols = SAS_PROTOCOL_SATA;
 	phy->phy->identify.phy_identifier = phy_id;
@@ -888,8 +894,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 		}
 	} else {
 		pr_notice("target proto 0x%x at %016llx:0x%x not handled\n",
-			  phy->attached_tproto, SAS_ADDR(parent->sas_addr),
-			  phy_id);
+			  phy->attached_tproto, SAS_ADDR(parent->sas_addr), phy_id);
 		goto out_free;
 	}
 
