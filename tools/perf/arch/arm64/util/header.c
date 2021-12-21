@@ -49,10 +49,12 @@ static int _get_cpuid(char *buf, size_t sz, struct perf_cpu_map *cpus)
 		 */
 		midr = strtoul(buf, NULL, 16);
 		midr &= (~(MIDR_VARIANT_MASK | MIDR_REVISION_MASK));
+		if (cpu >= 32 && midr == 0x00000000410fd080)
+			midr = 0x00000000410fd070;
 		scnprintf(buf, MIDR_SIZE, "0x%016lx", midr);
 		pr_err("%s cpu%d midr=0x%lx\n", __func__, cpu, midr);
 		/* got midr break loop */
-		//break;
+		break;
 	}
 
 	perf_cpu_map__put(cpus);
@@ -67,7 +69,7 @@ int get_cpuid(char *buf, size_t sz)
 {
 	struct perf_cpu_map *cpus = perf_cpu_map__new(NULL);
 	int ret;
-
+	pr_err("%s\n", __func__);
 	if (!cpus)
 		return EINVAL;
 
@@ -85,6 +87,8 @@ char *get_cpuid_str(struct perf_pmu *pmu)
 
 	if (!pmu || !pmu->cpus)
 		return NULL;
+
+	pr_err("%s pmu=%s\n", __func__, pmu->name);
 
 	buf = malloc(MIDR_SIZE);
 	if (!buf)

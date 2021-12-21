@@ -1729,9 +1729,11 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 	len = j;
 	qsort(aliases, len, sizeof(struct sevent), cmp_sevent);
 	for (j = 0; j < len; j++) {
+		pr_err("%s name=%s pmu=%s cpu=%d\n", __func__, aliases[j].name, aliases[j].pmu, aliases[j].is_cpu);
 		/* Skip duplicates */
 		if (j > 0 && !strcmp(aliases[j].name, aliases[j - 1].name))
 			continue;
+		pr_err("%s2 name=%s pmu=%s cpu=%d\n", __func__, aliases[j].name, aliases[j].pmu, aliases[j].is_cpu);
 		if (name_only) {
 			printf("%s ", aliases[j].name);
 			continue;
