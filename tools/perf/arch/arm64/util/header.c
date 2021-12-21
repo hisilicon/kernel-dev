@@ -50,6 +50,7 @@ static int _get_cpuid(char *buf, size_t sz, struct perf_cpu_map *cpus)
 		midr = strtoul(buf, NULL, 16);
 		midr &= (~(MIDR_VARIANT_MASK | MIDR_REVISION_MASK));
 		scnprintf(buf, MIDR_SIZE, "0x%016lx", midr);
+		printf("%s cpu%d midr=0x%x\n", __func__, cpu, midr)
 		/* got midr break loop */
 		break;
 	}
