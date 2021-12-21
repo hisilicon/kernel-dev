@@ -50,8 +50,9 @@ static int _get_cpuid(char *buf, size_t sz, struct perf_cpu_map *cpus)
 		midr = strtoul(buf, NULL, 16);
 		midr &= (~(MIDR_VARIANT_MASK | MIDR_REVISION_MASK));
 		scnprintf(buf, MIDR_SIZE, "0x%016lx", midr);
+		pr_err("%s cpu%d midr=0x%lx\n", __func__, cpu, midr);
 		/* got midr break loop */
-		break;
+		//break;
 	}
 
 	perf_cpu_map__put(cpus);
