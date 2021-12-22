@@ -1566,11 +1566,11 @@ static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP_PM);
 	res = IRQ_HANDLED;
 
-	spin_lock_irqsave(&phy->lock, flags);
+	spin_lock(&phy->lock);
 	/* Ensure we delete timer and set phy_attached atomically, as we may race with OOB ready. */
 	del_timer(&phy->timer);
 	phy->phy_attached = 1;
-	spin_unlock_irqrestore(&phy->lock, flags);
+	spin_unlock(&phy->lock);
 end:
 	if (phy->reset_completion)
 		complete(phy->reset_completion);
