@@ -153,7 +153,7 @@ static int iommufd_vfio_unmap_dma(struct iommufd_ctx *ictx, unsigned int cmd,
 	return rc;
 }
 
-static int iommufd_vfio_check_extension(unsigned long type)
+int iommufd_vfio_check_extension(unsigned long type)
 {
 	switch (type) {
 	case VFIO_TYPE1v2_IOMMU:
@@ -205,6 +205,7 @@ static int iommufd_vfio_check_extension(unsigned long type)
   * review along side HW drivers implementing it.
   */
 }
+EXPORT_SYMBOL_GPL(iommufd_vfio_check_extension);
 
 static int iommufd_vfio_set_iommu(struct iommufd_ctx *ictx, unsigned long type)
 {

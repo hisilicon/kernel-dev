@@ -84,6 +84,7 @@ struct vfio_group {
 	unsigned int			dev_counter;
 	struct kvm			*kvm;
 	struct blocking_notifier_head	notifier;
+	void				*iommufd;
 };
 
 #ifdef CONFIG_VFIO_NOIOMMU
@@ -1086,6 +1087,12 @@ static void __vfio_group_unset_container(struct vfio_group *group)
 	struct vfio_container *container = group->container;
 	struct vfio_iommu_driver *driver;
 
+	if (group->iommufd) {
+		vfio_group_unset_iommufd(group->iommufd, &group->device_list);
+		group->iommufd = NULL;
+		return;
+	}
+
 	down_write(&container->group_lock);
 
 	driver = container->iommu_driver;
@@ -1157,6 +1164,13 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 	if (group->type == VFIO_NO_IOMMU && !capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
+	group->iommufd = vfio_group_set_iommufd(container_fd,
+						&group->device_list);
+	if (group->iommufd) {
+		atomic_inc(&group->container_users);
+		return ret;
+	}
+
 	f = fdget(container_fd);
 	if (!f.file)
 		return -EBADF;
@@ -1217,7 +1231,8 @@ static int vfio_group_add_container_user(struct vfio_group *group)
 		atomic_dec(&group->container_users);
 		return -EPERM;
 	}
-	if (!group->container->iommu_driver) {
+	if ((group->container && !group->container->iommu_driver) ||
+	    (!group->container && !group->iommufd)) {
 		atomic_dec(&group->container_users);
 		return -EINVAL;
 	}
@@ -1268,7 +1283,8 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 	int ret = 0;
 
 	if (0 == atomic_read(&group->container_users) ||
-	    !group->container->iommu_driver)
+	    (group->container && !group->container->iommu_driver) ||
+	    (!group->container && !group->iommufd))
 		return -EINVAL;
 
 	if (group->type == VFIO_NO_IOMMU && !capable(CAP_SYS_RAWIO))
@@ -2066,6 +2082,9 @@ EXPORT_SYMBOL_GPL(vfio_external_user_iommu_id);
 
 long vfio_external_check_extension(struct vfio_group *group, unsigned long arg)
 {
+	if (group->iommufd)
+		return iommufd_vfio_check_extension(arg);
+
 	return vfio_ioctl_check_extension(group->container, arg);
 }
 EXPORT_SYMBOL_GPL(vfio_external_check_extension);
