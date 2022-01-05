@@ -38,8 +38,27 @@ struct logic_pio_host_ops {
 };
 
 #ifdef CONFIG_INDIRECT_PIO
+
 u8 logic_inb(unsigned long addr);
+static inline u8 _logic_inb(unsigned long addr)
+{
+	if (__builtin_constant_p(addr)) {
+		WARN_ON_ONCE(1);
+		return 0xff;
+	}
+	return logic_inb(addr);
+}
+
 void logic_outb(u8 value, unsigned long addr);
+static inline void _logic_outb(u8 value, unsigned long addr)
+{
+	if (__builtin_constant_p(addr)) {
+		WARN_ON_ONCE(1);
+		return;
+	}
+	logic_outb(value, addr);
+}
+
 void logic_outw(u16 value, unsigned long addr);
 void logic_outl(u32 value, unsigned long addr);
 u16 logic_inw(unsigned long addr);
@@ -55,7 +74,7 @@ void logic_outsw(unsigned long addr, const void *buffer, unsigned int count);
 void logic_outsl(unsigned long addr, const void *buffer, unsigned int count);
 
 #ifndef inb
-#define inb logic_inb
+#define inb _logic_inb
 #endif
 
 #ifndef inw
@@ -67,7 +86,7 @@ void logic_outsl(unsigned long addr, const void *buffer, unsigned int count);
 #endif
 
 #ifndef outb
-#define outb logic_outb
+#define outb _logic_outb
 #endif
 
 #ifndef outw
