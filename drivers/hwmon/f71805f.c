@@ -1561,6 +1561,7 @@ static int __init f71805f_find(int sioaddr, unsigned short *address,
 		"F71805F/FG",
 		"F71872F/FG or F71806F/FG",
 	};
+	outb(5, SIO_REG_MANID);
 
 	err = superio_enter(sioaddr);
 	if (err)
