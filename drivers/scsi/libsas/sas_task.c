@@ -7,6 +7,12 @@
 #include <scsi/sas.h>
 #include <scsi/libsas.h>
 
+enum {
+	NO_DATA = 0,
+	RESPONSE_DATA = 1,
+	SENSE_DATA = 2,
+};
+
 /* fill task_status_struct based on SSP response frame */
 void sas_ssp_task_response(struct device *dev, struct sas_task *task,
 			   struct ssp_response_iu *iu)
@@ -15,11 +21,11 @@ void sas_ssp_task_response(struct device *dev, struct sas_task *task,
 
 	tstat->resp = SAS_TASK_COMPLETE;
 
-	if (iu->datapres == 0)
+	if (iu->datapres == NO_DATA)
 		tstat->stat = iu->status;
-	else if (iu->datapres == 1)
+	else if (iu->datapres == RESPONSE_DATA)
 		tstat->stat = iu->resp_data[3];
-	else if (iu->datapres == 2) {
+	else if (iu->datapres == SENSE_DATA) {
 		tstat->stat = SAS_SAM_STAT_CHECK_CONDITION;
 		tstat->buf_valid_size =
 			min_t(int, SAS_STATUS_BUF_SIZE,
