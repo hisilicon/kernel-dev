@@ -557,6 +557,17 @@ struct sas_ata_task {
 	int    force_phy_id;
 };
 
+/* LLDDs rely on these values */
+enum sas_internal_abort {
+	SAS_INTERNAL_ABORT_SINGLE = 0,
+	SAS_INTERNAL_ABORT_DEV = 1,
+};
+
+struct sas_internal_abort_task {
+	enum sas_internal_abort type;
+	u16 tag;
+};
+
 struct sas_smp_task {
 	struct scatterlist smp_req;
 	struct scatterlist smp_resp;
@@ -596,6 +607,7 @@ struct sas_task {
 		struct sas_ata_task ata_task;
 		struct sas_smp_task smp_task;
 		struct sas_ssp_task ssp_task;
+		struct sas_internal_abort_task abort_task;
 	};
 
 	struct scatterlist *scatter;
@@ -683,6 +695,11 @@ extern int sas_slave_configure(struct scsi_device *);
 extern int sas_change_queue_depth(struct scsi_device *, int new_depth);
 extern int sas_bios_param(struct scsi_device *, struct block_device *,
 			  sector_t capacity, int *hsc);
+int sas_execute_internal_abort_single(struct domain_device *device,
+				      u16 tag, unsigned int qid,
+				      unsigned int data);
+int sas_execute_internal_abort_dev(struct domain_device *device,
+				   unsigned int qid, unsigned int data);
 extern struct scsi_transport_template *
 sas_domain_attach_transport(struct sas_domain_function_template *);
 extern struct device_attribute dev_attr_phy_event_threshold;
