@@ -939,6 +939,12 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		task->task_proto = device->tproto;
 
 		if (dev_is_sata(device)) {
+			task->ata_task.device_control_reg_update = 1;
+			if (force_phy_id >= 0) {
+				task->ata_task.force_phy = true;
+				task->ata_task.force_phy_id = force_phy_id;
+			}
+			memcpy(&task->ata_task.fis, parameter, para_len);
 		} else {
 			memcpy(&task->ssp_task, parameter, para_len);
 		}
