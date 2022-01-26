@@ -681,8 +681,10 @@ static int pm8001_chip_init(struct pm8001_hba_info *pm8001_ha)
 	/* 8081 controller donot require these operations */
 	if (deviceid != 0x8081 && deviceid != 0x0042) {
 		mpi_set_phys_g3_with_ssc(pm8001_ha, 0);
+		WARN_ON(spin_is_locked(&pm8001_ha->lock));
 		/* 7->130ms, 34->500ms, 119->1.5s */
 		mpi_set_open_retry_interval_reg(pm8001_ha, 119);
+		WARN_ON(spin_is_locked(&pm8001_ha->lock));
 	}
 	/* notify firmware update finished and check initialization status */
 	if (0 == mpi_init_check(pm8001_ha)) {
@@ -822,9 +824,12 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 
 	/* step1: Check FW is ready for soft reset */
 	if (soft_reset_ready_check(pm8001_ha) != 0) {
+		WARN_ON(spin_is_locked(&pm8001_ha->lock));
 		pm8001_dbg(pm8001_ha, FAIL, "FW is not ready\n");
 		return -1;
 	}
+	
+	WARN_ON(spin_is_locked(&pm8001_ha->lock));
 
 	/* step 2: clear NMI status register on AAP1 and IOP, write the same
 	value to clear */
@@ -1798,6 +1803,9 @@ static void pm8001_send_abort_all(struct pm8001_hba_info *pm8001_ha,
 
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &task_abort,
 			sizeof(task_abort), 0);
+	WARN_ON(spin_is_locked(&circularQ->iq_lock));
+	WARN_ON(ret);
+	
 	if (ret)
 		pm8001_tag_free(pm8001_ha, ccb_tag);
 
@@ -1870,6 +1878,8 @@ static void pm8001_send_read_log(struct pm8001_hba_info *pm8001_ha,
 
 	res = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &sata_cmd,
 			sizeof(sata_cmd), 0);
+	WARN_ON(spin_is_locked(&circularQ->iq_lock));
+	WARN_ON(res);
 	if (res) {
 		sas_free_task(task);
 		pm8001_tag_free(pm8001_ha, ccb_tag);
@@ -3309,6 +3319,7 @@ static void pm8001_hw_event_ack_req(struct pm8001_hba_info *pm8001_ha,
 {
 	struct hw_event_ack_req	 payload;
 	u32 opc = OPC_INB_SAS_HW_EVENT_ACK;
+	int ret;
 
 	struct inbound_queue_table *circularQ;
 
@@ -3319,8 +3330,10 @@ static void pm8001_hw_event_ack_req(struct pm8001_hba_info *pm8001_ha,
 		((phyId & 0x0F) << 4) | (port_id & 0x0F));
 	payload.param0 = cpu_to_le32(param0);
 	payload.param1 = cpu_to_le32(param1);
-	pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload,
+	ret= pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload,
 			sizeof(payload), 0);
+	WARN_ON(spin_is_locked(&circularQ->iq_lock));
+	WARN_ON(ret);
 }
 
 static int pm8001_chip_phy_ctl_req(struct pm8001_hba_info *pm8001_ha,
@@ -3809,6 +3822,7 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_BROADCAST_CHANGE\n");
 		pm8001_hw_event_ack_req(pm8001_ha, 0, HW_EVENT_BROADCAST_CHANGE,
 			port_id, phy_id, 1, 0);
+		WARN_ON(spin_is_locked(&sas_phy->sas_prim_lock));
 		spin_lock_irqsave(&sas_phy->sas_prim_lock, flags);
 		sas_phy->sas_prim = HW_EVENT_BROADCAST_CHANGE;
 		spin_unlock_irqrestore(&sas_phy->sas_prim_lock, flags);
@@ -4200,6 +4214,9 @@ static int pm8001_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	build_smp_cmd(pm8001_dev->device_id, smp_cmd.tag, &smp_cmd);
 	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc,
 			&smp_cmd, sizeof(smp_cmd), 0);
+	
+	WARN_ON(spin_is_locked(&circularQ->iq_lock));
+	WARN_ON(rc);
 	if (rc)
 		goto err_out_2;
 
@@ -4268,6 +4285,8 @@ static int pm8001_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	}
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &ssp_cmd,
 			sizeof(ssp_cmd), 0);
+	WARN_ON(spin_is_locked(&circularQ->iq_lock));
+	WARN_ON(ret);
 	return ret;
 }
 
@@ -4377,6 +4396,8 @@ static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &sata_cmd,
 			sizeof(sata_cmd), 0);
+	BUG_ON(spin_is_locked(&circularQ->iq_lock));
+	BUG_ON(ret);
 	return ret;
 }
 
@@ -4412,6 +4433,8 @@ pm8001_chip_phy_start_req(struct pm8001_hba_info *pm8001_ha, u8 phy_id)
 	payload.sas_identify.phy_id = phy_id;
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opcode, &payload,
 			sizeof(payload), 0);
+	BUG_ON(spin_is_locked(&circularQ->iq_lock));
+	BUG_ON(ret);
 	return ret;
 }
 
@@ -4434,6 +4457,8 @@ static int pm8001_chip_phy_stop_req(struct pm8001_hba_info *pm8001_ha,
 	payload.phy_id = cpu_to_le32(phy_id);
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opcode, &payload,
 			sizeof(payload), 0);
+	BUG_ON(spin_is_locked(&circularQ->iq_lock));
+	BUG_ON(ret);
 	return ret;
 }
 
@@ -4494,6 +4519,8 @@ static int pm8001_chip_reg_dev_req(struct pm8001_hba_info *pm8001_ha,
 		SAS_ADDR_SIZE);
 	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload,
 			sizeof(payload), 0);
+	BUG_ON(spin_is_locked(&circularQ->iq_lock));
+	BUG_ON(rc);
 	return rc;
 }
 
@@ -4516,6 +4543,8 @@ int pm8001_chip_dereg_dev_req(struct pm8001_hba_info *pm8001_ha,
 		   device_id);
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload,
 			sizeof(payload), 0);
+	BUG_ON(spin_is_locked(&circularQ->iq_lock));
+	BUG_ON(ret);
 	return ret;
 }
 
@@ -4539,6 +4568,8 @@ static int pm8001_chip_phy_ctl_req(struct pm8001_hba_info *pm8001_ha,
 		cpu_to_le32(((phy_op & 0xff) << 8) | (phyId & 0x0F));
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload,
 			sizeof(payload), 0);
+	BUG_ON(spin_is_locked(&circularQ->iq_lock));
+	BUG_ON(ret);
 	return ret;
 }
 
@@ -4564,12 +4595,14 @@ static u32 pm8001_chip_is_our_interrupt(struct pm8001_hba_info *pm8001_ha)
 static irqreturn_t
 pm8001_chip_isr(struct pm8001_hba_info *pm8001_ha, u8 vec)
 {
-	pm8001_chip_interrupt_disable(pm8001_ha, vec);
+
+	//pm8001_chip_interrupt_disable(pm8001_ha, vec);
 	pm8001_dbg(pm8001_ha, DEVIO,
 		   "irq vec %d, ODMR:0x%x\n",
 		   vec, pm8001_cr32(pm8001_ha, 0, 0x30));
 	process_oq(pm8001_ha, vec);
-	pm8001_chip_interrupt_enable(pm8001_ha, vec);
+	WARN_ON(spin_is_locked(&pm8001_ha->lock));
+	//pm8001_chip_interrupt_enable(pm8001_ha, vec);
 	return IRQ_HANDLED;
 }
 

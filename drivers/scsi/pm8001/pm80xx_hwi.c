@@ -2176,6 +2176,7 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	}
 	pm8001_dbg(pm8001_ha, IO, "scsi_status = 0x%x\n ",
 		   psspPayload->ssp_resp_iu.status);
+	BUG_ON(spin_is_locked(&t->task_state_lock));
 	spin_lock_irqsave(&t->task_state_lock, flags);
 	t->task_state_flags &= ~SAS_TASK_STATE_PENDING;
 	t->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
@@ -4531,6 +4532,8 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	}
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc,
 			&ssp_cmd, sizeof(ssp_cmd), q_index);
+	BUG_ON(spin_is_locked(&circularQ->iq_lock));
+	BUG_ON(ret);
 	return ret;
 }
 
@@ -4767,6 +4770,8 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 				ccb->device ? atomic_read(&ccb->device->running_req) : 0);
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc,
 			&sata_cmd, sizeof(sata_cmd), q_index);
+	BUG_ON(spin_is_locked(&circularQ->iq_lock));
+	BUG_ON(ret);
 	return ret;
 }
 
@@ -4950,12 +4955,15 @@ static u32 pm80xx_chip_is_our_interrupt(struct pm8001_hba_info *pm8001_ha)
 static irqreturn_t
 pm80xx_chip_isr(struct pm8001_hba_info *pm8001_ha, u8 vec)
 {
-	pm80xx_chip_interrupt_disable(pm8001_ha, vec);
+	struct outbound_queue_table *circularQ;
+	circularQ = &pm8001_ha->outbnd_q_tbl[vec];
+	//pm80xx_chip_interrupt_disable(pm8001_ha, vec);
 	pm8001_dbg(pm8001_ha, DEVIO,
 		   "irq vec %d, ODMR:0x%x\n",
 		   vec, pm8001_cr32(pm8001_ha, 0, 0x30));
 	process_oq(pm8001_ha, vec);
-	pm80xx_chip_interrupt_enable(pm8001_ha, vec);
+	BUG_ON(spin_is_locked(&circularQ->oq_lock));
+	//pm80xx_chip_interrupt_enable(pm8001_ha, vec);
 	return IRQ_HANDLED;
 }
 
