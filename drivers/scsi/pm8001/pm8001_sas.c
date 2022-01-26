@@ -66,6 +66,8 @@ static int pm8001_find_tag(struct sas_task *task, u32 *tag)
 void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag)
 {
 	void *bitmap = pm8001_ha->tags;
+	if (!test_bit(tag, bitmap))
+		panic("Double free?\n");
 	clear_bit(tag, bitmap);
 }
 
