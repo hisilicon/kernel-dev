@@ -536,9 +536,12 @@ void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
 	if (!ccb->task)
 		return;
 	if (!sas_protocol_ata(task->task_proto))
-		if (ccb->n_elem)
+		if (ccb->n_elem) {
+			if (task->task_proto == SAS_PROTOCOL_SMP)
+				panic("SAS_PROTOCOL_SMP task->scatter=%d\n", task->num_scatter);
 			dma_unmap_sg(pm8001_ha->dev, task->scatter,
 				task->num_scatter, task->data_dir);
+		}
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SMP:
