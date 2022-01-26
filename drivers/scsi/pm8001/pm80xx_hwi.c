@@ -2181,10 +2181,13 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	t->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 	t->task_state_flags |= SAS_TASK_STATE_DONE;
 	if (unlikely((t->task_state_flags & SAS_TASK_STATE_ABORTED))) {
+		struct sas_ssp_task *ssp_task = &t->ssp_task;
+		struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
-		pr_err("%s task 0x%pS done with io_status 0x%x resp 0x%x stat 0x%x but aborted by upper layer!\n",
-				__func__, 
-			   t, status, ts->resp, ts->stat);
+		
+		pm8001_dbg(pm8001_ha, FAIL,
+			   "task 0x%p done with io_status 0x%x resp 0x%x stat 0x%x but aborted by upper layer! scsi_cmnd=%pS\n",
+			   t, status, ts->resp, ts->stat, scsi_cmnd);
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 		if (t->slow_task)
 			complete(&t->slow_task->completion);
