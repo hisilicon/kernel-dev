@@ -707,6 +707,7 @@ void pm8001_task_done(struct sas_task *task)
 {
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
+	pr_err("%s task=%pS\n", __func__, task);
 }
 
 static void pm8001_tmf_timedout(struct timer_list *t)
@@ -714,7 +715,7 @@ static void pm8001_tmf_timedout(struct timer_list *t)
 	struct sas_task_slow *slow = from_timer(slow, t, timer);
 	struct sas_task *task = slow->task;
 	unsigned long flags;
-
+	pr_err("%s task=%pS\n", __func__, task);
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
@@ -748,6 +749,7 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 		task = sas_alloc_slow_task(GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
+		pr_err("%s alloc'ed task=%pS retry=%d\n", __func__, task, retry);
 
 		task->dev = dev;
 		task->task_proto = dev->tproto;
@@ -774,8 +776,8 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 		res = -TMF_RESP_FUNC_FAILED;
 		/* Even TMF timed out, return direct. */
 		if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
-			pm8001_dbg(pm8001_ha, FAIL, "TMF task[%x]timeout.\n",
-				   tmf->tmf);
+			pr_err( "%s TMF task[%x]timeout. task=%pS\n",
+				   __func__, tmf->tmf, task);
 			goto ex_err;
 		}
 
@@ -795,15 +797,16 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
 			task->task_status.stat == SAS_DATA_OVERRUN) {
-			pm8001_dbg(pm8001_ha, FAIL, "Blocked task error.\n");
+			pr_err("%s Blocked task error. task=%pS\n",__func__, task);
 			res = -EMSGSIZE;
 			break;
 		} else {
-			pm8001_dbg(pm8001_ha, EH,
-				   " Task to dev %016llx response:0x%x status 0x%x\n",
-				   SAS_ADDR(dev->sas_addr),
+			pr_err("%s Task to dev %016llx response:0x%x status 0x%x task=%pS\n",
+				__func__,
+				SAS_ADDR(dev->sas_addr),
 				   task->task_status.resp,
-				   task->task_status.stat);
+				   task->task_status.stat,
+				   task);
 			sas_free_task(task);
 			task = NULL;
 		}
