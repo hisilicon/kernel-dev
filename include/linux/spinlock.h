@@ -399,11 +399,6 @@ static __always_inline void spin_unlock_irq(spinlock_t *lock)
 	raw_spin_unlock_irq(&lock->rlock);
 }
 
-static __always_inline void spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags)
-{
-	raw_spin_unlock_irqrestore(&lock->rlock, flags);
-}
-
 static __always_inline int spin_trylock_bh(spinlock_t *lock)
 {
 	return raw_spin_trylock_bh(&lock->rlock);
@@ -440,6 +435,12 @@ static __always_inline int spin_trylock_irq(spinlock_t *lock)
 static __always_inline int spin_is_locked(spinlock_t *lock)
 {
 	return raw_spin_is_locked(&lock->rlock);
+}
+
+static __always_inline void spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags)
+{
+	WARN_ON(!spin_is_locked(lock));
+	raw_spin_unlock_irqrestore(&lock->rlock, flags);
 }
 
 static __always_inline int spin_is_contended(spinlock_t *lock)
