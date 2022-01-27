@@ -807,7 +807,9 @@ static void armv8pmu_start(struct arm_pmu *cpu_pmu)
 {
 	struct perf_event_context *task_ctx =
 		this_cpu_ptr(cpu_pmu->pmu.pmu_cpu_context)->task_ctx;
-	pr_err("%s cpu_pmu=%pS\n", __func__, cpu_pmu);
+
+	pr_err("%s cpu_pmu=%pS cpu%d\n", __func__, cpu_pmu, smp_processor_id());
+	WARN_ON_ONCE(smp_processor_id() == 62);
 
 	if (sysctl_perf_user_access && task_ctx && task_ctx->nr_user)
 		armv8pmu_enable_user_access(cpu_pmu);
@@ -820,8 +822,7 @@ static void armv8pmu_start(struct arm_pmu *cpu_pmu)
 
 static void armv8pmu_stop(struct arm_pmu *cpu_pmu)
 {
-	pr_err("%s cpu_pmu=%pS cpu%d\n", __func__, cpu_pmu, smp_processor_id());
-	WARN_ON_ONCE(smp_processor_id() == 62);
+	pr_err("%s cpu_pmu=%pS\n", __func__, cpu_pmu);
 	/* Disable all counters */
 	armv8pmu_pmcr_write(armv8pmu_pmcr_read() & ~ARMV8_PMU_PMCR_E);
 }

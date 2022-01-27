@@ -2843,7 +2843,7 @@ perf_install_in_context(struct perf_event_context *ctx,
 			int cpu)
 {
 	struct task_struct *task = READ_ONCE(ctx->task);
-
+	pr_err("%s cpu%d\n", __func__, cpu);
 	lockdep_assert_held(&ctx->mutex);
 
 	WARN_ON_ONCE(!exclusive_event_installable(event, ctx));
@@ -12055,7 +12055,7 @@ SYSCALL_DEFINE5(perf_event_open,
 	int err;
 	int f_flags = O_RDWR;
 	int cgroup_fd = -1;
-
+	pr_err("%s cpu%d\n", __func__, cpu);
 	/* for future expandability... */
 	if (flags & ~PERF_FLAG_ALL)
 		return -EINVAL;
@@ -12207,6 +12207,8 @@ SYSCALL_DEFINE5(perf_event_open,
 		err = PTR_ERR(ctx);
 		goto err_alloc;
 	}
+
+	pr_err("%s1 cpu%d ctx=%pS\n", __func__, cpu, ctx);
 
 	/*
 	 * Look up the group leader (we will attach this event to it):
@@ -12404,6 +12406,7 @@ SYSCALL_DEFINE5(perf_event_open,
 		 * reachable through the group lists.
 		 */
 		for_each_sibling_event(sibling, group_leader) {
+			pr_err("%s2 cpu%d ctx=%pS sibling=%pS (cpu%d)\n", __func__, cpu, ctx, sibling, sibling->cpu);
 			perf_event__state_init(sibling);
 			perf_install_in_context(ctx, sibling, sibling->cpu);
 			get_ctx(ctx);
@@ -12415,6 +12418,7 @@ SYSCALL_DEFINE5(perf_event_open,
 		 * startup state, ready to be add into new context.
 		 */
 		perf_event__state_init(group_leader);
+		pr_err("%s33 cpu%d ctx=%pS group_leader=%pS (cpu%d)\n", __func__, cpu, ctx, group_leader, group_leader->cpu);
 		perf_install_in_context(ctx, group_leader, group_leader->cpu);
 		get_ctx(ctx);
 	}
