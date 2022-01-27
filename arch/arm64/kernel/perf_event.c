@@ -564,6 +564,9 @@ static u64 armv8pmu_read_counter(struct perf_event *event)
 	int idx = hwc->idx;
 	u64 value;
 
+	pr_err("%s event=%pS idx=%d ARMV8_IDX_CYCLE_COUNTER=%d\n", 
+		__func__, event, idx, ARMV8_IDX_CYCLE_COUNTER);
+
 	if (idx == ARMV8_IDX_CYCLE_COUNTER)
 		value = read_sysreg(pmccntr_el0);
 	else
@@ -584,6 +587,8 @@ static inline void armv8pmu_write_hw_counter(struct perf_event *event,
 {
 	int idx = event->hw.idx;
 
+	pr_err("%s event=%pS value=0x%llx\n", __func__, event, value);
+
 	if (armv8pmu_event_is_chained(event)) {
 		armv8pmu_write_evcntr(idx, upper_32_bits(value));
 		armv8pmu_write_evcntr(idx - 1, lower_32_bits(value));
@@ -596,6 +601,8 @@ static void armv8pmu_write_counter(struct perf_event *event, u64 value)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
+
+	pr_err("%s event=%pS value=0x%llx\n", __func__, event, value);
 
 	value = armv8pmu_bias_long_counter(event, value);
 
@@ -759,6 +766,7 @@ static void armv8pmu_enable_event(struct perf_event *event)
 	 * Enable counter and interrupt, and set the counter to count
 	 * the event that we're interested in.
 	 */
+	pr_err("%s event=%pS\n", __func__, event);
 
 	/*
 	 * Disable counter
@@ -783,6 +791,7 @@ static void armv8pmu_enable_event(struct perf_event *event)
 
 static void armv8pmu_disable_event(struct perf_event *event)
 {
+	pr_err("%s event=%pS\n", __func__, event);
 	/*
 	 * Disable counter
 	 */
@@ -798,6 +807,7 @@ static void armv8pmu_start(struct arm_pmu *cpu_pmu)
 {
 	struct perf_event_context *task_ctx =
 		this_cpu_ptr(cpu_pmu->pmu.pmu_cpu_context)->task_ctx;
+	pr_err("%s cpu_pmu=%pS\n", __func__, cpu_pmu);
 
 	if (sysctl_perf_user_access && task_ctx && task_ctx->nr_user)
 		armv8pmu_enable_user_access(cpu_pmu);
@@ -810,6 +820,8 @@ static void armv8pmu_start(struct arm_pmu *cpu_pmu)
 
 static void armv8pmu_stop(struct arm_pmu *cpu_pmu)
 {
+	pr_err("%s cpu_pmu=%pS cpu%d\n", __func__, cpu_pmu, smp_processor_id());
+	WARN_ON_ONCE(smp_processor_id() == 62);
 	/* Disable all counters */
 	armv8pmu_pmcr_write(armv8pmu_pmcr_read() & ~ARMV8_PMU_PMCR_E);
 }
@@ -969,6 +981,8 @@ static int armv8pmu_set_event_filter(struct hw_perf_event *event,
 				     struct perf_event_attr *attr)
 {
 	unsigned long config_base = 0;
+
+	pr_err("%s event=%pS attr=%pS\n", __func__, event, attr);
 
 	if (attr->exclude_idle)
 		return -EPERM;
@@ -1229,6 +1243,7 @@ static int armv8_pmu_init(struct arm_pmu *cpu_pmu, char *name,
 			  const struct attribute_group *caps)
 {
 	int ret = armv8pmu_probe_pmu(cpu_pmu);
+	pr_err("%s cpu_pmu=%pS name=%s\n", __func__, cpu_pmu, name);
 	if (ret)
 		return ret;
 

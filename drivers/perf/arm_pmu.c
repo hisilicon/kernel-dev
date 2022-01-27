@@ -944,6 +944,9 @@ int armpmu_register(struct arm_pmu *pmu)
 	if (!pmu->set_event_filter)
 		pmu->pmu.capabilities |= PERF_PMU_CAP_NO_EXCLUDE;
 
+	pr_err("%s pmu=%pS &pmu->pmu=%pS pmu->name=%s\n",
+	__func__, pmu, &pmu->pmu, pmu->name);
+
 	ret = perf_pmu_register(&pmu->pmu, pmu->name, -1);
 	if (ret)
 		goto out_destroy;
