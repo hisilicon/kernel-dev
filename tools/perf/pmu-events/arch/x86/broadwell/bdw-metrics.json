@@ -332,6 +332,12 @@
         "MetricName": "C2_Pkg_Residency"
     },
     {
+        "BriefDescription": "a snakey metric",
+        "MetricExpr": "instructions / cycles",
+        "MetricGroup": "Power",
+        "MetricName": "snake"
+    },
+    {
         "BriefDescription": "C3 residency percent per package",
         "MetricExpr": "(cstate_pkg@c3\\-residency@ / msr@tsc@) * 100",
         "MetricGroup": "Power",

@@ -461,8 +461,9 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 	struct pmu_event *pe;
 	int ret = -EINVAL;
 	size_t size;
-	char *buf;
+	char *buf = NULL;
 	int i;
+	char mymetricbuf[256];
 
 	if (!map)
 		return 0;
@@ -485,6 +486,18 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 				 events, group_list);
 		if (ret)
 			return ret;
+	}
+	expr__ctx_init(&ctx);
+	sprintf(&mymetricbuf[0], "mine1 = %s;", metric);
+	expr__parse_multi(&ctx, mymetricbuf);
+
+	if (ctx.cnt) {
+		for (i = 0; i < ctx.cnt; i++) {
+			ret = add_metric(ctx.id[i], ctx.expr[i], "U",
+				 events, group_list);
+			if (ret)
+				goto out;
+		}
 	}
 
 	if (!metrics_file)
