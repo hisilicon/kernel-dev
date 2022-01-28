@@ -76,35 +76,26 @@ static inline unsigned long iova_pfn(struct iova_domain *iovad, dma_addr_t iova)
 }
 
 #if IS_ENABLED(CONFIG_IOMMU_IOVA)
-int iova_cache_get(void);
-void iova_cache_put(void);
 
 void free_iova(struct iova_domain *iovad, unsigned long pfn);
 void __free_iova(struct iova_domain *iovad, struct iova *iova);
 struct iova *alloc_iova(struct iova_domain *iovad, unsigned long size,
 	unsigned long limit_pfn,
 	bool size_aligned);
+struct iova *reserve_iova(struct iova_domain *iovad, unsigned long pfn_lo,
+	unsigned long pfn_hi);
+struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn);
+int iova_cache_get(void);
+void iova_cache_put(void);
 void free_iova_fast(struct iova_domain *iovad, unsigned long pfn,
 		    unsigned long size);
 unsigned long alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
 			      unsigned long limit_pfn, bool flush_rcache);
-struct iova *reserve_iova(struct iova_domain *iovad, unsigned long pfn_lo,
-	unsigned long pfn_hi);
+int iova_domain_init_rcaches(struct iova_domain *iovad);
 void init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	unsigned long start_pfn);
-int iova_domain_init_rcaches(struct iova_domain *iovad);
-struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn);
 void put_iova_domain(struct iova_domain *iovad);
 #else
-static inline int iova_cache_get(void)
-{
-	return -ENOTSUPP;
-}
-
-static inline void iova_cache_put(void)
-{
-}
-
 static inline void free_iova(struct iova_domain *iovad, unsigned long pfn)
 {
 }
@@ -121,6 +112,29 @@ static inline struct iova *alloc_iova(struct iova_domain *iovad,
 	return NULL;
 }
 
+static inline struct iova *reserve_iova(struct iova_domain *iovad,
+					unsigned long pfn_lo,
+					unsigned long pfn_hi)
+{
+	return NULL;
+}
+
+static inline struct iova *find_iova(struct iova_domain *iovad,
+				     unsigned long pfn)
+{
+	return NULL;
+}
+
+
+static inline int iova_cache_get(void)
+{
+	return -ENOTSUPP;
+}
+
+static inline void iova_cache_put(void)
+{
+}
+
 static inline void free_iova_fast(struct iova_domain *iovad,
 				  unsigned long pfn,
 				  unsigned long size)
@@ -135,23 +149,10 @@ static inline unsigned long alloc_iova_fast(struct iova_domain *iovad,
 	return 0;
 }
 
-static inline struct iova *reserve_iova(struct iova_domain *iovad,
-					unsigned long pfn_lo,
-					unsigned long pfn_hi)
-{
-	return NULL;
-}
-
 static inline void init_iova_domain(struct iova_domain *iovad,
 				    unsigned long granule,
 				    unsigned long start_pfn)
 {
-}
-
-static inline struct iova *find_iova(struct iova_domain *iovad,
-				     unsigned long pfn)
-{
-	return NULL;
 }
 
 static inline void put_iova_domain(struct iova_domain *iovad)
