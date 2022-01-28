@@ -335,6 +335,7 @@ armpmu_add(struct perf_event *event, int flags)
 
 	/* If we don't have a space for the counter then finish early. */
 	idx = armpmu->get_event_idx(hw_events, event);
+	pr_err("%s armpmu=%pS event=%pS idx=%d\n", __func__, armpmu, event, idx);
 	if (idx < 0)
 		return idx;
 

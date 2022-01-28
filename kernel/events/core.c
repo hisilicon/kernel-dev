@@ -2843,7 +2843,7 @@ perf_install_in_context(struct perf_event_context *ctx,
 			int cpu)
 {
 	struct task_struct *task = READ_ONCE(ctx->task);
-	pr_err("%s cpu%d\n", __func__, cpu);
+	pr_err("%s cpu%d ctx=%pS\n", __func__, cpu, ctx);
 	lockdep_assert_held(&ctx->mutex);
 
 	WARN_ON_ONCE(!exclusive_event_installable(event, ctx));
@@ -12208,7 +12208,7 @@ SYSCALL_DEFINE5(perf_event_open,
 		goto err_alloc;
 	}
 
-	pr_err("%s1 cpu%d ctx=%pS\n", __func__, cpu, ctx);
+	pr_err("%s1 cpu%d ctx=%pS pmu=%pS\n", __func__, cpu, ctx, pmu);
 
 	/*
 	 * Look up the group leader (we will attach this event to it):
