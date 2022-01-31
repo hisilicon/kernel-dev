@@ -277,7 +277,7 @@ struct acpi_table_bdat {
  * IORT - IO Remapping Table
  *
  * Conforms to "IO Remapping Table System Software on ARM Platforms",
- * Document number: ARM DEN 0049E.b, Feb 2021
+ * Document number: ARM DEN 0049E.c, Jan 2022
  *
  ******************************************************************************/
 
@@ -374,7 +374,8 @@ struct acpi_iort_root_complex {
 	u32 ats_attribute;
 	u32 pci_segment_number;
 	u8 memory_address_limit;	/* Memory address size limit */
-	u8 reserved[3];		/* Reserved, must be zero */
+	u16 pasid_capabilities;        /* PASID Capabilities */
+	u8 reserved[1];		/* Reserved, must be zero */
 };
 
 /* Masks for ats_attribute field above */
@@ -454,9 +455,24 @@ struct acpi_iort_pmcg {
 
 struct acpi_iort_rmr {
 	u32 flags;
+	u8  access_attributes;
+	u8  reserved[3];
+
 	u32 rmr_count;
 	u32 rmr_offset;
 };
+
+/* Masks for Flags field above */
+#define ACPI_IORT_RMR_REMAP_PERMITTED      (1)
+#define ACPI_IORT_RMR_ACCESS_PRIVILEGE     (1<<1)
+
+/* Values for AccessAttributes field above */
+#define ACPI_IORT_RMR_ATTR_DEVICE_nGnRnE   0x00
+#define ACPI_IORT_RMR_ATTR_DEVICE_nGnRE    0x01
+#define ACPI_IORT_RMR_ATTR_DEVICE_nGRE     0x02
+#define ACPI_IORT_RMR_ATTR_DEVICE_GRE      0x03
+#define ACPI_IORT_RMR_ATTR_NORMAL_NC       0x04
+#define ACPI_IORT_RMR_ATTR_NORMAL          0x05
 
 struct acpi_iort_rmr_desc {
 	u64 base_address;
