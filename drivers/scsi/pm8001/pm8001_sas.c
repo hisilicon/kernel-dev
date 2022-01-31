@@ -1150,6 +1150,15 @@ int pm8001_query_task(struct sas_task *task)
 	struct scsi_lun lun;
 	struct pm8001_tmf_task tmf_task;
 	int rc = TMF_RESP_FUNC_FAILED;
+	pr_err("%s task=%pS\n", __func__, task);
+	if (!task) {
+		pr_err("%s task=%pS\n", __func__, task);
+		return rc;
+	}
+	if (!task->lldd_task)
+		pr_err("%s task=%pS lldd_task=NULL\n", __func__, task);
+	if (!task->dev)
+		pr_err("%s task=%pS dev=NULL\n", __func__, task);
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return rc;
 
@@ -1174,17 +1183,17 @@ int pm8001_query_task(struct sas_task *task)
 		/* The task is still in Lun, release it then */
 		case TMF_RESP_FUNC_SUCC:
 			pm8001_dbg(pm8001_ha, EH,
-				   "The task is still in Lun\n");
+				   "The task is still in Lun %pS\n", task);
 			break;
 		/* The task is not in Lun or failed, reset the phy */
 		case TMF_RESP_FUNC_FAILED:
 		case TMF_RESP_FUNC_COMPLETE:
 			pm8001_dbg(pm8001_ha, EH,
-				   "The task is not in Lun or failed, reset the phy\n");
+				   "The task is not in Lun or failed, reset the phy %pS\n", task);
 			break;
 		}
 	}
-	pr_err("pm80xx: rc= %d\n", rc);
+	pr_err("pm80xx: %s task=%pS rc= %d\n", __func__, task, rc);
 	return rc;
 }
 

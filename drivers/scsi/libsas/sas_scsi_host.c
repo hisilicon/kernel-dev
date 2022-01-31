@@ -115,12 +115,12 @@ static void sas_scsi_task_done(struct sas_task *task)
 
 	if (unlikely(!task)) {
 		/* task will be completed by the error handler */
-		pr_debug("task done but aborted\n");
+		pr_err("task done but aborted\n");
 		return;
 	}
 
 	if (unlikely(!sc)) {
-		pr_debug("task_done called with non existing SCSI cmnd!\n");
+		pr_err("task_done called with non existing SCSI cmnd!\n");
 		sas_free_task(task);
 		return;
 	}
@@ -191,7 +191,7 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	return 0;
 
 out_free_task:
-	pr_debug("lldd_execute_task returned: %d\n", res);
+	pr_err("lldd_execute_task returned: %d\n", res);
 	ASSIGN_SAS_TASK(cmd, NULL);
 	sas_free_task(task);
 	if (res == -SAS_QUEUE_FULL)
@@ -210,6 +210,8 @@ static void sas_eh_finish_cmd(struct scsi_cmnd *cmd)
 	struct domain_device *dev = cmd_to_domain_dev(cmd);
 	struct sas_task *task = TO_SAS_TASK(cmd);
 
+	pr_err("%s cmd=%pS task=%pS\n", __func__, cmd, task);
+
 	/* At this point, we only get called following an actual abort
 	 * of the task, so we should be guaranteed not to be racing with
 	 * any completions from the LLD.  Task is freed after this.
@@ -220,6 +222,8 @@ static void sas_eh_finish_cmd(struct scsi_cmnd *cmd)
 		/* defer commands to libata so that libata EH can
 		 * handle ata qcs correctly
 		 */
+		
+		pr_err("%s2 ATA cmd=%pS task=%pS\n", __func__, cmd, task);
 		list_move_tail(&cmd->eh_entry, &sas_ha->eh_ata_q);
 		return;
 	}
@@ -285,35 +289,35 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 		to_sas_internal(task->dev->port->ha->core.shost->transportt);
 
 	for (i = 0; i < 5; i++) {
-		pr_notice("%s: aborting task 0x%p\n", __func__, task);
+		pr_notice("%s: aborting task 0x%pS\n", __func__, task);
 		res = si->dft->lldd_abort_task(task);
 
 		spin_lock_irqsave(&task->task_state_lock, flags);
 		if (task->task_state_flags & SAS_TASK_STATE_DONE) {
 			spin_unlock_irqrestore(&task->task_state_lock, flags);
-			pr_debug("%s: task 0x%p is done\n", __func__, task);
+			pr_err("%s: task 0x%pS is done\n", __func__, task);
 			return TASK_IS_DONE;
 		}
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 		if (res == TMF_RESP_FUNC_COMPLETE) {
-			pr_notice("%s: task 0x%p is aborted\n",
+			pr_notice("%s: task 0x%pS is aborted\n",
 				  __func__, task);
 			return TASK_IS_ABORTED;
 		} else if (si->dft->lldd_query_task) {
-			pr_notice("%s: querying task 0x%p\n", __func__, task);
+			pr_notice("%s: querying task 0x%pS\n", __func__, task);
 			res = si->dft->lldd_query_task(task);
 			switch (res) {
 			case TMF_RESP_FUNC_SUCC:
-				pr_notice("%s: task 0x%p at LU\n", __func__,
+				pr_notice("%s: task 0x%pS at LU\n", __func__,
 					  task);
 				return TASK_IS_AT_LU;
 			case TMF_RESP_FUNC_COMPLETE:
-				pr_notice("%s: task 0x%p not at LU\n",
+				pr_notice("%s: task 0x%pS not at LU\n",
 					  __func__, task);
 				return TASK_IS_NOT_AT_LU;
 			case TMF_RESP_FUNC_FAILED:
-				pr_notice("%s: task 0x%p failed to abort\n",
+				pr_notice("%s: task 0x%pS failed to abort\n",
 					  __func__, task);
 				return TASK_ABORT_FAILED;
 			}
@@ -585,8 +589,10 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 	}
 
  Again:
+ 	pr_err("%s Again\n", __func__);
 	list_for_each_entry_safe(cmd, n, work_q, eh_entry) {
 		struct sas_task *task = TO_SAS_TASK(cmd);
+ 		pr_err("%s dealing with %pS cmd=%pS\n", __func__, task, cmd);
 
 		list_del_init(&cmd->eh_entry);
 
@@ -595,27 +601,27 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 		if (need_reset) {
-			pr_notice("%s: task 0x%p requests reset\n",
+			pr_notice("%s: task 0x%pS requests reset\n",
 				  __func__, task);
 			goto reset;
 		}
 
-		pr_debug("trying to find task 0x%p\n", task);
+		pr_err("trying to find task 0x%pS\n", task);
 		res = sas_scsi_find_task(task);
 
 		switch (res) {
 		case TASK_IS_DONE:
-			pr_notice("%s: task 0x%p is done\n", __func__,
+			pr_notice("%s: task 0x%pS is done\n", __func__,
 				    task);
 			sas_eh_finish_cmd(cmd);
 			continue;
 		case TASK_IS_ABORTED:
-			pr_notice("%s: task 0x%p is aborted\n",
+			pr_notice("%s: task 0x%pS is aborted\n",
 				  __func__, task);
 			sas_eh_finish_cmd(cmd);
 			continue;
 		case TASK_IS_AT_LU:
-			pr_info("task 0x%p is at LU: lu recover\n", task);
+			pr_info("task 0x%pS is at LU: lu recover\n", task);
  reset:
 			tmf_resp = sas_recover_lu(task->dev, cmd);
 			if (tmf_resp == TMF_RESP_FUNC_COMPLETE) {
@@ -629,23 +635,25 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 			fallthrough;
 		case TASK_IS_NOT_AT_LU:
 		case TASK_ABORT_FAILED:
-			pr_notice("task 0x%p is not at LU: I_T recover\n",
+			pr_notice("task 0x%pS is not at LU: I_T recover TASK_ABORT_FAILED/TASK_IS_NOT_AT_LU\n",
 				  task);
 			tmf_resp = sas_recover_I_T(task->dev);
 			if (tmf_resp == TMF_RESP_FUNC_COMPLETE ||
 			    tmf_resp == -ENODEV) {
 				struct domain_device *dev = task->dev;
-				pr_notice("I_T %016llx recovered\n",
-					  SAS_ADDR(task->dev->sas_addr));
+				pr_notice("I_T %016llx recovered %pS\n",
+					  SAS_ADDR(task->dev->sas_addr), task);
 				sas_eh_finish_cmd(cmd);
 				sas_scsi_clear_queue_I_T(work_q, dev);
 				goto Again;
 			}
 			/* Hammer time :-) */
+			pr_err("%s dealing with %pS Hammer time lldd_clear_nexus_port=%pS\n",
+			__func__, task, i->dft->lldd_clear_nexus_port);
 			try_to_reset_cmd_device(cmd);
 			if (i->dft->lldd_clear_nexus_port) {
 				struct asd_sas_port *port = task->dev->port;
-				pr_debug("clearing nexus for port:%d\n",
+				pr_err("clearing nexus for port:%d\n",
 					  port->id);
 				res = i->dft->lldd_clear_nexus_port(port);
 				if (res == TMF_RESP_FUNC_COMPLETE) {
@@ -657,8 +665,10 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 					goto Again;
 				}
 			}
+			pr_err("%s dealing with %pS lldd_clear_nexus_ha=%pS\n",
+			__func__, task, i->dft->lldd_clear_nexus_ha);
 			if (i->dft->lldd_clear_nexus_ha) {
-				pr_debug("clear nexus ha\n");
+				pr_err("clear nexus ha\n");
 				res = i->dft->lldd_clear_nexus_ha(ha);
 				if (res == TMF_RESP_FUNC_COMPLETE) {
 					pr_notice("clear nexus ha succeeded\n");
@@ -684,7 +694,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 	return;
 
  clear_q:
-	pr_debug("--- Exit %s -- clear_q\n", __func__);
+	pr_err("--- Exit %s -- clear_q\n", __func__);
 	list_for_each_entry_safe(cmd, n, work_q, eh_entry)
 		sas_eh_finish_cmd(cmd);
 	goto out;
