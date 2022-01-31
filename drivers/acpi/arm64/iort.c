@@ -1030,6 +1030,57 @@ static void iort_find_rmrs(struct acpi_iort_node *iommu, struct device *dev,
 }
 
 /**
+ * iommu_dma_put_rmrs - Free any memory associated with RMRs.
+ * @iommu_fwnode: fwnode associated with IOMMU
+ * @list: Resereved region list
+ *
+ * This function go through the provided reserved region list and
+ * free up memory associated with RMR entries and delete them from
+ * the list.
+ */
+void iort_iommu_put_rmrs(struct fwnode_handle *iommu_fwnode,
+			 struct list_head *head)
+{
+	struct iommu_resv_region *e, *tmp;
+
+	/*
+	 * RMR entries will have mem allocated for fw_data.rmr.sids.
+	 * Free the mem and delete the node.
+	 */
+	list_for_each_entry_safe(e, tmp, head, list) {
+		if (e->fw_data.rmr.sids) {
+			kfree(e->fw_data.rmr.sids);
+			list_del(&e->list);
+			kfree(e);
+		}
+	}
+}
+
+/**
+ *
+ * iommu_dma_get_rmrs - Retrieve Reserved Memory Regions(RMRs) associated
+ *                      with a given IOMMU and dev(optional).
+ * @iommu_fwnode: fwnode associated with IOMMU
+ * @dev: Device associated with RMR
+ * @list: RMR list to be populated
+ *
+ * This function populates the RMR list associated with a given IOMMU and
+ * dev(if provided). If dev is NULL, the function populates all the RMRs
+ * associated with the given IOMMU.
+ */
+void iort_iommu_get_rmrs(struct fwnode_handle *iommu_fwnode, struct device *dev,
+			 struct list_head *head)
+{
+	struct acpi_iort_node *iommu;
+
+	iommu = iort_get_iort_node(iommu_fwnode);
+	if (!iommu)
+		return;
+
+	iort_find_rmrs(iommu, dev, head);
+}
+
+/**
  * iort_iommu_msi_get_resv_regions - Reserved region driver helper
  * @dev: Device from iommu_get_resv_regions()
  * @head: Reserved region list from iommu_get_resv_regions()
@@ -1261,6 +1312,11 @@ int iort_iommu_msi_get_resv_regions(struct device *dev, struct list_head *head)
 { return 0; }
 int iort_iommu_configure_id(struct device *dev, const u32 *input_id)
 { return -ENODEV; }
+void iort_iommu_get_rmrs(struct fwnode_handle *fwnode, struct device *dev,
+			 struct list_head *head)
+{ }
+void iort_iommu_put_rmrs(struct fwnode_handle *fwnode, struct list_head *head)
+{ }
 #endif
 
 static int nc_dma_get_range(struct device *dev, u64 *size)
