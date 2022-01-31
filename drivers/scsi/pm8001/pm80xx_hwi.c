@@ -2398,6 +2398,8 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 	u32 *sata_resp;
 	struct pm8001_device *pm8001_dev;
 	unsigned long flags;
+	static atomic_t countf;
+	unsigned int _countf;
 
 	psataPayload = (struct sata_completion_resp *)(piomb + 4);
 	status = le32_to_cpu(psataPayload->status);
@@ -2418,6 +2420,12 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 			pm8001_dev = t->dev->lldd_dev;
 	} else {
 		pm8001_dbg(pm8001_ha, FAIL, "task null\n");
+		return;
+	}
+	_countf = atomic_inc_return(&countf);
+	
+	if (_countf == 5000) {
+		pr_err("%s skipping completion of task %pS\n", __func__, t);
 		return;
 	}
 
