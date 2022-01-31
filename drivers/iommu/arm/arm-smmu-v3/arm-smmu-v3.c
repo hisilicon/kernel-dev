@@ -2759,6 +2759,7 @@ static void arm_smmu_get_resv_regions(struct device *dev,
 {
 	struct iommu_resv_region *region;
 	int prot = IOMMU_WRITE | IOMMU_NOEXEC | IOMMU_MMIO;
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 
 	region = iommu_alloc_resv_region(MSI_IOVA_BASE, MSI_IOVA_LENGTH,
 					 prot, IOMMU_RESV_SW_MSI);
@@ -2768,6 +2769,16 @@ static void arm_smmu_get_resv_regions(struct device *dev,
 	list_add_tail(&region->list, head);
 
 	iommu_dma_get_resv_regions(dev, head);
+	iommu_dma_get_rmrs(fwspec->iommu_fwnode, dev, head);
+}
+
+static void arm_smmu_put_resv_regions(struct device *dev,
+				      struct list_head *head)
+{
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+
+	iommu_dma_put_rmrs(fwspec->iommu_fwnode, head);
+	generic_iommu_put_resv_regions(dev, head);
 }
 
 static bool arm_smmu_dev_has_feature(struct device *dev,
@@ -2865,7 +2876,7 @@ static struct iommu_ops arm_smmu_ops = {
 	.enable_nesting		= arm_smmu_enable_nesting,
 	.of_xlate		= arm_smmu_of_xlate,
 	.get_resv_regions	= arm_smmu_get_resv_regions,
-	.put_resv_regions	= generic_iommu_put_resv_regions,
+	.put_resv_regions	= arm_smmu_put_resv_regions,
 	.dev_has_feat		= arm_smmu_dev_has_feature,
 	.dev_feat_enabled	= arm_smmu_dev_feature_enabled,
 	.dev_enable_feat	= arm_smmu_dev_enable_feature,
