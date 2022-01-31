@@ -608,6 +608,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 
 		pr_err("trying to find task 0x%pS\n", task);
 		res = sas_scsi_find_task(task);
+		pr_err("trying to find task 0x%pS RES=%d\n", task, res);
 
 		switch (res) {
 		case TASK_IS_DONE:
