@@ -766,7 +766,7 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 				pm8001_dev, DS_OPERATIONAL);
 			wait_for_completion(&completion_setstate);
 		}
-		res = -TMF_RESP_FUNC_FAILED;
+		res = TMF_RESP_FUNC_FAILED;
 		/* Even TMF timed out, return direct. */
 		if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
 			pm8001_dbg(pm8001_ha, FAIL, "TMF task[%x]timeout.\n",
