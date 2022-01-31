@@ -371,6 +371,27 @@ void iommu_put_dma_cookie(struct iommu_domain *domain)
 }
 
 /**
+ *
+ * iommu_dma_get_rmrs - Retrieve Reserved Memory Regions(RMRs) associated
+ *                      with a given IOMMU and device(optional)
+ * @iommu_fwnode: fwnode associated with IOMMU
+ * @dev: Optional associated device
+ * @list: Reserved region list to be populated
+ *
+ */
+void iommu_dma_get_rmrs(struct fwnode_handle *iommu_fwnode, struct device *dev,
+			struct list_head *list)
+{
+}
+EXPORT_SYMBOL(iommu_dma_get_rmrs);
+
+void iommu_dma_put_rmrs(struct fwnode_handle *iommu_fwnode,
+			struct list_head *list)
+{
+}
+EXPORT_SYMBOL(iommu_dma_put_rmrs);
+
+/**
  * iommu_dma_get_resv_regions - Reserved region driver helper
  * @dev: Device from iommu_get_resv_regions()
  * @list: Reserved region list from iommu_get_resv_regions()
