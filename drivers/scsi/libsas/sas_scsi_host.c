@@ -115,12 +115,12 @@ static void sas_scsi_task_done(struct sas_task *task)
 
 	if (unlikely(!task)) {
 		/* task will be completed by the error handler */
-		pr_err("task done but aborted\n");
+		pr_err("task done but aborted task=%pS\n", task);
 		return;
 	}
 
 	if (unlikely(!sc)) {
-		pr_err("task_done called with non existing SCSI cmnd!\n");
+		pr_err("task_done called with non existing SCSI cmnd! task=%pS\n", task);
 		sas_free_task(task);
 		return;
 	}
@@ -291,6 +291,7 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 	for (i = 0; i < 5; i++) {
 		pr_notice("%s: aborting task 0x%pS\n", __func__, task);
 		res = si->dft->lldd_abort_task(task);
+		pr_notice("%s: aborting task 0x%pS res=%d\n", __func__, task, res);
 
 		spin_lock_irqsave(&task->task_state_lock, flags);
 		if (task->task_state_flags & SAS_TASK_STATE_DONE) {
@@ -608,7 +609,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 
 		pr_err("trying to find task 0x%pS\n", task);
 		res = sas_scsi_find_task(task);
-		pr_err("trying to find task 0x%pS RES=%d\n", task, res);
+		pr_err("trying to find task 0x%pS res=%d\n", task, res);
 
 		switch (res) {
 		case TASK_IS_DONE:
@@ -687,15 +688,19 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 
 			sas_eh_finish_cmd(cmd);
 			goto clear_q;
+		default:
+			pr_err("%s default - don't know what to do res=%d\n", __func__, res);
+			break;
 		}
 	}
  out:
+ 	pr_err("--- Exit %s -- out\n", __func__);
 	list_splice_tail(&done, work_q);
 	list_splice_tail_init(&ha->eh_ata_q, work_q);
 	return;
 
  clear_q:
-	pr_err("--- Exit %s -- clear_q\n", __func__);
+	pr_err("--- Exit %s -- clear_q \n", __func__);
 	list_for_each_entry_safe(cmd, n, work_q, eh_entry)
 		sas_eh_finish_cmd(cmd);
 	goto out;

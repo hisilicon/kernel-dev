@@ -1227,7 +1227,7 @@ int pm8001_abort_task(struct sas_task *task)
 
 	ret = pm8001_find_tag(task, &tag);
 	if (ret == 0) {
-		pm8001_info(pm8001_ha, "no tag for task:%p\n", task);
+		pm8001_info(pm8001_ha, "no tag for task:%pS\n", task);
 		return TMF_RESP_FUNC_FAILED;
 	}
 	spin_lock_irqsave(&task->task_state_lock, flags);
@@ -1286,7 +1286,7 @@ int pm8001_abort_task(struct sas_task *task)
 			 * getting a double free.
 			 */
 			pm8001_dbg(pm8001_ha, MSG,
-				   "Waiting for local phy ctl\n");
+				   "Waiting for local phy ctl task=%pS\n", task);
 			ret = wait_for_completion_timeout(&completion,
 					PM8001_TASK_TIMEOUT * HZ);
 			if (!ret || !phy->reset_success) {
@@ -1297,7 +1297,7 @@ int pm8001_abort_task(struct sas_task *task)
 				 * Port reset TMO
 				 */
 				pm8001_dbg(pm8001_ha, MSG,
-					   "Waiting for Port reset\n");
+					   "Waiting for Port reset task=%pS\n", task);
 				ret = wait_for_completion_timeout(
 					&completion_reset,
 					PM8001_TASK_TIMEOUT * HZ);
@@ -1354,7 +1354,7 @@ out:
 		task->slow_task = NULL;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 	if (rc != TMF_RESP_FUNC_COMPLETE)
-		pm8001_info(pm8001_ha, "rc= %d\n", rc);
+		pm8001_info(pm8001_ha, "rc= %d task=%pS\n", rc, task);
 	return rc;
 }
 
