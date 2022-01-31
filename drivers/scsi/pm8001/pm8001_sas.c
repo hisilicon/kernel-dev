@@ -751,6 +751,7 @@ pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
 		}
 		wait_for_completion(&task->slow_task->completion);
 		res = TMF_RESP_FUNC_FAILED;
+		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
 		/* Even TMF timed out, return direct. */
 		if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
 			pm8001_dbg(pm8001_ha, FAIL, "TMF task timeout.\n");
