@@ -759,6 +759,7 @@ pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
 
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
 			task->task_status.stat == SAS_SAM_STAT_GOOD) {
+			pr_err("%s TMF_RESP_FUNC_COMPLETE task_tag=%d\n", __func__, task_tag);
 			res = TMF_RESP_FUNC_COMPLETE;
 			break;
 
@@ -1101,6 +1102,8 @@ int pm8001_abort_task(struct sas_task *task)
 		pm8001_info(pm8001_ha, "no tag for task:%p\n", task);
 		return TMF_RESP_FUNC_FAILED;
 	}
+
+	pr_err("%s task=%pS tag=%d\n", __func__, task, tag);
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	if (task->task_state_flags & SAS_TASK_STATE_DONE) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
@@ -1123,6 +1126,8 @@ int pm8001_abort_task(struct sas_task *task)
 			DECLARE_COMPLETION_ONSTACK(completion);
 			struct pm8001_phy *phy = pm8001_ha->phy + phy_id;
 			port_id = phy->port->port_id;
+			
+			pr_err("%s STP  task=%pS tag=%d chip_8006\n", __func__, task, tag);
 
 			/* 1. Set Device state as Recovery */
 			pm8001_dev->setds_completion = &completion;
@@ -1205,6 +1210,7 @@ int pm8001_abort_task(struct sas_task *task)
 				pm8001_dev, DS_OPERATIONAL);
 			wait_for_completion(&completion);
 		} else {
+			pr_err("%s STP  task=%pS tag=%d not 8006\n", __func__, task, tag);
 			rc = pm8001_exec_internal_task_abort(pm8001_ha,
 				pm8001_dev, pm8001_dev->sas_device, 0, tag);
 		}
