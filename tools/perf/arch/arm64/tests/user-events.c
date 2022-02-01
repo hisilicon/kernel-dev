@@ -43,14 +43,15 @@ static int run_test(struct perf_evsel *evsel)
 
 static struct perf_pmu *pmu_for_cpu(int cpu)
 {
-	int acpu, idx;
+	int idx;
 	struct perf_pmu *pmu = NULL;
+	struct perf_cpu acpu;
 
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
 		if (pmu->is_uncore)
 			continue;
 		perf_cpu_map__for_each_cpu(acpu, idx, pmu->cpus)
-			if (acpu == cpu)
+			if (acpu.cpu == cpu)
 				return pmu;
 	}
 	return NULL;
@@ -83,6 +84,8 @@ static struct perf_evsel *perf_init(struct perf_event_attr *attr)
 	struct perf_event_mmap_page *pc;
 
 	libperf_init(libperf_print);
+
+	printf("%s attr=%p\n", __func__, attr);
 
 	threads = perf_thread_map__new_dummy();
 	if (!threads) {
@@ -126,10 +129,13 @@ out_thread:
 	return NULL;
 }
 
-int test__rd_pinned(struct test __maybe_unused *test,
-		    int __maybe_unused subtest)
+int test__rd_pinned(struct test_suite *test,
+		    int subtest);
+int test__rd_pinned(struct test_suite *test,
+		    int subtest)
 {
-	int cpu, cputmp, ret = -1;
+	int cputmp, ret = -1;
+	struct perf_cpu cpu;
 	struct perf_evsel *evsel;
 	struct perf_event_attr attr = {
 		.config = 0x8, /* Instruction count */
@@ -139,18 +145,20 @@ int test__rd_pinned(struct test __maybe_unused *test,
 	cpu_set_t cpu_set;
 	struct perf_pmu *pmu;
 
+	printf("%s test=%p subtest=%d\n", __func__, test, subtest);
+
 	if (pmu_is_homogeneous())
 		return TEST_SKIP;
 
-	cpu = sched_getcpu();
-	pmu = pmu_for_cpu(cpu);
+	cpu.cpu = sched_getcpu();
+	pmu = pmu_for_cpu(cpu.cpu);
 	if (!pmu)
 		return -1;
 	attr.type = pmu->type;
 
 	CPU_ZERO(&cpu_set);
 	perf_cpu_map__for_each_cpu(cpu, cputmp, pmu->cpus)
-		CPU_SET(cpu, &cpu_set);
+		CPU_SET(cpu.cpu, &cpu_set);
 	if (sched_setaffinity(0, sizeof(cpu_set), &cpu_set) < 0)
 		pr_err("Could not set affinity\n");
 
@@ -160,11 +168,11 @@ int test__rd_pinned(struct test __maybe_unused *test,
 
 	perf_cpu_map__for_each_cpu(cpu, cputmp, pmu->cpus) {
 		CPU_ZERO(&cpu_set);
-		CPU_SET(cpu, &cpu_set);
+		CPU_SET(cpu.cpu, &cpu_set);
 		if (sched_setaffinity(0, sizeof(cpu_set), &cpu_set) < 0)
 			pr_err("Could not set affinity\n");
 
-		pr_debug("Running on CPU %d\n", cpu);
+		pr_debug("Running on CPU %d\n", cpu.cpu);
 
 		ret = run_test(evsel);
 		if (ret)
@@ -176,7 +184,7 @@ int test__rd_pinned(struct test __maybe_unused *test,
 	return ret;
 }
 
-static int test__rd_counter_size(struct test __maybe_unused *test,
+static int test__rd_counter_size(struct test_suite *test,
 				 int config1)
 {
 	int ret;
@@ -187,7 +195,7 @@ static int test__rd_counter_size(struct test __maybe_unused *test,
 		.config1 = config1,
 		.exclude_kernel = 1,
 	};
-
+	printf("%s test=%p config1=%d\n", __func__, test, config1);
 	if (!pmu_is_homogeneous())
 		return TEST_SKIP;
 
@@ -202,14 +210,32 @@ static int test__rd_counter_size(struct test __maybe_unused *test,
 	return ret;
 }
 
-int test__rd_64bit(struct test __maybe_unused *test,
-		   int __maybe_unused subtest)
+static int _test__rd_64bit(struct test_suite *test,
+		   int subtest)
 {
+	printf("%s test=%p subtest=%d\n", __func__, test, subtest);
 	return test__rd_counter_size(test, 0x3);
 }
 
-int test__rd_32bit(struct test __maybe_unused *test,
-		   int __maybe_unused subtest)
+static int _test__rd_32bit(struct test_suite *test,
+		   int subtest)
 {
+	printf("%s test=%p subtest=%d\n", __func__, test, subtest);
 	return test__rd_counter_size(test, 0x2);
 }
+struct test_case test_case64b[] = {
+	{
+		.name = "test_case64b",
+		.desc = "64b_snake_desc",
+		.run_case = _test__rd_64bit,
+	},
+	NULL
+};
+
+struct test_suite test__rd_64bit = {
+	.desc = "test__rd_64bit",
+	.test_cases = test_case64b,
+};
+
+struct test_suite test__rd_32bit = {
+};
