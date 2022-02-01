@@ -68,7 +68,10 @@ struct iommufd_ctx {
 	struct file *filp;
 	struct xarray objects;
 
+	struct mutex vfio_compat;
 	struct iommufd_ioas *vfio_ioas;
+	int vfio_fd;
+	u64 groups;
 };
 
 struct iommufd_ctx *iommufd_fget(int fd);

@@ -28,9 +28,8 @@ out_unlock:
 /*
  * Only attaching a group should cause a default creation of the internal ioas,
  * this returns the existing ioas if it has already been assigned somehow
- * FIXME: maybe_unused
  */
-static __maybe_unused struct iommufd_ioas *
+static struct iommufd_ioas *
 create_compat_ioas(struct iommufd_ctx *ictx)
 {
 	struct iommufd_ioas *ioas = NULL;
@@ -399,3 +398,108 @@ int iommufd_vfio_ioctl(struct iommufd_ctx *ictx, unsigned int cmd,
 	}
 	return -ENOIOCTLCMD;
 }
+
+#define vfio_device_detach_unbind(ictx, id, device, device_list)               \
+	({                                                                     \
+		list_for_each_entry(device, device_list, group_next) {         \
+			struct vfio_device_detach_ioas detach = {            \
+				.argsz = sizeof(detach),                       \
+				.ioas_id = id,                               \
+				.iommufd = ictx->vfio_fd,                      \
+			};                                                     \
+			if (device->ops->detach_ioas)                        \
+				device->ops->detach_ioas(device, &detach);   \
+			if (device->ops->unbind_iommufd)                       \
+				device->ops->unbind_iommufd(device);           \
+		}                                                              \
+	})
+
+struct iommufd_ctx *vfio_group_set_iommufd(int fd, struct list_head *device_list)
+{
+	struct vfio_device_attach_ioas attach = { .argsz = sizeof(attach) };
+	struct vfio_device_bind_iommufd bind = { .argsz = sizeof(bind) };
+	struct iommufd_ctx *ictx = iommufd_fget(fd);
+	struct iommufd_ioas *ioas;
+	struct vfio_device *device;
+	int rc;
+
+	if (!ictx)
+		return ictx;
+
+	mutex_lock(&ictx->vfio_compat);
+
+	ictx->vfio_fd = fd;
+
+	/*
+	 * Note: bind.dev_cookie is designed for page fault, whose uAPI is TBD
+	 * on IOMMUFD. And VFIO does not support that either. So we here leave
+	 * the dev_cookie to 0 for now, until it is available in VFIO too.
+	 */
+	bind.dev_cookie = 0;
+	bind.iommufd = fd;
+	attach.iommufd = fd;
+
+	ioas = create_compat_ioas(ictx);
+	if (IS_ERR(ioas))
+		goto out_fput;
+
+	ictx->vfio_ioas = ioas;
+	attach.ioas_id = ioas->obj.id;
+
+	iommufd_put_object(&ioas->obj);
+
+	list_for_each_entry(device, device_list, group_next) {
+		if (!device->ops->bind_iommufd || !device->ops->unbind_iommufd)
+			goto cleanup_ioas;
+
+		rc = device->ops->bind_iommufd(device, &bind);
+		if (rc)
+			goto cleanup_ioas;
+
+		if (unlikely(!device->ops->attach_ioas))
+			goto cleanup_ioas;
+
+		rc = device->ops->attach_ioas(device, &attach);
+		if (rc)
+			goto cleanup_ioas;
+	}
+
+	ictx->groups++;
+	mutex_unlock(&ictx->vfio_compat);
+	return ictx;
+
+cleanup_ioas:
+	vfio_device_detach_unbind(ictx, attach.ioas_id, device, device_list);
+	iommufd_ioas_destroy(&ioas->obj);
+out_fput:
+	mutex_unlock(&ictx->vfio_compat);
+	fput(ictx->filp);
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(vfio_group_set_iommufd);
+
+void vfio_group_unset_iommufd(void *iommufd, struct list_head *device_list)
+{
+	struct iommufd_ctx *ictx = (struct iommufd_ctx *)iommufd;
+	struct iommufd_ioas *ioas;
+	struct vfio_device *device;
+	unsigned int ioas_id;
+
+	if (!ictx)
+		return;
+	mutex_lock(&ictx->vfio_compat);
+	ioas = get_compat_ioas(ictx);
+	if (IS_ERR(ioas))
+		return;
+
+	ioas_id = ioas->obj.id;
+	iommufd_put_object(&ioas->obj);
+
+	vfio_device_detach_unbind(ictx, ioas_id, device, device_list);
+	if (--ictx->groups == 0)
+		iommufd_ioas_destroy(&ioas->obj);
+	mutex_unlock(&ictx->vfio_compat);
+	fput(ictx->filp);
+}
+EXPORT_SYMBOL_GPL(vfio_group_unset_iommufd);

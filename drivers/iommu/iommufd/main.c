@@ -157,6 +157,7 @@ static int iommufd_fops_open(struct inode *inode, struct file *filp)
 
 	xa_init_flags(&ictx->objects, XA_FLAGS_ALLOC1);
 	ictx->filp = filp;
+	mutex_init(&ictx->vfio_compat);
 	filp->private_data = ictx;
 	return 0;
 }
