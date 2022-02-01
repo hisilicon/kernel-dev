@@ -1099,8 +1099,12 @@ static int __armv8_pmuv3_map_event(struct perf_event *event,
 			return -EINVAL;
 		if (armv8pmu_event_is_64bit(event) &&
 		    (hw_event_id != ARMV8_PMUV3_PERFCTR_CPU_CYCLES) &&
-		    !armv8pmu_has_long_event(armpmu))
+		    !armv8pmu_has_long_event(armpmu)) {
+			pr_err("%s EOPNOTSUPP armv8pmu_event_is_64bit=%d hw_event_id=%d ARMV8_PMUV3_PERFCTR_CPU_CYCLES=%d armv8pmu_has_long_event=%d\n", 
+				__func__, armv8pmu_event_is_64bit(event), hw_event_id, ARMV8_PMUV3_PERFCTR_CPU_CYCLES,
+				armv8pmu_has_long_event(armpmu));
 			return -EOPNOTSUPP;
+		}
 
 		event->hw.flags |= PERF_EVENT_FLAG_USER_READ_CNT;
 	}
