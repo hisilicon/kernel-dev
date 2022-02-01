@@ -16,6 +16,11 @@
 #include "tests/tests.h"
 #include "arch-tests.h"
 
+static bool pmu_is_homogeneous(void)
+{
+	return 1;
+}
+
 static int test__rd_counter_size(struct test_suite *test,
 				 int config1)
 {
