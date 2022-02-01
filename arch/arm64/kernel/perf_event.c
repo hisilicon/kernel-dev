@@ -808,7 +808,8 @@ static void armv8pmu_start(struct arm_pmu *cpu_pmu)
 	struct perf_event_context *task_ctx =
 		this_cpu_ptr(cpu_pmu->pmu.pmu_cpu_context)->task_ctx;
 
-	pr_err("%s cpu_pmu=%pS cpu%d\n", __func__, cpu_pmu, smp_processor_id());
+	pr_err("%s cpu_pmu=%pS cpu%d sysctl_perf_user_access=%d task_ctx=%pS nr_user=%d\n",
+		__func__, cpu_pmu, smp_processor_id(), sysctl_perf_user_access, task_ctx, task_ctx ? task_ctx->nr_user : -1);
 	WARN_ON_ONCE(smp_processor_id() == 62);
 
 	if (sysctl_perf_user_access && task_ctx && task_ctx->nr_user)
@@ -961,6 +962,8 @@ static void armv8pmu_clear_event_idx(struct pmu_hw_events *cpuc,
 
 static int armv8pmu_user_event_idx(struct perf_event *event)
 {
+	pr_err("%s sysctl_perf_user_access=%d armv8pmu_event_has_user_read(event)=%d\n",
+		__func__, sysctl_perf_user_access, armv8pmu_event_has_user_read(event));
 	if (!sysctl_perf_user_access || !armv8pmu_event_has_user_read(event))
 		return 0;
 
@@ -1209,6 +1212,8 @@ static int armv8pmu_proc_user_access_handler(struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	pr_err("%s ret=%d write=%d sysctl_perf_user_access=%d\n",
+		__func__, ret, write, sysctl_perf_user_access);
 	if (ret || !write || sysctl_perf_user_access)
 		return ret;
 
