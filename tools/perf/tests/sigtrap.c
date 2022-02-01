@@ -29,11 +29,9 @@
  * Just disable the test for these architectures until these issues are
  * resolved.
  */
-#if defined(__powerpc__) || defined(__s390x__)
+
 #define BP_ACCOUNT_IS_SUPPORTED 0
-#else
-#define BP_ACCOUNT_IS_SUPPORTED 1
-#endif
+
 
 #define NUM_THREADS 5
 
