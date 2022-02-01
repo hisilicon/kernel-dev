@@ -1415,10 +1415,14 @@ void arch_perf_update_userpage(struct perf_event *event,
 	unsigned int seq;
 	u64 ns;
 
+
 	userpg->cap_user_time = 0;
 	userpg->cap_user_time_zero = 0;
 	userpg->cap_user_time_short = 0;
 	userpg->cap_user_rdpmc = armv8pmu_event_has_user_read(event);
+
+	pr_err("%s event=%pS cap_user_rdpmc=%d\n", __func__, event, userpg->cap_user_rdpmc);
+	WARN_ON_ONCE(1);
 
 	if (userpg->cap_user_rdpmc) {
 		if (event->hw.flags & ARMPMU_EVT_64BIT)
