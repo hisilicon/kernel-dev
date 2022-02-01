@@ -937,7 +937,7 @@ static int armv8pmu_get_event_idx(struct pmu_hw_events *cpuc,
 	/* Always prefer to place a cycle counter into the cycle counter. */
 	if (evtype == ARMV8_PMUV3_PERFCTR_CPU_CYCLES) {
 		if (!test_and_set_bit(ARMV8_IDX_CYCLE_COUNTER, cpuc->used_mask)) {
-			pr_err("%s2 event=%pS ARMV8_IDX_CYCLE_COUNTER\n", __func__, event);
+			pr_notice("%s2 event=%pS ARMV8_IDX_CYCLE_COUNTER\n", __func__, event);
 			return ARMV8_IDX_CYCLE_COUNTER;
 		}
 		else if (armv8pmu_event_is_64bit(event) &&
