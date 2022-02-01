@@ -103,7 +103,7 @@ static struct perf_evsel *perf_init(struct perf_event_attr *attr)
 
 	err = perf_evsel__open(evsel, NULL, threads);
 	if (err) {
-		pr_err("failed to open evsel\n");
+		pr_err("failed to open evsel err=%d\n", err);
 		goto out_open;
 	}
 
