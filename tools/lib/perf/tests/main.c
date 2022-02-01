@@ -3,7 +3,7 @@
 #include "tests.h"
 
 int tests_failed;
-int tests_verbose;
+int tests_verbose = 1;
 
 int main(int argc, char **argv)
 {

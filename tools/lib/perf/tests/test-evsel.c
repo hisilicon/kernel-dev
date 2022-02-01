@@ -136,6 +136,9 @@ static int test_stat_user_read(int event)
 	};
 	int err, i;
 
+	printf("%s tests_verbose=%d\n", __func__, tests_verbose);
+	fprintf(stdout, "%s tests_verbose=%d\n", __func__, tests_verbose); fflush(NULL);
+
 	threads = perf_thread_map__new_dummy();
 	__T("failed to create threads", threads);
 

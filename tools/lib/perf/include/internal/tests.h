@@ -30,7 +30,7 @@ static inline int get_verbose(char **argv, int argc)
 
 #define __T_START					\
 do {							\
-	tests_verbose = get_verbose(argv, argc);	\
+	tests_verbose = 1;\
 	fprintf(stdout, "- running %s...", __FILE__);	\
 	fflush(NULL);					\
 	tests_failed = 0;				\
