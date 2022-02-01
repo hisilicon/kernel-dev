@@ -296,6 +296,7 @@ static inline bool armv8pmu_event_is_64bit(struct perf_event *event)
 
 static inline bool armv8pmu_event_want_user_access(struct perf_event *event)
 {
+	pr_err("%s event=%pS result=%d\n", __func__, event, !!(event->attr.config1 & 0x2));
 	return event->attr.config1 & 0x2;
 }
 
@@ -931,16 +932,23 @@ static int armv8pmu_get_event_idx(struct pmu_hw_events *cpuc,
 	struct hw_perf_event *hwc = &event->hw;
 	unsigned long evtype = hwc->config_base & ARMV8_PMU_EVTYPE_EVENT;
 
+	pr_err("%s event=%pS\n", __func__, event);
+
 	/* Always prefer to place a cycle counter into the cycle counter. */
 	if (evtype == ARMV8_PMUV3_PERFCTR_CPU_CYCLES) {
-		if (!test_and_set_bit(ARMV8_IDX_CYCLE_COUNTER, cpuc->used_mask))
+		if (!test_and_set_bit(ARMV8_IDX_CYCLE_COUNTER, cpuc->used_mask)) {
+			pr_err("%s2 event=%pS -EAGAIN\n", __func__, event);
 			return ARMV8_IDX_CYCLE_COUNTER;
+		}
 		else if (armv8pmu_event_is_64bit(event) &&
 			   armv8pmu_event_want_user_access(event) &&
-			   !armv8pmu_has_long_event(cpu_pmu))
+			   !armv8pmu_has_long_event(cpu_pmu)) {
+				pr_err("%s3 event=%pS -EAGAIN\n", __func__, event);
 				return -EAGAIN;
+			}
 	}
 
+	pr_err("%s4 event=%pS\n", __func__, event);
 	/*
 	 * Otherwise use events counters
 	 */
@@ -967,6 +975,8 @@ static int armv8pmu_user_event_idx(struct perf_event *event)
 	if (!sysctl_perf_user_access || !armv8pmu_event_has_user_read(event))
 		return 0;
 
+	pr_err("%s2 sysctl_perf_user_access=%d armv8pmu_event_has_user_read(event)=%d\n",
+		__func__, sysctl_perf_user_access, armv8pmu_event_has_user_read(event));
 	/*
 	 * We remap the cycle counter index to 32 to
 	 * match the offset applied to the rest of
