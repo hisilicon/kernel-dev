@@ -4,4 +4,10 @@
 
 extern struct test_suite *arch_tests[];
 
+extern struct test_suite test__rd_64bit;
+
+extern struct test_suite test__rd_32bit;
+
 #endif
+
+
