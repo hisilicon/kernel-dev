@@ -296,7 +296,7 @@ static inline bool armv8pmu_event_is_64bit(struct perf_event *event)
 
 static inline bool armv8pmu_event_want_user_access(struct perf_event *event)
 {
-	pr_err("%s event=%pS result=%d\n", __func__, event, !!(event->attr.config1 & 0x2));
+	pr_notice("%s event=%pS result=%d\n", __func__, event, !!(event->attr.config1 & 0x2));
 	return event->attr.config1 & 0x2;
 }
 
@@ -565,7 +565,7 @@ static u64 armv8pmu_read_counter(struct perf_event *event)
 	int idx = hwc->idx;
 	u64 value;
 
-	pr_err("%s event=%pS idx=%d ARMV8_IDX_CYCLE_COUNTER=%d\n", 
+	pr_notice("%s event=%pS idx=%d ARMV8_IDX_CYCLE_COUNTER=%d\n", 
 		__func__, event, idx, ARMV8_IDX_CYCLE_COUNTER);
 
 	if (idx == ARMV8_IDX_CYCLE_COUNTER)
@@ -588,7 +588,7 @@ static inline void armv8pmu_write_hw_counter(struct perf_event *event,
 {
 	int idx = event->hw.idx;
 
-	pr_err("%s event=%pS value=0x%llx\n", __func__, event, value);
+	pr_notice("%s event=%pS value=0x%llx\n", __func__, event, value);
 
 	if (armv8pmu_event_is_chained(event)) {
 		armv8pmu_write_evcntr(idx, upper_32_bits(value));
@@ -603,7 +603,7 @@ static void armv8pmu_write_counter(struct perf_event *event, u64 value)
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
-	pr_err("%s event=%pS value=0x%llx\n", __func__, event, value);
+	pr_notice("%s event=%pS value=0x%llx\n", __func__, event, value);
 
 	value = armv8pmu_bias_long_counter(event, value);
 
@@ -767,7 +767,7 @@ static void armv8pmu_enable_event(struct perf_event *event)
 	 * Enable counter and interrupt, and set the counter to count
 	 * the event that we're interested in.
 	 */
-	pr_err("%s event=%pS\n", __func__, event);
+	pr_notice("%s event=%pS\n", __func__, event);
 
 	/*
 	 * Disable counter
@@ -792,7 +792,7 @@ static void armv8pmu_enable_event(struct perf_event *event)
 
 static void armv8pmu_disable_event(struct perf_event *event)
 {
-	pr_err("%s event=%pS\n", __func__, event);
+	pr_notice("%s event=%pS\n", __func__, event);
 	/*
 	 * Disable counter
 	 */
@@ -809,7 +809,7 @@ static void armv8pmu_start(struct arm_pmu *cpu_pmu)
 	struct perf_event_context *task_ctx =
 		this_cpu_ptr(cpu_pmu->pmu.pmu_cpu_context)->task_ctx;
 
-	pr_err("%s cpu_pmu=%pS cpu%d sysctl_perf_user_access=%d task_ctx=%pS nr_user=%d\n",
+	pr_notice("%s cpu_pmu=%pS cpu%d sysctl_perf_user_access=%d task_ctx=%pS nr_user=%d\n",
 		__func__, cpu_pmu, smp_processor_id(), sysctl_perf_user_access, task_ctx, task_ctx ? task_ctx->nr_user : -1);
 	WARN_ON_ONCE(smp_processor_id() == 62);
 
@@ -824,7 +824,7 @@ static void armv8pmu_start(struct arm_pmu *cpu_pmu)
 
 static void armv8pmu_stop(struct arm_pmu *cpu_pmu)
 {
-	pr_err("%s cpu_pmu=%pS\n", __func__, cpu_pmu);
+	pr_notice("%s cpu_pmu=%pS\n", __func__, cpu_pmu);
 	/* Disable all counters */
 	armv8pmu_pmcr_write(armv8pmu_pmcr_read() & ~ARMV8_PMU_PMCR_E);
 }
@@ -932,12 +932,12 @@ static int armv8pmu_get_event_idx(struct pmu_hw_events *cpuc,
 	struct hw_perf_event *hwc = &event->hw;
 	unsigned long evtype = hwc->config_base & ARMV8_PMU_EVTYPE_EVENT;
 
-	pr_err("%s event=%pS\n", __func__, event);
+	pr_notice("%s event=%pS\n", __func__, event);
 
 	/* Always prefer to place a cycle counter into the cycle counter. */
 	if (evtype == ARMV8_PMUV3_PERFCTR_CPU_CYCLES) {
 		if (!test_and_set_bit(ARMV8_IDX_CYCLE_COUNTER, cpuc->used_mask)) {
-			pr_err("%s2 event=%pS -EAGAIN\n", __func__, event);
+			pr_err("%s2 event=%pS ARMV8_IDX_CYCLE_COUNTER\n", __func__, event);
 			return ARMV8_IDX_CYCLE_COUNTER;
 		}
 		else if (armv8pmu_event_is_64bit(event) &&
@@ -948,7 +948,7 @@ static int armv8pmu_get_event_idx(struct pmu_hw_events *cpuc,
 			}
 	}
 
-	pr_err("%s4 event=%pS\n", __func__, event);
+	pr_notice("%s4 event=%pS\n", __func__, event);
 	/*
 	 * Otherwise use events counters
 	 */
@@ -970,12 +970,12 @@ static void armv8pmu_clear_event_idx(struct pmu_hw_events *cpuc,
 
 static int armv8pmu_user_event_idx(struct perf_event *event)
 {
-	pr_err("%s sysctl_perf_user_access=%d armv8pmu_event_has_user_read(event)=%d\n",
+	pr_notice("%s sysctl_perf_user_access=%d armv8pmu_event_has_user_read(event)=%d\n",
 		__func__, sysctl_perf_user_access, armv8pmu_event_has_user_read(event));
 	if (!sysctl_perf_user_access || !armv8pmu_event_has_user_read(event))
 		return 0;
 
-	pr_err("%s2 sysctl_perf_user_access=%d armv8pmu_event_has_user_read(event)=%d\n",
+	pr_notice("%s2 sysctl_perf_user_access=%d armv8pmu_event_has_user_read(event)=%d\n",
 		__func__, sysctl_perf_user_access, armv8pmu_event_has_user_read(event));
 	/*
 	 * We remap the cycle counter index to 32 to
@@ -996,7 +996,7 @@ static int armv8pmu_set_event_filter(struct hw_perf_event *event,
 {
 	unsigned long config_base = 0;
 
-	pr_err("%s event=%pS attr=%pS\n", __func__, event, attr);
+	pr_notice("%s event=%pS attr=%pS\n", __func__, event, attr);
 
 	if (attr->exclude_idle)
 		return -EPERM;
@@ -1222,10 +1222,11 @@ static int armv8pmu_proc_user_access_handler(struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (ret || !write || sysctl_perf_user_access) {
 	pr_err("%s ret=%d write=%d sysctl_perf_user_access=%d\n",
 		__func__, ret, write, sysctl_perf_user_access);
-	if (ret || !write || sysctl_perf_user_access)
 		return ret;
+	}
 
 	on_each_cpu(armv8pmu_disable_user_access_ipi, NULL, 1);
 	return 0;
@@ -1259,9 +1260,10 @@ static int armv8_pmu_init(struct arm_pmu *cpu_pmu, char *name,
 			  const struct attribute_group *caps)
 {
 	int ret = armv8pmu_probe_pmu(cpu_pmu);
-	pr_err("%s cpu_pmu=%pS name=%s\n", __func__, cpu_pmu, name);
-	if (ret)
+	if (ret) {
+		pr_err("%s cpu_pmu=%pS name=%s ret=%d\n", __func__, cpu_pmu, name, ret);
 		return ret;
+	}
 
 	cpu_pmu->handle_irq		= armv8pmu_handle_irq;
 	cpu_pmu->enable			= armv8pmu_enable_event;
@@ -1431,7 +1433,7 @@ void arch_perf_update_userpage(struct perf_event *event,
 	userpg->cap_user_time_short = 0;
 	userpg->cap_user_rdpmc = armv8pmu_event_has_user_read(event);
 
-	pr_err("%s event=%pS cap_user_rdpmc=%d\n", __func__, event, userpg->cap_user_rdpmc);
+	pr_notice("%s event=%pS cap_user_rdpmc=%d\n", __func__, event, userpg->cap_user_rdpmc);
 	WARN_ON_ONCE(1);
 
 	if (userpg->cap_user_rdpmc) {
