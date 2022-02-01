@@ -223,13 +223,23 @@ static int _test__rd_32bit(struct test_suite *test,
 	printf("%s test=%p subtest=%d\n", __func__, test, subtest);
 	return test__rd_counter_size(test, 0x2);
 }
+
 struct test_case test_case64b[] = {
 	{
 		.name = "test_case64b",
 		.desc = "64b_snake_desc",
 		.run_case = _test__rd_64bit,
 	},
-	NULL
+	{}
+};
+
+struct test_case test_case32b[] = {
+	{
+		.name = "test_case32b",
+		.desc = "32b_snake_desc",
+		.run_case = _test__rd_32bit,
+	},
+	{}
 };
 
 struct test_suite test__rd_64bit = {
@@ -238,4 +248,6 @@ struct test_suite test__rd_64bit = {
 };
 
 struct test_suite test__rd_32bit = {
+	.desc = "test__rd_32bit",
+	.test_cases = test_case32b,
 };
