@@ -14,7 +14,8 @@ static int libperf_print(enum libperf_print_level level,
 	return vfprintf(stderr, fmt, ap);
 }
 
-static int test_stat_cpu(void)
+int test_stat_cpu(void);
+int test_stat_cpu(void)
 {
 	struct perf_cpu_map *cpus;
 	struct perf_evsel *evsel;
@@ -47,7 +48,8 @@ static int test_stat_cpu(void)
 	return 0;
 }
 
-static int test_stat_thread(void)
+int test_stat_thread(void);
+int test_stat_thread(void)
 {
 	struct perf_counts_values counts = { .val = 0 };
 	struct perf_thread_map *threads;
@@ -79,7 +81,8 @@ static int test_stat_thread(void)
 	return 0;
 }
 
-static int test_stat_thread_enable(void)
+int test_stat_thread_enable(void);
+int test_stat_thread_enable(void)
 {
 	struct perf_counts_values counts = { .val = 0 };
 	struct perf_thread_map *threads;
@@ -135,6 +138,8 @@ static int test_stat_user_read(int event)
 #endif
 	};
 	int err, i;
+	printf("%s tests_verbose=%d\n", __func__, tests_verbose);
+	fprintf(stdout, "%s tests_verbose=%d\n", __func__, tests_verbose); fflush(NULL);
 
 	threads = perf_thread_map__new_dummy();
 	__T("failed to create threads", threads);
@@ -195,9 +200,9 @@ int test_evsel(int argc, char **argv)
 
 	libperf_init(libperf_print);
 
-	test_stat_cpu();
-	test_stat_thread();
-	test_stat_thread_enable();
+	//test_stat_cpu();
+	//test_stat_thread();
+	//test_stat_thread_enable();
 	test_stat_user_read(PERF_COUNT_HW_INSTRUCTIONS);
 	test_stat_user_read(PERF_COUNT_HW_CPU_CYCLES);
 
