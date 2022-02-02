@@ -304,12 +304,26 @@ static u64 read_timestamp(void)
 
 static u64 read_pmccntr(void)
 {
-	return read_sysreg(pmccntr_el0);
+	static int run;
+	u64 val;
+	val = read_sysreg(pmccntr_el0);
+	if (run < 5) {
+		run++;
+		printf("%s run=%d val=0x%lx\n", __func__, run, val);
+	}
+	return val;
 }
 
 #define PMEVCNTR_READ(idx)					\
 	static u64 read_pmevcntr_##idx(void) {			\
-		return read_sysreg(pmevcntr##idx##_el0);	\
+		u64 val;\
+		static int run;\
+		val = read_sysreg(pmevcntr##idx##_el0);	\
+		if (run < 5) {\
+			run++;\
+			printf("%s run=%d val=0x%lx\n", __func__, run, val);\
+		}\
+		return val;\
 	}
 
 PMEVCNTR_READ(0);
