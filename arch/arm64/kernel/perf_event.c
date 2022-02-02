@@ -932,6 +932,7 @@ static int armv8pmu_get_event_idx(struct pmu_hw_events *cpuc,
 	struct hw_perf_event *hwc = &event->hw;
 	unsigned long evtype = hwc->config_base & ARMV8_PMU_EVTYPE_EVENT;
 
+	WARN_ON_ONCE(1);
 	pr_notice("%s event=%pS\n", __func__, event);
 
 	/* Always prefer to place a cycle counter into the cycle counter. */
