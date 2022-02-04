@@ -89,7 +89,7 @@
 
 static volatile int done;
 static volatile int resize;
-
+extern FILE *johnfile;
 #define HEADER_LINE_NR  5
 
 static void perf_top__update_print_entries(struct perf_top *top)
@@ -619,7 +619,9 @@ static void *display_thread_tui(void *arg)
 		.refresh	= top->delay_secs,
 	};
 	int ret;
+	
 
+	fprintf(johnfile, "%s\n", __func__);
 	/* In order to read symbols from other namespaces perf to  needs to call
 	 * setns(2).  This isn't permitted if the struct_fs has multiple users.
 	 * unshare(2) the fs so that we may continue to setns into namespaces
@@ -881,8 +883,12 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 	if (perf_mmap__read_init(&md->core) < 0)
 		return;
 
+	fprintf(johnfile, "%s idx=%d\n", __func__, idx);
+
 	while ((event = perf_mmap__read_event(&md->core)) != NULL) {
 		int ret;
+		
+		fprintf(johnfile, "%s2 event=%p idx=%d\n", __func__, event, idx);
 
 		ret = evlist__parse_sample_timestamp(evlist, event, &last_timestamp);
 		if (ret && ret != -1)
@@ -910,12 +916,14 @@ static void perf_top__mmap_read(struct perf_top *top)
 	bool overwrite = top->record_opts.overwrite;
 	struct evlist *evlist = top->evlist;
 	int i;
+	fprintf(johnfile, "%s top->evlist->core.nr_mmaps=%d\n", __func__, top->evlist->core.nr_mmaps);
 
 	if (overwrite)
 		evlist__toggle_bkw_mmap(evlist, BKW_MMAP_DATA_PENDING);
 
-	for (i = 0; i < top->evlist->core.nr_mmaps; i++)
+	for (i = 0; i < top->evlist->core.nr_mmaps; i++) {
 		perf_top__mmap_read_idx(top, i);
+	}
 
 	if (overwrite) {
 		evlist__toggle_bkw_mmap(evlist, BKW_MMAP_EMPTY);
@@ -1013,6 +1021,8 @@ static int perf_top__start_counters(struct perf_top *top)
 	struct evlist *evlist = top->evlist;
 	struct record_opts *opts = &top->record_opts;
 
+	fprintf(johnfile, "%s evlist=%p\n", __func__, evlist);
+
 	if (perf_top__overwrite_check(top)) {
 		ui__error("perf top only support consistent per-event "
 			  "overwrite setting for all events\n");
@@ -1022,6 +1032,7 @@ static int perf_top__start_counters(struct perf_top *top)
 	evlist__config(evlist, opts, &callchain_param);
 
 	evlist__for_each_entry(evlist, counter) {
+		fprintf(johnfile, "%s counter=%p name=%s pmu_name=%s\n", __func__, counter, counter->name, counter->pmu_name);
 try_again:
 		if (evsel__open(counter, top->evlist->core.cpus,
 				     top->evlist->core.threads) < 0) {
@@ -1229,6 +1240,8 @@ static int __cmd_top(struct perf_top *top)
 	pthread_t thread, thread_process;
 	int ret;
 
+	fprintf(johnfile, "%s\n", __func__);
+
 	if (!top->annotation_opts.objdump_path) {
 		ret = perf_env__lookup_objdump(&top->session->header.env,
 					       &top->annotation_opts.objdump_path);
@@ -1318,6 +1331,8 @@ static int __cmd_top(struct perf_top *top)
 		goto out_join_thread;
 	}
 
+	fprintf(johnfile, "%s8\n", __func__);
+
 	if (top->realtime_prio) {
 		struct sched_param param;
 
@@ -1335,6 +1350,8 @@ static int __cmd_top(struct perf_top *top)
 
 	while (!done) {
 		u64 hits = top->samples;
+		
+		fprintf(johnfile, "%s9 hits=0x%lx\n", __func__, hits);
 
 		perf_top__mmap_read(top);
 
@@ -1590,7 +1607,7 @@ int cmd_top(int argc, const char **argv)
 
 	top.annotation_opts.min_pcnt = 5;
 	top.annotation_opts.context  = 4;
-
+	pr_err("%s perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
 	top.evlist = evlist__new();
 	if (top.evlist == NULL)
 		return -ENOMEM;
@@ -1603,6 +1620,7 @@ int cmd_top(int argc, const char **argv)
 	 * it here, since we are not getting this from the perf.data header.
 	 */
 	status = perf_env__read_cpuid(&perf_env);
+	pr_err("%s2 perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
 	if (status) {
 		/*
 		 * Some arches do not provide a get_cpuid(), so just use pr_debug, otherwise
@@ -1630,6 +1648,8 @@ int cmd_top(int argc, const char **argv)
 		pr_err("Not enough memory for event selector list\n");
 		goto out_delete_evlist;
 	}
+
+	pr_err("%s3 perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
 
 	status = evswitch__init(&top.evswitch, top.evlist, stderr);
 	if (status)

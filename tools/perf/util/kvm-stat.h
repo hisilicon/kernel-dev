@@ -7,6 +7,7 @@
 #include "tool.h"
 #include "stat.h"
 #include "record.h"
+extern FILE *johnfile;
 
 struct evsel;
 struct evlist;

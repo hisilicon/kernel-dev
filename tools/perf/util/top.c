@@ -19,7 +19,7 @@
 	size_t r = snprintf(buf, size, fmt, ## args); \
 	r > size ?  size : r; \
 })
-
+extern FILE *johnfile;
 size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 {
 	float samples_per_sec;
@@ -36,6 +36,7 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 	} else {
 		samples_per_sec = ksamples_per_sec = esamples_percent = 0.0;
 	}
+	fprintf(johnfile, "%s perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
 
 	if (!perf_guest) {
 		float ksamples_percent = 0.0;

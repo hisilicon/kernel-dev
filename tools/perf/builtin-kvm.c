@@ -47,6 +47,7 @@
 #include <signal.h>
 #include <math.h>
 #include <perf/mmap.h>
+FILE *johnfile;
 
 static const char *get_filename_for_perf_kvm(void)
 {
@@ -1618,7 +1619,10 @@ int cmd_kvm(int argc, const char **argv)
 					PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc)
 		usage_with_options(kvm_usage, kvm_options);
-
+	johnfile = fopen("johnfile", "w");
+	if (!johnfile)
+		exit(0);
+	fprintf(johnfile, "%s perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
 	if (!perf_host)
 		perf_guest = 1;
 
@@ -1630,7 +1634,6 @@ int cmd_kvm(int argc, const char **argv)
 			return -ENOMEM;
 		}
 	}
-
 	if (!strncmp(argv[0], "rec", 3))
 		return __cmd_record(file_name, argc, argv);
 	else if (!strncmp(argv[0], "rep", 3))
