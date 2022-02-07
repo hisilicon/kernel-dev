@@ -878,6 +878,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 	struct evlist *evlist = top->evlist;
 	struct mmap *md;
 	union perf_event *event;
+	int count = 0;
 
 	md = opts->overwrite ? &evlist->overwrite_mmap[idx] : &evlist->mmap[idx];
 	if (perf_mmap__read_init(&md->core) < 0)
@@ -889,7 +890,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 		int ret;
 		
 		fprintf(johnfile, "%s2 event=%p idx=%d\n", __func__, event, idx);
-
+		count++;
 		ret = evlist__parse_sample_timestamp(evlist, event, &last_timestamp);
 		if (ret && ret != -1)
 			break;
@@ -907,6 +908,8 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 			pthread_mutex_unlock(&top->qe.mutex);
 		}
 	}
+
+	fprintf(johnfile, "%s8 idx=%d count=%d\n", __func__, idx, count);
 
 	perf_mmap__read_done(&md->core);
 }

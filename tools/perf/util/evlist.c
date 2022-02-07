@@ -53,7 +53,7 @@
 #include <perf/mmap.h>
 
 #include <internal/xyarray.h>
-
+extern FILE *johnfile;
 #ifdef LACKS_SIGQUEUE_PROTOTYPE
 int sigqueue(pid_t pid, int sig, const union sigval value);
 #endif
@@ -1536,6 +1536,7 @@ int evlist__parse_sample_timestamp(struct evlist *evlist, union perf_event *even
 
 	if (!evsel)
 		return -EFAULT;
+	fprintf(johnfile, "%s event=%p evsel=%p name=%s pmu_name=%s\n", __func__, event, evsel, evsel->name, evsel->pmu_name);
 	return evsel__parse_sample_timestamp(evsel, event, timestamp);
 }
 

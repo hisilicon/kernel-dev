@@ -36,7 +36,7 @@
 #include "arch/common.h"
 #include "units.h"
 #include <internal/lib.h>
-
+extern FILE *johnfile;
 #ifdef HAVE_ZSTD_SUPPORT
 static int perf_session__process_compressed_event(struct perf_session *session,
 						  union perf_event *event, u64 file_offset)
@@ -1392,6 +1392,7 @@ static struct machine *machines__find_for_cpumode(struct machines *machines,
 					       union perf_event *event,
 					       struct perf_sample *sample)
 {
+	fprintf(johnfile, "%s perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
 	if (perf_guest &&
 	    ((sample->cpumode == PERF_RECORD_MISC_GUEST_KERNEL) ||
 	     (sample->cpumode == PERF_RECORD_MISC_GUEST_USER))) {
@@ -1402,6 +1403,8 @@ static struct machine *machines__find_for_cpumode(struct machines *machines,
 			pid = event->mmap.pid;
 		else
 			pid = sample->pid;
+		
+		fprintf(johnfile, "%s2 perf_host=%d perf_guest=%d pid=%d\n", __func__, perf_host, perf_guest, pid);
 
 		return machines__find_guest(machines, pid);
 	}
