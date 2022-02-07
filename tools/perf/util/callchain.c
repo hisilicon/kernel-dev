@@ -32,6 +32,8 @@
 #include "branch.h"
 #include "symbol.h"
 #include "../perf.h"
+	
+extern FILE *johnfile;
 
 #define CALLCHAIN_PARAM_DEFAULT			\
 	.mode		= CHAIN_GRAPH_ABS,	\
@@ -1111,6 +1113,8 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 	al->sym = node->ms.sym;
 	al->srcline = node->srcline;
 	al->addr = node->ip;
+
+	fprintf(johnfile, "%s perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
 
 	if (al->sym == NULL) {
 		if (hide_unresolved)

@@ -87,6 +87,7 @@
 #include <linux/ctype.h>
 #include <perf/mmap.h>
 
+
 static volatile int done;
 static volatile int resize;
 extern FILE *johnfile;
@@ -750,6 +751,8 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	struct addr_location al;
 	int err;
 
+	fprintf(johnfile, "%s perf_host=%d perf_guest=%d machine=%p\n", __func__, perf_host, perf_guest, machine);
+
 	if (!machine && perf_guest) {
 		static struct intlist *seen;
 
@@ -1155,6 +1158,9 @@ static int deliver_event(struct ordered_events *qe,
 	struct machine *machine;
 	int ret = -1;
 
+	fprintf(johnfile, "%s perf_host=%d perf_guest=%d qe=%p qevent=%p\n",
+		__func__, perf_host, perf_guest, qe, qevent);
+
 	if (should_drop(qevent, top)) {
 		top->drop++;
 		top->drop_total++;
@@ -1176,25 +1182,36 @@ static int deliver_event(struct ordered_events *qe,
 		++top->samples;
 	}
 
+	fprintf(johnfile, "%s2 perf_host=%d perf_guest=%d machine=%p qe=%p qevent=%p sample.cpumode=%d\n",
+		__func__, perf_host, perf_guest, machine, qe, qevent, sample.cpumode);
+
 	switch (sample.cpumode) {
 	case PERF_RECORD_MISC_USER:
 		++top->us_samples;
 		if (top->hide_user_symbols)
 			goto next_event;
 		machine = &session->machines.host;
+		fprintf(johnfile, "%s3 perf_host=%d perf_guest=%d machine=%p qe=%p qevent=%p sample.cpumode=%d PERF_RECORD_MISC_USER\n",
+			__func__, perf_host, perf_guest, machine, qe, qevent, sample.cpumode);
 		break;
 	case PERF_RECORD_MISC_KERNEL:
 		++top->kernel_samples;
 		if (top->hide_kernel_symbols)
 			goto next_event;
 		machine = &session->machines.host;
+		fprintf(johnfile, "%s4 perf_host=%d perf_guest=%d machine=%p qe=%p qevent=%p sample.cpumode=%d PERF_RECORD_MISC_KERNEL\n",
+			__func__, perf_host, perf_guest, machine, qe, qevent, sample.cpumode);
 		break;
 	case PERF_RECORD_MISC_GUEST_KERNEL:
+		fprintf(johnfile, "%s5 perf_host=%d perf_guest=%d machine=%p qe=%p qevent=%p sample.cpumode=%d PERF_RECORD_MISC_GUEST_KERNEL\n",
+			__func__, perf_host, perf_guest, machine, qe, qevent, sample.cpumode);
 		++top->guest_kernel_samples;
 		machine = perf_session__find_machine(session,
 						     sample.pid);
 		break;
 	case PERF_RECORD_MISC_GUEST_USER:
+		fprintf(johnfile, "%s6 perf_host=%d perf_guest=%d machine=%p qe=%p qevent=%p sample.cpumode=%d PERF_RECORD_MISC_GUEST_USER\n",
+			__func__, perf_host, perf_guest, machine, qe, qevent, sample.cpumode);
 		++top->guest_us_samples;
 		/*
 		 * TODO: we don't process guest user from host side
