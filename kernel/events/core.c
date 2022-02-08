@@ -6534,8 +6534,11 @@ DEFINE_STATIC_CALL_RET0(__perf_guest_handle_intel_pt_intr, *perf_guest_cbs->hand
 
 void perf_register_guest_info_callbacks(struct perf_guest_info_callbacks *cbs)
 {
+	pr_err("%s cbs=%pS\n", __func__, cbs);
 	if (WARN_ON_ONCE(rcu_access_pointer(perf_guest_cbs)))
 		return;
+
+	pr_err("%s cbs=%pS cbs->state=%pS get_ip=%pS\n", __func__, cbs, cbs->state, cbs->get_ip);
 
 	rcu_assign_pointer(perf_guest_cbs, cbs);
 	static_call_update(__perf_guest_state, cbs->state);
