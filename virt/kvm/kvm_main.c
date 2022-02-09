@@ -5608,7 +5608,7 @@ static unsigned int kvm_guest_state(void)
 	struct kvm_vcpu *vcpu = kvm_get_running_vcpu();
 	unsigned int state;
 	if (vcpu)
-		pr_err("%s vcpu=%pS kvm_arch_pmi_in_guest=%d kvm_arch_vcpu_in_kernel=%d\n",
+		pr_err_once("%s vcpu=%pS kvm_arch_pmi_in_guest=%d kvm_arch_vcpu_in_kernel=%d\n",
 			__func__, vcpu, kvm_arch_pmi_in_guest(vcpu), kvm_arch_vcpu_in_kernel(vcpu));
 //	else
 //		pr_err("%s vcpu=%pS\n", __func__, vcpu);
