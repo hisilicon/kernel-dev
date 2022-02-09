@@ -30,6 +30,8 @@
 #include <linux/zalloc.h>
 #include <linux/ctype.h>
 
+extern FILE *johnfile;
+
 #define MAXNAME (256)
 
 #define DEBUG_CACHE_DIR ".debug"
@@ -793,12 +795,15 @@ int perf_config_set(struct perf_config_set *set,
 	struct perf_config_section *section;
 	struct perf_config_item *item;
 
+	fprintf(johnfile, "%s\n", __func__);
+
 	perf_config_set__for_each_entry(set, section, item) {
 		char *value = item->value;
 
 		if (value) {
 			scnprintf(key, sizeof(key), "%s.%s",
 				  section->name, item->name);
+			fprintf(johnfile, "%s2 key=%s\n", __func__, key);
 			ret = fn(key, value, data);
 			if (ret < 0) {
 				pr_err("Error in the given config file: wrong config key-value pair %s=%s\n",
@@ -817,6 +822,7 @@ out:
 
 int perf_config(config_fn_t fn, void *data)
 {
+	fprintf(johnfile, "%s\n", __func__);
 	if (config_set == NULL && perf_config__init())
 		return -1;
 
