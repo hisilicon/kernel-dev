@@ -1639,8 +1639,23 @@ int cmd_top(int argc, const char **argv)
 	 * Since the per arch annotation init routine may need the cpuid, read
 	 * it here, since we are not getting this from the perf.data header.
 	 */
+#ifdef dsddsd
+	struct perf_env {
+		char			*hostname;
+		char			*os_release;
+		char			*version;
+		char			*arch;
+		int 		nr_cpus_online;
+		int 		nr_cpus_avail;
+		char			*cpu_desc;
+		char			*cpuid;
+		unsigned long long	total_mem;
+		unsigned int		msr_pmu_type;
+		unsigned int		max_branches;
+		int 		kernel_is_64_bit;
+#endif
+	
 	status = perf_env__read_cpuid(&perf_env);
-	fprintf(johnfile, "%s2 perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
 	if (status) {
 		/*
 		 * Some arches do not provide a get_cpuid(), so just use pr_debug, otherwise
@@ -1650,6 +1665,8 @@ int cmd_top(int argc, const char **argv)
 			"Couldn't read the cpuid for this machine: %s\n",
 			str_error_r(errno, errbuf, sizeof(errbuf)));
 	}
+	fprintf(johnfile, "%s2 perf_host=%d perf_guest=%d perf_env hostname=%s arch=%s cpuid=%s\n",
+	__func__, perf_host, perf_guest, perf_env.hostname, perf_env.arch, perf_env.cpuid);
 	top.evlist->env = &perf_env;
 
 	argc = parse_options(argc, argv, options, top_usage, 0);
