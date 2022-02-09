@@ -162,21 +162,24 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
 	unsigned int guest_state = perf_guest_state();
 	int misc = 0;
 
-	pr_err("%s guest_state=%d\n", __func__, guest_state);
-
 	if (guest_state) {
-		if (guest_state & PERF_GUEST_USER)
+		if (guest_state & PERF_GUEST_USER) {
 			misc |= PERF_RECORD_MISC_GUEST_USER;
-		else
+			pr_err_once("%s1 guest_state=%d misc=%d PERF_RECORD_MISC_GUEST_USER\n", __func__, guest_state, misc);
+		} else {
 			misc |= PERF_RECORD_MISC_GUEST_KERNEL;
+			pr_err_once("%s2 guest_state=%d misc=%d PERF_RECORD_MISC_GUEST_KERNEL\n", __func__, guest_state, misc);
+		}
 	} else {
-		if (user_mode(regs))
+		if (user_mode(regs)) {
 			misc |= PERF_RECORD_MISC_USER;
-		else
+			pr_err_once("%s3 guest_state=%d misc=%d PERF_RECORD_MISC_USER\n", __func__, guest_state, misc);
+		} else {
 			misc |= PERF_RECORD_MISC_KERNEL;
+			pr_err_once("%s4 guest_state=%d misc=%d PERF_RECORD_MISC_KERNEL\n", __func__, guest_state, misc);
+		}
 	}
 
-	pr_err("%s2 guest_state=%d misc=%d\n", __func__, guest_state, misc);
 
 	return misc;
 }
