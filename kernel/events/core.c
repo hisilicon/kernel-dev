@@ -6183,6 +6183,8 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	long user_extra = 0, extra = 0;
 	int ret = 0, flags = 0;
 
+	pr_err("%s file=%pS vma=%pS\n", __func__, file, vma);
+
 	/*
 	 * Don't allow mmap() of inherited per-task counters. This would
 	 * create a performance issue due to all children writing to the
