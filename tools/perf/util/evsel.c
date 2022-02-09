@@ -1989,7 +1989,7 @@ static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
 	int idx, thread, nthreads;
 	int pid = -1, err, old_errno;
 	enum rlimit_action set_rlimit = NO_CHANGE;
-	fprintf(johnfile, "%s\n", __func__);
+	fprintf(johnfile, "%s evsel=%p\n", __func__, evsel);
 
 	err = __evsel__prepare_open(evsel, cpus, threads);
 	if (err)

@@ -892,7 +892,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 	while ((event = perf_mmap__read_event(&md->core)) != NULL) {
 		int ret;
 		
-		fprintf(johnfile, "%s2 event=%p idx=%d\n", __func__, event, idx);
+		fprintf(johnfile, "%s2 event=%p idx=%d count=%d\n", __func__, event, idx, count);
 		count++;
 		ret = evlist__parse_sample_timestamp(evlist, event, &last_timestamp);
 		if (ret && ret != -1)
@@ -1042,7 +1042,7 @@ static int perf_top__start_counters(struct perf_top *top)
 	evlist__config(evlist, opts, &callchain_param);
 
 	evlist__for_each_entry(evlist, counter) {
-		fprintf(johnfile, "%s counter=%p name=%s pmu_name=%s\n", __func__, counter, counter->name, counter->pmu_name);
+		fprintf(johnfile, "%s2 counter=%p name=%s pmu_name=%s\n", __func__, counter, counter->name, counter->pmu_name);
 try_again:
 		if (evsel__open(counter, top->evlist->core.cpus,
 				     top->evlist->core.threads) < 0) {
@@ -1116,6 +1116,8 @@ static struct ordered_events *rotate_queues(struct perf_top *top)
 static void *process_thread(void *arg)
 {
 	struct perf_top *top = arg;
+
+	fprintf(johnfile, "%s\n", __func__);
 
 	while (!done) {
 		struct ordered_events *out, *in = top->qe.in;
@@ -1337,6 +1339,8 @@ static int __cmd_top(struct perf_top *top)
 	top->session->evlist = top->evlist;
 	perf_session__set_id_hdr_size(top->session);
 
+	fprintf(johnfile, "%s4 top->session->evlist = top->evlist=%p\n", __func__, top->session->evlist);
+
 	/*
 	 * When perf is starting the traced process, all the events (apart from
 	 * group members) have enable_on_exec=1 set, so don't spoil it by
@@ -1380,7 +1384,7 @@ static int __cmd_top(struct perf_top *top)
 	while (!done) {
 		u64 hits = top->samples;
 		
-		fprintf(johnfile, "%s9 hits=0x%lx\n", __func__, hits);
+		fprintf(johnfile, "%s9 hits=%ld\n", __func__, hits);
 
 		perf_top__mmap_read(top);
 

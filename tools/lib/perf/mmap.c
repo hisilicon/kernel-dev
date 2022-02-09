@@ -15,7 +15,7 @@
 #include <linux/math64.h>
 #include <linux/stringify.h>
 #include "internal.h"
-
+extern FILE *johnfile;
 void perf_mmap__init(struct perf_mmap *map, struct perf_mmap *prev,
 		     bool overwrite, libperf_unmap_cb_t unmap_cb)
 {
@@ -258,6 +258,8 @@ static union perf_event *perf_mmap__read(struct perf_mmap *map,
 union perf_event *perf_mmap__read_event(struct perf_mmap *map)
 {
 	union perf_event *event;
+	struct perf_event_header *header;
+	static unsigned long count;
 
 	/*
 	 * Check if event was unmapped due to a POLLHUP/POLLERR.
@@ -270,6 +272,15 @@ union perf_event *perf_mmap__read_event(struct perf_mmap *map)
 		map->end = perf_mmap__read_head(map);
 
 	event = perf_mmap__read(map, &map->start, map->end);
+	if (event) {
+		header = &event->header;
+		count++;
+	
+		if ((count % 1000) == 0) {
+			fprintf(johnfile, "%s event=%p type=0x%x\n", __func__, event, header->type);
+		}
+
+	}
 
 	if (!map->overwrite)
 		map->prev = map->start;

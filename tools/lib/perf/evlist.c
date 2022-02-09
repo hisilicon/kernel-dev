@@ -23,7 +23,7 @@
 #include <perf/cpumap.h>
 #include <perf/threadmap.h>
 #include <api/fd/array.h>
-
+extern FILE *johnfile;
 void perf_evlist__init(struct perf_evlist *evlist)
 {
 	INIT_LIST_HEAD(&evlist->entries);
@@ -430,10 +430,14 @@ mmap_per_evsel(struct perf_evlist *evlist, struct perf_evlist_mmap_ops *ops,
 	struct perf_evsel *evsel;
 	int revent;
 
+	fprintf(johnfile, "%s evlist=%p\n", __func__, evlist);
+
 	perf_evlist__for_each_entry(evlist, evsel) {
 		bool overwrite = evsel->attr.write_backward;
 		struct perf_mmap *map;
 		int *output, fd, cpu;
+
+		fprintf(johnfile, "%s2 evlist=%p evsel=%p\n", __func__, evlist, evsel);
 
 		if (evsel->system_wide && thread)
 			continue;
@@ -512,6 +516,8 @@ mmap_per_thread(struct perf_evlist *evlist, struct perf_evlist_mmap_ops *ops,
 	int thread;
 	int nr_threads = perf_thread_map__nr(evlist->threads);
 
+	fprintf(johnfile, "%s evlist=%p\n", __func__, evlist);
+
 	for (thread = 0; thread < nr_threads; thread++) {
 		int output = -1;
 		int output_overwrite = -1;
@@ -538,6 +544,8 @@ mmap_per_cpu(struct perf_evlist *evlist, struct perf_evlist_mmap_ops *ops,
 	int nr_threads = perf_thread_map__nr(evlist->threads);
 	int nr_cpus    = perf_cpu_map__nr(evlist->cpus);
 	int cpu, thread;
+
+	fprintf(johnfile, "%s evlist=%p\n", __func__, evlist);
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
 		int output = -1;
@@ -578,6 +586,7 @@ int perf_evlist__mmap_ops(struct perf_evlist *evlist,
 	struct perf_evsel *evsel;
 	const struct perf_cpu_map *cpus = evlist->cpus;
 	const struct perf_thread_map *threads = evlist->threads;
+	fprintf(johnfile, "%s evlist=%p\n", __func__, evlist);
 
 	if (!ops || !ops->get || !ops->mmap)
 		return -EINVAL;
@@ -587,6 +596,7 @@ int perf_evlist__mmap_ops(struct perf_evlist *evlist,
 	evlist->nr_mmaps = perf_evlist__nr_mmaps(evlist);
 
 	perf_evlist__for_each_entry(evlist, evsel) {
+		fprintf(johnfile, "%s2 evlist=%p evsel=%p\n", __func__, evlist, evsel);
 		if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
 		    evsel->sample_id == NULL &&
 		    perf_evsel__alloc_id(evsel, perf_cpu_map__nr(cpus), threads->nr) < 0)
