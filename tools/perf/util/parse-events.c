@@ -40,6 +40,7 @@
 #include "perf.h"
 
 #define MAX_NAME_LEN 100
+extern FILE *johnfile;
 
 #ifdef PARSER_DEBUG
 extern int parse_events_debug;
@@ -2813,6 +2814,7 @@ static bool is_event_supported(u8 type, u64 config)
 		.disabled = 1,
 	};
 	struct perf_thread_map *tmap = thread_map__new_by_tid(0);
+	fprintf(johnfile, "%s\n", __func__);
 
 	if (tmap == NULL)
 		return false;

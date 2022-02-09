@@ -1027,8 +1027,11 @@ static int perf_top__start_counters(struct perf_top *top)
 	struct evsel *counter;
 	struct evlist *evlist = top->evlist;
 	struct record_opts *opts = &top->record_opts;
+	int counter_count = 0;
+	evlist__for_each_entry(evlist, counter)
+		counter_count++;
 
-	fprintf(johnfile, "%s evlist=%p\n", __func__, evlist);
+	fprintf(johnfile, "%s evlist=%p counter_count=%d\n", __func__, evlist, counter_count);
 
 	if (perf_top__overwrite_check(top)) {
 		ui__error("perf top only support consistent per-event "
@@ -1076,7 +1079,11 @@ try_again:
 		goto out_err;
 	}
 
+	fprintf(johnfile, "%s10 evlist=%p counter_count=%d\n", __func__, evlist, counter_count);
+
 	return 0;
+
+	fprintf(johnfile, "%s11 evlist=%p counter_count=%d out err\n", __func__, evlist, counter_count);
 
 out_err:
 	return -1;
@@ -1246,6 +1253,7 @@ next_event:
 
 static void init_process_thread(struct perf_top *top)
 {
+	fprintf(johnfile, "%s\n", __func__);
 	ordered_events__init(&top->qe.data[0], deliver_event, top);
 	ordered_events__init(&top->qe.data[1], deliver_event, top);
 	ordered_events__set_copy_on_queue(&top->qe.data[0], true);
@@ -1261,7 +1269,7 @@ static int __cmd_top(struct perf_top *top)
 	pthread_t thread, thread_process;
 	int ret;
 
-	fprintf(johnfile, "%s\n", __func__);
+	fprintf(johnfile, "%s objdump_path=%p\n", __func__, top->annotation_opts.objdump_path);
 
 	if (!top->annotation_opts.objdump_path) {
 		ret = perf_env__lookup_objdump(&top->session->header.env,

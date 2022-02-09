@@ -22,7 +22,7 @@
 #include "cap.h"
 #include "strlist.h"
 #include "string2.h"
-
+extern FILE *johnfile;
 /*
  * XXX We need to find a better place for these things...
  */
@@ -36,6 +36,7 @@ void perf_set_singlethreaded(void)
 
 void perf_set_multithreaded(void)
 {
+	fprintf(johnfile, "%s\n", __func__);
 	perf_singlethreaded = false;
 }
 

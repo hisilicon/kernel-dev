@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include <sched.h>
 #include <stdbool.h>
+extern FILE *johnfile;
 
 int evlist__add_sb_event(struct evlist *evlist, struct perf_event_attr *attr,
 			 evsel__sb_cb_t cb, void *data)
@@ -97,6 +98,7 @@ void evlist__set_cb(struct evlist *evlist, evsel__sb_cb_t cb, void *data)
 int evlist__start_sb_thread(struct evlist *evlist, struct target *target)
 {
 	struct evsel *counter;
+	fprintf(johnfile, "%s evlist=%p\n", __func__, evlist);
 
 	if (!evlist)
 		return 0;

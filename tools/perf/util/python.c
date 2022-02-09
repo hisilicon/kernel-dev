@@ -20,7 +20,7 @@
 #include "util/env.h"
 #include <internal/lib.h>
 #include "util.h"
-
+extern FILE *johnfile;
 #if PY_MAJOR_VERSION < 3
 #define _PyUnicode_FromString(arg) \
   PyString_FromString(arg)
@@ -874,6 +874,7 @@ static PyObject *pyrf_evsel__open(struct pyrf_evsel *pevsel,
 	PyObject *pcpus = NULL, *pthreads = NULL;
 	int group = 0, inherit = 0;
 	static char *kwlist[] = { "cpus", "threads", "group", "inherit", NULL };
+	fprintf(johnfile, "%s\n", __func__);
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOii", kwlist,
 					 &pcpus, &pthreads, &group, &inherit))

@@ -54,7 +54,7 @@
 #include <internal/lib.h>
 
 #include <linux/ctype.h>
-
+extern FILE *johnfile;
 struct perf_missing_features perf_missing_features;
 
 static clockid_t clockid;
@@ -1989,6 +1989,7 @@ static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
 	int idx, thread, nthreads;
 	int pid = -1, err, old_errno;
 	enum rlimit_action set_rlimit = NO_CHANGE;
+	fprintf(johnfile, "%s\n", __func__);
 
 	err = __evsel__prepare_open(evsel, cpus, threads);
 	if (err)
@@ -2028,12 +2029,13 @@ retry_open:
 
 			test_attr__ready();
 
-			pr_debug2_peo("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
-				pid, perf_cpu_map__cpu(cpus, idx).cpu, group_fd, evsel->open_flags);
 
 			fd = sys_perf_event_open(&evsel->core.attr, pid,
 						perf_cpu_map__cpu(cpus, idx).cpu,
 						group_fd, evsel->open_flags);
+
+			fprintf(johnfile, "sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx fd=%d\n",
+				pid, perf_cpu_map__cpu(cpus, idx).cpu, group_fd, evsel->open_flags, fd);
 
 			FD(evsel, idx, thread) = fd;
 
@@ -2084,6 +2086,8 @@ retry_open:
 		}
 	}
 
+	fprintf(johnfile, "%s10 out\n", __func__);
+
 	return 0;
 
 try_fallback:
@@ -2125,12 +2129,15 @@ out_close:
 		thread = nthreads;
 	} while (--idx >= 0);
 	errno = old_errno;
+	fprintf(johnfile, "%s11 out err=%d\n", __func__, err);
 	return err;
 }
 
 int evsel__open(struct evsel *evsel, struct perf_cpu_map *cpus,
 		struct perf_thread_map *threads)
 {
+	fprintf(johnfile, "%s evsel=%p\n", __func__, evsel);
+
 	return evsel__open_cpu(evsel, cpus, threads, 0, perf_cpu_map__nr(cpus));
 }
 
@@ -2142,6 +2149,8 @@ void evsel__close(struct evsel *evsel)
 
 int evsel__open_per_cpu(struct evsel *evsel, struct perf_cpu_map *cpus, int cpu_map_idx)
 {
+	fprintf(johnfile, "%s cpu_map_idx=%d evsel=%p\n", __func__, cpu_map_idx, evsel);
+
 	if (cpu_map_idx == -1)
 		return evsel__open_cpu(evsel, cpus, NULL, 0, perf_cpu_map__nr(cpus));
 
@@ -2150,6 +2159,7 @@ int evsel__open_per_cpu(struct evsel *evsel, struct perf_cpu_map *cpus, int cpu_
 
 int evsel__open_per_thread(struct evsel *evsel, struct perf_thread_map *threads)
 {
+	fprintf(johnfile, "%s evsel=%p\n", __func__, evsel);
 	return evsel__open(evsel, NULL, threads);
 }
 

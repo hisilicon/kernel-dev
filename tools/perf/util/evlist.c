@@ -1357,6 +1357,8 @@ int evlist__open(struct evlist *evlist)
 	struct evsel *evsel;
 	int err;
 
+	fprintf(johnfile, "%s\n", __func__);
+
 	/*
 	 * Default: one fd per CPU, all threads, aka systemwide
 	 * as sys_perf_event_open(cpu = -1, thread = -1) is EINVAL
