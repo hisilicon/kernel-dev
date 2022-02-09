@@ -810,7 +810,7 @@ static void armv8pmu_start(struct arm_pmu *cpu_pmu)
 
 	pr_err_once("%s cpu_pmu=%pS cpu%d sysctl_perf_user_access=%d task_ctx=%pS nr_user=%d\n",
 		__func__, cpu_pmu, smp_processor_id(), sysctl_perf_user_access, task_ctx, task_ctx ? task_ctx->nr_user : -1);
-	WARN_ON_ONCE(smp_processor_id() == 62);
+//	WARN_ON_ONCE(smp_processor_id() == 62);
 
 	if (sysctl_perf_user_access && task_ctx && task_ctx->nr_user)
 		armv8pmu_enable_user_access(cpu_pmu);
