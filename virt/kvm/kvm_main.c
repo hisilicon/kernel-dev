@@ -5610,8 +5610,8 @@ static unsigned int kvm_guest_state(void)
 	if (vcpu)
 		pr_err("%s vcpu=%pS kvm_arch_pmi_in_guest=%d kvm_arch_vcpu_in_kernel=%d\n",
 			__func__, vcpu, kvm_arch_pmi_in_guest(vcpu), kvm_arch_vcpu_in_kernel(vcpu));
-	else
-		pr_err("%s vcpu=%pS\n", __func__, vcpu);
+//	else
+//		pr_err("%s vcpu=%pS\n", __func__, vcpu);
 	if (!kvm_arch_pmi_in_guest(vcpu))
 		return 0;
 
