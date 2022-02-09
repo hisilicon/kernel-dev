@@ -1627,7 +1627,7 @@ int cmd_top(int argc, const char **argv)
 
 	top.annotation_opts.min_pcnt = 5;
 	top.annotation_opts.context  = 4;
-	pr_err("%s perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
+	fprintf(johnfile, "%s perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
 	top.evlist = evlist__new();
 	if (top.evlist == NULL)
 		return -ENOMEM;
@@ -1640,7 +1640,7 @@ int cmd_top(int argc, const char **argv)
 	 * it here, since we are not getting this from the perf.data header.
 	 */
 	status = perf_env__read_cpuid(&perf_env);
-	pr_err("%s2 perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
+	fprintf(johnfile, "%s2 perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
 	if (status) {
 		/*
 		 * Some arches do not provide a get_cpuid(), so just use pr_debug, otherwise
@@ -1669,7 +1669,7 @@ int cmd_top(int argc, const char **argv)
 		goto out_delete_evlist;
 	}
 
-	pr_err("%s3 perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
+	fprintf(johnfile, "%s3 perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
 
 	status = evswitch__init(&top.evswitch, top.evlist, stderr);
 	if (status)
