@@ -935,6 +935,7 @@ static void perf_top__mmap_read(struct perf_top *top)
 		evlist__toggle_bkw_mmap(evlist, BKW_MMAP_EMPTY);
 		evlist__toggle_bkw_mmap(evlist, BKW_MMAP_RUNNING);
 	}
+	fprintf(johnfile, "%s10 out top->evlist->core.nr_mmaps=%d\n", __func__, top->evlist->core.nr_mmaps);
 }
 
 /*
@@ -1399,7 +1400,7 @@ callchain_opt(const struct option *opt, const char *arg, int unset)
 	symbol_conf.use_callchain = true;
 	return record_callchain_opt(opt, arg, unset);
 }
-
+extern int setup_johnfile(void);
 static int
 parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 {
@@ -1627,6 +1628,8 @@ int cmd_top(int argc, const char **argv)
 
 	top.annotation_opts.min_pcnt = 5;
 	top.annotation_opts.context  = 4;
+	setup_johnfile();
+	
 	fprintf(johnfile, "%s perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
 	top.evlist = evlist__new();
 	if (top.evlist == NULL)
