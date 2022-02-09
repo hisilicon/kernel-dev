@@ -786,7 +786,7 @@ static int perf_config__init(void)
 
 	return config_set == NULL;
 }
-
+extern int setup_johnfile(void);
 int perf_config_set(struct perf_config_set *set,
 		    config_fn_t fn, void *data)
 {
@@ -822,6 +822,7 @@ out:
 
 int perf_config(config_fn_t fn, void *data)
 {
+	setup_johnfile();
 	fprintf(johnfile, "%s\n", __func__);
 	if (config_set == NULL && perf_config__init())
 		return -1;

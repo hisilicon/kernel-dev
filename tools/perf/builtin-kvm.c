@@ -1581,7 +1581,17 @@ __cmd_buildid_list(const char *file_name, int argc, const char **argv)
 
 	return cmd_buildid_list(i, rec_argv);
 }
+int setup_johnfile(void);
+int setup_johnfile(void)
+{
+	if (johnfile)
+		return 0;
 
+	johnfile = fopen("johnfile", "w");
+	if (!johnfile)
+		exit(0);
+	return 0;
+}
 int cmd_kvm(int argc, const char **argv)
 {
 	const char *file_name = NULL;
@@ -1619,9 +1629,7 @@ int cmd_kvm(int argc, const char **argv)
 					PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc)
 		usage_with_options(kvm_usage, kvm_options);
-	johnfile = fopen("johnfile", "w");
-	if (!johnfile)
-		exit(0);
+	setup_johnfile();
 	fprintf(johnfile, "%s perf_host=%d perf_guest=%d\n", __func__, perf_host, perf_guest);
 	if (!perf_host)
 		perf_guest = 1;
