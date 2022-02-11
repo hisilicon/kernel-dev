@@ -478,7 +478,6 @@ void hisi_qm_put_dfx_access(struct hisi_qm *qm);
 void hisi_qm_regs_dump(struct seq_file *s, struct debugfs_regset32 *regset);
 
 /* Used by VFIO ACC live migration driver */
-struct hisi_qm *hisi_qm_get_pf_qm(struct pci_dev *pdev);
 struct pci_driver *hisi_sec_get_pf_driver(void);
 struct pci_driver *hisi_hpre_get_pf_driver(void);
 struct pci_driver *hisi_zip_get_pf_driver(void);

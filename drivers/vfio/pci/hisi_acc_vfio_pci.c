@@ -933,6 +933,36 @@ hisi_acc_vfio_pci_get_device_state(struct vfio_device *vdev,
 	return 0;
 }
 
+static struct hisi_qm *hisi_acc_get_pf_qm(struct pci_dev *pdev)
+{
+	struct hisi_qm	*pf_qm;
+	struct pci_driver *pf_driver;
+
+	if (!pdev->is_virtfn)
+		return NULL;
+
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_HUAWEI_SEC_VF:
+		pf_driver = hisi_sec_get_pf_driver();
+		break;
+	case PCI_DEVICE_ID_HUAWEI_HPRE_VF:
+		pf_driver = hisi_hpre_get_pf_driver();
+		break;
+	case PCI_DEVICE_ID_HUAWEI_ZIP_VF:
+		pf_driver = hisi_zip_get_pf_driver();
+		break;
+	default:
+		return NULL;
+	}
+
+	if (!pf_driver)
+		return NULL;
+
+	pf_qm = pci_iov_get_pf_drvdata(pdev, pf_driver);
+
+	return !IS_ERR(pf_qm) ? pf_qm : NULL;
+}
+
 static int hisi_acc_vf_qm_init(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 {
 	struct vfio_pci_core_device *vdev = &hisi_acc_vdev->core_device;
@@ -1170,7 +1200,7 @@ static int hisi_acc_vfio_pci_probe(struct pci_dev *pdev, const struct pci_device
 	vfio_pci_core_init_device(&hisi_acc_vdev->core_device, pdev,
 				  &hisi_acc_vfio_pci_ops);
 
-	pf_qm = hisi_qm_get_pf_qm(pdev);
+	pf_qm = hisi_acc_get_pf_qm(pdev);
 	if (pf_qm && pf_qm->ver >= QM_HW_V3) {
 		int vf_id;
 
