@@ -933,11 +933,11 @@ hisi_acc_vfio_pci_get_device_state(struct vfio_device *vdev,
 	return 0;
 }
 
-static int hisi_acc_vfio_pci_init(struct hisi_acc_vf_core_device *hisi_acc_vdev)
+static int hisi_acc_vf_qm_init(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 {
 	struct vfio_pci_core_device *vdev = &hisi_acc_vdev->core_device;
-	struct pci_dev *vf_dev = vdev->pdev;
 	struct hisi_qm *vf_qm = &hisi_acc_vdev->vf_qm;
+	struct pci_dev *vf_dev = vdev->pdev;
 
 	/*
 	 * ACC VF dev BAR2 region consists of both functional register space
@@ -951,6 +951,7 @@ static int hisi_acc_vfio_pci_init(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 	 * HiSilicon hardware platforms are integrated end point devices
 	 * and has no capability to perform PCIe P2P.
 	 */
+
 	vf_qm->io_base =
 		ioremap(pci_resource_start(vf_dev, VFIO_PCI_BAR2_REGION_INDEX),
 			pci_resource_len(vf_dev, VFIO_PCI_BAR2_REGION_INDEX));
@@ -959,13 +960,8 @@ static int hisi_acc_vfio_pci_init(struct hisi_acc_vf_core_device *hisi_acc_vdev)
 
 	vf_qm->fun_type = QM_HW_VF;
 	vf_qm->pdev = vf_dev;
-	mutex_init(&vf_qm->mailbox_lock);
-
-	hisi_acc_vdev->vf_id = PCI_FUNC(vf_dev->devfn);
-	hisi_acc_vdev->vf_dev = vf_dev;
 	vf_qm->dev_name = hisi_acc_vdev->pf_qm->dev_name;
-
-	hisi_acc_vdev->mig_state = VFIO_DEVICE_STATE_RUNNING;
+	mutex_init(&vf_qm->mailbox_lock);
 
 	return 0;
 }
@@ -1113,6 +1109,7 @@ static int hisi_acc_vfio_pci_open_device(struct vfio_device *core_vdev)
 	struct hisi_acc_vf_core_device *hisi_acc_vdev = container_of(core_vdev,
 			struct hisi_acc_vf_core_device, core_device.vdev);
 	struct vfio_pci_core_device *vdev = &hisi_acc_vdev->core_device;
+	struct pci_dev *vf_dev = vdev->pdev;
 	int ret;
 
 	ret = vfio_pci_core_enable(vdev);
@@ -1124,11 +1121,16 @@ static int hisi_acc_vfio_pci_open_device(struct vfio_device *core_vdev)
 		return 0;
 	}
 
-	ret = hisi_acc_vfio_pci_init(hisi_acc_vdev);
+	ret = hisi_acc_vf_qm_init(hisi_acc_vdev);
 	if (ret) {
 		vfio_pci_core_disable(vdev);
 		return ret;
 	}
+
+	hisi_acc_vdev->vf_id = PCI_FUNC(vf_dev->devfn);
+	hisi_acc_vdev->vf_dev = vf_dev;
+	hisi_acc_vdev->mig_state = VFIO_DEVICE_STATE_RUNNING;
+
 	vfio_pci_core_finish_enable(vdev);
 	return 0;
 }
