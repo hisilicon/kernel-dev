@@ -1109,7 +1109,6 @@ static int hisi_acc_vfio_pci_open_device(struct vfio_device *core_vdev)
 	struct hisi_acc_vf_core_device *hisi_acc_vdev = container_of(core_vdev,
 			struct hisi_acc_vf_core_device, core_device.vdev);
 	struct vfio_pci_core_device *vdev = &hisi_acc_vdev->core_device;
-	struct pci_dev *vf_dev = vdev->pdev;
 	int ret;
 
 	ret = vfio_pci_core_enable(vdev);
@@ -1127,8 +1126,6 @@ static int hisi_acc_vfio_pci_open_device(struct vfio_device *core_vdev)
 		return ret;
 	}
 
-	hisi_acc_vdev->vf_id = PCI_FUNC(vf_dev->devfn);
-	hisi_acc_vdev->vf_dev = vf_dev;
 	hisi_acc_vdev->mig_state = VFIO_DEVICE_STATE_RUNNING;
 
 	vfio_pci_core_finish_enable(vdev);
@@ -1175,10 +1172,20 @@ static int hisi_acc_vfio_pci_probe(struct pci_dev *pdev, const struct pci_device
 
 	pf_qm = hisi_qm_get_pf_qm(pdev);
 	if (pf_qm && pf_qm->ver >= QM_HW_V3) {
+		int vf_id;
+
+		vf_id = pci_iov_vf_id(pdev);
+		if (vf_id < 0) {
+			ret = vf_id;
+			goto out_free;
+		}
+
+		hisi_acc_vdev->vf_id = vf_id + 1;
 		hisi_acc_vdev->migration_support = 1;
 		hisi_acc_vdev->core_device.vdev.migration_flags =
 			VFIO_MIGRATION_STOP_COPY;
 		hisi_acc_vdev->pf_qm = pf_qm;
+		hisi_acc_vdev->vf_dev = pdev;
 		mutex_init(&hisi_acc_vdev->state_mutex);
 	}
 
