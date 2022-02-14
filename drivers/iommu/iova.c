@@ -706,12 +706,20 @@ static void iova_magazine_push(struct iova_magazine *mag, unsigned long pfn)
 	mag->pfns[mag->size++] = pfn;
 }
 
-int iova_domain_init_rcaches(struct iova_domain *iovad)
+static unsigned long iova_len_to_rcache_max(unsigned long iova_len)
+{
+	return order_base_2(iova_len) + 1;
+}
+
+int iova_domain_init_rcaches(struct iova_domain *iovad, unsigned long iova_len)
 {
 	unsigned int cpu;
 	int i, ret;
 
-	iovad->rcache_max_size = 6; /* Arbitrarily high default */
+	if (iova_len)
+		iovad->rcache_max_size = iova_len_to_rcache_max(iova_len);
+	else
+		iovad->rcache_max_size = 6; /* Arbitrarily high default */
 
 	iovad->rcaches = kcalloc(iovad->rcache_max_size,
 				 sizeof(struct iova_rcache),
@@ -755,7 +763,12 @@ out_err:
 	free_iova_rcaches(iovad);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(iova_domain_init_rcaches);
+
+int iova_domain_init_rcaches_default(struct iova_domain *iovad)
+{
+	return iova_domain_init_rcaches(iovad, 0);
+}
+EXPORT_SYMBOL_GPL(iova_domain_init_rcaches_default);
 
 /*
  * Try inserting IOVA range starting with 'iova_pfn' into 'rcache', and
