@@ -566,12 +566,15 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 	max_opt_dma_size = iommu_group_get_max_opt_dma_size(dev->iommu_group);
 	if (max_opt_dma_size) {
 		unsigned long shift = __ffs(1UL << order);
-
+		pr_err("%s max_opt_dma_size=%ld shift=%ld\n", __func__, max_opt_dma_size, shift);
 		iova_len = roundup_pow_of_two(max_opt_dma_size);
+		pr_err("%s1 max_opt_dma_size=%ld iova_len=%ld\n", __func__, max_opt_dma_size, iova_len);
 		iova_len >>= shift;
 		if (!iova_len)
 			iova_len = 1;
+		pr_err("%s2 max_opt_dma_size=%ld iova_len=%ld\n", __func__, max_opt_dma_size, iova_len);
 	}
+	pr_err("%s10 iova_len=%ld\n", __func__, iova_len);
 
 	ret = iova_domain_init_rcaches(iovad, iova_len);
 	if (ret)

@@ -714,11 +714,13 @@ int iova_domain_init_rcaches(struct iova_domain *iovad, unsigned long iova_len)
 {
 	unsigned int cpu;
 	int i, ret;
+	pr_err("%s0 iova_len=%ld\n", __func__, iova_len);
 
 	if (iova_len)
 		iovad->rcache_max_size = iova_len_to_rcache_max(iova_len);
 	else
 		iovad->rcache_max_size = 6; /* Arbitrarily high default */
+	pr_err("%s1 rcache_max_size=%ld\n", __func__, iovad->rcache_max_size);
 
 	iovad->rcaches = kcalloc(iovad->rcache_max_size,
 				 sizeof(struct iova_rcache),
@@ -878,14 +880,25 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
  * size is too big or the DMA limit we are given isn't satisfied by the
  * top element in the magazine.
  */
+static atomic64_t iova_rcache_get_cnt;
+static atomic64_t iova_rcache_get_cnt_cached;
 static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long size,
 				     unsigned long limit_pfn)
 {
 	unsigned int log_size = order_base_2(size);
+	u64 _iova_rcache_get_cnt = atomic64_inc_return(&iova_rcache_get_cnt);  
 
+	if ((_iova_rcache_get_cnt % 10000000) == 0) {
+		pr_err("%s cnt=%lld cached=%lld\n", __func__, _iova_rcache_get_cnt, atomic64_read(&iova_rcache_get_cnt_cached));
+		atomic64_set(&iova_rcache_get_cnt_cached, 0);
+		atomic64_set(&iova_rcache_get_cnt, 0);
+	}
+	
 	if (log_size >= iovad->rcache_max_size || !iovad->rcaches)
 		return 0;
+
+	atomic64_inc_return(&iova_rcache_get_cnt_cached);
 
 	return __iova_rcache_get(&iovad->rcaches[log_size], limit_pfn - size);
 }
