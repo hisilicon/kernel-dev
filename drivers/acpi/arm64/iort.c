@@ -1053,7 +1053,7 @@ static int nc_dma_get_range(struct device *dev, u64 *size)
 	ncomp = (struct acpi_iort_named_component *)node->node_data;
 
 	if (!ncomp->memory_address_limit) {
-		pr_warn(FW_BUG "Named component missing memory address limit\n");
+		//pr_warn(FW_BUG "Named component missing memory address limit\n");
 		return -EINVAL;
 	}
 
