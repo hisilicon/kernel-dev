@@ -6,13 +6,6 @@
 
 #include <linux/hisi_acc_qm.h>
 
-#define VDM_OFFSET(x) offsetof(struct vfio_device_migration_info, x)
-
-#define HISI_ACC_MIG_REGION_DATA_OFFSET                \
-	(sizeof(struct vfio_device_migration_info))
-
-#define HISI_ACC_MIG_REGION_DATA_SIZE (sizeof(struct acc_vf_data))
-
 #define MB_POLL_PERIOD_US		10
 #define MB_POLL_TIMEOUT_US		1000
 #define QM_CACHE_WB_START		0x204
@@ -53,10 +46,14 @@
 #define QM_IFC_INT_SET_V	0x002c
 #define QM_QUE_ISO_CFG_V	0x0030
 #define QM_PAGE_SIZE		0x0034
-#define QM_VF_STATE		0x0060
 
 #define QM_EQC_DW0		0X8000
 #define QM_AEQC_DW0		0X8020
+
+enum qm_vf_state {
+	QM_READY = 0,
+	QM_NOT_READY,
+};
 
 struct acc_vf_data {
 #define QM_MATCH_SIZE 32L
@@ -65,8 +62,9 @@ struct acc_vf_data {
 	u32 dev_id;
 	u32 que_iso_cfg;
 	u32 qp_base;
-	/* QM reserved 4 match information */
-	u32 qm_rsv_state[4];
+	u32 qm_state;
+	/* QM reserved match information */
+	u32 qm_rsv_state[3];
 
 	/* QM RW regs */
 	u32 aeq_int_mask;
@@ -86,10 +84,10 @@ struct acc_vf_data {
 	u32 qm_rsv_regs[5];
 
 	/* qm memory init information */
-	dma_addr_t eqe_dma;
-	dma_addr_t aeqe_dma;
-	dma_addr_t sqc_dma;
-	dma_addr_t cqc_dma;
+	u64 eqe_dma;
+	u64 aeqe_dma;
+	u64 sqc_dma;
+	u64 cqc_dma;
 };
 
 struct hisi_acc_vf_migration_file {
@@ -103,7 +101,6 @@ struct hisi_acc_vf_migration_file {
 
 struct hisi_acc_vf_core_device {
 	struct vfio_pci_core_device core_device;
-	u8 migration_support:1;
 	u8 deferred_reset:1;
 	/* for migration state */
 	struct mutex state_mutex;
@@ -112,6 +109,7 @@ struct hisi_acc_vf_core_device {
 	struct pci_dev *vf_dev;
 	struct hisi_qm *pf_qm;
 	struct hisi_qm vf_qm;
+	u32 vf_qm_state;
 	int vf_id;
 	/* for reset handler */
 	spinlock_t reset_lock;

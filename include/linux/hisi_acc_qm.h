@@ -114,6 +114,7 @@
 #define QM_SHAPER_CFG			0x100164
 #define QM_SHAPER_ENABLE		BIT(30)
 #define QM_SHAPER_TYPE1_OFFSET		10
+#define QM_VF_STATE			0x60
 
 /* page number for queue file region */
 #define QM_DOORBELL_PAGE_NR		1
