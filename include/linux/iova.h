@@ -38,6 +38,9 @@ struct iova_domain {
 
 	struct iova_rcache	*rcaches;
 	struct hlist_node	cpuhp_dead;
+
+	/* log of max cached IOVA range size (in pages) */
+	unsigned long	rcache_max_size;
 };
 
 static inline unsigned long iova_size(struct iova *iova)
