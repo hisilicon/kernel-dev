@@ -7341,9 +7341,11 @@ void perf_prepare_sample(struct perf_event_header *header,
 	header->misc = 0;
 	header->misc |= perf_misc_flags(regs);
 	_perf_prepare_sample_count = atomic64_inc_return(&perf_prepare_sample_count);
+	pr_err_once("%s PERF_RECORD_SAMPLE header->misc=0x%x sample_type=0x%llx pmu_name=%s\n", __func__, header->misc, sample_type, pmu_name);
+			
 
-	if ((_perf_prepare_sample_count % 1000000) == 0) {
-		pr_err("%s PERF_RECORD_SAMPLE header->misc=0x%x sample_type=0x%llx pmu_name=%s\n", __func__, header->misc, sample_type, pmu_name);
+	if ((_perf_prepare_sample_count % 100000) == 0) {
+		pr_err("%s1 PERF_RECORD_SAMPLE header->misc=0x%x sample_type=0x%llx pmu_name=%s\n", __func__, header->misc, sample_type, pmu_name);
 		WARN_ON_ONCE(1);
 	}
 	
