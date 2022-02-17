@@ -1354,6 +1354,7 @@ int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
 		| ((category & 0xF) << 12) | (opCode & 0xFFF));
 
 	pm8001_write_32((pMessage - 4), 0, cpu_to_le32(Header));
+	dma_wmb();
 	/*Update the PI to the firmware*/
 	pm8001_cw32(pm8001_ha, circularQ->pi_pci_bar,
 		circularQ->pi_offset, circularQ->producer_idx);
@@ -4039,7 +4040,9 @@ static int process_oq(struct pm8001_hba_info *pm8001_ha, u8 vec)
 	spin_lock_irqsave(&pm8001_ha->lock, flags);
 	circularQ = &pm8001_ha->outbnd_q_tbl[vec];
 	do {
+		dma_rmb();
 		ret = pm8001_mpi_msg_consume(pm8001_ha, circularQ, &pMsg1, &bc);
+		dma_rmb();
 		if (MPI_IO_STATUS_SUCCESS == ret) {
 			/* process the outbound message */
 			process_one_iomb(pm8001_ha, (void *)(pMsg1 - 4));
