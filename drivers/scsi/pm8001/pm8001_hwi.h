@@ -434,10 +434,6 @@ struct task_abort_req {
 	u32	reserved[11];
 } __attribute__((packed, aligned(4)));
 
-/* These flags used for SSP SMP & SATA Abort */
-#define ABORT_MASK		0x3
-#define ABORT_SINGLE		0x0
-#define ABORT_ALL		0x1
 
 /**
  * brief the data structure of SSP SATA SMP Abort Response
