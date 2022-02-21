@@ -25,6 +25,30 @@
 #define IORT_IOMMU_TYPE		((1 << ACPI_IORT_NODE_SMMU) |	\
 				(1 << ACPI_IORT_NODE_SMMU_V3))
 
+/*
+ * The following RMR related definitions are temporary and
+ * can be removed once ACPICA headers support IORT rev E.d
+ */
+#ifndef ACPI_IORT_RMR_REMAP_PERMITTED
+#define ACPI_IORT_RMR_REMAP_PERMITTED	(1)
+#endif
+
+#ifndef ACPI_IORT_RMR_ACCESS_PRIVILEGE
+#define ACPI_IORT_RMR_ACCESS_PRIVILEGE	(1 << 1)
+#endif
+
+#ifndef ACPI_IORT_RMR_ACCESS_ATTRIBUTES
+#define ACPI_IORT_RMR_ACCESS_ATTRIBUTES(flags)	(((flags) >> 2) & 0xFF)
+#endif
+
+#ifndef ACPI_IORT_RMR_ATTR_DEVICE_GRE
+#define ACPI_IORT_RMR_ATTR_DEVICE_GRE	0x03
+#endif
+
+#ifndef ACPI_IORT_RMR_ATTR_NORMAL
+#define ACPI_IORT_RMR_ATTR_NORMAL	0x05
+#endif
+
 struct iort_its_msi_chip {
 	struct list_head	list;
 	struct fwnode_handle	*fw_node;
