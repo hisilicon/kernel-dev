@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config HISI_ACC_VFIO_PCI
+	tristate "VFIO PCI support for HiSilicon ACC devices"
+	depends on (ARM64 && VFIO_PCI_CORE) || (COMPILE_TEST && 64BIT)
+	help
+	  This provides generic PCI support for HiSilicon ACC devices
+	  using the VFIO framework.
+
+	  If you don't know what to do here, say N.
