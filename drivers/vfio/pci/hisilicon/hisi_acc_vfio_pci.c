@@ -13,6 +13,36 @@
 #include <linux/vfio.h>
 #include <linux/vfio_pci_core.h>
 
+static struct hisi_qm *hisi_acc_get_pf_qm(struct pci_dev *pdev)
+{
+	struct hisi_qm	*pf_qm;
+	struct pci_driver *pf_driver;
+
+	if (!pdev->is_virtfn)
+		return NULL;
+
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_HUAWEI_SEC_VF:
+		pf_driver = hisi_sec_get_pf_driver();
+		break;
+	case PCI_DEVICE_ID_HUAWEI_HPRE_VF:
+		pf_driver = hisi_hpre_get_pf_driver();
+		break;
+	case PCI_DEVICE_ID_HUAWEI_ZIP_VF:
+		pf_driver = hisi_zip_get_pf_driver();
+		break;
+	default:
+		return NULL;
+	}
+
+	if (!pf_driver)
+		return NULL;
+
+	pf_qm = pci_iov_get_pf_drvdata(pdev, pf_driver);
+
+	return !IS_ERR(pf_qm) ? pf_qm : NULL;
+}
+
 static int hisi_acc_pci_rw_access_check(struct vfio_device *core_vdev,
 					size_t count, loff_t *ppos,
 					size_t *new_count)
