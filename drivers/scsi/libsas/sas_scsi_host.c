@@ -943,6 +943,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 		task->abort_task.tag = tag;
 		task->abort_task.type = type;
+		task->abort_task.qid = qid;
 
 		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 		if (res) {
@@ -959,8 +960,11 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
 			bool quit = true;
 
-			pr_err("Internal abort timeout %016llx\n",
-			       SAS_ADDR(device->sas_addr));
+			if (i->dft->lldd_abort_timeout)
+				quit = i->dft->lldd_abort_timeout(task, data);
+			else
+				pr_err("Internal abort timeout %016llx\n",
+				       SAS_ADDR(device->sas_addr));
 
 			res = -EIO;
 			if (quit)
