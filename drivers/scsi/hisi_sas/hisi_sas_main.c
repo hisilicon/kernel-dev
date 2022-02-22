@@ -158,9 +158,10 @@ static void hisi_sas_slot_index_clear(struct hisi_hba *hisi_hba, int slot_idx)
 static void hisi_sas_slot_index_free(struct hisi_hba *hisi_hba, int slot_idx)
 {
 	if (hisi_hba->hw->slot_index_alloc &&
-	    slot_idx < HISI_SAS_UNRESERVED_IPTT) {
+	    slot_idx >= HISI_SAS_RESERVED_IPTT) {
+		int normalised_index = slot_idx - HISI_SAS_RESERVED_IPTT;
 		spin_lock(&hisi_hba->lock);
-		hisi_sas_slot_index_clear(hisi_hba, slot_idx);
+		hisi_sas_slot_index_clear(hisi_hba, normalised_index);
 		spin_unlock(&hisi_hba->lock);
 	}
 }
@@ -524,6 +525,17 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 
 	if (rc < 0)
 		goto err_out_dif_dma_unmap;
+
+	if (task->slow_task && rc >= HISI_SAS_RESERVED_IPTT)
+		BUG();
+
+	if (!task->slow_task) {
+
+		if (rc < HISI_SAS_RESERVED_IPTT)
+			BUG();
+		if (rc >= HISI_SAS_MAX_COMMANDS)
+			BUG();
+	}
 
 	slot = &hisi_hba->slot_info[rc];
 	slot->n_elem = n_elem;

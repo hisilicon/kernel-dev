@@ -813,7 +813,8 @@ slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba,
 
 	__set_bit(start, bitmap);
 	spin_unlock(&hisi_hba->lock);
-	return start;
+
+	return start + HISI_SAS_RESERVED_IPTT;
 }
 
 static bool sata_index_alloc_v2_hw(struct hisi_hba *hisi_hba, int *idx)
