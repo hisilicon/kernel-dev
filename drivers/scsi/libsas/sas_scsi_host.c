@@ -1054,13 +1054,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
 		add_timer(&task->slow_task->timer);
 
-		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-		if (res) {
-			del_timer_sync(&task->slow_task->timer);
-			pr_err("executing TMF task failed %016llx (%d)\n",
-			       SAS_ADDR(device->sas_addr), res);
-			break;
-		}
+		blk_execute_rq_nowait( sas_rq_from_task(task), true, NULL);
 
 		wait_for_completion(&task->slow_task->completion);
 
