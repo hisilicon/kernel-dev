@@ -812,7 +812,7 @@ slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba,
 		start++;
 	}
 
-	set_bit(start, bitmap);
+	__set_bit(start, bitmap);
 	spin_unlock(&hisi_hba->lock);
 	return start;
 }
