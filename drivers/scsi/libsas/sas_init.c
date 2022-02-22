@@ -54,6 +54,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 		WARN_ON_ONCE(1);
 	task = sas_rq_to_task(rq);
 	memset(task, 0, sizeof(*task));
+	sas_set_unique_hw_tag(task);
 
 	spin_lock_init(&task->task_state_lock);
 	task->task_state_flags = SAS_TASK_STATE_PENDING;

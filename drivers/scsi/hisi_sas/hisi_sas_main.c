@@ -157,7 +157,8 @@ static void hisi_sas_slot_index_clear(struct hisi_hba *hisi_hba, int slot_idx)
 
 static void hisi_sas_slot_index_free(struct hisi_hba *hisi_hba, int slot_idx)
 {
-	if (hisi_hba->hw->slot_index_alloc) {
+	if (hisi_hba->hw->slot_index_alloc &&
+	    slot_idx < HISI_SAS_UNRESERVED_IPTT) {
 		spin_lock(&hisi_hba->lock);
 		hisi_sas_slot_index_clear(hisi_hba, slot_idx);
 		spin_unlock(&hisi_hba->lock);
@@ -433,6 +434,8 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	struct hisi_hba *hisi_hba;
 	struct hisi_sas_slot *slot;
 	struct device *dev;
+	u32 blk_mq_tag;
+	static int snakecount;
 	int rc;
 
 	if (internal_abort) {
@@ -503,10 +506,21 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 			goto err_out_dma_unmap;
 	}
 
-	if (hisi_hba->hw->slot_index_alloc)
+	snakecount++;
+
+	if (!task->slow_task && hisi_hba->hw->slot_index_alloc)
 		rc = hisi_hba->hw->slot_index_alloc(hisi_hba, device);
 	else
 		rc = blk_mq_unique_tag_to_tag(task->hw_unique_tag);
+	blk_mq_tag = blk_mq_unique_tag_to_tag(task->hw_unique_tag);
+	
+	if (snakecount < 400)  {
+		if (task->slow_task)
+			pr_err("%s slow_task rc=%d blk_mq_tag=%d hw_unique_tag=0x%x\n", __func__, rc, blk_mq_tag, task->hw_unique_tag);
+		else
+			pr_err("%s non-slow_task rc=%d  blk_mq_tag=%d  hw_unique_tag=0x%x\n", __func__, rc, blk_mq_tag, task->hw_unique_tag);
+	}
+
 
 	if (rc < 0)
 		goto err_out_dif_dma_unmap;
@@ -2131,7 +2145,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 	if (!hisi_hba->breakpoint)
 		goto err_out;
 
-	s = hisi_hba->slot_index_count = max_command_entries;
+	s = hisi_hba->slot_index_count = HISI_SAS_UNRESERVED_IPTT;
 	hisi_hba->slot_index_tags = devm_bitmap_zalloc(dev, s, GFP_KERNEL);
 	if (!hisi_hba->slot_index_tags)
 		goto err_out;
