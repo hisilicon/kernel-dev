@@ -155,6 +155,8 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 
 	task->task_done = sas_scsi_task_done;
 
+	sas_set_unique_hw_tag(task);
+
 	return task;
 }
 

@@ -116,6 +116,12 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 	hashed[2] = r & 0xFF;
 }
 
+void sas_set_unique_hw_tag(struct sas_task *task)
+{
+	struct request *rq = sas_rq_from_task(task);
+
+	task->hw_unique_tag = rq->tag;
+}
 
 int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 {
