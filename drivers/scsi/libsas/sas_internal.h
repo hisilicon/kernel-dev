@@ -39,6 +39,8 @@ struct sas_phy_data {
 	struct sas_work enable_work;
 };
 
+void sas_set_unique_hw_tag(struct sas_task *task);
+
 void sas_scsi_recover_host(struct Scsi_Host *shost);
 
 int sas_show_class(enum sas_class class, char *buf);

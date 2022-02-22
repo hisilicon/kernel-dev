@@ -623,6 +623,7 @@ struct sas_task {
 	void   *uldd_task;
 	struct sas_task_slow *slow_task;
 	struct sas_tmf_task *tmf;
+	u32 hw_unique_tag;
 };
 
 struct sas_task_slow {
