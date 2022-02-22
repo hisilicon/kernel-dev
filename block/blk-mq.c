@@ -1181,7 +1181,7 @@ static void blk_end_sync_rq(struct request *rq, blk_status_t error)
  */
 void blk_execute_rq_nowait(struct request *rq, bool at_head, rq_end_io_fn *done)
 {
-	WARN_ON(irqs_disabled());
+	WARN_ON_ONCE(irqs_disabled());
 	WARN_ON(!blk_rq_is_passthrough(rq));
 
 	rq->end_io = done;
