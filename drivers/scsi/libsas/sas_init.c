@@ -21,14 +21,15 @@
 
 #include "scsi_sas_internal.h"
 
-static struct kmem_cache *sas_task_cache;
 static struct kmem_cache *sas_event_cache;
 
-struct sas_task *sas_alloc_task(gfp_t flags)
+struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd)
 {
-	struct sas_task *task = kmem_cache_zalloc(sas_task_cache, flags);
+	struct request *rq = blk_mq_rq_from_pdu(cmnd);
+	struct sas_task *task = sas_rq_to_task(rq);
 
 	if (task) {
+		memset(task, 0, sizeof(*task));
 		spin_lock_init(&task->task_state_lock);
 		task->task_state_flags = SAS_TASK_STATE_PENDING;
 	}
@@ -37,14 +38,31 @@ struct sas_task *sas_alloc_task(gfp_t flags)
 }
 EXPORT_SYMBOL_GPL(sas_alloc_task);
 
-struct sas_task *sas_alloc_slow_task(gfp_t flags)
+struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 {
-	struct sas_task *task = sas_alloc_task(flags);
-	struct sas_task_slow *slow = kmalloc(sizeof(*slow), flags);
+	struct request *rq;
+	struct sas_task *task;
+	struct sas_task_slow *slow;
+	struct Scsi_Host *shost = sas_ha->core.shost;
+
+	rq = blk_mq_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_IN,
+					BLK_MQ_REQ_RESERVED);
+	if (IS_ERR(rq))
+		return NULL;
+
+	if (!(rq->cmd_flags & REQ_RESV))
+		WARN_ON_ONCE(1);
+	task = sas_rq_to_task(rq);
+	memset(task, 0, sizeof(*task));
+
+	spin_lock_init(&task->task_state_lock);
+	task->task_state_flags = SAS_TASK_STATE_PENDING;
+	
+	slow = kmalloc(sizeof(*slow), flags);
 
 	if (!task || !slow) {
-		if (task)
-			kmem_cache_free(sas_task_cache, task);
+		pr_err("%s2 sas_ha=%pS flags=%d rq=%pS task=%pS slow=%pS\n",
+			__func__, sas_ha, flags, rq, task, slow);
 		kfree(slow);
 		return NULL;
 	}
@@ -53,7 +71,6 @@ struct sas_task *sas_alloc_slow_task(gfp_t flags)
 	slow->task = task;
 	timer_setup(&slow->timer, NULL, 0);
 	init_completion(&slow->completion);
-
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
@@ -61,8 +78,16 @@ EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
 void sas_free_task(struct sas_task *task)
 {
 	if (task) {
+		bool reserved = false;
+		struct request *rq = sas_rq_from_task(task);
+
+		if (rq->cmd_flags & REQ_RESV)
+			reserved = true;
+
 		kfree(task->slow_task);
-		kmem_cache_free(sas_task_cache, task);
+
+		if (reserved)
+			__blk_mq_end_request(rq, BLK_STS_OK);
 	}
 }
 EXPORT_SYMBOL_GPL(sas_free_task);
@@ -680,24 +705,17 @@ void sas_free_event(struct asd_sas_event *event)
 
 static int __init sas_class_init(void)
 {
-	sas_task_cache = KMEM_CACHE(sas_task, SLAB_HWCACHE_ALIGN);
-	if (!sas_task_cache)
-		goto out;
-
 	sas_event_cache = KMEM_CACHE(asd_sas_event, SLAB_HWCACHE_ALIGN);
 	if (!sas_event_cache)
 		goto free_task_kmem;
 
 	return 0;
 free_task_kmem:
-	kmem_cache_destroy(sas_task_cache);
-out:
 	return -ENOMEM;
 }
 
 static void __exit sas_class_exit(void)
 {
-	kmem_cache_destroy(sas_task_cache);
 	kmem_cache_destroy(sas_event_cache);
 }
 
