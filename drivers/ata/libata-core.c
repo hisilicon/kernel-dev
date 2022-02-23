@@ -1479,12 +1479,15 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned long flags;
 	unsigned int err_mask;
 	struct scsi_device *sdev = dev->sdev;
+	struct scsi_device *host_sdev = NULL;
 	int rc;
 
 	if (ap)
 		scsi_host = ap->scsi_host;
-	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS\n",
-	__func__, dev, link, ap, sdev, scsi_host);
+	if (scsi_host)
+		host_sdev = scsi_host->sdev;
+	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS\n",
+	__func__, dev, link, ap, sdev, scsi_host, host_sdev);
 
 	spin_lock_irqsave(ap->lock, flags);
 
