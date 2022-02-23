@@ -68,6 +68,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 		return NULL;
 	}
 
+	pr_err("%s task=%pS rq=%pS hw_unique_tag=0x%x\n", __func__, task, rq, task->hw_unique_tag);
 	task->slow_task = slow;
 	slow->task = task;
 	timer_setup(&slow->timer, NULL, 0);
@@ -123,7 +124,7 @@ void sas_set_unique_hw_tag(struct sas_task *task)
 {
 	struct request *rq = sas_rq_from_task(task);
 
-	task->hw_unique_tag = rq->tag;
+	task->hw_unique_tag = blk_mq_unique_tag(rq);
 }
 
 int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
@@ -741,4 +742,3 @@ MODULE_LICENSE("GPL v2");
 
 module_init(sas_class_init);
 module_exit(sas_class_exit);
-
