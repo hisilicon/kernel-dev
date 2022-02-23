@@ -404,6 +404,7 @@ void hisi_sas_task_deliver(struct hisi_hba *hisi_hba,
 	case SAS_PROTOCOL_SATA:
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
+		WARN_ON_ONCE(!irqs_disabled());
 		hisi_sas_task_prep_ata(hisi_hba, slot);
 		break;
 	case SAS_PROTOCOL_INTERNAL_ABORT:
