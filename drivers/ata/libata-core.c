@@ -1468,6 +1468,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
 	u8 command = tf->command;
+	struct Scsi_Host *scsi_host = NULL;
 	int auto_timeout = 0;
 	struct ata_queued_cmd *qc;
 	unsigned int preempted_tag;
@@ -1477,7 +1478,13 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	DECLARE_COMPLETION_ONSTACK(wait);
 	unsigned long flags;
 	unsigned int err_mask;
+	struct scsi_device *sdev = dev->sdev;
 	int rc;
+
+	if (ap)
+		scsi_host = ap->scsi_host;
+	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS\n",
+	__func__, dev, link, ap, sdev, scsi_host);
 
 	spin_lock_irqsave(ap->lock, flags);
 
