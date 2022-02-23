@@ -68,7 +68,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 		return NULL;
 	}
 
-	pr_err("%s task=%pS rq=%pS hw_unique_tag=0x%x\n", __func__, task, rq, task->hw_unique_tag);
+	pr_err_once("%s task=%pS rq=%pS hw_unique_tag=0x%x\n", __func__, task, rq, task->hw_unique_tag);
 	task->slow_task = slow;
 	slow->task = task;
 	timer_setup(&slow->timer, NULL, 0);
