@@ -175,7 +175,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		goto out;
 
 	scmd = qc->scsicmd;
-
+	pr_err("%s scmd=%pS qc=%pS\n", __func__, scmd, qc);
 	if (scmd) {
 		task = sas_alloc_task(GFP_ATOMIC, scmd);
 	} else {

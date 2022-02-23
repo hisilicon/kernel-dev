@@ -2047,4 +2047,14 @@ static inline u8 ata_wait_idle(struct ata_port *ap)
 }
 #endif /* CONFIG_ATA_SFF */
 
+struct libata_stuffy {
+	struct ata_device *dev;
+	struct ata_taskfile *tf;
+	const u8 *cdb;
+	int dma_dir;
+	struct scatterlist *sgl;
+	unsigned int n_elem;
+	unsigned long timeout;
+};
+
 #endif /* __LINUX_LIBATA_H__ */
