@@ -228,6 +228,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	sas_set_unique_hw_tag(task);
 
 	if (ata_internal == false) {
+		WARN_ONCE(1, "%s ata_internal=false irqs_disabled=%d\n", __func__, irqs_disabled());
 		ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
 	if (ret) {
 		pr_debug("lldd_execute_task returned: %d\n", ret);
