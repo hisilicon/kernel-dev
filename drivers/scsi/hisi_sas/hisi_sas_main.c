@@ -516,7 +516,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		rc = blk_mq_unique_tag_to_tag(task->hw_unique_tag);
 	blk_mq_tag = blk_mq_unique_tag_to_tag(task->hw_unique_tag);
 	
-	if (snakecount < 400)  {
+	if (snakecount < 20)  {
 		if (task->slow_task)
 			pr_err("%s slow_task rc=%d blk_mq_tag=%d hw_unique_tag=0x%x\n", __func__, rc, blk_mq_tag, task->hw_unique_tag);
 		else
