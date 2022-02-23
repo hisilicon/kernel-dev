@@ -1480,6 +1480,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned int err_mask;
 	struct scsi_device *sdev = dev->sdev;
 	struct scsi_device *host_sdev = NULL;
+	struct request *rq;
 	int rc;
 
 	if (ap)
@@ -1488,6 +1489,14 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		host_sdev = scsi_host->sdev;
 	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS\n",
 	__func__, dev, link, ap, sdev, scsi_host, host_sdev);
+
+	rq = blk_mq_alloc_request(host_sdev->request_queue, REQ_OP_DRV_IN,
+					BLK_MQ_REQ_RESERVED);
+	pr_err("%s2 ata_device=%pS rq=%pS\n", __func__, dev, rq);
+	if (!IS_ERR(rq)) {
+		blk_execute_rq_nowait(rq, true, NULL);
+		return 0;
+	}
 
 	spin_lock_irqsave(ap->lock, flags);
 
