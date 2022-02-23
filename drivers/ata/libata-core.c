@@ -1460,6 +1460,7 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
+
 unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
@@ -1480,6 +1481,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned int err_mask;
 	struct scsi_device *sdev = dev->sdev;
 	struct scsi_device *host_sdev = NULL;
+	
 	struct request *rq;
 	int rc;
 
@@ -1492,8 +1494,21 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	rq = blk_mq_alloc_request(host_sdev->request_queue, REQ_OP_DRV_IN,
 					BLK_MQ_REQ_RESERVED);
-	pr_err("%s2 ata_device=%pS rq=%pS\n", __func__, dev, rq);
+		
+	pr_err("%s1 ata_device=%pS rq=%pS\n", __func__, dev, rq);
 	if (!IS_ERR(rq)) {
+		struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+		
+
+		struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
+		pr_err("%s2 ata_device=%pS rq=%pS scmd=%pS\n", __func__, dev, rq, scmd);
+		stuff->dev = dev;
+		stuff->tf = tf;
+		stuff->cdb = cdb;
+		stuff->dma_dir = dma_dir;
+		stuff->sgl = sgl;
+		stuff->n_elem = n_elem;
+		stuff->timeout = timeout;
 		blk_execute_rq_nowait(rq, true, NULL);
 		return 0;
 	}
