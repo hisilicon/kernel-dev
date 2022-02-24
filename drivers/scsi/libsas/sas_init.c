@@ -127,10 +127,28 @@ void sas_set_unique_hw_tag(struct sas_task *task)
 	task->hw_unique_tag = blk_mq_unique_tag(rq);
 }
 
+extern struct request *ata_exec_internal_sg_rq;
+extern unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
+			      struct ata_taskfile *tf, const u8 *cdb,
+			      int dma_dir, struct scatterlist *sgl,
+			      unsigned int n_elem, unsigned long timeout);
+
 int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 {
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
+
+	if (ata_exec_internal_sg_rq == rq) {
+		unsigned result;
+		struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+		struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
+
+		pr_err("%s2 ata_device=%pS scmd=%pS stuff=%pS\n", __func__, stuff->dev, stuff->tf, stuff);
+		pr_err("%s3 ata_exec_internal_sg_rq=%pS\n", __func__, ata_exec_internal_sg_rq);
+		result = ata_exec_internal_sg_dir(stuff->dev, stuff->tf, stuff->cdb, stuff->dma_dir, stuff->sgl, stuff->n_elem, stuff->timeout);
+		pr_err("%s4 ata_exec_internal_sg_rq=%pS result=%d\n", __func__, ata_exec_internal_sg_rq, result);
+		return 0;
+	}
 
 	return i->dft->lldd_execute_task(sas_rq_to_task(rq), GFP_KERNEL);
 }
