@@ -45,7 +45,7 @@ void __blk_mq_sched_restart(struct blk_mq_hw_ctx *hctx)
 	 */
 	smp_mb();
 
-	blk_mq_run_hw_queue(hctx, true);
+	blk_mq_run_hw_queue(hctx, true, false);
 }
 
 static int sched_rq_cmp(void *priv, const struct list_head *a,
@@ -336,7 +336,7 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	 */
 	if (__blk_mq_sched_dispatch_requests(hctx) == -EAGAIN) {
 		if (__blk_mq_sched_dispatch_requests(hctx) == -EAGAIN)
-			blk_mq_run_hw_queue(hctx, true);
+			blk_mq_run_hw_queue(hctx, true, false);
 	}
 }
 
@@ -410,10 +410,13 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 	struct elevator_queue *e = q->elevator;
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
+	bool special = false;
 
 	WARN_ON(e && (rq->tag != BLK_MQ_NO_TAG));
-	if (rq == ata_exec_internal_sg_rq)
+	if (rq == ata_exec_internal_sg_rq) {
 		pr_err("%s ata_exec_internal_sg_rq=%pS in_atomic=%d\n", __func__, ata_exec_internal_sg_rq, in_atomic());
+		special = true;
+	}
 
 	if (blk_mq_sched_bypass_insert(hctx, rq)) {
 		/*
@@ -455,7 +458,7 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 
 run:
 	if (run_queue)
-		blk_mq_run_hw_queue(hctx, async);
+		blk_mq_run_hw_queue(hctx, async, special);
 }
 
 void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
@@ -490,7 +493,7 @@ void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 		blk_mq_insert_requests(hctx, ctx, list);
 	}
 
-	blk_mq_run_hw_queue(hctx, run_queue_async);
+	blk_mq_run_hw_queue(hctx, run_queue_async, false);
  out:
 	percpu_ref_put(&q->q_usage_counter);
 }

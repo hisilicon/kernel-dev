@@ -167,7 +167,7 @@ static inline void rnbd_clt_dev_requeue(struct rnbd_queue *q)
 		return;
 
 	/* We can come here from interrupt, thus async=true */
-	blk_mq_run_hw_queue(q->hctx, true);
+	blk_mq_run_hw_queue(q->hctx, true, false);
 }
 
 enum {
