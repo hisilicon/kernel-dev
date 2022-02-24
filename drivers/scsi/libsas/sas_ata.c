@@ -228,18 +228,19 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	sas_set_unique_hw_tag(task);
 
 	if (ata_internal == false) {
-		WARN_ONCE(1, "%s ata_internal=false irqs_disabled=%d\n", __func__, irqs_disabled());
+		//WARN_ONCE(1, "%s ata_internal=false irqs_disabled=%d\n", __func__, irqs_disabled());
 		ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
-	if (ret) {
-		pr_debug("lldd_execute_task returned: %d\n", ret);
+		if (ret) {
+			pr_debug("lldd_execute_task returned: %d\n", ret);
 
-		if (qc->scsicmd)
-			ASSIGN_SAS_TASK(qc->scsicmd, NULL);
-		sas_free_task(task);
-		qc->lldd_task = NULL;
-		ret = AC_ERR_SYSTEM;
-	}
+			if (qc->scsicmd)
+				ASSIGN_SAS_TASK(qc->scsicmd, NULL);
+			sas_free_task(task);
+			qc->lldd_task = NULL;
+			ret = AC_ERR_SYSTEM;
+		}
 	} else {
+		BUG();
 		/* Broken!!! We should not insert a request with irq disabled (as they are) */
 		blk_execute_rq_nowait(sas_rq_from_task(task), true, NULL);
 		ret = 0;

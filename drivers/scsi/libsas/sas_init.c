@@ -141,12 +141,12 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 
 		pr_err("%s2 ata_device=%pS scmd=%pS stuff=%pS\n", __func__, stuff->dev, stuff->tf, stuff);
 		pr_err("%s3 ata_exec_internal_sg_rq=%pS\n", __func__, ata_exec_internal_sg_rq);
-		pr_err("%s3.1 stuff=%pS\n", __func__, stuff);
-		pr_err("%s3.2 stuff->dev=%pS\n", __func__, stuff->dev);
-		pr_err("%s3.3 stuff->tf=%pS\n", __func__, stuff->tf);
-		pr_err("%s3.4 stuff->cdb=%pS\n", __func__, stuff->cdb);
-		pr_err("%s3.6 stuff->sgl=%pS\n", __func__, stuff->sgl);
-		pr_err("%s3.8 scmd=%pS\n", __func__, scmd);
+	//	pr_err("%s3.1 stuff=%pS\n", __func__, stuff);
+	//	pr_err("%s3.2 stuff->dev=%pS\n", __func__, stuff->dev);
+	//	pr_err("%s3.3 stuff->tf=%pS\n", __func__, stuff->tf);
+	//	pr_err("%s3.4 stuff->cdb=%pS\n", __func__, stuff->cdb);
+	//	pr_err("%s3.6 stuff->sgl=%pS\n", __func__, stuff->sgl);
+	//	pr_err("%s3.8 scmd=%pS\n", __func__, scmd);
 		result = ata_exec_internal_sg_dir(stuff->dev, stuff->tf, stuff->cdb, stuff->dma_dir, stuff->sgl, stuff->n_elem, stuff->timeout, scmd);
 		pr_err("%s4 ata_exec_internal_sg_rq=%pS result=%d\n", __func__, ata_exec_internal_sg_rq, result);
 		return 0;
