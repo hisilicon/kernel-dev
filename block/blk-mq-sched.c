@@ -17,6 +17,7 @@
 #include "blk-mq-sched.h"
 #include "blk-mq-tag.h"
 #include "blk-wbt.h"
+extern struct request *ata_exec_internal_sg_rq;
 
 /*
  * Mark a hardware queue as needing a restart. For shared queues, maintain
@@ -270,6 +271,8 @@ static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	int ret = 0;
 	LIST_HEAD(rq_list);
 
+	WARN_ON_ONCE(in_interrupt());
+
 	/*
 	 * If we have previous entries on our dispatch list, grab them first for
 	 * more fair dispatch.
@@ -322,6 +325,8 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	/* RCU or SRCU read lock is needed before checking quiesced flag */
 	if (unlikely(blk_mq_hctx_stopped(hctx) || blk_queue_quiesced(q)))
 		return;
+
+	WARN_ON_ONCE(in_interrupt());
 
 	hctx->run++;
 
@@ -407,6 +412,8 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
 	WARN_ON(e && (rq->tag != BLK_MQ_NO_TAG));
+	if (rq == ata_exec_internal_sg_rq)
+		pr_err("%s ata_exec_internal_sg_rq=%pS in_atomic=%d\n", __func__, ata_exec_internal_sg_rq, in_atomic());
 
 	if (blk_mq_sched_bypass_insert(hctx, rq)) {
 		/*

@@ -1478,8 +1478,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		scsi_host = ap->scsi_host;
 	if (scsi_host)
 		host_sdev = scsi_host->sdev;
-	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS\n",
-	__func__, dev, link, ap, sdev, scsi_host, host_sdev);
+	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS in_atomic=%d\n",
+	__func__, dev, link, ap, sdev, scsi_host, host_sdev, in_atomic());
 
 	rq = blk_mq_alloc_request(host_sdev->request_queue, REQ_OP_DRV_IN,
 					BLK_MQ_REQ_RESERVED);
@@ -1491,7 +1491,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		
 
 		struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
-		pr_err("%s2 ata_device=%pS rq=%pS scmd=%pS stuff=%pS\n", __func__, dev, rq, scmd, stuff);
+		pr_err("%s2 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d\n", __func__, dev, rq, scmd, stuff, in_atomic());
 		stuff->dev = dev;
 		stuff->tf = tf;
 		stuff->cdb = cdb;
@@ -1501,8 +1501,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		stuff->timeout = timeout;
 		ata_exec_internal_sg_rq = rq;
 		status = blk_execute_rq(rq, true);
-		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS status=%d\n", __func__, dev, rq, scmd, stuff, status);
-	//	blk_execute_rq_nowait(rq, true, NULL);
+		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS status=%d in_atomic=%d\n", __func__, dev, rq, scmd, stuff, status, in_atomic());
+		blk_execute_rq_nowait(rq, true, NULL);
 	} else {
 		BUG();
 	}
@@ -1539,7 +1539,7 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 		scsi_host = ap->scsi_host;
 	if (scsi_host)
 		host_sdev = scsi_host->sdev;
-	pr_err("%s ata_device=%pS link=%pS ap=%pS\n", __func__, dev, link, ap);
+	pr_err("%s ata_device=%pS link=%pS ap=%pS in_atomic=%d\n", __func__, dev, link, ap, in_atomic());
 
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -1610,8 +1610,8 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 	if (ap->ops->error_handler)
 		ata_eh_release(ap);
 
-	pr_err("%s2 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS\n",
-	__func__, dev, link, ap, sdev, scsi_host, host_sdev);
+	pr_err("%s2 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS in_atomic()=%d\n",
+	__func__, dev, link, ap, sdev, scsi_host, host_sdev, in_atomic());
 
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
 

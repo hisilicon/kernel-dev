@@ -1179,12 +1179,15 @@ static void blk_end_sync_rq(struct request *rq, blk_status_t error)
  * Note:
  *    This function will invoke @done directly if the queue is dead.
  */
+extern struct request *ata_exec_internal_sg_rq;
 void blk_execute_rq_nowait(struct request *rq, bool at_head, rq_end_io_fn *done)
 {
 	WARN_ON_ONCE(irqs_disabled());
 	WARN_ON(!blk_rq_is_passthrough(rq));
 
 	rq->end_io = done;
+	if (rq == ata_exec_internal_sg_rq)
+		pr_err("%s ata_exec_internal_sg_rq=%pS in_atomic=%d\n", __func__, ata_exec_internal_sg_rq, in_atomic());
 
 	blk_account_io_start(rq);
 
@@ -1816,6 +1819,9 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
 	if (list_empty(list))
 		return false;
 
+
+	WARN_ON_ONCE(in_interrupt());
+
 	/*
 	 * Now process all the entries, sending them to the driver.
 	 */
@@ -1824,6 +1830,9 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
 		struct blk_mq_queue_data bd;
 
 		rq = list_first_entry(list, struct request, queuelist);
+		
+		if (rq == ata_exec_internal_sg_rq)
+			pr_err("%s ata_exec_internal_sg_rq=%pS in_atomic=%d\n", __func__, ata_exec_internal_sg_rq, in_atomic());
 
 		WARN_ON_ONCE(hctx != rq->mq_hctx);
 		prep = blk_mq_prep_dispatch_rq(rq, !nr_budgets);

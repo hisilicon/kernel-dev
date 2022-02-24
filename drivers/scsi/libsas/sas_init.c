@@ -139,7 +139,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 		struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 		struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
 
-		pr_err("%s2 ata_device=%pS scmd=%pS stuff=%pS\n", __func__, stuff->dev, stuff->tf, stuff);
+		pr_err("%s2 ata_device=%pS scmd=%pS stuff=%pS in_atomic=%d\n", __func__, stuff->dev, stuff->tf, stuff, in_atomic());
 		pr_err("%s3 ata_exec_internal_sg_rq=%pS\n", __func__, ata_exec_internal_sg_rq);
 	//	pr_err("%s3.1 stuff=%pS\n", __func__, stuff);
 	//	pr_err("%s3.2 stuff->dev=%pS\n", __func__, stuff->dev);
