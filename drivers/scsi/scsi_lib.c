@@ -1727,7 +1727,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	if (req->cmd_flags & REQ_RESV) {
 		int res;
-		pr_err("%s req=%pS\n", __func__, req);
+		pr_err("%s req=%pS REQ_RESV\n", __func__, req);
 		blk_mq_start_request(bd->rq);
 
 		res = shost->hostt->queuecommand_internal(shost, req);
