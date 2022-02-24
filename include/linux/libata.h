@@ -2057,4 +2057,10 @@ struct libata_stuffy {
 	unsigned long timeout;
 };
 
+extern unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
+			      struct ata_taskfile *tf, const u8 *cdb,
+			      int dma_dir, struct scatterlist *sgl,
+			      unsigned int n_elem, unsigned long timeout,
+			      struct scsi_cmnd *scsi_cmnd);
+
 #endif /* __LINUX_LIBATA_H__ */

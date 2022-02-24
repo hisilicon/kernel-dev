@@ -1510,7 +1510,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
-			      unsigned int n_elem, unsigned long timeout)
+			      unsigned int n_elem, unsigned long timeout,
+			      struct scsi_cmnd *scsi_cmnd)
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
@@ -1549,7 +1550,7 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
-	qc->scsicmd = NULL;
+	qc->scsicmd = scsi_cmnd;
 	qc->ap = ap;
 	qc->dev = dev;
 	ata_qc_reinit(qc);
@@ -1605,7 +1606,13 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 	if (ap->ops->error_handler)
 		ata_eh_release(ap);
 
+	pr_err("%s2 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS\n",
+	__func__, dev, link, ap, sdev, scsi_host, host_sdev);
+
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
+
+	pr_err("%s3 got completion ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS\n",
+	__func__, dev, link, ap, sdev, scsi_host, host_sdev);
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
@@ -4892,6 +4899,8 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 * request ATAPI sense.
 	 */
 	WARN_ON_ONCE(ap->ops->error_handler && ata_tag_valid(link->active_tag));
+
+	pr_err("%s qc=%pS\n", __func__, qc);
 
 	if (ata_is_ncq(prot)) {
 		WARN_ON_ONCE(link->sactive & (1 << qc->hw_tag));
