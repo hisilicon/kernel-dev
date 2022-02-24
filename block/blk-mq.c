@@ -1969,13 +1969,16 @@ out:
  *
  * Send pending requests to the hardware.
  */
-static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
+static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool special)
 {
 	/*
 	 * We can't run the queue inline with ints disabled. Ensure that
 	 * we catch bad users of this early.
 	 */
-	WARN_ON_ONCE(in_interrupt());
+	//WARN_ON_ONCE(in_interrupt());
+
+	if (special)
+		pr_err("%s special in_atomic()=%d\n", __func__, in_atomic());
 
 	blk_mq_run_dispatch_ops(hctx->queue,
 			blk_mq_sched_dispatch_requests(hctx));
@@ -2046,15 +2049,20 @@ select_cpu:
  * with a delay of @msecs.
  */
 static void __blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async,
-					unsigned long msecs)
+					unsigned long msecs, bool special)
 {
 	if (unlikely(blk_mq_hctx_stopped(hctx)))
 		return;
 
+	if (special)
+		pr_err("%s special in_atomic()=%d\n", __func__, in_atomic());
+
 	if (!async && !(hctx->flags & BLK_MQ_F_BLOCKING)) {
 		int cpu = get_cpu();
+		if (special)
+			pr_err("%s2 special in_atomic()=%d\n", __func__, in_atomic());
 		if (cpumask_test_cpu(cpu, hctx->cpumask)) {
-			__blk_mq_run_hw_queue(hctx);
+			__blk_mq_run_hw_queue(hctx, special);
 			put_cpu();
 			return;
 		}
@@ -2075,7 +2083,7 @@ static void __blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async,
  */
 void blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs)
 {
-	__blk_mq_delay_run_hw_queue(hctx, true, msecs);
+	__blk_mq_delay_run_hw_queue(hctx, true, msecs, false);
 }
 EXPORT_SYMBOL(blk_mq_delay_run_hw_queue);
 
@@ -2108,7 +2116,7 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async, bool special)
 		blk_mq_hctx_has_pending(hctx));
 
 	if (need_run)
-		__blk_mq_delay_run_hw_queue(hctx, async, 0);
+		__blk_mq_delay_run_hw_queue(hctx, async, 0, special);
 }
 EXPORT_SYMBOL(blk_mq_run_hw_queue);
 
@@ -2310,7 +2318,7 @@ static void blk_mq_run_work_fn(struct work_struct *work)
 	if (blk_mq_hctx_stopped(hctx))
 		return;
 
-	__blk_mq_run_hw_queue(hctx);
+	__blk_mq_run_hw_queue(hctx, false);
 }
 
 static inline void __blk_mq_insert_req_list(struct blk_mq_hw_ctx *hctx,
