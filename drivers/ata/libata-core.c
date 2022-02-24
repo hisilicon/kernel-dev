@@ -1487,6 +1487,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s1 ata_device=%pS rq=%pS\n", __func__, dev, rq);
 	if (!IS_ERR(rq)) {
 		struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+		blk_status_t status;
 		
 
 		struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
@@ -1499,7 +1500,11 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		stuff->n_elem = n_elem;
 		stuff->timeout = timeout;
 		ata_exec_internal_sg_rq = rq;
-		blk_execute_rq_nowait(rq, true, NULL);
+		status = blk_execute_rq(rq, true);
+		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS status=%d\n", __func__, dev, rq, scmd, stuff, status);
+	//	blk_execute_rq_nowait(rq, true, NULL);
+	} else {
+		BUG();
 	}
 	
 	return 0;
@@ -1534,8 +1539,7 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 		scsi_host = ap->scsi_host;
 	if (scsi_host)
 		host_sdev = scsi_host->sdev;
-	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS\n",
-	__func__, dev, link, ap, sdev, scsi_host, host_sdev);
+	pr_err("%s ata_device=%pS link=%pS ap=%pS\n", __func__, dev, link, ap);
 
 	spin_lock_irqsave(ap->lock, flags);
 
