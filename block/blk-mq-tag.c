@@ -164,7 +164,7 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 		 * pending IO submits before going to sleep waiting for
 		 * some to complete.
 		 */
-		blk_mq_run_hw_queue(data->hctx, false);
+		blk_mq_run_hw_queue(data->hctx, false, false);
 
 		/*
 		 * Retry tag allocation after running the hardware queue,

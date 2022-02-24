@@ -698,7 +698,7 @@ static int kyber_domain_wake(wait_queue_entry_t *wqe, unsigned mode, int flags,
 	struct sbq_wait *wait = container_of(wqe, struct sbq_wait, wait);
 
 	sbitmap_del_wait_queue(wait);
-	blk_mq_run_hw_queue(hctx, true);
+	blk_mq_run_hw_queue(hctx, true, false);
 	return 1;
 }
 

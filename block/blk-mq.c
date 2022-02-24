@@ -1613,7 +1613,7 @@ static int blk_mq_dispatch_wake(wait_queue_entry_t *wait, unsigned mode,
 	}
 	spin_unlock(&hctx->dispatch_wait_lock);
 
-	blk_mq_run_hw_queue(hctx, true);
+	blk_mq_run_hw_queue(hctx, true, false);
 	return 1;
 }
 
@@ -1951,7 +1951,7 @@ out:
 			needs_resource = true;
 		if (!needs_restart ||
 		    (no_tag && list_empty_careful(&hctx->dispatch_wait.entry)))
-			blk_mq_run_hw_queue(hctx, true);
+			blk_mq_run_hw_queue(hctx, true, false);
 		else if (needs_restart && needs_resource)
 			blk_mq_delay_run_hw_queue(hctx, BLK_MQ_RESOURCE_DELAY);
 
@@ -2088,9 +2088,12 @@ EXPORT_SYMBOL(blk_mq_delay_run_hw_queue);
  * pending requests to be sent. If this is true, run the queue to send requests
  * to hardware.
  */
-void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
+void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async, bool special)
 {
 	bool need_run;
+
+	if (special)
+		pr_err("%s special in_atomic()=%d\n", __func__, in_atomic());
 
 	/*
 	 * When queue is quiesced, we may be switching io scheduler, or
@@ -2168,7 +2171,7 @@ void blk_mq_run_hw_queues(struct request_queue *q, bool async)
 		 */
 		if (!sq_hctx || sq_hctx == hctx ||
 		    !list_empty_careful(&hctx->dispatch))
-			blk_mq_run_hw_queue(hctx, async);
+			blk_mq_run_hw_queue(hctx, async, false);
 	}
 }
 EXPORT_SYMBOL(blk_mq_run_hw_queues);
@@ -2261,7 +2264,7 @@ void blk_mq_start_hw_queue(struct blk_mq_hw_ctx *hctx)
 {
 	clear_bit(BLK_MQ_S_STOPPED, &hctx->state);
 
-	blk_mq_run_hw_queue(hctx, false);
+	blk_mq_run_hw_queue(hctx, false, false);
 }
 EXPORT_SYMBOL(blk_mq_start_hw_queue);
 
@@ -2281,7 +2284,7 @@ void blk_mq_start_stopped_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 		return;
 
 	clear_bit(BLK_MQ_S_STOPPED, &hctx->state);
-	blk_mq_run_hw_queue(hctx, async);
+	blk_mq_run_hw_queue(hctx, async, false);
 }
 EXPORT_SYMBOL_GPL(blk_mq_start_stopped_hw_queue);
 
@@ -2360,7 +2363,7 @@ void blk_mq_request_bypass_insert(struct request *rq, bool at_head,
 	spin_unlock(&hctx->lock);
 
 	if (run_queue)
-		blk_mq_run_hw_queue(hctx, false);
+		blk_mq_run_hw_queue(hctx, false, false);
 }
 
 void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
@@ -3380,7 +3383,7 @@ static int blk_mq_hctx_notify_dead(unsigned int cpu, struct hlist_node *node)
 	list_splice_tail_init(&tmp, &hctx->dispatch);
 	spin_unlock(&hctx->lock);
 
-	blk_mq_run_hw_queue(hctx, true);
+	blk_mq_run_hw_queue(hctx, true, false);
 	return 0;
 }
 
