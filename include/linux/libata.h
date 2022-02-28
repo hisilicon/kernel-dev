@@ -2056,6 +2056,12 @@ struct libata_stuffy {
 	unsigned int n_elem;
 	unsigned long timeout;
 	struct completion *wait;
+
+	
+	unsigned int preempted_tag;
+	u32 preempted_sactive;
+	u64 preempted_qc_active;
+	int preempted_nr_active_links;
 };
 
 extern unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
@@ -2063,6 +2069,7 @@ extern unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 			      int dma_dir, struct scatterlist *sgl,
 			      unsigned int n_elem, unsigned long timeout,
 			      struct scsi_cmnd *scsi_cmnd,
-			      struct completion *wait);
+			      struct completion *wait,
+			      struct request *rq);
 
 #endif /* __LINUX_LIBATA_H__ */
