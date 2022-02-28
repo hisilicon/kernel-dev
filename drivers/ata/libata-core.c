@@ -1544,13 +1544,15 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		if (ap->ops->error_handler)
 			ata_eh_release(ap);
 
-		pr_err("%s5 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS in_atomic()=%d\n",
-		__func__, dev, link, ap, sdev, scsi_host, host_sdev, in_atomic());
+		pr_err("%s5 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS in_atomic()=%d stuff=%pS\n",
+		__func__, dev, link, ap, sdev, scsi_host, host_sdev, in_atomic(), stuff);
 
 		rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
 
-		pr_err("%s6 got completion ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS\n",
-		__func__, dev, link, ap, sdev, scsi_host, host_sdev);
+		qc = stuff->qc;
+
+		pr_err("%s6 got completion ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS stuff=%pS qc=%pS\n",
+		__func__, dev, link, ap, sdev, scsi_host, host_sdev, stuff, qc);
 
 		if (ap->ops->error_handler)
 			ata_eh_acquire(ap);
@@ -1580,8 +1582,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 			spin_unlock_irqrestore(ap->lock, flags);
 		}
 
-		pr_err("%s7 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS\n",
-		__func__, dev, link, ap, sdev, scsi_host, host_sdev);
+		pr_err("%s7 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS qc=%pS\n",
+		__func__, dev, link, ap, sdev, scsi_host, host_sdev, qc);
 
 		/* do post_internal_cmd */
 		if (ap->ops->post_internal_cmd)
@@ -1673,7 +1675,7 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 	}
 
 	/* initialize internal qc */
-	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
+	stuff->qc = qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
@@ -1681,6 +1683,9 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 	qc->ap = ap;
 	qc->dev = dev;
 	ata_qc_reinit(qc);
+
+	pr_err("%s2 ata_device=%pS link=%pS ap=%pS in_atomic=%d qc=%pS stuff=%pS stuff->qc=%pS\n",
+		__func__, dev, link, ap, in_atomic(), qc, stuff,  stuff->qc);
 
 	stuff->preempted_tag = link->active_tag;
 	stuff->preempted_sactive = link->sactive;
