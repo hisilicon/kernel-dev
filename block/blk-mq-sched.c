@@ -414,7 +414,8 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 
 	WARN_ON(e && (rq->tag != BLK_MQ_NO_TAG));
 	if (rq == ata_exec_internal_sg_rq) {
-		pr_err("%s ata_exec_internal_sg_rq=%pS in_atomic=%d\n", __func__, ata_exec_internal_sg_rq, in_atomic());
+		pr_err("%s ata_exec_internal_sg_rq=%pS in_atomic=%d blk_mq_sched_bypass_insert=%d async=%d run_queue=%d\n",
+			__func__, ata_exec_internal_sg_rq, in_atomic(), blk_mq_sched_bypass_insert(hctx, rq), async, run_queue);
 		special = true;
 	}
 
@@ -441,7 +442,7 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 		 * intensive flush workloads can benefit in case of NCQ HW.
 		 */
 		at_head = (rq->rq_flags & RQF_FLUSH_SEQ) ? true : at_head;
-		blk_mq_request_bypass_insert(rq, at_head, false);
+		blk_mq_request_bypass_insert(rq, at_head, false, special);
 		goto run;
 	}
 

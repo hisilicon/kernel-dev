@@ -1487,11 +1487,12 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s1 ata_device=%pS rq=%pS\n", __func__, dev, rq);
 	if (!IS_ERR(rq)) {
 		struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-		blk_status_t status;
+	//	blk_status_t status;
 		
 
 		struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
-		pr_err("%s2 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d\n", __func__, dev, rq, scmd, stuff, in_atomic());
+		pr_err("%s2 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d blk_rq_is_passthrough=%d\n",
+			__func__, dev, rq, scmd, stuff, in_atomic(), blk_rq_is_passthrough(rq));
 		stuff->dev = dev;
 		stuff->tf = tf;
 		stuff->cdb = cdb;
@@ -1500,8 +1501,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		stuff->n_elem = n_elem;
 		stuff->timeout = timeout;
 		ata_exec_internal_sg_rq = rq;
-		status = blk_execute_rq(rq, true);
-		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS status=%d in_atomic=%d\n", __func__, dev, rq, scmd, stuff, status, in_atomic());
+	//	status = blk_execute_rq(rq, true);
+	//	pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS status=%d in_atomic=%d\n", __func__, dev, rq, scmd, stuff, status, in_atomic());
 		blk_execute_rq_nowait(rq, true, NULL);
 	} else {
 		BUG();
