@@ -2015,6 +2015,17 @@ struct iommu_domain *iommu_domain_alloc(const struct bus_type *bus)
 }
 EXPORT_SYMBOL_GPL(iommu_domain_alloc);
 
+int iommu_domain_set_flags(struct iommu_domain *domain,
+			   const struct bus_type *bus, unsigned long val)
+{
+	if (!(val & bus->iommu_ops->supported_flags))
+		return -EINVAL;
+
+	domain->flags |= val;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_domain_set_flags);
+
 void iommu_domain_free(struct iommu_domain *domain)
 {
 	if (domain->type == IOMMU_DOMAIN_SVA)
