@@ -47,6 +47,7 @@ static DEFINE_PER_CPU(struct llist_head, blk_cpu_done);
 
 static void blk_mq_poll_stats_start(struct request_queue *q);
 static void blk_mq_poll_stats_fn(struct blk_stat_callback *cb);
+extern struct request *ata_exec_internal_sg_rq;
 
 static int blk_mq_poll_stats_bkt(const struct request *rq)
 {
@@ -1179,7 +1180,6 @@ static void blk_end_sync_rq(struct request *rq, blk_status_t error)
  * Note:
  *    This function will invoke @done directly if the queue is dead.
  */
-extern struct request *ata_exec_internal_sg_rq;
 void blk_execute_rq_nowait(struct request *rq, bool at_head, rq_end_io_fn *done)
 {
 	WARN_ON_ONCE(irqs_disabled());
@@ -1301,7 +1301,7 @@ static void blk_mq_requeue_work(struct work_struct *work)
 		 * merge.
 		 */
 		if (rq->rq_flags & RQF_DONTPREP)
-			blk_mq_request_bypass_insert(rq, false, false);
+			blk_mq_request_bypass_insert(rq, false, false, false);
 		else
 			blk_mq_sched_insert_request(rq, true, false, false);
 	}
@@ -2055,12 +2055,12 @@ static void __blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async,
 		return;
 
 	if (special)
-		pr_err("%s special in_atomic()=%d\n", __func__, in_atomic());
+		pr_err("%s special in_atomic()=%d async=%d\n", __func__, in_atomic(), async);
 
 	if (!async && !(hctx->flags & BLK_MQ_F_BLOCKING)) {
 		int cpu = get_cpu();
 		if (special)
-			pr_err("%s2 special in_atomic()=%d\n", __func__, in_atomic());
+			pr_err("%s2 special in_atomic()=%d async=%d\n", __func__, in_atomic(), async);
 		if (cpumask_test_cpu(cpu, hctx->cpumask)) {
 			__blk_mq_run_hw_queue(hctx, special);
 			put_cpu();
@@ -2359,9 +2359,13 @@ void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
  * bypass a potential IO scheduler on the target device.
  */
 void blk_mq_request_bypass_insert(struct request *rq, bool at_head,
-				  bool run_queue)
+				  bool run_queue, bool special)
 {
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
+
+	if (special)
+		pr_err("%s ata_exec_internal_sg_rq=%pS in_atomic=%d run_queue=%d\n",
+			__func__, ata_exec_internal_sg_rq, in_atomic(), run_queue);
 
 	spin_lock(&hctx->lock);
 	if (at_head)
@@ -2520,7 +2524,7 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 		__blk_mq_try_issue_directly(hctx, rq, false, true);
 
 	if (ret == BLK_STS_RESOURCE || ret == BLK_STS_DEV_RESOURCE)
-		blk_mq_request_bypass_insert(rq, false, true);
+		blk_mq_request_bypass_insert(rq, false, true, false);
 	else if (ret != BLK_STS_OK)
 		blk_mq_end_request(rq, ret);
 }
@@ -2554,7 +2558,7 @@ static void blk_mq_plug_issue_direct(struct blk_plug *plug, bool from_schedule)
 			break;
 		case BLK_STS_RESOURCE:
 		case BLK_STS_DEV_RESOURCE:
-			blk_mq_request_bypass_insert(rq, false, last);
+			blk_mq_request_bypass_insert(rq, false, last, false);
 			blk_mq_commit_rqs(hctx, &queued, from_schedule);
 			return;
 		default:
@@ -2670,7 +2674,7 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 			if (ret == BLK_STS_RESOURCE ||
 					ret == BLK_STS_DEV_RESOURCE) {
 				blk_mq_request_bypass_insert(rq, false,
-							list_empty(list));
+							list_empty(list), false);
 				break;
 			}
 			blk_mq_end_request(rq, ret);
