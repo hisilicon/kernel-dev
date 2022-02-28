@@ -2062,6 +2062,7 @@ struct libata_stuffy {
 	u32 preempted_sactive;
 	u64 preempted_qc_active;
 	int preempted_nr_active_links;
+	struct ata_queued_cmd *qc;
 };
 
 extern unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
