@@ -1501,6 +1501,25 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		
 
 		struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
+
+		
+		struct ata_link *link = dev->link;
+		struct ata_port *ap = link->ap;
+		u8 command = tf->command;
+		struct Scsi_Host *scsi_host = NULL;
+		int auto_timeout = 0;
+		struct ata_queued_cmd *qc;
+		unsigned int preempted_tag;
+		u32 preempted_sactive;
+		u64 preempted_qc_active;
+		int preempted_nr_active_links;
+		unsigned long flags;
+		unsigned int err_mask;
+		struct scsi_device *sdev = dev->sdev;
+		struct scsi_device *host_sdev = NULL;
+		int rc;
+
+		
 		pr_err("%s2 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d blk_rq_is_passthrough=%d\n",
 			__func__, dev, rq, scmd, stuff, in_atomic(), blk_rq_is_passthrough(rq));
 		stuff->dev = dev;
@@ -1513,8 +1532,96 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		stuff->wait = &wait;
 		ata_exec_internal_sg_rq = rq;
 	//	status = blk_execute_rq(rq, true);
-	//	pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS status=%d in_atomic=%d\n", __func__, dev, rq, scmd, stuff, status, in_atomic());
+		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d\n", __func__, dev, rq, scmd, stuff, in_atomic());
 		blk_execute_rq_nowait(rq, true, ata_exec_internal_sg_req_done);
+		pr_err("%s4 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d\n", __func__, dev, rq, scmd, stuff, in_atomic());
+
+		if (!timeout) {
+			if (ata_probe_timeout)
+				timeout = ata_probe_timeout * 1000;
+			else {
+				timeout = ata_internal_cmd_timeout(dev, command);
+				auto_timeout = 1;
+			}
+		}
+
+		if (ap->ops->error_handler)
+			ata_eh_release(ap);
+
+		pr_err("%s2 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS in_atomic()=%d\n",
+		__func__, dev, link, ap, sdev, scsi_host, host_sdev, in_atomic());
+
+		rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
+
+		pr_err("%s3 got completion ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS\n",
+		__func__, dev, link, ap, sdev, scsi_host, host_sdev);
+
+		if (ap->ops->error_handler)
+			ata_eh_acquire(ap);
+
+		ata_sff_flush_pio_task(ap);
+
+		if (!rc) {
+			spin_lock_irqsave(ap->lock, flags);
+
+			/* We're racing with irq here.  If we lose, the
+			 * following test prevents us from completing the qc
+			 * twice.  If we win, the port is frozen and will be
+			 * cleaned up by ->post_internal_cmd().
+			 */
+			if (qc->flags & ATA_QCFLAG_ACTIVE) {
+				qc->err_mask |= AC_ERR_TIMEOUT;
+
+				if (ap->ops->error_handler)
+					ata_port_freeze(ap);
+				else
+					ata_qc_complete(qc);
+
+				ata_dev_warn(dev, "qc timeout (cmd 0x%x)\n",
+					     command);
+			}
+
+			spin_unlock_irqrestore(ap->lock, flags);
+		}
+
+		/* do post_internal_cmd */
+		if (ap->ops->post_internal_cmd)
+			ap->ops->post_internal_cmd(qc);
+
+		/* perform minimal error analysis */
+		if (qc->flags & ATA_QCFLAG_FAILED) {
+			if (qc->result_tf.command & (ATA_ERR | ATA_DF))
+				qc->err_mask |= AC_ERR_DEV;
+
+			if (!qc->err_mask)
+				qc->err_mask |= AC_ERR_OTHER;
+
+			if (qc->err_mask & ~AC_ERR_OTHER)
+				qc->err_mask &= ~AC_ERR_OTHER;
+		} else if (qc->tf.command == ATA_CMD_REQ_SENSE_DATA) {
+			qc->result_tf.command |= ATA_SENSE;
+		}
+
+		/* finish up */
+		spin_lock_irqsave(ap->lock, flags);
+
+		*tf = qc->result_tf;
+		err_mask = qc->err_mask;
+
+		ata_qc_free(qc);
+		link->active_tag = preempted_tag;
+		link->sactive = preempted_sactive;
+		ap->qc_active = preempted_qc_active;
+		ap->nr_active_links = preempted_nr_active_links;
+
+		spin_unlock_irqrestore(ap->lock, flags);
+
+		if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
+			ata_internal_cmd_timed_out(dev, command);
+
+		return err_mask;
+
+		
 	} else {
 		BUG();
 	}
@@ -1528,23 +1635,20 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
 			      unsigned int n_elem, unsigned long timeout,
-			      struct scsi_cmnd *scsi_cmnd)
+			      struct scsi_cmnd *scsi_cmnd,
+			      struct completion *wait)
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
-	u8 command = tf->command;
 	struct Scsi_Host *scsi_host = NULL;
-	int auto_timeout = 0;
 	struct ata_queued_cmd *qc;
 	unsigned int preempted_tag;
 	u32 preempted_sactive;
 	u64 preempted_qc_active;
 	int preempted_nr_active_links;
 	unsigned long flags;
-	unsigned int err_mask;
 	struct scsi_device *sdev = dev->sdev;
 	struct scsi_device *host_sdev = NULL;
-	int rc;
 
 	if (ap)
 		scsi_host = ap->scsi_host;
@@ -1602,7 +1706,7 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 		qc->nbytes = buflen;
 	}
 
-	//qc->private_data = &wait;
+	qc->private_data = wait;
 	qc->complete_fn = ata_qc_complete_internal;
 
 	ata_qc_issue(qc);
