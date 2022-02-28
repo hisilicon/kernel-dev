@@ -2055,6 +2055,7 @@ struct libata_stuffy {
 	struct scatterlist *sgl;
 	unsigned int n_elem;
 	unsigned long timeout;
+	struct completion *wait;
 };
 
 extern unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
