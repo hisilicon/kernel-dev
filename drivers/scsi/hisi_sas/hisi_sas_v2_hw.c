@@ -3558,12 +3558,6 @@ static int map_queues_v2_hw(struct Scsi_Host *shost)
 
 }
 
-struct special_union {
-	union {
-		struct libata_stuffy stuff;
-		struct sas_task sas_task;
-	};
-};
 
 static struct scsi_host_template sht_v2_hw = {
 	.name			= DRV_NAME,
@@ -3593,7 +3587,7 @@ static struct scsi_host_template sht_v2_hw = {
 	.host_reset		= hisi_sas_host_reset,
 	.map_queues		= map_queues_v2_hw,
 	.host_tagset		= 1,
-	.cmd_size = sizeof(struct special_union),
+	.cmd_size = sizeof(struct sas_task_ata_internal),
 };
 
 static const struct hisi_sas_hw hisi_sas_v2_hw = {

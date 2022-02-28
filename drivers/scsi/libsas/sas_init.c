@@ -137,7 +137,8 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	if (ata_exec_internal_sg_rq == rq) {
 		unsigned result;
 		struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-		struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
+		struct sas_task_ata_internal *internal = (struct sas_task_ata_internal *)(scmd + 1);
+		struct libata_stuffy *stuff = &internal->stuff;
 
 		pr_err("%s2 ata_device=%pS scmd=%pS stuff=%pS in_atomic=%d\n", __func__, stuff->dev, stuff->tf, stuff, in_atomic());
 		pr_err("%s3 ata_exec_internal_sg_rq=%pS\n", __func__, ata_exec_internal_sg_rq);

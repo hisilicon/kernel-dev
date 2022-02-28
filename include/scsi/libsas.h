@@ -753,18 +753,26 @@ int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 			 gfp_t gfp_flags);
 
+struct sas_task_ata_internal {
+	struct libata_stuffy stuff; // required ordering
+	struct sas_task sas_task;
+};
+
 static inline struct sas_task *sas_rq_to_task(struct request *rq)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	struct sas_task_ata_internal *internal = (struct sas_task_ata_internal *)(scmd + 1);
 
-	return (struct sas_task *)(scmd + 1);
+	return &internal->sas_task;
 }
 
 static inline struct request *sas_rq_from_task(void *task)
 {
-	struct scsi_cmnd *scmd = task - sizeof(*scmd);
+	void *internal = task - sizeof(struct libata_stuffy);
+	struct scsi_cmnd *scmd = internal - sizeof(*scmd);
 
 	return blk_mq_rq_from_pdu(scmd);
 }
+
 
 #endif /* _SASLIB_H_ */
