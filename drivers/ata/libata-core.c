@@ -1629,7 +1629,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 		pr_err("%s10 out ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS err_mask=%d\n",
 		__func__, dev, link, ap, sdev, scsi_host, host_sdev, err_mask);
-		__blk_mq_end_request(rq, 0);
+		//__blk_mq_end_request(rq, 0);
 		return err_mask;
 
 		
