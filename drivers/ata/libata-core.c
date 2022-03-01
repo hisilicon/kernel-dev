@@ -1483,7 +1483,6 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	struct Scsi_Host *scsi_host = NULL;
 	struct scsi_device *sdev = dev->sdev;
 	struct scsi_device *host_sdev = NULL;
-	DECLARE_COMPLETION_ONSTACK(wait);
 	struct request *rq;
 	struct libata_stuffy2 stuffy2 = {};
 
@@ -1494,7 +1493,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if (scsi_host)
 		host_sdev = scsi_host->sdev;
 	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS in_atomic=%d wait=%pS\n",
-	__func__, dev, link, ap, sdev, scsi_host, host_sdev, in_atomic(), &wait);
+	__func__, dev, link, ap, sdev, scsi_host, host_sdev, in_atomic(), &stuffy2.wait);
 
 	rq = blk_mq_alloc_request(host_sdev->request_queue, REQ_OP_DRV_IN,
 					BLK_MQ_REQ_RESERVED);
@@ -1533,7 +1532,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 		ata_exec_internal_sg_rq = rq;
 	//	status = blk_execute_rq(rq, true);
-		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d wait=%pS\n", __func__, dev, rq, scmd, stuff, in_atomic(), &wait);
+		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d\n", __func__, dev, rq, scmd, stuff, in_atomic());
 		blk_execute_rq_nowait(rq, true, NULL);
 		pr_err("%s4 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d\n", __func__, dev, rq, scmd, stuff, in_atomic());
 
@@ -1552,7 +1551,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		pr_err("%s5 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS in_atomic()=%d stuff=%pS\n",
 		__func__, dev, link, ap, sdev, scsi_host, host_sdev, in_atomic(), stuff);
 
-		rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
+		rc = wait_for_completion_timeout(&stuffy2.wait, msecs_to_jiffies(timeout));
 
 		qc = stuffy2.qc;
 		ata_exec_internal_sg_rq = NULL;
