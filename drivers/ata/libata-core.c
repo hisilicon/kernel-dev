@@ -1649,21 +1649,14 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
-	struct Scsi_Host *scsi_host = NULL;
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
-	struct scsi_device *sdev = dev->sdev;
-	struct scsi_device *host_sdev = NULL;
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	//	blk_status_t status;
 	struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
 	struct libata_stuffy2 *stuff2 = stuff->libata_stuffy2;
 
-	if (ap)
-		scsi_host = ap->scsi_host;
-	if (scsi_host)
-		host_sdev = scsi_host->sdev;
-	pr_err("%s ata_device=%pS link=%pS ap=%pS in_atomic=%d wait=%pS\n", __func__, dev, link, ap, in_atomic(), wait);
+	pr_err("%s ata_device=%pS wait=%pS\n", __func__, dev, wait);
 
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -1683,8 +1676,8 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 	qc->dev = dev;
 	ata_qc_reinit(qc);
 
-	pr_err("%s2 ata_device=%pS link=%pS ap=%pS in_atomic=%d qc=%pS stuff=%pS stuff->qc=%pS wait=%pS\n",
-		__func__, dev, link, ap, in_atomic(), qc, stuff,  stuff2->qc, wait);
+	pr_err("%s2 ata_device=%pSqc=%pS stuff=%pS stuff->qc=%pS wait=%pS\n",
+		__func__, dev, qc, stuff, stuff2->qc, wait);
 
 	stuff->preempted_tag = link->active_tag;
 	stuff->preempted_sactive = link->sactive;
@@ -1725,8 +1718,7 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	pr_err("%s2 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS in_atomic()=%d\n",
-		__func__, dev, link, ap, sdev, scsi_host, host_sdev, in_atomic());
+	pr_err("%s2 ata_device=%pS \n", __func__, dev);
 
 	return 0;
 }
