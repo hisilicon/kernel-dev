@@ -136,15 +136,17 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	struct domain_device *dev = cmd_to_domain_dev(scmd);
+	struct sas_task_ata_internal *internal = (struct sas_task_ata_internal *)(scmd + 1);
+	struct request_queue *q = rq->q;
+	void *queuedata = q->queuedata;
 
-	if (dev_is_sata(dev)) {
+	if (queuedata == shost->sdev) {
 		unsigned result;
-		struct sas_task_ata_internal *internal = (struct sas_task_ata_internal *)(scmd + 1);
 		struct libata_stuffy *stuff = &internal->stuff;
 		struct libata_stuffy2 *stuffy2 = stuff->libata_stuffy2;
 
-		pr_err("%s2 ata_device=%pS scmd=%pS stuff=%pS in_atomic=%d\n", __func__, stuff->dev, stuff->tf, stuff, in_atomic());
+		pr_err("%s2 ata_device=%pS scmd=%pS stuff=%pS in_atomic=%d shost->sdev=%pS scmd->sdev=%pS\n",
+			__func__, stuff->dev, stuff->tf, stuff, in_atomic(), shost->sdev, scmd->device);
 		pr_err("%s3 ata_exec_internal_sg_rq=%pS\n", __func__, ata_exec_internal_sg_rq);
 	//	pr_err("%s3.1 stuff=%pS\n", __func__, stuff);
 	//	pr_err("%s3.2 stuff->dev=%pS\n", __func__, stuff->dev);
