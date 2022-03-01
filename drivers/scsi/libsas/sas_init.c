@@ -141,6 +141,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 		struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 		struct sas_task_ata_internal *internal = (struct sas_task_ata_internal *)(scmd + 1);
 		struct libata_stuffy *stuff = &internal->stuff;
+		struct libata_stuffy2 *stuffy2 = stuff->libata_stuffy2;
 
 		pr_err("%s2 ata_device=%pS scmd=%pS stuff=%pS in_atomic=%d\n", __func__, stuff->dev, stuff->tf, stuff, in_atomic());
 		pr_err("%s3 ata_exec_internal_sg_rq=%pS\n", __func__, ata_exec_internal_sg_rq);
@@ -150,7 +151,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	//	pr_err("%s3.4 stuff->cdb=%pS\n", __func__, stuff->cdb);
 	//	pr_err("%s3.6 stuff->sgl=%pS\n", __func__, stuff->sgl);
 	//	pr_err("%s3.8 scmd=%pS\n", __func__, scmd);
-		result = ata_exec_internal_sg_dir(stuff->dev, stuff->tf, stuff->cdb, stuff->dma_dir, stuff->sgl, stuff->n_elem, stuff->timeout, scmd, stuff->wait, rq);
+		result = ata_exec_internal_sg_dir(stuff->dev, stuff->tf, stuff->cdb, stuff->dma_dir, stuff->sgl, stuff->n_elem, stuff->timeout, scmd, &stuffy2->wait, rq);
 		pr_err("%s4 ata_exec_internal_sg_rq=%pS result=%d\n", __func__, ata_exec_internal_sg_rq, result);
 		return 0;
 	}

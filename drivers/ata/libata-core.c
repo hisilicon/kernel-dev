@@ -1444,8 +1444,9 @@ static __maybe_unused void ata_exec_internal_sg_req_done(struct request *rq,
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
+	struct libata_stuffy2 *stuff2 = stuff->libata_stuffy2;
 
-	pr_err("%s rq=%pS blk_status=%d scmd=%pS wait=%pS\n", __func__, rq, blk_status, stuff, stuff->wait);
+	pr_err("%s rq=%pS blk_status=%d scmd=%pS stuff2=%pS wait=%pS\n", __func__, rq, blk_status, stuff, stuff2, &stuff2->wait);
 }
 
 /**
@@ -1484,6 +1485,9 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	struct scsi_device *host_sdev = NULL;
 	DECLARE_COMPLETION_ONSTACK(wait);
 	struct request *rq;
+	struct libata_stuffy2 stuffy2 = {};
+
+	init_completion(&stuffy2.wait);
 
 	if (ap)
 		scsi_host = ap->scsi_host;
@@ -1516,7 +1520,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		struct scsi_device *host_sdev = NULL;
 		int rc;
 
-		
+		stuff->libata_stuffy2 = &stuffy2;
 		pr_err("%s2 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d blk_rq_is_passthrough=%d\n",
 			__func__, dev, rq, scmd, stuff, in_atomic(), blk_rq_is_passthrough(rq));
 		stuff->dev = dev;
@@ -1526,7 +1530,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		stuff->sgl = sgl;
 		stuff->n_elem = n_elem;
 		stuff->timeout = timeout;
-		stuff->wait = &wait;
+
 		ata_exec_internal_sg_rq = rq;
 	//	status = blk_execute_rq(rq, true);
 		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d wait=%pS\n", __func__, dev, rq, scmd, stuff, in_atomic(), &wait);
@@ -1550,7 +1554,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 		rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
 
-		qc = stuff->qc;
+		qc = stuffy2.qc;
 		ata_exec_internal_sg_rq = NULL;
 		pr_err("%s6 got completion ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS stuff=%pS qc=%pS\n",
 		__func__, dev, link, ap, sdev, scsi_host, host_sdev, stuff, qc);
@@ -1562,6 +1566,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 		if (!rc) {
 			spin_lock_irqsave(ap->lock, flags);
+			panic("ata_exec_internal_sg timeout");
 
 			/* We're racing with irq here.  If we lose, the
 			 * following test prevents us from completing the qc
@@ -1660,6 +1665,7 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	//	blk_status_t status;
 	struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
+	struct libata_stuffy2 *stuff2 = stuff->libata_stuffy2;
 
 	if (ap)
 		scsi_host = ap->scsi_host;
@@ -1676,7 +1682,7 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 	}
 
 	/* initialize internal qc */
-	stuff->qc = qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
+	stuff2->qc = qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
@@ -1686,7 +1692,7 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 	ata_qc_reinit(qc);
 
 	pr_err("%s2 ata_device=%pS link=%pS ap=%pS in_atomic=%d qc=%pS stuff=%pS stuff->qc=%pS wait=%pS\n",
-		__func__, dev, link, ap, in_atomic(), qc, stuff,  stuff->qc, wait);
+		__func__, dev, link, ap, in_atomic(), qc, stuff,  stuff2->qc, wait);
 
 	stuff->preempted_tag = link->active_tag;
 	stuff->preempted_sactive = link->sactive;
