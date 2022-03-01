@@ -1492,8 +1492,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		scsi_host = ap->scsi_host;
 	if (scsi_host)
 		host_sdev = scsi_host->sdev;
-	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS in_atomic=%d wait=%pS\n",
-	__func__, dev, link, ap, sdev, scsi_host, host_sdev, in_atomic(), &stuffy2.wait);
+	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS wait=%pS\n",
+	__func__, dev, link, ap, sdev, scsi_host, host_sdev, &stuffy2.wait);
 
 	rq = blk_mq_alloc_request(host_sdev->request_queue, REQ_OP_DRV_IN,
 					BLK_MQ_REQ_RESERVED);
@@ -1510,18 +1510,15 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		struct ata_link *link = dev->link;
 		struct ata_port *ap = link->ap;
 		u8 command = tf->command;
-		struct Scsi_Host *scsi_host = NULL;
 		int auto_timeout = 0;
 		struct ata_queued_cmd *qc;
 		unsigned long flags;
 		unsigned int err_mask;
-		struct scsi_device *sdev = dev->sdev;
-		struct scsi_device *host_sdev = NULL;
 		int rc;
 
 		stuff->libata_stuffy2 = &stuffy2;
-		pr_err("%s2 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d blk_rq_is_passthrough=%d\n",
-			__func__, dev, rq, scmd, stuff, in_atomic(), blk_rq_is_passthrough(rq));
+		pr_err("%s2 ata_device=%pS rq=%pS scmd=%pS stuff=%pS\n",
+			__func__, dev, rq, scmd, stuff);
 		stuff->dev = dev;
 		stuff->tf = tf;
 		stuff->cdb = cdb;
@@ -1532,9 +1529,9 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 		ata_exec_internal_sg_rq = rq;
 	//	status = blk_execute_rq(rq, true);
-		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d\n", __func__, dev, rq, scmd, stuff, in_atomic());
+		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS\n", __func__, dev, rq, scmd, stuff);
 		blk_execute_rq_nowait(rq, true, NULL);
-		pr_err("%s4 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d\n", __func__, dev, rq, scmd, stuff, in_atomic());
+		pr_err("%s4 ata_device=%pS rq=%pS scmd=%pS stuff=%pS\n", __func__, dev, rq, scmd, stuff);
 
 		if (!timeout) {
 			if (ata_probe_timeout)
@@ -1548,15 +1545,15 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		if (ap->ops->error_handler)
 			ata_eh_release(ap);
 
-		pr_err("%s5 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS in_atomic()=%d stuff=%pS\n",
-		__func__, dev, link, ap, sdev, scsi_host, host_sdev, in_atomic(), stuff);
+		pr_err("%s5 ata_device=%pS link=%pS ap=%pS sdev=%pS stuff=%pS\n",
+		__func__, dev, link, ap, sdev, stuff);
 
 		rc = wait_for_completion_timeout(&stuffy2.wait, msecs_to_jiffies(timeout));
 
 		qc = stuffy2.qc;
 		ata_exec_internal_sg_rq = NULL;
-		pr_err("%s6 got completion ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS stuff=%pS qc=%pS\n",
-		__func__, dev, link, ap, sdev, scsi_host, host_sdev, stuff, qc);
+		pr_err("%s6 got completion ata_device=%pS  stuff=%pS qc=%pS\n",
+		__func__, dev, stuff, qc);
 
 		if (ap->ops->error_handler)
 			ata_eh_acquire(ap);
@@ -1587,8 +1584,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 			spin_unlock_irqrestore(ap->lock, flags);
 		}
 
-		pr_err("%s7 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS qc=%pS\n",
-		__func__, dev, link, ap, sdev, scsi_host, host_sdev, qc);
+		pr_err("%s7 ata_device=%pS  qc=%pS\n", __func__, dev, qc);
 
 		/* do post_internal_cmd */
 		if (ap->ops->post_internal_cmd)
@@ -1608,8 +1604,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 			qc->result_tf.command |= ATA_SENSE;
 		}
 
-		pr_err("%s8 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS\n",
-		__func__, dev, link, ap, sdev, scsi_host, host_sdev);
+		pr_err("%s8 ata_device=%pS\n", __func__, dev);
 
 		/* finish up */
 		spin_lock_irqsave(ap->lock, flags);
@@ -1625,14 +1620,12 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 		spin_unlock_irqrestore(ap->lock, flags);
 
-		pr_err("%s9 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS\n",
-		__func__, dev, link, ap, sdev, scsi_host, host_sdev);
+		pr_err("%s9 ata_device=%pS \n", __func__, dev);
 
 		if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
 			ata_internal_cmd_timed_out(dev, command);
 
-		pr_err("%s10 out ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS err_mask=%d\n",
-		__func__, dev, link, ap, sdev, scsi_host, host_sdev, err_mask);
+		pr_err("%s10 out ata_device=%pS err_mask=%d\n", __func__, dev, err_mask);
 		//__blk_mq_end_request(rq, 0);
 		return err_mask;
 
