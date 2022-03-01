@@ -144,6 +144,15 @@ struct scsi_cmnd {
 	int result;		/* Status code from lower level driver */
 };
 
+enum scsi_internal_rq_type {
+	SCSI_INTERNAL_RQ_NONE,
+	SCSI_INTERNAL_RQ_ATA,
+};
+
+struct scsi_internal_rq {
+	enum scsi_internal_rq_type type;
+};
+
 /* Variant of blk_mq_rq_from_pdu() that verifies the type of its argument. */
 static inline struct request *scsi_cmd_to_rq(struct scsi_cmnd *scmd)
 {

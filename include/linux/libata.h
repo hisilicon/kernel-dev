@@ -24,6 +24,10 @@
 #include <linux/sched.h>
 #include <linux/async.h>
 
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_host.h>
+
 /*
  * Define if arch has non-standard setup.  This is a _PCI_ standard
  * not a legacy or ISA standard.
@@ -2053,6 +2057,7 @@ struct libata_stuffy2 {
 };
 
 struct libata_stuffy {
+	struct scsi_internal_rq type;
 	struct ata_device *dev;
 	struct ata_taskfile *tf;
 	const u8 *cdb;
