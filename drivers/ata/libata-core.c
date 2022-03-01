@@ -1434,7 +1434,8 @@ EXPORT_SYMBOL_GPL(ata_id_xfermask);
 static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
 	struct completion *waiting = qc->private_data;
-
+	pr_err("%s qc=%pS\n", __func__, qc);
+	pr_err("%s2 qc=%pS private_data=%pS\n", __func__, qc, qc->private_data);
 	complete(waiting);
 }
 
@@ -1528,7 +1529,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		stuff->wait = &wait;
 		ata_exec_internal_sg_rq = rq;
 	//	status = blk_execute_rq(rq, true);
-		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d\n", __func__, dev, rq, scmd, stuff, in_atomic());
+		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d wait=%pS\n", __func__, dev, rq, scmd, stuff, in_atomic(), &wait);
 		blk_execute_rq_nowait(rq, true, NULL);
 		pr_err("%s4 ata_device=%pS rq=%pS scmd=%pS stuff=%pS in_atomic=%d\n", __func__, dev, rq, scmd, stuff, in_atomic());
 
@@ -1664,7 +1665,7 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 		scsi_host = ap->scsi_host;
 	if (scsi_host)
 		host_sdev = scsi_host->sdev;
-	pr_err("%s ata_device=%pS link=%pS ap=%pS in_atomic=%d\n", __func__, dev, link, ap, in_atomic());
+	pr_err("%s ata_device=%pS link=%pS ap=%pS in_atomic=%d wait=%pS\n", __func__, dev, link, ap, in_atomic(), wait);
 
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -1684,8 +1685,8 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 	qc->dev = dev;
 	ata_qc_reinit(qc);
 
-	pr_err("%s2 ata_device=%pS link=%pS ap=%pS in_atomic=%d qc=%pS stuff=%pS stuff->qc=%pS\n",
-		__func__, dev, link, ap, in_atomic(), qc, stuff,  stuff->qc);
+	pr_err("%s2 ata_device=%pS link=%pS ap=%pS in_atomic=%d qc=%pS stuff=%pS stuff->qc=%pS wait=%pS\n",
+		__func__, dev, link, ap, in_atomic(), qc, stuff,  stuff->qc, wait);
 
 	stuff->preempted_tag = link->active_tag;
 	stuff->preempted_sactive = link->sactive;
