@@ -1551,7 +1551,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
 
 		qc = stuff->qc;
-
+		ata_exec_internal_sg_rq = NULL;
 		pr_err("%s6 got completion ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS stuff=%pS qc=%pS\n",
 		__func__, dev, link, ap, sdev, scsi_host, host_sdev, stuff, qc);
 
