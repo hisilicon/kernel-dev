@@ -4739,6 +4739,8 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 	struct ata_port *ap;
 	struct ata_link *link;
 
+	pr_err("%s qc=%pS\n", __func__, qc);
+
 	WARN_ON_ONCE(qc == NULL); /* ata_qc_from_tag _might_ return NULL */
 	WARN_ON_ONCE(!(qc->flags & ATA_QCFLAG_ACTIVE));
 	ap = qc->ap;
@@ -4762,12 +4764,16 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 		     ap->excl_link == link))
 		ap->excl_link = NULL;
 
+	pr_err("%s2 qc=%pS\n", __func__, qc);
+
 	/* atapi: mark qc as inactive to prevent the interrupt handler
 	 * from completing the command twice later, before the error handler
 	 * is called. (when rc != 0 and atapi request sense is needed)
 	 */
 	qc->flags &= ~ATA_QCFLAG_ACTIVE;
 	ap->qc_active &= ~(1ULL << qc->tag);
+
+	pr_err("%s3 qc=%pS complete_fn=%pS\n", __func__, qc, qc->complete_fn);
 
 	/* call completion callback */
 	qc->complete_fn(qc);
