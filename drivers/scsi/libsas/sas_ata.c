@@ -856,3 +856,39 @@ void sas_ata_wait_eh(struct domain_device *dev)
 	ap = dev->sata_dev.ap;
 	ata_port_wait_eh(ap);
 }
+
+int sas_wait_for_remote_phy_up(struct domain_device *device)
+{
+	unsigned long deadline = ata_deadline(jiffies, 20000);
+	int (*check_ready)(struct ata_link *link);
+	struct sata_device *sata_dev = &device->sata_dev;
+	struct ata_port *ap = sata_dev->ap;
+	struct sas_phy *phy;
+	struct ata_link *link;
+	int ret = 0;
+
+	pr_err("%s device=%pS\n", __func__, device);
+
+	phy = sas_get_local_phy(device);
+	if (scsi_is_sas_phy_local(phy))
+		check_ready = local_ata_check_ready;
+	else
+		check_ready = smp_ata_check_ready;
+	sas_put_local_phy(phy);
+
+	pr_err("%s2 device=%pS check_ready=%pS\n", __func__, device, check_ready);
+
+	ata_for_each_link(link, ap, EDGE) {
+		ret = ata_wait_after_reset(link, deadline, check_ready);
+		pr_err("%s3 link=%pS ap=%pS dev=%pS ret=%d\n", __func__, link, ap, device, ret);
+		if (ret && ret != -EAGAIN) {
+			sas_ata_printk(KERN_ERR, device, "reset failed (errno=%d)\n", ret);
+			break;
+		}
+	}
+	
+	pr_err("%s10 out link=%pS ap=%pS dev=%pS ret=%d\n", __func__, link, ap, device, ret);
+
+	return ret;
+}
+

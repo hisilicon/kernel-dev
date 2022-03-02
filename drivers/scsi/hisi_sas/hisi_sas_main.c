@@ -1798,7 +1798,6 @@ static int hisi_sas_clear_aca(struct domain_device *device, u8 *lun)
 }
 
 #define I_T_NEXUS_RESET_PHYUP_TIMEOUT  (2 * HZ)
-
 static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 {
 	struct sas_phy *local_phy = sas_get_local_phy(device);
@@ -1859,8 +1858,12 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 		pr_err("%s5 %016llx sas_dev->dev_status=%d rc=%d\n",
 		__func__, SAS_ADDR(device->sas_addr), sas_dev->dev_status, rc);
 
-		if (!rc)
-			msleep(2000);
+		if (!rc) {
+			int rc2 = sas_wait_for_remote_phy_up(device);
+			//msleep(2000);
+			pr_err("%s6.1 %016llx sas_dev->dev_status=%d rc=%d rc2=%d\n",
+			__func__, SAS_ADDR(device->sas_addr), sas_dev->dev_status, rc, rc2);
+		}
 		pr_err("%s6 %016llx sas_dev->dev_status=%d rc=%d\n",
 		__func__, SAS_ADDR(device->sas_addr), sas_dev->dev_status, rc);
 	}

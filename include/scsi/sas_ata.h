@@ -33,6 +33,7 @@ void sas_probe_sata(struct asd_sas_port *port);
 void sas_suspend_sata(struct asd_sas_port *port);
 void sas_resume_sata(struct asd_sas_port *port);
 void sas_ata_end_eh(struct ata_port *ap);
+int sas_wait_for_remote_phy_up(struct domain_device *device);
 #else
 
 
