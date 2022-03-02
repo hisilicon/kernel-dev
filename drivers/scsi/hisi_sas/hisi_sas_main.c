@@ -1829,6 +1829,9 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 
 	rc = sas_phy_reset(local_phy, reset_type);
 	sas_put_local_phy(local_phy);
+	
+	pr_err("%s2 %016llx sas_dev->dev_status=%d rc=%d\n",
+	__func__, SAS_ADDR(device->sas_addr), sas_dev->dev_status, rc);
 
 	if (scsi_is_sas_phy_local(local_phy)) {
 		struct asd_sas_phy *sas_phy =
@@ -1840,6 +1843,9 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 		spin_lock_irqsave(&phy->lock, flags);
 		phy->in_reset = 0;
 		spin_unlock_irqrestore(&phy->lock, flags);
+		
+		pr_err("%s3 %016llx sas_dev->dev_status=%d rc=%d\n",
+		__func__, SAS_ADDR(device->sas_addr), sas_dev->dev_status, rc);
 
 		/* report PHY down if timed out */
 		if (rc == -ETIMEDOUT)
@@ -1849,8 +1855,14 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 		 * If in init state, we rely on caller to wait for link to be
 		 * ready; otherwise, except phy reset is fail, delay.
 		 */
+		
+		pr_err("%s5 %016llx sas_dev->dev_status=%d rc=%d\n",
+		__func__, SAS_ADDR(device->sas_addr), sas_dev->dev_status, rc);
+
 		if (!rc)
 			msleep(2000);
+		pr_err("%s6 %016llx sas_dev->dev_status=%d rc=%d\n",
+		__func__, SAS_ADDR(device->sas_addr), sas_dev->dev_status, rc);
 	}
 
 	return rc;
@@ -1860,7 +1872,12 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 {
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = hisi_hba->dev;
+	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	int rc;
+
+
+	pr_err("%s %016llx sas_dev->dev_status=%d dev_is_sata=%d\n",
+		__func__, SAS_ADDR(device->sas_addr), sas_dev->dev_status, dev_is_sata(device));
 
 	rc = hisi_sas_internal_task_abort(hisi_hba, device,
 					  HISI_SAS_INT_ABT_DEV, 0, false);
@@ -1870,7 +1887,11 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 	}
 	hisi_sas_dereg_device(hisi_hba, device);
 
+	pr_err("%s2 %016llx sas_dev->dev_status=%d\n", __func__, SAS_ADDR(device->sas_addr), sas_dev->dev_status);
+
 	rc = hisi_sas_debug_I_T_nexus_reset(device);
+	pr_err("%s3 %016llx sas_dev->dev_status=%d rc=%d\n",
+		__func__, SAS_ADDR(device->sas_addr), sas_dev->dev_status, rc);
 	if (rc == TMF_RESP_FUNC_COMPLETE && dev_is_sata(device)) {
 		struct sas_phy *local_phy;
 
