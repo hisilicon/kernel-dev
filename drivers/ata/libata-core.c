@@ -1472,6 +1472,18 @@ static __maybe_unused void ata_exec_internal_sg_req_done(struct request *rq,
  *	Zero on success, AC_ERR_* mask on failure
  */
 
+static blk_status_t ata_exec_internal_sg_queue_rq(struct blk_mq_hw_ctx *hctx,
+		const struct blk_mq_queue_data *bd)
+{
+	pr_err("%s hctx=%pS bd=%pS\n", __func__, hctx, bd);
+
+	return BLK_STS_OK;
+}
+
+static const struct blk_mq_ops ata_exec_internal_sg_mq_ops = {
+	.queue_rq	= ata_exec_internal_sg_queue_rq,
+};
+
 unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
@@ -1484,18 +1496,27 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	struct scsi_device *host_sdev = NULL;
 	struct request *rq;
 	struct libata_stuffy2 stuffy2 = {};
+	struct request_queue *request_queue;
 
 	init_completion(&stuffy2.wait);
 
 	if (ap)
 		scsi_host = ap->scsi_host;
-	if (scsi_host)
-		host_sdev = scsi_host->sdev;
 	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS wait=%pS\n",
 	__func__, dev, link, ap, sdev, scsi_host, host_sdev, &stuffy2.wait);
+	host_sdev = scsi_get_host_dev(scsi_host);
+
+	pr_err("%s1 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS wait=%pS\n",
+	__func__, dev, link, ap, sdev, scsi_host, host_sdev, &stuffy2.wait);
+	if (!host_sdev)
+		return 0;
+
+	request_queue = host_sdev->request_queue;
+	request_queue->mq_ops = &ata_exec_internal_sg_mq_ops;
+
 
 	rq = scsi_alloc_request(host_sdev->request_queue, REQ_OP_DRV_IN, 0);
-	pr_err("%s1 ata_device=%pS rq=%pS\n", __func__, dev, rq);
+	pr_err("%s2 ata_device=%pS rq=%pS\n", __func__, dev, rq);
 	if (!IS_ERR(rq)) {
 		struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	//	blk_status_t status;

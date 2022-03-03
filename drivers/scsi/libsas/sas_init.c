@@ -135,10 +135,10 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	struct sas_task_ata_internal *internal = (struct sas_task_ata_internal *)(scmd + 1);
-	struct request_queue *q = rq->q;
-	void *queuedata = q->queuedata;
+	//struct request_queue *q = rq->q;
+	//void *queuedata = q->queuedata;
 
-	if (queuedata == shost->sdev) {
+	if (0) { //queuedata == shost->sdev) {
 		unsigned result;
 		struct libata_stuffy *stuff = &internal->stuff;
 		struct libata_stuffy2 *stuffy2 = stuff->libata_stuffy2;
