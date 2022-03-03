@@ -1764,12 +1764,13 @@ static void pm80xx_send_abort_all(struct pm8001_hba_info *pm8001_ha,
 	struct sas_task *task;
 	struct task_abort_req task_abort;
 	u32 opc = OPC_INB_SATA_ABORT;
+	struct sas_ha_struct *sha = pm8001_ha->sas;
 	int ret;
 
 	pm8001_ha_dev->id |= NCQ_ABORT_ALL_FLAG;
 	pm8001_ha_dev->id &= ~NCQ_READ_LOG_FLAG;
 
-	task = sas_alloc_slow_task(GFP_ATOMIC);
+	task = sas_alloc_slow_task(sha, GFP_ATOMIC);
 	if (!task) {
 		pm8001_dbg(pm8001_ha, FAIL, "cannot allocate task\n");
 		return;
@@ -1806,8 +1807,9 @@ static void pm80xx_send_read_log(struct pm8001_hba_info *pm8001_ha,
 	struct host_to_dev_fis fis;
 	struct domain_device *dev;
 	u32 opc = OPC_INB_SATA_HOST_OPSTART;
+	struct sas_ha_struct *sha = pm8001_ha->sas;
 
-	task = sas_alloc_slow_task(GFP_ATOMIC);
+	task = sas_alloc_slow_task(sha, GFP_ATOMIC);
 	if (!task) {
 		pm8001_dbg(pm8001_ha, FAIL, "cannot allocate task !!!\n");
 		return;
