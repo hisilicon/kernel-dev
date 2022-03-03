@@ -41,7 +41,8 @@ struct mm_struct *iommu_sva_domain_mm(struct iommu_domain *domain)
  *
  * Returns 0 on success and < 0 on error.
  */
-int iommu_sva_alloc_pasid(struct mm_struct *mm, ioasid_t min, ioasid_t max)
+static int iommu_sva_alloc_pasid(struct mm_struct *mm,
+				 ioasid_t min, ioasid_t max)
 {
 	int ret = 0;
 	ioasid_t pasid;
@@ -67,7 +68,6 @@ out:
 	mutex_unlock(&iommu_sva_lock);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(iommu_sva_alloc_pasid);
 
 /* ioasid_find getter() requires a void * argument */
 static bool __mmget_not_zero(void *mm)
