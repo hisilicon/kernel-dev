@@ -164,6 +164,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct sas_ha_struct *sas_ha = dev->port->ha;
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
+	struct scsi_cmnd *scmd;
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
@@ -172,7 +173,14 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (test_bit(SAS_DEV_GONE, &dev->state))
 		goto out;
 
-	task = sas_alloc_task(GFP_ATOMIC);
+	scmd = qc->scsicmd;
+
+	if (scmd) {
+		task = sas_alloc_task(GFP_ATOMIC, scmd);
+	} else {
+		task = sas_alloc_slow_task(sas_ha, GFP_ATOMIC);
+	}
+
 	if (!task)
 		goto out;
 	task->dev = dev;
