@@ -45,7 +45,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	struct sas_task_slow *slow;
 	struct Scsi_Host *shost = sas_ha->core.shost;
 
-	rq = blk_mq_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_IN,
+	rq = scsi_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_IN,
 					BLK_MQ_REQ_RESERVED);
 	if (IS_ERR(rq))
 		return NULL;
