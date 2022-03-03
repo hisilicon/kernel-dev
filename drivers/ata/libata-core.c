@@ -1471,7 +1471,6 @@ static __maybe_unused void ata_exec_internal_sg_req_done(struct request *rq,
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
-struct request *ata_exec_internal_sg_rq;
 
 unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
@@ -1495,9 +1494,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS wait=%pS\n",
 	__func__, dev, link, ap, sdev, scsi_host, host_sdev, &stuffy2.wait);
 
-	rq = scsi_alloc_request(host_sdev->request_queue, REQ_OP_DRV_IN,
-					BLK_MQ_REQ_RESERVED);
-		
+	rq = scsi_alloc_request(host_sdev->request_queue, REQ_OP_DRV_IN, 0);
 	pr_err("%s1 ata_device=%pS rq=%pS\n", __func__, dev, rq);
 	if (!IS_ERR(rq)) {
 		struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
@@ -1527,8 +1524,9 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		stuff->n_elem = n_elem;
 		stuff->timeout = timeout;
 
-		ata_exec_internal_sg_rq = rq;
-	//	status = blk_execute_rq(rq, true);
+		//scmd->submitter = SUBMITTED_BY_ATA_INTERNAL;
+
+ 	//	status = blk_execute_rq(rq, true);
 		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS\n", __func__, dev, rq, scmd, stuff);
 		blk_execute_rq_nowait(rq, true, NULL);
 		pr_err("%s4 ata_device=%pS rq=%pS scmd=%pS stuff=%pS\n", __func__, dev, rq, scmd, stuff);
@@ -1551,8 +1549,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		rc = wait_for_completion_timeout(&stuffy2.wait, msecs_to_jiffies(timeout));
 
 		qc = stuffy2.qc;
-		ata_exec_internal_sg_rq = NULL;
-		pr_err("%s6 got completion ata_device=%pS  stuff=%pS qc=%pS\n",
+ 		pr_err("%s6 got completion ata_device=%pS  stuff=%pS qc=%pS\n",
 		__func__, dev, stuff, qc);
 
 		if (ap->ops->error_handler)

@@ -47,7 +47,7 @@ static DEFINE_PER_CPU(struct llist_head, blk_cpu_done);
 
 static void blk_mq_poll_stats_start(struct request_queue *q);
 static void blk_mq_poll_stats_fn(struct blk_stat_callback *cb);
-extern struct request *ata_exec_internal_sg_rq;
+
 
 static int blk_mq_poll_stats_bkt(const struct request *rq)
 {
@@ -1185,9 +1185,7 @@ void blk_execute_rq_nowait(struct request *rq, bool at_head, rq_end_io_fn *done)
 	WARN_ON_ONCE(irqs_disabled());
 	WARN_ON(!blk_rq_is_passthrough(rq));
 
-	rq->end_io = done;
-	if (rq == ata_exec_internal_sg_rq)
-		pr_err("%s ata_exec_internal_sg_rq=%pS in_atomic=%d\n", __func__, ata_exec_internal_sg_rq, in_atomic());
+	rq->end_io = done; 
 
 	blk_account_io_start(rq);
 
@@ -1830,9 +1828,6 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
 		struct blk_mq_queue_data bd;
 
 		rq = list_first_entry(list, struct request, queuelist);
-		
-		if (rq == ata_exec_internal_sg_rq)
-			pr_err("%s ata_exec_internal_sg_rq=%pS in_atomic=%d\n", __func__, ata_exec_internal_sg_rq, in_atomic());
 
 		WARN_ON_ONCE(hctx != rq->mq_hctx);
 		prep = blk_mq_prep_dispatch_rq(rq, !nr_budgets);
@@ -2362,10 +2357,6 @@ void blk_mq_request_bypass_insert(struct request *rq, bool at_head,
 				  bool run_queue, bool special)
 {
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
-
-	if (special)
-		pr_err("%s ata_exec_internal_sg_rq=%pS in_atomic=%d run_queue=%d\n",
-			__func__, ata_exec_internal_sg_rq, in_atomic(), run_queue);
 
 	spin_lock(&hctx->lock);
 	if (at_head)

@@ -1124,9 +1124,9 @@ static void scsi_initialize_rq(struct request *rq)
 	cmd->jiffies_at_alloc = jiffies;
 	cmd->retries = 0;
 
-	if (req->cmd_flags & REQ_RESV) {
+//f (req->cmd_flags & REQ_RESV) {
 		
-	}
+//
 }
 
 struct request *scsi_alloc_request(struct request_queue *q,
