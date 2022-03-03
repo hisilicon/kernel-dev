@@ -1495,7 +1495,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS wait=%pS\n",
 	__func__, dev, link, ap, sdev, scsi_host, host_sdev, &stuffy2.wait);
 
-	rq = blk_mq_alloc_request(host_sdev->request_queue, REQ_OP_DRV_IN,
+	rq = scsi_alloc_request(host_sdev->request_queue, REQ_OP_DRV_IN,
 					BLK_MQ_REQ_RESERVED);
 		
 	pr_err("%s1 ata_device=%pS rq=%pS\n", __func__, dev, rq);
