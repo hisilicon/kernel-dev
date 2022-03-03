@@ -1475,7 +1475,28 @@ static __maybe_unused void ata_exec_internal_sg_req_done(struct request *rq,
 static blk_status_t ata_exec_internal_sg_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
-	pr_err("%s hctx=%pS bd=%pS\n", __func__, hctx, bd);
+	struct request *rq = bd->rq;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
+	struct libata_stuffy2 *stuffy2 = stuff->libata_stuffy2;
+	unsigned result;
+
+	pr_err("%s hctx=%pS bd=%pS req=%pS\n", __func__, hctx, bd, rq);
+	blk_mq_start_request(bd->rq);
+	
+	pr_err("%s2 ata_device=%pS scmd=%pS stuff=%pS in_atomic=%d scmd->sdev=%pS\n",
+			__func__, stuff->dev, stuff->tf, stuff, in_atomic(), scmd->device); 
+	//	pr_err("%s3.1 stuff=%pS\n", __func__, stuff);
+	//	pr_err("%s3.2 stuff->dev=%pS\n", __func__, stuff->dev);
+	//	pr_err("%s3.3 stuff->tf=%pS\n", __func__, stuff->tf);
+	//	pr_err("%s3.4 stuff->cdb=%pS\n", __func__, stuff->cdb);
+	//	pr_err("%s3.6 stuff->sgl=%pS\n", __func__, stuff->sgl);
+	//	pr_err("%s3.8 scmd=%pS\n", __func__, scmd);
+	result = ata_exec_internal_sg_dir(stuff->dev, stuff->tf, stuff->cdb, stuff->dma_dir, stuff->sgl, stuff->n_elem, stuff->timeout, scmd, &stuffy2->wait, rq); 
+	
+
+	pr_err("%s3 ata_device=%pS scmd=%pS stuff=%pS in_atomic=%d scmd->sdev=%pS result=%d\n",
+			__func__, stuff->dev, stuff->tf, stuff, in_atomic(), scmd->device, result); 
 
 	return BLK_STS_OK;
 }
