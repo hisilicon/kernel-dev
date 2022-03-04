@@ -101,11 +101,6 @@ enum {
 	PORT_TYPE_SATA = (1U << 0),
 };
 
-enum dev_status {
-	HISI_SAS_DEV_INIT,
-	HISI_SAS_DEV_NORMAL,
-};
-
 enum {
 	HISI_SAS_INT_ABT_CMD = 0,
 	HISI_SAS_INT_ABT_DEV = 1,
@@ -228,7 +223,6 @@ struct hisi_sas_device {
 	struct hisi_sas_dq	*dq;
 	struct list_head	list;
 	enum sas_device_type	dev_type;
-	enum dev_status dev_status;
 	int device_id;
 	int sata_idx;
 	spinlock_t lock; /* For protecting slots */

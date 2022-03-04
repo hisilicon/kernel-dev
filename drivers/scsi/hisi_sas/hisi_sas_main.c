@@ -658,7 +658,6 @@ static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
 
 			hisi_hba->devices[i].device_id = i;
 			sas_dev = &hisi_hba->devices[i];
-			sas_dev->dev_status = HISI_SAS_DEV_INIT;
 			sas_dev->dev_type = device->dev_type;
 			sas_dev->hisi_hba = hisi_hba;
 			sas_dev->sas_device = device;
@@ -802,7 +801,6 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	dev_info(dev, "dev[%d:%x] found\n",
 		sas_dev->device_id, sas_dev->dev_type);
 
-	sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
 	return 0;
 
 err_out:
@@ -1830,10 +1828,9 @@ static int hisi_sas_clear_aca(struct domain_device *device, u8 *lun)
 static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 {
 	struct sas_phy *local_phy = sas_get_local_phy(device);
-	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
-	int rc, reset_type;
+	int rc, reset_type = !dev_is_sata(device);
 
 	if (!local_phy->enabled) {
 		sas_put_local_phy(local_phy);
@@ -1852,9 +1849,6 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 		spin_unlock_irqrestore(&phy->lock, flags);
 	}
 
-	reset_type = (sas_dev->dev_status == HISI_SAS_DEV_INIT ||
-		      !dev_is_sata(device)) ? true : false;
-
 	rc = sas_phy_reset(local_phy, reset_type);
 	sas_put_local_phy(local_phy);
 
@@ -1872,7 +1866,7 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 		/* report PHY down if timed out */
 		if (rc == -ETIMEDOUT)
 			hisi_sas_phy_down(hisi_hba, sas_phy->id, 0, GFP_KERNEL);
-	} else if (sas_dev->dev_status != HISI_SAS_DEV_INIT) {
+	} else {
 		/*
 		 * If in init state, we rely on caller to wait for link to be
 		 * ready; otherwise, except phy reset is fail, delay.
@@ -2417,7 +2411,6 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
 		hisi_hba->devices[i].dev_type = SAS_PHY_UNUSED;
 		hisi_hba->devices[i].device_id = i;
-		hisi_hba->devices[i].dev_status = HISI_SAS_DEV_INIT;
 	}
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
