@@ -1866,13 +1866,22 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 		/* report PHY down if timed out */
 		if (rc == -ETIMEDOUT)
 			hisi_sas_phy_down(hisi_hba, sas_phy->id, 0, GFP_KERNEL);
+		return rc;
+	}
+
+	if (rc)
+		return rc;
+
+	/* Remote phy */
+	if (dev_is_sata(device)) {
+		struct sata_device *sata_dev = &device->sata_dev;
+		struct ata_port *ap = sata_dev->ap;
+		struct ata_link *link = &ap->link;
+
+		rc = sas_ata_wait_after_reset(link,
+					HISI_SAS_WAIT_PHYUP_TIMEOUT);
 	} else {
-		/*
-		 * If in init state, we rely on caller to wait for link to be
-		 * ready; otherwise, except phy reset is fail, delay.
-		 */
-		if (!rc)
-			msleep(2000);
+		msleep(2000);
 	}
 
 	return rc;
