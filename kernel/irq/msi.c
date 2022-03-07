@@ -823,6 +823,19 @@ static int msi_init_virq(struct irq_domain *domain, int virq, unsigned int vflag
 	if (!(vflags & VIRQ_ACTIVATE))
 		return 0;
 
+	if (!(vflags & VIRQ_CAN_RESERVE)) {
+		/*
+		 * If the interrupt is managed but no CPU is available
+		 * to service it, shut it down until better times.
+		 */
+		if (irqd_affinity_is_managed(irqd) &&
+		    !cpumask_intersects(irq_data_get_affinity_mask(irqd),
+					cpu_online_mask)) {
+			irqd_set_managed_shutdown(irqd);
+			return 0;
+		}
+	}
+
 	ret = irq_domain_activate_irq(irqd, vflags & VIRQ_CAN_RESERVE);
 	if (ret)
 		return ret;
