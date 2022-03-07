@@ -1836,6 +1836,8 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 		sas_put_local_phy(local_phy);
 		return -ENODEV;
 	}
+	
+	pr_err("%s1 device=%pS \n", __func__, device);
 
 	if (scsi_is_sas_phy_local(local_phy)) {
 		struct asd_sas_phy *sas_phy =
@@ -1851,6 +1853,8 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 
 	rc = sas_phy_reset(local_phy, reset_type);
 	sas_put_local_phy(local_phy);
+
+	pr_err("%s2 device=%pS rc=%d\n", __func__, device, rc);
 
 	if (scsi_is_sas_phy_local(local_phy)) {
 		struct asd_sas_phy *sas_phy =
@@ -1880,9 +1884,12 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 
 		rc = sas_ata_wait_after_reset(link,
 					HISI_SAS_WAIT_PHYUP_TIMEOUT);
+		pr_err("%s3 device=%pS rc=%d\n", __func__, device, rc);
 	} else {
 		msleep(2000);
 	}
+
+	pr_err("%s3 device=%pS rc=%d\n", __func__, device, rc);
 
 	return rc;
 }
