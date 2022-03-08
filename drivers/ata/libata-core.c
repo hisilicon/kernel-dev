@@ -1587,6 +1587,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		if (!data)
 			return 0;
 		scmd->host_scribble = (unsigned char *)data;
+		scmd->device = host_sdev;
 
 
 		data->stack = &stack;
