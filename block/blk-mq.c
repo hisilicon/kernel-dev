@@ -466,6 +466,9 @@ static struct request *__blk_mq_alloc_requests(struct blk_mq_alloc_data *data)
 			e->type->ops.limit_depth(data->cmd_flags, data);
 	}
 
+	if (q->aux_tags)
+		data->rq_flags |= RQF_AUX;
+
 retry:
 	data->ctx = blk_mq_get_ctx(q);
 	data->hctx = blk_mq_map_queue(q, data->cmd_flags, data->ctx);
@@ -488,6 +491,8 @@ retry:
 	 * should have migrated us to an online CPU by now.
 	 */
 	tag = blk_mq_get_tag(data);
+	if ((data->rq_flags & RQF_AUX) == RQF_AUX)
+		pr_err("%s aux tags tag=%d\n", __func__, tag);
 	if (tag == BLK_MQ_NO_TAG) {
 		if (data->flags & BLK_MQ_REQ_NOWAIT)
 			return NULL;

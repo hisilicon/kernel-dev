@@ -170,6 +170,8 @@ static inline bool blk_mq_is_shared_tags(unsigned int flags)
 
 static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
 {
+	if (data->rq_flags & RQF_AUX)
+		return data->q->aux_tags;
 	if (!(data->rq_flags & RQF_ELV))
 		return data->hctx->tags;
 	return data->hctx->sched_tags;

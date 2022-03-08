@@ -103,7 +103,7 @@ static int __blk_mq_get_tag(struct blk_mq_alloc_data *data,
 			    struct sbitmap_queue *bt)
 {
 	if (!data->q->elevator && !(data->flags & BLK_MQ_REQ_RESERVED) &&
-			!hctx_may_queue(data->hctx, bt))
+			!hctx_may_queue(data->hctx, bt) && !data->q->aux_tags)
 		return BLK_MQ_NO_TAG;
 
 	if (data->shallow_depth)

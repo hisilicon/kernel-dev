@@ -1488,7 +1488,7 @@ static blk_status_t __ata_exec_internal_sg(struct ata_device *dev,
 	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)scmd->host_scribble;
 	struct ata_internal_sg_stack *stack = data->stack;
 
-	pr_err("%s ata_device=%pS wait=%pS\n", __func__, dev, wait);
+	pr_err("%s ata_device=%pS wait=%pS rq=%pS tag=%d internal_tag=%d\n", __func__, dev, wait, rq, rq->tag, rq->internal_tag);
 
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -1588,6 +1588,8 @@ static const struct blk_mq_ops ata_exec_internal_sg_mq_ops = {
 	.queue_rq	= ata_exec_internal_sg_queue_rq,
 };
 
+extern struct blk_mq_tags *blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
+				unsigned int hctx_idx, unsigned int depth);
 /**
  *	ata_exec_internal_sg - execute libata internal command
  *	@dev: Device to which the command is sent
@@ -1610,6 +1612,7 @@ static const struct blk_mq_ops ata_exec_internal_sg_mq_ops = {
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
+
 unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
@@ -1642,11 +1645,21 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	request_queue = host_sdev->request_queue;
 	request_queue->mq_ops = &ata_exec_internal_sg_mq_ops;
 
+	request_queue->aux_tags = blk_mq_alloc_map_and_rqs(&scsi_host->tag_set,
+							BLK_MQ_NO_HCTX_IDX,
+							1);
+	pr_err("%s request_queue->aux_tags=%pS\n", __func__, request_queue->aux_tags);
+	if (!request_queue->aux_tags)
+		return -ENOMEM;
+
 	rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
+	pr_err("%s rq=%pS\n", __func__, rq);
 	if (IS_ERR(rq)) {
 		scsi_free_host_dev(host_sdev);
 		return AC_ERR_SYSTEM;
 	}
+
+	pr_err("%s2 rq=%pS tag=%d internal_tag=%d\n", __func__, rq, rq->tag, rq->internal_tag);
 
 	scmd = blk_mq_rq_to_pdu(rq);
 
