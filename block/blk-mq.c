@@ -355,7 +355,10 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 		data->rq_flags |= RQF_IO_STAT;
 	rq->rq_flags = data->rq_flags;
 
-	if (!(data->rq_flags & RQF_ELV)) {
+	if (data->rq_flags & RQF_AUX) {
+		rq->tag = BLK_MQ_NO_TAG;
+		rq->internal_tag = tag;
+	} else if (!(data->rq_flags & RQF_ELV)) {
 		rq->tag = tag;
 		rq->internal_tag = BLK_MQ_NO_TAG;
 	} else {
@@ -1562,6 +1565,11 @@ static bool __blk_mq_alloc_driver_tag(struct request *rq)
 	struct sbitmap_queue *bt = &rq->mq_hctx->tags->bitmap_tags;
 	unsigned int tag_offset = rq->mq_hctx->tags->nr_reserved_tags;
 	int tag;
+
+	if (!rq->mq_hctx)
+		pr_err("%s rq=%pS rq->mq_hctx=NULL\n", __func__, rq);
+	else if (!rq->mq_hctx->sched_tags)
+		pr_err("%s rq=%pS rq->mq_hctx=%pS rq->mq_hctx->sched_tags=NULL\n", __func__, rq, rq->mq_hctx);
 
 	blk_mq_tag_busy(rq->mq_hctx);
 
