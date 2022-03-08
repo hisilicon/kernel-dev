@@ -1573,7 +1573,7 @@ static bool __blk_mq_alloc_driver_tag(struct request *rq)
 
 	blk_mq_tag_busy(rq->mq_hctx);
 
-	if (blk_mq_tag_is_reserved(rq->mq_hctx->sched_tags, rq->internal_tag)) {
+	if (0) {//blk_mq_tag_is_reserved(rq->mq_hctx->sched_tags, rq->internal_tag)) {
 		bt = &rq->mq_hctx->tags->breserved_tags;
 		tag_offset = 0;
 	} else {
