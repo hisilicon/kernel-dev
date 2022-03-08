@@ -1434,8 +1434,19 @@ EXPORT_SYMBOL_GPL(ata_id_xfermask);
 static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
 	struct completion *waiting = qc->private_data;
-
+	pr_err("%s qc=%pS\n", __func__, qc);
+	pr_err("%s2 qc=%pS private_data=%pS\n", __func__, qc, qc->private_data);
 	complete(waiting);
+}
+
+static __maybe_unused void ata_exec_internal_sg_req_done(struct request *rq,
+				    blk_status_t blk_status)
+{
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
+	struct libata_stuffy2 *stuff2 = stuff->libata_stuffy2;
+
+	pr_err("%s rq=%pS blk_status=%d scmd=%pS stuff2=%pS wait=%pS\n", __func__, rq, blk_status, stuff, stuff2, &stuff2->wait);
 }
 
 /**
@@ -1460,6 +1471,40 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
+
+static blk_status_t ata_exec_internal_sg_queue_rq(struct blk_mq_hw_ctx *hctx,
+		const struct blk_mq_queue_data *bd)
+{
+	struct request *rq = bd->rq;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
+	struct libata_stuffy2 *stuffy2 = stuff->libata_stuffy2;
+	unsigned result;
+
+	pr_err("%s hctx=%pS bd=%pS req=%pS\n", __func__, hctx, bd, rq);
+	blk_mq_start_request(bd->rq);
+	
+	pr_err("%s2 ata_device=%pS scmd=%pS stuff=%pS in_atomic=%d scmd->sdev=%pS\n",
+			__func__, stuff->dev, stuff->tf, stuff, in_atomic(), scmd->device); 
+	//	pr_err("%s3.1 stuff=%pS\n", __func__, stuff);
+	//	pr_err("%s3.2 stuff->dev=%pS\n", __func__, stuff->dev);
+	//	pr_err("%s3.3 stuff->tf=%pS\n", __func__, stuff->tf);
+	//	pr_err("%s3.4 stuff->cdb=%pS\n", __func__, stuff->cdb);
+	//	pr_err("%s3.6 stuff->sgl=%pS\n", __func__, stuff->sgl);
+	//	pr_err("%s3.8 scmd=%pS\n", __func__, scmd);
+	result = ata_exec_internal_sg_dir(stuff->dev, stuff->tf, stuff->cdb, stuff->dma_dir, stuff->sgl, stuff->n_elem, stuff->timeout, scmd, &stuffy2->wait, rq); 
+	
+
+	pr_err("%s3 ata_device=%pS scmd=%pS stuff=%pS in_atomic=%d scmd->sdev=%pS result=%d\n",
+			__func__, stuff->dev, stuff->tf, stuff, in_atomic(), scmd->device, result); 
+
+	return BLK_STS_OK;
+}
+
+static const struct blk_mq_ops ata_exec_internal_sg_mq_ops = {
+	.queue_rq	= ata_exec_internal_sg_queue_rq,
+};
+
 unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
@@ -1467,17 +1512,190 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
-	u8 command = tf->command;
-	int auto_timeout = 0;
+	struct Scsi_Host *scsi_host = NULL;
+	struct scsi_device *sdev = dev->sdev;
+	struct scsi_device *host_sdev = NULL;
+	struct request *rq;
+	struct libata_stuffy2 stuffy2 = {};
+	struct request_queue *request_queue;
+
+	init_completion(&stuffy2.wait);
+
+	if (ap)
+		scsi_host = ap->scsi_host;
+	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS wait=%pS\n",
+	__func__, dev, link, ap, sdev, scsi_host, host_sdev, &stuffy2.wait);
+	host_sdev = scsi_get_host_dev(scsi_host);
+
+	pr_err("%s1 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS wait=%pS\n",
+	__func__, dev, link, ap, sdev, scsi_host, host_sdev, &stuffy2.wait);
+	if (!host_sdev)
+		return 0;
+
+	request_queue = host_sdev->request_queue;
+	request_queue->mq_ops = &ata_exec_internal_sg_mq_ops;
+
+
+	rq = scsi_alloc_request(host_sdev->request_queue, REQ_OP_DRV_IN, 0);
+	pr_err("%s2 ata_device=%pS rq=%pS\n", __func__, dev, rq);
+	if (!IS_ERR(rq)) {
+		struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	//	blk_status_t status;
+		
+
+		struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
+
+		
+		struct ata_link *link = dev->link;
+		struct ata_port *ap = link->ap;
+		u8 command = tf->command;
+		int auto_timeout = 0;
+		struct ata_queued_cmd *qc;
+		unsigned long flags;
+		unsigned int err_mask;
+		int rc;
+
+		stuff->libata_stuffy2 = &stuffy2;
+		pr_err("%s2 ata_device=%pS rq=%pS scmd=%pS stuff=%pS\n",
+			__func__, dev, rq, scmd, stuff);
+		stuff->dev = dev;
+		stuff->tf = tf;
+		stuff->cdb = cdb;
+		stuff->dma_dir = dma_dir;
+		stuff->sgl = sgl;
+		stuff->n_elem = n_elem;
+		stuff->timeout = timeout;
+
+		//scmd->submitter = SUBMITTED_BY_ATA_INTERNAL;
+
+ 	//	status = blk_execute_rq(rq, true);
+		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS\n", __func__, dev, rq, scmd, stuff);
+		blk_execute_rq_nowait(rq, true, NULL);
+		pr_err("%s4 ata_device=%pS rq=%pS scmd=%pS stuff=%pS\n", __func__, dev, rq, scmd, stuff);
+
+		if (!timeout) {
+			if (ata_probe_timeout)
+				timeout = ata_probe_timeout * 1000;
+			else {
+				timeout = ata_internal_cmd_timeout(dev, command);
+				auto_timeout = 1;
+			}
+		}
+
+		if (ap->ops->error_handler)
+			ata_eh_release(ap);
+
+		pr_err("%s5 ata_device=%pS link=%pS ap=%pS sdev=%pS stuff=%pS\n",
+		__func__, dev, link, ap, sdev, stuff);
+
+		rc = wait_for_completion_timeout(&stuffy2.wait, msecs_to_jiffies(timeout));
+
+		qc = stuffy2.qc;
+ 		pr_err("%s6 got completion ata_device=%pS  stuff=%pS qc=%pS\n",
+		__func__, dev, stuff, qc);
+
+		if (ap->ops->error_handler)
+			ata_eh_acquire(ap);
+
+		ata_sff_flush_pio_task(ap);
+
+		if (!rc) {
+			spin_lock_irqsave(ap->lock, flags);
+			panic("ata_exec_internal_sg timeout");
+
+			/* We're racing with irq here.  If we lose, the
+			 * following test prevents us from completing the qc
+			 * twice.  If we win, the port is frozen and will be
+			 * cleaned up by ->post_internal_cmd().
+			 */
+			if (qc->flags & ATA_QCFLAG_ACTIVE) {
+				qc->err_mask |= AC_ERR_TIMEOUT;
+
+				if (ap->ops->error_handler)
+					ata_port_freeze(ap);
+				else
+					ata_qc_complete(qc);
+
+				ata_dev_warn(dev, "qc timeout (cmd 0x%x)\n",
+					     command);
+			}
+
+			spin_unlock_irqrestore(ap->lock, flags);
+		}
+
+		pr_err("%s7 ata_device=%pS  qc=%pS\n", __func__, dev, qc);
+
+		/* do post_internal_cmd */
+		if (ap->ops->post_internal_cmd)
+			ap->ops->post_internal_cmd(qc);
+
+		/* perform minimal error analysis */
+		if (qc->flags & ATA_QCFLAG_FAILED) {
+			if (qc->result_tf.command & (ATA_ERR | ATA_DF))
+				qc->err_mask |= AC_ERR_DEV;
+
+			if (!qc->err_mask)
+				qc->err_mask |= AC_ERR_OTHER;
+
+			if (qc->err_mask & ~AC_ERR_OTHER)
+				qc->err_mask &= ~AC_ERR_OTHER;
+		} else if (qc->tf.command == ATA_CMD_REQ_SENSE_DATA) {
+			qc->result_tf.command |= ATA_SENSE;
+		}
+
+		pr_err("%s8 ata_device=%pS\n", __func__, dev);
+
+		/* finish up */
+		spin_lock_irqsave(ap->lock, flags);
+
+		*tf = qc->result_tf;
+		err_mask = qc->err_mask;
+
+		ata_qc_free(qc);
+		link->active_tag = stuff->preempted_tag;
+		link->sactive = stuff->preempted_sactive;
+		ap->qc_active = stuff->preempted_qc_active;
+		ap->nr_active_links = stuff->preempted_nr_active_links;
+
+		spin_unlock_irqrestore(ap->lock, flags);
+
+		pr_err("%s9 ata_device=%pS \n", __func__, dev);
+
+		if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
+			ata_internal_cmd_timed_out(dev, command);
+
+		pr_err("%s10 out ata_device=%pS err_mask=%d\n", __func__, dev, err_mask);
+		//__blk_mq_end_request(rq, 0);
+		return err_mask;
+
+		
+	} else {
+		BUG();
+	}
+	
+	return 0;
+
+}
+
+
+unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
+			      struct ata_taskfile *tf, const u8 *cdb,
+			      int dma_dir, struct scatterlist *sgl,
+			      unsigned int n_elem, unsigned long timeout,
+			      struct scsi_cmnd *scsi_cmnd,
+			      struct completion *wait,
+			      struct request *rq)
+{
+	struct ata_link *link = dev->link;
+	struct ata_port *ap = link->ap;
 	struct ata_queued_cmd *qc;
-	unsigned int preempted_tag;
-	u32 preempted_sactive;
-	u64 preempted_qc_active;
-	int preempted_nr_active_links;
-	DECLARE_COMPLETION_ONSTACK(wait);
 	unsigned long flags;
-	unsigned int err_mask;
-	int rc;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	//	blk_status_t status;
+	struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
+	struct libata_stuffy2 *stuff2 = stuff->libata_stuffy2;
+
+	pr_err("%s ata_device=%pS wait=%pS\n", __func__, dev, wait);
 
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -1488,19 +1706,22 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	}
 
 	/* initialize internal qc */
-	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
+	stuff2->qc = qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
-	qc->scsicmd = NULL;
+	qc->scsicmd = scsi_cmnd;
 	qc->ap = ap;
 	qc->dev = dev;
 	ata_qc_reinit(qc);
 
-	preempted_tag = link->active_tag;
-	preempted_sactive = link->sactive;
-	preempted_qc_active = ap->qc_active;
-	preempted_nr_active_links = ap->nr_active_links;
+	pr_err("%s2 ata_device=%pSqc=%pS stuff=%pS stuff->qc=%pS wait=%pS\n",
+		__func__, dev, qc, stuff, stuff2->qc, wait);
+
+	stuff->preempted_tag = link->active_tag;
+	stuff->preempted_sactive = link->sactive;
+	stuff->preempted_qc_active = ap->qc_active;
+	stuff->preempted_nr_active_links = ap->nr_active_links;
 	link->active_tag = ATA_TAG_POISON;
 	link->sactive = 0;
 	ap->qc_active = 0;
@@ -1529,91 +1750,16 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		qc->nbytes = buflen;
 	}
 
-	qc->private_data = &wait;
+	qc->private_data = wait;
 	qc->complete_fn = ata_qc_complete_internal;
 
 	ata_qc_issue(qc);
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	if (!timeout) {
-		if (ata_probe_timeout)
-			timeout = ata_probe_timeout * 1000;
-		else {
-			timeout = ata_internal_cmd_timeout(dev, command);
-			auto_timeout = 1;
-		}
-	}
+	pr_err("%s2 ata_device=%pS \n", __func__, dev);
 
-	if (ap->ops->error_handler)
-		ata_eh_release(ap);
-
-	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
-
-	if (ap->ops->error_handler)
-		ata_eh_acquire(ap);
-
-	ata_sff_flush_pio_task(ap);
-
-	if (!rc) {
-		spin_lock_irqsave(ap->lock, flags);
-
-		/* We're racing with irq here.  If we lose, the
-		 * following test prevents us from completing the qc
-		 * twice.  If we win, the port is frozen and will be
-		 * cleaned up by ->post_internal_cmd().
-		 */
-		if (qc->flags & ATA_QCFLAG_ACTIVE) {
-			qc->err_mask |= AC_ERR_TIMEOUT;
-
-			if (ap->ops->error_handler)
-				ata_port_freeze(ap);
-			else
-				ata_qc_complete(qc);
-
-			ata_dev_warn(dev, "qc timeout (cmd 0x%x)\n",
-				     command);
-		}
-
-		spin_unlock_irqrestore(ap->lock, flags);
-	}
-
-	/* do post_internal_cmd */
-	if (ap->ops->post_internal_cmd)
-		ap->ops->post_internal_cmd(qc);
-
-	/* perform minimal error analysis */
-	if (qc->flags & ATA_QCFLAG_FAILED) {
-		if (qc->result_tf.command & (ATA_ERR | ATA_DF))
-			qc->err_mask |= AC_ERR_DEV;
-
-		if (!qc->err_mask)
-			qc->err_mask |= AC_ERR_OTHER;
-
-		if (qc->err_mask & ~AC_ERR_OTHER)
-			qc->err_mask &= ~AC_ERR_OTHER;
-	} else if (qc->tf.command == ATA_CMD_REQ_SENSE_DATA) {
-		qc->result_tf.command |= ATA_SENSE;
-	}
-
-	/* finish up */
-	spin_lock_irqsave(ap->lock, flags);
-
-	*tf = qc->result_tf;
-	err_mask = qc->err_mask;
-
-	ata_qc_free(qc);
-	link->active_tag = preempted_tag;
-	link->sactive = preempted_sactive;
-	ap->qc_active = preempted_qc_active;
-	ap->nr_active_links = preempted_nr_active_links;
-
-	spin_unlock_irqrestore(ap->lock, flags);
-
-	if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
-		ata_internal_cmd_timed_out(dev, command);
-
-	return err_mask;
+	return 0;
 }
 
 /**
@@ -4622,6 +4768,8 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 	struct ata_port *ap;
 	struct ata_link *link;
 
+	pr_err("%s qc=%pS\n", __func__, qc);
+
 	WARN_ON_ONCE(qc == NULL); /* ata_qc_from_tag _might_ return NULL */
 	WARN_ON_ONCE(!(qc->flags & ATA_QCFLAG_ACTIVE));
 	ap = qc->ap;
@@ -4645,12 +4793,16 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 		     ap->excl_link == link))
 		ap->excl_link = NULL;
 
+	pr_err("%s2 qc=%pS\n", __func__, qc);
+
 	/* atapi: mark qc as inactive to prevent the interrupt handler
 	 * from completing the command twice later, before the error handler
 	 * is called. (when rc != 0 and atapi request sense is needed)
 	 */
 	qc->flags &= ~ATA_QCFLAG_ACTIVE;
 	ap->qc_active &= ~(1ULL << qc->tag);
+
+	pr_err("%s3 qc=%pS complete_fn=%pS\n", __func__, qc, qc->complete_fn);
 
 	/* call completion callback */
 	qc->complete_fn(qc);
@@ -4835,6 +4987,8 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 * request ATAPI sense.
 	 */
 	WARN_ON_ONCE(ap->ops->error_handler && ata_tag_valid(link->active_tag));
+
+	pr_err("%s qc=%pS\n", __func__, qc);
 
 	if (ata_is_ncq(prot)) {
 		WARN_ON_ONCE(link->sactive & (1 << qc->hw_tag));
