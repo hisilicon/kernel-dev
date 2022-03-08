@@ -1697,6 +1697,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 		if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
 			ata_internal_cmd_timed_out(dev, command);
+		kfree(scmd->host_scribble);
 		__blk_mq_end_request(rq, BLK_STS_OK);
 		scsi_free_host_dev(host_sdev);
 
