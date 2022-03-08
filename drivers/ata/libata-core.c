@@ -1439,14 +1439,45 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 	complete(waiting);
 }
 
+struct ata_internal_sg_stack {
+	struct ata_queued_cmd *qc;
+	struct completion wait;
+};
+
+struct ata_internal_sg_data {
+	struct scsi_internal_rq type;
+	struct ata_device *dev;
+	struct ata_taskfile *tf;
+	const u8 *cdb;
+	int dma_dir;
+	struct scatterlist *sgl;
+	unsigned int n_elem;
+	unsigned long timeout;
+
+	unsigned int preempted_tag;
+	u32 preempted_sactive;
+	u64 preempted_qc_active;
+	int preempted_nr_active_links;
+	struct ata_internal_sg_stack *stack;
+};
+
+
+extern unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
+			      struct ata_taskfile *tf, const u8 *cdb,
+			      int dma_dir, struct scatterlist *sgl,
+			      unsigned int n_elem, unsigned long timeout,
+			      struct scsi_cmnd *scsi_cmnd,
+			      struct completion *wait,
+			      struct request *rq);
+
 static __maybe_unused void ata_exec_internal_sg_req_done(struct request *rq,
 				    blk_status_t blk_status)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
-	struct libata_stuffy2 *stuff2 = stuff->libata_stuffy2;
+	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)scmd->host_scribble;
+	struct ata_internal_sg_stack *stack = data->stack;
 
-	pr_err("%s rq=%pS blk_status=%d scmd=%pS stuff2=%pS wait=%pS\n", __func__, rq, blk_status, stuff, stuff2, &stuff2->wait);
+	pr_err("%s rq=%pS blk_status=%d scmd=%pS data=%pS stack=%pS wait=%pS\n", __func__, rq, blk_status, scmd, data, stack, &stack->wait);
 }
 
 /**
@@ -1472,31 +1503,32 @@ static __maybe_unused void ata_exec_internal_sg_req_done(struct request *rq,
  *	Zero on success, AC_ERR_* mask on failure
  */
 
+
 static blk_status_t ata_exec_internal_sg_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
 	struct request *rq = bd->rq;
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
-	struct libata_stuffy2 *stuffy2 = stuff->libata_stuffy2;
+	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)scmd->host_scribble;
+	struct ata_internal_sg_stack *stack = data->stack;
 	unsigned result;
 
 	pr_err("%s hctx=%pS bd=%pS req=%pS\n", __func__, hctx, bd, rq);
 	blk_mq_start_request(bd->rq);
-	
-	pr_err("%s2 ata_device=%pS scmd=%pS stuff=%pS in_atomic=%d scmd->sdev=%pS\n",
-			__func__, stuff->dev, stuff->tf, stuff, in_atomic(), scmd->device); 
+
+	pr_err("%s2 ata_device=%pS scmd=%pS data=%pS in_atomic=%d scmd->sdev=%pS\n",
+			__func__, data->dev, data->tf, data, in_atomic(), scmd->device); 
 	//	pr_err("%s3.1 stuff=%pS\n", __func__, stuff);
 	//	pr_err("%s3.2 stuff->dev=%pS\n", __func__, stuff->dev);
 	//	pr_err("%s3.3 stuff->tf=%pS\n", __func__, stuff->tf);
 	//	pr_err("%s3.4 stuff->cdb=%pS\n", __func__, stuff->cdb);
 	//	pr_err("%s3.6 stuff->sgl=%pS\n", __func__, stuff->sgl);
 	//	pr_err("%s3.8 scmd=%pS\n", __func__, scmd);
-	result = ata_exec_internal_sg_dir(stuff->dev, stuff->tf, stuff->cdb, stuff->dma_dir, stuff->sgl, stuff->n_elem, stuff->timeout, scmd, &stuffy2->wait, rq); 
+	result = ata_exec_internal_sg_dir(data->dev, data->tf, data->cdb, data->dma_dir, data->sgl, data->n_elem, data->timeout, scmd, &stack->wait, rq); 
 	
 
-	pr_err("%s3 ata_device=%pS scmd=%pS stuff=%pS in_atomic=%d scmd->sdev=%pS result=%d\n",
-			__func__, stuff->dev, stuff->tf, stuff, in_atomic(), scmd->device, result); 
+	pr_err("%s3 ata_device=%pS scmd=%pS data=%pS in_atomic=%d scmd->sdev=%pS result=%d\n",
+			__func__, data->dev, data->tf, data, in_atomic(), scmd->device, result); 
 
 	return BLK_STS_OK;
 }
@@ -1516,19 +1548,19 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	struct scsi_device *sdev = dev->sdev;
 	struct scsi_device *host_sdev = NULL;
 	struct request *rq;
-	struct libata_stuffy2 stuffy2 = {};
+	struct ata_internal_sg_stack stack = {};
 	struct request_queue *request_queue;
 
-	init_completion(&stuffy2.wait);
+	init_completion(&stack.wait);
 
 	if (ap)
 		scsi_host = ap->scsi_host;
 	pr_err("%s ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS wait=%pS\n",
-	__func__, dev, link, ap, sdev, scsi_host, host_sdev, &stuffy2.wait);
+	__func__, dev, link, ap, sdev, scsi_host, host_sdev, &stack.wait);
 	host_sdev = scsi_get_host_dev(scsi_host);
 
 	pr_err("%s1 ata_device=%pS link=%pS ap=%pS sdev=%pS scsi_host=%pS host_sdev=%pS wait=%pS\n",
-	__func__, dev, link, ap, sdev, scsi_host, host_sdev, &stuffy2.wait);
+	__func__, dev, link, ap, sdev, scsi_host, host_sdev, &stack.wait);
 	if (!host_sdev)
 		return 0;
 
@@ -1540,38 +1572,40 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s2 ata_device=%pS rq=%pS\n", __func__, dev, rq);
 	if (!IS_ERR(rq)) {
 		struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	//	blk_status_t status;
-		
-
-		struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
-
-		
 		struct ata_link *link = dev->link;
 		struct ata_port *ap = link->ap;
 		u8 command = tf->command;
 		int auto_timeout = 0;
 		struct ata_queued_cmd *qc;
+		struct ata_internal_sg_data *data;
 		unsigned long flags;
 		unsigned int err_mask;
 		int rc;
 
-		stuff->libata_stuffy2 = &stuffy2;
-		pr_err("%s2 ata_device=%pS rq=%pS scmd=%pS stuff=%pS\n",
-			__func__, dev, rq, scmd, stuff);
-		stuff->dev = dev;
-		stuff->tf = tf;
-		stuff->cdb = cdb;
-		stuff->dma_dir = dma_dir;
-		stuff->sgl = sgl;
-		stuff->n_elem = n_elem;
-		stuff->timeout = timeout;
+		data = kmalloc(sizeof(*data), GFP_KERNEL);
+		pr_err("%s3 ata_device=%pS rq=%pS data=%pS\n", __func__, dev, rq, data);
+		if (!data)
+			return 0;
+		scmd->host_scribble = (unsigned char *)data;
+
+
+		data->stack = &stack;
+		pr_err("%s4 ata_device=%pS rq=%pS scmd=%pS data=%pS\n",
+			__func__, dev, rq, scmd, data);
+		data->dev = dev;
+		data->tf = tf;
+		data->cdb = cdb;
+		data->dma_dir = dma_dir;
+		data->sgl = sgl;
+		data->n_elem = n_elem;
+		data->timeout = timeout;
 
 		//scmd->submitter = SUBMITTED_BY_ATA_INTERNAL;
 
  	//	status = blk_execute_rq(rq, true);
-		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS\n", __func__, dev, rq, scmd, stuff);
+		pr_err("%s3 ata_device=%pS rq=%pS scmd=%pS stuff=%pS\n", __func__, dev, rq, scmd, data);
 		blk_execute_rq_nowait(rq, true, NULL);
-		pr_err("%s4 ata_device=%pS rq=%pS scmd=%pS stuff=%pS\n", __func__, dev, rq, scmd, stuff);
+		pr_err("%s4 ata_device=%pS rq=%pS scmd=%pS stuff=%pS\n", __func__, dev, rq, scmd, data);
 
 		if (!timeout) {
 			if (ata_probe_timeout)
@@ -1585,14 +1619,14 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		if (ap->ops->error_handler)
 			ata_eh_release(ap);
 
-		pr_err("%s5 ata_device=%pS link=%pS ap=%pS sdev=%pS stuff=%pS\n",
-		__func__, dev, link, ap, sdev, stuff);
+		pr_err("%s5 ata_device=%pS link=%pS ap=%pS sdev=%pS data=%pS\n",
+		__func__, dev, link, ap, sdev, data);
 
-		rc = wait_for_completion_timeout(&stuffy2.wait, msecs_to_jiffies(timeout));
+		rc = wait_for_completion_timeout(&stack.wait, msecs_to_jiffies(timeout));
 
-		qc = stuffy2.qc;
- 		pr_err("%s6 got completion ata_device=%pS  stuff=%pS qc=%pS\n",
-		__func__, dev, stuff, qc);
+		qc = stack.qc;
+ 		pr_err("%s6 got completion ata_device=%pS  data=%pS qc=%pS\n",
+		__func__, dev, data, qc);
 
 		if (ap->ops->error_handler)
 			ata_eh_acquire(ap);
@@ -1652,10 +1686,10 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		err_mask = qc->err_mask;
 
 		ata_qc_free(qc);
-		link->active_tag = stuff->preempted_tag;
-		link->sactive = stuff->preempted_sactive;
-		ap->qc_active = stuff->preempted_qc_active;
-		ap->nr_active_links = stuff->preempted_nr_active_links;
+		link->active_tag = data->preempted_tag;
+		link->sactive = data->preempted_sactive;
+		ap->qc_active = data->preempted_qc_active;
+		ap->nr_active_links = data->preempted_nr_active_links;
 
 		spin_unlock_irqrestore(ap->lock, flags);
 
@@ -1692,9 +1726,8 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	//	blk_status_t status;
-	struct libata_stuffy *stuff = (struct libata_stuffy *)(scmd + 1);
-	struct libata_stuffy2 *stuff2 = stuff->libata_stuffy2;
+	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)scmd->host_scribble;
+	struct ata_internal_sg_stack *stack = data->stack;
 
 	pr_err("%s ata_device=%pS wait=%pS\n", __func__, dev, wait);
 
@@ -1707,7 +1740,7 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 	}
 
 	/* initialize internal qc */
-	stuff2->qc = qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
+	stack->qc = qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
@@ -1716,13 +1749,13 @@ unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
 	qc->dev = dev;
 	ata_qc_reinit(qc);
 
-	pr_err("%s2 ata_device=%pSqc=%pS stuff=%pS stuff->qc=%pS wait=%pS\n",
-		__func__, dev, qc, stuff, stuff2->qc, wait);
+	pr_err("%s2 ata_device=%pSqc=%pS stack=%pS stack->qc=%pS wait=%pS\n",
+		__func__, dev, qc, stack, stack->qc, wait);
 
-	stuff->preempted_tag = link->active_tag;
-	stuff->preempted_sactive = link->sactive;
-	stuff->preempted_qc_active = ap->qc_active;
-	stuff->preempted_nr_active_links = ap->nr_active_links;
+	data->preempted_tag = link->active_tag;
+	data->preempted_sactive = link->sactive;
+	data->preempted_qc_active = ap->qc_active;
+	data->preempted_nr_active_links = ap->nr_active_links;
 	link->active_tag = ATA_TAG_POISON;
 	link->sactive = 0;
 	ap->qc_active = 0;

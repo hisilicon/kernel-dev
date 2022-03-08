@@ -2051,35 +2051,5 @@ static inline u8 ata_wait_idle(struct ata_port *ap)
 }
 #endif /* CONFIG_ATA_SFF */
 
-struct libata_stuffy2 {
-	struct ata_queued_cmd *qc;
-	struct completion wait;
-};
-
-struct libata_stuffy {
-	struct scsi_internal_rq type;
-	struct ata_device *dev;
-	struct ata_taskfile *tf;
-	const u8 *cdb;
-	int dma_dir;
-	struct scatterlist *sgl;
-	unsigned int n_elem;
-	unsigned long timeout;
-
-	unsigned int preempted_tag;
-	u32 preempted_sactive;
-	u64 preempted_qc_active;
-	int preempted_nr_active_links;
-	struct libata_stuffy2 *libata_stuffy2;
-};
-
-
-extern unsigned ata_exec_internal_sg_dir(struct ata_device *dev,
-			      struct ata_taskfile *tf, const u8 *cdb,
-			      int dma_dir, struct scatterlist *sgl,
-			      unsigned int n_elem, unsigned long timeout,
-			      struct scsi_cmnd *scsi_cmnd,
-			      struct completion *wait,
-			      struct request *rq);
 
 #endif /* __LINUX_LIBATA_H__ */
