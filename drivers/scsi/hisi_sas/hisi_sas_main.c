@@ -526,6 +526,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 			if (dev_is_sata(device)) {
 				qc = task->uldd_task;
 				scmd = qc->scsicmd;
+				WARN_ON_ONCE(!scmd);
 			} else {
 				scmd = task->uldd_task;
 			}
