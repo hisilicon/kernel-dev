@@ -1663,10 +1663,10 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 		if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
 			ata_internal_cmd_timed_out(dev, command);
+		__blk_mq_end_request(rq, BLK_STS_OK);
 		scsi_free_host_dev(host_sdev);
 
 		pr_err("%s10 out ata_device=%pS err_mask=%d\n", __func__, dev, err_mask);
-		//__blk_mq_end_request(rq, 0);
 		return err_mask;
 
 		
