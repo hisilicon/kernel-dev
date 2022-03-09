@@ -1664,8 +1664,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 							BLK_MQ_NO_HCTX_IDX,
 							1);
 	pr_err("%s request_queue->aux_tags=%pS\n", __func__, request_queue->aux_tags);
-	if (!request_queue->aux_tags)
-		return -ENOMEM;
+//	if (!request_queue->aux_tags)
+//		return -ENOMEM;
 
 	request_queue2 = blk_mq_init_queue2(&scsi_host->tag_set, &ata_exec_internal_sg_mq_ops, cmd_extra_size);
 	pr_err("%s2 request_queue2=%pS\n", __func__, request_queue2);
