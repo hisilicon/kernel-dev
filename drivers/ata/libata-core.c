@@ -1649,9 +1649,13 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	int rc, auto_timeout = 0;
 	unsigned int cmd_extra_size;
 
+	pr_err("%s\n", __func__);
+
 	scsi_host = ap->scsi_host;
 	// q = blk_mq_init_queue(&sdev->host->tag_set);
 	host_sdev = scsi_get_host_dev(scsi_host);
+
+	pr_err("%s1 host_sdev=%pS\n", __func__, host_sdev);
 
 	if (!host_sdev)
 		return AC_ERR_SYSTEM;
@@ -1660,18 +1664,18 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	request_queue->mq_ops = &ata_exec_internal_sg_mq_ops;
 	cmd_extra_size = sizeof(*data);
 
-	request_queue->aux_tags = blk_mq_alloc_map_and_rqs(&scsi_host->tag_set,
-							BLK_MQ_NO_HCTX_IDX,
-							1);
-	pr_err("%s request_queue->aux_tags=%pS\n", __func__, request_queue->aux_tags);
+	request_queue->aux_tags = NULL;//blk_mq_alloc_map_and_rqs(&scsi_host->tag_set,
+//							BLK_MQ_NO_HCTX_IDX,
+//							1);
+	pr_err("%s2 request_queue->aux_tags=%pS\n", __func__, request_queue->aux_tags);
 //	if (!request_queue->aux_tags)
 //		return -ENOMEM;
 
 	request_queue2 = blk_mq_init_queue2(&scsi_host->tag_set, &ata_exec_internal_sg_mq_ops, cmd_extra_size);
-	pr_err("%s2 request_queue2=%pS\n", __func__, request_queue2);
+	pr_err("%s3 request_queue2=%pS\n", __func__, request_queue2);
 
 	rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
-	pr_err("%s rq=%pS\n", __func__, rq);
+	pr_err("%s4 rq=%pS\n", __func__, rq);
 	if (IS_ERR(rq)) {
 		scsi_free_host_dev(host_sdev);
 		return AC_ERR_SYSTEM;
