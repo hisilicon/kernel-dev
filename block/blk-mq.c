@@ -3907,11 +3907,11 @@ struct request_queue *blk_mq_init_queue_aux(struct blk_mq_tag_set *set, const st
 
 	pr_err("%s set=%pS ops=%pS cmd_extra_size=%d\n", __func__, set, ops, cmd_extra_size);
 
-	q = blk_mq_init_queue_data(set, NULL, ops, cmd_extra_size);
+	q = blk_mq_init_queue_data(set, NULL, ops, cmd_extra_size); //need to set BLK_MQ_F_NO_SCHED
 	pr_err("%s1 set=%pS ops=%pS cmd_extra_size=%d q=%pS\n", __func__, set, ops, cmd_extra_size, q);
 	if (IS_ERR(q))
 		return NULL;
-	ret = blk_mq_init_aux(q);
+	ret = blk_mq_init_aux(q, cmd_extra_size);
 
 	pr_err("%s10 set=%pS ops=%pS cmd_extra_size=%d ret=%d\n", __func__, set, ops, cmd_extra_size, ret);
 	if (ret)
@@ -3974,7 +3974,7 @@ static struct blk_mq_hw_ctx *blk_mq_alloc_and_init_hctx(
 }
 
 
-static int blk_mq_init_aux_tags(struct request_queue *queue)
+static int blk_mq_init_aux_tags(struct request_queue *queue, unsigned int cmd_extra_size)
 {
 	struct blk_mq_tag_set *set = queue->tag_set;
 
@@ -3985,7 +3985,7 @@ static int blk_mq_init_aux_tags(struct request_queue *queue)
 	pr_err("%s queue=%pS\n", __func__, queue);
 	queue->aux_tags = blk_mq_alloc_map_and_rqs(set,
 						BLK_MQ_NO_HCTX_IDX,
-						MAX_SCHED_RQ, 0./*fixme*/);
+						MAX_SCHED_RQ, cmd_extra_size);
 	pr_err("%s2 queue=%pS aux_tags=%pS\n", __func__, queue, queue->aux_tags);
 	if (!queue->aux_tags)
 		return -ENOMEM;
@@ -3995,7 +3995,7 @@ static int blk_mq_init_aux_tags(struct request_queue *queue)
 	return 0;
 }
 
-int blk_mq_init_aux(struct request_queue *q)
+int blk_mq_init_aux(struct request_queue *q, unsigned int cmd_extra_size)
 {
 	int ret;
 
@@ -4008,7 +4008,7 @@ int blk_mq_init_aux(struct request_queue *q)
 
 	pr_err("%s q=%pS\n", __func__, q);
 
-	ret = blk_mq_init_aux_tags(q);
+	ret = blk_mq_init_aux_tags(q, cmd_extra_size);
 	pr_err("%s2 q=%pS ret=%d\n", __func__, q, ret);
 	if (ret)
 		return ret;

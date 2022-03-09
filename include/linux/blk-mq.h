@@ -691,7 +691,7 @@ struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set, void *queuedata,
 })
 struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *);
 struct request_queue *blk_mq_init_queue_aux(struct blk_mq_tag_set *set, const struct blk_mq_ops *ops, unsigned int cmd_size);
-int blk_mq_init_aux(struct request_queue *q);
+int blk_mq_init_aux(struct request_queue *q, unsigned int extra_size);
 
 int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 		struct request_queue *q, const struct blk_mq_ops *ops, unsigned int cmd_exta_size);
