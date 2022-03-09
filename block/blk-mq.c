@@ -3196,7 +3196,7 @@ static int blk_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 
 static int blk_mq_alloc_rqs(struct blk_mq_tag_set *set,
 			    struct blk_mq_tags *tags,
-			    unsigned int hctx_idx, unsigned int depth)
+			    unsigned int hctx_idx, unsigned int depth, unsigned int extra_size)
 {
 	unsigned int i, j, entries_per_page, max_order = 4;
 	size_t rq_size, left;
@@ -3212,7 +3212,7 @@ static int blk_mq_alloc_rqs(struct blk_mq_tag_set *set,
 	 * rq_size is the size of the request plus driver payload, rounded
 	 * to the cacheline size
 	 */
-	rq_size = round_up(sizeof(struct request) + set->cmd_size,
+	rq_size = round_up(sizeof(struct request) + set->cmd_size + extra_size,
 				cache_line_size());
 	left = rq_size * depth;
 
@@ -3593,7 +3593,8 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 
 struct blk_mq_tags *blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
 					     unsigned int hctx_idx,
-					     unsigned int depth)
+					     unsigned int depth,
+					     unsigned int extra_size)
 {
 	struct blk_mq_tags *tags;
 	int ret;
@@ -3602,7 +3603,7 @@ struct blk_mq_tags *blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
 	if (!tags)
 		return NULL;
 
-	ret = blk_mq_alloc_rqs(set, tags, hctx_idx, depth);
+	ret = blk_mq_alloc_rqs(set, tags, hctx_idx, depth, extra_size);
 	if (ret) {
 		blk_mq_free_rq_map(tags);
 		return NULL;
@@ -3621,7 +3622,7 @@ static bool __blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
 	}
 
 	set->tags[hctx_idx] = blk_mq_alloc_map_and_rqs(set, hctx_idx,
-						       set->queue_depth);
+						       set->queue_depth, 0);
 
 	return set->tags[hctx_idx];
 }
@@ -3875,7 +3876,7 @@ void blk_mq_release(struct request_queue *q)
 }
 
 static struct request_queue *blk_mq_init_queue_data(struct blk_mq_tag_set *set,
-		void *queuedata)
+		void *queuedata, const struct blk_mq_ops *ops, unsigned int cmd_extra_size)
 {
 	struct request_queue *q;
 	int ret;
@@ -3884,19 +3885,26 @@ static struct request_queue *blk_mq_init_queue_data(struct blk_mq_tag_set *set,
 	if (!q)
 		return ERR_PTR(-ENOMEM);
 	q->queuedata = queuedata;
-	ret = blk_mq_init_allocated_queue(set, q);
+	ret = blk_mq_init_allocated_queue(set, q, NULL, cmd_extra_size);
 	if (ret) {
 		blk_cleanup_queue(q);
 		return ERR_PTR(ret);
 	}
+	
 	return q;
 }
 
 struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 {
-	return blk_mq_init_queue_data(set, NULL);
+	return blk_mq_init_queue_data(set, NULL, NULL, 0);
 }
 EXPORT_SYMBOL(blk_mq_init_queue);
+
+struct request_queue *blk_mq_init_queue2(struct blk_mq_tag_set *set, const struct blk_mq_ops *ops, unsigned int cmd_extra_size)
+{
+	return blk_mq_init_queue_data(set, NULL, ops, cmd_extra_size);
+}
+EXPORT_SYMBOL(blk_mq_init_queue2);
 
 struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set, void *queuedata,
 		struct lock_class_key *lkclass)
@@ -3904,7 +3912,7 @@ struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set, void *queuedata,
 	struct request_queue *q;
 	struct gendisk *disk;
 
-	q = blk_mq_init_queue_data(set, queuedata);
+	q = blk_mq_init_queue_data(set, queuedata, NULL, 0);
 	if (IS_ERR(q))
 		return ERR_CAST(q);
 
@@ -3949,6 +3957,54 @@ static struct blk_mq_hw_ctx *blk_mq_alloc_and_init_hctx(
 	kobject_put(&hctx->kobj);
  fail:
 	return NULL;
+}
+
+
+static int blk_mq_init_aux_tags(struct request_queue *queue)
+{
+	struct blk_mq_tag_set *set = queue->tag_set;
+
+	/*
+	 * Set initial depth at max so that we don't need to reallocate for
+	 * updating nr_requests.
+	 */
+	queue->sched_shared_tags = blk_mq_alloc_map_and_rqs(set,
+						BLK_MQ_NO_HCTX_IDX,
+						MAX_SCHED_RQ, 0./*fixme*/);
+	if (!queue->sched_shared_tags)
+		return -ENOMEM;
+
+	blk_mq_tag_update_sched_shared_tags(queue);
+
+	return 0;
+}
+
+int blk_mq_init_aux(struct request_queue *q)
+{
+	int ret;
+
+	/*
+	 * Default to double of smaller one between hw queue_depth and 128,
+	 * since we don't split into sync/async like the old code did.
+	 * Additionally, this is a per-hw queue depth.
+	 */
+	q->nr_requests = 1;
+
+	ret = blk_mq_init_aux_tags(q);
+	if (ret)
+		return ret;
+
+
+	ret = 0;
+	if (ret)
+		goto err_free_map_and_rqs;
+
+	return 0;
+
+err_free_map_and_rqs:
+
+	q->elevator = NULL;
+	return ret;
 }
 
 static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
@@ -4027,13 +4083,16 @@ static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 }
 
 int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
-		struct request_queue *q)
+		struct request_queue *q, const struct blk_mq_ops *ops, unsigned int cmd_size)
 {
 	WARN_ON_ONCE(blk_queue_has_srcu(q) !=
 			!!(set->flags & BLK_MQ_F_BLOCKING));
 
 	/* mark the queue as mq asap */
-	q->mq_ops = set->ops;
+	if (ops)
+		q->mq_ops = ops;
+	else
+		q->mq_ops = set->ops;
 
 	q->poll_cb = blk_stat_alloc_callback(blk_mq_poll_stats_fn,
 					     blk_mq_poll_stats_bkt,
@@ -4111,7 +4170,7 @@ static int __blk_mq_alloc_rq_maps(struct blk_mq_tag_set *set)
 	if (blk_mq_is_shared_tags(set->flags)) {
 		set->shared_tags = blk_mq_alloc_map_and_rqs(set,
 						BLK_MQ_NO_HCTX_IDX,
-						set->queue_depth);
+						set->queue_depth, 0);
 		if (!set->shared_tags)
 			return -ENOMEM;
 	}

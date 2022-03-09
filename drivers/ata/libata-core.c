@@ -1612,6 +1612,18 @@ extern struct blk_mq_tags *blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
+#ifdef fdffdff
+struct blk_mq_tag_set tmf_tag_set;
+hba->tmf_tag_set = (struct blk_mq_tag_set) {
+	.nr_hw_queues	= 1,
+	.queue_depth	= hba->nutmrs,
+	.ops		= &ufshcd_tmf_ops,
+	.flags		= BLK_MQ_F_NO_SCHED,
+};
+err = blk_mq_alloc_tag_set(&hba->tmf_tag_set);
+hba->tmf_queue = blk_mq_init_queue(&hba->tmf_tag_set);
+
+#endif
 
 unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
@@ -1625,6 +1637,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		.wait = COMPLETION_INITIALIZER_ONSTACK(stack.wait),
 	};
 	struct request_queue *request_queue;
+	struct request_queue *request_queue2;
 	struct ata_internal_sg_data *data;
 	struct scsi_device *host_sdev;
 	u8 command = tf->command;
@@ -1634,9 +1647,10 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned long flags;
 	struct request *rq;
 	int rc, auto_timeout = 0;
+	unsigned int cmd_extra_size;
 
 	scsi_host = ap->scsi_host;
-
+	// q = blk_mq_init_queue(&sdev->host->tag_set);
 	host_sdev = scsi_get_host_dev(scsi_host);
 
 	if (!host_sdev)
@@ -1644,6 +1658,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	request_queue = host_sdev->request_queue;
 	request_queue->mq_ops = &ata_exec_internal_sg_mq_ops;
+	cmd_extra_size = sizeof(*data);
 
 	request_queue->aux_tags = blk_mq_alloc_map_and_rqs(&scsi_host->tag_set,
 							BLK_MQ_NO_HCTX_IDX,
@@ -1651,6 +1666,9 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s request_queue->aux_tags=%pS\n", __func__, request_queue->aux_tags);
 	if (!request_queue->aux_tags)
 		return -ENOMEM;
+
+	request_queue2 = blk_mq_init_queue2(&scsi_host->tag_set, &ata_exec_internal_sg_mq_ops, cmd_extra_size);
+	pr_err("%s2 request_queue2=%pS\n", __func__, request_queue2);
 
 	rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
 	pr_err("%s rq=%pS\n", __func__, rq);
@@ -1663,7 +1681,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	scmd = blk_mq_rq_to_pdu(rq);
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kmalloc(sizeof(*data), GFP_KERNEL); //fixme release
 	if (!data)
 		return AC_ERR_SYSTEM;
 	scmd->host_scribble = (unsigned char *)data;

@@ -633,7 +633,7 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 		if (blk_mq_is_shared_tags(set->flags))
 			return 0;
 
-		new = blk_mq_alloc_map_and_rqs(set, hctx->queue_num, tdepth);
+		new = blk_mq_alloc_map_and_rqs(set, hctx->queue_num, tdepth, 0);
 		if (!new)
 			return -ENOMEM;
 
