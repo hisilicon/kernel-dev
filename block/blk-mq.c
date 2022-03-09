@@ -3900,7 +3900,7 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 }
 EXPORT_SYMBOL(blk_mq_init_queue);
 
-struct request_queue *blk_mq_init_queue2(struct blk_mq_tag_set *set, const struct blk_mq_ops *ops, unsigned int cmd_extra_size)
+struct request_queue *blk_mq_init_queue_aux(struct blk_mq_tag_set *set, const struct blk_mq_ops *ops, unsigned int cmd_extra_size)
 {
 	struct request_queue *q;
 	int ret;
@@ -3918,7 +3918,7 @@ struct request_queue *blk_mq_init_queue2(struct blk_mq_tag_set *set, const struc
 		return NULL;
 	return q;
 }
-EXPORT_SYMBOL(blk_mq_init_queue2);
+EXPORT_SYMBOL(blk_mq_init_queue_aux);
 
 struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set, void *queuedata,
 		struct lock_class_key *lkclass)
@@ -3982,13 +3982,15 @@ static int blk_mq_init_aux_tags(struct request_queue *queue)
 	 * Set initial depth at max so that we don't need to reallocate for
 	 * updating nr_requests.
 	 */
-	queue->sched_shared_tags = blk_mq_alloc_map_and_rqs(set,
+	pr_err("%s queue=%pS\n", __func__, queue);
+	queue->aux_tags = blk_mq_alloc_map_and_rqs(set,
 						BLK_MQ_NO_HCTX_IDX,
 						MAX_SCHED_RQ, 0./*fixme*/);
-	if (!queue->sched_shared_tags)
+	pr_err("%s2 queue=%pS aux_tags=%pS\n", __func__, queue, queue->aux_tags);
+	if (!queue->aux_tags)
 		return -ENOMEM;
 
-	blk_mq_tag_update_sched_shared_tags(queue);
+	//blk_mq_tag_update_sched_shared_tags(queue);
 
 	return 0;
 }
@@ -4004,7 +4006,10 @@ int blk_mq_init_aux(struct request_queue *q)
 	 */
 	q->nr_requests = 1;
 
+	pr_err("%s q=%pS\n", __func__, q);
+
 	ret = blk_mq_init_aux_tags(q);
+	pr_err("%s2 q=%pS ret=%d\n", __func__, q, ret);
 	if (ret)
 		return ret;
 

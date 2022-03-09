@@ -1671,7 +1671,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 //	if (!request_queue->aux_tags)
 //		return -ENOMEM;
 
-	request_queue2 = blk_mq_init_queue2(&scsi_host->tag_set, &ata_exec_internal_sg_mq_ops, cmd_extra_size);
+	request_queue2 = blk_mq_init_queue_aux(&scsi_host->tag_set, &ata_exec_internal_sg_mq_ops, cmd_extra_size);
 	pr_err("%s3 request_queue2=%pS\n", __func__, request_queue2);
 
 	rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
