@@ -1466,7 +1466,7 @@ static __maybe_unused void ata_exec_internal_sg_req_done(struct request *rq,
 				    blk_status_t blk_status)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)scmd->host_scribble;
+	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)(scmd + 1);
 	struct ata_internal_sg_stack *stack = data->stack;
 
 	pr_err("%s rq=%pS blk_status=%d scmd=%pS data=%pS stack=%pS wait=%pS\n", __func__, rq, blk_status, scmd, data, stack, &stack->wait);
@@ -1678,9 +1678,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	scmd = blk_mq_rq_to_pdu(rq);
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL); //fixme release
-	if (!data)
-		return AC_ERR_SYSTEM;
+	data = (struct ata_internal_sg_data *)(scmd + 1);//kmalloc(sizeof(*data), GFP_KERNEL); //fixme release
 	scmd->host_scribble = (unsigned char *)data;
 	scmd->device = host_sdev;
 
