@@ -1560,7 +1560,7 @@ static blk_status_t ata_exec_internal_sg_queue_rq(struct blk_mq_hw_ctx *hctx,
 {
 	struct request *rq = bd->rq;
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)scmd->host_scribble;
+	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)(scmd + 1);
 	struct ata_internal_sg_stack *stack = data->stack;
 	unsigned result;
 
@@ -1679,7 +1679,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	scmd = blk_mq_rq_to_pdu(rq);
 
 	data = (struct ata_internal_sg_data *)(scmd + 1);//kmalloc(sizeof(*data), GFP_KERNEL); //fixme release
-	scmd->host_scribble = (unsigned char *)data;
+
 	scmd->device = host_sdev;
 
 	data->stack = &stack;
