@@ -31,51 +31,8 @@ static int sas_disable_routing(struct domain_device *dev,  u8 *sas_addr);
 /* Give it some long enough timeout. In seconds. */
 #define SMP_TIMEOUT 10
 
-#ifdef sdsds
-int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
-{
-	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
-	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
-
-	return i->dft->lldd_execute_task(sas_rq_to_task(rq), GFP_KERNEL);
-}
-#endif
 
 
-struct smp_execute_data {
-	struct sas_task *task;
-	struct Scsi_Host *shost;
-};
-
-
-static blk_status_t smp_execute_task_sg_exec_rq(struct blk_mq_hw_ctx *hctx,
-		const struct blk_mq_queue_data *bd)
-{
-	struct request *rq = bd->rq;
-	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	struct smp_execute_data *data = (struct smp_execute_data *)(scmd + 1); 
-	struct sas_task *task = data->task;
-	struct Scsi_Host *shost = data->shost;
-	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
-	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
-	int res;
-
-	blk_mq_start_request(bd->rq);
-
-//	pr_err("%s rq=%pS scmd=%pS task=%pS\n", __func__, rq, scmd, task);
-	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-//	pr_err("%s2 rq=%pS scmd=%pS task=%pS res=%d\n", __func__, rq, scmd, task, res);
-	if (res) {
-		pr_err("%s2 rq=%pS scmd=%pS task=%pS res=%d\n", __func__, rq, scmd, task, res);
-		return BLK_STS_IOERR;
-	}
-
-	return BLK_STS_OK;
-}
-
-static const struct blk_mq_ops sas_smp_ops = {
-	.queue_rq	= smp_execute_task_sg_exec_rq,
-};
 
 static int smp_execute_task_sg(struct domain_device *dev,
 		struct scatterlist *req, struct scatterlist *resp)
@@ -87,16 +44,17 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	struct sas_ha_struct *ha = dev->port->ha;
 	struct Scsi_Host *shost = ha->core.shost;
 	struct request_queue *request_queue;
-	struct smp_execute_data *data;
-	unsigned int cmd_extra_size = sizeof(*data);
 	struct request *rq;
 
-	request_queue = blk_mq_init_queue_aux(&shost->tag_set, &sas_smp_ops, cmd_extra_size);
+	request_queue = sas_alloc_request_queue(shost);
 //	pr_err("%s request_queue=%pS\n", __func__, request_queue);
+
+	request_queue = sas_alloc_request_queue(shost);
 
 	pm_runtime_get_sync(ha->dev);
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
+		struct sas_execute_rq_data *data;
 		struct scsi_cmnd *scmd;
 		if (test_bit(SAS_DEV_GONE, &dev->state)) {
 			res = -ECOMM;
@@ -111,7 +69,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
 		//pr_err("%s2 request_queue2=%pS rq=%pS task=%pS\n", __func__, request_queue, rq, task);
 		scmd = blk_mq_rq_to_pdu(rq);
-		data = (struct smp_execute_data *)(scmd + 1);
+		data = (struct sas_execute_rq_data *)(scmd + 1);
 		data->shost = shost;
 		data->task = task;
 		task->dev = dev;

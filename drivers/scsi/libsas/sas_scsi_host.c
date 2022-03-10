@@ -927,6 +927,45 @@ void sas_task_internal_timedout(struct timer_list *t)
 #define TASK_TIMEOUT			(20 * HZ)
 #define TASK_RETRY			3
 
+
+blk_status_t smp_execute_task_sg_exec_rq(struct blk_mq_hw_ctx *hctx,
+		const struct blk_mq_queue_data *bd)
+{
+	struct request *rq = bd->rq;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	struct sas_execute_rq_data *data = (struct sas_execute_rq_data *)(scmd + 1); 
+	struct sas_task *task = data->task;
+	struct Scsi_Host *shost = data->shost;
+	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
+	int res;
+
+	blk_mq_start_request(bd->rq);
+
+//	pr_err("%s rq=%pS scmd=%pS task=%pS\n", __func__, rq, scmd, task);
+	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+//	pr_err("%s2 rq=%pS scmd=%pS task=%pS res=%d\n", __func__, rq, scmd, task, res);
+	if (res) {
+		pr_err("%s2 rq=%pS scmd=%pS task=%pS res=%d\n", __func__, rq, scmd, task, res);
+		return BLK_STS_IOERR;
+	}
+
+	return BLK_STS_OK;
+}
+
+static const struct blk_mq_ops sas_smp_ops = {
+	.queue_rq	= smp_execute_task_sg_exec_rq,
+};
+
+struct request_queue *sas_alloc_request_queue(struct Scsi_Host *shost)
+{
+	
+	unsigned int cmd_extra_size = sizeof(struct sas_execute_rq_data);
+
+	return blk_mq_init_queue_aux(&shost->tag_set, &sas_smp_ops, cmd_extra_size);
+	//	pr_err("%s request_queue=%pS\n", __func__, request_queue);
+}
+
 static int sas_execute_internal_abort(struct domain_device *device,
 				      enum sas_internal_abort type, u16 tag,
 				      unsigned int qid, void *data)
