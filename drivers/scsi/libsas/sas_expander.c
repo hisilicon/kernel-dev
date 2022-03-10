@@ -128,6 +128,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 
 		wait_for_completion(&task->slow_task->completion);
+		__blk_mq_end_request(rq, BLK_STS_OK);
 		pr_err("%s4 request_queue2=%pS rq=%pS task=%pS got completion\n", __func__, request_queue, rq, task);
 		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
@@ -170,6 +171,8 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	}
 	mutex_unlock(&dev->ex_dev.cmd_mutex);
 	pm_runtime_put_sync(ha->dev);
+
+	pr_err("%s10 request_queue=%pS res=%d\n", __func__, request_queue, res);
 
 	BUG_ON(retry == 3 && task != NULL);
 	sas_free_task(task);
