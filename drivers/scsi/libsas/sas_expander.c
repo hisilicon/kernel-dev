@@ -129,7 +129,10 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	pm_runtime_put_sync(ha->dev);
 
 	//pr_err("%s10 request_queue=%pS res=%d\n", __func__, request_queue, res);
+
+	pr_err("%s going to cleanup queue\n", __func__);
 	blk_cleanup_queue(request_queue);
+	pr_err("%s cleaned up queue\n", __func__);
 
 	BUG_ON(retry == 3 && task != NULL);
 	sas_free_task(task);

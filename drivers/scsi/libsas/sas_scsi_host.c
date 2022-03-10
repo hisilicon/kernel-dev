@@ -1044,7 +1044,10 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		task = NULL;
 	}
 	BUG_ON(retry == TASK_RETRY && task != NULL);
+
+	pr_err("%s going to cleanup queue\n", __func__);
 	blk_cleanup_queue(request_queue);
+	pr_err("%s cleaned up queue\n", __func__);
 	sas_free_task(task);
 	return res;
 }
@@ -1222,7 +1225,9 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	if (retry == TASK_RETRY)
 		pr_warn("executing TMF for %016llx failed after %d attempts!\n",
 			SAS_ADDR(device->sas_addr), TASK_RETRY);
+	pr_err("%s going to cleanup queue\n", __func__);
 	blk_cleanup_queue(request_queue);
+	pr_err("%s cleaned up queue\n", __func__);
 	sas_free_task(task);
 
 	return res;
