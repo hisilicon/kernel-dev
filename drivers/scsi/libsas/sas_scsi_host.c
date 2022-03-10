@@ -972,10 +972,17 @@ static int sas_execute_internal_abort(struct domain_device *device,
 {
 	struct sas_ha_struct *ha = device->port->ha;
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
+	struct Scsi_Host *shost = ha->core.shost;
 	struct sas_task *task = NULL;
 	int res, retry;
+	struct request_queue *request_queue;
+	struct request *rq;
+
+	request_queue = sas_alloc_request_queue(shost);
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
+		struct sas_execute_rq_data *data;
+		struct scsi_cmnd *scmd;
 		task = sas_alloc_slow_task(GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
@@ -991,13 +998,14 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		task->abort_task.type = type;
 		task->abort_task.qid = qid;
 
-		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-		if (res) {
-			del_timer_sync(&task->slow_task->timer);
-			pr_err("Executing internal abort failed %016llx (%d)\n",
-			       SAS_ADDR(device->sas_addr), res);
-			break;
-		}
+		rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
+		//pr_err("%s2 request_queue2=%pS rq=%pS task=%pS\n", __func__, request_queue, rq, task);
+		scmd = blk_mq_rq_to_pdu(rq);
+		data = (struct sas_execute_rq_data *)(scmd + 1);
+		data->shost = shost;
+		data->task = task;
+
+		blk_execute_rq_nowait(rq, true, NULL);
 
 		wait_for_completion(&task->slow_task->completion);
 		res = TMF_RESP_FUNC_FAILED;
