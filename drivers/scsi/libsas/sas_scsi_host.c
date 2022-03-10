@@ -1010,6 +1010,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 		wait_for_completion(&task->slow_task->completion);
 		res = TMF_RESP_FUNC_FAILED;
+		__blk_mq_end_request(rq, BLK_STS_OK);
 
 		/* Even if the internal abort timed out, return direct. */
 		if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
@@ -1156,6 +1157,8 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		blk_execute_rq_nowait(rq, true, NULL);
 
 		wait_for_completion(&task->slow_task->completion);
+
+		__blk_mq_end_request(rq, BLK_STS_OK);
 
 		if (i->dft->lldd_tmf_exec_complete)
 			i->dft->lldd_tmf_exec_complete(device);
