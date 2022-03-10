@@ -1485,7 +1485,7 @@ static blk_status_t __ata_exec_internal_sg(struct ata_device *dev,
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)scmd->host_scribble;
+	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)(scmd + 1);
 	struct ata_internal_sg_stack *stack = data->stack;
 
 	pr_err("%s ata_device=%pS wait=%pS rq=%pS tag=%d internal_tag=%d\n", __func__, dev, wait, rq, rq->tag, rq->internal_tag);
