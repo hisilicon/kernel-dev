@@ -1064,6 +1064,39 @@ int sas_execute_internal_abort_dev(struct domain_device *device,
 }
 EXPORT_SYMBOL_GPL(sas_execute_internal_abort_dev);
 
+#ifdef ewewe
+
+if (scmd) {
+	unsigned int dq_index;
+	u32 blk_tag;
+
+	blk_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
+	dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
+	dq = &hisi_hba->dq[dq_index];
+#endif
+
+static u32 sas_task_to_rq_unique_tag(struct sas_task *task)
+{
+	return blk_mq_unique_tag(scsi_cmd_to_rq(task->uldd_task));
+}
+
+unsigned int sas_get_unique_tag(struct sas_task *task)
+{
+	u32 unique = sas_task_to_rq_unique_tag(task);
+
+	return blk_mq_unique_tag_to_tag(unique);
+
+}
+EXPORT_SYMBOL_GPL(sas_get_unique_tag);
+
+unsigned int sas_get_queue_index(struct sas_task *task)
+{
+	u32 unique = sas_task_to_rq_unique_tag(task);
+
+	return blk_mq_unique_tag_to_hwq(unique);
+}
+EXPORT_SYMBOL_GPL(sas_get_queue_index);
+
 int sas_execute_tmf(struct domain_device *device, void *parameter,
 		    int para_len, int force_phy_id,
 		    struct sas_tmf_task *tmf)
@@ -1095,7 +1128,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		data = (struct sas_execute_rq_data *)(scmd + 1);
 		data->shost = shost;
 		data->task = task;
-		//task->uldd_task = scmd;
+		task->uldd_task = scmd;
 
 		if (dev_is_sata(device)) {
 			task->ata_task.device_control_reg_update = 1;

@@ -31,9 +31,6 @@ static int sas_disable_routing(struct domain_device *dev,  u8 *sas_addr);
 /* Give it some long enough timeout. In seconds. */
 #define SMP_TIMEOUT 10
 
-
-
-
 static int smp_execute_task_sg(struct domain_device *dev,
 		struct scatterlist *req, struct scatterlist *resp)
 {
