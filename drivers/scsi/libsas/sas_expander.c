@@ -49,7 +49,6 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	pm_runtime_get_sync(ha->dev);
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
-		struct sas_execute_rq_data *data;
 		struct scsi_cmnd *scmd;
 		if (test_bit(SAS_DEV_GONE, &dev->state)) {
 			res = -ECOMM;
@@ -64,14 +63,12 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
 		//pr_err("%s2 request_queue2=%pS rq=%pS task=%pS\n", __func__, request_queue, rq, task);
 		scmd = blk_mq_rq_to_pdu(rq);
-		data = (struct sas_execute_rq_data *)(scmd + 1);
-		data->shost = shost;
-		data->task = task;
 		task->dev = dev;
 		task->uldd_task = scmd;
 		task->task_proto = dev->tproto;
 		task->smp_task.smp_req = *req;
 		task->smp_task.smp_resp = *resp;
+		scmd->host_scribble = (unsigned char *)task;
 
 		task->task_done = sas_task_internal_done;
 

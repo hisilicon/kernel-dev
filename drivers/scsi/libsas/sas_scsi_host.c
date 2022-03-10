@@ -933,10 +933,9 @@ blk_status_t smp_execute_task_sg_exec_rq(struct blk_mq_hw_ctx *hctx,
 {
 	struct request *rq = bd->rq;
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	struct sas_execute_rq_data *data = (struct sas_execute_rq_data *)(scmd + 1); 
-	struct sas_task *task = data->task;
-	struct Scsi_Host *shost = data->shost;
-	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	struct sas_task *task = (struct sas_task *)scmd->host_scribble;
+	struct domain_device *device = task->dev;
+	struct sas_ha_struct *ha = device->port->ha;
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
 	int res;
 
@@ -960,7 +959,7 @@ static const struct blk_mq_ops sas_smp_ops = {
 struct request_queue *sas_alloc_request_queue(struct Scsi_Host *shost)
 {
 	
-	unsigned int cmd_extra_size = sizeof(struct sas_execute_rq_data);
+	unsigned int cmd_extra_size = 0;//sizeof(struct sas_execute_rq_data);
 
 	return blk_mq_init_queue_aux(&shost->tag_set, &sas_smp_ops, cmd_extra_size);
 	//	pr_err("%s request_queue=%pS\n", __func__, request_queue);
@@ -981,7 +980,6 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	request_queue = sas_alloc_request_queue(shost);
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		struct sas_execute_rq_data *data;
 		struct scsi_cmnd *scmd;
 		task = sas_alloc_slow_task(GFP_KERNEL);
 		if (!task)
@@ -1001,10 +999,8 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
 		//pr_err("%s2 request_queue2=%pS rq=%pS task=%pS\n", __func__, request_queue, rq, task);
 		scmd = blk_mq_rq_to_pdu(rq);
-		data = (struct sas_execute_rq_data *)(scmd + 1);
-		data->shost = shost;
-		data->task = task;
 		task->uldd_task = scmd;
+		scmd->host_scribble = (unsigned char *)task;
 
 		blk_execute_rq_nowait(rq, true, NULL);
 
@@ -1118,7 +1114,6 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	request_queue = sas_alloc_request_queue(shost);
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		struct sas_execute_rq_data *data;
 		struct scsi_cmnd *scmd;
 		task = sas_alloc_slow_task(GFP_KERNEL);
 		if (!task)
@@ -1130,10 +1125,8 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
 		//pr_err("%s2 request_queue2=%pS rq=%pS task=%pS\n", __func__, request_queue, rq, task);
 		scmd = blk_mq_rq_to_pdu(rq);
-		data = (struct sas_execute_rq_data *)(scmd + 1);
-		data->shost = shost;
-		data->task = task;
 		task->uldd_task = scmd;
+		scmd->host_scribble = (unsigned char *)task;
 
 		if (dev_is_sata(device)) {
 			task->ata_task.device_control_reg_update = 1;

@@ -39,12 +39,6 @@ struct sas_phy_data {
 	struct sas_work enable_work;
 };
 
-struct sas_execute_rq_data {
-	struct sas_task *task;
-	struct Scsi_Host *shost;
-};
-
-
 struct request_queue *sas_alloc_request_queue(struct Scsi_Host *shost);
 
 
