@@ -49,8 +49,6 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	request_queue = sas_alloc_request_queue(shost);
 //	pr_err("%s request_queue=%pS\n", __func__, request_queue);
 
-	request_queue = sas_alloc_request_queue(shost);
-
 	pm_runtime_get_sync(ha->dev);
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
