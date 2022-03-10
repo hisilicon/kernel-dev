@@ -1572,9 +1572,9 @@ static bool __blk_mq_alloc_driver_tag(struct request *rq)
 
 	if (!rq->mq_hctx)
 		pr_err("%s rq=%pS rq->mq_hctx=NULL\n", __func__, rq);
-	else if (!rq->mq_hctx->sched_tags)
-		pr_err("%s rq=%pS rq->mq_hctx=%pS rq->mq_hctx->sched_tags=NULL\n", __func__, rq, rq->mq_hctx);
-
+//	else if (!rq->mq_hctx->sched_tags)
+//		pr_err("%s rq=%pS rq->mq_hctx=%pS rq->mq_hctx->sched_tags=NULL\n", __func__, rq, rq->mq_hctx);
+//
 	blk_mq_tag_busy(rq->mq_hctx);
 
 	if (0) {//blk_mq_tag_is_reserved(rq->mq_hctx->sched_tags, rq->internal_tag)) {
