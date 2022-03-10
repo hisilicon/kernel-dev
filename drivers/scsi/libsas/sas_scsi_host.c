@@ -1095,6 +1095,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		data = (struct sas_execute_rq_data *)(scmd + 1);
 		data->shost = shost;
 		data->task = task;
+		//task->uldd_task = scmd;
 
 		if (dev_is_sata(device)) {
 			task->ata_task.device_control_reg_update = 1;
