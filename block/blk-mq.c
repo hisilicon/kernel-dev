@@ -3985,7 +3985,7 @@ static int blk_mq_init_aux_tags(struct request_queue *queue, unsigned int cmd_ex
 //	pr_err("%s queue=%pS\n", __func__, queue);
 	queue->aux_tags = blk_mq_alloc_map_and_rqs(set,
 						BLK_MQ_NO_HCTX_IDX,
-						MAX_SCHED_RQ, cmd_extra_size);
+						queue->nr_requests, cmd_extra_size);
 	
 	if (!queue->aux_tags) {
 		pr_err("%s2 queue=%pS aux_tags=%pS\n", __func__, queue, queue->aux_tags);
