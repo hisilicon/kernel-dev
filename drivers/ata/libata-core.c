@@ -1483,7 +1483,7 @@ static blk_status_t __ata_exec_internal_sg(struct ata_device *dev,
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)scmd->host_scribble;
+	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)(scmd + 1);
 //	struct ata_internal_sg_stack *stack = data->stack;
 
 	pr_err("%s ata_device=%pS wait=%pS rq=%pS tag=%d internal_tag=%d\n", __func__, dev, wait, rq, rq->tag, rq->internal_tag);
@@ -1558,7 +1558,7 @@ static blk_status_t ata_exec_internal_sg_queue_rq(struct blk_mq_hw_ctx *hctx,
 {
 	struct request *rq = bd->rq;
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)scmd->host_scribble;//(struct ata_internal_sg_data *)(scmd + 1);
+	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)(scmd + 1);
 	//struct ata_internal_sg_stack *stack = data->stack;
 	unsigned result;
 
@@ -1631,9 +1631,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
 	struct Scsi_Host *scsi_host = ap->scsi_host;
-	struct request_queue *request_queue;
 	struct request_queue *request_queue2;
-	struct ata_internal_sg_data data = {
+	struct ata_internal_sg_data *data_ptr, data = {
 		.dev = dev,
 		.tf = tf,
 		.cdb = cdb,
@@ -1651,7 +1650,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned long flags;
 	struct request *rq;
 	int rc, auto_timeout = 0;
-	unsigned int cmd_extra_size;
+	unsigned int cmd_extra_size = sizeof(struct ata_internal_sg_data);
 
 	pr_err("%s\n", __func__);
 
@@ -1663,15 +1662,12 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	if (!host_sdev)
 		return AC_ERR_SYSTEM;
-
-	request_queue = host_sdev->request_queue;
-	request_queue->mq_ops = &ata_exec_internal_sg_mq_ops;
 //	cmd_extra_size = sizeof(*data);
 
 	request_queue2 = blk_mq_init_queue_aux(&scsi_host->tag_set, &ata_exec_internal_sg_mq_ops, cmd_extra_size);
 	pr_err("%s3 request_queue2=%pS\n", __func__, request_queue2);
 
-	rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
+	rq = scsi_alloc_request(request_queue2, REQ_OP_DRV_IN, 0);
 	pr_err("%s4 rq=%pS\n", __func__, rq);
 	if (IS_ERR(rq)) {
 		scsi_free_host_dev(host_sdev);
@@ -1682,10 +1678,9 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	scmd = blk_mq_rq_to_pdu(rq);
 
-	//data = (struct ata_internal_sg_data *)(scmd + 1);//kmalloc(sizeof(*data), GFP_KERNEL); //fixme release
-
+	data_ptr = (struct ata_internal_sg_data *)(scmd + 1);//kmalloc(sizeof(*data), GFP_KERNEL); //fixme release
+	memcpy(data_ptr, &data, sizeof(*data_ptr));
 	scmd->device = host_sdev;
-	scmd->host_scribble = (unsigned char *)&data;
 	
 
 	blk_execute_rq_nowait(rq, true, NULL);
