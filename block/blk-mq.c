@@ -3885,7 +3885,7 @@ static struct request_queue *blk_mq_init_queue_data(struct blk_mq_tag_set *set,
 	if (!q)
 		return ERR_PTR(-ENOMEM);
 	q->queuedata = queuedata;
-	ret = blk_mq_init_allocated_queue(set, q, NULL, cmd_extra_size);
+	ret = blk_mq_init_allocated_queue(set, q, ops, cmd_extra_size);
 	if (ret) {
 		blk_cleanup_queue(q);
 		return ERR_PTR(ret);
