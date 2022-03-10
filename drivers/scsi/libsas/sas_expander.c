@@ -62,11 +62,13 @@ static blk_status_t smp_execute_task_sg_exec_rq(struct blk_mq_hw_ctx *hctx,
 
 	blk_mq_start_request(bd->rq);
 
-	pr_err("%s rq=%pS scmd=%pS task=%pS\n", __func__, rq, scmd, task);
+//	pr_err("%s rq=%pS scmd=%pS task=%pS\n", __func__, rq, scmd, task);
 	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-	pr_err("%s2 rq=%pS scmd=%pS task=%pS res=%d\n", __func__, rq, scmd, task, res);
-	if (res)
+//	pr_err("%s2 rq=%pS scmd=%pS task=%pS res=%d\n", __func__, rq, scmd, task, res);
+	if (res) {
+		pr_err("%s2 rq=%pS scmd=%pS task=%pS res=%d\n", __func__, rq, scmd, task, res);
 		return BLK_STS_IOERR;
+	}
 
 	return BLK_STS_OK;
 }
@@ -172,7 +174,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	mutex_unlock(&dev->ex_dev.cmd_mutex);
 	pm_runtime_put_sync(ha->dev);
 
-	pr_err("%s10 request_queue=%pS res=%d\n", __func__, request_queue, res);
+	//pr_err("%s10 request_queue=%pS res=%d\n", __func__, request_queue, res);
 
 	BUG_ON(retry == 3 && task != NULL);
 	sas_free_task(task);

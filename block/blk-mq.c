@@ -494,8 +494,8 @@ retry:
 	 * should have migrated us to an online CPU by now.
 	 */
 	tag = blk_mq_get_tag(data);
-	if ((data->rq_flags & RQF_AUX) == RQF_AUX)
-		pr_err("%s aux tags tag=%d\n", __func__, tag);
+//	if ((data->rq_flags & RQF_AUX) == RQF_AUX)
+//		pr_err("%s aux tags tag=%d\n", __func__, tag);
 	if (tag == BLK_MQ_NO_TAG) {
 		if (data->flags & BLK_MQ_REQ_NOWAIT)
 			return NULL;
@@ -3982,13 +3982,15 @@ static int blk_mq_init_aux_tags(struct request_queue *queue, unsigned int cmd_ex
 	 * Set initial depth at max so that we don't need to reallocate for
 	 * updating nr_requests.
 	 */
-	pr_err("%s queue=%pS\n", __func__, queue);
+//	pr_err("%s queue=%pS\n", __func__, queue);
 	queue->aux_tags = blk_mq_alloc_map_and_rqs(set,
 						BLK_MQ_NO_HCTX_IDX,
 						MAX_SCHED_RQ, cmd_extra_size);
-	pr_err("%s2 queue=%pS aux_tags=%pS\n", __func__, queue, queue->aux_tags);
-	if (!queue->aux_tags)
+	
+	if (!queue->aux_tags) {
+		pr_err("%s2 queue=%pS aux_tags=%pS\n", __func__, queue, queue->aux_tags);
 		return -ENOMEM;
+	}
 
 	//blk_mq_tag_update_sched_shared_tags(queue);
 
