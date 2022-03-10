@@ -540,10 +540,11 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 			dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
 			dq = &hisi_hba->dq[dq_index];
 		} else {
-			WARN_ON_ONCE(1);
 			struct Scsi_Host *shost = hisi_hba->shost;
 			struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
 			int queue = qmap->mq_map[raw_smp_processor_id()];
+
+			WARN_ON_ONCE(1);
 
 			dq = &hisi_hba->dq[queue];
 		}

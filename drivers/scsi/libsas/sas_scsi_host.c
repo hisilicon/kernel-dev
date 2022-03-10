@@ -1004,6 +1004,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		data = (struct sas_execute_rq_data *)(scmd + 1);
 		data->shost = shost;
 		data->task = task;
+		task->uldd_task = scmd;
 
 		blk_execute_rq_nowait(rq, true, NULL);
 
