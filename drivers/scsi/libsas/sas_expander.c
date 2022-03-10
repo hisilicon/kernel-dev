@@ -90,7 +90,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	struct request *rq;
 
 	request_queue = blk_mq_init_queue_aux(&shost->tag_set, &sas_smp_ops, cmd_extra_size);
-	pr_err("%s request_queue=%pS\n", __func__, request_queue);
+//	pr_err("%s request_queue=%pS\n", __func__, request_queue);
 
 	pm_runtime_get_sync(ha->dev);
 	mutex_lock(&dev->ex_dev.cmd_mutex);
@@ -107,7 +107,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 			break;
 		}
 		rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
-		pr_err("%s2 request_queue2=%pS rq=%pS task=%pS\n", __func__, request_queue, rq, task);
+		//pr_err("%s2 request_queue2=%pS rq=%pS task=%pS\n", __func__, request_queue, rq, task);
 		scmd = blk_mq_rq_to_pdu(rq);
 		data = (struct smp_execute_data *)(scmd + 1);
 		data->shost = shost;
@@ -124,12 +124,12 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		add_timer(&task->slow_task->timer);
 		blk_execute_rq_nowait(rq, true, NULL);
 
-		pr_err("%s3 request_queue2=%pS rq=%pS task=%pS sent\n", __func__, request_queue, rq, task);
+		//pr_err("%s3 request_queue2=%pS rq=%pS task=%pS sent\n", __func__, request_queue, rq, task);
 
 
 		wait_for_completion(&task->slow_task->completion);
 		__blk_mq_end_request(rq, BLK_STS_OK);
-		pr_err("%s4 request_queue2=%pS rq=%pS task=%pS got completion\n", __func__, request_queue, rq, task);
+		//pr_err("%s4 request_queue2=%pS rq=%pS task=%pS got completion\n", __func__, request_queue, rq, task);
 		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			pr_notice("smp task timed out or aborted\n");
