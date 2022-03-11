@@ -1497,14 +1497,14 @@ static blk_status_t __ata_exec_internal_sg(struct ata_device *dev,
 
 	/* initialize internal qc */
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
-
+#ifdef relocate_qc
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
 	qc->scsicmd = scsi_cmnd;
 	qc->ap = ap;
 	qc->dev = dev;
 	ata_qc_reinit(qc);
-
+#endif
 	pr_err("%s2 ata_device=%pSqc=%pS stack=%pS wait=%pS\n",
 		__func__, dev, qc, NULL, wait);
 
@@ -1516,6 +1516,8 @@ static blk_status_t __ata_exec_internal_sg(struct ata_device *dev,
 	link->sactive = 0;
 	ap->qc_active = 0;
 	ap->nr_active_links = 0;
+	
+#ifdef relocate_qc
 
 	/* prepare & issue qc */
 	qc->tf = *tf;
@@ -1541,7 +1543,7 @@ static blk_status_t __ata_exec_internal_sg(struct ata_device *dev,
 	}
 
 	qc->private_data = wait;
-	qc->complete_fn = ata_qc_complete_internal;
+#endif
 
 	ata_qc_issue(qc);
 
@@ -1642,6 +1644,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	int rc, auto_timeout = 0;
 	unsigned int cmd_extra_size = sizeof(struct ata_internal_sg_data);
 	DECLARE_COMPLETION_ONSTACK(wait);
+	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
+
 
 	pr_err("%s\n", __func__);
 
@@ -1668,6 +1672,40 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s2 rq=%pS tag=%d internal_tag=%d\n", __func__, rq, rq->tag, rq->internal_tag);
 
 	scmd = blk_mq_rq_to_pdu(rq);
+
+	qc->tag = ATA_TAG_INTERNAL;
+	qc->hw_tag = 0;
+	qc->scsicmd = scmd;
+	qc->ap = ap;
+	qc->dev = dev;
+	ata_qc_reinit(qc);
+
+
+	/* prepare & issue qc */
+	qc->tf = *tf;
+	if (cdb)
+		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
+
+	/* some SATA bridges need us to indicate data xfer direction */
+	if (tf->protocol == ATAPI_PROT_DMA && (dev->flags & ATA_DFLAG_DMADIR) &&
+	    dma_dir == DMA_FROM_DEVICE)
+		qc->tf.feature |= ATAPI_DMADIR;
+
+	qc->flags |= ATA_QCFLAG_RESULT_TF;
+	qc->dma_dir = dma_dir;
+	if (dma_dir != DMA_NONE) {
+		unsigned int i, buflen = 0;
+		struct scatterlist *sg;
+
+		for_each_sg(sgl, sg, n_elem, i)
+			buflen += sg->length;
+
+		ata_sg_init(qc, sgl, n_elem);
+		qc->nbytes = buflen;
+	}
+
+	qc->private_data = &wait;
+	qc->complete_fn = ata_qc_complete_internal;
 
 	data = (struct ata_internal_sg_data *)(scmd + 1);
 	
@@ -1697,7 +1735,6 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		ata_eh_release(ap);
 
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
-	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
