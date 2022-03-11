@@ -84,34 +84,6 @@ static int cs5535_cable_detect(struct ata_port *ap)
 
 static void cs5535_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
-	static const u16 pio_timings[5] = {
-		0xF7F4, 0xF173, 0x8141, 0x5131, 0x1131
-	};
-	static const u16 pio_cmd_timings[5] = {
-		0xF7F4, 0x53F3, 0x13F1, 0x5131, 0x1131
-	};
-	u32 reg, dummy;
-	struct ata_device *pair = ata_dev_pair(adev);
-
-	int mode = adev->pio_mode - XFER_PIO_0;
-	int cmdmode = mode;
-
-	/* Command timing has to be for the lowest of the pair of devices */
-	if (pair) {
-		int pairmode = pair->pio_mode - XFER_PIO_0;
-		cmdmode = min(mode, pairmode);
-		/* Write the other drive timing register if it changed */
-		if (cmdmode < pairmode)
-			wrmsr(ATAC_CH0D0_PIO + 2 * pair->devno,
-				pio_cmd_timings[cmdmode] << 16 | pio_timings[pairmode], 0);
-	}
-	/* Write the drive timing register */
-	wrmsr(ATAC_CH0D0_PIO + 2 * adev->devno,
-		pio_cmd_timings[cmdmode] << 16 | pio_timings[mode], 0);
-
-	/* Set the PIO "format 1" bit in the DMA timing register */
-	rdmsr(ATAC_CH0D0_DMA + 2 * adev->devno, reg, dummy);
-	wrmsr(ATAC_CH0D0_DMA + 2 * adev->devno, reg | 0x80000000UL, 0);
 }
 
 /**
@@ -123,22 +95,7 @@ static void cs5535_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 static void cs5535_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
-	static const u32 udma_timings[5] = {
-		0x7F7436A1, 0x7F733481, 0x7F723261, 0x7F713161, 0x7F703061
-	};
-	static const u32 mwdma_timings[3] = {
-		0x7F0FFFF3, 0x7F035352, 0x7F024241
-	};
-	u32 reg, dummy;
-	int mode = adev->dma_mode;
 
-	rdmsr(ATAC_CH0D0_DMA + 2 * adev->devno, reg, dummy);
-	reg &= 0x80000000UL;
-	if (mode >= XFER_UDMA_0)
-		reg |= udma_timings[mode - XFER_UDMA_0];
-	else
-		reg |= mwdma_timings[mode - XFER_MW_DMA_0];
-	wrmsr(ATAC_CH0D0_DMA + 2 * adev->devno, reg, 0);
 }
 
 static struct scsi_host_template cs5535_sht = {
