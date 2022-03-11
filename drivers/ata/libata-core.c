@@ -1633,7 +1633,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	qc->private_data = &wait;
 	qc->complete_fn = ata_qc_complete_internal;
-	
+	data.dev = dev;
 	scmd->device = host_sdev;
 	scmd->host_scribble = (unsigned char *)&data;
 	blk_execute_rq_nowait(rq, true, NULL);
