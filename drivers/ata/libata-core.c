@@ -1697,6 +1697,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		ata_eh_release(ap);
 
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
+	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
