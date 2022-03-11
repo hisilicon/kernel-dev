@@ -97,7 +97,9 @@ extern const work_func_t sas_phy_event_fns[PHY_NUM_EVENTS];
 extern const work_func_t sas_port_event_fns[PORT_NUM_EVENTS];
 
 void sas_task_internal_done(struct sas_task *task);
-void sas_task_internal_timedout(struct timer_list *t);
+//void sas_task_internal_timedout(struct timer_list *t);
+enum blk_eh_timer_return sas_task_internal_timedout(struct request *rq, bool resv);
+
 int sas_execute_tmf(struct domain_device *device, void *parameter,
 		    int para_len, int force_phy_id,
 		    struct sas_tmf_task *tmf);

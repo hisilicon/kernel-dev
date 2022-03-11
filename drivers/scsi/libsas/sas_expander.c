@@ -71,10 +71,11 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		scmd->host_scribble = (unsigned char *)task;
 
 		task->task_done = sas_task_internal_done;
+		rq->timeout = SMP_TIMEOUT*HZ;
 
-		task->slow_task->timer.function = sas_task_internal_timedout;
-		task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
-		add_timer(&task->slow_task->timer);
+	//	task->slow_task->timer.function = sas_task_internal_timedout;
+	//	task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
+	//	add_timer(&task->slow_task->timer);
 		blk_execute_rq_nowait(rq, true, NULL);
 
 		//pr_err("%s3 request_queue2=%pS rq=%pS task=%pS sent\n", __func__, request_queue, rq, task);

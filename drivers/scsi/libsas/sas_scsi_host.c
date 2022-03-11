@@ -902,14 +902,16 @@ EXPORT_SYMBOL_GPL(sas_bios_param);
 
 void sas_task_internal_done(struct sas_task *task)
 {
-	del_timer(&task->slow_task->timer);
+//	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 }
 
-void sas_task_internal_timedout(struct timer_list *t)
+//void sas_task_internal_timedout(struct timer_list *t)
+enum blk_eh_timer_return sas_task_internal_timedout(struct request *rq, bool resv)
 {
-	struct sas_task_slow *slow = from_timer(slow, t, timer);
-	struct sas_task *task = slow->task;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	//struct sas_task_slow *slow = from_timer(slow, t, timer);
+	struct sas_task *task = (struct sas_task *)scmd->host_scribble;
 	bool is_completed = true;
 	unsigned long flags;
 
@@ -922,13 +924,14 @@ void sas_task_internal_timedout(struct timer_list *t)
 
 	if (!is_completed)
 		complete(&task->slow_task->completion);
+	return BLK_EH_DONE; //check me
 }
 
 #define TASK_TIMEOUT			(20 * HZ)
 #define TASK_RETRY			3
 
 
-blk_status_t smp_execute_task_sg_exec_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t smp_execute_task_sg_exec_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
 	struct request *rq = bd->rq;
@@ -954,6 +957,7 @@ blk_status_t smp_execute_task_sg_exec_rq(struct blk_mq_hw_ctx *hctx,
 
 static const struct blk_mq_ops sas_smp_ops = {
 	.queue_rq	= smp_execute_task_sg_exec_rq,
+	.timeout = sas_task_internal_timedout,
 };
 
 struct request_queue *sas_alloc_request_queue(struct Scsi_Host *shost)
@@ -988,15 +992,16 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		task->dev = device;
 		task->task_proto = SAS_PROTOCOL_INTERNAL_ABORT;
 		task->task_done = sas_task_internal_done;
-		task->slow_task->timer.function = sas_task_internal_timedout;
-		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
-		add_timer(&task->slow_task->timer);
+//		task->slow_task->timer.function = sas_task_internal_timedout;
+//		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
+//		add_timer(&task->slow_task->timer);
 
 		task->abort_task.tag = tag;
 		task->abort_task.type = type;
 		task->abort_task.qid = qid;
 
 		rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
+		rq->timeout = TASK_TIMEOUT;
 		//pr_err("%s2 request_queue2=%pS rq=%pS task=%pS\n", __func__, request_queue, rq, task);
 		scmd = blk_mq_rq_to_pdu(rq);
 		task->uldd_task = scmd;
@@ -1142,10 +1147,10 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		task->task_done = sas_task_internal_done;
 		task->tmf = tmf;
 
-		task->slow_task->timer.function = sas_task_internal_timedout;
-		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
-		add_timer(&task->slow_task->timer);
-
+//		task->slow_task->timer.function = sas_task_internal_timedout;
+//		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
+//		add_timer(&task->slow_task->timer);
+		rq->timeout = TASK_TIMEOUT;
 		
 		blk_execute_rq_nowait(rq, true, NULL);
 
@@ -1318,9 +1323,9 @@ void sas_task_abort(struct sas_task *task)
 
 		if (!slow)
 			return;
-		if (!del_timer(&slow->timer))
-			return;
-		slow->timer.function(&slow->timer);
+//		if (!del_timer(&slow->timer)) //fixme
+//			return;
+//		slow->timer.function(&slow->timer); //fixme
 		return;
 	}
 
