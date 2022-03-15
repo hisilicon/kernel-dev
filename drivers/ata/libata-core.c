@@ -1576,10 +1576,11 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	request_queue = blk_mq_init_queue_aux(&scsi_host->tag_set, &ata_exec_internal_sg_mq_ops, 0);
 	pr_err("%s3 request_queue=%pS\n", __func__, request_queue);
 
-	rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
+	rq = scsi_alloc_request(request_queue, dma_dir == DMA_TO_DEVICE ?  REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	pr_err("%s4 rq=%pS\n", __func__, rq);
 	if (IS_ERR(rq)) {
-		return AC_ERR_SYSTEM;
+		err_mask = AC_ERR_SYSTEM;
+		goto out;
 	}
 
 	pr_err("%s2 rq=%pS tag=%d internal_tag=%d\n", __func__, rq, rq->tag, rq->internal_tag);
@@ -1704,7 +1705,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	__blk_mq_end_request(rq, BLK_STS_OK);
 
 	blk_cleanup_queue(request_queue);
-
+out:
 	return err_mask;
 }
 
