@@ -1464,21 +1464,22 @@ static blk_status_t ata_exec_internal_sg_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	data = container_of(qc->private_data, struct ata_internal_sg_data, wait);
 
-	pr_err("%s hctx=%pS bd=%pS req=%pS data=%pS dev=%pS\n", __func__, hctx, bd, rq, data, NULL);
-//	link = dev->link;
-
-	
-	pr_err("%s1.1 hctx=%pS bd=%pS req=%pS data=%pS link=%pS\n", __func__, hctx, bd, rq, data, NULL);
-
-//	ap = link->ap;
-
-	pr_err("%s1.2 hctx=%pS bd=%pS req=%pS data=%pS ap=%pS\n", __func__, hctx, bd, rq, data, NULL);
 
 
 	ap = qc->ap;
 	dev = qc->dev;
 	link = dev->link;
 	dev = qc->dev;
+	
+	pr_err("%s hctx=%pS bd=%pS req=%pS data=%pS dev=%pS\n", __func__, hctx, bd, rq, data, NULL);
+	//	link = dev->link;
+	
+		
+	pr_err("%s1.1 hctx=%pS bd=%pS req=%pS data=%pS link=%pS\n", __func__, hctx, bd, rq, data, NULL);
+	
+	//	ap = link->ap;
+	
+	pr_err("%s1.2 hctx=%pS bd=%pS req=%pS data=%pS ap=%pS\n", __func__, hctx, bd, rq, data, NULL);
 
 	spin_lock_irqsave(ap->lock, flags);
 	
@@ -1500,7 +1501,6 @@ static blk_status_t ata_exec_internal_sg_queue_rq(struct blk_mq_hw_ctx *hctx,
 	data->preempted_sactive = link->sactive;
 	data->preempted_qc_active = ap->qc_active;
 	data->preempted_nr_active_links = ap->nr_active_links;
-//	data->dev = dev;
 	link->active_tag = ATA_TAG_POISON;
 	link->sactive = 0;
 	ap->qc_active = 0;
@@ -1518,18 +1518,6 @@ static blk_status_t ata_exec_internal_sg_queue_rq(struct blk_mq_hw_ctx *hctx,
 static const struct blk_mq_ops ata_exec_internal_sg_mq_ops = {
 	.queue_rq	= ata_exec_internal_sg_queue_rq,
 };
-/*
-struct blk_mq_tag_set tmf_tag_set;
-hba->tmf_tag_set = (struct blk_mq_tag_set) {
-	.nr_hw_queues	= 1,
-	.queue_depth	= hba->nutmrs,
-	.ops		= &ufshcd_tmf_ops,
-	.flags		= BLK_MQ_F_NO_SCHED,
-};
-err = blk_mq_alloc_tag_set(&hba->tmf_tag_set);
-hba->tmf_queue = blk_mq_init_queue(&hba->tmf_tag_set);
-
-*/
 
 extern struct blk_mq_tags *blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
 				unsigned int hctx_idx, unsigned int depth);
@@ -1591,7 +1579,6 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
 	pr_err("%s4 rq=%pS\n", __func__, rq);
 	if (IS_ERR(rq)) {
-	//	scsi_free_host_dev(host_sdev);
 		return AC_ERR_SYSTEM;
 	}
 
@@ -1632,8 +1619,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	qc->private_data = &data.wait;
 	qc->complete_fn = ata_qc_complete_internal;
-//	data.dev = dev;
-//	scmd->device = host_sdev;
+
 	scmd->host_scribble = (unsigned char *)qc;
 	blk_execute_rq_nowait(rq, true, NULL);
 
@@ -1716,6 +1702,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		ata_internal_cmd_timed_out(dev, command);
 
 	__blk_mq_end_request(rq, BLK_STS_OK);
+
+	blk_cleanup_queue(request_queue);
 
 	return err_mask;
 }
