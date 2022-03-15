@@ -1033,6 +1033,8 @@ int __ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
 	struct ata_device *dev;
 	unsigned long flags;
 
+	WARN_ON_ONCE(1);
+
 	if (queue_depth < 1 || queue_depth == sdev->queue_depth)
 		return sdev->queue_depth;
 

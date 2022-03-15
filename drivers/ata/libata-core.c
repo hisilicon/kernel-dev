@@ -1440,7 +1440,7 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 }
 
 struct ata_internal_sg_data {
-	struct ata_device *dev;
+	struct completion wait;
 
 	unsigned int preempted_tag;
 	u32 preempted_sactive;
@@ -1453,29 +1453,32 @@ static blk_status_t ata_exec_internal_sg_queue_rq(struct blk_mq_hw_ctx *hctx,
 {
 	struct request *rq = bd->rq;
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	struct ata_internal_sg_data *data = (struct ata_internal_sg_data *)scmd->host_scribble;
+	struct ata_internal_sg_data *data;
 	//struct ata_internal_sg_stack *stack = data->stack;
-	struct ata_device *dev = data->dev;
-	struct ata_queued_cmd *qc;
+	struct ata_device *dev;
+	struct ata_queued_cmd *qc = (struct ata_queued_cmd *)scmd->host_scribble;
 	unsigned long flags;
 
 	struct ata_link *link;
 	struct ata_port *ap;
 
-	pr_err("%s hctx=%pS bd=%pS req=%pS data=%pS dev=%pS\n", __func__, hctx, bd, rq, data, dev);
-	link = dev->link;
+	data = container_of(qc->private_data, struct ata_internal_sg_data, wait);
 
+	pr_err("%s hctx=%pS bd=%pS req=%pS data=%pS dev=%pS\n", __func__, hctx, bd, rq, data, NULL);
+//	link = dev->link;
 
-	pr_err("%s1.1 hctx=%pS bd=%pS req=%pS data=%pS link=%pS\n", __func__, hctx, bd, rq, data, link);
-
-	ap = link->ap;
-
-	pr_err("%s1.2 hctx=%pS bd=%pS req=%pS data=%pS ap=%pS\n", __func__, hctx, bd, rq, data, ap);
-
-	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 	
+	pr_err("%s1.1 hctx=%pS bd=%pS req=%pS data=%pS link=%pS\n", __func__, hctx, bd, rq, data, NULL);
+
+//	ap = link->ap;
+
+	pr_err("%s1.2 hctx=%pS bd=%pS req=%pS data=%pS ap=%pS\n", __func__, hctx, bd, rq, data, NULL);
+
+
 	ap = qc->ap;
+	dev = qc->dev;
 	link = dev->link;
+	dev = qc->dev;
 
 	spin_lock_irqsave(ap->lock, flags);
 	
@@ -1486,16 +1489,18 @@ static blk_status_t ata_exec_internal_sg_queue_rq(struct blk_mq_hw_ctx *hctx,
 	}
 
 	blk_mq_start_request(bd->rq);
-	/* initialize internal qc */
 
-	pr_err("%s2 ata_device=%pSqc=%pS stack=%pS\n",
-		__func__, dev, qc, NULL);
+	/* initialize internal qc */
+	
+
+	pr_err("%s2 ata_device=%pS qc=%pS stack=%pS ap=%pS link=%pS dev=%pS\n",
+		__func__, dev, qc, NULL, ap, link, dev);
 	
 	data->preempted_tag = link->active_tag;
 	data->preempted_sactive = link->sactive;
 	data->preempted_qc_active = ap->qc_active;
 	data->preempted_nr_active_links = ap->nr_active_links;
-	data->dev = dev;
+//	data->dev = dev;
 	link->active_tag = ATA_TAG_POISON;
 	link->sactive = 0;
 	ap->qc_active = 0;
@@ -1560,7 +1565,6 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	struct ata_port *ap = link->ap;
 	struct Scsi_Host *scsi_host = ap->scsi_host;
 	struct request_queue *request_queue;
-	struct scsi_device *host_sdev;
 	u8 command = tf->command;
 	struct ata_queued_cmd *qc;
 	struct scsi_cmnd *scmd;
@@ -1568,23 +1572,18 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned long flags;
 	struct request *rq;
 	int rc, auto_timeout = 0;
-	DECLARE_COMPLETION_ONSTACK(wait);
-	struct ata_internal_sg_data data;
+	struct ata_internal_sg_data data = {
+		.wait = COMPLETION_INITIALIZER_ONSTACK(data.wait),
+
+	};
 
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 
 
-	pr_err("%s\n", __func__);
+	pr_err("%s dev=%pS data=%pS\n", __func__, dev, &data);
 
 	scsi_host = ap->scsi_host;
-	// q = blk_mq_init_queue(&sdev->host->tag_set);
-	host_sdev = scsi_get_host_dev(scsi_host);
 
-	pr_err("%s1 host_sdev=%pS\n", __func__, host_sdev);
-
-	if (!host_sdev)
-		return AC_ERR_SYSTEM;
-//	cmd_extra_size = sizeof(*data);
 
 	request_queue = blk_mq_init_queue_aux(&scsi_host->tag_set, &ata_exec_internal_sg_mq_ops, 0);
 	pr_err("%s3 request_queue=%pS\n", __func__, request_queue);
@@ -1592,7 +1591,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
 	pr_err("%s4 rq=%pS\n", __func__, rq);
 	if (IS_ERR(rq)) {
-		scsi_free_host_dev(host_sdev);
+	//	scsi_free_host_dev(host_sdev);
 		return AC_ERR_SYSTEM;
 	}
 
@@ -1631,11 +1630,11 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		qc->nbytes = buflen;
 	}
 
-	qc->private_data = &wait;
+	qc->private_data = &data.wait;
 	qc->complete_fn = ata_qc_complete_internal;
-	data.dev = dev;
-	scmd->device = host_sdev;
-	scmd->host_scribble = (unsigned char *)&data;
+//	data.dev = dev;
+//	scmd->device = host_sdev;
+	scmd->host_scribble = (unsigned char *)qc;
 	blk_execute_rq_nowait(rq, true, NULL);
 
 	if (!timeout) {
@@ -1650,7 +1649,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if (ap->ops->error_handler)
 		ata_eh_release(ap);
 
-	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
+	rc = wait_for_completion_timeout(&data.wait, msecs_to_jiffies(timeout));
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
@@ -1717,7 +1716,6 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		ata_internal_cmd_timed_out(dev, command);
 
 	__blk_mq_end_request(rq, BLK_STS_OK);
-	scsi_free_host_dev(host_sdev);
 
 	return err_mask;
 }
