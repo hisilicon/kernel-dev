@@ -3903,7 +3903,7 @@ EXPORT_SYMBOL(blk_mq_init_queue);
 struct request_queue *blk_mq_init_queue_aux(struct blk_mq_tag_set *set, const struct blk_mq_ops *ops, unsigned int cmd_extra_size)
 {
 	struct request_queue *q;
-	int ret;
+//	int ret;
 
 //	pr_err("%s set=%pS ops=%pS cmd_extra_size=%d\n", __func__, set, ops, cmd_extra_size);
 
@@ -3911,11 +3911,11 @@ struct request_queue *blk_mq_init_queue_aux(struct blk_mq_tag_set *set, const st
 //	pr_err("%s1 set=%pS ops=%pS cmd_extra_size=%d q=%pS\n", __func__, set, ops, cmd_extra_size, q);
 	if (IS_ERR(q))
 		return NULL;
-	ret = blk_mq_init_aux(q, cmd_extra_size);
+//	ret = blk_mq_init_aux(q, cmd_extra_size);
 
 //	pr_err("%s10 set=%pS ops=%pS cmd_extra_size=%d ret=%d\n", __func__, set, ops, cmd_extra_size, ret);
-	if (ret)
-		return NULL;
+//	if (ret)
+//		return NULL;
 	return q;
 }
 EXPORT_SYMBOL(blk_mq_init_queue_aux);
