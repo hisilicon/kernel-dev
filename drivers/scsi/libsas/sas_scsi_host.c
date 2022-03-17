@@ -1022,34 +1022,50 @@ static int sas_execute_internal_abort(struct domain_device *device,
 {
 	struct sas_ha_struct *ha = device->port->ha;
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
+	struct Scsi_Host *shost = ha->core.shost;
 	struct sas_task *task = NULL;
 	int res, retry;
+	struct scsi_device *sdev = shost->sdev;
+	struct request *rq;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
+		struct scsi_cmnd *scmd;
+
 		task = sas_alloc_slow_task(GFP_KERNEL);
-		if (!task)
-			return -ENOMEM;
+		if (!task) {
+			res = -ENOMEM;
+			break;
+		}
 
 		task->dev = device;
 		task->task_proto = SAS_PROTOCOL_INTERNAL_ABORT;
 		task->task_done = sas_task_internal_done;
-		task->slow_task->timer.function = sas_task_internal_timedout;
-		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
-		add_timer(&task->slow_task->timer);
 
 		task->abort_task.tag = tag;
 		task->abort_task.type = type;
 		task->abort_task.qid = qid;
 
-		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-		if (res) {
-			del_timer_sync(&task->slow_task->timer);
-			pr_err("Executing internal abort failed %016llx (%d)\n",
-			       SAS_ADDR(device->sas_addr), res);
+		rq = scsi_alloc_request_hwq(sdev->request_queue, REQ_OP_DRV_IN, BLK_MQ_INTERNAL | BLK_MQ_REQ_NOWAIT, qid);
+		if (!rq) {
+			res = PTR_ERR(rq);
 			break;
 		}
 
+		scmd = blk_mq_rq_to_pdu(rq);
+	
+		ASSIGN_SAS_TASK(scmd, task);
+
+		task->uldd_task = scmd;
+
+		rq->timeout = TASK_TIMEOUT;
+
+		blk_execute_rq_nowait(rq, true, NULL);
+
 		wait_for_completion(&task->slow_task->completion);
+		scmd->host_scribble = NULL;
+		//pr_err("%s6 got completion sdev=%pS task=%pS rq=%pS\n", __func__, sdev, task, rq);
+		scsi_device_unbusy(sdev, scmd);
+		__blk_mq_end_request(rq, BLK_STS_OK);
 		res = TMF_RESP_FUNC_FAILED;
 
 		/* Even if the internal abort timed out, return direct. */
@@ -1085,7 +1101,9 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		task = NULL;
 	}
 	BUG_ON(retry == TASK_RETRY && task != NULL);
+
 	sas_free_task(task);
+
 	return res;
 }
 
