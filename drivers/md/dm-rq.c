@@ -560,7 +560,7 @@ int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t)
 	if (err)
 		goto out_kfree_tag_set;
 
-	err = blk_mq_init_allocated_queue(md->tag_set, md->queue);
+	err = blk_mq_init_allocated_queue(md->tag_set, md->queue, NULL);
 	if (err)
 		goto out_tag_set;
 	return 0;

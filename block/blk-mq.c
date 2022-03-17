@@ -3858,7 +3858,7 @@ void blk_mq_release(struct request_queue *q)
 }
 
 static struct request_queue *blk_mq_init_queue_data(struct blk_mq_tag_set *set,
-		void *queuedata)
+		void *queuedata, const struct blk_mq_ops *ops)
 {
 	struct request_queue *q;
 	int ret;
@@ -3867,19 +3867,27 @@ static struct request_queue *blk_mq_init_queue_data(struct blk_mq_tag_set *set,
 	if (!q)
 		return ERR_PTR(-ENOMEM);
 	q->queuedata = queuedata;
-	ret = blk_mq_init_allocated_queue(set, q);
+	ret = blk_mq_init_allocated_queue(set, q, ops);
 	if (ret) {
 		blk_cleanup_queue(q);
 		return ERR_PTR(ret);
 	}
+
 	return q;
 }
 
 struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 {
-	return blk_mq_init_queue_data(set, NULL);
+	return blk_mq_init_queue_data(set, NULL, NULL);
 }
 EXPORT_SYMBOL(blk_mq_init_queue);
+
+struct request_queue *blk_mq_init_queue_ops(struct blk_mq_tag_set *set,
+					    const struct blk_mq_ops *custom_ops)
+{
+	return blk_mq_init_queue_data(set, NULL, custom_ops);
+}
+EXPORT_SYMBOL(blk_mq_init_queue_ops);
 
 struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set, void *queuedata,
 		struct lock_class_key *lkclass)
@@ -3887,7 +3895,7 @@ struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set, void *queuedata,
 	struct request_queue *q;
 	struct gendisk *disk;
 
-	q = blk_mq_init_queue_data(set, queuedata);
+	q = blk_mq_init_queue_data(set, queuedata, NULL);
 	if (IS_ERR(q))
 		return ERR_CAST(q);
 
@@ -4010,13 +4018,16 @@ static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 }
 
 int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
-		struct request_queue *q)
+		struct request_queue *q, const struct blk_mq_ops *custom_ops)
 {
 	WARN_ON_ONCE(blk_queue_has_srcu(q) !=
 			!!(set->flags & BLK_MQ_F_BLOCKING));
 
 	/* mark the queue as mq asap */
-	q->mq_ops = set->ops;
+	if (custom_ops)
+		q->mq_ops = custom_ops;
+	else
+		q->mq_ops = set->ops;
 
 	q->poll_cb = blk_stat_alloc_callback(blk_mq_poll_stats_fn,
 					     blk_mq_poll_stats_bkt,
