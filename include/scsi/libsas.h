@@ -625,6 +625,8 @@ struct sas_task {
 	struct sas_tmf_task *tmf;
 };
 
+unsigned int sas_task_to_unique_tag(struct sas_task *task);
+
 struct sas_task_slow {
 	/* standard/extra infrastructure for slow path commands (SMP and
 	 * internal lldd commands

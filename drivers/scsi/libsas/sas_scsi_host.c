@@ -1065,6 +1065,20 @@ int sas_execute_internal_abort_dev(struct domain_device *device,
 }
 EXPORT_SYMBOL_GPL(sas_execute_internal_abort_dev);
 
+static u32 sas_task_to_rq_unique_tag(struct sas_task *task)
+{
+	return blk_mq_unique_tag(scsi_cmd_to_rq(task->uldd_task));
+}
+
+unsigned int sas_task_to_unique_tag(struct sas_task *task)
+{
+	u32 unique = sas_task_to_rq_unique_tag(task);
+
+	return blk_mq_unique_tag_to_tag(unique);
+
+}
+EXPORT_SYMBOL_GPL(sas_task_to_unique_tag);
+
 int sas_execute_tmf(struct domain_device *device, void *parameter,
 		    int para_len, int force_phy_id,
 		    struct sas_tmf_task *tmf)
