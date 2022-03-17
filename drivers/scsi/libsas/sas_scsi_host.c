@@ -1000,13 +1000,13 @@ static int sas_execute_internal_abort(struct domain_device *device,
 			break;
 		}
 
-		rq->timeout = TASK_TIMEOUT;
-
 		scmd = blk_mq_rq_to_pdu(rq);
-		ASSIGN_SAS_TASK(scmd, task);
 		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
+		ASSIGN_SAS_TASK(scmd, task);
 
 		task->uldd_task = scmd;
+
+		rq->timeout = TASK_TIMEOUT;
 
 		blk_execute_rq_nowait(rq, true, NULL);
 
@@ -1140,8 +1140,8 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		}
 
 		scmd = blk_mq_rq_to_pdu(rq);
-		scmd->host_scribble = (unsigned char *)task;
 		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
+		ASSIGN_SAS_TASK(scmd, task);
 
 		task->uldd_task = scmd;
 

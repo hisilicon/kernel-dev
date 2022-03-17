@@ -51,6 +51,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
 		struct scsi_cmnd *scmd;
+
 		if (test_bit(SAS_DEV_GONE, &dev->state)) {
 			res = -ECOMM;
 			break;
@@ -69,15 +70,16 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		}
 
 		scmd = blk_mq_rq_to_pdu(rq);
+		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
+		ASSIGN_SAS_TASK(scmd, task);
+
 		task->dev = dev;
 		task->uldd_task = scmd;
 		task->task_proto = dev->tproto;
 		task->smp_task.smp_req = *req;
 		task->smp_task.smp_resp = *resp;
-		scmd->host_scribble = (unsigned char *)task;
-		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
-
 		task->task_done = sas_task_internal_done;
+
 		rq->timeout = SMP_TIMEOUT*HZ;
 
 		blk_execute_rq_nowait(rq, true, NULL);
