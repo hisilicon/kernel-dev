@@ -275,7 +275,6 @@ struct request_queue {
 	atomic_t		nr_active_requests_shared_tags;
 
 	struct blk_mq_tags	*sched_shared_tags;
-	struct blk_mq_tags	*aux_tags;
 
 
 	struct list_head	icq_list;

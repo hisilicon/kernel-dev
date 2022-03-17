@@ -1539,7 +1539,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	scsi_host = ap->scsi_host;
 
-	request_queue = blk_mq_init_queue_aux(&scsi_host->tag_set, &ata_exec_internal_sg_mq_ops, 0);
+	request_queue = blk_mq_init_queue_ops(&scsi_host->tag_set, &ata_exec_internal_sg_mq_ops, 0);
 	if (!request_queue)
 		return AC_ERR_OTHER;
 

@@ -52,7 +52,7 @@ void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 		     unsigned int hctx_idx);
 void blk_mq_free_rq_map(struct blk_mq_tags *tags);
 struct blk_mq_tags *blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
-				unsigned int hctx_idx, unsigned int depth, unsigned int cmd_extra_size);
+				unsigned int hctx_idx, unsigned int depth);
 void blk_mq_free_map_and_rqs(struct blk_mq_tag_set *set,
 			     struct blk_mq_tags *tags,
 			     unsigned int hctx_idx);
@@ -170,8 +170,6 @@ static inline bool blk_mq_is_shared_tags(unsigned int flags)
 
 static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
 {
-	if (data->rq_flags & RQF_AUX)
-		return data->q->aux_tags;
 	if (!(data->rq_flags & RQF_ELV))
 		return data->hctx->tags;
 	return data->hctx->sched_tags;

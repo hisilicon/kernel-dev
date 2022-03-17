@@ -962,10 +962,9 @@ static const struct blk_mq_ops sas_smp_ops = {
 
 struct request_queue *sas_alloc_request_queue(struct Scsi_Host *shost)
 {
-	
-	unsigned int cmd_extra_size = 0;//sizeof(struct sas_execute_rq_data);
+//	unsigned int cmd_extra_size = 0;//sizeof(struct sas_execute_rq_data);
 
-	return blk_mq_init_queue_aux(&shost->tag_set, &sas_smp_ops, cmd_extra_size);
+	return blk_mq_init_queue_ops(&shost->tag_set, &sas_smp_ops);
 	//	pr_err("%s request_queue=%pS\n", __func__, request_queue);
 }
 

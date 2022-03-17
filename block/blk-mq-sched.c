@@ -498,7 +498,7 @@ static int blk_mq_sched_alloc_map_and_rqs(struct request_queue *q,
 	}
 
 	hctx->sched_tags = blk_mq_alloc_map_and_rqs(q->tag_set, hctx_idx,
-						    q->nr_requests, 0);
+						    q->nr_requests);
 
 	if (!hctx->sched_tags)
 		return -ENOMEM;
@@ -539,7 +539,7 @@ static int blk_mq_init_sched_shared_tags(struct request_queue *queue)
 	 */
 	queue->sched_shared_tags = blk_mq_alloc_map_and_rqs(set,
 						BLK_MQ_NO_HCTX_IDX,
-						MAX_SCHED_RQ, 0);
+						MAX_SCHED_RQ);
 	if (!queue->sched_shared_tags)
 		return -ENOMEM;
 
