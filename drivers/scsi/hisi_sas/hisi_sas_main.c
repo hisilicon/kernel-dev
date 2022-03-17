@@ -484,6 +484,8 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 
 	hisi_hba = dev_to_hisi_hba(device);
 	dev = hisi_hba->dev;
+	
+	dq = &hisi_hba->dq[sas_get_queue_index(task)];
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SSP:
@@ -519,7 +521,6 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 				return -ECOMM;
 		}
 
-		dq = &hisi_hba->dq[sas_get_queue_index(task)];
 		break;
 	case SAS_PROTOCOL_INTERNAL_ABORT:
 		if (!hisi_hba->hw->prep_abort)
@@ -534,7 +535,6 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 			return -EINVAL;
 
 		port = to_hisi_sas_port(sas_port);
-		dq = &hisi_hba->dq[task->abort_task.qid];
 		break;
 	default:
 		dev_err(hisi_hba->dev, "task prep: unknown/unsupported proto (0x%x)\n",

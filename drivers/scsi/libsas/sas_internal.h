@@ -41,7 +41,6 @@ struct sas_phy_data {
 
 struct request_queue *sas_alloc_request_queue(struct Scsi_Host *shost);
 
-
 void sas_scsi_recover_host(struct Scsi_Host *shost);
 
 int sas_show_class(enum sas_class class, char *buf);

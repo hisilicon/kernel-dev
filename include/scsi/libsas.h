@@ -565,7 +565,7 @@ enum sas_internal_abort {
 
 struct sas_internal_abort_task {
 	enum sas_internal_abort type;
-	unsigned int qid;
+//	unsigned int qid;
 	u16 tag;
 };
 

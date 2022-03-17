@@ -44,7 +44,8 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	struct request *rq;
 
 	request_queue = sas_alloc_request_queue(shost);
-//	pr_err("%s request_queue=%pS\n", __func__, request_queue);
+	if (IS_ERR(request_queue))
+		return PTR_ERR(request_queue);
 
 	pm_runtime_get_sync(ha->dev);
 	mutex_lock(&dev->ex_dev.cmd_mutex);
@@ -61,7 +62,11 @@ static int smp_execute_task_sg(struct domain_device *dev,
 			break;
 		}
 		rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
-		//pr_err("%s2 request_queue2=%pS rq=%pS task=%pS\n", __func__, request_queue, rq, task);
+		if (IS_ERR(rq)) {
+			res = PTR_ERR(rq);
+			break;
+		}
+
 		scmd = blk_mq_rq_to_pdu(rq);
 		task->dev = dev;
 		task->uldd_task = scmd;
@@ -74,17 +79,10 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		task->task_done = sas_task_internal_done;
 		rq->timeout = SMP_TIMEOUT*HZ;
 
-	//	task->slow_task->timer.function = sas_task_internal_timedout;
-	//	task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
-	//	add_timer(&task->slow_task->timer);
 		blk_execute_rq_nowait(rq, true, NULL);
-
-		//pr_err("%s3 request_queue2=%pS rq=%pS task=%pS sent\n", __func__, request_queue, rq, task);
-
 
 		wait_for_completion(&task->slow_task->completion);
 		__blk_mq_end_request(rq, BLK_STS_OK);
-		//pr_err("%s4 request_queue2=%pS rq=%pS task=%pS got completion\n", __func__, request_queue, rq, task);
 		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			pr_notice("smp task timed out or aborted\n");
@@ -127,14 +125,11 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	mutex_unlock(&dev->ex_dev.cmd_mutex);
 	pm_runtime_put_sync(ha->dev);
 
-	//pr_err("%s10 request_queue=%pS res=%d\n", __func__, request_queue, res);
-
-	//pr_err("%s going to cleanup queue\n", __func__);
-	blk_cleanup_queue(request_queue);
-	//pr_err("%s cleaned up queue\n", __func__);
-
 	BUG_ON(retry == 3 && task != NULL);
 	sas_free_task(task);
+
+	blk_cleanup_queue(request_queue);
+
 	return res;
 }
 
