@@ -999,7 +999,9 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		task->abort_task.type = type;
 		task->abort_task.qid = qid;
 
-		rq = scsi_alloc_request_hwq(request_queue, REQ_OP_DRV_IN, 0, qid);
+		rq = scsi_alloc_request_hwq(request_queue, REQ_OP_DRV_IN, BLK_MQ_REQ_NOWAIT, qid);
+		if (!rq)
+			return -ENOMEM;
 		rq->timeout = TASK_TIMEOUT;
 		//pr_err("%s2 request_queue2=%pS rq=%pS task=%pS\n", __func__, request_queue, rq, task);
 		scmd = blk_mq_rq_to_pdu(rq);
