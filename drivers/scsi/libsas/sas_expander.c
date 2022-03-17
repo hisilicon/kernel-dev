@@ -69,6 +69,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		task->smp_task.smp_req = *req;
 		task->smp_task.smp_resp = *resp;
 		scmd->host_scribble = (unsigned char *)task;
+		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
 
 		task->task_done = sas_task_internal_done;
 		rq->timeout = SMP_TIMEOUT*HZ;

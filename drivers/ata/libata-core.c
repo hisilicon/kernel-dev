@@ -1550,6 +1550,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	}
 
 	scmd = blk_mq_rq_to_pdu(rq);
+	scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
 
 	/* initialize internal qc */
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);

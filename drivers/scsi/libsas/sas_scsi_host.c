@@ -1007,6 +1007,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		scmd = blk_mq_rq_to_pdu(rq);
 		task->uldd_task = scmd;
 		scmd->host_scribble = (unsigned char *)task;
+		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
 
 		blk_execute_rq_nowait(rq, true, NULL);
 
@@ -1133,6 +1134,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		scmd = blk_mq_rq_to_pdu(rq);
 		task->uldd_task = scmd;
 		scmd->host_scribble = (unsigned char *)task;
+		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
 
 		if (dev_is_sata(device)) {
 			task->ata_task.device_control_reg_update = 1;

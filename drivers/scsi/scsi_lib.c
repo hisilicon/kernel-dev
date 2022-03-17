@@ -1627,6 +1627,8 @@ static void scsi_done_internal(struct scsi_cmnd *cmd, bool complete_directly)
 		return scsi_eh_done(cmd);
 	case SUBMITTED_BY_SCSI_RESET_IOCTL:
 		return;
+	case SUBMITTED_BY_SCSI_CUSTOM_OPS:
+		return;
 	}
 
 	if (unlikely(blk_should_fake_timeout(scsi_cmd_to_rq(cmd)->q)))
