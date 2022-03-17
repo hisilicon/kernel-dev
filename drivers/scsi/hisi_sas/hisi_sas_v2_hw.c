@@ -2538,7 +2538,8 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 
 	/* dw2 */
 	if (task->ata_task.use_ncq) {
-		struct ata_queued_cmd *qc = task->uldd_task;
+		struct scsi_cmnd *scmd = task->uldd_task;
+		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)scmd->host_scribble;
 
 		hdr_tag = qc->tag;
 		task->ata_task.fis.sector_count |= (u8) (hdr_tag << 3);
