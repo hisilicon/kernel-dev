@@ -717,6 +717,109 @@ found_translation:
 	return iopte_to_paddr(pte, data) | iova;
 }
 
+struct arm_lpae_iopte_read_dirty {
+	unsigned long flags;
+	struct iommu_dirty_bitmap *dirty;
+};
+
+static int __arm_lpae_read_and_clear_dirty(unsigned long iova, size_t size,
+					   arm_lpae_iopte *ptep, void *opaque)
+{
+	struct arm_lpae_iopte_read_dirty *arg = opaque;
+	struct iommu_dirty_bitmap *dirty = arg->dirty;
+	arm_lpae_iopte pte;
+
+	pte = READ_ONCE(*ptep);
+	if (WARN_ON(!pte))
+		return -EINVAL;
+
+	if ((pte & ARM_LPAE_PTE_AP_WRITABLE) == ARM_LPAE_PTE_AP_WRITABLE)
+		return 0;
+
+	iommu_dirty_bitmap_record(dirty, iova, size);
+	if (!(arg->flags & IOMMU_DIRTY_NO_CLEAR))
+		set_bit(ARM_LPAE_PTE_AP_RDONLY_BIT, (unsigned long *)ptep);
+	return 0;
+}
+
+static int __arm_lpae_iopte_walk(struct arm_lpae_io_pgtable *data,
+				 unsigned long iova, size_t size,
+				 int lvl, arm_lpae_iopte *ptep,
+				 int (*fn)(unsigned long iova, size_t size,
+					   arm_lpae_iopte *pte, void *opaque),
+				 void *opaque)
+{
+	arm_lpae_iopte pte;
+	struct io_pgtable *iop = &data->iop;
+	size_t base, next_size;
+	int ret;
+
+	if (WARN_ON_ONCE(!fn))
+		return -EINVAL;
+
+	if (WARN_ON(lvl == ARM_LPAE_MAX_LEVELS))
+		return -EINVAL;
+
+	ptep += ARM_LPAE_LVL_IDX(iova, lvl, data);
+	pte = READ_ONCE(*ptep);
+	if (WARN_ON(!pte))
+		return -EINVAL;
+
+	if (size == ARM_LPAE_BLOCK_SIZE(lvl, data)) {
+		if (iopte_leaf(pte, lvl, iop->fmt))
+			return fn(iova, size, ptep, opaque);
+
+		/* Current level is table, traverse next level */
+		next_size = ARM_LPAE_BLOCK_SIZE(lvl + 1, data);
+		ptep = iopte_deref(pte, data);
+		for (base = 0; base < size; base += next_size) {
+			ret = __arm_lpae_iopte_walk(data, iova + base,
+						    next_size, lvl + 1, ptep,
+						    fn, opaque);
+			if (ret)
+				return ret;
+		}
+		return 0;
+	} else if (iopte_leaf(pte, lvl, iop->fmt)) {
+		return fn(iova, size, ptep, opaque);
+	}
+
+	/* Keep on walkin */
+	ptep = iopte_deref(pte, data);
+	return __arm_lpae_iopte_walk(data, iova, size, lvl + 1, ptep,
+				     fn, opaque);
+}
+
+static int arm_lpae_read_and_clear_dirty(struct io_pgtable_ops *ops,
+					 unsigned long iova, size_t size,
+					 unsigned long flags,
+					 struct iommu_dirty_bitmap *dirty)
+{
+	struct arm_lpae_io_pgtable *data = io_pgtable_ops_to_data(ops);
+	struct io_pgtable_cfg *cfg = &data->iop.cfg;
+	struct arm_lpae_iopte_read_dirty arg = {
+		.flags = flags, .dirty = dirty,
+	};
+	arm_lpae_iopte *ptep = data->pgd;
+	int lvl = data->start_level;
+	long iaext = (s64)iova >> cfg->ias;
+
+	if (WARN_ON(!size || (size & cfg->pgsize_bitmap) != size))
+		return -EINVAL;
+
+	if (cfg->quirks & IO_PGTABLE_QUIRK_ARM_TTBR1)
+		iaext = ~iaext;
+	if (WARN_ON(iaext))
+		return -EINVAL;
+
+	if (data->iop.fmt != ARM_64_LPAE_S1 &&
+	    data->iop.fmt != ARM_32_LPAE_S1)
+		return -EINVAL;
+
+	return __arm_lpae_iopte_walk(data, iova, size, lvl, ptep,
+				     __arm_lpae_read_and_clear_dirty, &arg);
+}
+
 static void arm_lpae_restrict_pgsizes(struct io_pgtable_cfg *cfg)
 {
 	unsigned long granule, page_sizes;
@@ -795,6 +898,7 @@ arm_lpae_alloc_pgtable(struct io_pgtable_cfg *cfg)
 		.map_pages	= arm_lpae_map_pages,
 		.unmap_pages	= arm_lpae_unmap_pages,
 		.iova_to_phys	= arm_lpae_iova_to_phys,
+		.read_and_clear_dirty = arm_lpae_read_and_clear_dirty,
 	};
 
 	return data;
