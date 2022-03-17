@@ -61,6 +61,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 			res = -ENOMEM;
 			break;
 		}
+
 		rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
 		if (IS_ERR(rq)) {
 			res = PTR_ERR(rq);

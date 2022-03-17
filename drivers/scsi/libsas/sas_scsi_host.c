@@ -931,8 +931,7 @@ enum blk_eh_timer_return sas_task_internal_timedout(struct request *rq, bool res
 #define TASK_RETRY			3
 
 
-static blk_status_t smp_execute_task_sg_exec_rq(struct blk_mq_hw_ctx *hctx,
-		const struct blk_mq_queue_data *bd)
+static blk_status_t sas_exec_rq(struct blk_mq_hw_ctx *hctx, const struct blk_mq_queue_data *bd)
 {
 	struct request *rq = bd->rq;
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
@@ -944,9 +943,7 @@ static blk_status_t smp_execute_task_sg_exec_rq(struct blk_mq_hw_ctx *hctx,
 
 	blk_mq_start_request(bd->rq);
 
-//	pr_err("%s rq=%pS scmd=%pS task=%pS\n", __func__, rq, scmd, task);
 	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-//	pr_err("%s2 rq=%pS scmd=%pS task=%pS res=%d\n", __func__, rq, scmd, task, res);
 	if (res) {
 		pr_err("%s2 rq=%pS scmd=%pS task=%pS res=%d\n", __func__, rq, scmd, task, res);
 		return BLK_STS_IOERR;
@@ -955,14 +952,14 @@ static blk_status_t smp_execute_task_sg_exec_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_STS_OK;
 }
 
-static const struct blk_mq_ops sas_smp_ops = {
-	.queue_rq	= smp_execute_task_sg_exec_rq,
+static const struct blk_mq_ops sas_blk_mq_ops = {
+	.queue_rq	= sas_exec_rq,
 	.timeout = sas_task_internal_timedout,
 };
 
 struct request_queue *sas_alloc_request_queue(struct Scsi_Host *shost)
 {
-	return blk_mq_init_queue_ops(&shost->tag_set, &sas_smp_ops);
+	return blk_mq_init_queue_ops(&shost->tag_set, &sas_blk_mq_ops);
 }
 
 static int sas_execute_internal_abort(struct domain_device *device,
@@ -983,9 +980,12 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
+
 		task = sas_alloc_slow_task(GFP_KERNEL);
-		if (!task)
-			return -ENOMEM;
+		if (!task) {
+			res = -ENOMEM;
+			break;
+		}
 
 		task->dev = device;
 		task->task_proto = SAS_PROTOCOL_INTERNAL_ABORT;
@@ -993,17 +993,20 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 		task->abort_task.tag = tag;
 		task->abort_task.type = type;
-	//	task->abort_task.qid = qid;
 
 		rq = scsi_alloc_request_hwq(request_queue, REQ_OP_DRV_IN, BLK_MQ_REQ_NOWAIT, qid);
-		if (!rq)
-			return -ENOMEM;
+		if (!rq) {
+			res = PTR_ERR(rq);
+			break;
+		}
+
 		rq->timeout = TASK_TIMEOUT;
-		//pr_err("%s2 request_queue2=%pS rq=%pS task=%pS\n", __func__, request_queue, rq, task);
+
 		scmd = blk_mq_rq_to_pdu(rq);
-		task->uldd_task = scmd;
-		scmd->host_scribble = (unsigned char *)task;
+		ASSIGN_SAS_TASK(scmd, task);
 		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
+
+		task->uldd_task = scmd;
 
 		blk_execute_rq_nowait(rq, true, NULL);
 
@@ -1045,10 +1048,10 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	}
 	BUG_ON(retry == TASK_RETRY && task != NULL);
 
-	//pr_err("%s going to cleanup queue\n", __func__);
-	blk_cleanup_queue(request_queue);
-	//pr_err("%s cleaned up queue\n", __func__);
 	sas_free_task(task);
+
+	blk_cleanup_queue(request_queue);
+
 	return res;
 }
 
@@ -1120,6 +1123,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
+
 		task = sas_alloc_slow_task(GFP_KERNEL);
 		if (!task) {
 			res = -ENOMEM;
