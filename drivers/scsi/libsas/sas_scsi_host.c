@@ -986,7 +986,6 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 		task->abort_task.tag = tag;
 		task->abort_task.type = type;
-		task->abort_task.qid = qid;
 
 		rq = scsi_alloc_request_hwq(request_queue, REQ_OP_DRV_IN, BLK_MQ_REQ_NOWAIT, qid);
 		if (!rq) {
@@ -1078,6 +1077,14 @@ unsigned int sas_task_to_unique_tag(struct sas_task *task)
 
 }
 EXPORT_SYMBOL_GPL(sas_task_to_unique_tag);
+
+unsigned int sas_task_to_hwq(struct sas_task *task)
+{
+	u32 unique = sas_task_to_rq_unique_tag(task);
+
+	return blk_mq_unique_tag_to_hwq(unique);
+}
+EXPORT_SYMBOL_GPL(sas_task_to_hwq);
 
 int sas_execute_tmf(struct domain_device *device, void *parameter,
 		    int para_len, int force_phy_id,

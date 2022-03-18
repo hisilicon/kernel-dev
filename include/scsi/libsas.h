@@ -565,7 +565,6 @@ enum sas_internal_abort {
 
 struct sas_internal_abort_task {
 	enum sas_internal_abort type;
-	unsigned int qid;
 	u16 tag;
 };
 
@@ -626,6 +625,7 @@ struct sas_task {
 };
 
 unsigned int sas_task_to_unique_tag(struct sas_task *task);
+unsigned int sas_task_to_hwq(struct sas_task *task);
 
 struct sas_task_slow {
 	/* standard/extra infrastructure for slow path commands (SMP and
