@@ -64,6 +64,7 @@ struct sbitmap {
 	 * @map_nr: Number of words (cachelines) being used for the bitmap.
 	 */
 	unsigned int map_nr;
+	unsigned int map_nr_numa;
 
 	/**
 	 * @round_robin: Allocate bits in strict round-robin order.
@@ -74,6 +75,7 @@ struct sbitmap {
 	 * @map: Allocated bitmap.
 	 */
 	struct sbitmap_word *map;
+	struct sbitmap_word *numa_map[MAX_NUMNODES];
 
 	/*
 	 * @alloc_hint: Cache of last successfully allocated or freed bit.
@@ -82,6 +84,7 @@ struct sbitmap {
 	 * cachelines until the map is exhausted.
 	 */
 	unsigned int __percpu *alloc_hint;
+	bool numa_aware;
 };
 
 #define SBQ_WAIT_QUEUES 8

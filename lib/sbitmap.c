@@ -99,6 +99,14 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 	sb->map_nr = DIV_ROUND_UP(sb->depth, bits_per_word);
 	sb->round_robin = round_robin;
 
+
+	if ((depth % num_online_nodes() == 0) && (depth > 100))
+		sb->numa_aware = true;
+	else
+		sb->numa_aware = false;
+
+	pr_err("%s2 numa_aware=%d depth=%d\n", __func__, sb->numa_aware, depth);
+
 	if (depth == 0) {
 		sb->map = NULL;
 		return 0;
@@ -111,15 +119,44 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		sb->alloc_hint = NULL;
 	}
 
-	sb->map = kcalloc_node(sb->map_nr, sizeof(*sb->map), flags, node);
-	if (!sb->map) {
-		free_percpu(sb->alloc_hint);
-		return -ENOMEM;
-	}
+	if (sb->numa_aware) {
+		unsigned int depth_per_node = sb->depth / num_online_nodes();
+		int nid;
 
-	for (i = 0; i < sb->map_nr; i++) {
-		sb->map[i].depth = min(depth, bits_per_word);
-		depth -= sb->map[i].depth;
+		sb->map_nr_numa = DIV_ROUND_UP(depth_per_node, bits_per_word);
+
+		pr_err("%s3 numa_aware=%d depth=%d map_nr_numa=%d\n", __func__, sb->numa_aware, depth, sb->map_nr_numa);
+
+		for (nid = 0; nid < num_online_nodes(); nid++) {
+			sb->numa_map[nid] = kcalloc_node(sb->map_nr_numa, sizeof(*sb->map), flags, node);
+			if (!sb->numa_map[nid]) {
+				free_percpu(sb->alloc_hint);
+				return -ENOMEM;
+			}
+
+			for (i = 0; i < sb->map_nr_numa; i++) {
+				struct sbitmap_word *numa_map = sb->numa_map[nid];
+	
+				numa_map[i].depth = min(depth_per_node, bits_per_word);
+				depth_per_node -= numa_map[i].depth;
+			}
+		}
+
+	} else {
+		sb->map_nr = DIV_ROUND_UP(sb->depth, bits_per_word);
+
+		pr_err("%s4 numa_aware=%d depth=%d map_nr=%d\n", __func__, sb->numa_aware, depth, sb->map_nr);
+
+		sb->map = kcalloc_node(sb->map_nr, sizeof(*sb->map), flags, node);
+		if (!sb->map) {
+			free_percpu(sb->alloc_hint);
+			return -ENOMEM;
+		}
+
+		for (i = 0; i < sb->map_nr; i++) {
+			sb->map[i].depth = min(depth, bits_per_word);
+			depth -= sb->map[i].depth;
+		}
 	}
 	return 0;
 }
