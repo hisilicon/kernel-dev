@@ -86,7 +86,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 {
 	unsigned int bits_per_word;
 	unsigned int i;
-
+	pr_err("%s numa_nodes_parsed=%d MAX_NUMNODES=%d\n", __func__, num_online_nodes(), MAX_NUMNODES);
 	if (shift < 0)
 		shift = sbitmap_calculate_shift(depth);
 
