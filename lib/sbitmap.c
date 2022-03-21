@@ -269,7 +269,7 @@ static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 	if (sb->numa_aware) {
 		struct sbitmap_word *map;
 		unsigned int depth_per_node = sb->depth_per_node;
-		unsigned int nid = alloc_hint / sb->depth;
+		unsigned int nid = alloc_hint / sb->depth_per_node;
 		alloc_hint -= (nid * depth_per_node);
 		index = SB_NR_TO_INDEX(sb, alloc_hint);
 		map = sb->numa_map[nid];

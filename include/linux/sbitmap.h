@@ -255,39 +255,43 @@ static inline void __sbitmap_for_each_set(struct sbitmap *sb,
 
 	if (start >= sb->depth)
 		start = 0;
-	index = SB_NR_TO_INDEX(sb, start);
-	nr = SB_NR_TO_BIT(sb, start);
+	if (sb->numa_aware) {
 
-	while (scanned < sb->depth) {
-		unsigned long word;
-		unsigned int depth = min_t(unsigned int,
-					   sb->map[index].depth - nr,
-					   sb->depth - scanned);
+	} else {
+		index = SB_NR_TO_INDEX(sb, start);
+		nr = SB_NR_TO_BIT(sb, start);
 
-		scanned += depth;
-		word = sb->map[index].word & ~sb->map[index].cleared;
-		if (!word)
-			goto next;
+		while (scanned < sb->depth) {
+			unsigned long word;
+			unsigned int depth = min_t(unsigned int,
+						   sb->map[index].depth - nr,
+						   sb->depth - scanned);
 
-		/*
-		 * On the first iteration of the outer loop, we need to add the
-		 * bit offset back to the size of the word for find_next_bit().
-		 * On all other iterations, nr is zero, so this is a noop.
-		 */
-		depth += nr;
-		while (1) {
-			nr = find_next_bit(&word, depth, nr);
-			if (nr >= depth)
-				break;
-			if (!fn(sb, (index << sb->shift) + nr, data))
-				return;
+			scanned += depth;
+			word = sb->map[index].word & ~sb->map[index].cleared;
+			if (!word)
+				goto next;
 
-			nr++;
+			/*
+			 * On the first iteration of the outer loop, we need to add the
+			 * bit offset back to the size of the word for find_next_bit().
+			 * On all other iterations, nr is zero, so this is a noop.
+			 */
+			depth += nr;
+			while (1) {
+				nr = find_next_bit(&word, depth, nr);
+				if (nr >= depth)
+					break;
+				if (!fn(sb, (index << sb->shift) + nr, data))
+					return;
+
+				nr++;
+			}
+	next:
+			nr = 0;
+			if (++index >= sb->map_nr)
+				index = 0;
 		}
-next:
-		nr = 0;
-		if (++index >= sb->map_nr)
-			index = 0;
 	}
 }
 
@@ -304,9 +308,23 @@ static inline void sbitmap_for_each_set(struct sbitmap *sb, sb_for_each_fn fn,
 }
 
 static inline unsigned long *__sbitmap_word(struct sbitmap *sb,
-					    unsigned int bitnr)
+					    const unsigned int bitnr)
 {
-	return &sb->map[SB_NR_TO_INDEX(sb, bitnr)].word;
+	if (sb->numa_aware) {
+		struct sbitmap_word *map;
+		unsigned int depth_per_node = sb->depth_per_node;
+		unsigned int nid = bitnr / sb->depth_per_node;
+		unsigned int index;
+		unsigned int __bitnr = bitnr;
+		__bitnr -= (nid * depth_per_node);
+		index = SB_NR_TO_INDEX(sb, __bitnr);
+		map = sb->numa_map[nid];
+		map += index;
+	
+		return &map->word;
+	} else {
+		return &sb->map[SB_NR_TO_INDEX(sb, bitnr)].word;
+	}
 }
 
 /* Helpers equivalent to the operations in asm/bitops.h and linux/bitmap.h */
@@ -327,11 +345,27 @@ static inline void sbitmap_clear_bit(struct sbitmap *sb, unsigned int bitnr)
  * the caller doing sbitmap_deferred_clear() if a given index is full, which
  * will clear the previously freed entries in the corresponding ->word.
  */
-static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, unsigned int bitnr)
+static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, const unsigned int bitnr)
 {
-	unsigned long *addr = &sb->map[SB_NR_TO_INDEX(sb, bitnr)].cleared;
-
-	set_bit(SB_NR_TO_BIT(sb, bitnr), addr);
+	unsigned long *addr;
+	
+	if (sb->numa_aware) {
+		struct sbitmap_word *map;
+		unsigned int depth_per_node = sb->depth_per_node;
+		unsigned int nid = bitnr / sb->depth_per_node;
+		unsigned int index;
+		unsigned int __bitnr = bitnr;
+		__bitnr -= (nid * depth_per_node);
+		index = SB_NR_TO_INDEX(sb, __bitnr);
+		map = sb->numa_map[nid];
+		map += index;
+		
+		addr = &map->cleared;
+		set_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
+	} else {
+		addr = &sb->map[SB_NR_TO_INDEX(sb, bitnr)].cleared;
+		set_bit(SB_NR_TO_BIT(sb, bitnr), addr);
+	}
 }
 
 /*
