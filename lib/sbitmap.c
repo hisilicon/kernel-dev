@@ -95,6 +95,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		return -EINVAL;
 
 	sb->shift = shift;
+	sb->node = node;
 	sb->depth = depth;
 	sb->map_nr = DIV_ROUND_UP(sb->depth, bits_per_word);
 	sb->round_robin = round_robin;
@@ -236,12 +237,28 @@ static int sbitmap_find_bit_in_index(struct sbitmap_word *map,
 	return nr;
 }
 
+static atomic64_t total_sbitmap_get;
+static atomic64_t total_sbitmap_get_local;
+
+
 static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 {
 	unsigned int i, index;
 	int nr = -1;
+	u64 __total_sbitmap_get;
 
-	
+	int cpu = raw_smp_processor_id();
+	int node = cpu_to_node(cpu);
+
+	if (1) {//if (sb->node != NUMA_NO_NODE) {
+		__total_sbitmap_get = atomic64_inc_return(&total_sbitmap_get);
+
+		if (node == sb->node)
+			atomic64_inc(&total_sbitmap_get_local);
+
+		if ((__total_sbitmap_get % 1000000) == 0)
+			pr_err("%s total=%lld local=%lld sb->node=%d\n", __func__, __total_sbitmap_get, atomic64_read(&total_sbitmap_get_local), sb->node);
+	}
 
 	/*
 	 * Unless we're doing round robin tag allocation, just use the

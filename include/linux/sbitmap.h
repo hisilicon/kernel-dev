@@ -61,6 +61,8 @@ struct sbitmap {
 	 */
 	unsigned int shift;
 
+
+	int node;
 	/**
 	 * @map_nr: Number of words (cachelines) being used for the bitmap.
 	 */
