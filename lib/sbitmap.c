@@ -243,7 +243,7 @@ static atomic64_t total_sbitmap_get;
 static atomic64_t total_sbitmap_get_local;
 
 
-static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
+static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 {
 	unsigned int i, index;
 	int nr = -1;
@@ -251,6 +251,7 @@ static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 
 	int cpu = raw_smp_processor_id();
 	int node = cpu_to_node(cpu);
+	unsigned int __alloc_hint = alloc_hint;
 
 	//if (1) {
 	if (sb->node != NUMA_NO_NODE) {
@@ -272,36 +273,37 @@ static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 	if (sb->numa_aware) {
 		struct sbitmap_word *map;
 		unsigned int depth_per_node = sb->depth_per_node;
-		unsigned int nid = alloc_hint / sb->depth_per_node;
-		alloc_hint -= (nid * depth_per_node);
-		index = SB_NR_TO_INDEX(sb, alloc_hint);
+		unsigned int nid = __alloc_hint / sb->depth_per_node;
+
+		__alloc_hint -= (nid * depth_per_node);
+		index = SB_NR_TO_INDEX(sb, __alloc_hint);
 		map = sb->numa_map[nid];
 		map += index;
 
+
 		if (sb->round_robin)
-			alloc_hint = SB_NR_TO_BIT(sb, alloc_hint);
+			__alloc_hint = SB_NR_TO_BIT(sb, __alloc_hint);
 		else
-			alloc_hint = 0;
+			__alloc_hint = 0;
+
+		if (index > 100)
+			pr_err_once("%s alloc_hint=%d nid=%d __alloc_hint=%d sb->numa_map[nid]=%pS map=%pS\n", __func__,
+				alloc_hint, nid, __alloc_hint, sb->numa_map[nid], map);
 
 		for (i = 0; i < sb->map_nr_numa; i++) {
-			nr = sbitmap_find_bit_in_index(map, alloc_hint, sb->round_robin);
+			nr = sbitmap_find_bit_in_index(map, __alloc_hint, sb->round_robin);
 			if (nr != -1) {
 				nr += index << sb->shift;
 				break;
 			}
 		
 			/* Jump to next index. */
-			alloc_hint = 0;
+			__alloc_hint = 0;
 			if (++index >= sb->map_nr_numa)
 				index = 0;
 		}
 	} else {
-		if (sb->round_robin)
-			alloc_hint = SB_NR_TO_BIT(sb, alloc_hint);
-		else
-			alloc_hint = 0;
-
-		index = SB_NR_TO_INDEX(sb, alloc_hint);
+		index = SB_NR_TO_INDEX(sb, __alloc_hint);
 
 		/*
 		 * Unless we're doing round robin tag allocation, just use the
@@ -309,20 +311,20 @@ static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 		 * twice in find_next_zero_bit() for that case.
 		 */
 		if (sb->round_robin)
-			alloc_hint = SB_NR_TO_BIT(sb, alloc_hint);
+			__alloc_hint = SB_NR_TO_BIT(sb, __alloc_hint);
 		else
-			alloc_hint = 0;
+			__alloc_hint = 0;
 
 		for (i = 0; i < sb->map_nr; i++) {
 			struct sbitmap_word *map = &sb->map[index];
-			nr = sbitmap_find_bit_in_index(map, alloc_hint, sb->round_robin);
+			nr = sbitmap_find_bit_in_index(map, __alloc_hint, sb->round_robin);
 			if (nr != -1) {
 				nr += index << sb->shift;
 				break;
 			}
 
 			/* Jump to next index. */
-			alloc_hint = 0;
+			__alloc_hint = 0;
 			if (++index >= sb->map_nr)
 				index = 0;
 		}

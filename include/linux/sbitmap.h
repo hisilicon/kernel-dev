@@ -320,7 +320,9 @@ static inline unsigned long *__sbitmap_word(struct sbitmap *sb,
 		index = SB_NR_TO_INDEX(sb, __bitnr);
 		map = sb->numa_map[nid];
 		map += index;
-	
+		if (bitnr > 100)
+			pr_err_once("%s bitnr=%d nid=%d __bitnr=%d index=%d sb->numa_map[nid]=%pS map=%pS\n",
+					__func__, bitnr, nid, __bitnr, index, sb->numa_map[nid], map);
 		return &map->word;
 	} else {
 		return &sb->map[SB_NR_TO_INDEX(sb, bitnr)].word;
