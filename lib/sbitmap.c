@@ -225,6 +225,8 @@ static int sbitmap_find_bit_in_index(struct sbitmap_word *map,
 {
 	int nr;
 
+	BUG_ON(alloc_hint > map->depth);
+	
 	do {
 		nr = __sbitmap_get_word(&map->word, map->depth, alloc_hint,
 					!round_robin);
