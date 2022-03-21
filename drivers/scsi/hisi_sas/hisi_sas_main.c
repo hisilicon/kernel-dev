@@ -2738,10 +2738,10 @@ int hisi_sas_probe(struct platform_device *pdev,
 	shost->max_cmd_len = 16;
 	if (hisi_hba->hw->slot_index_alloc) {
 		shost->can_queue = HISI_SAS_MAX_COMMANDS;
-		shost->cmd_per_lun = HISI_SAS_MAX_COMMANDS;
+		shost->cmd_per_lun = 500;
 	} else {
 		shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
-		shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;
+		shost->cmd_per_lun = 500;
 	}
 
 	sha->sas_ha_name = DRV_NAME;
