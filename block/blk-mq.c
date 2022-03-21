@@ -3149,8 +3149,9 @@ static struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 {
 	struct blk_mq_tags *tags;
 	int node;
-
+	pr_err("%s set=%pS hctx_idx=%d\n", __func__, set, hctx_idx);
 	node = blk_mq_hw_queue_to_node(&set->map[HCTX_TYPE_DEFAULT], hctx_idx);
+	pr_err("%s2 set=%pS node=%d set->numa_node=%d\n", __func__, set, node, set->numa_node);
 	if (node == NUMA_NO_NODE)
 		node = set->numa_node;
 

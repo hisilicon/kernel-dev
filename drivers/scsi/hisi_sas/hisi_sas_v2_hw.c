@@ -3544,7 +3544,7 @@ static int map_queues_v2_hw(struct Scsi_Host *shost)
 	struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
 	const struct cpumask *mask;
 	unsigned int queue, cpu;
-
+	pr_err("%s shost=%pS qmap=%pS\n", __func__, shost, qmap);
 	for (queue = 0; queue < qmap->nr_queues; queue++) {
 		mask = irq_get_affinity_mask(hisi_hba->irq_map[96 + queue]);
 		if (!mask)

@@ -2759,7 +2759,7 @@ int hisi_sas_probe(struct platform_device *pdev,
 	rc = hisi_sas_interrupt_preinit(hisi_hba);
 	if (rc)
 		goto err_out_ha;
-
+	pr_err("%s shost=%pS\n", __func__, shost);
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
 		goto err_out_ha;
