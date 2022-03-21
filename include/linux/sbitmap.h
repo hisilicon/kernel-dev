@@ -54,6 +54,7 @@ struct sbitmap {
 	 * @depth: Number of bits used in the whole bitmap.
 	 */
 	unsigned int depth;
+	unsigned int depth_per_node;
 
 	/**
 	 * @shift: log2(number of bits used per word)
@@ -63,7 +64,9 @@ struct sbitmap {
 	/**
 	 * @map_nr: Number of words (cachelines) being used for the bitmap.
 	 */
+//#ifdef experiment
 	unsigned int map_nr;
+//#endif
 	unsigned int map_nr_numa;
 
 	/**
@@ -74,7 +77,9 @@ struct sbitmap {
 	/**
 	 * @map: Allocated bitmap.
 	 */
+//#ifdef experiment
 	struct sbitmap_word *map;
+//#endif
 	struct sbitmap_word *numa_map[MAX_NUMNODES];
 
 	/*

@@ -100,12 +100,12 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 	sb->round_robin = round_robin;
 
 
-	if ((depth % num_online_nodes() == 0) && (depth > 100))
+	if ((depth % num_online_nodes() == 0) && (depth > 100) && (depth % bits_per_word == 0))
 		sb->numa_aware = true;
 	else
 		sb->numa_aware = false;
 
-	pr_err("%s2 numa_aware=%d depth=%d\n", __func__, sb->numa_aware, depth);
+	pr_err("%s2 numa_aware=%d depth=%d bits_per_word=%d\n", __func__, sb->numa_aware, depth, bits_per_word);
 
 	if (depth == 0) {
 		sb->map = NULL;
@@ -120,10 +120,12 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 	}
 
 	if (sb->numa_aware) {
-		unsigned int depth_per_node = sb->depth / num_online_nodes();
 		int nid;
+		unsigned int depth_per_node;
 
-		sb->map_nr_numa = DIV_ROUND_UP(depth_per_node, bits_per_word);
+		depth_per_node = sb->depth_per_node = sb->depth / num_online_nodes();
+
+		sb->map_nr_numa = DIV_ROUND_UP(sb->depth_per_node, bits_per_word);
 
 		pr_err("%s3 numa_aware=%d depth=%d map_nr_numa=%d\n", __func__, sb->numa_aware, depth, sb->map_nr_numa);
 
@@ -137,7 +139,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 			for (i = 0; i < sb->map_nr_numa; i++) {
 				struct sbitmap_word *numa_map = sb->numa_map[nid];
 	
-				numa_map[i].depth = min(depth_per_node, bits_per_word);
+				numa_map[i].depth = min(sb->map_nr_numa, bits_per_word);
 				depth_per_node -= numa_map[i].depth;
 			}
 		}
@@ -166,6 +168,9 @@ void sbitmap_resize(struct sbitmap *sb, unsigned int depth)
 {
 	unsigned int bits_per_word = 1U << sb->shift;
 	unsigned int i;
+
+	if (WARN_ON_ONCE(sb->numa_aware))
+		return;
 
 	for (i = 0; i < sb->map_nr; i++)
 		sbitmap_deferred_clear(&sb->map[i]);
@@ -214,15 +219,14 @@ static int __sbitmap_get_word(unsigned long *word, unsigned long depth,
 	return nr;
 }
 
-static int sbitmap_find_bit_in_index(struct sbitmap *sb, int index,
-				     unsigned int alloc_hint)
+static int sbitmap_find_bit_in_index(struct sbitmap_word *map,
+				     unsigned int alloc_hint, int round_robin)
 {
-	struct sbitmap_word *map = &sb->map[index];
 	int nr;
 
 	do {
 		nr = __sbitmap_get_word(&map->word, map->depth, alloc_hint,
-					!sb->round_robin);
+					!round_robin);
 		if (nr != -1)
 			break;
 		if (!sbitmap_deferred_clear(map))
@@ -237,30 +241,69 @@ static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 	unsigned int i, index;
 	int nr = -1;
 
-	index = SB_NR_TO_INDEX(sb, alloc_hint);
+	
 
 	/*
 	 * Unless we're doing round robin tag allocation, just use the
 	 * alloc_hint to find the right word index. No point in looping
 	 * twice in find_next_zero_bit() for that case.
 	 */
-	if (sb->round_robin)
-		alloc_hint = SB_NR_TO_BIT(sb, alloc_hint);
-	else
-		alloc_hint = 0;
 
-	for (i = 0; i < sb->map_nr; i++) {
-		nr = sbitmap_find_bit_in_index(sb, index, alloc_hint);
-		if (nr != -1) {
-			nr += index << sb->shift;
-			break;
+	if (sb->numa_aware) {
+		struct sbitmap_word *map;
+		unsigned int depth_per_node = sb->depth_per_node;
+		unsigned int nid = alloc_hint / sb->depth;
+		alloc_hint -= (nid * depth_per_node);
+		index = SB_NR_TO_INDEX(sb, alloc_hint);
+		map = sb->numa_map[nid];
+		map += index;
+
+		for (i = 0; i < sb->map_nr_numa; i++) {
+			nr = sbitmap_find_bit_in_index(map, alloc_hint, sb->round_robin);
+			if (nr != -1) {
+				nr += index << sb->shift;
+				break;
+			}
+		
+			/* Jump to next index. */
+			alloc_hint = 0;
+			if (++index >= sb->map_nr)
+				index = 0;
+		}
+	} else {
+		if (sb->round_robin)
+			alloc_hint = SB_NR_TO_BIT(sb, alloc_hint);
+		else
+			alloc_hint = 0;
+
+		index = SB_NR_TO_INDEX(sb, alloc_hint);
+
+		/*
+		 * Unless we're doing round robin tag allocation, just use the
+		 * alloc_hint to find the right word index. No point in looping
+		 * twice in find_next_zero_bit() for that case.
+		 */
+		if (sb->round_robin)
+			alloc_hint = SB_NR_TO_BIT(sb, alloc_hint);
+		else
+			alloc_hint = 0;
+
+		for (i = 0; i < sb->map_nr; i++) {
+			struct sbitmap_word *map = &sb->map[index];
+			nr = sbitmap_find_bit_in_index(map, alloc_hint, sb->round_robin);
+			if (nr != -1) {
+				nr += index << sb->shift;
+				break;
+			}
+
+			/* Jump to next index. */
+			alloc_hint = 0;
+			if (++index >= sb->map_nr)
+				index = 0;
 		}
 
-		/* Jump to next index. */
-		alloc_hint = 0;
-		if (++index >= sb->map_nr)
-			index = 0;
 	}
+
 
 	return nr;
 }
@@ -290,6 +333,9 @@ static int __sbitmap_get_shallow(struct sbitmap *sb,
 	int nr = -1;
 
 	index = SB_NR_TO_INDEX(sb, alloc_hint);
+
+	if (WARN_ON_ONCE(sb->numa_aware))
+		return -1;
 
 	for (i = 0; i < sb->map_nr; i++) {
 again:
@@ -338,10 +384,26 @@ bool sbitmap_any_bit_set(const struct sbitmap *sb)
 {
 	unsigned int i;
 
-	for (i = 0; i < sb->map_nr; i++) {
-		if (sb->map[i].word & ~sb->map[i].cleared)
-			return true;
+	bool numa_aware = sb->numa_aware;
+
+	if (numa_aware) {
+		int nid;
+
+		for (nid = 0; nid < num_online_nodes(); nid++) {
+			for (i = 0; i < sb->map_nr; i++) {
+				struct sbitmap_word *map = sb->numa_map[nid];
+
+				if (map[i].word & ~map[i].cleared)
+					return true;
+			}
+		}
+	} else {
+		for (i = 0; i < sb->map_nr; i++) {
+			if (sb->map[i].word & ~sb->map[i].cleared)
+				return true;
+		}
 	}
+
 	return false;
 }
 EXPORT_SYMBOL_GPL(sbitmap_any_bit_set);
@@ -349,14 +411,31 @@ EXPORT_SYMBOL_GPL(sbitmap_any_bit_set);
 static unsigned int __sbitmap_weight(const struct sbitmap *sb, bool set)
 {
 	unsigned int i, weight = 0;
+	bool numa_aware = sb->numa_aware;
 
-	for (i = 0; i < sb->map_nr; i++) {
-		const struct sbitmap_word *word = &sb->map[i];
+	if (numa_aware) {
+		int nid;
 
-		if (set)
-			weight += bitmap_weight(&word->word, word->depth);
-		else
-			weight += bitmap_weight(&word->cleared, word->depth);
+		for (nid = 0; nid < num_online_nodes(); nid++) {
+			for (i = 0; i < sb->map_nr; i++) {
+				struct sbitmap_word *map = sb->numa_map[nid];
+				const struct sbitmap_word *word = &map[i];
+		
+				if (set)
+					weight += bitmap_weight(&word->word, word->depth);
+				else
+					weight += bitmap_weight(&word->cleared, word->depth);
+			}
+		}
+	} else {
+		for (i = 0; i < sb->map_nr; i++) {
+			const struct sbitmap_word *word = &sb->map[i];
+
+			if (set)
+				weight += bitmap_weight(&word->word, word->depth);
+			else
+				weight += bitmap_weight(&word->cleared, word->depth);
+		}
 	}
 	return weight;
 }
@@ -374,11 +453,13 @@ EXPORT_SYMBOL_GPL(sbitmap_weight);
 
 void sbitmap_show(struct sbitmap *sb, struct seq_file *m)
 {
+	#ifdef experiment
 	seq_printf(m, "depth=%u\n", sb->depth);
 	seq_printf(m, "busy=%u\n", sbitmap_weight(sb));
 	seq_printf(m, "cleared=%u\n", sbitmap_cleared(sb));
 	seq_printf(m, "bits_per_word=%u\n", 1U << sb->shift);
 	seq_printf(m, "map_nr=%u\n", sb->map_nr);
+	#endif
 }
 EXPORT_SYMBOL_GPL(sbitmap_show);
 
@@ -396,6 +477,7 @@ static inline void emit_byte(struct seq_file *m, unsigned int offset, u8 byte)
 
 void sbitmap_bitmap_show(struct sbitmap *sb, struct seq_file *m)
 {
+	#ifdef experiment
 	u8 byte = 0;
 	unsigned int byte_bits = 0;
 	unsigned int offset = 0;
@@ -429,6 +511,7 @@ void sbitmap_bitmap_show(struct sbitmap *sb, struct seq_file *m)
 	}
 	if (offset)
 		seq_putc(m, '\n');
+	#endif
 }
 EXPORT_SYMBOL_GPL(sbitmap_bitmap_show);
 
@@ -552,6 +635,7 @@ EXPORT_SYMBOL_GPL(__sbitmap_queue_get);
 unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
 					unsigned int *offset)
 {
+	#ifdef experiment
 	struct sbitmap *sb = &sbq->sb;
 	unsigned int hint, depth;
 	unsigned long index, nr;
@@ -596,6 +680,7 @@ unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
 		if (++index >= sb->map_nr)
 			index = 0;
 	}
+	#endif
 
 	return 0;
 }
@@ -697,6 +782,7 @@ static inline void sbitmap_update_cpu_hint(struct sbitmap *sb, int cpu, int tag)
 void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 				int *tags, int nr_tags)
 {
+	#ifdef experiment
 	struct sbitmap *sb = &sbq->sb;
 	unsigned long *addr = NULL;
 	unsigned long mask = 0;
@@ -726,6 +812,7 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 	sbitmap_queue_wake_up(sbq);
 	sbitmap_update_cpu_hint(&sbq->sb, raw_smp_processor_id(),
 					tags[nr_tags - 1] - offset);
+	#endif
 }
 
 void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
