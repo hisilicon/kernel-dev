@@ -100,7 +100,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 	sb->round_robin = round_robin;
 
 
-	if ((depth % num_online_nodes() == 0) && (depth > 1000) && (depth % bits_per_word == 0))
+	if ((depth % num_online_nodes() == 0) && (depth > 2000) && (depth % bits_per_word == 0)) //1024 is max sdev queue depth
 		sb->numa_aware = true;
 	else
 		sb->numa_aware = false;
@@ -169,7 +169,7 @@ void sbitmap_resize(struct sbitmap *sb, unsigned int depth)
 	unsigned int bits_per_word = 1U << sb->shift;
 	unsigned int i;
 
-	if (WARN_ON_ONCE(sb->numa_aware))
+	if (WARN_ONCE(sb->numa_aware, "%s depth=%d\n", __func__, depth))
 		return;
 
 	for (i = 0; i < sb->map_nr; i++)
