@@ -250,7 +250,8 @@ static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 	int cpu = raw_smp_processor_id();
 	int node = cpu_to_node(cpu);
 
-	if (1) {//if (sb->node != NUMA_NO_NODE) {
+	//if (1) {
+	if (sb->node != NUMA_NO_NODE) {
 		__total_sbitmap_get = atomic64_inc_return(&total_sbitmap_get);
 
 		if (node == sb->node)
