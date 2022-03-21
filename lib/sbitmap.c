@@ -101,7 +101,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 
 
 	if ((depth % num_online_nodes() == 0) && (depth > 100) && (depth % bits_per_word == 0))
-		sb->numa_aware = true;
+		sb->numa_aware = false;
 	else
 		sb->numa_aware = false;
 
