@@ -1982,14 +1982,14 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 	tag_set->nr_maps = shost->nr_maps ? : 1;
 	tag_set->queue_depth = shost->can_queue;
 	tag_set->cmd_size = cmd_size;
-	tag_set->numa_node = NUMA_NO_NODE;
+	tag_set->numa_node = shost->dma_dev->numa_node;
 	tag_set->flags = BLK_MQ_F_SHOULD_MERGE;
 	tag_set->flags |=
 		BLK_ALLOC_POLICY_TO_MQ_FLAG(shost->hostt->tag_alloc_policy);
 	tag_set->driver_data = shost;
 	if (shost->host_tagset)
 		tag_set->flags |= BLK_MQ_F_TAG_HCTX_SHARED;
-	pr_err("%s shost=%pS tag_set=%pS\n", __func__, shost, tag_set);
+	pr_err("%s shost=%pS tag_set=%pS shost->dma_dev->numa_node=%d\n", __func__, shost, tag_set, shost->dma_dev->numa_node);
 
 	return blk_mq_alloc_tag_set(tag_set);
 }
