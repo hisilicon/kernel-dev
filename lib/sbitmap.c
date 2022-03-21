@@ -278,6 +278,11 @@ static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 		map = sb->numa_map[nid];
 		map += index;
 
+		if (sb->round_robin)
+			alloc_hint = SB_NR_TO_BIT(sb, alloc_hint);
+		else
+			alloc_hint = 0;
+
 		for (i = 0; i < sb->map_nr_numa; i++) {
 			nr = sbitmap_find_bit_in_index(map, alloc_hint, sb->round_robin);
 			if (nr != -1) {
