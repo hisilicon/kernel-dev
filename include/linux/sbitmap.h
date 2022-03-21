@@ -313,7 +313,7 @@ static inline unsigned long *__sbitmap_word(struct sbitmap *sb,
 	if (sb->numa_aware) {
 		struct sbitmap_word *map;
 		unsigned int depth_per_node = sb->depth_per_node;
-		unsigned int nid = bitnr / sb->depth_per_node;
+		unsigned int nid = bitnr / (depth_per_node * sb->map_nr_numa);
 		unsigned int index;
 		unsigned int __bitnr = bitnr;
 		__bitnr -= (nid * depth_per_node);
@@ -321,8 +321,11 @@ static inline unsigned long *__sbitmap_word(struct sbitmap *sb,
 		map = sb->numa_map[nid];
 		map += index;
 		if (bitnr > 100)
-			pr_err_once("%s bitnr=%d nid=%d __bitnr=%d index=%d sb->numa_map[nid]=%pS map=%pS\n",
-					__func__, bitnr, nid, __bitnr, index, sb->numa_map[nid], map);
+			pr_err_once("%s bitnr=%d nid=%d __bitnr=%d index=%d sb->numa_map[nid]=%pS map=%pS map_nr_numa=%d\n",
+					__func__, bitnr, nid, __bitnr, index, sb->numa_map[nid], map, sb->map_nr_numa);
+		if (bitnr > 1000)
+			pr_err_once("%s bitnr=%d nid=%d __bitnr=%d index=%d sb->numa_map[nid]=%pS map=%pS map_nr_numa=%d\n",
+					__func__, bitnr, nid, __bitnr, index, sb->numa_map[nid], map, sb->map_nr_numa);
 		return &map->word;
 	} else {
 		return &sb->map[SB_NR_TO_INDEX(sb, bitnr)].word;
@@ -354,7 +357,7 @@ static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, const unsigned
 	if (sb->numa_aware) {
 		struct sbitmap_word *map;
 		unsigned int depth_per_node = sb->depth_per_node;
-		unsigned int nid = bitnr / sb->depth_per_node;
+		unsigned int nid = bitnr / (depth_per_node * sb->map_nr_numa);
 		unsigned int index;
 		unsigned int __bitnr = bitnr;
 		__bitnr -= (nid * depth_per_node);

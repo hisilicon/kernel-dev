@@ -273,7 +273,7 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 	if (sb->numa_aware) {
 		struct sbitmap_word *map;
 		unsigned int depth_per_node = sb->depth_per_node;
-		unsigned int nid = __alloc_hint / sb->depth_per_node;
+		unsigned int nid = __alloc_hint / (depth_per_node * sb->map_nr_numa);
 
 		__alloc_hint -= (nid * depth_per_node);
 		index = SB_NR_TO_INDEX(sb, __alloc_hint);
@@ -289,6 +289,10 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 		if (index > 100)
 			pr_err_once("%s alloc_hint=%d nid=%d __alloc_hint=%d sb->numa_map[nid]=%pS map=%pS\n", __func__,
 				alloc_hint, nid, __alloc_hint, sb->numa_map[nid], map);
+		if (index > 1000)
+			pr_err_once("%s alloc_hint=%d nid=%d __alloc_hint=%d sb->numa_map[nid]=%pS map=%pS\n", __func__,
+				alloc_hint, nid, __alloc_hint, sb->numa_map[nid], map);
+
 
 		for (i = 0; i < sb->map_nr_numa; i++) {
 			nr = sbitmap_find_bit_in_index(map, __alloc_hint, sb->round_robin);
