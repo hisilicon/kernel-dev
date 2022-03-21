@@ -97,12 +97,11 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 	sb->shift = shift;
 	sb->node = node;
 	sb->depth = depth;
-	sb->map_nr = DIV_ROUND_UP(sb->depth, bits_per_word);
 	sb->round_robin = round_robin;
 
 
 	if ((depth % num_online_nodes() == 0) && (depth > 100) && (depth % bits_per_word == 0))
-		sb->numa_aware = false;
+		sb->numa_aware = true;
 	else
 		sb->numa_aware = false;
 
@@ -128,10 +127,10 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 
 		sb->map_nr_numa = DIV_ROUND_UP(sb->depth_per_node, bits_per_word);
 
-		pr_err("%s3 numa_aware=%d depth=%d map_nr_numa=%d\n", __func__, sb->numa_aware, depth, sb->map_nr_numa);
+		pr_err("%s3 numa_aware=%d depth=%d map_nr_numa=%d bits_per_word=%d\n", __func__, sb->numa_aware, depth, sb->map_nr_numa, bits_per_word);
 
 		for (nid = 0; nid < num_online_nodes(); nid++) {
-			sb->numa_map[nid] = kcalloc_node(sb->map_nr_numa, sizeof(*sb->map), flags, node);
+			sb->numa_map[nid] = kcalloc_node(sb->map_nr_numa, sizeof(*sb->map), flags, nid);
 			if (!sb->numa_map[nid]) {
 				free_percpu(sb->alloc_hint);
 				return -ENOMEM;
@@ -140,8 +139,8 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 			for (i = 0; i < sb->map_nr_numa; i++) {
 				struct sbitmap_word *numa_map = sb->numa_map[nid];
 	
-				numa_map[i].depth = min(sb->map_nr_numa, bits_per_word);
-				depth_per_node -= numa_map[i].depth;
+				numa_map[i].depth = min(depth, bits_per_word);
+				depth -= numa_map[i].depth;
 			}
 		}
 
@@ -285,7 +284,7 @@ static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 		
 			/* Jump to next index. */
 			alloc_hint = 0;
-			if (++index >= sb->map_nr)
+			if (++index >= sb->map_nr_numa)
 				index = 0;
 		}
 	} else {
@@ -408,10 +407,10 @@ bool sbitmap_any_bit_set(const struct sbitmap *sb)
 		int nid;
 
 		for (nid = 0; nid < num_online_nodes(); nid++) {
-			for (i = 0; i < sb->map_nr; i++) {
-				struct sbitmap_word *map = sb->numa_map[nid];
-
-				if (map[i].word & ~map[i].cleared)
+			struct sbitmap_word *map = sb->numa_map[nid];
+			for (i = 0; i < sb->map_nr_numa; i++) {
+				struct sbitmap_word *map2 = &map[i];
+				if (map2[i].word & ~map2[i].cleared)
 					return true;
 			}
 		}
@@ -435,7 +434,7 @@ static unsigned int __sbitmap_weight(const struct sbitmap *sb, bool set)
 		int nid;
 
 		for (nid = 0; nid < num_online_nodes(); nid++) {
-			for (i = 0; i < sb->map_nr; i++) {
+			for (i = 0; i < sb->map_nr_numa; i++) {
 				struct sbitmap_word *map = sb->numa_map[nid];
 				const struct sbitmap_word *word = &map[i];
 		
