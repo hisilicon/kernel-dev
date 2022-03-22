@@ -39,10 +39,19 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	struct sas_internal *i =
 		to_sas_internal(dev->port->ha->core.shost->transportt);
 	struct sas_ha_struct *ha = dev->port->ha;
+	struct Scsi_Host *shost = ha->core.shost;
+	struct request_queue *request_queue;
+	struct request *rq;
+
+	request_queue = sas_alloc_request_queue(shost);
+	if (IS_ERR(request_queue))
+		return PTR_ERR(request_queue);
 
 	pm_runtime_get_sync(ha->dev);
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
+		struct scsi_cmnd *scmd;
+
 		if (test_bit(SAS_DEV_GONE, &dev->state)) {
 			res = -ECOMM;
 			break;
@@ -53,26 +62,30 @@ static int smp_execute_task_sg(struct domain_device *dev,
 			res = -ENOMEM;
 			break;
 		}
-		task->dev = dev;
-		task->task_proto = dev->tproto;
-		task->smp_task.smp_req = *req;
-		task->smp_task.smp_resp = *resp;
 
-		task->task_done = sas_task_internal_done;
-
-		task->slow_task->timer.function = sas_task_internal_timedout;
-		task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
-		add_timer(&task->slow_task->timer);
-
-		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-
-		if (res) {
-			del_timer(&task->slow_task->timer);
-			pr_notice("executing SMP task failed:%d\n", res);
+		rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
+		if (IS_ERR(rq)) {
+			res = PTR_ERR(rq);
 			break;
 		}
 
+		scmd = blk_mq_rq_to_pdu(rq);
+		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
+		ASSIGN_SAS_TASK(scmd, task);
+
+		task->dev = dev;
+		task->uldd_task = scmd;
+		task->task_proto = dev->tproto;
+		task->smp_task.smp_req = *req;
+		task->smp_task.smp_resp = *resp;
+		task->task_done = sas_task_internal_done;
+
+		rq->timeout = SMP_TIMEOUT*HZ;
+
+		blk_execute_rq_nowait(rq, true, NULL);
+
 		wait_for_completion(&task->slow_task->completion);
+		__blk_mq_end_request(rq, BLK_STS_OK);
 		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			pr_notice("smp task timed out or aborted\n");
@@ -117,6 +130,9 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 	BUG_ON(retry == 3 && task != NULL);
 	sas_free_task(task);
+
+	blk_cleanup_queue(request_queue);
+
 	return res;
 }
 

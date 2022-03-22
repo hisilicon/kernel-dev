@@ -920,6 +920,59 @@ void sas_task_internal_timedout(struct timer_list *t)
 #define TASK_TIMEOUT			(20 * HZ)
 #define TASK_RETRY			3
 
+static enum blk_eh_timer_return sas_task_timedout(struct request *rq, bool resv)
+{
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	struct sas_task *task = TO_SAS_TASK(scmd);
+	bool is_completed = true;
+	unsigned long flags;
+
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+		is_completed = false;
+	}
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	if (!is_completed)
+		complete(&task->slow_task->completion);
+	return BLK_EH_DONE;
+}
+
+static blk_status_t sas_exec_rq(struct blk_mq_hw_ctx *hctx,
+				const struct blk_mq_queue_data *bd)
+{
+	struct request *rq = bd->rq;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	struct sas_task *task = (struct sas_task *)scmd->host_scribble;
+	struct domain_device *device = task->dev;
+	struct sas_ha_struct *ha = device->port->ha;
+	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
+	int res;
+
+	blk_mq_start_request(bd->rq);
+
+	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+	if (res) {
+		pr_notice("executing task proto 0x%x failed:%d\n", task->task_proto, res);
+		task->task_status.resp = SAS_TASK_UNDELIVERED;
+		task->task_status.stat = SAS_DEVICE_UNKNOWN;
+		complete(&task->slow_task->completion);
+	}
+
+	return BLK_STS_OK;
+}
+
+static const struct blk_mq_ops sas_blk_mq_ops = {
+	.queue_rq	= sas_exec_rq,
+	.timeout	= sas_task_timedout,
+};
+
+struct request_queue *sas_alloc_request_queue(struct Scsi_Host *shost)
+{
+	return blk_mq_init_queue_ops(&shost->tag_set, &sas_blk_mq_ops);
+}
+
 static int sas_execute_internal_abort(struct domain_device *device,
 				      enum sas_internal_abort type, u16 tag,
 				      unsigned int qid, void *data)
