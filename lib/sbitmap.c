@@ -278,8 +278,8 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 		index = SB_NR_TO_INDEX(sb, __alloc_hint);
 		map = sb->numa_map[nid];
 		
-		pr_err("%s2 alloc_hint=%d index=%d i=%d __alloc_hint=%d nid=%d depth_per_node=%d map_nr_numa=%d depth=%d\n",
-				__func__, alloc_hint, index, i, __alloc_hint, nid, depth_per_node, sb->map_nr_numa, sb->depth);
+	//	pr_err("%s2 alloc_hint=%d index=%d i=%d __alloc_hint=%d nid=%d depth_per_node=%d map_nr_numa=%d depth=%d\n",
+	//			__func__, alloc_hint, index, i, __alloc_hint, nid, depth_per_node, sb->map_nr_numa, sb->depth);
 	//	if (index > sb->map_nr_numa) {
 	//		pr_err("%s4 index=%d i=%d __alloc_hint=%d nid=%d alloc_hint=%d map_nr_numa=%d\n", __func__, index, i, __alloc_hint, nid, alloc_hint, map->map_nr_numa);	
 	//	}
@@ -300,7 +300,8 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 
 		for (i = 0; i < sb->map_nr_numa; i++) {
 			struct sbitmap_word *map2 = &map[index];
-			pr_err("%s5 alloc_hint=%d index=%d i=%d __alloc_hint=%d nid=%d depth_per_node=%d map_nr_numa=%d depth=%d\n",
+			if (__alloc_hint > map2->depth) 
+				pr_err("%s5 alloc_hint=%d index=%d i=%d __alloc_hint=%d nid=%d depth_per_node=%d map_nr_numa=%d depth=%d\n",
 				__func__, alloc_hint, index, i, __alloc_hint, nid, depth_per_node, sb->map_nr_numa, sb->depth);
 			if (__alloc_hint > map2->depth) {
 				pr_err("%s6 index=%d i=%d __alloc_hint=%d nid=%d alloc_hint=%d\n", __func__, index, i, __alloc_hint, nid, alloc_hint);
