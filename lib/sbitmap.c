@@ -277,7 +277,10 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 		__alloc_hint -= (nid * depth_per_node);
 		index = SB_NR_TO_INDEX(sb, __alloc_hint);
 		map = sb->numa_map[nid];
-		map += index;
+		
+	//	if (index > sb->map_nr_numa) {
+	//		pr_err("%s4 index=%d i=%d __alloc_hint=%d nid=%d alloc_hint=%d map_nr_numa=%d\n", __func__, index, i, __alloc_hint, nid, alloc_hint, map->map_nr_numa);	
+	//	}
 
 
 		if (sb->round_robin)
@@ -294,10 +297,14 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 
 
 		for (i = 0; i < sb->map_nr_numa; i++) {
-			
-			WARN_ONCE(alloc_hint > map->depth, "%s __alloc_hint=%d map->depth=%lu\n", __func__, __alloc_hint, map->depth);
+			struct sbitmap_word *map2 = &map[index];
+			if (__alloc_hint > map->depth) {
+				pr_err("%s5 index=%d i=%d __alloc_hint=%d nid=%d alloc_hint=%d\n", __func__, index, i, __alloc_hint, nid, alloc_hint);
+		
+			}
+			WARN_ONCE(__alloc_hint > map2->depth, "%s __alloc_hint=%d map2->depth=%lu\n", __func__, __alloc_hint, map2->depth);
 
-			nr = sbitmap_find_bit_in_index(map, __alloc_hint, sb->round_robin);
+			nr = sbitmap_find_bit_in_index(map2, __alloc_hint, sb->round_robin);
 			if (nr != -1) {
 				nr += index << sb->shift;
 				break;
@@ -323,7 +330,11 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 
 		for (i = 0; i < sb->map_nr; i++) {
 			struct sbitmap_word *map = &sb->map[index];
-			WARN_ONCE(alloc_hint > map->depth, "%s __alloc_hint=%d map->depth=%lu\n", __func__, __alloc_hint, map->depth);
+			if (__alloc_hint > map->depth) {
+				pr_err("%s7 index=%d i=%d __alloc_hint=%d\n", __func__, index, i, __alloc_hint);
+		
+			}
+			WARN_ONCE(__alloc_hint > map->depth, "%s __alloc_hint=%d map->depth=%lu\n", __func__, __alloc_hint, map->depth);
 			nr = sbitmap_find_bit_in_index(map, __alloc_hint, sb->round_robin);
 			if (nr != -1) {
 				nr += index << sb->shift;
@@ -451,8 +462,8 @@ static unsigned int __sbitmap_weight(const struct sbitmap *sb, bool set)
 		int nid;
 
 		for (nid = 0; nid < num_online_nodes(); nid++) {
+			struct sbitmap_word *map = sb->numa_map[nid];
 			for (i = 0; i < sb->map_nr_numa; i++) {
-				struct sbitmap_word *map = sb->numa_map[nid];
 				const struct sbitmap_word *word = &map[i];
 		
 				if (set)
