@@ -298,7 +298,9 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 
 		for (i = 0; i < sb->map_nr_numa; i++) {
 			struct sbitmap_word *map2 = &map[index];
-			if (__alloc_hint > map->depth) {
+			pr_err("%s alloc_hint=%d index=%d i=%d __alloc_hint=%d nid=%d depth_per_node=%d map_nr_numa=%d depth=%d\n",
+				__func__, alloc_hint, index, i, __alloc_hint, nid, depth_per_node, sb->map_nr_numa, sb->depth);
+			if (__alloc_hint > map2->depth) {
 				pr_err("%s5 index=%d i=%d __alloc_hint=%d nid=%d alloc_hint=%d\n", __func__, index, i, __alloc_hint, nid, alloc_hint);
 		
 			}
