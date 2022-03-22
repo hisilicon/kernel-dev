@@ -225,8 +225,6 @@ static int sbitmap_find_bit_in_index(struct sbitmap_word *map,
 {
 	int nr;
 
-	if (WARN_ONCE(alloc_hint > map->depth, "%s alloc_hint=%d map->depth=%lu\n", __func__, alloc_hint, map->depth))
-		return -1;
 
 	do {
 		nr = __sbitmap_get_word(&map->word, map->depth, alloc_hint,
@@ -296,6 +294,9 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 
 
 		for (i = 0; i < sb->map_nr_numa; i++) {
+			
+			WARN_ONCE(alloc_hint > map->depth, "%s __alloc_hint=%d map->depth=%lu\n", __func__, __alloc_hint, map->depth);
+
 			nr = sbitmap_find_bit_in_index(map, __alloc_hint, sb->round_robin);
 			if (nr != -1) {
 				nr += index << sb->shift;
@@ -322,6 +323,7 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 
 		for (i = 0; i < sb->map_nr; i++) {
 			struct sbitmap_word *map = &sb->map[index];
+			WARN_ONCE(alloc_hint > map->depth, "%s __alloc_hint=%d map->depth=%lu\n", __func__, __alloc_hint, map->depth);
 			nr = sbitmap_find_bit_in_index(map, __alloc_hint, sb->round_robin);
 			if (nr != -1) {
 				nr += index << sb->shift;
