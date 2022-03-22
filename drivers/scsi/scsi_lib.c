@@ -1984,6 +1984,7 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 	tag_set->cmd_size = cmd_size;
 	#ifdef CONFIG_NUMA
 	tag_set->numa_node = shost->dma_dev->numa_node;
+	dev_err(shost->dma_dev, "%s tag_set->numa_node=%d tag_set=%pS shost=%pS\n", __func__, tag_set->numa_node, tag_set, shost);
 	#else
 	tag_set->numa_node = NUMA_NO_NODE;
 	#endif
