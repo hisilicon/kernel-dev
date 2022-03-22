@@ -366,6 +366,7 @@ static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, const unsigned
 		map += index;
 		
 		addr = &map->cleared;
+		WARN_ON_ONCE(test_bit(SB_NR_TO_BIT(sb, __bitnr), addr));
 		set_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
 	} else {
 		addr = &sb->map[SB_NR_TO_INDEX(sb, bitnr)].cleared;
