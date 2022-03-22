@@ -1070,14 +1070,38 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	struct sas_internal *i =
 		to_sas_internal(device->port->ha->core.shost->transportt);
 	int res, retry;
+	struct request_queue *request_queue;
+	struct request *rq;
+	struct sas_ha_struct *ha = device->port->ha;
+	struct Scsi_Host *shost = ha->core.shost;
+
+	request_queue = sas_alloc_request_queue(shost);
+	if (IS_ERR(request_queue))
+		return PTR_ERR(request_queue);
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
+		struct scsi_cmnd *scmd;
+
 		task = sas_alloc_slow_task(GFP_KERNEL);
-		if (!task)
-			return -ENOMEM;
+		if (!task) {
+			res = -ENOMEM;
+			break;
+		}
 
 		task->dev = device;
 		task->task_proto = device->tproto;
+
+		rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
+		if (IS_ERR(rq)) {
+			res = PTR_ERR(rq);
+			break;
+		}
+
+		scmd = blk_mq_rq_to_pdu(rq);
+		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
+		ASSIGN_SAS_TASK(scmd, task);
+
+		task->uldd_task = scmd;
 
 		if (dev_is_sata(device)) {
 			task->ata_task.device_control_reg_update = 1;
@@ -1093,19 +1117,13 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		task->task_done = sas_task_internal_done;
 		task->tmf = tmf;
 
-		task->slow_task->timer.function = sas_task_internal_timedout;
-		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
-		add_timer(&task->slow_task->timer);
+		rq->timeout = TASK_TIMEOUT;
 
-		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-		if (res) {
-			del_timer_sync(&task->slow_task->timer);
-			pr_err("executing TMF task failed %016llx (%d)\n",
-			       SAS_ADDR(device->sas_addr), res);
-			break;
-		}
+		blk_execute_rq_nowait(rq, true, NULL);
 
 		wait_for_completion(&task->slow_task->completion);
+
+		__blk_mq_end_request(rq, BLK_STS_OK);
 
 		if (i->dft->lldd_tmf_exec_complete)
 			i->dft->lldd_tmf_exec_complete(device);
@@ -1176,6 +1194,8 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		pr_warn("executing TMF for %016llx failed after %d attempts!\n",
 			SAS_ADDR(device->sas_addr), TASK_RETRY);
 	sas_free_task(task);
+
+	blk_cleanup_queue(request_queue);
 
 	return res;
 }
