@@ -72,7 +72,8 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 
 static void sas_ata_task_done(struct sas_task *task)
 {
-	struct ata_queued_cmd *qc = task->uldd_task;
+	struct scsi_cmnd *scmd = task->uldd_task;
+	struct ata_queued_cmd *qc = TO_SAS_TASK(scmd);
 	struct domain_device *dev = task->dev;
 	struct task_status_struct *stat = &task->task_status;
 	struct ata_task_resp *resp = (struct ata_task_resp *)stat->buf;
@@ -184,7 +185,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		qc->tf.nsect = 0;
 
 	ata_tf_to_fis(&qc->tf, qc->dev->link->pmp, 1, (u8 *)&task->ata_task.fis);
-	task->uldd_task = qc;
+	task->uldd_task = qc->scsicmd;
 	if (ata_is_atapi(qc->tf.protocol)) {
 		memcpy(task->ata_task.atapi_packet, qc->cdb, qc->dev->cdb_len);
 		task->total_xfer_len = qc->nbytes;
@@ -207,8 +208,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	task->ata_task.use_ncq = ata_is_ncq(qc->tf.protocol);
 	task->ata_task.dma_xfer = ata_is_dma(qc->tf.protocol);
 
-	if (qc->scsicmd)
-		ASSIGN_SAS_TASK(qc->scsicmd, task);
+	ASSIGN_SAS_TASK(qc->scsicmd, qc);
 
 	ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
 	if (ret) {
@@ -583,7 +583,8 @@ free_host:
 
 void sas_ata_task_abort(struct sas_task *task)
 {
-	struct ata_queued_cmd *qc = task->uldd_task;
+	struct scsi_cmnd *scmd = task->uldd_task;
+	struct ata_queued_cmd *qc = TO_SAS_TASK(scmd);
 	struct completion *waiting;
 
 	/* Bounce SCSI-initiated commands to the SCSI EH */
