@@ -1704,6 +1704,9 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_status_t ret;
 	int reason;
 
+	if ((req & RQF_INTERNAL) == RQF_INTERNAL)
+		pr_err("%s req=%pS internal\n", __func__, req);
+
 	WARN_ON_ONCE(cmd->budget_token < 0);
 
 	/*
@@ -1715,6 +1718,9 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		if (ret != BLK_STS_OK)
 			goto out_put_budget;
 	}
+
+	if ((req & RQF_INTERNAL) == RQF_INTERNAL)
+		pr_err("%s2 req=%pS internal\n", __func__, req);
 
 	ret = BLK_STS_RESOURCE;
 	if (!scsi_target_queue_ready(shost, sdev))
@@ -1731,6 +1737,9 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
 	}
 
+	if ((req & RQF_INTERNAL) == RQF_INTERNAL)
+		pr_err("%s4 req=%pS internal\n", __func__, req);
+
 	cmd->flags &= SCMD_PRESERVED_FLAGS;
 	if (sdev->simple_tags)
 		cmd->flags |= SCMD_TAGGED;
@@ -1742,6 +1751,8 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	cmd->submitter = SUBMITTED_BY_BLOCK_LAYER;
 
 	blk_mq_start_request(req);
+	if ((req & RQF_INTERNAL) == RQF_INTERNAL)
+		pr_err("%s5 req=%pS internal\n", __func__, req);
 	reason = scsi_dispatch_cmd(cmd);
 	if (reason) {
 		scsi_set_blocked(cmd, reason);
