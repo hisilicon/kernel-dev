@@ -201,11 +201,52 @@ out_done:
 }
 EXPORT_SYMBOL_GPL(sas_queuecommand);
 
+
+static __maybe_unused blk_status_t sas_exec_rq(struct blk_mq_hw_ctx *hctx,
+				const struct blk_mq_queue_data *bd)
+{
+	struct request *rq = bd->rq;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	struct sas_task *task = (struct sas_task *)scmd->host_scribble;
+	struct domain_device *device = task->dev;
+	struct sas_ha_struct *ha = device->port->ha;
+	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
+	int res;
+
+	blk_mq_start_request(bd->rq);
+
+	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+	if (res) {
+		pr_notice("executing task proto 0x%x failed:%d\n", task->task_proto, res);
+		task->task_status.resp = SAS_TASK_UNDELIVERED;
+		task->task_status.stat = SAS_DEVICE_UNKNOWN;
+		complete(&task->slow_task->completion);
+	}
+
+	return BLK_STS_OK;
+}
+
+
 int sas_internal_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 {
 	struct request *rq = blk_mq_rq_from_pdu(cmd);
+	struct sas_task *task = TO_SAS_TASK(cmd);
+	struct domain_device *device = task->dev;
+	struct sas_ha_struct *ha = device->port->ha;
+	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
+	int res;
 
-	pr_err("%s host=%pS cmd=%pS rq=%pS\n", __func__, host, cmd, rq);
+	pr_err("%s host=%pS cmd=%pS rq=%pS task=%pS\n", __func__, host, cmd, rq, task);
+
+	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+	if (res) {
+		pr_notice("executing task proto 0x%x failed:%d\n", task->task_proto, res);
+		task->task_status.resp = SAS_TASK_UNDELIVERED;
+		task->task_status.stat = SAS_DEVICE_UNKNOWN;
+		complete(&task->slow_task->completion);
+	}	
+
+	pr_err("%s2 host=%pS cmd=%pS rq=%pS task=%pS res=%d\n", __func__, host, cmd, rq, task, res);
 
 	return 0;
 }
@@ -954,30 +995,6 @@ static __maybe_unused enum blk_eh_timer_return sas_task_timedout(struct request 
 	if (!is_completed)
 		complete(&task->slow_task->completion);
 	return BLK_EH_DONE;
-}
-
-static __maybe_unused blk_status_t sas_exec_rq(struct blk_mq_hw_ctx *hctx,
-				const struct blk_mq_queue_data *bd)
-{
-	struct request *rq = bd->rq;
-	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-	struct sas_task *task = (struct sas_task *)scmd->host_scribble;
-	struct domain_device *device = task->dev;
-	struct sas_ha_struct *ha = device->port->ha;
-	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
-	int res;
-
-	blk_mq_start_request(bd->rq);
-
-	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-	if (res) {
-		pr_notice("executing task proto 0x%x failed:%d\n", task->task_proto, res);
-		task->task_status.resp = SAS_TASK_UNDELIVERED;
-		task->task_status.stat = SAS_DEVICE_UNKNOWN;
-		complete(&task->slow_task->completion);
-	}
-
-	return BLK_STS_OK;
 }
 
 static int sas_execute_internal_abort(struct domain_device *device,
