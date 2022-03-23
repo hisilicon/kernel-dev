@@ -3186,8 +3186,10 @@ static int blk_mq_alloc_rqs(struct blk_mq_tag_set *set,
 	int node;
 
 	node = blk_mq_hw_queue_to_node(&set->map[HCTX_TYPE_DEFAULT], hctx_idx);
+	pr_err("%s set=%pS node=%d set->numa_node=%d\n", __func__, set, node, set->numa_node);
 	if (node == NUMA_NO_NODE)
 		node = set->numa_node;
+	pr_err("%s1 set=%pS node=%d set->numa_node=%d\n", __func__, set, node, set->numa_node);
 
 	INIT_LIST_HEAD(&tags->page_list);
 

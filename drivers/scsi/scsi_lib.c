@@ -1978,6 +1978,7 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 	tag_set->queue_depth = shost->can_queue;
 	tag_set->cmd_size = cmd_size;
 	tag_set->numa_node = dev_to_node(shost->dma_dev);
+	dev_err(shost->dma_dev, "%s tag_set->numa_node=%d tag_set=%pS shost=%pS\n", __func__, tag_set->numa_node, tag_set, shost);
 	tag_set->flags = BLK_MQ_F_SHOULD_MERGE;
 	tag_set->flags |=
 		BLK_ALLOC_POLICY_TO_MQ_FLAG(shost->hostt->tag_alloc_policy);
