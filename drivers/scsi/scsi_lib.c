@@ -1460,9 +1460,13 @@ static void scsi_complete(struct request *rq)
 static int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *host = cmd->device->host;
+	struct request *req = blk_mq_rq_from_pdu(cmd);
 	int rtn = 0;
 
 	atomic_inc(&cmd->device->iorequest_cnt);
+
+	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
+		pr_err("%s req=%pS internal\n", __func__, req);
 
 	/* check if the device is still usable */
 	if (unlikely(cmd->device->sdev_state == SDEV_DEL)) {
@@ -1494,6 +1498,9 @@ static int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 
 	scsi_log_send(cmd);
 
+	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
+		pr_err("%s2 req=%pS internal cmd->cmd_len=%d cmd->device->host->max_cmd_len=%d\n", __func__, req, cmd->cmd_len, cmd->device->host->max_cmd_len);
+
 	/*
 	 * Before we queue this command, check if the command
 	 * length exceeds what the host adapter can handle.
@@ -1514,7 +1521,10 @@ static int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	}
 
 	trace_scsi_dispatch_cmd_start(cmd);
-	rtn = host->hostt->queuecommand(host, cmd);
+	if (req->rq_flags & RQF_INTERNAL)
+		rtn = host->hostt->internal_queuecommand(host, cmd);
+	else
+		rtn = host->hostt->queuecommand(host, cmd);
 	if (rtn) {
 		trace_scsi_dispatch_cmd_error(cmd, rtn);
 		if (rtn != SCSI_MLQUEUE_DEVICE_BUSY &&
@@ -1545,6 +1555,9 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 	struct Scsi_Host *shost = sdev->host;
 	bool in_flight = test_bit(SCMD_STATE_INFLIGHT, &cmd->state);
 	struct scatterlist *sg;
+
+	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
+		pr_err("%s req=%pS internal\n", __func__, req);
 
 	scsi_init_command(sdev, cmd);
 
@@ -1704,7 +1717,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_status_t ret;
 	int reason;
 
-	if ((req & RQF_INTERNAL) == RQF_INTERNAL)
+	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
 		pr_err("%s req=%pS internal\n", __func__, req);
 
 	WARN_ON_ONCE(cmd->budget_token < 0);
@@ -1719,7 +1732,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 			goto out_put_budget;
 	}
 
-	if ((req & RQF_INTERNAL) == RQF_INTERNAL)
+	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
 		pr_err("%s2 req=%pS internal\n", __func__, req);
 
 	ret = BLK_STS_RESOURCE;
@@ -1737,7 +1750,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
 	}
 
-	if ((req & RQF_INTERNAL) == RQF_INTERNAL)
+	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
 		pr_err("%s4 req=%pS internal\n", __func__, req);
 
 	cmd->flags &= SCMD_PRESERVED_FLAGS;
@@ -1751,7 +1764,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	cmd->submitter = SUBMITTED_BY_BLOCK_LAYER;
 
 	blk_mq_start_request(req);
-	if ((req & RQF_INTERNAL) == RQF_INTERNAL)
+	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
 		pr_err("%s5 req=%pS internal\n", __func__, req);
 	reason = scsi_dispatch_cmd(cmd);
 	if (reason) {

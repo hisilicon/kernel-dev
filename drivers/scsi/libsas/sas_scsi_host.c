@@ -201,6 +201,16 @@ out_done:
 }
 EXPORT_SYMBOL_GPL(sas_queuecommand);
 
+int sas_internal_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
+{
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
+
+	pr_err("%s host=%pS cmd=%pS rq=%pS\n", __func__, host, cmd, rq);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sas_internal_queuecommand);
+
 static void sas_eh_finish_cmd(struct scsi_cmnd *cmd)
 {
 	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(cmd->device->host);
@@ -927,7 +937,7 @@ void sas_task_internal_timedout(struct timer_list *t)
 #define TASK_TIMEOUT			(20 * HZ)
 #define TASK_RETRY			3
 
-static enum blk_eh_timer_return sas_task_timedout(struct request *rq, bool resv)
+static __maybe_unused enum blk_eh_timer_return sas_task_timedout(struct request *rq, bool resv)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	struct sas_task *task = TO_SAS_TASK(scmd);
@@ -946,7 +956,7 @@ static enum blk_eh_timer_return sas_task_timedout(struct request *rq, bool resv)
 	return BLK_EH_DONE;
 }
 
-static blk_status_t sas_exec_rq(struct blk_mq_hw_ctx *hctx,
+static __maybe_unused blk_status_t sas_exec_rq(struct blk_mq_hw_ctx *hctx,
 				const struct blk_mq_queue_data *bd)
 {
 	struct request *rq = bd->rq;
@@ -968,16 +978,6 @@ static blk_status_t sas_exec_rq(struct blk_mq_hw_ctx *hctx,
 	}
 
 	return BLK_STS_OK;
-}
-
-static const struct blk_mq_ops sas_blk_mq_ops = {
-	.queue_rq	= sas_exec_rq,
-	.timeout	= sas_task_timedout,
-};
-
-struct request_queue *sas_alloc_request_queue(struct Scsi_Host *shost)
-{
-	return blk_mq_init_queue_ops(&shost->tag_set, &sas_blk_mq_ops);
 }
 
 static int sas_execute_internal_abort(struct domain_device *device,

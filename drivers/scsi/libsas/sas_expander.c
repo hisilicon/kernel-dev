@@ -40,13 +40,13 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		to_sas_internal(dev->port->ha->core.shost->transportt);
 	struct sas_ha_struct *ha = dev->port->ha;
 	struct Scsi_Host *shost = ha->core.shost;
-	struct request_queue *request_queue;
+	struct scsi_device *sdev;
 	struct request *rq;
 
-	request_queue = sas_alloc_request_queue(shost);
-	if (IS_ERR(request_queue))
-		return PTR_ERR(request_queue);
-
+	sdev = scsi_get_host_dev(shost);
+	pr_err("%s sdev=%pS\n", __func__, sdev);
+	if (!sdev)
+		return -ENOMEM;
 	pm_runtime_get_sync(ha->dev);
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
@@ -58,19 +58,20 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		}
 
 		task = sas_alloc_slow_task(GFP_KERNEL);
+		pr_err("%s2 sdev=%pS task=%pS\n", __func__, sdev, task);
 		if (!task) {
 			res = -ENOMEM;
 			break;
 		}
 
-		rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
+		rq = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN, BLK_MQ_INTERNAL);
+		pr_err("%s3 sdev=%pS task=%pS rq=%pS\n", __func__, sdev, task, rq);
 		if (IS_ERR(rq)) {
 			res = PTR_ERR(rq);
 			break;
 		}
 
 		scmd = blk_mq_rq_to_pdu(rq);
-		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
 		ASSIGN_SAS_TASK(scmd, task);
 
 		task->dev = dev;
@@ -84,7 +85,10 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 		blk_execute_rq_nowait(rq, true, NULL);
 
+		pr_err("%s5 wait for completion sdev=%pS task=%pS rq=%pS\n", __func__, sdev, task, rq);
+
 		wait_for_completion(&task->slow_task->completion);
+		pr_err("%s4 got completion sdev=%pS task=%pS rq=%pS\n", __func__, sdev, task, rq);
 		__blk_mq_end_request(rq, BLK_STS_OK);
 		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
@@ -131,7 +135,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	BUG_ON(retry == 3 && task != NULL);
 	sas_free_task(task);
 
-	blk_cleanup_queue(request_queue);
+	scsi_free_host_dev(sdev);
 
 	return res;
 }
