@@ -1728,8 +1728,32 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_status_t ret;
 	int reason;
 
-	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
+	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL) {
 		pr_err("%s req=%pS internal\n", __func__, req);
+
+		if (!(req->rq_flags & RQF_DONTPREP)) {
+			ret = scsi_prepare_cmd(req);
+			if (ret != BLK_STS_OK) {
+
+				pr_err("%s1.1 req=%pS internal out_dec_host_busy\n", __func__, req);
+				BUG();
+
+				goto out_dec_host_busy;
+			}
+			req->rq_flags |= RQF_DONTPREP;
+		} else {
+			clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
+		}
+
+		pr_err("%s1.2 req=%pS internal\n", __func__, req);
+		blk_mq_start_request(req);
+
+
+		ret = shost->hostt->internal_queuecommand(shost, cmd);
+
+		pr_err("%s1.3 req=%pS internal ret=%d\n", __func__, req, ret);
+		return ret;
+	}
 
 	WARN_ON_ONCE(cmd->budget_token < 0);
 
