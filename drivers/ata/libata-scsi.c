@@ -4352,7 +4352,9 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 	 * be removed if there is __scsi_device_get() interface which
 	 * increments reference counts regardless of device state.
 	 */
+	pr_err("%s getting scan_mutex\n", __func__);
 	mutex_lock(&ap->scsi_host->scan_mutex);
+	pr_err("%s1 got scan_mutex\n", __func__);
 	spin_lock_irqsave(ap->lock, flags);
 
 	/* clearing dev->sdev is protected by host lock */
@@ -4378,6 +4380,7 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 	}
 
 	spin_unlock_irqrestore(ap->lock, flags);
+	pr_err("%s2 releasing scan_mutex\n", __func__);
 	mutex_unlock(&ap->scsi_host->scan_mutex);
 
 	if (sdev) {

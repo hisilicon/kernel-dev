@@ -1760,7 +1760,8 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 
 		ret = shost->hostt->internal_queuecommand(shost, cmd);
-
+		if (ret)
+			BUG();
 		pr_err("%s1.3 req=%pS internal ret=%d\n", __func__, req, ret);
 		return ret;
 	}
@@ -1884,6 +1885,7 @@ out_put_budget:
 		scsi_run_queue_async(sdev);
 		break;
 	}
+	BUG();
 	return ret;
 }
 
