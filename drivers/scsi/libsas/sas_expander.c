@@ -70,7 +70,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 			res = PTR_ERR(rq);
 			break;
 		}
-
+		rq->rq_flags |= RQF_DONTPREP;
 		scmd = blk_mq_rq_to_pdu(rq);
 		ASSIGN_SAS_TASK(scmd, task);
 
