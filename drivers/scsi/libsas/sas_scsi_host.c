@@ -981,6 +981,7 @@ void sas_task_internal_timedout(struct timer_list *t)
 	bool is_completed = true;
 	unsigned long flags;
 
+	pr_err("%s task=%pS\n", __func__, task);
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
