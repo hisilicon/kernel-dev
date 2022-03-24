@@ -1569,7 +1569,7 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 	memset(&cmd->sdb, 0, sizeof(cmd->sdb));
 	cmd->underflow = 0;
 	cmd->transfersize = 0;
-	cmd->host_scribble = NULL;
+	//cmd->host_scribble = NULL;
 	cmd->result = 0;
 	cmd->extra_len = 0;
 	cmd->state = 0;
