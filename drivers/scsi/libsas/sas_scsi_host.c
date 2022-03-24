@@ -229,14 +229,30 @@ static __maybe_unused blk_status_t sas_exec_rq(struct blk_mq_hw_ctx *hctx,
 
 int sas_internal_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 {
-	struct request *rq = blk_mq_rq_from_pdu(cmd);
-	struct sas_task *task = TO_SAS_TASK(cmd);
-	struct domain_device *device = task->dev;
-	struct sas_ha_struct *ha = device->port->ha;
-	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
+	struct request *rq;
+	struct sas_task *task;
+	struct domain_device *device;
+	struct sas_ha_struct *ha;
+	struct sas_internal *i;
 	int res;
 
-	pr_err("%s host=%pS cmd=%pS rq=%pS task=%pS\n", __func__, host, cmd, rq, task);
+	pr_err("%s cmd=%pS\n", __func__, cmd);
+
+	rq = blk_mq_rq_from_pdu(cmd);
+
+	pr_err("%s2 rq=%pS\n", __func__, rq);
+
+	task = TO_SAS_TASK(cmd);
+
+	pr_err("%s3 task=%pS\n", __func__, task);
+	device = task->dev;
+	pr_err("%s4 device=%pS\n", __func__, device);
+
+	ha = device->port->ha;
+	pr_err("%s5 ha=%pS\n", __func__, ha);
+
+	i = to_sas_internal(ha->core.shost->transportt);
+	pr_err("%s6 i=%pS\n", __func__, i);
 
 	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 	if (res) {
