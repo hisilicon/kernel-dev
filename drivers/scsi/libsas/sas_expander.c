@@ -89,7 +89,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 		wait_for_completion(&task->slow_task->completion);
 		scmd->host_scribble = NULL;
-		pr_err("%s4 got completion sdev=%pS task=%pS rq=%pS\n", __func__, sdev, task, rq);
+		pr_err("%s6 got completion sdev=%pS task=%pS rq=%pS\n", __func__, sdev, task, rq);
 		__blk_mq_end_request(rq, BLK_STS_OK);
 		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
@@ -130,6 +130,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 			task = NULL;
 		}
 	}
+	pr_err("%s8 sdev=%pS\n", __func__, sdev);
 	mutex_unlock(&dev->ex_dev.cmd_mutex);
 	pm_runtime_put_sync(ha->dev);
 
@@ -138,6 +139,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 	scsi_free_host_dev(sdev);
 
+	pr_err("%s10 out sdev=%pS\n", __func__, sdev);
 	return res;
 }
 

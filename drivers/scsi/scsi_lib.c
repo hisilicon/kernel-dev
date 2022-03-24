@@ -1738,7 +1738,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL) {
 		static int county;
 		county++;
-		if (county > 200)
+		if (county > 2000)
 			BUG();
 		pr_err("%s2 req=%pS internal\n", __func__, req);
 	}
