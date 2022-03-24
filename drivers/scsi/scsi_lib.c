@@ -1732,8 +1732,13 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 			goto out_put_budget;
 	}
 
-	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
+	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL) {
+		static int county;
+		county++;
+		if (county > 200)
+			BUG();
 		pr_err("%s2 req=%pS internal\n", __func__, req);
+	}
 
 	ret = BLK_STS_RESOURCE;
 	if (!scsi_target_queue_ready(shost, sdev))

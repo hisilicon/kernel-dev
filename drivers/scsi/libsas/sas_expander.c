@@ -88,6 +88,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		pr_err("%s5 wait for completion sdev=%pS task=%pS rq=%pS\n", __func__, sdev, task, rq);
 
 		wait_for_completion(&task->slow_task->completion);
+		scmd->host_scribble = NULL;
 		pr_err("%s4 got completion sdev=%pS task=%pS rq=%pS\n", __func__, sdev, task, rq);
 		__blk_mq_end_request(rq, BLK_STS_OK);
 		res = -ECOMM;
