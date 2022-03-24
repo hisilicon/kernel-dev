@@ -1744,15 +1744,36 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	}
 
 	ret = BLK_STS_RESOURCE;
-	if (!scsi_target_queue_ready(shost, sdev))
+	if (!scsi_target_queue_ready(shost, sdev)) {
+
+		if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL) {
+			pr_err("%s2.1 req=%pS internal out_put_budget\n", __func__, req);
+			BUG();
+		}
+
 		goto out_put_budget;
-	if (!scsi_host_queue_ready(q, shost, sdev, cmd))
+	}
+	if (!scsi_host_queue_ready(q, shost, sdev, cmd)) {
+
+		if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL) {
+			pr_err("%s2.2 req=%pS internal out_dec_target_busy\n", __func__, req);
+			BUG();
+		}
+
 		goto out_dec_target_busy;
+	}
 
 	if (!(req->rq_flags & RQF_DONTPREP)) {
 		ret = scsi_prepare_cmd(req);
-		if (ret != BLK_STS_OK)
+		if (ret != BLK_STS_OK) {
+
+			if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL) {
+				pr_err("%s2.3 req=%pS internal out_dec_host_busy\n", __func__, req);
+				BUG();
+			}
+
 			goto out_dec_host_busy;
+		}
 		req->rq_flags |= RQF_DONTPREP;
 	} else {
 		clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
