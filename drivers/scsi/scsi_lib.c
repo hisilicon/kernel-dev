@@ -1430,8 +1430,10 @@ static void scsi_complete(struct request *rq)
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 	enum scsi_disposition disposition;
 
-	if ((rq->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
+	if ((rq->rq_flags & RQF_INTERNAL) == RQF_INTERNAL) {
+		BUG();
 		pr_err("%s rq=%pS internal\n", __func__, rq);
+	}
 
 	INIT_LIST_HEAD(&cmd->eh_entry);
 
@@ -1532,9 +1534,10 @@ static int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	}
 
 	trace_scsi_dispatch_cmd_start(cmd);
-	if (req->rq_flags & RQF_INTERNAL)
+	if (req->rq_flags & RQF_INTERNAL) {
+		BUG();
 		rtn = host->hostt->internal_queuecommand(host, cmd);
-	else
+	} else
 		rtn = host->hostt->queuecommand(host, cmd);
 	if (rtn) {
 		trace_scsi_dispatch_cmd_error(cmd, rtn);
@@ -1700,6 +1703,8 @@ static int scsi_mq_get_budget(struct request_queue *q)
 	if (unlikely(scsi_device_busy(sdev) == 0 &&
 				!scsi_device_blocked(sdev)))
 		blk_mq_delay_run_hw_queues(sdev->request_queue, SCSI_QUEUE_DELAY);
+		
+	BUG();
 	return -1;
 }
 
