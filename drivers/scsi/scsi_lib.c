@@ -1336,26 +1336,34 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 				   struct scsi_device *sdev,
 				   struct scsi_cmnd *cmd)
 {
-	if (scsi_host_in_recovery(shost))
+	if (scsi_host_in_recovery(shost)) {
+		pr_err_once("%s scsi_host_in_recovery\n", __func__);
 		return 0;
+	}
 
 	if (atomic_read(&shost->host_blocked) > 0) {
-		if (scsi_host_busy(shost) > 0)
+		if (scsi_host_busy(shost) > 0) {
+			pr_err_once("%s starved\n", __func__);
 			goto starved;
+		}
 
 		/*
 		 * unblock after host_blocked iterates to zero
 		 */
-		if (atomic_dec_return(&shost->host_blocked) > 0)
+		if (atomic_dec_return(&shost->host_blocked) > 0) {
+			pr_err_once("%s host_blocked\n", __func__);
 			goto out_dec;
+		}
 
 		SCSI_LOG_MLQUEUE(3,
 			shost_printk(KERN_INFO, shost,
 				     "unblocking host at zero depth\n"));
 	}
 
-	if (shost->host_self_blocked)
+	if (shost->host_self_blocked) {
+		pr_err_once("%s host_self_blocked\n", __func__);
 		goto starved;
+	}
 
 	/* We're OK to process the command, so we can't be starved */
 	if (!list_empty(&sdev->starved_entry)) {
