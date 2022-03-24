@@ -256,6 +256,7 @@ int sas_internal_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 	if (res) {
+		BUG();
 		pr_notice("executing task proto 0x%x failed:%d\n", task->task_proto, res);
 		task->task_status.resp = SAS_TASK_UNDELIVERED;
 		task->task_status.stat = SAS_DEVICE_UNKNOWN;
