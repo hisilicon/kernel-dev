@@ -262,7 +262,7 @@ int sas_internal_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 		complete(&task->slow_task->completion);
 	}	
 
-	pr_err("%s2 host=%pS cmd=%pS rq=%pS task=%pS res=%d\n", __func__, host, cmd, rq, task, res);
+	pr_err("%s10 host=%pS cmd=%pS rq=%pS task=%pS res=%d\n", __func__, host, cmd, rq, task, res);
 
 	return 0;
 }
@@ -969,6 +969,7 @@ EXPORT_SYMBOL_GPL(sas_bios_param);
 
 void sas_task_internal_done(struct sas_task *task)
 {
+	pr_err("%s task=%pS\n", __func__, task);
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 }

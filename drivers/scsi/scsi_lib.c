@@ -1422,6 +1422,9 @@ static void scsi_complete(struct request *rq)
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 	enum scsi_disposition disposition;
 
+	if ((rq->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
+		pr_err("%s rq=%pS internal\n", __func__, rq);
+
 	INIT_LIST_HEAD(&cmd->eh_entry);
 
 	atomic_inc(&cmd->device->iodone_cnt);
