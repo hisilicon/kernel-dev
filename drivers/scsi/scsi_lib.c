@@ -1897,7 +1897,7 @@ out_put_budget:
 		scsi_run_queue_async(sdev);
 		break;
 	}
-//	BUG();
+	BUG();
 	return ret;
 }
 
