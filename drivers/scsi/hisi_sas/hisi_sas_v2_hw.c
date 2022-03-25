@@ -2425,7 +2425,7 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	{
 		struct scatterlist *sg_resp = &task->smp_task.smp_resp;
 		void *to = page_address(sg_page(sg_resp));
-		pr_err("%s SAS_PROTOCOL_SMP\n", __func__);
+	//	pr_err("%s SAS_PROTOCOL_SMP\n", __func__);
 		ts->stat = SAS_SAM_STAT_GOOD;
 
 		dma_unmap_sg(dev, &task->smp_task.smp_req, 1,

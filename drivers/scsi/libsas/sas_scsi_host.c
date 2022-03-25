@@ -240,19 +240,19 @@ int sas_internal_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	rq = blk_mq_rq_from_pdu(cmd);
 
-	pr_err("%s2 rq=%pS\n", __func__, rq);
+//	pr_err("%s2 rq=%pS\n", __func__, rq);
 
 	task = TO_SAS_TASK(cmd);
 
-	pr_err("%s3 task=%pS\n", __func__, task);
+//	pr_err("%s3 task=%pS\n", __func__, task);
 	device = task->dev;
-	pr_err("%s4 device=%pS\n", __func__, device);
+//	pr_err("%s4 device=%pS\n", __func__, device);
 
 	ha = device->port->ha;
-	pr_err("%s5 ha=%pS\n", __func__, ha);
+//	pr_err("%s5 ha=%pS\n", __func__, ha);
 
 	i = to_sas_internal(ha->core.shost->transportt);
-	pr_err("%s6 i=%pS\n", __func__, i);
+//	pr_err("%s6 i=%pS\n", __func__, i);
 
 	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 	if (res) {

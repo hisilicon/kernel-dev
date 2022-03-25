@@ -55,7 +55,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		}
 
 		task = sas_alloc_slow_task(GFP_KERNEL);
-		pr_err("%s2 sdev=%pS task=%pS\n", __func__, sdev, task);
+		//pr_err("%s2 sdev=%pS task=%pS\n", __func__, sdev, task);
 		if (!task) {
 			res = -ENOMEM;
 			break;
@@ -127,14 +127,14 @@ static int smp_execute_task_sg(struct domain_device *dev,
 			task = NULL;
 		}
 	}
-	pr_err("%s8 sdev=%pS\n", __func__, sdev);
+	//pr_err("%s8 sdev=%pS\n", __func__, sdev);
 	mutex_unlock(&dev->ex_dev.cmd_mutex);
 	pm_runtime_put_sync(ha->dev);
 
 	BUG_ON(retry == 3 && task != NULL);
 	sas_free_task(task);
 
-	pr_err("%s10 out sdev=%pS\n", __func__, sdev);
+//	pr_err("%s10 out sdev=%pS\n", __func__, sdev);
 	return res;
 }
 
