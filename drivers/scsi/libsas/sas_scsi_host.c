@@ -1050,10 +1050,10 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		task->abort_task.type = type;
 		task->abort_task.qid = qid;
 		flags = BLK_MQ_INTERNAL | BLK_MQ_REQ_NOWAIT;
-		special_queue = sdev->request_queue;
+	//	special_queue = sdev->request_queue;
 		pr_err("%s1 flags=0x%x\n", __func__, flags);
 		rq = scsi_alloc_request_hwq(sdev->request_queue, REQ_OP_DRV_IN, flags, qid);
-		special_rq = rq;
+	//	special_rq = rq;
 		pr_err("%s2 rq=%pS flags=0x%x\n", __func__, rq, flags);
 		if (!rq) {
 			res = PTR_ERR(rq);

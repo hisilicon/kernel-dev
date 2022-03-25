@@ -1754,7 +1754,10 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		pr_err("%s1 special_rq=%pS rq_flags=0x%x\n", __func__, special_rq, special_rq->rq_flags);
 
 	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL) {
-		pr_err("%s2 req=%pS internal\n", __func__, req);
+	//	pr_err("%s2 req=%pS internal\n", __func__, req);
+		
+		if (req == special_rq)
+			pr_err("%s2 special_rq=%pS rq_flags=0x%x\n", __func__, special_rq, special_rq->rq_flags);
 
 		if (!(req->rq_flags & RQF_DONTPREP)) {
 			ret = scsi_prepare_cmd(req);
@@ -1777,7 +1780,9 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		ret = shost->hostt->internal_queuecommand(shost, cmd);
 		if (ret)
 			BUG();
-		pr_err("%s2.3 req=%pS internal ret=%d\n", __func__, req, ret);
+//		pr_err("%s2.3 req=%pS internal ret=%d\n", __func__, req, ret);
+		if (req == special_rq)
+			pr_err("%s2.3 special_rq=%pS rq_flags=0x%x\n", __func__, special_rq, special_rq->rq_flags);
 		return ret;
 	}
 
