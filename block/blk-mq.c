@@ -347,10 +347,19 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	struct request_queue *q = data->q;
 	struct request *rq = tags->static_rqs[tag];
 
+	if (data->flags & BLK_MQ_INTERNAL)
+		data->rq_flags |= RQF_INTERNAL;
+
+	if (special_queue == q)
+		pr_err("%s1 flags=0x%x data->rq_flags=0x%x\n", __func__, data->flags, data->rq_flags);
+
 	rq->q = q;
 	rq->mq_ctx = ctx;
 	rq->mq_hctx = hctx;
 	rq->cmd_flags = data->cmd_flags;
+
+	if (data->flags & BLK_MQ_INTERNAL)
+		data->rq_flags |= RQF_INTERNAL;
 
 	if (data->flags & BLK_MQ_REQ_PM)
 		data->rq_flags |= RQF_PM;
