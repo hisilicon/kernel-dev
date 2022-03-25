@@ -39,14 +39,11 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	struct sas_internal *i =
 		to_sas_internal(dev->port->ha->core.shost->transportt);
 	struct sas_ha_struct *ha = dev->port->ha;
-	struct Scsi_Host *shost = ha->core.shost;
-	struct scsi_device *sdev;
+	struct scsi_device *sdev = ha->sdev;
 	struct request *rq;
 
-	sdev = scsi_get_host_dev(shost);
 	pr_err("%s sdev=%pS\n", __func__, sdev);
-	if (!sdev)
-		return -ENOMEM;
+
 	pm_runtime_get_sync(ha->dev);
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
@@ -136,8 +133,6 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 	BUG_ON(retry == 3 && task != NULL);
 	sas_free_task(task);
-
-	scsi_free_host_dev(sdev);
 
 	pr_err("%s10 out sdev=%pS\n", __func__, sdev);
 	return res;
