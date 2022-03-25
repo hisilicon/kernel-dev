@@ -20,6 +20,8 @@
 #include <scsi/scsi_transport_sas.h>
 #include "scsi_sas_internal.h"
 
+#include "../scsi_priv.h"
+
 static int sas_discover_expander(struct domain_device *dev);
 static int sas_configure_routing(struct domain_device *dev, u8 *sas_addr);
 static int sas_configure_phy(struct domain_device *dev, int phy_id,
@@ -87,6 +89,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		wait_for_completion(&task->slow_task->completion);
 		scmd->host_scribble = NULL;
 		//pr_err("%s6 got completion sdev=%pS task=%pS rq=%pS\n", __func__, sdev, task, rq);
+		scsi_device_unbusy(sdev, scmd);
 		__blk_mq_end_request(rq, BLK_STS_OK);
 		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
