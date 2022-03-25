@@ -193,6 +193,7 @@ void blk_mq_in_flight_rw(struct request_queue *q, struct block_device *part,
 static inline void blk_mq_put_dispatch_budget(struct request_queue *q,
 					      int budget_token)
 {
+	WARN_ON_ONCE(1);
 	if (q->mq_ops->put_budget)
 		q->mq_ops->put_budget(q, budget_token);
 }
