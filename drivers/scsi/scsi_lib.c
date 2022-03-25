@@ -1674,7 +1674,7 @@ EXPORT_SYMBOL(scsi_done_direct);
 static void scsi_mq_put_budget(struct request_queue *q, int budget_token)
 {
 	struct scsi_device *sdev = q->queuedata;
-
+	WARN_ON_ONCE(1);
 	sbitmap_put(&sdev->budget_map, budget_token);
 }
 
@@ -1707,7 +1707,7 @@ static int scsi_mq_get_budget(struct request_queue *q)
 				!scsi_device_blocked(sdev)))
 		blk_mq_delay_run_hw_queues(sdev->request_queue, SCSI_QUEUE_DELAY);
 		
-	BUG();
+	WARN_ON_ONCE(1);
 	return -1;
 }
 
