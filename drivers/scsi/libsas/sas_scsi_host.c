@@ -1015,6 +1015,8 @@ static __maybe_unused enum blk_eh_timer_return sas_task_timedout(struct request 
 		complete(&task->slow_task->completion);
 	return BLK_EH_DONE;
 }
+struct request_queue *special_queue;
+struct request *special_rq;
 
 static int sas_execute_internal_abort(struct domain_device *device,
 				      enum sas_internal_abort type, u16 tag,
@@ -1026,6 +1028,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	struct sas_task *task = NULL;
 	int res, retry;
 	struct scsi_device *sdev = shost->sdev;
+	blk_mq_req_flags_t flags;
 	struct request *rq;
 
 	pr_err("%s\n", __func__);
@@ -1046,8 +1049,12 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		task->abort_task.tag = tag;
 		task->abort_task.type = type;
 		task->abort_task.qid = qid;
-
-		rq = scsi_alloc_request_hwq(sdev->request_queue, REQ_OP_DRV_IN, BLK_MQ_INTERNAL | BLK_MQ_REQ_NOWAIT, qid);
+		flags = BLK_MQ_INTERNAL | BLK_MQ_REQ_NOWAIT;
+		special_queue = sdev->request_queue;
+		pr_err("%s1 flags=0x%x\n", __func__, flags);
+		rq = scsi_alloc_request_hwq(sdev->request_queue, REQ_OP_DRV_IN, flags, qid);
+		special_rq = rq;
+		pr_err("%s2 rq=%pS flags=0x%x\n", __func__, rq, flags);
 		if (!rq) {
 			res = PTR_ERR(rq);
 			break;
@@ -1064,6 +1071,8 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		blk_execute_rq_nowait(rq, true, NULL);
 
 		wait_for_completion(&task->slow_task->completion);
+		special_rq = NULL;
+		special_queue = NULL;
 		scmd->host_scribble = NULL;
 		//pr_err("%s6 got completion sdev=%pS task=%pS rq=%pS\n", __func__, sdev, task, rq);
 		scsi_device_unbusy(sdev, scmd);

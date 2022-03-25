@@ -128,6 +128,8 @@ struct mq_inflight {
 	unsigned int inflight[2];
 };
 
+extern struct request_queue *special_queue;
+
 static bool blk_mq_check_inflight(struct request *rq, void *priv,
 				  bool reserved)
 {
@@ -435,7 +437,6 @@ __blk_mq_alloc_requests_batch(struct blk_mq_alloc_data *data,
 
 	return rq_list_pop(data->cached_rq);
 }
-
 static struct request *__blk_mq_alloc_requests(struct blk_mq_alloc_data *data)
 {
 	struct request_queue *q = data->q;
@@ -446,6 +447,9 @@ static struct request *__blk_mq_alloc_requests(struct blk_mq_alloc_data *data)
 	/* alloc_time includes depth and tag waits */
 	if (blk_queue_rq_alloc_time(q))
 		alloc_time_ns = ktime_get_ns();
+
+	if (special_queue == q)
+		pr_err("%s data->flags=0x%x\n", __func__, data->flags);
 
 	if (data->cmd_flags & REQ_NOWAIT)
 		data->flags |= BLK_MQ_REQ_NOWAIT;
@@ -475,6 +479,9 @@ retry:
 
 	if (data->flags & BLK_MQ_INTERNAL)
 		data->rq_flags |= RQF_INTERNAL;
+
+	if (special_queue == q)
+		pr_err("%s2 flags=0x%x data->rq_flags=0x%x\n", __func__, data->flags, data->rq_flags);
 
 	/*
 	 * Try batched alloc if we want more than 1 tag.

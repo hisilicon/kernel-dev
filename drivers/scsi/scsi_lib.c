@@ -1736,7 +1736,7 @@ static int scsi_mq_get_rq_budget_token(struct request *req)
 
 	return cmd->budget_token;
 }
-
+extern struct request *special_rq;
 static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
@@ -1750,14 +1750,17 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	WARN_ON_ONCE(cmd->budget_token < 0);
 
+	if (req == special_rq)
+		pr_err("%s1 special_rq=%pS rq_flags=0x%x\n", __func__, special_rq, special_rq->rq_flags);
+
 	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL) {
-	//	pr_err("%s req=%pS internal\n", __func__, req);
+		pr_err("%s2 req=%pS internal\n", __func__, req);
 
 		if (!(req->rq_flags & RQF_DONTPREP)) {
 			ret = scsi_prepare_cmd(req);
 			if (ret != BLK_STS_OK) {
 
-				pr_err("%s1.1 req=%pS internal out_dec_host_busy\n", __func__, req);
+				pr_err("%s2.1 req=%pS internal out_dec_host_busy\n", __func__, req);
 				BUG();
 
 				goto out_dec_host_busy;
@@ -1774,7 +1777,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		ret = shost->hostt->internal_queuecommand(shost, cmd);
 		if (ret)
 			BUG();
-		//pr_err("%s1.3 req=%pS internal ret=%d\n", __func__, req, ret);
+		pr_err("%s2.3 req=%pS internal ret=%d\n", __func__, req, ret);
 		return ret;
 	}
 
