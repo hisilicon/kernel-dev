@@ -1570,8 +1570,8 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 	bool in_flight = test_bit(SCMD_STATE_INFLIGHT, &cmd->state);
 	struct scatterlist *sg;
 
-	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
-		pr_err("%s req=%pS internal\n", __func__, req);
+//	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
+//		pr_err("%s req=%pS internal\n", __func__, req);
 
 	scsi_init_command(sdev, cmd);
 
@@ -1739,7 +1739,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	WARN_ON_ONCE(cmd->budget_token < 0);
 
 	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL) {
-		pr_err("%s req=%pS internal\n", __func__, req);
+	//	pr_err("%s req=%pS internal\n", __func__, req);
 
 		if (!(req->rq_flags & RQF_DONTPREP)) {
 			ret = scsi_prepare_cmd(req);
@@ -1755,14 +1755,14 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 			clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
 		}
 
-		pr_err("%s1.2 req=%pS internal\n", __func__, req);
+		//pr_err("%s1.2 req=%pS internal\n", __func__, req);
 		blk_mq_start_request(req);
 
 
 		ret = shost->hostt->internal_queuecommand(shost, cmd);
 		if (ret)
 			BUG();
-		pr_err("%s1.3 req=%pS internal ret=%d\n", __func__, req, ret);
+		//pr_err("%s1.3 req=%pS internal ret=%d\n", __func__, req, ret);
 		return ret;
 	}
 
