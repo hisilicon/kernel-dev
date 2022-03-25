@@ -41,7 +41,8 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	struct sas_internal *i =
 		to_sas_internal(dev->port->ha->core.shost->transportt);
 	struct sas_ha_struct *ha = dev->port->ha;
-	struct scsi_device *sdev = ha->sdev;
+	struct Scsi_Host *shost = ha->core.shost;
+	struct scsi_device *sdev = shost->sdev;
 	struct request *rq;
 
 	//pr_err("%s sdev=%pS\n", __func__, sdev);

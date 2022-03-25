@@ -372,7 +372,6 @@ struct sas_ha_struct {
 	struct mutex disco_mutex;
 
 	struct scsi_core core;
-	struct scsi_device *sdev;
 
 /* public: */
 	char *sas_ha_name;

@@ -543,6 +543,7 @@ struct Scsi_Host {
 	struct list_head	__devices;
 	struct list_head	__targets;
 	
+	struct scsi_device *sdev;
 	struct list_head	starved_list;
 
 	spinlock_t		default_lock;

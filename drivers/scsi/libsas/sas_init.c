@@ -112,9 +112,9 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 
 	sas_ha->event_thres = SAS_PHY_SHUTDOWN_THRES;
 
-	sas_ha->sdev = scsi_get_host_dev(shost);
-	pr_err("%s sdev=%pS\n", __func__, sas_ha->sdev);
-	if (!sas_ha->sdev)
+	shost->sdev = scsi_get_host_dev(shost);
+	pr_err("%s sdev=%pS\n", __func__, shost->sdev);
+	if (!shost->sdev)
 		return -ENOMEM;
 
 	error = sas_register_phys(sas_ha);
@@ -170,7 +170,9 @@ static void sas_disable_events(struct sas_ha_struct *sas_ha)
 
 int sas_unregister_ha(struct sas_ha_struct *sas_ha)
 {
-	scsi_free_host_dev(sas_ha->sdev);
+	struct Scsi_Host *shost = sas_ha->core.shost;
+
+	scsi_free_host_dev(shost->sdev);
 
 	sas_disable_events(sas_ha);
 	sas_unregister_ports(sas_ha);
