@@ -1563,8 +1563,10 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	if (!starget)
 		return ERR_PTR(-ENOMEM);
 	scsi_autopm_get_target(starget);
-
+	pr_err("%s getting scan_mutex\n", __func__);
+	WARN_ON_ONCE(mutex_is_locked(&shost->scan_mutex));
 	mutex_lock(&shost->scan_mutex);
+	pr_err("%s got scan_mutex\n", __func__);
 	if (!shost->async_scan)
 		scsi_complete_async_scans();
 
@@ -1572,6 +1574,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
 		scsi_autopm_put_host(shost);
 	}
+	pr_err("%s releasing scan_mutex\n", __func__);
 	mutex_unlock(&shost->scan_mutex);
 	scsi_autopm_put_target(starget);
 	/*
@@ -1702,8 +1705,10 @@ void scsi_scan_target(struct device *parent, unsigned int channel,
 	if (rescan != SCSI_SCAN_MANUAL &&
 	    strncmp(scsi_scan_type, "manual", 6) == 0)
 		return;
-
+	pr_err("%s getting scan_mutex channel=%d id=%d lun=%lld\n", __func__, channel, id, lun);
+	WARN_ON_ONCE(mutex_is_locked(&shost->scan_mutex));
 	mutex_lock(&shost->scan_mutex);
+	pr_err("%s got scan_mutex async_scan=%d scsi_host_scan_allowed=%d\n", __func__, shost->async_scan, scsi_host_scan_allowed(shost));
 	if (!shost->async_scan)
 		scsi_complete_async_scans();
 
@@ -1711,6 +1716,7 @@ void scsi_scan_target(struct device *parent, unsigned int channel,
 		__scsi_scan_target(parent, channel, id, lun, rescan);
 		scsi_autopm_put_host(shost);
 	}
+	pr_err("%s releasing scan_mutex\n", __func__);
 	mutex_unlock(&shost->scan_mutex);
 }
 EXPORT_SYMBOL(scsi_scan_target);
@@ -1759,8 +1765,11 @@ int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 	    ((id != SCAN_WILD_CARD) && (id >= shost->max_id)) ||
 	    ((lun != SCAN_WILD_CARD) && (lun >= shost->max_lun)))
 		return -EINVAL;
-
+	
+	pr_err("%s getting scan_mutex\n", __func__);
+	WARN_ON_ONCE(mutex_is_locked(&shost->scan_mutex));
 	mutex_lock(&shost->scan_mutex);
+	pr_err("%s got scan_mutex\n", __func__);
 	if (!shost->async_scan)
 		scsi_complete_async_scans();
 
@@ -1774,6 +1783,7 @@ int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 			scsi_scan_channel(shost, channel, id, lun, rescan);
 		scsi_autopm_put_host(shost);
 	}
+	pr_err("%s releasing scan_mutex\n", __func__);
 	mutex_unlock(&shost->scan_mutex);
 
 	return 0;
@@ -1812,8 +1822,11 @@ static struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
 
 	if (strncmp(scsi_scan_type, "sync", 4) == 0)
 		return NULL;
-
+	
+	pr_err("%s getting scan_mutex\n", __func__);
+	WARN_ON_ONCE(mutex_is_locked(&shost->scan_mutex));
 	mutex_lock(&shost->scan_mutex);
+	pr_err("%s got scan_mutex\n", __func__);
 	if (shost->async_scan) {
 		shost_printk(KERN_DEBUG, shost, "%s called twice\n", __func__);
 		goto err;
@@ -1830,6 +1843,7 @@ static struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
 	spin_lock_irqsave(shost->host_lock, flags);
 	shost->async_scan = 1;
 	spin_unlock_irqrestore(shost->host_lock, flags);
+	pr_err("%s releasing scan_mutex\n", __func__);
 	mutex_unlock(&shost->scan_mutex);
 
 	spin_lock(&async_scan_lock);
@@ -1841,6 +1855,7 @@ static struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
 	return data;
 
  err:
+	pr_err("%s releading scan_mutex2\n", __func__);
 	mutex_unlock(&shost->scan_mutex);
 	kfree(data);
 	return NULL;
@@ -1863,12 +1878,16 @@ static void scsi_finish_async_scan(struct async_scan_data *data)
 		return;
 
 	shost = data->shost;
-
+	
+	pr_err("%s getting scan_mutex\n", __func__);
+	WARN_ON_ONCE(mutex_is_locked(&shost->scan_mutex));
 	mutex_lock(&shost->scan_mutex);
+	pr_err("%s got scan_mutex\n", __func__);
 
 	if (!shost->async_scan) {
 		shost_printk(KERN_INFO, shost, "%s called twice\n", __func__);
 		dump_stack();
+		pr_err("%s releasing scan_mutex\n", __func__);
 		mutex_unlock(&shost->scan_mutex);
 		return;
 	}
@@ -1880,6 +1899,7 @@ static void scsi_finish_async_scan(struct async_scan_data *data)
 	spin_lock_irqsave(shost->host_lock, flags);
 	shost->async_scan = 0;
 	spin_unlock_irqrestore(shost->host_lock, flags);
+	pr_err("%s relasing2 scan_mutex\n", __func__);
 
 	mutex_unlock(&shost->scan_mutex);
 
@@ -1989,8 +2009,10 @@ struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
 {
 	struct scsi_device *sdev = NULL;
 	struct scsi_target *starget;
-
+	pr_err("%s getting scan_mutex\n", __func__);
+	WARN_ON_ONCE(mutex_is_locked(&shost->scan_mutex));
 	mutex_lock(&shost->scan_mutex);
+	pr_err("%s got scan_mutex\n", __func__);
 	if (!scsi_host_scan_allowed(shost))
 		goto out;
 	starget = scsi_alloc_target(&shost->shost_gendev, 0, shost->this_id);
@@ -2004,6 +2026,7 @@ struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
 		scsi_target_reap(starget);
 	put_device(&starget->dev);
  out:
+	pr_err("%s releasing scan_mutex\n", __func__);
 	mutex_unlock(&shost->scan_mutex);
 	return sdev;
 }

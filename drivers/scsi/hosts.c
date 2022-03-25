@@ -165,12 +165,15 @@ int scsi_host_set_state(struct Scsi_Host *shost, enum scsi_host_state state)
 void scsi_remove_host(struct Scsi_Host *shost)
 {
 	unsigned long flags;
-
+	WARN_ON_ONCE(mutex_is_locked(&shost->scan_mutex));
+	pr_err("%s getting scan_mutex\n", __func__);
 	mutex_lock(&shost->scan_mutex);
+	pr_err("%s got scan_mutex\n", __func__);
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (scsi_host_set_state(shost, SHOST_CANCEL))
 		if (scsi_host_set_state(shost, SHOST_CANCEL_RECOVERY)) {
 			spin_unlock_irqrestore(shost->host_lock, flags);
+			pr_err("%s releasing scan_mutex\n", __func__);
 			mutex_unlock(&shost->scan_mutex);
 			return;
 		}
@@ -179,6 +182,7 @@ void scsi_remove_host(struct Scsi_Host *shost)
 	scsi_autopm_get_host(shost);
 	flush_workqueue(shost->tmf_work_q);
 	scsi_forget_host(shost);
+	pr_err("%s releasing2 scan_mutex\n", __func__);
 	mutex_unlock(&shost->scan_mutex);
 	scsi_proc_host_rm(shost);
 

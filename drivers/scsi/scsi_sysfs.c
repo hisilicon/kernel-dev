@@ -1472,9 +1472,12 @@ void __scsi_remove_device(struct scsi_device *sdev)
 void scsi_remove_device(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = sdev->host;
-
+	pr_err("%s getting scan_mutex\n", __func__);
+	WARN_ON_ONCE(mutex_is_locked(&shost->scan_mutex));
 	mutex_lock(&shost->scan_mutex);
+	pr_err("%s got scan_mutex\n", __func__);
 	__scsi_remove_device(sdev);
+	pr_err("%s releasing scan_mutex\n", __func__);
 	mutex_unlock(&shost->scan_mutex);
 }
 EXPORT_SYMBOL(scsi_remove_device);
