@@ -1028,6 +1028,8 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	struct scsi_device *sdev = shost->sdev;
 	struct request *rq;
 
+	pr_err("%s\n", __func__);
+
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
 
@@ -1103,6 +1105,8 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	BUG_ON(retry == TASK_RETRY && task != NULL);
 
 	sas_free_task(task);
+
+	pr_err("%s10 out\n", __func__);
 
 	return res;
 }
