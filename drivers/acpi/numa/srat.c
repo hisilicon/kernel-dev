@@ -483,6 +483,7 @@ acpi_table_parse_srat(enum acpi_srat_type id,
 int __init acpi_numa_init(void)
 {
 	int i, fake_pxm, cnt = 0;
+	pr_err("%s acpi_disabled=%d\n", __func__, acpi_disabled);
 
 	if (acpi_disabled)
 		return -EINVAL;
@@ -533,6 +534,8 @@ int __init acpi_numa_init(void)
 	fake_pxm++;
 	acpi_table_parse_cedt(ACPI_CEDT_TYPE_CFMWS, acpi_parse_cfmws,
 			      &fake_pxm);
+
+	pr_err("%s2 cnt=%d parsed_numa_memblks=%d\n", __func__, cnt, parsed_numa_memblks);
 
 	if (cnt < 0)
 		return cnt;

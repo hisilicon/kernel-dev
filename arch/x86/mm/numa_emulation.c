@@ -377,7 +377,7 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 	size_t phys_size = numa_dist_cnt * numa_dist_cnt * sizeof(phys_dist[0]);
 	int max_emu_nid, dfl_phys_nid;
 	int i, j, ret;
-
+	pr_err("%s emu_cmdline=%d numa_dist_cnt=%d\n", __func__, emu_cmdline, numa_dist_cnt);
 	if (!emu_cmdline)
 		goto no_emu;
 
