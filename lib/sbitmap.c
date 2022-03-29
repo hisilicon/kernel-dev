@@ -273,8 +273,8 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 		struct sbitmap_word *map;
 		unsigned int depth_per_node = sb->depth_per_node;
 		unsigned int nid = __alloc_hint / depth_per_node;
-
-		__alloc_hint -= (nid * depth_per_node);
+		unsigned int base = nid * depth_per_node;
+		__alloc_hint -= base;
 		index = SB_NR_TO_INDEX(sb, __alloc_hint);
 		map = sb->numa_map[nid];
 		
@@ -312,6 +312,10 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 			nr = sbitmap_find_bit_in_index(map2, __alloc_hint, sb->round_robin);
 			if (nr != -1) {
 				nr += index << sb->shift;
+				nr += base;
+				//nr += index * depth_per_node;
+				pr_err_once("%s exiting nr=%d alloc_hint=%d __alloc_hint=%d index=%d i=%d base=%d nid=%d depth_per_node=%d map_nr_numa=%d\n",
+					__func__, nr, alloc_hint, __alloc_hint, index, i, base, nid, depth_per_node, sb->map_nr_numa);
 				break;
 			}
 		

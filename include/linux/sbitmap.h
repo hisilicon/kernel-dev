@@ -360,13 +360,15 @@ static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, const unsigned
 		unsigned int nid = bitnr / depth_per_node;
 		unsigned int index;
 		unsigned int __bitnr = bitnr;
+		bool test;
 		__bitnr -= (nid * depth_per_node);
 		index = SB_NR_TO_INDEX(sb, __bitnr);
 		map = sb->numa_map[nid];
 		map += index;
 		
 		addr = &map->cleared;
-		WARN_ON_ONCE(test_bit(SB_NR_TO_BIT(sb, __bitnr), addr));
+		test = test_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
+		WARN_ONCE(test, "%s bitnr=%d index=%d nid=%d __bitnr=%d depth_per_node=%d\n", __func__, bitnr, index, nid, __bitnr, depth_per_node);
 		set_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
 	} else {
 		addr = &sb->map[SB_NR_TO_INDEX(sb, bitnr)].cleared;
