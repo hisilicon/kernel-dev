@@ -33,6 +33,7 @@ static inline unsigned update_alloc_hint_before_get(struct sbitmap *sb,
 
 	hint = this_cpu_read(*sb->alloc_hint);
 	if (unlikely(hint >= depth)) {
+		WARN_ONCE(1, "%s hint=%d depth=%d map_nr=%d\n", __func__, hint, depth, sb->map_nr);
 		hint = depth ? prandom_u32() % depth : 0;
 		this_cpu_write(*sb->alloc_hint, hint);
 	}
