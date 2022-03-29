@@ -17,11 +17,29 @@ static int init_alloc_hint(struct sbitmap *sb, gfp_t flags)
 	if (!sb->alloc_hint)
 		return -ENOMEM;
 
-	if (depth && !sb->round_robin) {
-		int i;
+	if (sb->numa_aware) {
+		unsigned int depth_per_node = sb->depth_per_node;
+		if (depth && !sb->round_robin) {
+			int i;
+			
+			for_each_possible_cpu(i) {
+				int nid = cpu_to_node(i);
+				unsigned int base = nid * depth_per_node;
+				unsigned int hint = base + (prandom_u32() % depth_per_node);
 
-		for_each_possible_cpu(i)
-			*per_cpu_ptr(sb->alloc_hint, i) = prandom_u32() % depth;
+				if (((i % 5) == 0) || (i < 4))
+					pr_err("%s numa_aware cpu%d hint=%d depth_per_node=%d\n", __func__, i, hint, depth_per_node);
+
+				*per_cpu_ptr(sb->alloc_hint, i) = prandom_u32() % depth;
+			}
+		}
+	} else {
+		if (depth && !sb->round_robin) {
+			int i;
+
+			for_each_possible_cpu(i)
+				*per_cpu_ptr(sb->alloc_hint, i) = prandom_u32() % depth;
+		}
 	}
 	return 0;
 }
@@ -33,6 +51,7 @@ static inline unsigned update_alloc_hint_before_get(struct sbitmap *sb,
 
 	hint = this_cpu_read(*sb->alloc_hint);
 	if (unlikely(hint >= depth)) {
+		WARN_ON_ONCE(1);
 		hint = depth ? prandom_u32() % depth : 0;
 		this_cpu_write(*sb->alloc_hint, hint);
 	}
@@ -113,6 +132,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 	}
 
 	if (alloc_hint) {
+		sb->depth_per_node = sb->depth / num_online_nodes();
 		if (init_alloc_hint(sb, flags))
 			return -ENOMEM;
 	} else {
