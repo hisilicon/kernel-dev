@@ -1628,6 +1628,9 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 	 * sk = RECOVERED ERROR
 	 * asc,ascq = ATA PASS-THROUGH INFORMATION AVAILABLE
 	 */
+	if (cdb[0] == ATA_16)
+		pr_err("%s opcode=ATA_16\n", __func__);
+	
 	if (((cdb[0] == ATA_16) || (cdb[0] == ATA_12)) &&
 	    ((cdb[2] & 0x20) || need_sense))
 		ata_gen_passthru_sense(qc);
@@ -2829,6 +2832,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	 */
 	switch (cdb[0]) {
 	case ATA_16:
+		pr_err("%s opcode=ATA_16\n", __func__);
 		/*
 		 * 16-byte CDB - may contain extended commands.
 		 *
@@ -3011,6 +3015,9 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	 * controller (i.e. the reason for ->set_piomode(),
 	 * ->set_dmamode(), and ->post_set_mode() hooks).
 	 */
+	if (cdb[0] == ATA_16)
+		pr_err("%s opcode=ATA_16\n", __func__);
+	
 	if (tf->command == ATA_CMD_SET_FEATURES &&
 	    tf->feature == SETFEATURES_XFER) {
 		fp = (cdb[0] == ATA_16) ? 4 : 3;
@@ -3909,8 +3916,10 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 	case VERIFY_16:
 		return ata_scsi_verify_xlat;
 
-	case ATA_12:
 	case ATA_16:
+		pr_err("%s opcode=ATA_16\n", __func__);
+		fallthrough;
+	case ATA_12:
 		return ata_scsi_pass_thru;
 
 	case VARIABLE_LENGTH_CMD:
@@ -3947,6 +3956,9 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 	if (unlikely(!scmd->cmd_len))
 		goto bad_cdb_len;
 
+	if (scsi_op == ATA_16)
+		pr_err("%s opcode=ATA_16 dev->class=%d\n", __func__, dev->class);
+
 	if (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ZAC) {
 		if (unlikely(scmd->cmd_len > dev->cdb_len))
 			goto bad_cdb_len;
@@ -3969,6 +3981,9 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 
 		xlat_func = ata_get_xlat_func(dev, scsi_op);
 	}
+
+	if (scsi_op == ATA_16)
+		pr_err("%s2 opcode=ATA_16 xlat_func=%pS\n", __func__, xlat_func);
 
 	if (xlat_func)
 		return ata_scsi_translate(dev, scmd, xlat_func);

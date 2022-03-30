@@ -526,6 +526,8 @@ int atapi_cmd_type(u8 opcode)
 		return ATAPI_READ_CD;
 
 	case ATA_16:
+		pr_err("%s atapi_cmd_type opcode=ATA_16\n", __func__);
+		fallthrough;
 	case ATA_12:
 		if (atapi_passthru16)
 			return ATAPI_PASS_THRU;
@@ -1467,6 +1469,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
+	struct Scsi_Host *scsi_host = ap->scsi_host;
+	struct scsi_device *sdev = scsi_host->sdev;
 	u8 command = tf->command;
 	int auto_timeout = 0;
 	struct ata_queued_cmd *qc;
@@ -1477,7 +1481,28 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	DECLARE_COMPLETION_ONSTACK(wait);
 	unsigned long flags;
 	unsigned int err_mask;
+	int cmd_result;
 	int rc;
+	u8 *argbuf = NULL;
+	int argsize = 0;
+
+
+	u8 sensebuf[SCSI_SENSE_BUFFERSIZE];
+	u8 scsi_cmd[MAX_COMMAND_SIZE];
+	struct scsi_sense_hdr sshdr;
+
+	memset(sensebuf, 0, sizeof(sensebuf));
+	memset(scsi_cmd, 0, sizeof(scsi_cmd));
+
+	
+	pr_err("%s sdev=%pS\n", __func__, sdev);
+
+	scsi_cmd[0] = ATA_16;
+
+	cmd_result = scsi_execute(sdev, scsi_cmd, dma_dir, argbuf, argsize,
+				  sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
+
+	pr_err("%s2 cmd_result=%d\n", __func__, cmd_result);
 
 	spin_lock_irqsave(ap->lock, flags);
 
