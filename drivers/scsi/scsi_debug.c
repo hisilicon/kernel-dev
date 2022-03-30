@@ -747,7 +747,7 @@ static int sdebug_dsense = DEF_D_SENSE;
 static int sdebug_every_nth = DEF_EVERY_NTH;
 static int sdebug_fake_rw = DEF_FAKE_RW;
 static unsigned int sdebug_guard = DEF_GUARD;
-static int sdebug_host_max_queue;	/* per host */
+static int sdebug_host_max_queue = SDEBUG_CANQUEUE;	/* per host */
 static int sdebug_lowest_aligned = DEF_LOWEST_ALIGNED;
 static int sdebug_max_luns = DEF_MAX_LUNS;
 static int sdebug_max_queue = SDEBUG_CANQUEUE;	/* per submit queue */
