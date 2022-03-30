@@ -1483,24 +1483,24 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned int err_mask;
 	int cmd_result;
 	int rc;
-	u8 *argbuf = NULL;
-	int argsize = 0;
+	__maybe_unused u8 *argbuf = NULL;
+	__maybe_unused int argsize = 0;
 
 
-	u8 sensebuf[SCSI_SENSE_BUFFERSIZE];
-	u8 scsi_cmd[MAX_COMMAND_SIZE];
-	struct scsi_sense_hdr sshdr;
+	u8 __maybe_unused sensebuf[SCSI_SENSE_BUFFERSIZE];
+	u8 __maybe_unused scsi_cmd[MAX_COMMAND_SIZE];
+	__maybe_unused struct scsi_sense_hdr sshdr;
 
 	memset(sensebuf, 0, sizeof(sensebuf));
 	memset(scsi_cmd, 0, sizeof(scsi_cmd));
 
 	
-	pr_err("%s sdev=%pS\n", __func__, sdev);
+	pr_err("%s sdev=%pS ap=%pS link=%pS ATA_16\n", __func__, sdev, ap, link);
 
 	scsi_cmd[0] = ATA_16;
-
-	cmd_result = scsi_execute(sdev, scsi_cmd, dma_dir, argbuf, argsize,
-				  sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
+	cmd_result = 0;
+//	cmd_result = scsi_execute(sdev, scsi_cmd, dma_dir, argbuf, argsize,
+//				  sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
 
 	pr_err("%s2 cmd_result=%d\n", __func__, cmd_result);
 

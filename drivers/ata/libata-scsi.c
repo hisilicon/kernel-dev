@@ -371,6 +371,8 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	struct scsi_sense_hdr sshdr;
 	int cmd_result;
 
+	pr_err("%s scsidev=%pS\n", __func__, scsidev);
+
 	if (arg == NULL)
 		return -EINVAL;
 
@@ -397,6 +399,8 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 		scsi_cmd[2]  = 0x20;     /* cc but no off.line or data xfer */
 		data_dir = DMA_NONE;
 	}
+
+	pr_err("%s2 scsidev=%pS ATA_16\n", __func__, scsidev);
 
 	scsi_cmd[0] = ATA_16;
 
@@ -475,7 +479,7 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	u8 args[7];
 	struct scsi_sense_hdr sshdr;
 	int cmd_result;
-
+	pr_err("%s ATA_16\n", __func__);
 	if (arg == NULL)
 		return -EINVAL;
 
@@ -558,7 +562,7 @@ int ata_sas_scsi_ioctl(struct ata_port *ap, struct scsi_device *scsidev,
 	unsigned long val;
 	int rc = -EINVAL;
 	unsigned long flags;
-
+	pr_err("%s ap=%pS scsidev=%pS cmd=0x%x\n", __func__, ap, scsidev, cmd);
 	switch (cmd) {
 	case HDIO_GET_32BIT:
 		spin_lock_irqsave(ap->lock, flags);
@@ -3952,12 +3956,17 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 {
 	u8 scsi_op = scmd->cmnd[0];
 	ata_xlat_func_t xlat_func;
+	static int count;
 
 	if (unlikely(!scmd->cmd_len))
 		goto bad_cdb_len;
 
-	if (scsi_op == ATA_16)
+	if (scsi_op == ATA_16) {
+		count++;
 		pr_err("%s opcode=ATA_16 dev->class=%d\n", __func__, dev->class);
+		WARN_ON_ONCE(count > 15);
+	}
+
 
 	if (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ZAC) {
 		if (unlikely(scmd->cmd_len > dev->cdb_len))
