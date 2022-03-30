@@ -401,7 +401,7 @@ struct sas_ha_struct {
 };
 
 #define SHOST_TO_SAS_HA(_shost) (*(struct sas_ha_struct **)(_shost)->hostdata)
-
+extern struct ata_device *special_ata_dev;
 static inline struct domain_device *
 starget_to_domain_dev(struct scsi_target *starget) {
 	return starget->hostdata;

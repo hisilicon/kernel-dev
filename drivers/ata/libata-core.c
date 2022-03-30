@@ -1462,6 +1462,9 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
+
+struct ata_device *special_ata_dev;
+
 unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
@@ -1498,10 +1501,12 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s sdev=%pS ap=%pS link=%pS ATA_16\n", __func__, sdev, ap, link);
 
 	scsi_cmd[0] = ATA_16;
-	cmd_result = 0;
-//	cmd_result = scsi_execute(sdev, scsi_cmd, dma_dir, argbuf, argsize,
-//				  sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
+//	cmd_result = 0;
+	special_ata_dev = dev;
 
+	cmd_result = scsi_execute(sdev, scsi_cmd, dma_dir, argbuf, argsize,
+				  sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
+	special_ata_dev = NULL;
 	pr_err("%s2 cmd_result=%d\n", __func__, cmd_result);
 
 	spin_lock_irqsave(ap->lock, flags);

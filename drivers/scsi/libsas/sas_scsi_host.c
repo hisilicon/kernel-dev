@@ -164,9 +164,23 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	struct domain_device *dev = cmd_to_domain_dev(cmd);
 	struct sas_task *task;
 	int res = 0;
+	struct ata_device *ad = READ_ONCE(special_ata_dev);
+
+	if ((cmd->cmnd[0] == ATA_16) && ad) {
+		
+		struct ata_link *link = ad->link;
+		struct ata_port *ap = link->ap;
+	
+		pr_err("%s cmd=%pS ATA_16\n", __func__, cmd);
+		spin_lock_irq(ap->lock);
+		res = ata_sas_queuecmd(cmd, ap);
+		spin_unlock_irq(ap->lock);
+		pr_err("%s2 cmd=%pS ATA_16 res=%d\n", __func__, cmd, res);
+		return res;
+	}
 
 	if (!dev) {
-		pr_err_once("%s cmd=%pS dev=NULL\n", __func__, cmd);
+		pr_err_once("%s3 cmd=%pS dev=NULL\n", __func__, cmd);
 		return -1;
 	}
 
