@@ -165,6 +165,11 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	struct sas_task *task;
 	int res = 0;
 
+	if (!dev) {
+		pr_err_once("%s cmd=%pS dev=NULL\n", __func__, cmd);
+		return -1;
+	}
+
 	/* If the device fell off, no sense in issuing commands */
 	if (test_bit(SAS_DEV_GONE, &dev->state)) {
 		cmd->result = DID_BAD_TARGET << 16;

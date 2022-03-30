@@ -1349,8 +1349,14 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 				   struct scsi_cmnd *cmd)
 {
 	if (scsi_host_in_recovery(shost)) {
-		pr_err_once("%s scsi_host_in_recovery shost->shost_state=%d cmd=%pS sdev=%pS\n", __func__, shost->shost_state, cmd, sdev);
-		return 0;
+		struct request_queue *shost_q = NULL;
+
+		if (shost && shost->sdev)
+			shost_q = shost->sdev->request_queue;
+		pr_err_once("%s scsi_host_in_recovery shost->shost_state=%d cmd=%pS sdev=%pS q=%pS shost_q=%pS\n",
+			__func__, shost->shost_state, cmd, sdev, q, shost_q);
+		if (q != shost_q)
+			return 0;
 	}
 
 	if (atomic_read(&shost->host_blocked) > 0) {
