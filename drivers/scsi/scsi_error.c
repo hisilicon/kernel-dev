@@ -84,7 +84,7 @@ void scsi_schedule_eh(struct Scsi_Host *shost)
 	unsigned long flags;
 
 	spin_lock_irqsave(shost->host_lock, flags);
-
+	pr_err("%s scsi_host_set_state SHOST_RECOVERY\n", __func__);
 	if (scsi_host_set_state(shost, SHOST_RECOVERY) == 0 ||
 	    scsi_host_set_state(shost, SHOST_CANCEL_RECOVERY) == 0) {
 		shost->host_eh_scheduled++;
@@ -296,6 +296,8 @@ void scsi_eh_scmd_add(struct scsi_cmnd *scmd)
 	int ret;
 
 	WARN_ON_ONCE(!shost->ehandler);
+
+	pr_err("%s scsi_host_set_state SHOST_RECOVERY\n", __func__);
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (scsi_host_set_state(shost, SHOST_RECOVERY)) {
@@ -2105,9 +2107,11 @@ static void scsi_restart_operations(struct Scsi_Host *shost)
 	 * pending commands complete.
 	 */
 	spin_lock_irqsave(shost->host_lock, flags);
-	if (shost->host_eh_scheduled)
+	if (shost->host_eh_scheduled) {
+		pr_err("%s scsi_host_set_state SHOST_RECOVERY\n", __func__);
 		if (scsi_host_set_state(shost, SHOST_RECOVERY))
 			WARN_ON(scsi_host_set_state(shost, SHOST_CANCEL_RECOVERY));
+	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
 }
 

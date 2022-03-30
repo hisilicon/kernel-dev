@@ -1349,7 +1349,7 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 				   struct scsi_cmnd *cmd)
 {
 	if (scsi_host_in_recovery(shost)) {
-		pr_err_once("%s scsi_host_in_recovery\n", __func__);
+		pr_err_once("%s scsi_host_in_recovery shost->shost_state=%d cmd=%pS sdev=%pS\n", __func__, shost->shost_state, cmd, sdev);
 		return 0;
 	}
 
@@ -1867,14 +1867,14 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_STS_OK;
 
 out_dec_host_busy:
-	pr_err("%s out_dec_host_busy\n", __func__);
+	pr_err_once("%s out_dec_host_busy\n", __func__);
 	scsi_dec_host_busy(shost, cmd);
 out_dec_target_busy:
-	pr_err("%s out_dec_target_busy\n", __func__);
+	pr_err_once("%s out_dec_target_busy\n", __func__);
 	if (scsi_target(sdev)->can_queue > 0)
 		atomic_dec(&scsi_target(sdev)->target_busy);
 out_put_budget:
-	pr_err("%s out_put_budget\n", __func__);
+	pr_err_once("%s out_put_budget\n", __func__);
 	scsi_mq_put_budget(q, cmd->budget_token);
 	cmd->budget_token = -1;
 	switch (ret) {
@@ -1905,7 +1905,7 @@ out_put_budget:
 		scsi_run_queue_async(sdev);
 		break;
 	}
-	BUG();
+//	BUG();
 	return ret;
 }
 

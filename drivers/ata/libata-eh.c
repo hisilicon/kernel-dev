@@ -935,6 +935,7 @@ void ata_std_sched_eh(struct ata_port *ap)
 		return;
 
 	ata_eh_set_pending(ap, 1);
+	pr_err("%s\n", __func__);
 	scsi_schedule_eh(ap->scsi_host);
 
 	trace_ata_std_sched_eh(ap);
@@ -956,6 +957,8 @@ EXPORT_SYMBOL_GPL(ata_std_sched_eh);
 void ata_std_end_eh(struct ata_port *ap)
 {
 	struct Scsi_Host *host = ap->scsi_host;
+
+	pr_err("%s\n", __func__);
 
 	host->host_eh_scheduled = 0;
 }
