@@ -1543,7 +1543,12 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	
 		ata_sg_init(qc, sgl, n_elem);
 		qc->nbytes = buflen;
+		pr_err("%s0 qc=%pS ata_is_data(prot)=%d sg=%pS n_elem=%d nbytes=%d\n", __func__, qc,
+			ata_is_data(tf->protocol), qc->sg, qc->n_elem, qc->nbytes);
 	}
+	
+	pr_err("%s0.0 qc=%pS ata_is_data(prot)=%d sg=%pS n_elem=%d nbytes=%d dma_dir=%d\n", __func__, qc,
+		ata_is_data(tf->protocol), qc->sg, qc->n_elem, qc->nbytes, dma_dir);
 
 	qc->private_data = &wait;
 	qc->complete_fn = ata_qc_complete_internal;
