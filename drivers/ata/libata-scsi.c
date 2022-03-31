@@ -3033,7 +3033,8 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	 * TODO: find out if we need to do more here to
 	 *       cover scatter/gather case.
 	 */
-	ata_qc_set_pc_nbytes(qc);
+	if (cdb[0] != ATA_16)
+		ata_qc_set_pc_nbytes(qc);
 
 	/* We may not issue DMA commands if no DMA mode is set */
 	if (tf->protocol == ATA_PROT_DMA && !ata_dma_enabled(dev)) {
