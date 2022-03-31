@@ -1684,10 +1684,21 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 {
 	struct ata_port *ap = dev->link->ap;
 	struct ata_queued_cmd *qc;
+	bool special = ap->scsi_host->sdev == cmd->device;
 	int rc;
 
-	pr_err("%s cmd=%pS xlat_func=%pS\n", __func__, cmd, xlat_func);
-	qc = ata_scsi_qc_new(dev, cmd);
+	pr_err("%s cmd=%pS xlat_func=%pS cmd->device=%pS ap->scsi_host->sdev=%pS\n",
+		__func__, cmd, xlat_func, cmd->device, ap->scsi_host->sdev);
+	if (special) {
+		qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
+
+		qc->tag = ATA_TAG_INTERNAL;
+		qc->hw_tag = 0;
+		qc->scsicmd = cmd;
+		qc->ap = ap;
+		qc->dev = dev;	
+	} else
+		qc = ata_scsi_qc_new(dev, cmd);
 	pr_err("%s2 cmd=%pS qc=%pS\n", __func__, cmd, qc);
 	if (!qc)
 		goto err_mem;

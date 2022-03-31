@@ -1529,6 +1529,20 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	}
 	scmd = blk_mq_rq_to_pdu(rq);
 
+	// moved forward
+	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
+
+	qc->dma_dir = dma_dir;
+	if (dma_dir != DMA_NONE) {
+		unsigned int i, buflen = 0;
+		struct scatterlist *sg;
+	
+		for_each_sg(sgl, sg, n_elem, i)
+			buflen += sg->length;
+	
+		ata_sg_init(qc, sgl, n_elem);
+		qc->nbytes = buflen;
+	}
 
 	scmd->cmd_len = COMMAND_SIZE(scsi_cmd[0]);
 	memcpy(scmd->cmnd, scsi_cmd, scmd->cmd_len);
@@ -1559,7 +1573,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	}
 
 	/* initialize internal qc */
-	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
+//	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
@@ -1588,17 +1602,17 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		qc->tf.feature |= ATAPI_DMADIR;
 
 	qc->flags |= ATA_QCFLAG_RESULT_TF;
-	qc->dma_dir = dma_dir;
-	if (dma_dir != DMA_NONE) {
-		unsigned int i, buflen = 0;
-		struct scatterlist *sg;
+//	qc->dma_dir = dma_dir;
+//	if (dma_dir != DMA_NONE) {
+//		unsigned int i, buflen = 0;
+//		struct scatterlist *sg;
 
-		for_each_sg(sgl, sg, n_elem, i)
-			buflen += sg->length;
+//		for_each_sg(sgl, sg, n_elem, i)
+//			buflen += sg->length;
 
-		ata_sg_init(qc, sgl, n_elem);
-		qc->nbytes = buflen;
-	}
+//		ata_sg_init(qc, sgl, n_elem);
+//		qc->nbytes = buflen;
+//	}
 
 	qc->private_data = &wait;
 	qc->complete_fn = ata_qc_complete_internal;
