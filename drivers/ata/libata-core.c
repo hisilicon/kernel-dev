@@ -1503,7 +1503,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	op = (dma_dir == DMA_TO_DEVICE) ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN;
 
 	WARN_ON_ONCE(1);
-	pr_err("%s sdev=%pS ap=%pS link=%pS ATA_16\n", __func__, sdev, ap, link);
+	pr_err("%s sdev=%pS ap=%pS link=%pS ATA_16 dev=%pS\n", __func__, sdev, ap, link, dev);
 
 	scsi_cmd[0] = ATA_16;
 //	cmd_result = 0;

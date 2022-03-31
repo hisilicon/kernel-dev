@@ -260,7 +260,14 @@ int sas_internal_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	pr_err("%s cmd=%pS cmnd[0]=0x%x rq=%pS host_scribble=%pS\n", __func__, cmd, cmnd[0], rq, cmd->host_scribble);
 	if (cmnd[0] == ATA_16) {
-		return -1;
+		struct ata_port *ap = (struct ata_port *)cmd->host_scribble;
+
+		pr_err("%s1 cmd=%pS ATA_16  ap=%pS cmd->host_scribble=%pS\n", __func__, cmd, ap, cmd->host_scribble);
+		spin_lock_irq(ap->lock);
+		res = ata_sas_queuecmd(cmd, ap);
+		spin_unlock_irq(ap->lock);
+		pr_err("%s2 cmd=%pS ATA_16 res=%d\n", __func__, cmd, res);
+		return res;
 	}
 
 //	rq = blk_mq_rq_from_pdu(cmd);

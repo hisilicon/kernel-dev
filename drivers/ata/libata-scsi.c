@@ -3964,9 +3964,13 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 	u8 scsi_op = scmd->cmnd[0];
 	ata_xlat_func_t xlat_func;
 	static int count;
+	
+	pr_err("%s scmd=%pS scmd->cmd_len=%d dev->class=%d dev=%pS\n", __func__, scmd, scmd->cmd_len, dev->class, dev);
 
-	if (unlikely(!scmd->cmd_len))
+	if (unlikely(!scmd->cmd_len)) {
+		pr_err("%s1 scmd=%pS\n", __func__, scmd);
 		goto bad_cdb_len;
+	}
 
 	if (scsi_op == ATA_16) {
 		count++;
@@ -3976,8 +3980,10 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 
 
 	if (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ZAC) {
-		if (unlikely(scmd->cmd_len > dev->cdb_len))
+		if (unlikely(scmd->cmd_len > dev->cdb_len)) {
+			pr_err("%s2 scmd=%pS dev->cdb_len=%d\n", __func__, scmd, dev->cdb_len);
 			goto bad_cdb_len;
+		}
 
 		xlat_func = ata_get_xlat_func(dev, scsi_op);
 	} else if (likely((scsi_op != ATA_16) || !atapi_passthru16)) {
@@ -3986,20 +3992,24 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 
 		if (unlikely(len > scmd->cmd_len ||
 			     len > dev->cdb_len ||
-			     scmd->cmd_len > ATAPI_CDB_LEN))
+			     scmd->cmd_len > ATAPI_CDB_LEN)) {
+			pr_err("%s3 scmd=%pS\n", __func__, scmd);
 			goto bad_cdb_len;
+		}
 
 		xlat_func = atapi_xlat;
 	} else {
 		/* ATA_16 passthru, treat as an ATA command */
-		if (unlikely(scmd->cmd_len > 16))
+		if (unlikely(scmd->cmd_len > 16)){
+			pr_err("%s4 scmd=%pS\n", __func__, scmd);
 			goto bad_cdb_len;
+		}
 
 		xlat_func = ata_get_xlat_func(dev, scsi_op);
 	}
 
 	if (scsi_op == ATA_16)
-		pr_err("%s2 opcode=ATA_16 xlat_func=%pS\n", __func__, xlat_func);
+		pr_err("%s6 opcode=ATA_16 xlat_func=%pS\n", __func__, xlat_func);
 
 	if (xlat_func)
 		return ata_scsi_translate(dev, scmd, xlat_func);
@@ -4009,6 +4019,7 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 	return 0;
 
  bad_cdb_len:
+	pr_err("%s10 scmd=%pS dev=%pS scmd->cmd_len=%d\n", __func__, scmd, dev, scmd->cmd_len);
 	scmd->result = DID_ERROR << 16;
 	scsi_done(scmd);
 	return 0;
