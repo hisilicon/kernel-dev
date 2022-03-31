@@ -1585,6 +1585,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 
 	qc->flags |= ATA_QCFLAG_IO;
 	qc->nbytes = n_block * scmd->device->sector_size;
+	pr_err("%s qc=%pS nbytes=%d\n", __func__, qc, qc->nbytes);
 
 	rc = ata_build_rw_tf(&qc->tf, qc->dev, block, n_block, tf_flags,
 			     qc->hw_tag, class);
@@ -1709,21 +1710,24 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 	if (!qc)
 		goto err_mem;
 
-	/* data is present; dma-map it */
-	if (cmd->sc_data_direction == DMA_FROM_DEVICE ||
-	    cmd->sc_data_direction == DMA_TO_DEVICE) {
-		if (unlikely(scsi_bufflen(cmd) < 1)) {
-			ata_dev_warn(dev, "WARNING: zero len r/w req\n");
-			goto err_did;
-		}
+	pr_err("%s2.1 cmd=%pS qc=%pS nbytes=%d\n", __func__, cmd, qc, qc->nbytes);
 
-		ata_sg_init(qc, scsi_sglist(cmd), scsi_sg_count(cmd));
-
-		qc->dma_dir = cmd->sc_data_direction;
-	}
-
-	if (!special)
+	if (!special) {
 		qc->complete_fn = ata_scsi_qc_complete;
+
+		/* data is present; dma-map it */
+		if (cmd->sc_data_direction == DMA_FROM_DEVICE ||
+		    cmd->sc_data_direction == DMA_TO_DEVICE) {
+			if (unlikely(scsi_bufflen(cmd) < 1)) {
+				ata_dev_warn(dev, "WARNING: zero len r/w req\n");
+				goto err_did;
+			}
+
+			ata_sg_init(qc, scsi_sglist(cmd), scsi_sg_count(cmd));
+
+			qc->dma_dir = cmd->sc_data_direction;
+		}
+	}
 
 	if (xlat_func(qc)) {
 		pr_err("%s2.2 xlat_func err cmd=%pS qc=%pS\n", __func__, cmd, qc);

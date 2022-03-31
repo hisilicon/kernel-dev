@@ -1787,6 +1787,8 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	qc->cursg = NULL;
 	qc->cursg_ofs = 0;
 	qc->nbytes = qc->extrabytes = qc->curbytes = 0;
+	
+	pr_err("%s qc=%pS nbytes=%d\n", __func__, qc, qc->nbytes);
 	qc->n_elem = 0;
 	qc->err_mask = 0;
 	qc->sect_size = ATA_SECT_SIZE;
