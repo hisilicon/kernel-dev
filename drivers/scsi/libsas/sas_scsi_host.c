@@ -171,7 +171,7 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 		struct ata_link *link = ad->link;
 		struct ata_port *ap = link->ap;
 	
-		pr_err("%s cmd=%pS ATA_16\n", __func__, cmd);
+		pr_err("%s cmd=%pS ATA_16  ap=%pS cmd->host_scribble=%pS\n", __func__, cmd, ap, cmd->host_scribble);
 		spin_lock_irq(ap->lock);
 		res = ata_sas_queuecmd(cmd, ap);
 		spin_unlock_irq(ap->lock);
