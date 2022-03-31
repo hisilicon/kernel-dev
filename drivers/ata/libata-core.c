@@ -1507,7 +1507,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	cmd_result = scsi_execute(sdev, scsi_cmd, dma_dir, argbuf, argsize,
 				  sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
 	special_ata_dev = NULL;
-	pr_err("%s2 cmd_result=%d\n", __func__, cmd_result);
+	pr_err("%s2 after scsi_execute cmd_result=%d\n", __func__, cmd_result);
 
 	spin_lock_irqsave(ap->lock, flags);
 

@@ -793,6 +793,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 		return NULL;
 
 	child = sas_alloc_device();
+	pr_err("%s child=%pS\n", __func__, child);
 	if (!child)
 		return NULL;
 

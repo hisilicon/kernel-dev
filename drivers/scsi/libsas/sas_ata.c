@@ -543,6 +543,8 @@ int sas_ata_init(struct domain_device *found_dev)
 	struct ata_port *ap;
 	int rc;
 
+	pr_err("%s found_dev=%pS\n", __func__, found_dev);
+
 	ata_host = kzalloc(sizeof(*ata_host), GFP_KERNEL);
 	if (!ata_host)	{
 		pr_err("ata host alloc failed.\n");
@@ -561,6 +563,7 @@ int sas_ata_init(struct domain_device *found_dev)
 	ap->private_data = found_dev;
 	ap->cbl = ATA_CBL_SATA;
 	ap->scsi_host = shost;
+	pr_err("%s2 found_dev=%pS ap=%pS ata_host=%pS\n", __func__, found_dev, ap, ata_host);
 	rc = ata_sas_port_init(ap);
 	if (rc)
 		goto destroy_port;
