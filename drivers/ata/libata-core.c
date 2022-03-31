@@ -1497,7 +1497,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	memset(sensebuf, 0, sizeof(sensebuf));
 	memset(scsi_cmd, 0, sizeof(scsi_cmd));
 
-	
+	WARN_ON_ONCE(1);
 	pr_err("%s sdev=%pS ap=%pS link=%pS ATA_16\n", __func__, sdev, ap, link);
 
 	scsi_cmd[0] = ATA_16;
