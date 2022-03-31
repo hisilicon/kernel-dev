@@ -1518,10 +1518,11 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	}
 	scmd = blk_mq_rq_to_pdu(rq);
 
-	pr_err("%s1 sdev=%pS ap=%pS link=%pS ATA_16 scmd=%pS rq=%pS\n", __func__, sdev, ap, link, scmd, rq);
 
 	scmd->cmd_len = COMMAND_SIZE(scsi_cmd[0]);
 	memcpy(scmd->cmnd, scsi_cmd, scmd->cmd_len);
+	pr_err("%s1 sdev=%pS ap=%pS link=%pS ATA_16 scmd=%pS rq=%pS scmd->cmnd[0]=0x%x [1]=0x%x\n",
+		__func__, sdev, ap, link, scmd, rq, scmd->cmnd[0], scmd->cmnd[1]);
 	scmd->allowed = 0;
 	rq->timeout = 0;
 	rq->cmd_flags |= 0;
