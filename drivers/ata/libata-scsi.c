@@ -1686,7 +1686,7 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 	struct ata_queued_cmd *qc;
 	int rc;
 
-	pr_err("%s cmd=%pS\n", __func__, cmd);
+	pr_err("%s cmd=%pS xlat_func=%pS\n", __func__, cmd, xlat_func);
 	qc = ata_scsi_qc_new(dev, cmd);
 	pr_err("%s2 cmd=%pS qc=%pS\n", __func__, cmd, qc);
 	if (!qc)
@@ -1707,13 +1707,17 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 
 	qc->complete_fn = ata_scsi_qc_complete;
 
-	if (xlat_func(qc))
+	if (xlat_func(qc)) {
+		pr_err("%s2.2 xlat_func err cmd=%pS qc=%pS\n", __func__, cmd, qc);
 		goto early_finish;
+	}
 
 	if (ap->ops->qc_defer) {
 		if ((rc = ap->ops->qc_defer(qc)))
 			goto defer;
 	}
+
+	pr_err("%s3 cmd=%pS qc=%pS\n", __func__, cmd, qc);
 
 	/* select device, send command to hardware */
 	ata_qc_issue(qc);
@@ -1721,15 +1725,18 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 	return 0;
 
 early_finish:
+	pr_err("%s4 early_finish cmd=%pS qc=%pS\n", __func__, cmd, qc);
 	ata_qc_free(qc);
 	scsi_done(cmd);
 	return 0;
 
 err_did:
+	pr_err("%s5 err_did cmd=%pS qc=%pS\n", __func__, cmd, qc);
 	ata_qc_free(qc);
 	cmd->result = (DID_ERROR << 16);
 	scsi_done(cmd);
 err_mem:
+	pr_err("%s6 err_mem cmd=%pS qc=%pS\n", __func__, cmd, qc);
 	return 0;
 
 defer:
@@ -2817,6 +2824,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	pr_err("%s2 qc=%pS scmd=%pS tf->protocol=%d\n", __func__, qc, scmd, tf->protocol);
 	if (tf->protocol == ATA_PROT_UNKNOWN) {
 		fp = 1;
+		pr_err("%s3 invalid_fld qc=%pS scmd=%pS tf->protocol=%d\n", __func__, qc, scmd, tf->protocol);
 		goto invalid_fld;
 	}
 
@@ -2827,6 +2835,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		 */
 		if (scmd->sc_data_direction != DMA_NONE) {
 			fp = 2 + cdb_offset;
+			pr_err("%s4 invalid_fld qc=%pS scmd=%pS tf->protocol=%d\n", __func__, qc, scmd, tf->protocol);
 			goto invalid_fld;
 		}
 
@@ -2927,6 +2936,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	case ATA_CMD_WRITE_LONG_ONCE:
 		if (tf->protocol != ATA_PROT_PIO || tf->nsect != 1) {
 			fp = 1;
+			pr_err("%s5.0 invalid_fld qc=%pS scmd=%pS tf->protocol=%d\n", __func__, qc, scmd, tf->protocol);
 			goto invalid_fld;
 		}
 		qc->sect_size = scsi_bufflen(scmd);
@@ -2993,18 +3003,21 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	/* We may not issue DMA commands if no DMA mode is set */
 	if (tf->protocol == ATA_PROT_DMA && !ata_dma_enabled(dev)) {
 		fp = 1;
+		pr_err("%s5 invalid_fld qc=%pS scmd=%pS tf->protocol=%d\n", __func__, qc, scmd, tf->protocol);
 		goto invalid_fld;
 	}
 
 	/* We may not issue NCQ commands to devices not supporting NCQ */
 	if (ata_is_ncq(tf->protocol) && !ata_ncq_enabled(dev)) {
 		fp = 1;
+		pr_err("%s6 invalid_fld qc=%pS scmd=%pS tf->protocol=%d\n", __func__, qc, scmd, tf->protocol);
 		goto invalid_fld;
 	}
 
 	/* sanity check for pio multi commands */
 	if ((cdb[1] & 0xe0) && !is_multi_taskfile(tf)) {
 		fp = 1;
+		pr_err("%s7 invalid_fld qc=%pS scmd=%pS tf->protocol=%d\n", __func__, qc, scmd, tf->protocol);
 		goto invalid_fld;
 	}
 
@@ -3032,6 +3045,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	if (tf->command == ATA_CMD_SET_FEATURES &&
 	    tf->feature == SETFEATURES_XFER) {
 		fp = (cdb[0] == ATA_16) ? 4 : 3;
+		pr_err("%s8 invalid_fld qc=%pS scmd=%pS tf->protocol=%d\n", __func__, qc, scmd, tf->protocol);
 		goto invalid_fld;
 	}
 
@@ -3052,6 +3066,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	 */
 	if (tf->command >= 0x5C && tf->command <= 0x5F && !libata_allow_tpm) {
 		fp = (cdb[0] == ATA_16) ? 14 : 9;
+		pr_err("%s9 invalid_fld qc=%pS scmd=%pS tf->protocol=%d\n", __func__, qc, scmd, tf->protocol);
 		goto invalid_fld;
 	}
 
