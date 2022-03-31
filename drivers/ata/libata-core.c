@@ -4724,11 +4724,14 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap;
 	struct ata_link *link;
+	pr_err("%s qc=%pS complete_fn=%pS\n", __func__, qc, qc->complete_fn);
 
 	WARN_ON_ONCE(qc == NULL); /* ata_qc_from_tag _might_ return NULL */
 	WARN_ON_ONCE(!(qc->flags & ATA_QCFLAG_ACTIVE));
 	ap = qc->ap;
+	pr_err("%s2 qc=%pS ap=%pS\n", __func__, qc, ap);
 	link = qc->dev->link;
+	pr_err("%s3 qc=%pS link=%pS\n", __func__, qc, link);
 
 	if (likely(qc->flags & ATA_QCFLAG_DMAMAP))
 		ata_sg_clean(qc);
@@ -4798,7 +4801,7 @@ static void ata_verify_xfer(struct ata_queued_cmd *qc)
 void ata_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-
+	pr_err("%s qc=%pS\n", __func__, qc);
 	/* Trigger the LED (if available) */
 	ledtrig_disk_activity(!!(qc->tf.flags & ATA_TFLAG_WRITE));
 
