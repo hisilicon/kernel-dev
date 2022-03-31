@@ -4961,7 +4961,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_link *link = qc->dev->link;
 	u8 prot = qc->tf.protocol;
 
-	pr_err("%s qc=%pS\n", __func__, qc);
+	pr_err("%s qc=%pS nbytes=%d\n", __func__, qc, qc->nbytes);
 
 	/* Make sure only one non-NCQ command is outstanding.  The
 	 * check is skipped for old EH because it reuses active qc to

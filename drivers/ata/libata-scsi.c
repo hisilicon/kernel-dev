@@ -667,7 +667,9 @@ static void ata_qc_set_pc_nbytes(struct ata_queued_cmd *qc)
 	struct scsi_cmnd *scmd = qc->scsicmd;
 
 	qc->extrabytes = scmd->extra_len;
+	pr_err("%s qc=%pS nbytes=%d scsi_bufflen(scmd)=%d qc->extrabytes=%d\n", __func__, qc, qc->nbytes, scsi_bufflen(scmd), qc->extrabytes);
 	qc->nbytes = scsi_bufflen(scmd) + qc->extrabytes;
+	pr_err("%s2 qc=%pS nbytes=%d\n", __func__, qc, qc->nbytes);
 }
 
 /**
@@ -1710,7 +1712,7 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 	if (!qc)
 		goto err_mem;
 
-	pr_err("%s2.1 cmd=%pS qc=%pS nbytes=%d\n", __func__, cmd, qc, qc->nbytes);
+	pr_err("%s2.1 cmd=%pS qc=%pS nbytes=%d special=%d\n", __func__, cmd, qc, qc->nbytes, special);
 
 	if (!special) {
 		qc->complete_fn = ata_scsi_qc_complete;
@@ -1730,16 +1732,18 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 	}
 
 	if (xlat_func(qc)) {
-		pr_err("%s2.2 xlat_func err cmd=%pS qc=%pS\n", __func__, cmd, qc);
+		pr_err("%s2.2 xlat_func err cmd=%pS qc=%pS nbytes=%d\n", __func__, cmd, qc, qc->nbytes);
 		goto early_finish;
 	}
+	
+	pr_err("%s2.3 xlat_func err cmd=%pS qc=%pS nbytes=%d\n", __func__, cmd, qc, qc->nbytes);
 
 	if (ap->ops->qc_defer) {
 		if ((rc = ap->ops->qc_defer(qc)))
 			goto defer;
 	}
 
-	pr_err("%s3 cmd=%pS qc=%pS\n", __func__, cmd, qc);
+	pr_err("%s3 cmd=%pS qc=%pS nbytes=%d\n", __func__, cmd, qc, qc->nbytes);
 
 	/* select device, send command to hardware */
 	ata_qc_issue(qc);
@@ -2842,10 +2846,10 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	if (cdb[0] == VARIABLE_LENGTH_CMD)
 		cdb_offset = 9;
 
-	pr_err("%s qc=%pS scmd=%pS cdb[0]=0x%x [1]=%d cdb_offset=%d cdb=%pS\n", __func__, qc, scmd, cdb[0], cdb[1], cdb_offset, cdb);
+	pr_err("%s qc=%pS scmd=%pS cdb[0]=0x%x [1]=%d cdb_offset=%d cdb=%pS nbytes=%d\n", __func__, qc, scmd, cdb[0], cdb[1], cdb_offset, cdb, qc->nbytes);
 
 	tf->protocol = ata_scsi_map_proto(cdb[1 + cdb_offset]);
-	pr_err("%s2 qc=%pS scmd=%pS tf->protocol=0x%x\n", __func__, qc, scmd, tf->protocol);
+	pr_err("%s2 qc=%pS scmd=%pS tf->protocol=0x%x nbytes=%d\n", __func__, qc, scmd, tf->protocol, qc->nbytes);
 	if (tf->protocol == ATA_PROT_UNKNOWN) {
 		fp = 1;
 		pr_err("%s3 invalid_fld qc=%pS scmd=%pS tf->protocol=%d\n", __func__, qc, scmd, tf->protocol);
@@ -2876,7 +2880,8 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	 */
 	switch (cdb[0]) {
 	case ATA_16:
-		pr_err("%s5 opcode=ATA_16\n", __func__);
+		pr_err("%s5 opcode=ATA_16 qc=%pS nbytes=%d\n", __func__, qc, qc->nbytes);
+
 		/*
 		 * 16-byte CDB - may contain extended commands.
 		 *
@@ -2944,6 +2949,9 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		break;
 	}
 
+	if (cdb[0] == ATA_16)
+		pr_err("%s5.1 opcode=ATA_16 qc=%pS nbytes=%d\n", __func__, qc, qc->nbytes);
+
 	/* For NCQ commands copy the tag value */
 	if (ata_is_ncq(tf->protocol))
 		tf->nsect = qc->hw_tag << 3;
@@ -3005,6 +3013,9 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		qc->sect_size = ATA_SECT_SIZE;
 	}
 
+	if (cdb[0] == ATA_16)
+		pr_err("%s5.2 opcode=ATA_16 qc=%pS nbytes=%d\n", __func__, qc, qc->nbytes);
+
 	/*
 	 * Set flags so that all registers will be written, pass on
 	 * write indication (used for PIO/DMA setup), result TF is
@@ -3064,7 +3075,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	 * ->set_dmamode(), and ->post_set_mode() hooks).
 	 */
 	if (cdb[0] == ATA_16)
-		pr_err("%s9.0 opcode=ATA_16\n", __func__);
+		pr_err("%s9.0 opcode=ATA_16 qc=%pS nbytes=%d\n", __func__, qc, qc->nbytes);
 	
 	if (tf->command == ATA_CMD_SET_FEATURES &&
 	    tf->feature == SETFEATURES_XFER) {
