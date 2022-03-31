@@ -248,14 +248,20 @@ static __maybe_unused blk_status_t sas_exec_rq(struct blk_mq_hw_ctx *hctx,
 
 int sas_internal_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 {
-//	struct request *rq;
+	struct request *rq;
 	struct sas_task *task;
 	struct domain_device *device;
 	struct sas_ha_struct *ha;
 	struct sas_internal *i;
+	unsigned char *cmnd = &cmd->cmnd[0];
 	int res;
 
-	//pr_err("%s cmd=%pS\n", __func__, cmd);
+	rq = scsi_cmd_to_rq(cmd);
+
+	pr_err("%s cmd=%pS cmnd[0]=0x%x rq=%pS host_scribble=%pS\n", __func__, cmd, cmnd[0], rq, cmd->host_scribble);
+	if (cmnd[0] == ATA_16) {
+		return -1;
+	}
 
 //	rq = blk_mq_rq_from_pdu(cmd);
 

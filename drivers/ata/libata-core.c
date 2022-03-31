@@ -1509,7 +1509,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 //	cmd_result = 0;
 	special_ata_dev = dev;
 	request_queue = scsi_host->sdev->request_queue;
-	rq = scsi_alloc_request(request_queue, op, 0);
+	rq = scsi_alloc_request(request_queue, op, BLK_MQ_INTERNAL);
 	if (IS_ERR(rq)) {
 		err_mask = AC_ERR_OTHER;
 		goto out;
