@@ -1464,6 +1464,7 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  */
 
 struct ata_device *special_ata_dev;
+extern void scsi_device_unbusy(struct scsi_device *sdev, struct scsi_cmnd *cmd);
 
 unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
@@ -1639,7 +1640,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
 
-	pr_err("%s4 after wait_for_completion_timeout rq scmd=%pS rq=%pS qc=%pS rc=%d\n", __func__, scmd, rq, qc, rc);
+	pr_err("%s5 after wait_for_completion_timeout rq scmd=%pS rq=%pS qc=%pS rc=%d\n", __func__, scmd, rq, qc, rc);
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
@@ -1648,6 +1649,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	if (!rc) {
 		spin_lock_irqsave(ap->lock, flags);
+		
+		pr_err("%s5.1 qc=%pS\n", __func__, qc);
 
 		/* We're racing with irq here.  If we lose, the
 		 * following test prevents us from completing the qc
@@ -1668,6 +1671,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 		spin_unlock_irqrestore(ap->lock, flags);
 	}
+
+	pr_err("%s6 qc=%pS\n", __func__, qc);
 
 	/* do post_internal_cmd */
 	if (ap->ops->post_internal_cmd)
@@ -1703,8 +1708,11 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
 		ata_internal_cmd_timed_out(dev, command);
+
+	scsi_device_unbusy(scsi_host->sdev, scmd);
+	__blk_mq_end_request(rq, BLK_STS_OK);
 out:
-	pr_err("%s10 out err_mask=%d\n", __func__, err_mask);
+	pr_err("%s10 out err_mask=0x%x\n", __func__, err_mask);
 	return err_mask;
 }
 
