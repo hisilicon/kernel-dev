@@ -4759,6 +4759,7 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 	ap->qc_active &= ~(1ULL << qc->tag);
 
 	/* call completion callback */
+	pr_err("%s10 qc=%pS complete_fn=%pS\n", __func__, qc, qc->complete_fn);
 	qc->complete_fn(qc);
 }
 
@@ -4833,6 +4834,8 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 			fill_result_tf(qc);
 			trace_ata_qc_complete_internal(qc);
 			__ata_qc_complete(qc);
+			
+			pr_err("%s3 qc=%pS\n", __func__, qc);
 			return;
 		}
 
@@ -4844,6 +4847,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 			fill_result_tf(qc);
 			trace_ata_qc_complete_failed(qc);
 			ata_qc_schedule_eh(qc);
+			pr_err("%s4 qc=%pS\n", __func__, qc);
 			return;
 		}
 
@@ -4891,6 +4895,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 
 		__ata_qc_complete(qc);
 	}
+	pr_err("%s10 out qc=%pS\n", __func__, qc);
 }
 EXPORT_SYMBOL_GPL(ata_qc_complete);
 

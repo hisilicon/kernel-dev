@@ -1614,6 +1614,9 @@ static void ata_qc_done(struct ata_queued_cmd *qc)
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	void (*done)(struct scsi_cmnd *) = qc->scsidone;
 
+	if (cmd->cmnd[0] == ATA_16)
+		pr_err("%s opcode=ATA_16 done=%pS\n", __func__, done);
+
 	ata_qc_free(qc);
 	done(cmd);
 }
@@ -1649,6 +1652,9 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 
 	if (need_sense && !ap->ops->error_handler)
 		ata_dump_status(ap, &qc->result_tf);
+
+	if (cdb[0] == ATA_16)
+		pr_err("%s2 opcode=ATA_16\n", __func__);
 
 	ata_qc_done(qc);
 }
