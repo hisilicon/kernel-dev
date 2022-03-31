@@ -1502,12 +1502,23 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	memset(scsi_cmd, 0, sizeof(scsi_cmd));
 	op = (dma_dir == DMA_TO_DEVICE) ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN;
 
-	WARN_ON_ONCE(1);
+//	WARN_ON_ONCE(1);
 	pr_err("%s sdev=%pS ap=%pS link=%pS ATA_16 dev=%pS ATA_PROT_PIO=0x%x tf->protocol=0x%x\n",
 		__func__, sdev, ap, link, dev, ATA_PROT_PIO, tf->protocol);
 
+	switch (tf->protocol) {
+	case ATA_PROT_PIO:
+		if (dma_dir == DMA_TO_DEVICE)
+			scsi_cmd[1] = 5 << 1;
+		else
+			scsi_cmd[1] = 4 << 1;
+		break;
+	default:
+		return AC_ERR_OTHER;
+	}
+
 	scsi_cmd[0] = ATA_16;
-	scsi_cmd[1] = tf->protocol;
+	
 //	cmd_result = 0;
 	special_ata_dev = dev;
 	request_queue = scsi_host->sdev->request_queue;
@@ -1524,7 +1535,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s1 sdev=%pS ap=%pS link=%pS ATA_16 scmd=%pS rq=%pS scmd->cmnd[0]=0x%x [1]=0x%x\n",
 		__func__, sdev, ap, link, scmd, rq, scmd->cmnd[0], scmd->cmnd[1]);
 	scmd->allowed = 0;
-	rq->timeout = 0;
+	rq->timeout = 100;
 	rq->cmd_flags |= 0;
 	rq->rq_flags |= 0 | RQF_QUIET;
 	scmd->host_scribble = (unsigned char *)ap;
