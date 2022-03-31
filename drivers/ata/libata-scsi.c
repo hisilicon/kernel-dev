@@ -1722,7 +1722,8 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 		qc->dma_dir = cmd->sc_data_direction;
 	}
 
-	qc->complete_fn = ata_scsi_qc_complete;
+	if (!special)
+		qc->complete_fn = ata_scsi_qc_complete;
 
 	if (xlat_func(qc)) {
 		pr_err("%s2.2 xlat_func err cmd=%pS qc=%pS\n", __func__, cmd, qc);

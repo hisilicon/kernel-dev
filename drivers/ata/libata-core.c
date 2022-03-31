@@ -1436,7 +1436,7 @@ EXPORT_SYMBOL_GPL(ata_id_xfermask);
 static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
 	struct completion *waiting = qc->private_data;
-
+	pr_err("%s qc=%pS\n", __func__, qc);
 	complete(waiting);
 }
 
@@ -1485,7 +1485,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	DECLARE_COMPLETION_ONSTACK(wait);
 	unsigned long flags;
 	unsigned int err_mask;
-	int cmd_result;
+///	int cmd_result;
 	int rc;
 	__maybe_unused u8 *argbuf = NULL;
 	__maybe_unused int argsize = 0;
@@ -1544,6 +1544,9 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		qc->nbytes = buflen;
 	}
 
+	qc->private_data = &wait;
+	qc->complete_fn = ata_qc_complete_internal;
+
 	scmd->cmd_len = COMMAND_SIZE(scsi_cmd[0]);
 	memcpy(scmd->cmnd, scsi_cmd, scmd->cmd_len);
 	pr_err("%s1 sdev=%pS ap=%pS link=%pS ATA_16 scmd=%pS rq=%pS scmd->cmnd[0]=0x%x [1]=0x%x\n",
@@ -1555,9 +1558,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	scmd->host_scribble = (unsigned char *)ap;
 	pr_err("%s2 before queue rq scmd=%pS rq=%pS qc=%pS\n", __func__, scmd, rq, qc);
 	blk_execute_rq_nowait(rq, true, NULL);
-	mdelay(3000);
-	err_mask = AC_ERR_OTHER;
-	goto out;
+
+	#ifdef remove_old
 
 //	cmd_result = scsi_execute(sdev, scsi_cmd, dma_dir, argbuf, argsize,
 //				  sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
@@ -1614,13 +1616,13 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 //		qc->nbytes = buflen;
 //	}
 
-	qc->private_data = &wait;
-	qc->complete_fn = ata_qc_complete_internal;
+//	qc->private_data = &wait;
+//	qc->complete_fn = ata_qc_complete_internal;
 
 	ata_qc_issue(qc);
 
 	spin_unlock_irqrestore(ap->lock, flags);
-
+	#endif
 	if (!timeout) {
 		if (ata_probe_timeout)
 			timeout = ata_probe_timeout * 1000;
@@ -1633,7 +1635,11 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if (ap->ops->error_handler)
 		ata_eh_release(ap);
 
+	pr_err("%s4 before wait_for_completion_timeout rq scmd=%pS rq=%pS qc=%pS\n", __func__, scmd, rq, qc);
+
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
+
+	pr_err("%s4 after wait_for_completion_timeout rq scmd=%pS rq=%pS qc=%pS rc=%d\n", __func__, scmd, rq, qc, rc);
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
@@ -1698,6 +1704,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
 		ata_internal_cmd_timed_out(dev, command);
 out:
+	pr_err("%s10 out err_mask=%d\n", __func__, err_mask);
 	return err_mask;
 }
 
