@@ -1050,7 +1050,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	blk_mq_req_flags_t flags;
 	struct request *rq;
 
-	pr_err("%s\n", __func__);
+	//pr_err("%s\n", __func__);
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
@@ -1070,10 +1070,10 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		task->abort_task.qid = qid;
 		flags = BLK_MQ_INTERNAL | BLK_MQ_REQ_NOWAIT;
 	//	special_queue = sdev->request_queue;
-		pr_err("%s1 flags=0x%x\n", __func__, flags);
+	//	pr_err("%s1 flags=0x%x\n", __func__, flags);
 		rq = scsi_alloc_request_hwq(sdev->request_queue, REQ_OP_DRV_IN, flags, qid);
 	//	special_rq = rq;
-		pr_err("%s2 rq=%pS flags=0x%x\n", __func__, rq, flags);
+	//	pr_err("%s2 rq=%pS flags=0x%x\n", __func__, rq, flags);
 		if (!rq) {
 			res = PTR_ERR(rq);
 			break;
@@ -1134,7 +1134,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 	sas_free_task(task);
 
-	pr_err("%s10 out\n", __func__);
+//	pr_err("%s10 out\n", __func__);
 
 	return res;
 }
