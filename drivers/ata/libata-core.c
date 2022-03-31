@@ -4919,6 +4919,8 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_link *link = qc->dev->link;
 	u8 prot = qc->tf.protocol;
 
+	pr_err("%s qc=%pS\n", __func__, qc);
+
 	/* Make sure only one non-NCQ command is outstanding.  The
 	 * check is skipped for old EH because it reuses active qc to
 	 * request ATAPI sense.
@@ -4945,13 +4947,19 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 * We guarantee to LLDs that they will have at least one
 	 * non-zero sg if the command is a data command.
 	 */
-	if (ata_is_data(prot) && (!qc->sg || !qc->n_elem || !qc->nbytes))
+	if (ata_is_data(prot) && (!qc->sg || !qc->n_elem || !qc->nbytes)) {
+		pr_err("%s1 qc=%pS ata_is_data(prot)=%d sg=%pS n_elem=%d nbytes=%d\n", __func__, qc,
+			ata_is_data(prot), qc->sg, qc->n_elem, qc->nbytes);
 		goto sys_err;
+	}
 
 	if (ata_is_dma(prot) || (ata_is_pio(prot) &&
 				 (ap->flags & ATA_FLAG_PIO_DMA)))
-		if (ata_sg_setup(qc))
+		if (ata_sg_setup(qc)) {
+			pr_err("%s2 qc=%pS ata_is_data(prot)=%d sg=%pS n_elem=%d nbytes=%d\n", __func__, qc,
+				ata_is_data(prot), qc->sg, qc->n_elem, qc->nbytes);
 			goto sys_err;
+		}
 
 	/* if device is sleeping, schedule reset and abort the link */
 	if (unlikely(qc->dev->flags & ATA_DFLAG_SLEEPING)) {
@@ -4972,8 +4980,10 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	return;
 
 sys_err:
+	pr_err("%s9 qc=%pS sys_err\n", __func__, qc);
 	qc->err_mask |= AC_ERR_SYSTEM;
 err:
+	pr_err("%s10 qc=%pS err\n", __func__, qc);
 	ata_qc_complete(qc);
 }
 
