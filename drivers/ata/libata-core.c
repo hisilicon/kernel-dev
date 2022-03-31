@@ -1477,6 +1477,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	u8 command = tf->command;
 	int auto_timeout = 0;
 	struct ata_queued_cmd *qc;
+	struct request_queue *request_queue;
 	unsigned int preempted_tag;
 	u32 preempted_sactive;
 	u64 preempted_qc_active;
@@ -1488,6 +1489,9 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	int rc;
 	__maybe_unused u8 *argbuf = NULL;
 	__maybe_unused int argsize = 0;
+	struct scsi_cmnd *scmd;
+	struct request *rq;
+	unsigned int op;
 
 
 	u8 __maybe_unused sensebuf[SCSI_SENSE_BUFFERSIZE];
@@ -1496,6 +1500,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	memset(sensebuf, 0, sizeof(sensebuf));
 	memset(scsi_cmd, 0, sizeof(scsi_cmd));
+	op = (dma_dir == DMA_TO_DEVICE) ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN;
 
 	WARN_ON_ONCE(1);
 	pr_err("%s sdev=%pS ap=%pS link=%pS ATA_16\n", __func__, sdev, ap, link);
@@ -1503,11 +1508,33 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	scsi_cmd[0] = ATA_16;
 //	cmd_result = 0;
 	special_ata_dev = dev;
+	request_queue = scsi_host->sdev->request_queue;
+	rq = scsi_alloc_request(request_queue, op, 0);
+	if (IS_ERR(rq)) {
+		err_mask = AC_ERR_OTHER;
+		goto out;
+	}
+	scmd = blk_mq_rq_to_pdu(rq);
 
-	cmd_result = scsi_execute(sdev, scsi_cmd, dma_dir, argbuf, argsize,
-				  sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
+	pr_err("%s1 sdev=%pS ap=%pS link=%pS ATA_16 scmd=%pS rq=%pS\n", __func__, sdev, ap, link, scmd, rq);
+
+	scmd->cmd_len = COMMAND_SIZE(scsi_cmd[0]);
+	memcpy(scmd->cmnd, scsi_cmd, scmd->cmd_len);
+	scmd->allowed = 0;
+	rq->timeout = 0;
+	rq->cmd_flags |= 0;
+	rq->rq_flags |= 0 | RQF_QUIET;
+	scmd->host_scribble = (unsigned char *)ap;
+	pr_err("%s2 before queue rq scmd=%pS rq=%pS qc=%pS\n", __func__, scmd, rq, qc);
+	blk_execute_rq_nowait(rq, true, NULL);
+	mdelay(3000);
+	err_mask = AC_ERR_OTHER;
+	goto out;
+
+//	cmd_result = scsi_execute(sdev, scsi_cmd, dma_dir, argbuf, argsize,
+//				  sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
 	special_ata_dev = NULL;
-	pr_err("%s2 after scsi_execute cmd_result=%d\n", __func__, cmd_result);
+	pr_err("%s3 after scsi_execute cmd_result=%d\n", __func__, cmd_result);
 
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -1522,7 +1549,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
-	qc->scsicmd = NULL;
+	qc->scsicmd = scmd;
 	qc->ap = ap;
 	qc->dev = dev;
 	ata_qc_reinit(qc);
@@ -1642,7 +1669,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
 		ata_internal_cmd_timed_out(dev, command);
-
+out:
 	return err_mask;
 }
 
