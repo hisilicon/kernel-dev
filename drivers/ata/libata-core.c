@@ -1565,6 +1565,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s2 before queue rq scmd=%pS rq=%pS qc=%pS\n", __func__, scmd, rq, qc);
 	blk_execute_rq_nowait(rq, true, NULL);
 
+// start
 	#ifdef remove_old
 
 //	cmd_result = scsi_execute(sdev, scsi_cmd, dma_dir, argbuf, argsize,
@@ -1629,6 +1630,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	spin_unlock_irqrestore(ap->lock, flags);
 	#endif
+//end
+
 	if (!timeout) {
 		if (ata_probe_timeout)
 			timeout = ata_probe_timeout * 1000;
@@ -1685,8 +1688,11 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	/* perform minimal error analysis */
 	if (qc->flags & ATA_QCFLAG_FAILED) {
-		if (qc->result_tf.status & (ATA_ERR | ATA_DF))
+		pr_err("%s6.1 qc=%pS ATA_QCFLAG_FAILED\n", __func__, qc);
+		if (qc->result_tf.status & (ATA_ERR | ATA_DF)) {
+			pr_err("%s6.2 qc=%pS ATA_QCFLAG_FAILED\n", __func__, qc);
 			qc->err_mask |= AC_ERR_DEV;
+		}
 
 		if (!qc->err_mask)
 			qc->err_mask |= AC_ERR_OTHER;
