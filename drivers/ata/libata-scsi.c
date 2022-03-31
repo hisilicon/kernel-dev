@@ -2814,14 +2814,15 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	u16 fp;
 	u16 cdb_offset = 0;
 
-	pr_err("%s qc=%pS scmd=%pS cdb[0]=%d\n", __func__, qc, scmd, cdb[0]);
 
 	/* 7Fh variable length cmd means a ata pass-thru(32) */
 	if (cdb[0] == VARIABLE_LENGTH_CMD)
 		cdb_offset = 9;
 
+	pr_err("%s qc=%pS scmd=%pS cdb[0]=0x%x cdb_offset=%d\n", __func__, qc, scmd, cdb[0], cdb_offset);
+
 	tf->protocol = ata_scsi_map_proto(cdb[1 + cdb_offset]);
-	pr_err("%s2 qc=%pS scmd=%pS tf->protocol=%d\n", __func__, qc, scmd, tf->protocol);
+	pr_err("%s2 qc=%pS scmd=%pS tf->protocol=0x%x\n", __func__, qc, scmd, tf->protocol);
 	if (tf->protocol == ATA_PROT_UNKNOWN) {
 		fp = 1;
 		pr_err("%s3 invalid_fld qc=%pS scmd=%pS tf->protocol=%d\n", __func__, qc, scmd, tf->protocol);
@@ -3069,6 +3070,9 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		pr_err("%s9 invalid_fld qc=%pS scmd=%pS tf->protocol=%d\n", __func__, qc, scmd, tf->protocol);
 		goto invalid_fld;
 	}
+
+	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET,
+			       10, 2, tf, sizeof(*tf), true);
 
 	return 0;
 

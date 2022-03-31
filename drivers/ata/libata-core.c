@@ -1503,9 +1503,11 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	op = (dma_dir == DMA_TO_DEVICE) ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN;
 
 	WARN_ON_ONCE(1);
-	pr_err("%s sdev=%pS ap=%pS link=%pS ATA_16 dev=%pS\n", __func__, sdev, ap, link, dev);
+	pr_err("%s sdev=%pS ap=%pS link=%pS ATA_16 dev=%pS ATA_PROT_PIO=0x%x tf->protocol=0x%x\n",
+		__func__, sdev, ap, link, dev, ATA_PROT_PIO, tf->protocol);
 
 	scsi_cmd[0] = ATA_16;
+	scsi_cmd[1] = tf->protocol;
 //	cmd_result = 0;
 	special_ata_dev = dev;
 	request_queue = scsi_host->sdev->request_queue;
@@ -1851,7 +1853,12 @@ retry:
 	 * controllers.  Always poll IDENTIFY if available.
 	 */
 	tf.flags |= ATA_TFLAG_POLLING;
+	pr_err("%s protocol=ATA_PROT_PIO tf.flags=0x%lx tf->device=0x%x tf->ctl=0x%x\n", __func__, tf.flags, tf.device, tf.ctl);
 
+	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET,
+			       10, 2, &tf, sizeof(struct ata_taskfile), true);
+
+	
 	if (ap->ops->read_id)
 		err_mask = ap->ops->read_id(dev, &tf, (__le16 *)id);
 	else
