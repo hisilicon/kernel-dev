@@ -1684,7 +1684,9 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 	struct ata_queued_cmd *qc;
 	int rc;
 
+	pr_err("%s cmd=%pS\n", __func__, cmd);
 	qc = ata_scsi_qc_new(dev, cmd);
+	pr_err("%s2 cmd=%pS qc=%pS\n", __func__, cmd, qc);
 	if (!qc)
 		goto err_mem;
 
@@ -2803,11 +2805,14 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	u16 fp;
 	u16 cdb_offset = 0;
 
+	pr_err("%s qc=%pS scmd=%pS cdb[0]=%d\n", __func__, qc, scmd, cdb[0]);
+
 	/* 7Fh variable length cmd means a ata pass-thru(32) */
 	if (cdb[0] == VARIABLE_LENGTH_CMD)
 		cdb_offset = 9;
 
 	tf->protocol = ata_scsi_map_proto(cdb[1 + cdb_offset]);
+	pr_err("%s2 qc=%pS scmd=%pS tf->protocol=%d\n", __func__, qc, scmd, tf->protocol);
 	if (tf->protocol == ATA_PROT_UNKNOWN) {
 		fp = 1;
 		goto invalid_fld;
