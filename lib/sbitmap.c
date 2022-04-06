@@ -48,13 +48,14 @@ static int init_alloc_hint(struct sbitmap *sb, gfp_t flags)
 }
 
 static inline unsigned update_alloc_hint_before_get(struct sbitmap *sb,
-						    unsigned int depth, int *nid)
+						    unsigned int depth, int *nid, int *cpu_ptr)
 {
 	unsigned hint;
 	
 	unsigned int *hint_ptr;
 	int cpu = raw_smp_processor_id();
 	*nid = cpu_to_node(cpu);
+	*cpu_ptr = cpu;
 	hint_ptr = per_cpu_ptr(sb->alloc_hint, cpu);
 
 	hint = *hint_ptr;
@@ -82,7 +83,9 @@ static inline unsigned update_alloc_hint_before_get(struct sbitmap *sb,
 static inline void update_alloc_hint_after_get(struct sbitmap *sb,
 					       unsigned int depth,
 					       unsigned int hint,
-					       unsigned int nr)
+					       unsigned int nr,
+					       int nid,
+					       int cpu)
 {
 	if (nr == -1) {
 		/* If the map is full, a hint won't do us much good. */
@@ -90,15 +93,16 @@ static inline void update_alloc_hint_after_get(struct sbitmap *sb,
 	} else if (nr == hint || unlikely(sb->round_robin)) {
 		/* Only update the hint if we used it. */
 		if (sb->map_nr_numa) {
-			int cpu = raw_smp_processor_id();
-			int cpu_nid = cpu_to_node(cpu);
-			unsigned int depth_per_node = sb->depth_per_node;
-			int nid = nr / depth_per_node;
+//			int cpu = raw_smp_processor_id();
+	//		int cpu_nid = cpu_to_node(cpu);
+		//	unsigned int depth_per_node = sb->depth_per_node;
 			unsigned int *hint_ptr = per_cpu_ptr(sb->alloc_hint, cpu);
+			unsigned int depth_per_node = sb->depth_per_node;
 
-			if (cpu_nid != nid) {
-				unsigned int base = depth_per_node * cpu_nid;
-				hint = base + (prandom_u32() % depth_per_node);
+			//if (cpu_nid != nid) {
+			if (0) {
+			//	unsigned int base = depth_per_node * cpu_nid;
+			//	hint = base + (prandom_u32() % depth_per_node);
 			} else {
 				unsigned int base = depth_per_node * nid;
 				unsigned int limit = base + depth_per_node;
@@ -413,15 +417,15 @@ int sbitmap_get(struct sbitmap *sb)
 {
 	int nr;
 	unsigned int hint, depth;
-	int nid;
+	int nid, cpu;
 
 	if (WARN_ON_ONCE(unlikely(!sb->alloc_hint)))
 		return -1;
 
 	depth = READ_ONCE(sb->depth);
-	hint = update_alloc_hint_before_get(sb, depth, &nid);
+	hint = update_alloc_hint_before_get(sb, depth, &nid, &cpu);
 	nr = __sbitmap_get(sb, hint, nid);
-	update_alloc_hint_after_get(sb, depth, hint, nr);
+	update_alloc_hint_after_get(sb, depth, hint, nr, nid, cpu);
 
 	return nr;
 }
@@ -470,14 +474,15 @@ int sbitmap_get_shallow(struct sbitmap *sb, unsigned long shallow_depth)
 	int nr;
 	unsigned int hint, depth;
 	int nid;
+	int cpu;
 
 	if (WARN_ON_ONCE(unlikely(!sb->alloc_hint)))
 		return -1;
 
 	depth = READ_ONCE(sb->depth);
-	hint = update_alloc_hint_before_get(sb, depth, &nid);
+	hint = update_alloc_hint_before_get(sb, depth, &nid, &cpu);
 	nr = __sbitmap_get_shallow(sb, hint, shallow_depth);
-	update_alloc_hint_after_get(sb, depth, hint, nr);
+	update_alloc_hint_after_get(sb, depth, hint, nr, nid, cpu);
 
 	return nr;
 }
