@@ -1899,7 +1899,7 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 
 	if ((nullb && nullb->dev->blocking) || g_blocking)
 		set->flags |= BLK_MQ_F_BLOCKING;
-
+	pr_err("%s set=%pS\n", __func__, set);
 	return blk_mq_alloc_tag_set(set);
 }
 
