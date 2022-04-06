@@ -58,7 +58,7 @@ static inline unsigned update_alloc_hint_before_get(struct sbitmap *sb,
 	hint_ptr = per_cpu_ptr(sb->alloc_hint, cpu);
 
 	hint = *hint_ptr;
-
+#if 0
 	if (sb->map_nr_numa) {
 		unsigned int depth_per_node = sb->depth_per_node;
 		int nid = cpu_to_node(cpu);
@@ -68,7 +68,7 @@ static inline unsigned update_alloc_hint_before_get(struct sbitmap *sb,
 		if (hint < base || hint >= limit)
 			pr_err_ratelimited("%s cpu%d hint=%d base=%d limit=%d\n", __func__, cpu, hint, base, limit);
 	}
-
+#endif
 	if (unlikely(hint >= depth)) {
 		WARN_ONCE(1, "%s sb=%pS hint=%d depth=%d map_nr=%d\n", __func__, sb, hint, depth, sb->map_nr);
 		hint = depth ? prandom_u32() % depth : 0;
@@ -337,6 +337,16 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 
 		for (i = 0; i < sb->map_nr_numa; i++) {
 			struct sbitmap_word *map2 = &map[index];
+			struct page *page = virt_to_page(map2);
+			int nid_page = page_to_nid(page);
+			static unsigned long long count__sbitmap_get;
+			static unsigned long long count__sbitmap_get_wrong_nid;
+			count__sbitmap_get++;
+			if (nid != nid_page)
+				count__sbitmap_get_wrong_nid++;
+
+			if ((count__sbitmap_get % 5000000) == 0)
+				pr_err("%s count__sbitmap_get=%lld wrong=%lld\n", __func__, count__sbitmap_get, count__sbitmap_get_wrong_nid);
 
 			nr = sbitmap_find_bit_in_index(map2, __alloc_hint, sb->round_robin);
 			if (nr != -1) {

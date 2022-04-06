@@ -277,7 +277,7 @@ static inline void __sbitmap_for_each_set(struct sbitmap *sb,
 	if (start >= sb->depth)
 		start = 0;
 	if (sb->numa_aware) {
-
+		//pr_err("%s numa_aware=%d\n", __func__, sb->numa_aware);
 	} else {
 		index = SB_NR_TO_INDEX(sb, start);
 		nr = SB_NR_TO_BIT(sb, start);
