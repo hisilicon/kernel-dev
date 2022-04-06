@@ -329,13 +329,13 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, int 
 		unsigned int depth_per_node = sb->depth_per_node;
 		//unsigned int nid = __alloc_hint / depth_per_node;
 		unsigned int base = nid * depth_per_node;
-		unsigned int index2;
-		index2 = SB_NR_TO_INDEX(sb, __alloc_hint);
+	//	unsigned int index2;
+	//	index2 = SB_NR_TO_INDEX(sb, __alloc_hint);
 		__alloc_hint -= base;
 		index = SB_NR_TO_INDEX(sb, __alloc_hint);
-		if (index != index2)
-			pr_err_once("%s index=%d index2=%d alloc_hint=%d depth_per_node=%d nid=%d\n",
-			__func__, index, index2, alloc_hint, depth_per_node, nid);
+	//	if (index != index2)
+	//		pr_err_once("%s index=%d index2=%d alloc_hint=%d depth_per_node=%d nid=%d sb->map_nr_numa=%d round_robin=%d\n",
+	//		__func__, index, index2, alloc_hint, depth_per_node, nid, sb->map_nr_numa, sb->round_robin);
 		map = sb->numa_map[nid];
 
 		if (sb->round_robin)
