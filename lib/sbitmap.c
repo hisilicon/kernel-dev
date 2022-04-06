@@ -87,22 +87,33 @@ static inline void update_alloc_hint_after_get(struct sbitmap *sb,
 	} else if (nr == hint || unlikely(sb->round_robin)) {
 		/* Only update the hint if we used it. */
 		if (sb->map_nr_numa) {
+			int cpu = raw_smp_processor_id();
+			int cpu_nid = cpu_to_node(cpu);
 			unsigned int depth_per_node = sb->depth_per_node;
 			int nid = nr / depth_per_node;
-			unsigned int base = depth_per_node * nid;
-			unsigned int limit = base + depth_per_node;
-			hint = nr + 1;
-			//pr_err_ratelimited("%s nr=%d depth_per_node=%d base=%d limit=%d\n", __func__, nr, depth_per_node, base, limit);
-			if (hint == limit) {
-				
-				hint = base;
+			unsigned int *hint_ptr = per_cpu_ptr(sb->alloc_hint, cpu);
+
+			if (cpu_nid != nid) {
+				unsigned int base = depth_per_node * cpu_nid;
+				hint = base + (prandom_u32() % depth_per_node);
+			} else {
+				unsigned int base = depth_per_node * nid;
+				unsigned int limit = base + depth_per_node;
+
+				hint = nr + 1;
+				if (hint == limit)
+					hint = base;
 			}
+
+			//pr_err_ratelimited("%s nr=%d depth_per_node=%d base=%d limit=%d\n", __func__, nr, depth_per_node, base, limit);
+		
+			*hint_ptr = hint;
 		} else {
 			hint = nr + 1;
 			if (hint >= depth - 1)
 				hint = 0;
+			this_cpu_write(*sb->alloc_hint, hint);
 		}
-		this_cpu_write(*sb->alloc_hint, hint);
 	}
 }
 
