@@ -314,12 +314,15 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 	int nr = -1;
 
 	unsigned int __alloc_hint = alloc_hint;
+	static unsigned long long count__sbitmap_get;
+	static unsigned long long count__sbitmap_get_no_bit;
 
 	/*
 	 * Unless we're doing round robin tag allocation, just use the
 	 * alloc_hint to find the right word index. No point in looping
 	 * twice in find_next_zero_bit() for that case.
 	 */
+	count__sbitmap_get++;
 
 	if (sb->numa_aware) {
 		struct sbitmap_word *map;
@@ -337,16 +340,16 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 
 		for (i = 0; i < sb->map_nr_numa; i++) {
 			struct sbitmap_word *map2 = &map[index];
-			struct page *page = virt_to_page(map2);
-			int nid_page = page_to_nid(page);
-			static unsigned long long count__sbitmap_get;
-			static unsigned long long count__sbitmap_get_wrong_nid;
-			count__sbitmap_get++;
-			if (nid != nid_page)
-				count__sbitmap_get_wrong_nid++;
+	//		struct page *page = virt_to_page(map2);
+//			int nid_page = page_to_nid(page);
+		//	static unsigned long long count__sbitmap_get;
+		//	static unsigned long long count__sbitmap_get_wrong_nid;
+		//	count__sbitmap_get++;
+		//	if (nid != nid_page)
+		//		count__sbitmap_get_wrong_nid++;
 
-			if ((count__sbitmap_get % 5000000) == 0)
-				pr_err("%s count__sbitmap_get=%lld wrong=%lld\n", __func__, count__sbitmap_get, count__sbitmap_get_wrong_nid);
+		//	if ((count__sbitmap_get % 5000000) == 0)
+		//		pr_err("%s count__sbitmap_get=%lld wrong=%lld\n", __func__, count__sbitmap_get, count__sbitmap_get_wrong_nid);
 
 			nr = sbitmap_find_bit_in_index(map2, __alloc_hint, sb->round_robin);
 			if (nr != -1) {
@@ -392,6 +395,11 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint)
 
 	}
 
+	if (nr == -1)
+		count__sbitmap_get_no_bit++;
+	
+	if ((count__sbitmap_get % 5000000) == 0)
+		pr_err("%s count__sbitmap_get=%lld none=%lld\n", __func__, count__sbitmap_get, count__sbitmap_get_no_bit);
 
 	return nr;
 }
