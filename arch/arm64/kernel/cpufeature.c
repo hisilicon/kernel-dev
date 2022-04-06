@@ -1868,7 +1868,7 @@ static void cpu_enable_e0pd(struct arm64_cpu_capabilities const *cap)
 #endif /* CONFIG_ARM64_E0PD */
 
 #ifdef CONFIG_ARM64_PSEUDO_NMI
-static bool enable_pseudo_nmi;
+static bool enable_pseudo_nmi = true;
 
 static int __init early_enable_pseudo_nmi(char *p)
 {
