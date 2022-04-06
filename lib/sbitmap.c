@@ -854,7 +854,21 @@ EXPORT_SYMBOL_GPL(sbitmap_queue_wake_up);
 static inline void sbitmap_update_cpu_hint(struct sbitmap *sb, int cpu, int tag)
 {
 	if (likely(!sb->round_robin && tag < sb->depth)) {
-		data_race(*per_cpu_ptr(sb->alloc_hint, cpu) = tag);
+		if (sb->map_nr_numa) {
+			unsigned int depth_per_node = sb->depth_per_node;
+			int nid = cpu_to_node(cpu);
+			int tag_nid = tag / depth_per_node;
+			
+			if (nid != tag_nid) {
+				unsigned int base = nid * depth_per_node;
+
+				tag = base + (prandom_u32() % depth_per_node);
+			}
+
+		} else {
+			data_race(*per_cpu_ptr(sb->alloc_hint, cpu) = tag);
+		}
+
 		sbitmap_check_hint(sb, cpu, tag);
 	}
 }
