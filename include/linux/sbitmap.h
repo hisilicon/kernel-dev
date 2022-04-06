@@ -235,6 +235,20 @@ bool sbitmap_any_bit_set(const struct sbitmap *sb);
 
 typedef bool (*sb_for_each_fn)(struct sbitmap *, unsigned int, void *);
 
+static inline void sbitmap_check_hint(struct sbitmap *sb, int cpu, int hint)
+{
+	int nid = cpu_to_node(cpu);
+	unsigned int depth_per_node = sb->depth_per_node;
+	unsigned int base = nid * depth_per_node;
+	unsigned int limit = base + depth_per_node;
+	bool test_fail = hint < base || hint >= limit;
+
+	if (!sb->map_nr_numa)
+		return;
+
+	WARN_ONCE(test_fail, "%s cpu%d hint=%d base=%d limit=%d\n", __func__, cpu, hint, base, limit);
+}
+
 /**
  * __sbitmap_for_each_set() - Iterate over each set bit in a &struct sbitmap.
  * @start: Where to start the iteration.
@@ -381,8 +395,12 @@ static inline void sbitmap_put(struct sbitmap *sb, unsigned int bitnr)
 {
 	sbitmap_deferred_clear_bit(sb, bitnr);
 
-	if (likely(sb->alloc_hint && !sb->round_robin && bitnr < sb->depth))
-		*raw_cpu_ptr(sb->alloc_hint) = bitnr;
+	if (likely(sb->alloc_hint && !sb->round_robin && bitnr < sb->depth)) {
+		int cpu = raw_smp_processor_id();
+		unsigned int *hint = per_cpu_ptr(sb->alloc_hint, cpu);
+		sbitmap_check_hint(sb, cpu, bitnr);
+		*hint = bitnr;
+	}
 }
 
 static inline int sbitmap_test_bit(struct sbitmap *sb, unsigned int bitnr)
