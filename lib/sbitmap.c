@@ -856,8 +856,9 @@ static inline void sbitmap_update_cpu_hint(struct sbitmap *sb, int cpu, int tag)
 void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 				int *tags, int nr_tags)
 {
-	#ifdef experiment
 	struct sbitmap *sb = &sbq->sb;
+
+	#ifdef experiment
 	unsigned long *addr = NULL;
 	unsigned long mask = 0;
 	int i;
@@ -886,6 +887,8 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 	sbitmap_queue_wake_up(sbq);
 	sbitmap_update_cpu_hint(&sbq->sb, raw_smp_processor_id(),
 					tags[nr_tags - 1] - offset);
+	#else
+	BUG_ON(sb->map_nr_numa);
 	#endif
 }
 
