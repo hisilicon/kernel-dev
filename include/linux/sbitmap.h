@@ -376,7 +376,7 @@ static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, const unsigned
 		unsigned int nid = bitnr / depth_per_node;
 		unsigned int index;
 		unsigned int __bitnr = bitnr;
-		bool test;
+//		bool test;
 
 		__bitnr -= (nid * depth_per_node);
 		index = SB_NR_TO_INDEX(sb, __bitnr);
@@ -384,8 +384,8 @@ static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, const unsigned
 		map += index;
 		
 		addr = &map->cleared;
-		test = test_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
-		WARN_ONCE(test, "%s bitnr=%d index=%d nid=%d __bitnr=%d depth_per_node=%d\n", __func__, bitnr, index, nid, __bitnr, depth_per_node);
+//		test = test_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
+//		WARN_ONCE(test, "%s bitnr=%d index=%d nid=%d __bitnr=%d depth_per_node=%d\n", __func__, bitnr, index, nid, __bitnr, depth_per_node);
 
 		set_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
 	} else {
