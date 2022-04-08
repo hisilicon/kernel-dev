@@ -167,8 +167,8 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 	sb->depth = depth;
 	sb->round_robin = round_robin;
 
-
-	if ((depth % num_online_nodes() == 0) && (depth > 4000) && (depth % bits_per_word == 0)) //1024 is max sdev queue depth and then MAX_SCHED_RQ is 2000
+//	if ((depth % num_online_nodes() == 0) && (depth > 4000) && (depth % bits_per_word == 0)) //1024 is max sdev queue depth and then MAX_SCHED_RQ is 2000
+	if (depth > 4000 && is_power_of_2(depth) && is_power_of_2(num_online_nodes()))
 		sb->numa_aware = true;
 	else
 		sb->numa_aware = false;
