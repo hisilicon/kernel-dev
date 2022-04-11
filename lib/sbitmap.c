@@ -191,12 +191,16 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 	if (sb->numa_aware) {
 		int nid;
 		unsigned int depth_per_node;
+		unsigned int depth_per_node_shift;
 
 		depth_per_node = sb->depth_per_node = sb->depth / num_online_nodes();
+		sb->depth_per_node_shift = ilog2(depth_per_node);
+
 
 		sb->map_nr_numa = DIV_ROUND_UP(sb->depth_per_node, bits_per_word);
 
-	//	pr_err("%s3 numa_aware=%d depth=%d map_nr_numa=%d bits_per_word=%d\n", __func__, sb->numa_aware, depth, sb->map_nr_numa, bits_per_word);
+		pr_err("%s3 numa_aware=%d depth=%d map_nr_numa=%d bits_per_word=%d depth_per_node_shift=%d shift=%d\n",
+			__func__, sb->numa_aware, depth, sb->map_nr_numa, bits_per_word, depth_per_node_shift, sb->shift);
 
 		for (nid = 0; nid < num_online_nodes(); nid++) {
 			struct page *page;
@@ -331,12 +335,17 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, int 
 	if (sb->numa_aware) {
 		struct sbitmap_word *map;
 		unsigned int depth_per_node = sb->depth_per_node;
+		unsigned int depth_per_node_shift = sb->depth_per_node_shift;
 		//unsigned int nid = __alloc_hint / depth_per_node;
 		unsigned int base = nid * depth_per_node;
+		unsigned int base2 = nid << depth_per_node_shift;
 	//	unsigned int index2;
 	//	index2 = SB_NR_TO_INDEX(sb, __alloc_hint);
 		__alloc_hint -= base;
 		index = SB_NR_TO_INDEX(sb, __alloc_hint);
+		if (base != base2)
+			pr_err_once("%s error base=%d base2=%d depth_per_node=%d depth_per_node_shift=%d\n",
+				__func__, base, base2, depth_per_node, depth_per_node_shift);
 	//	if (index != index2)
 	//		pr_err_once("%s index=%d index2=%d alloc_hint=%d depth_per_node=%d nid=%d sb->map_nr_numa=%d round_robin=%d\n",
 	//		__func__, index, index2, alloc_hint, depth_per_node, nid, sb->map_nr_numa, sb->round_robin);

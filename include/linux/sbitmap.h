@@ -60,6 +60,7 @@ struct sbitmap {
 	 * @shift: log2(number of bits used per word)
 	 */
 	unsigned int shift;
+	unsigned int depth_per_node_shift;
 
 
 	int node;
@@ -373,9 +374,11 @@ static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, const unsigned
 	if (sb->numa_aware) {
 		struct sbitmap_word *map;
 		unsigned int depth_per_node = sb->depth_per_node;
+	//	unsigned int depth_per_node_shift = sb->depth_per_node_shift;
 		unsigned int nid = bitnr / depth_per_node;
 		unsigned int index;
 		unsigned int __bitnr = bitnr;
+//		int normal_shift = ilog2(BITS_PER_LONG);
 //		bool test;
 
 		__bitnr -= (nid * depth_per_node);
