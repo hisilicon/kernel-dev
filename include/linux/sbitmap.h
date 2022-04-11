@@ -367,35 +367,7 @@ static inline void sbitmap_clear_bit(struct sbitmap *sb, unsigned int bitnr)
  * the caller doing sbitmap_deferred_clear() if a given index is full, which
  * will clear the previously freed entries in the corresponding ->word.
  */
-static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, const unsigned int bitnr)
-{
-	unsigned long *addr;
-	
-	if (sb->numa_aware) {
-		struct sbitmap_word *map;
-		unsigned int depth_per_node = sb->depth_per_node;
-	//	unsigned int depth_per_node_shift = sb->depth_per_node_shift;
-		unsigned int nid = bitnr / depth_per_node;
-		unsigned int index;
-		unsigned int __bitnr = bitnr;
-//		int normal_shift = ilog2(BITS_PER_LONG);
-//		bool test;
-
-		__bitnr -= (nid * depth_per_node);
-		index = SB_NR_TO_INDEX(sb, __bitnr);
-		map = sb->numa_map[nid];
-		map += index;
-		
-		addr = &map->cleared;
-//		test = test_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
-//		WARN_ONCE(test, "%s bitnr=%d index=%d nid=%d __bitnr=%d depth_per_node=%d\n", __func__, bitnr, index, nid, __bitnr, depth_per_node);
-
-		set_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
-	} else {
-		addr = &sb->map[SB_NR_TO_INDEX(sb, bitnr)].cleared;
-		set_bit(SB_NR_TO_BIT(sb, bitnr), addr);
-	}
-}
+void sbitmap_deferred_clear_bit(struct sbitmap *sb, const unsigned int bitnr);
 
 /*
  * Pair of sbitmap_get, and this one applies both cleared bit and
