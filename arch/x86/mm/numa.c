@@ -640,6 +640,7 @@ static int __init numa_init(int (*init_func)(void))
 {
 	int i;
 	int ret;
+	pr_err("%s init_func=%pS\n", __func__, init_func);
 
 	for (i = 0; i < MAX_LOCAL_APIC; i++)
 		set_apicid_to_node(i, NUMA_NO_NODE);
@@ -657,8 +658,11 @@ static int __init numa_init(int (*init_func)(void))
 	numa_reset_distance();
 
 	ret = init_func();
+	pr_err("%s2 init_func=%pS ret=%d\n", __func__, init_func, ret);
 	if (ret < 0)
 		return ret;
+
+
 
 	/*
 	 * We reset memblock back to the top-down direction
@@ -671,12 +675,14 @@ static int __init numa_init(int (*init_func)(void))
 	memblock_set_bottom_up(false);
 
 	ret = numa_cleanup_meminfo(&numa_meminfo);
+	pr_err("%s3 init_func=%pS ret=%d\n", __func__, init_func, ret);
 	if (ret < 0)
 		return ret;
 
 	numa_emulation(&numa_meminfo, numa_distance_cnt);
 
 	ret = numa_register_memblks(&numa_meminfo);
+	pr_err("%s4 init_func=%pS ret=%d\n", __func__, init_func, ret);
 	if (ret < 0)
 		return ret;
 
@@ -704,6 +710,7 @@ static int __init numa_init(int (*init_func)(void))
  */
 static int __init dummy_numa_init(void)
 {
+	pr_err("%s\n", __func__);
 	printk(KERN_INFO "%s\n",
 	       numa_off ? "NUMA turned off" : "No NUMA configuration found");
 	printk(KERN_INFO "Faking a node at [mem %#018Lx-%#018Lx]\n",
@@ -724,6 +731,7 @@ static int __init dummy_numa_init(void)
  */
 void __init x86_numa_init(void)
 {
+	pr_err("%s numa_off=%d\n", __func__, numa_off);
 	if (!numa_off) {
 #ifdef CONFIG_ACPI_NUMA
 		if (!numa_init(x86_acpi_numa_init))
