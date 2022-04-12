@@ -109,6 +109,77 @@ void sbitmap_deferred_clear_bit(struct sbitmap *sb, const unsigned int bitnr)
 	}
 }
 
+
+void sbitmap_deferred_clear_bit_debug(struct sbitmap *sb, const unsigned int bitnr)
+{
+//	unsigned long *addr;
+	
+	if (sb->numa_aware) {
+		struct sbitmap_word *map;
+		unsigned int depth_per_node = sb->depth_per_node;
+		unsigned int nid = bitnr / depth_per_node;
+		unsigned int index;
+		unsigned int __bitnr = bitnr;
+//		bool test;
+
+		__bitnr -= (nid * depth_per_node);
+		index = SB_NR_TO_INDEX(sb, __bitnr);
+		map = sb->numa_map[nid];
+		map += index;
+
+		// debug part
+		{
+			unsigned int shift = sb->shift;
+			unsigned int depth_per_node_shift = sb->depth_per_node_shift;
+			int normal_shift = ilog2(BITS_PER_LONG);
+			unsigned int nid_debug = bitnr >> depth_per_node_shift;
+			unsigned int __bitnr_debug = bitnr;
+			unsigned int depth_per_node_mask = (1 << sb->depth_per_node_shift) - 1;
+			unsigned int bindex;
+			unsigned int bindex_debug;
+			unsigned int bindex_debug2;
+			unsigned int bindex_debug_mask = (1 << (sb->depth_per_node_shift - sb->shift)) - 1;
+
+			__bitnr_debug &= depth_per_node_mask;
+
+			if (nid != nid_debug)
+				pr_err_once("%s error nid=%d nid_debug=%d bitnr=%d depth_per_node_shift=%d normal_shift=%d depth_per_node_mask=0x%x\n",
+					__func__, nid, nid_debug, bitnr, depth_per_node_shift, normal_shift, depth_per_node_mask);
+
+			if (__bitnr_debug != __bitnr)
+				pr_err_once("%s2 error nid=%d nid_debug=%d bitnr=%d depth_per_node_shift=%d normal_shift=%d depth_per_node_mask=0x%x __bitnr=%d __bitnr_debug=%d\n",
+					__func__, nid, nid_debug, bitnr, depth_per_node_shift, normal_shift, depth_per_node_mask, __bitnr, __bitnr_debug);
+
+			bindex = SB_NR_TO_INDEX(sb, __bitnr);
+			bindex_debug = (bitnr & depth_per_node_mask) >> shift;
+			bindex_debug2 = __bitnr_debug >> shift;
+
+			if (bindex != bindex_debug)
+				pr_err_once("%s3 error bindex=%d bindex_debug=%d nid=%d nid_debug=%d bitnr=%d depth_per_node_shift=%d normal_shift=%d depth_per_node_mask=0x%x __bitnr=%d __bitnr_debug=%d bindex_debug_mask=0x%x index=%d shift=%d\n",
+					__func__, bindex, bindex_debug, nid, nid_debug, bitnr, depth_per_node_shift, normal_shift, depth_per_node_mask, __bitnr, __bitnr_debug, bindex_debug_mask, index, shift);
+
+			if (bindex != bindex_debug2)
+				pr_err_once("%s4 error bindex=%d bindex_debug=%d bindex_debug2=%d nid=%d nid_debug=%d bitnr=%d depth_per_node_shift=%d normal_shift=%d depth_per_node_mask=0x%x __bitnr=%d __bitnr_debug=%d bindex_debug_mask=0x%x index=%d shift=%d\n",
+					__func__, bindex, bindex_debug, bindex_debug2, nid, nid_debug, bitnr, depth_per_node_shift, normal_shift, depth_per_node_mask, __bitnr, __bitnr_debug, bindex_debug_mask, index, shift);
+
+
+			if (__bitnr_debug != __bitnr)
+				pr_err_once("%s5 error nid=%d nid_debug=%d bitnr=%d depth_per_node_shift=%d normal_shift=%d depth_per_node_mask=0x%x __bitnr=%d __bitnr_debug=%d bindex=%d bindex_debug=%d\n",
+					__func__, nid, nid_debug, bitnr, depth_per_node_shift, normal_shift, depth_per_node_mask, __bitnr, __bitnr_debug, bindex, bindex_debug);
+		}
+
+//		addr = &map->cleared;
+//		test = test_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
+//		WARN_ONCE(test, "%s bitnr=%d index=%d nid=%d __bitnr=%d depth_per_node=%d\n", __func__, bitnr, index, nid, __bitnr, depth_per_node);
+
+//		set_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
+	} else {
+//		addr = &sb->map[SB_NR_TO_INDEX(sb, bitnr)].cleared;
+//		set_bit(SB_NR_TO_BIT(sb, bitnr), addr);
+	}
+}
+
+
 static inline unsigned update_alloc_hint_before_get(struct sbitmap *sb,
 						    unsigned int depth, int *nid, int *cpu_ptr)
 {
@@ -216,6 +287,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 {
 	unsigned int bits_per_word;
 	unsigned int i;
+	int bit;
 //	pr_err("%s numa_nodes_parsed=%d MAX_NUMNODES=%d\n", __func__, num_online_nodes(), MAX_NUMNODES);
 	if (shift < 0)
 		shift = sbitmap_calculate_shift(depth);
@@ -300,6 +372,10 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 			depth -= sb->map[i].depth;
 		}
 	}
+
+	for (bit = 0; bit < sb->depth; bit++)
+		sbitmap_deferred_clear_bit_debug(sb, bit);
+	
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sbitmap_init_node);
