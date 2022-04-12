@@ -119,17 +119,17 @@ void sbitmap_deferred_clear_bit(struct sbitmap *sb, const unsigned int bitnr)
 			const unsigned int nid = bitnr >> depth_per_node_shift;
 			const unsigned int shift = sb->shift;
 			unsigned int index = __bitnr >> shift;
-			bool test;
-			unsigned int __bitnr_test = __bitnr & (depth_per_node_mask >> (depth_per_node_shift - shift));
+		//	bool test;
+		//	unsigned int __bitnr_test = __bitnr & (depth_per_node_mask >> (depth_per_node_shift - shift));
 
 			map = sb->numa_map[nid];
 			map += index;
 			
 		
 			addr = &map->cleared;
-			test = test_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
-			WARN_ONCE(test, "%s bitnr=%d index=%d nid=%d __bitnr=%d depth_per_node=%d\n", __func__, bitnr, index, nid, __bitnr, sb->depth_per_node_shift);
-			WARN_ONCE(__bitnr_test != SB_NR_TO_BIT(sb, __bitnr), "%s bitnr=%d __bitnr=%d __bitnr_test=%d SB_NR_TO_BIT=%d\n", __func__, bitnr, __bitnr, __bitnr_test, SB_NR_TO_BIT(sb, __bitnr));
+		//	test = test_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
+			//WARN_ONCE(test, "%s bitnr=%d index=%d nid=%d __bitnr=%d depth_per_node=%d\n", __func__, bitnr, index, nid, __bitnr, sb->depth_per_node_shift);
+		//	WARN_ONCE(__bitnr_test != SB_NR_TO_BIT(sb, __bitnr), "%s bitnr=%d __bitnr=%d __bitnr_test=%d SB_NR_TO_BIT=%d\n", __func__, bitnr, __bitnr, __bitnr_test, SB_NR_TO_BIT(sb, __bitnr));
 			set_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
 		}
 
@@ -502,11 +502,14 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, int 
 
 	if (sb->numa_aware) {
 		struct sbitmap_word *map;
+
 		unsigned int depth_per_node = sb->depth_per_node;
+
 		unsigned int depth_per_node_shift = sb->depth_per_node_shift;
 		//unsigned int nid = __alloc_hint / depth_per_node;
 		unsigned int base = nid * depth_per_node;
 		unsigned int base2 = nid << depth_per_node_shift;
+		unsigned int __alloc_hint_temp;
 	//	unsigned int index2;
 	//	index2 = SB_NR_TO_INDEX(sb, __alloc_hint);
 		__alloc_hint -= base;
@@ -519,10 +522,40 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, int 
 	//		__func__, index, index2, alloc_hint, depth_per_node, nid, sb->map_nr_numa, sb->round_robin);
 		map = sb->numa_map[nid];
 
+		__alloc_hint_temp = SB_NR_TO_BIT(sb, __alloc_hint);
+
 		if (sb->round_robin)
 			__alloc_hint = SB_NR_TO_BIT(sb, __alloc_hint);
 		else
 			__alloc_hint = 0;
+
+		//debug
+		
+		{
+			const unsigned int depth_per_node_shift = sb->depth_per_node_shift;
+			const unsigned int depth_per_node_mask = (1 << sb->depth_per_node_shift) - 1;
+			unsigned int b__alloc_hint = alloc_hint & depth_per_node_mask;
+			const unsigned int nid_debug = alloc_hint >> depth_per_node_shift;
+			const unsigned int shift = sb->shift;
+			unsigned int bindex = b__alloc_hint >> shift;
+			unsigned int b__alloc_hint2 = SB_NR_TO_BIT(sb, b__alloc_hint);
+			unsigned int debug_base;
+
+			if (bindex != index)
+				pr_err_once("%s error nid=%d nid_debug=%d alloc_hint=%d depth_per_node_shift=%d depth_per_node_mask=0x%x bindex=%d index=%d\n",
+					__func__, nid, nid_debug, alloc_hint, depth_per_node_shift, depth_per_node_mask, bindex, index);
+
+			if (__alloc_hint_temp != b__alloc_hint2)
+				pr_err_once("%s2 error SB_NR_TO_BIT(sb, __alloc_hint)=%d b__alloc_hint=%d b__alloc_hint2=%d alloc_hint=%d __alloc_hint_temp=%d\n",
+					__func__, SB_NR_TO_BIT(sb, __alloc_hint), b__alloc_hint, b__alloc_hint2, alloc_hint, __alloc_hint_temp);
+
+			debug_base = alloc_hint & ~depth_per_node_mask;
+
+			if (base != debug_base)
+				pr_err_once("%s3 error alloc_hint=%d base=%d debug_base=%d\n",
+					__func__, alloc_hint, base, debug_base);
+		}
+
 
 		for (i = 0; i < sb->map_nr_numa; i++) {
 			struct sbitmap_word *map2 = &map[index];
