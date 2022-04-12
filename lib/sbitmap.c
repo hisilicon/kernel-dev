@@ -119,12 +119,17 @@ void sbitmap_deferred_clear_bit(struct sbitmap *sb, const unsigned int bitnr)
 			const unsigned int nid = bitnr >> depth_per_node_shift;
 			const unsigned int shift = sb->shift;
 			unsigned int index = __bitnr >> shift;
+			bool test;
+			unsigned int __bitnr_test = __bitnr & (depth_per_node_mask >> (depth_per_node_shift - shift));
 
 			map = sb->numa_map[nid];
 			map += index;
-
+			
 		
 			addr = &map->cleared;
+			test = test_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
+			WARN_ONCE(test, "%s bitnr=%d index=%d nid=%d __bitnr=%d depth_per_node=%d\n", __func__, bitnr, index, nid, __bitnr, sb->depth_per_node_shift);
+			WARN_ONCE(__bitnr_test != SB_NR_TO_BIT(sb, __bitnr), "%s bitnr=%d __bitnr=%d __bitnr_test=%d SB_NR_TO_BIT=%d\n", __func__, bitnr, __bitnr, __bitnr_test, SB_NR_TO_BIT(sb, __bitnr));
 			set_bit(SB_NR_TO_BIT(sb, __bitnr), addr);
 		}
 
