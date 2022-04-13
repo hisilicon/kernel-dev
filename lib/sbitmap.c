@@ -548,7 +548,7 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, int 
 			map = sb->numa_map[nid];
 			index = bindex;
 			if (bindex != index)
-				pr_err_once("%s error nid=%d nid_debug=%d alloc_hint=%d depth_per_node_shift=%d depth_per_node_mask=0x%x bindex=%d index=%d\n",
+				panic("%s error nid=%d nid_debug=%d alloc_hint=%d depth_per_node_shift=%d depth_per_node_mask=0x%x bindex=%d index=%d\n",
 					__func__, nid, nid_debug, alloc_hint, depth_per_node_shift, depth_per_node_mask, bindex, index);
 
 		//	if (__alloc_hint_temp != b__alloc_hint2)
@@ -558,7 +558,7 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, int 
 			debug_base = alloc_hint & ~depth_per_node_mask;
 			base = debug_base;
 			if (base != debug_base)
-				pr_err_once("%s3 error alloc_hint=%d base=%d debug_base=%d\n",
+				panic("%s3 error alloc_hint=%d base=%d debug_base=%d\n",
 					__func__, alloc_hint, base, debug_base);
 
 
