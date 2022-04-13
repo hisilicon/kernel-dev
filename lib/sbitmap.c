@@ -679,8 +679,8 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, cons
 
 	}
 
-//	if (nr == -1)
-//		count__sbitmap_get_no_bit++;
+	if (nr == -1)
+		pr_err("%s nr=-1\n", __func__);
 	
 //	if ((count__sbitmap_get % 5000000) == 0)
 //		pr_err("%s count__sbitmap_get=%lld none=%lld\n", __func__, count__sbitmap_get, count__sbitmap_get_no_bit);
