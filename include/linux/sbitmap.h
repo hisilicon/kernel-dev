@@ -263,7 +263,7 @@ static inline void sbitmap_check_hint(struct sbitmap *sb, int cpu, unsigned int 
 
 	if (test_fail)
 		panic("%s cpu%d hint=%d base=%d limit=%d\n", __func__, cpu, hint, base, limit);
-	udelay(20);
+//	udelay(20);
 }
 #endif
 
