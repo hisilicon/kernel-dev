@@ -242,6 +242,15 @@ int sbitmap_get(struct sbitmap *sb)
 	nr = __sbitmap_get(sb, hint);
 	update_alloc_hint_after_get(sb, depth, hint, nr);
 
+	if (nr != -1) {
+		unsigned int alloced = atomic_inc_return(&sb->alloced);
+		if (alloced > sb->max) {
+			sb->max = alloced;
+			if (alloced > 5)
+				pr_err("%s max alloced=%d\n", __func__, alloced);
+		}
+	}
+
 	return nr;
 }
 EXPORT_SYMBOL_GPL(sbitmap_get);

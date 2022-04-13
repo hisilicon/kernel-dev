@@ -82,6 +82,8 @@ struct sbitmap {
 	 * cachelines until the map is exhausted.
 	 */
 	unsigned int __percpu *alloc_hint;
+	atomic_t alloced;
+	int max;
 };
 
 #define SBQ_WAIT_QUEUES 8
@@ -320,6 +322,7 @@ static inline void sbitmap_clear_bit(struct sbitmap *sb, unsigned int bitnr)
 static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, unsigned int bitnr)
 {
 	unsigned long *addr = &sb->map[SB_NR_TO_INDEX(sb, bitnr)].cleared;
+	atomic_dec(&sb->alloced);
 
 	set_bit(SB_NR_TO_BIT(sb, bitnr), addr);
 }
