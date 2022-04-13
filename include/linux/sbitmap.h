@@ -380,6 +380,8 @@ static inline void sbitmap_put(struct sbitmap *sb, unsigned int bitnr)
 	if (likely(sb->alloc_hint && !sb->round_robin && bitnr < sb->depth)) {
 		int cpu = raw_smp_processor_id();
 		unsigned int *hint = per_cpu_ptr(sb->alloc_hint, cpu);
+
+	
 		sbitmap_check_hint(sb, cpu, bitnr);
 		*hint = bitnr;
 	}
