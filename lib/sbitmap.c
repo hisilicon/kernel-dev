@@ -525,7 +525,7 @@ static void __sbitmap_get_debug(struct sbitmap *sb, const unsigned int alloc_hin
 					__func__, alloc_hint, base, debug_base, b__alloc_hint, __alloc_hint);
 }
 
-static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, int nid)
+static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, const unsigned int nid, const unsigned int cpu)
 {
 	unsigned int i, index;
 	int nr = -1;
@@ -572,7 +572,7 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, int 
 
 			//debug
 			if (index > 50000)
-				pr_err_once("%s x1 index=%d alloc_hint=%d nid=%d base2=%d __alloc_hint=%d\n", __func__, index, alloc_hint, nid, base2, __alloc_hint);
+				pr_err_once("%s x1 index=%d alloc_hint=%d nid=%d base2=%d __alloc_hint=%d cpu=%d\n", __func__, index, alloc_hint, nid, base2, __alloc_hint, cpu);
 
 			if (sb->round_robin)
 				__alloc_hint = SB_NR_TO_BIT(sb, __alloc_hint);
@@ -693,7 +693,7 @@ int sbitmap_get(struct sbitmap *sb)
 
 	depth = READ_ONCE(sb->depth);
 	hint = update_alloc_hint_before_get(sb, depth, &nid, &cpu);
-	nr = __sbitmap_get(sb, hint, nid);
+	nr = __sbitmap_get(sb, hint, nid, cpu);
 	update_alloc_hint_after_get(sb, depth, hint, nr, nid, cpu);
 
 	return nr;
