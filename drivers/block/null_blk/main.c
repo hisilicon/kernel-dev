@@ -196,7 +196,7 @@ static unsigned long g_completion_nsec = 10000;
 module_param_named(completion_nsec, g_completion_nsec, ulong, 0444);
 MODULE_PARM_DESC(completion_nsec, "Time in ns to complete a request in hardware. Default: 10,000ns");
 
-static int g_hw_queue_depth = 4096;
+static int g_hw_queue_depth = 256;
 module_param_named(hw_queue_depth, g_hw_queue_depth, int, 0444);
 MODULE_PARM_DESC(hw_queue_depth, "Queue depth for each hardware queue. Default: 64");
 
