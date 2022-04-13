@@ -192,7 +192,7 @@ static const struct kernel_param_ops null_irqmode_param_ops = {
 device_param_cb(irqmode, &null_irqmode_param_ops, &g_irqmode, 0444);
 MODULE_PARM_DESC(irqmode, "IRQ completion handler. 0-none, 1-softirq, 2-timer");
 
-static unsigned long g_completion_nsec = 10000000;
+static unsigned long g_completion_nsec = 3000000;
 module_param_named(completion_nsec, g_completion_nsec, ulong, 0444);
 MODULE_PARM_DESC(completion_nsec, "Time in ns to complete a request in hardware. Default: 10,000ns");
 
