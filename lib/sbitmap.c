@@ -484,6 +484,44 @@ static int sbitmap_find_bit_in_index(struct sbitmap_word *map,
 }
 
 
+static void __sbitmap_get_debug(struct sbitmap *sb, const unsigned int alloc_hint,  const int nid,  const unsigned int index, const unsigned int base, const unsigned int __alloc_hint)
+{
+	const unsigned int depth_per_node_shift = sb->depth_per_node_shift;
+	const unsigned int depth_per_node_mask = (1 << sb->depth_per_node_shift) - 1;
+	unsigned int b__alloc_hint = alloc_hint & depth_per_node_mask;
+	const unsigned int nid_debug = alloc_hint >> depth_per_node_shift;
+	const unsigned int shift = sb->shift;
+	unsigned int bindex = b__alloc_hint >> shift;
+	//unsigned int b__alloc_hint2 = SB_NR_TO_BIT(sb, b__alloc_hint);
+	unsigned int debug_base;
+	
+	struct sbitmap_word *map;
+
+	map = sb->numa_map[nid];
+	if (bindex != index)
+		panic("%s error index=%d nid=%d nid_debug=%d alloc_hint=%d depth_per_node_shift=%d depth_per_node_mask=0x%x bindex=%d index=%d\n",
+			__func__, index, nid, nid_debug, alloc_hint, depth_per_node_shift, depth_per_node_mask, bindex, index);
+
+		//	if (__alloc_hint_temp != b__alloc_hint2)
+		//		pr_err_once("%s2 error SB_NR_TO_BIT(sb, __alloc_hint)=%d b__alloc_hint=%d b__alloc_hint2=%d alloc_hint=%d __alloc_hint_temp=%d\n",
+		//			__func__, SB_NR_TO_BIT(sb, __alloc_hint), b__alloc_hint, b__alloc_hint2, alloc_hint, __alloc_hint_temp);
+
+	debug_base = alloc_hint & ~depth_per_node_mask;
+	if (base != debug_base)
+		panic("%s3 error alloc_hint=%d base=%d debug_base=%d\n",
+					__func__, alloc_hint, base, debug_base);
+
+
+	if (sb->round_robin)
+		b__alloc_hint = SB_NR_TO_BIT(sb, b__alloc_hint);
+	else
+		b__alloc_hint = 0;
+
+	if (b__alloc_hint != __alloc_hint)
+		panic("%s4 error alloc_hint=%d base=%d debug_base=%d b__alloc_hint=%d __alloc_hint=%d\n",
+					__func__, alloc_hint, base, debug_base, b__alloc_hint, __alloc_hint);
+}
+
 static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, int nid)
 {
 	unsigned int i, index;
@@ -568,6 +606,7 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, int 
 				__alloc_hint = 0;
 		}
 
+		__sbitmap_get_debug(sb, alloc_hint, nid, index, base, __alloc_hint);
 
 		for (i = 0; i < sb->map_nr_numa; i++) {
 			struct sbitmap_word *map2 = &map[index];
