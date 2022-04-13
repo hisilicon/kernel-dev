@@ -558,17 +558,21 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, cons
 
 	if (sb->numa_aware) {
 		struct sbitmap_word *map;
+		#ifdef debug_failure_rate
 		static atomic64_t total_get;
 		static atomic64_t total_get_fail;
 		u64 __total_get;
 		u64 __total_get_fail;
+		#endif
 
 		unsigned int depth_per_node = sb->depth_per_node;
 
 		unsigned int depth_per_node_shift = sb->depth_per_node_shift;
 		unsigned int base;
 
+		#ifdef debug_failure_rate
 		__total_get = atomic64_inc_return(&total_get);
+		#endif
 		if (1) {
 			//unsigned int nid = __alloc_hint / depth_per_node;
 			unsigned int base2 = nid << depth_per_node_shift;
@@ -662,10 +666,12 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, cons
 			if (++index >= sb->map_nr_numa)
 				index = 0;
 		}
+		#ifdef debug_failure_rate
 		if (nr == -1)
 			__total_get_fail = atomic64_inc_return(&total_get_fail);
 		if ((__total_get % 1000000) == 0)
 			pr_err("%s __total_get=%lld __total_get_fail=%lld\n", __func__, __total_get, __total_get_fail);
+		#endif
 	} else {
 		index = SB_NR_TO_INDEX(sb, __alloc_hint);
 
