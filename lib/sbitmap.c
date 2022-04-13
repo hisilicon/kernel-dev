@@ -215,16 +215,18 @@ static inline unsigned update_alloc_hint_before_get(struct sbitmap *sb,
 {
 	unsigned hint;
 	
-	unsigned int *hint_ptr;
+//	unsigned int *hint_ptr;
 	int cpu = raw_smp_processor_id();
 	*nid = cpu_to_node(cpu);
 	*cpu_ptr = cpu;
-	hint_ptr = per_cpu_ptr(sb->alloc_hint, cpu);
+	//hint_ptr = per_cpu_ptr(sb->alloc_hint, cpu);
 
 
-	sbitmap_check_hint(sb, cpu, *hint_ptr);
 
-	hint = *hint_ptr;
+	hint = *per_cpu_ptr(sb->alloc_hint, cpu);
+
+	sbitmap_check_hint(sb, cpu, hint);
+
 #if 0
 	if (sb->map_nr_numa) {
 		unsigned int depth_per_node = sb->depth_per_node;
@@ -253,19 +255,19 @@ static inline void update_alloc_hint_after_get(struct sbitmap *sb,
 					       int nid,
 					       int cpu)
 {
-	unsigned int *hint_ptr = per_cpu_ptr(sb->alloc_hint, cpu);
+//	unsigned int *hint_ptr = per_cpu_ptr(sb->alloc_hint, cpu);
 
 	if (nr == -1) {
 		/* If the map is full, a hint won't do us much good. */
 		sbitmap_check_hint(sb, cpu, 0);
-		*hint_ptr = 0;
+		*per_cpu_ptr(sb->alloc_hint, cpu) = 0;
 	} else if (nr == hint || unlikely(sb->round_robin)) {
 		/* Only update the hint if we used it. */
 		if (sb->map_nr_numa) {
 //			int cpu = raw_smp_processor_id();
 	//		int cpu_nid = cpu_to_node(cpu);
 		//	unsigned int depth_per_node = sb->depth_per_node;
-			unsigned int *hint_ptr = per_cpu_ptr(sb->alloc_hint, cpu);
+		//	unsigned int *hint_ptr = per_cpu_ptr(sb->alloc_hint, cpu);
 			unsigned int depth_per_node = sb->depth_per_node;
 
 			//if (cpu_nid != nid) {
@@ -283,7 +285,8 @@ static inline void update_alloc_hint_after_get(struct sbitmap *sb,
 
 			//pr_err_ratelimited("%s nr=%d depth_per_node=%d base=%d limit=%d\n", __func__, nr, depth_per_node, base, limit);
 			sbitmap_check_hint(sb, cpu, hint);
-			*hint_ptr = hint;
+			*per_cpu_ptr(sb->alloc_hint, cpu) = hint;
+//			*hint_ptr = hint;
 			
 		} else {
 			hint = nr + 1;
@@ -680,7 +683,7 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, cons
 	}
 
 	if (nr == -1)
-		pr_err("%s nr=-1\n", __func__);
+		pr_err_once("%s nr=-1\n", __func__);
 	
 //	if ((count__sbitmap_get % 5000000) == 0)
 //		pr_err("%s count__sbitmap_get=%lld none=%lld\n", __func__, count__sbitmap_get, count__sbitmap_get_no_bit);
