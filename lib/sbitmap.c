@@ -258,9 +258,15 @@ static inline void update_alloc_hint_after_get(struct sbitmap *sb,
 //	unsigned int *hint_ptr = per_cpu_ptr(sb->alloc_hint, cpu);
 
 	if (nr == -1) {
-		/* If the map is full, a hint won't do us much good. */
-		sbitmap_check_hint(sb, cpu, 0);
-		*per_cpu_ptr(sb->alloc_hint, cpu) = 0;
+		if (sb->map_nr_numa) {
+			unsigned int depth_per_node = sb->depth_per_node;
+			unsigned int base = depth_per_node * nid;
+			/* If the map is full, a hint won't do us much good. */
+			sbitmap_check_hint(sb, cpu, base);
+			*per_cpu_ptr(sb->alloc_hint, cpu) = base;
+		} else {
+			*per_cpu_ptr(sb->alloc_hint, cpu) = 0;
+		}
 	} else if (nr == hint || unlikely(sb->round_robin)) {
 		/* Only update the hint if we used it. */
 		if (sb->map_nr_numa) {
