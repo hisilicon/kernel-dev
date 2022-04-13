@@ -88,7 +88,7 @@ static int g_no_sched;
 module_param_named(no_sched, g_no_sched, int, 0444);
 MODULE_PARM_DESC(no_sched, "No io scheduler");
 
-static int g_submit_queues = 1;
+static int g_submit_queues = NR_CPUS;
 module_param_named(submit_queues, g_submit_queues, int, 0444);
 MODULE_PARM_DESC(submit_queues, "Number of submission queues");
 
@@ -646,7 +646,6 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->blocksize = g_bs;
 	dev->max_sectors = g_max_sectors;
 	dev->irqmode = g_irqmode;
-	pr_err("%s g_irqmode=%d g_completion_nsec=%ld\n", __func__, g_irqmode, g_completion_nsec);
 	dev->hw_queue_depth = g_hw_queue_depth;
 	dev->blocking = g_blocking;
 	dev->use_per_node_hctx = g_use_per_node_hctx;
