@@ -51,6 +51,8 @@ void sbitmap_deferred_clear_bit(struct sbitmap *sb, const unsigned int bitnr)
 {
 	unsigned long *addr;
 	
+	atomic_dec(&sb->alloced);
+
 	if (sb->numa_aware) {
 		struct sbitmap_word *map;
 
@@ -724,6 +726,15 @@ int sbitmap_get(struct sbitmap *sb)
 	hint = update_alloc_hint_before_get(sb, depth, &nid, &cpu);
 	nr = __sbitmap_get(sb, hint, nid, cpu);
 	update_alloc_hint_after_get(sb, depth, hint, nr, nid, cpu);
+
+	if (nr != -1) {
+		unsigned int alloced = atomic_inc_return(&sb->alloced);
+		if (alloced > sb->max) {
+			sb->max = alloced;
+			if (alloced > 5)
+				pr_err("%s max alloced=%d\n", __func__, alloced);
+		}
+	}
 
 	return nr;
 }
