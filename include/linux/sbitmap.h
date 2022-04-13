@@ -20,6 +20,7 @@
 #include <linux/smp.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+#include <linux/delay.h>
 
 struct seq_file;
 
@@ -272,6 +273,7 @@ static inline void sbitmap_check_hint(struct sbitmap *sb, int cpu, unsigned int 
 
 	if (test_fail)
 		panic("%s cpu%d hint=%d base=%d limit=%d\n", __func__, cpu, hint, base, limit);
+	mdelay(20);
 }
 #endif
 
@@ -402,6 +404,7 @@ static inline void sbitmap_put(struct sbitmap *sb, unsigned int bitnr)
 
 	
 		sbitmap_check_hint(sb, cpu, bitnr);
+		
 		*hint = bitnr;
 	}
 }
