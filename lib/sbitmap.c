@@ -1163,12 +1163,11 @@ static inline void sbitmap_update_cpu_hint(struct sbitmap *sb, int cpu, int tag)
 
 				tag = base + (prandom_u32() % depth_per_node);
 			}
+			sbitmap_check_hint(sb, cpu, tag);
 			data_race(*per_cpu_ptr(sb->alloc_hint, cpu) = tag);
 		} else {
 			data_race(*per_cpu_ptr(sb->alloc_hint, cpu) = tag);
 		}
-
-		sbitmap_check_hint(sb, cpu, tag);
 	}
 }
 
