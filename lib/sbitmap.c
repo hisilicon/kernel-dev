@@ -509,7 +509,7 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, int 
 		unsigned int base;
 
 
-		if (0) {
+		if (1) {
 			//unsigned int nid = __alloc_hint / depth_per_node;
 			unsigned int base2 = nid << depth_per_node_shift;
 			unsigned int __alloc_hint_temp;
