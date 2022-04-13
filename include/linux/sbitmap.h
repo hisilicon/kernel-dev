@@ -94,6 +94,7 @@ struct sbitmap {
 	 */
 	unsigned int __percpu *alloc_hint;
 	bool numa_aware;
+	atomic_t alloced;
 };
 
 #define SBQ_WAIT_QUEUES 8

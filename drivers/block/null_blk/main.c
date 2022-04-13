@@ -176,7 +176,7 @@ static bool g_shared_tag_bitmap = true;
 module_param_named(shared_tag_bitmap, g_shared_tag_bitmap, bool, 0444);
 MODULE_PARM_DESC(shared_tag_bitmap, "Use shared tag bitmap for all submission queues for blk-mq");
 
-static int g_irqmode = NULL_IRQ_TIMER;
+static int g_irqmode = NULL_IRQ_SOFTIRQ;
 
 static int null_set_irqmode(const char *str, const struct kernel_param *kp)
 {
@@ -192,11 +192,11 @@ static const struct kernel_param_ops null_irqmode_param_ops = {
 device_param_cb(irqmode, &null_irqmode_param_ops, &g_irqmode, 0444);
 MODULE_PARM_DESC(irqmode, "IRQ completion handler. 0-none, 1-softirq, 2-timer");
 
-static unsigned long g_completion_nsec = 3000000;
+static unsigned long g_completion_nsec = 10000;
 module_param_named(completion_nsec, g_completion_nsec, ulong, 0444);
 MODULE_PARM_DESC(completion_nsec, "Time in ns to complete a request in hardware. Default: 10,000ns");
 
-static int g_hw_queue_depth = 4096;
+static int g_hw_queue_depth = 256;
 module_param_named(hw_queue_depth, g_hw_queue_depth, int, 0444);
 MODULE_PARM_DESC(hw_queue_depth, "Queue depth for each hardware queue. Default: 64");
 
@@ -1359,7 +1359,6 @@ static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
 		nullb_zero_read_cmd_buffer(cmd);
 
 	/* Complete IO by inline, softirq or timer */
-	
 	switch (cmd->nq->dev->irqmode) {
 	case NULL_IRQ_SOFTIRQ:
 		switch (cmd->nq->dev->queue_mode) {
