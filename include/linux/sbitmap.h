@@ -236,7 +236,7 @@ bool sbitmap_any_bit_set(const struct sbitmap *sb);
 
 typedef bool (*sb_for_each_fn)(struct sbitmap *, unsigned int, void *);
 
-#ifndef sbitmap_check_hint_old
+#if 0
 static inline void sbitmap_check_hint(void)
 {
 }
@@ -380,7 +380,7 @@ static inline void sbitmap_put(struct sbitmap *sb, unsigned int bitnr)
 	if (likely(sb->alloc_hint && !sb->round_robin && bitnr < sb->depth)) {
 		int cpu = raw_smp_processor_id();
 		unsigned int *hint = per_cpu_ptr(sb->alloc_hint, cpu);
-		sbitmap_check_hint();
+		sbitmap_check_hint(sb, cpu, bitnr);
 		*hint = bitnr;
 	}
 }

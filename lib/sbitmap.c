@@ -33,7 +33,7 @@ static int init_alloc_hint(struct sbitmap *sb, gfp_t flags)
 
 				*per_cpu_ptr(sb->alloc_hint, i) = hint;
 
-				sbitmap_check_hint();
+				sbitmap_check_hint(sb, i, hint);
 			}
 		}
 	} else {
@@ -278,7 +278,7 @@ static inline void update_alloc_hint_after_get(struct sbitmap *sb,
 			//pr_err_ratelimited("%s nr=%d depth_per_node=%d base=%d limit=%d\n", __func__, nr, depth_per_node, base, limit);
 		
 			*hint_ptr = hint;
-			sbitmap_check_hint();
+			sbitmap_check_hint(sb, cpu, hint);
 		} else {
 			hint = nr + 1;
 			if (hint >= depth - 1)
@@ -1168,7 +1168,7 @@ static inline void sbitmap_update_cpu_hint(struct sbitmap *sb, int cpu, int tag)
 			data_race(*per_cpu_ptr(sb->alloc_hint, cpu) = tag);
 		}
 
-		sbitmap_check_hint();
+		sbitmap_check_hint(sb, cpu, tag);
 	}
 }
 
