@@ -1871,10 +1871,11 @@ static int null_gendisk_register(struct nullb *nullb)
 
 	return add_disk(disk);
 }
-
+bool special_sbitmap;
 static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 {
 	int poll_queues;
+	int rc;
 
 	set->ops = &null_mq_ops;
 	set->nr_hw_queues = nullb ? nullb->dev->submit_queues :
@@ -1900,7 +1901,11 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 	if ((nullb && nullb->dev->blocking) || g_blocking)
 		set->flags |= BLK_MQ_F_BLOCKING;
 	pr_err("%s set=%pS\n", __func__, set);
-	return blk_mq_alloc_tag_set(set);
+	special_sbitmap = true;
+	rc = blk_mq_alloc_tag_set(set);
+	special_sbitmap = false;
+
+	return rc;
 }
 
 static int null_validate_conf(struct nullb_device *dev)
