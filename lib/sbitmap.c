@@ -222,8 +222,9 @@ static inline unsigned update_alloc_hint_before_get(struct sbitmap *sb,
 	hint_ptr = per_cpu_ptr(sb->alloc_hint, cpu);
 
 
+	sbitmap_check_hint(sb, cpu, *hint_ptr);
+
 	hint = *hint_ptr;
-	sbitmap_check_hint(sb, cpu, hint);
 #if 0
 	if (sb->map_nr_numa) {
 		unsigned int depth_per_node = sb->depth_per_node;
