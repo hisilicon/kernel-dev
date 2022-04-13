@@ -242,18 +242,26 @@ static inline void sbitmap_check_hint(void)
 }
 
 #else
-static inline void sbitmap_check_hint(struct sbitmap *sb, int cpu, int hint)
+static inline void sbitmap_check_hint(struct sbitmap *sb, int cpu, unsigned int hint)
 {
 	int nid = cpu_to_node(cpu);
 	unsigned int depth_per_node = sb->depth_per_node;
 	unsigned int base = nid * depth_per_node;
 	unsigned int limit = base + depth_per_node;
-	bool test_fail = hint < base || hint >= limit;
+	bool test_fail = false;
 
 	if (!sb->map_nr_numa)
 		return;
 
-	WARN_ONCE(test_fail, "%s cpu%d hint=%d base=%d limit=%d\n", __func__, cpu, hint, base, limit);
+	if (hint < base)
+		test_fail = true;
+	
+	if (hint >= limit)
+		test_fail = true;
+	
+
+	if (test_fail)
+		panic("%s cpu%d hint=%d base=%d limit=%d\n", __func__, cpu, hint, base, limit);
 }
 #endif
 
