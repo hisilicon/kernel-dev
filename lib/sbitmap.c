@@ -496,6 +496,9 @@ static void __sbitmap_get_debug(struct sbitmap *sb, const unsigned int alloc_hin
 	unsigned int debug_base;
 	
 	struct sbitmap_word *map;
+	
+	if (index > 50000)
+		pr_err_once("%s x3 index=%d\n", __func__, index);
 
 	map = sb->numa_map[nid];
 	if (bindex != index)
@@ -566,13 +569,15 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, int 
 
 			__alloc_hint_temp = SB_NR_TO_BIT(sb, __alloc_hint);
 
+
+			//debug
+			if (index > 50000)
+				pr_err_once("%s x1 index=%d alloc_hint=%d nid=%d base2=%d __alloc_hint=%d\n", __func__, index, alloc_hint, nid, base2, __alloc_hint);
+
 			if (sb->round_robin)
 				__alloc_hint = SB_NR_TO_BIT(sb, __alloc_hint);
 			else
 				__alloc_hint = 0;
-
-			//debug
-		
 		}else {
 			const unsigned int depth_per_node_shift = sb->depth_per_node_shift;
 			const unsigned int depth_per_node_mask = (1 << sb->depth_per_node_shift) - 1;
@@ -605,6 +610,9 @@ static int __sbitmap_get(struct sbitmap *sb, const unsigned int alloc_hint, int 
 			else
 				__alloc_hint = 0;
 		}
+		
+		if (index > 50000)
+			pr_err_once("%s x2 index=%d\n", __func__, index);
 
 		__sbitmap_get_debug(sb, alloc_hint, nid, index, base, __alloc_hint);
 
