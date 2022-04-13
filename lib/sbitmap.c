@@ -234,7 +234,7 @@ static inline unsigned update_alloc_hint_before_get(struct sbitmap *sb,
 	}
 #endif
 	if (unlikely(hint >= depth)) {
-		WARN_ONCE(1, "%s sb=%pS hint=%d depth=%d map_nr=%d\n", __func__, sb, hint, depth, sb->map_nr);
+		WARN_ONCE(!!sb->map_nr_numa, "%s sb=%pS hint=%d depth=%d map_nr=%d\n", __func__, sb, hint, depth, sb->map_nr);
 		hint = depth ? prandom_u32() % depth : 0;
 		this_cpu_write(*sb->alloc_hint, hint);
 		BUG_ON(sb->map_nr_numa);
@@ -250,9 +250,12 @@ static inline void update_alloc_hint_after_get(struct sbitmap *sb,
 					       int nid,
 					       int cpu)
 {
+	unsigned int *hint_ptr = per_cpu_ptr(sb->alloc_hint, cpu);
+
 	if (nr == -1) {
 		/* If the map is full, a hint won't do us much good. */
-		this_cpu_write(*sb->alloc_hint, 0);
+		sbitmap_check_hint(sb, cpu, 0);
+		*hint_ptr = 0;
 	} else if (nr == hint || unlikely(sb->round_robin)) {
 		/* Only update the hint if we used it. */
 		if (sb->map_nr_numa) {
@@ -276,9 +279,9 @@ static inline void update_alloc_hint_after_get(struct sbitmap *sb,
 			}
 
 			//pr_err_ratelimited("%s nr=%d depth_per_node=%d base=%d limit=%d\n", __func__, nr, depth_per_node, base, limit);
-		
-			*hint_ptr = hint;
 			sbitmap_check_hint(sb, cpu, hint);
+			*hint_ptr = hint;
+			
 		} else {
 			hint = nr + 1;
 			if (hint >= depth - 1)
