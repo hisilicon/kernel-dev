@@ -133,6 +133,7 @@ static int iommufd_vfio_unmap_dma(struct iommufd_ctx *ictx, unsigned int cmd,
 	u32 supported_flags = VFIO_DMA_UNMAP_FLAG_ALL;
 	struct vfio_iommu_type1_dma_unmap unmap;
 	struct iommufd_ioas *ioas;
+	unsigned long unmapped;
 	int rc;
 
 	if (copy_from_user(&unmap, arg, minsz))
@@ -146,10 +147,13 @@ static int iommufd_vfio_unmap_dma(struct iommufd_ctx *ictx, unsigned int cmd,
 		return PTR_ERR(ioas);
 
 	if (unmap.flags & VFIO_DMA_UNMAP_FLAG_ALL)
-		rc = iopt_unmap_all(&ioas->iopt);
+		rc = iopt_unmap_all(&ioas->iopt, &unmapped);
 	else
-		rc = iopt_unmap_iova(&ioas->iopt, unmap.iova, unmap.size);
+		rc = iopt_unmap_iova(&ioas->iopt, unmap.iova,
+				     unmap.size, &unmapped);
 	iommufd_put_object(&ioas->obj);
+	unmap.size = unmapped;
+
 	return rc;
 }
 

@@ -46,8 +46,8 @@ int iopt_map_pages(struct io_pagetable *iopt, struct iopt_pages *pages,
 		   unsigned long *dst_iova, unsigned long start_byte,
 		   unsigned long length, int iommu_prot, unsigned int flags);
 int iopt_unmap_iova(struct io_pagetable *iopt, unsigned long iova,
-		    unsigned long length);
-int iopt_unmap_all(struct io_pagetable *iopt);
+		    unsigned long length, unsigned long *unmapped);
+int iopt_unmap_all(struct io_pagetable *iopt, unsigned long *unmapped);
 
 int iopt_access_pages(struct io_pagetable *iopt, unsigned long iova,
 		      unsigned long npages, struct page **out_pages, bool write);

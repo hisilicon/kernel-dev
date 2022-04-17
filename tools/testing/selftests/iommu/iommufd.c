@@ -357,6 +357,47 @@ TEST_F(iommufd_ioas, area)
 	ASSERT_EQ(0, ioctl(self->fd, IOMMU_IOAS_UNMAP, &unmap_cmd));
 }
 
+TEST_F(iommufd_ioas, unmap_fully_contained_areas)
+{
+	struct iommu_ioas_map map_cmd = {
+		.size = sizeof(map_cmd),
+		.ioas_id = self->ioas_id,
+		.flags = IOMMU_IOAS_MAP_FIXED_IOVA,
+		.length = PAGE_SIZE,
+		.user_va = (uintptr_t)buffer,
+	};
+	struct iommu_ioas_unmap unmap_cmd = {
+		.size = sizeof(unmap_cmd),
+		.ioas_id = self->ioas_id,
+		.length = PAGE_SIZE,
+	};
+	int i;
+
+	for (i = 0; i != 4; i++) {
+		map_cmd.iova = self->base_iova + i * 16 * PAGE_SIZE;
+		map_cmd.length = 8 * PAGE_SIZE;
+		ASSERT_EQ(0,
+			  ioctl(self->fd, IOMMU_IOAS_MAP, &map_cmd));
+	}
+
+	/* Unmap not fully contained area doesn't work */
+	unmap_cmd.iova = self->base_iova - 4 * PAGE_SIZE;
+	unmap_cmd.length = 8 * PAGE_SIZE;
+	ASSERT_EQ(ENOENT,
+		  ioctl(self->fd, IOMMU_IOAS_UNMAP, &unmap_cmd));
+
+	unmap_cmd.iova = self->base_iova + 3 * 16 * PAGE_SIZE + 8 * PAGE_SIZE - 4 * PAGE_SIZE;
+	unmap_cmd.length = 8 * PAGE_SIZE;
+	ASSERT_EQ(ENOENT,
+		  ioctl(self->fd, IOMMU_IOAS_UNMAP, &unmap_cmd));
+
+	/* Unmap fully contained areas works */
+	unmap_cmd.iova = self->base_iova - 4 * PAGE_SIZE;
+	unmap_cmd.length = 3 * 16 * PAGE_SIZE + 8 * PAGE_SIZE + 4 * PAGE_SIZE;
+	ASSERT_EQ(0, ioctl(self->fd, IOMMU_IOAS_UNMAP, &unmap_cmd));
+	ASSERT_EQ(32, unmap_cmd.length);
+}
+
 TEST_F(iommufd_ioas, area_auto_iova)
 {
 	struct iommu_test_cmd test_cmd = {

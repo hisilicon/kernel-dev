@@ -172,7 +172,7 @@ struct iommu_ioas_copy {
  * @size: sizeof(struct iommu_ioas_copy)
  * @ioas_id: IOAS ID to change the mapping of
  * @iova: IOVA to start the unmapping at
- * @length: Number of bytes to unmap
+ * @length: Number of bytes to unmap, and return back the bytes unmapped
  *
  * Unmap an IOVA range. The iova/length must exactly match a range
  * used with IOMMU_IOAS_PAGETABLE_MAP, or be the values 0 & U64_MAX.

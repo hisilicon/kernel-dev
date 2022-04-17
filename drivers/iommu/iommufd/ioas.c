@@ -14,7 +14,7 @@ void iommufd_ioas_destroy(struct iommufd_object *obj)
 	struct iommufd_ioas *ioas = container_of(obj, struct iommufd_ioas, obj);
 	int rc;
 
-	rc = iopt_unmap_all(&ioas->iopt);
+	rc = iopt_unmap_all(&ioas->iopt, NULL);
 	WARN_ON(rc);
 	iopt_destroy_table(&ioas->iopt);
 	mutex_destroy(&ioas->mutex);
@@ -230,6 +230,7 @@ int iommufd_ioas_unmap(struct iommufd_ucmd *ucmd)
 {
 	struct iommu_ioas_unmap *cmd = ucmd->cmd;
 	struct iommufd_ioas *ioas;
+	unsigned long unmapped = 0;
 	int rc;
 
 	ioas = iommufd_get_ioas(ucmd, cmd->ioas_id);
@@ -237,16 +238,17 @@ int iommufd_ioas_unmap(struct iommufd_ucmd *ucmd)
 		return PTR_ERR(ioas);
 
 	if (cmd->iova == 0 && cmd->length == U64_MAX) {
-		rc = iopt_unmap_all(&ioas->iopt);
+		rc = iopt_unmap_all(&ioas->iopt, &unmapped);
 	} else {
 		if (cmd->iova >= ULONG_MAX || cmd->length >= ULONG_MAX) {
 			rc = -EOVERFLOW;
 			goto out_put;
 		}
-		rc = iopt_unmap_iova(&ioas->iopt, cmd->iova, cmd->length);
+		rc = iopt_unmap_iova(&ioas->iopt, cmd->iova, cmd->length, &unmapped);
 	}
 
 out_put:
 	iommufd_put_object(&ioas->obj);
+	cmd->length = unmapped;
 	return rc;
 }

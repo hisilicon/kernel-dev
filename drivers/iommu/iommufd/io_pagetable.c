@@ -315,61 +315,26 @@ static int __iopt_unmap_iova(struct io_pagetable *iopt, struct iopt_area *area,
 	return 0;
 }
 
-/**
- * iopt_unmap_iova() - Remove a range of iova
- * @iopt: io_pagetable to act on
- * @iova: Starting iova to unmap
- * @length: Number of bytes to unmap
- *
- * The requested range must exactly match an existing range.
- * Splitting/truncating IOVA mappings is not allowed.
- */
-int iopt_unmap_iova(struct io_pagetable *iopt, unsigned long iova,
-		    unsigned long length)
-{
-	struct iopt_pages *pages;
-	struct iopt_area *area;
-	unsigned long iova_end;
-	int rc;
-
-	if (!length)
-		return -EINVAL;
-
-	if (check_add_overflow(iova, length - 1, &iova_end))
-		return -EOVERFLOW;
-
-	down_read(&iopt->domains_rwsem);
-	down_write(&iopt->iova_rwsem);
-	area = iopt_find_exact_area(iopt, iova, iova_end);
-	if (!area) {
-		up_write(&iopt->iova_rwsem);
-		up_read(&iopt->domains_rwsem);
-		return -ENOENT;
-	}
-	pages = area->pages;
-	area->pages = NULL;
-	up_write(&iopt->iova_rwsem);
-
-	rc = __iopt_unmap_iova(iopt, area, pages);
-	up_read(&iopt->domains_rwsem);
-	return rc;
-}
-
-int iopt_unmap_all(struct io_pagetable *iopt)
+static int __iopt_unmap_iova_range(struct io_pagetable *iopt,
+				   unsigned long start,
+				   unsigned long end,
+				   unsigned long *unmapped)
 {
 	struct iopt_area *area;
+	unsigned long unmapped_bytes = 0;
 	int rc;
 
 	down_read(&iopt->domains_rwsem);
 	down_write(&iopt->iova_rwsem);
-	while ((area = iopt_area_iter_first(iopt, 0, ULONG_MAX))) {
+	while ((area = iopt_area_iter_first(iopt, start, end))) {
 		struct iopt_pages *pages;
 
-		/* Userspace should not race unmap all and map */
-		if (!area->pages) {
-			rc = -EBUSY;
+		if (!area->pages || iopt_area_iova(area) < start ||
+		    iopt_area_last_iova(area) > end) {
+			rc = -ENOENT;
 			goto out_unlock_iova;
 		}
+
 		pages = area->pages;
 		area->pages = NULL;
 		up_write(&iopt->iova_rwsem);
@@ -377,6 +342,10 @@ int iopt_unmap_all(struct io_pagetable *iopt)
 		rc = __iopt_unmap_iova(iopt, area, pages);
 		if (rc)
 			goto out_unlock_domains;
+
+		start = iopt_area_last_iova(area) + 1;
+		unmapped_bytes +=
+			iopt_area_last_iova(area) - iopt_area_iova(area) + 1;
 
 		down_write(&iopt->iova_rwsem);
 	}
@@ -386,7 +355,38 @@ out_unlock_iova:
 	up_write(&iopt->iova_rwsem);
 out_unlock_domains:
 	up_read(&iopt->domains_rwsem);
+	if (unmapped)
+		*unmapped = unmapped_bytes;
 	return rc;
+}
+
+/**
+ * iopt_unmap_iova() - Remove a range of iova
+ * @iopt: io_pagetable to act on
+ * @iova: Starting iova to unmap
+ * @length: Number of bytes to unmap
+ * @unmapped: Return number of bytes unmapped
+ *
+ * The requested range must exactly match an existing range.
+ * Splitting/truncating IOVA mappings is not allowed.
+ */
+int iopt_unmap_iova(struct io_pagetable *iopt, unsigned long iova,
+		    unsigned long length, unsigned long *unmapped)
+{
+	unsigned long iova_end;
+
+	if (!length)
+		return -EINVAL;
+
+	if (check_add_overflow(iova, length - 1, &iova_end))
+		return -EOVERFLOW;
+
+	return __iopt_unmap_iova_range(iopt, iova, iova_end, unmapped);
+}
+
+int iopt_unmap_all(struct io_pagetable *iopt, unsigned long *unmapped)
+{
+	return __iopt_unmap_iova_range(iopt, 0, ULONG_MAX, unmapped);
 }
 
 /**
