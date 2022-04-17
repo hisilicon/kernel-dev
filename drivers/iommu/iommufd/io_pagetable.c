@@ -327,10 +327,17 @@ static int __iopt_unmap_iova_range(struct io_pagetable *iopt,
 	down_read(&iopt->domains_rwsem);
 	down_write(&iopt->iova_rwsem);
 	while ((area = iopt_area_iter_first(iopt, start, end))) {
+		unsigned long area_last = iopt_area_last_iova(area);
+		unsigned long area_first = iopt_area_iova(area);
 		struct iopt_pages *pages;
 
-		if (!area->pages || iopt_area_iova(area) < start ||
-		    iopt_area_last_iova(area) > end) {
+		/* Userspace should not race unmap all and map */
+		if (!area->pages) {
+			rc = -EBUSY;
+			goto out_unlock_iova;
+		}
+
+		if (area_first < start || area_last > end) {
 			rc = -ENOENT;
 			goto out_unlock_iova;
 		}
@@ -343,13 +350,18 @@ static int __iopt_unmap_iova_range(struct io_pagetable *iopt,
 		if (rc)
 			goto out_unlock_domains;
 
-		start = iopt_area_last_iova(area) + 1;
-		unmapped_bytes +=
-			iopt_area_last_iova(area) - iopt_area_iova(area) + 1;
+		start = area_last + 1;
+		unmapped_bytes += area_last - area_first + 1;
+
+		if (start == 0)
+			goto out_unlock_domains;
 
 		down_write(&iopt->iova_rwsem);
 	}
-	rc = 0;
+	if (unmapped_bytes)
+		rc = 0;
+	else
+		rc = -ENOENT;
 
 out_unlock_iova:
 	up_write(&iopt->iova_rwsem);

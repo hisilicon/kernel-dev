@@ -15,7 +15,7 @@ void iommufd_ioas_destroy(struct iommufd_object *obj)
 	int rc;
 
 	rc = iopt_unmap_all(&ioas->iopt, NULL);
-	WARN_ON(rc);
+	WARN_ON(rc == -EBUSY);
 	iopt_destroy_table(&ioas->iopt);
 	mutex_destroy(&ioas->mutex);
 }
@@ -247,8 +247,12 @@ int iommufd_ioas_unmap(struct iommufd_ucmd *ucmd)
 		rc = iopt_unmap_iova(&ioas->iopt, cmd->iova, cmd->length, &unmapped);
 	}
 
+	if (!rc) {
+		cmd->length = unmapped;
+		rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
+	}
+
 out_put:
 	iommufd_put_object(&ioas->obj);
-	cmd->length = unmapped;
 	return rc;
 }
