@@ -4131,6 +4131,10 @@ int prepare_domain_attach_device(struct iommu_domain *domain,
 	if (!iommu)
 		return -ENODEV;
 
+	if (domain->flags & IOMMU_DOMAIN_F_ENFORCE_DIRTY &&
+	    !ecap_slads(iommu->ecap))
+		return -EINVAL;
+
 	if (dmar_domain->force_snooping && !ecap_sc_support(iommu->ecap))
 		return -EINVAL;
 
@@ -4393,6 +4397,9 @@ static bool intel_iommu_capable(struct device *dev, enum iommu_cap cap)
 		return dmar_platform_optin();
 	case IOMMU_CAP_ENFORCE_CACHE_COHERENCY:
 		return ecap_sc_support(info->iommu->ecap);
+	case IOMMU_CAP_DIRTY:
+		return sm_supported(info->iommu) &&
+			ecap_slads(info->iommu->ecap);
 	default:
 		return false;
 	}
@@ -4780,6 +4787,84 @@ static const size_t intel_iommu_domain_user_data_len[] = {
 	[IOMMU_HWPT_TYPE_VTD_S1] = sizeof(struct iommu_hwpt_intel_vtd),
 };
 
+static int intel_iommu_set_dirty_tracking(struct iommu_domain *domain,
+					  bool enable)
+{
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
+	struct device_domain_info *info;
+	int ret = -EINVAL;
+
+	spin_lock(&dmar_domain->lock);
+	if (!(dmar_domain->dirty_tracking ^ enable) ||
+	    list_empty(&dmar_domain->devices)) {
+		spin_unlock(&dmar_domain->lock);
+		return 0;
+	}
+
+	list_for_each_entry(info, &dmar_domain->devices, link) {
+		/* First-level page table always enables dirty bit*/
+		if (dmar_domain->use_first_level) {
+			ret = 0;
+			break;
+		}
+
+		ret = intel_pasid_setup_dirty_tracking(info->iommu, info->domain,
+						     info->dev, PASID_RID2PASID,
+						     enable);
+		if (ret)
+			break;
+
+	}
+
+	if (!ret)
+		dmar_domain->dirty_tracking = enable;
+	spin_unlock(&dmar_domain->lock);
+
+	return ret;
+}
+
+static int intel_iommu_read_and_clear_dirty(struct iommu_domain *domain,
+					    unsigned long iova, size_t size,
+					    unsigned long flags,
+					    struct iommu_dirty_bitmap *dirty)
+{
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
+	unsigned long end = iova + size - 1;
+	unsigned long pgsize;
+	bool ad_enabled;
+
+	spin_lock(&dmar_domain->lock);
+	ad_enabled = dmar_domain->dirty_tracking;
+	spin_unlock(&dmar_domain->lock);
+
+	if (!ad_enabled && dirty->bitmap)
+		return -EINVAL;
+
+	rcu_read_lock();
+	do {
+		struct dma_pte *pte;
+		int lvl = 0;
+
+		pte = pfn_to_dma_pte(dmar_domain, iova >> VTD_PAGE_SHIFT, &lvl,
+				     GFP_ATOMIC);
+		pgsize = level_size(lvl) << VTD_PAGE_SHIFT;
+		if (!pte || !dma_pte_present(pte)) {
+			iova += pgsize;
+			continue;
+		}
+
+		/* It is writable, set the bitmap */
+		if (((flags & IOMMU_DIRTY_NO_CLEAR) &&
+				dma_sl_pte_dirty(pte)) ||
+		    dma_sl_pte_test_and_clear_dirty(pte))
+			iommu_dirty_bitmap_record(dirty, iova, pgsize);
+		iova += pgsize;
+	} while (iova < end);
+	rcu_read_unlock();
+
+	return 0;
+}
+
 const struct iommu_ops intel_iommu_ops = {
 	.capable		= intel_iommu_capable,
 	.hw_info		= intel_iommu_hw_info,
@@ -4799,6 +4884,7 @@ const struct iommu_ops intel_iommu_ops = {
 	.pgsize_bitmap		= SZ_4K,
 	.hw_info_type		= IOMMU_HW_INFO_TYPE_INTEL_VTD,
 	.hwpt_type_bitmap	= BIT_ULL(IOMMU_HWPT_TYPE_VTD_S1),
+	.supported_flags	= IOMMU_DOMAIN_F_ENFORCE_DIRTY,
 #ifdef CONFIG_INTEL_IOMMU_SVM
 	.page_response		= intel_svm_page_response,
 #endif
@@ -4812,6 +4898,8 @@ const struct iommu_ops intel_iommu_ops = {
 		.iova_to_phys		= intel_iommu_iova_to_phys,
 		.free			= intel_iommu_domain_free,
 		.enforce_cache_coherency = intel_iommu_enforce_cache_coherency,
+		.set_dirty_tracking	= intel_iommu_set_dirty_tracking,
+		.read_and_clear_dirty   = intel_iommu_read_and_clear_dirty,
 	}
 };
 
