@@ -42,6 +42,8 @@ struct iova_domain {
 	atomic64_t rcache_fail;
 };
 
+unsigned long iova_cache_len(void);
+
 static inline unsigned long iova_size(struct iova *iova)
 {
 	return iova->pfn_hi - iova->pfn_lo + 1;

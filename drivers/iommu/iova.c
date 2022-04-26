@@ -68,6 +68,11 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 }
 EXPORT_SYMBOL_GPL(init_iova_domain);
 
+unsigned long iova_cache_len(void)
+{
+	return PAGE_SIZE << IOVA_RANGE_CACHE_MAX_SIZE;
+}
+
 static struct rb_node *
 __get_cached_rbnode(struct iova_domain *iovad, unsigned long limit_pfn)
 {
