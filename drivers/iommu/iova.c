@@ -15,7 +15,7 @@
 /* The anchor node sits above the top of the usable address space */
 #define IOVA_ANCHOR	~0UL
 
-#define IOVA_RANGE_CACHE_MAX_SIZE 6	/* log of max cached IOVA range size (in pages) */
+#define IOVA_RANGE_CACHE_MAX_SIZE 4	/* log of max cached IOVA range size (in pages) */
 
 static bool iova_rcache_insert(struct iova_domain *iovad,
 			       unsigned long pfn,
