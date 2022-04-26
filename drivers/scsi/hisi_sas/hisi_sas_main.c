@@ -6,6 +6,7 @@
 
 #include "hisi_sas.h"
 #define DRV_NAME "hisi_sas"
+#include <linux/dma-iommu.h>
 
 #define DEV_IS_GONE(dev) \
 	((!dev) || (dev->dev_type == SAS_PHY_UNUSED))
@@ -2445,6 +2446,8 @@ int hisi_sas_probe(struct platform_device *pdev,
 	rc = hisi_sas_interrupt_preinit(hisi_hba);
 	if (rc)
 		goto err_out_ha;
+
+	dev_err(dev, "%s dma max = %ld\n", __func__, iommu_dma_get_cached_dma_len(dev));
 
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
