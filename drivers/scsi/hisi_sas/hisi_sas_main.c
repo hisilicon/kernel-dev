@@ -2450,7 +2450,7 @@ int hisi_sas_probe(struct platform_device *pdev,
 
 	dev_err(dev, "%s dma max = %ld\n", __func__, iommu_dma_get_cached_dma_len(dev));
 	sg_tablesize = shost->sg_tablesize;
-	shost->sg_tablesize = (iommu_dma_get_cached_dma_len(dev) -1) / PAGE_SIZE;
+	shost->sg_tablesize = iommu_dma_get_cached_dma_len(dev) / BLK_MAX_SEGMENT_SIZE;
 	dev_err(dev, "%s2 sg_tablesize=%d (old=%d)\n", __func__, shost->sg_tablesize, sg_tablesize);
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
