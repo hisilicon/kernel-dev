@@ -871,9 +871,18 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long limit_pfn)
 {
 	unsigned int log_size = order_base_2(size);
+	unsigned long long rcache_attempt = atomic64_inc_return(&iovad->rcache_attempt);
 
-	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE || !iovad->rcaches)
+	if ((rcache_attempt % 2000000) == 0) {
+		pr_err("%s rcache_attempt=%lld fail=%lld\n", __func__, rcache_attempt, atomic64_read(&iovad->rcache_fail));
+		atomic64_set(&iovad->rcache_attempt, 0);
+		atomic64_set(&iovad->rcache_fail, 0);
+	}
+	
+	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE || !iovad->rcaches) {
+		atomic64_inc(&iovad->rcache_fail);
 		return 0;
+	}
 
 	return __iova_rcache_get(&iovad->rcaches[log_size], limit_pfn - size);
 }

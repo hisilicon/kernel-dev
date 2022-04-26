@@ -38,6 +38,8 @@ struct iova_domain {
 
 	struct iova_rcache	*rcaches;
 	struct hlist_node	cpuhp_dead;
+	atomic64_t rcache_attempt;
+	atomic64_t rcache_fail;
 };
 
 static inline unsigned long iova_size(struct iova *iova)
