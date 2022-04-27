@@ -43,6 +43,8 @@ void iommu_dma_free_cpu_cached_iovas(unsigned int cpu,
 
 extern bool iommu_dma_forcedac;
 
+unsigned long iommu_dma_get_optimal_max_len(struct device *dev);
+
 #else /* CONFIG_IOMMU_DMA */
 
 struct iommu_domain;

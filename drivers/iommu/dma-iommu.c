@@ -1575,6 +1575,22 @@ void iommu_dma_compose_msi_msg(struct msi_desc *desc,
 	msg->address_lo += lower_32_bits(msi_page->iova);
 }
 
+unsigned long iommu_dma_get_optimal_max_len(struct device *dev)
+{
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
+	struct iommu_dma_cookie *cookie;
+
+	if (!domain)
+		return 0;
+
+	cookie = domain->iova_cookie;
+	if (!cookie || cookie->type != IOMMU_DMA_IOVA_COOKIE)
+		return 0;
+
+	return iova_rcache_len();
+}
+EXPORT_SYMBOL(iommu_dma_get_optimal_max_len);
+
 static int iommu_dma_init(void)
 {
 	if (is_kdump_kernel())

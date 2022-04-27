@@ -40,6 +40,8 @@ struct iova_domain {
 	struct hlist_node	cpuhp_dead;
 };
 
+unsigned long iova_rcache_len(void);
+
 static inline unsigned long iova_size(struct iova *iova)
 {
 	return iova->pfn_hi - iova->pfn_lo + 1;
