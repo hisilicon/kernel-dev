@@ -123,6 +123,9 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_secto
 	struct queue_limits *limits = &q->limits;
 	unsigned int max_sectors;
 
+	pr_err("%s q=%pS max_hw_sectors=%d limits->max_sectors=%d limits->max_hw_sectors=%d\n", 
+		__func__, q, max_hw_sectors, limits->max_sectors, limits->max_hw_sectors);
+
 	if ((max_hw_sectors << 9) < PAGE_SIZE) {
 		max_hw_sectors = 1 << (PAGE_SHIFT - 9);
 		printk(KERN_INFO "%s: set to minimum %d\n",
@@ -131,6 +134,8 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_secto
 
 	max_hw_sectors = round_down(max_hw_sectors,
 				    limits->logical_block_size >> SECTOR_SHIFT);
+	pr_err("%s2 q=%pS max_hw_sectors=%d limits->max_sectors=%d limits->max_hw_sectors=%d\n", 
+		__func__, q, max_hw_sectors, limits->max_sectors, limits->max_hw_sectors);
 	limits->max_hw_sectors = max_hw_sectors;
 
 	max_sectors = min_not_zero(max_hw_sectors, limits->max_dev_sectors);
@@ -138,6 +143,9 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_secto
 	max_sectors = round_down(max_sectors,
 				 limits->logical_block_size >> SECTOR_SHIFT);
 	limits->max_sectors = max_sectors;
+
+	pr_err("%s3 q=%pS max_hw_sectors=%d limits->max_sectors=%d limits->max_hw_sectors=%d\n", 
+		__func__, q, max_hw_sectors, limits->max_sectors, limits->max_hw_sectors);
 
 	if (!q->disk)
 		return;

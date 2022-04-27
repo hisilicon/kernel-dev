@@ -771,6 +771,9 @@ int hisi_sas_slave_alloc(struct scsi_device *sdev)
 {
 	struct domain_device *ddev;
 	int rc;
+	struct request_queue *request_queue = sdev->request_queue;
+
+	pr_err("%s sdev=%pS request_queue=%pS\n", __func__, sdev, request_queue);
 
 	rc = sas_slave_alloc(sdev);
 	if (rc)
@@ -2454,7 +2457,7 @@ int hisi_sas_probe(struct platform_device *pdev,
 //	shost->sg_tablesize = iommu_dma_get_cached_dma_len(dev) / PAGE_SIZE;
 //	shost->max_segment_size = PAGE_SIZE;
 	max_sectors = shost->max_sectors;
-	shost->max_sectors = iommu_dma_get_cached_dma_len(dev) / sg_tablesize;
+//	shost->max_sectors = iommu_dma_get_cached_dma_len(dev) / sg_tablesize;
 	dev_err(dev, "%s2 sg_tablesize=%d (old=%d) max_sectors=%d (old=%d)\n", 
 		__func__, shost->sg_tablesize, sg_tablesize, shost->max_sectors, max_sectors);
 	rc = scsi_add_host(shost, &pdev->dev);

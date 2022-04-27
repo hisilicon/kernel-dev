@@ -80,7 +80,7 @@ static inline unsigned long iova_pfn(struct iova_domain *iovad, dma_addr_t iova)
 	return iova >> iova_shift(iovad);
 }
 
-#define IOVA_RANGE_CACHE_MAX_SIZE 4	/* log of max cached IOVA range size (in pages) */
+#define IOVA_RANGE_CACHE_MAX_SIZE 6	/* log of max cached IOVA range size (in pages) */
 
 #if IS_ENABLED(CONFIG_IOMMU_IOVA)
 int iova_cache_get(void);
