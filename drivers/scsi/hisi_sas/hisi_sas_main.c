@@ -852,7 +852,7 @@ int hisi_sas_slave_configure(struct scsi_device *sdev)
 {
 	struct domain_device *dev = sdev_to_domain_dev(sdev);
 	int ret = sas_slave_configure(sdev);
-
+	pr_err("%s sdev=%pS\n", __func__, sdev);
 	if (ret)
 		return ret;
 	if (!dev_is_sata(dev))
