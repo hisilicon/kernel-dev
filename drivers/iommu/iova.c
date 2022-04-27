@@ -21,7 +21,8 @@ static bool iova_rcache_insert(struct iova_domain *iovad,
 			       unsigned long size);
 static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long size,
-				     unsigned long limit_pfn);
+				     unsigned long limit_pfn,
+				     unsigned long orig_size);
 static void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad);
 static void free_iova_rcaches(struct iova_domain *iovad);
 
@@ -436,7 +437,7 @@ EXPORT_SYMBOL_GPL(free_iova);
 */
 unsigned long
 alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
-		unsigned long limit_pfn, bool flush_rcache)
+		unsigned long limit_pfn, bool flush_rcache, unsigned long orig_size)
 {
 	unsigned long iova_pfn;
 	struct iova *new_iova;
@@ -450,7 +451,7 @@ alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
 	if (size < (1 << (IOVA_RANGE_CACHE_MAX_SIZE - 1)))
 		size = roundup_pow_of_two(size);
 
-	iova_pfn = iova_rcache_get(iovad, size, limit_pfn + 1);
+	iova_pfn = iova_rcache_get(iovad, size, limit_pfn + 1, orig_size);
 	if (iova_pfn)
 		return iova_pfn;
 
@@ -872,7 +873,8 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
  */
 static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long size,
-				     unsigned long limit_pfn)
+				     unsigned long limit_pfn,
+				     unsigned long orig_size)
 {
 	unsigned int log_size = order_base_2(size);
 	unsigned long long rcache_attempt = atomic64_inc_return(&iovad->rcache_attempt);
@@ -891,7 +893,7 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 	
 	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE || !iovad->rcaches) {
 		atomic64_inc(&iovad->rcache_fail);
-		WARN_ONCE (rcache_attempt > 10000, "%s log_size=%d iovad->rcaches=%pS\n", __func__, log_size, iovad->rcaches);
+		WARN_ONCE (rcache_attempt > 10000, "%s log_size=%d iovad->rcaches=%pS orig_size=%ld\n", __func__, log_size, iovad->rcaches, orig_size);
 		return 0;
 	}
 

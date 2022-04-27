@@ -606,6 +606,7 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iova_domain *iovad = &cookie->iovad;
 	unsigned long shift, iova_len, iova = 0;
+	unsigned long orig_size = size;
 
 	if (cookie->type == IOMMU_DMA_MSI_COOKIE) {
 		cookie->msi_iova += size;
@@ -634,11 +635,11 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 	/* Try to get PCI devices a SAC address */
 	if (dma_limit > DMA_BIT_MASK(32) && !iommu_dma_forcedac && dev_is_pci(dev))
 		iova = alloc_iova_fast(iovad, iova_len,
-				       DMA_BIT_MASK(32) >> shift, false);
+				       DMA_BIT_MASK(32) >> shift, false, orig_size);
 
 	if (!iova)
 		iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift,
-				       true);
+				       true, orig_size);
 
 	return (dma_addr_t)iova << shift;
 }

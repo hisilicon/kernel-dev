@@ -94,7 +94,7 @@ struct iova *alloc_iova(struct iova_domain *iovad, unsigned long size,
 void free_iova_fast(struct iova_domain *iovad, unsigned long pfn,
 		    unsigned long size);
 unsigned long alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
-			      unsigned long limit_pfn, bool flush_rcache);
+			      unsigned long limit_pfn, bool flush_rcache, unsigned long orig_size);
 struct iova *reserve_iova(struct iova_domain *iovad, unsigned long pfn_lo,
 	unsigned long pfn_hi);
 void init_iova_domain(struct iova_domain *iovad, unsigned long granule,
