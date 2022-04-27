@@ -769,26 +769,13 @@ static int hisi_sas_init_device(struct domain_device *device)
 
 int hisi_sas_slave_alloc(struct scsi_device *sdev)
 {
-	struct domain_device *ddev = sdev_to_domain_dev(sdev);
+	struct domain_device *ddev;
 	int rc;
-	struct request_queue *request_queue = sdev->request_queue;
-	struct hisi_hba *hisi_hba = dev_to_hisi_hba(ddev);
-	struct device *dev = hisi_hba->dev;
-	unsigned int max_sectors;
-	unsigned int lbs = queue_logical_block_size(request_queue);
-	unsigned int cached_dma_len = iommu_dma_get_cached_dma_len(dev);
-
-	max_sectors = cached_dma_len /lbs;
-	max_sectors -= 1;
-//	max_sectors >>= 1;
-
-	pr_err("%s sdev=%pS request_queue=%pS cached_dma_len=%d lbs=%d\n",
-		__func__, sdev, request_queue, cached_dma_len, lbs);
 
 	rc = sas_slave_alloc(sdev);
 	if (rc)
 		return rc;
-	blk_queue_max_hw_sectors(request_queue, max_sectors);
+	ddev = sdev_to_domain_dev(sdev);
 
 	return hisi_sas_init_device(ddev);
 }
@@ -851,12 +838,30 @@ err_out:
 int hisi_sas_slave_configure(struct scsi_device *sdev)
 {
 	struct domain_device *dev = sdev_to_domain_dev(sdev);
+	struct hisi_hba *hisi_hba = dev_to_hisi_hba(dev);
+	struct device *dma_dev = hisi_hba->dev;
+	unsigned int cached_dma_len = iommu_dma_get_cached_dma_len(dma_dev);
+	struct request_queue *request_queue = sdev->request_queue;
+	unsigned int lbs = queue_logical_block_size(request_queue);
+	unsigned int max_sectors;
+
 	int ret = sas_slave_configure(sdev);
+
 	pr_err("%s sdev=%pS ddev=%pS q=%pS\n", __func__, sdev, dev, sdev->request_queue);
 	if (ret)
 		return ret;
 	if (!dev_is_sata(dev))
 		sas_change_queue_depth(sdev, 64);
+
+
+	max_sectors = cached_dma_len /lbs;
+	//max_sectors -= 1;
+	//	max_sectors >>= 1;
+	
+	pr_err("%s2 sdev=%pS request_queue=%pS cached_dma_len=%d lbs=%d\n",
+			__func__, sdev, request_queue, cached_dma_len, lbs);
+	
+	blk_queue_max_hw_sectors(request_queue, max_sectors);
 
 	return 0;
 }
