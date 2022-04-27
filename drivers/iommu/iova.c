@@ -70,7 +70,7 @@ EXPORT_SYMBOL_GPL(init_iova_domain);
 
 unsigned long iova_cache_len(void)
 {
-	return PAGE_SIZE << IOVA_RANGE_CACHE_MAX_SIZE;
+	return PAGE_SIZE << (IOVA_RANGE_CACHE_MAX_SIZE -1);
 }
 
 static struct rb_node *
