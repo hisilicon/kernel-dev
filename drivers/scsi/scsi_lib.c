@@ -1888,7 +1888,7 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 		shost->max_sectors = min_t(unsigned int, shost->max_sectors,
 				dma_max_mapping_size(dev) >> SECTOR_SHIFT);
 	}
-	pr_err("%s shost->max_sectors=%d\n", __func__, shost->max_sectors);
+	pr_err("%s shost->max_sectors=%d q=%pS\n", __func__, shost->max_sectors, q);
 	blk_queue_max_hw_sectors(q, shost->max_sectors);
 	blk_queue_segment_boundary(q, shost->dma_boundary);
 	dma_set_seg_boundary(dev, shost->dma_boundary);

@@ -1036,7 +1036,7 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 		dev->flags |= ATA_DFLAG_NO_UNLOAD;
 
 	/* configure max sectors */
-	pr_err("%s dev->max_sectors=%d\n", __func__, dev->max_sectors);
+	pr_err("%s dev->max_sectors=%d q=%pS\n", __func__, dev->max_sectors, q);
 	blk_queue_max_hw_sectors(q, dev->max_sectors);
 
 	if (dev->class == ATA_DEV_ATAPI) {
