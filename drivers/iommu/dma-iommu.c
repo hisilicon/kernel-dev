@@ -619,11 +619,14 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 
 	if (domain->geometry.force_aperture)
 		dma_limit = min(dma_limit, (u64)domain->geometry.aperture_end);
+	
+	if (size > atomic64_read(&iovad->rcache_max))
+		atomic64_set(&iovad->rcache_max, size);
 
 	if (size > 10000) {
 		unsigned long roundup_sz = roundup_pow_of_two(size);
 		unsigned long log_size = order_base_2(size);
-		bool cacheable = log_size >= IOVA_RANGE_CACHE_MAX_SIZE;
+		bool cacheable = log_size < IOVA_RANGE_CACHE_MAX_SIZE;
 		pr_err_once("%s size=%zu shift=%lu iova_len=%lu roundup_pow_of_two(size)=%zu log_size=%lu cacheable=%d IOVA_RANGE_CACHE_MAX_SIZE=%d\n",
 			__func__, size, shift, iova_len, roundup_sz, log_size, cacheable, IOVA_RANGE_CACHE_MAX_SIZE);
 	}

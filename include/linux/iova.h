@@ -40,6 +40,7 @@ struct iova_domain {
 	struct hlist_node	cpuhp_dead;
 	atomic64_t rcache_attempt;
 	atomic64_t rcache_fail;
+	atomic64_t rcache_max;
 };
 
 unsigned long iova_cache_len(void);
