@@ -2385,7 +2385,7 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	mask &= unmask;
 	dev_err(dev, "DMA_BIT_MASK(64) with bottom=0x%llx\n", mask);
 
-	error = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+	error = dma_set_mask_and_coherent(dev, mask);
 	if (error) {
 		dev_err(dev, "No usable DMA addressing method\n");
 		goto err_out;
