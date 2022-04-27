@@ -2397,6 +2397,7 @@ int hisi_sas_probe(struct platform_device *pdev,
 	struct sas_ha_struct *sha;
 	int rc, phy_nr, port_nr, i;
 	short unsigned int sg_tablesize;
+	unsigned int max_sectors;
 
 	shost = hisi_sas_shost_alloc(pdev, hw);
 	if (!shost)
@@ -2452,7 +2453,10 @@ int hisi_sas_probe(struct platform_device *pdev,
 	sg_tablesize = shost->sg_tablesize;
 //	shost->sg_tablesize = iommu_dma_get_cached_dma_len(dev) / PAGE_SIZE;
 //	shost->max_segment_size = PAGE_SIZE;
-	dev_err(dev, "%s2 sg_tablesize=%d (old=%d)\n", __func__, shost->sg_tablesize, sg_tablesize);
+	max_sectors = shost->max_sectors;
+	shost->max_sectors = iommu_dma_get_cached_dma_len(dev) / sg_tablesize;
+	dev_err(dev, "%s2 sg_tablesize=%d (old=%d) max_sectors=%d (old=%d)\n", 
+		__func__, shost->sg_tablesize, sg_tablesize, shost->max_sectors, max_sectors);
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
 		goto err_out_ha;
