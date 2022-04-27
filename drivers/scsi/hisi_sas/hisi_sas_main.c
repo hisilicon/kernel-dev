@@ -779,6 +779,7 @@ int hisi_sas_slave_alloc(struct scsi_device *sdev)
 	unsigned int cached_dma_len = iommu_dma_get_cached_dma_len(dev);
 
 	max_sectors = cached_dma_len /lbs;
+	max_sectors -= 1;
 //	max_sectors >>= 1;
 
 	pr_err("%s sdev=%pS request_queue=%pS cached_dma_len=%d lbs=%d\n",
