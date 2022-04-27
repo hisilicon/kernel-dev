@@ -5,6 +5,7 @@
  */
 
 #include "hisi_sas.h"
+#include <linux/dma-iommu.h>
 #define DRV_NAME "hisi_sas"
 
 #define DEV_IS_GONE(dev) \
@@ -838,12 +839,21 @@ err_out:
 int hisi_sas_slave_configure(struct scsi_device *sdev)
 {
 	struct domain_device *dev = sdev_to_domain_dev(sdev);
+	struct hisi_hba *hisi_hba = dev_to_hisi_hba(dev);
+	unsigned int len = iommu_dma_get_optimal_max_len(hisi_hba->dev);
 	int ret = sas_slave_configure(sdev);
 
 	if (ret)
 		return ret;
 	if (!dev_is_sata(dev))
 		sas_change_queue_depth(sdev, 64);
+
+	if (len) {
+		struct request_queue *request_queue = sdev->request_queue;
+		unsigned int lbs = queue_logical_block_size(request_queue);
+
+		blk_queue_max_hw_sectors(request_queue, len / lbs);
+	}
 
 	return 0;
 }
