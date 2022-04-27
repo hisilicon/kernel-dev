@@ -769,16 +769,25 @@ static int hisi_sas_init_device(struct domain_device *device)
 
 int hisi_sas_slave_alloc(struct scsi_device *sdev)
 {
-	struct domain_device *ddev;
+	struct domain_device *ddev = sdev_to_domain_dev(sdev);
 	int rc;
 	struct request_queue *request_queue = sdev->request_queue;
+	struct hisi_hba *hisi_hba = dev_to_hisi_hba(ddev);
+	struct device *dev = hisi_hba->dev;
+	unsigned int max_sectors;
+	unsigned int lbs = queue_logical_block_size(request_queue);
+	unsigned int cached_dma_len = iommu_dma_get_cached_dma_len(dev);
 
-	pr_err("%s sdev=%pS request_queue=%pS\n", __func__, sdev, request_queue);
+	max_sectors = cached_dma_len /lbs;
+//	max_sectors >>= 1;
+
+	pr_err("%s sdev=%pS request_queue=%pS cached_dma_len=%d lbs=%d\n",
+		__func__, sdev, request_queue, cached_dma_len, lbs);
 
 	rc = sas_slave_alloc(sdev);
 	if (rc)
 		return rc;
-	ddev = sdev_to_domain_dev(sdev);
+	blk_queue_max_hw_sectors(request_queue, max_sectors);
 
 	return hisi_sas_init_device(ddev);
 }
@@ -2457,8 +2466,8 @@ int hisi_sas_probe(struct platform_device *pdev,
 //	shost->sg_tablesize = iommu_dma_get_cached_dma_len(dev) / PAGE_SIZE;
 //	shost->max_segment_size = PAGE_SIZE;
 	max_sectors = shost->max_sectors;
-	shost->max_sectors = iommu_dma_get_cached_dma_len(dev) / sg_tablesize;
-	shost->max_sectors = 512;
+//	shost->max_sectors = iommu_dma_get_cached_dma_len(dev) / sg_tablesize;
+//	shost->max_sectors = 512;
 	dev_err(dev, "%s2 sg_tablesize=%d (old=%d) max_sectors=%d (old=%d)\n", 
 		__func__, shost->sg_tablesize, sg_tablesize, shost->max_sectors, max_sectors);
 	rc = scsi_add_host(shost, &pdev->dev);
