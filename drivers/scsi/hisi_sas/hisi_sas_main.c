@@ -2458,6 +2458,7 @@ int hisi_sas_probe(struct platform_device *pdev,
 //	shost->max_segment_size = PAGE_SIZE;
 	max_sectors = shost->max_sectors;
 	shost->max_sectors = iommu_dma_get_cached_dma_len(dev) / sg_tablesize;
+	shost->max_sectors = 512;
 	dev_err(dev, "%s2 sg_tablesize=%d (old=%d) max_sectors=%d (old=%d)\n", 
 		__func__, shost->sg_tablesize, sg_tablesize, shost->max_sectors, max_sectors);
 	rc = scsi_add_host(shost, &pdev->dev);
