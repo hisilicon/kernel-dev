@@ -2355,6 +2355,11 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	struct hisi_hba *hisi_hba;
 	struct device *dev = &pdev->dev;
 	int error;
+	u64 mask, unmask;
+
+	unmask = ~0ULL;
+	unmask >>= 32;
+	unmask <<= 32;
 
 	shost = scsi_host_alloc(hw->sht, sizeof(*hisi_hba));
 	if (!shost) {
@@ -2374,6 +2379,11 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 
 	if (hisi_sas_get_fw_info(hisi_hba) < 0)
 		goto err_out;
+
+	mask = DMA_BIT_MASK(64);
+	dev_err(dev, "DMA_BIT_MASK(64)=0x%llx unmask=0x%llx\n", mask, unmask);
+	mask &= unmask;
+	dev_err(dev, "DMA_BIT_MASK(64) with bottom=0x%llx\n", mask);
 
 	error = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (error) {
