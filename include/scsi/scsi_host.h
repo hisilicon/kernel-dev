@@ -361,7 +361,7 @@ struct scsi_host_template {
 	 * Used to store the procfs directory if a driver implements the
 	 * show_info method.
 	 */
-	struct proc_dir_entry *proc_dir;
+	//struct proc_dir_entry *proc_dir;
 
 	/*
 	 * This determines if we will use a non-interrupt driven
@@ -427,7 +427,7 @@ struct scsi_host_template {
 	 * present contains counter indicating how many boards of this
 	 * type were found when we did the scan.
 	 */
-	unsigned char present;
+	//unsigned char present;
 
 	/* If use block layer to manage tags, this is tag allocation policy */
 	int tag_alloc_policy;
@@ -490,7 +490,7 @@ struct scsi_host_template {
 	 *   Vendor Type and ID formatting requirements specified in
 	 *   scsi_netlink.h
 	 */
-	u64 vendor_id;
+	u64 venddor_id;
 
 	/* Delay for runtime autosuspend */
 	int rpm_autosuspend_delay;
