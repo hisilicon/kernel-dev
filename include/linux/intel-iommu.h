@@ -542,6 +542,7 @@ struct dmar_domain {
 	u8 force_snooping : 1;		/* Create IOPTEs with snoop control */
 
 	struct list_head devices;	/* all devices' list */
+	struct list_head subdevices;	/* all subdevices' list */
 	struct iova_domain iovad;	/* iova's that belong to this domain */
 
 	struct dma_pte	*pgd;		/* virtual address */
@@ -607,6 +608,14 @@ struct intel_iommu {
 	void *perf_statistic;
 };
 
+/* PCI domain-subdevice relationship */
+struct subdev_domain_info {
+	struct list_head link_domain;	/* link to domain siblings */
+	struct dmar_domain *domain;
+	struct device *pdev;		/* physical device derived from */
+	ioasid_t pasid;			/* PASID on physical device */
+};
+
 /* PCI domain-device relationship */
 struct device_domain_info {
 	struct list_head link;	/* link to domain siblings */
@@ -627,6 +636,7 @@ struct device_domain_info {
 	struct intel_iommu *iommu; /* IOMMU used by this device */
 	struct dmar_domain *domain; /* pointer to domain */
 	struct pasid_table *pasid_table; /* pasid table */
+	struct xarray subdevice_array;
 };
 
 static inline void __iommu_flush_cache(
