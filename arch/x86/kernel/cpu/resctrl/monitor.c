@@ -208,14 +208,25 @@ int resctrl_arch_rmid_read(struct rdt_resource *r, struct rdt_domain *d,
 			   u64 *val, int ignored)
 {
 	struct __rmid_read_arg arg;
-	int err;
+	int err = -EIO;
 
 	arg.rmid = rmid;
 	arg.eventid = eventid;
 	arg.hw_res = resctrl_to_arch_res(r);
 	arg.hw_dom = resctrl_to_arch_dom(d);
 
-	err = smp_call_function_any(&d->cpu_mask, __rmid_read, &arg, true);
+	preempt_disable();
+	if (cpumask_test_cpu(smp_processor_id(), &d->cpu_mask)) {
+		__rmid_read(&arg);
+		preempt_enable();
+		err = 0;
+	} else if (!irqs_disabled()) {
+		preempt_enable();
+		err = smp_call_function_any(&d->cpu_mask, __rmid_read, &arg,
+					    true);
+	} else {
+		preempt_enable();
+	}
 	if (err)
 		return err;
 	if (arg.err)
