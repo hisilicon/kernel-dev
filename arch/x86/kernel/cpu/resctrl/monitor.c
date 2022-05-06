@@ -149,13 +149,16 @@ struct __rmid_read_arg
 	u64 val;
 };
 
-static void __rmid_read(void *_arg)
+static int ___rmid_read(struct __rmid_read_arg *arg)
 {
-	struct __rmid_read_arg *arg = _arg;
 	enum resctrl_event_id eventid = arg->eventid;
+	u64 prev_msr, msr_val, chunks;
 	struct arch_mbm_state *am;
 	u32 rmid = arg->rmid;
-	u64 msr_val, chunks;
+
+	am = get_arch_mbm_state(arg->hw_dom, rmid, eventid);
+	if (am)
+		prev_msr = atomic64_read(&am->prev_msr);
 
 	/*
 	 * As per the SDM, when IA32_QM_EVTSEL.EvtID (bits 7:0) is configured
@@ -168,26 +171,36 @@ static void __rmid_read(void *_arg)
 	wrmsr(MSR_IA32_QM_EVTSEL, eventid, rmid);
 	rdmsrl(MSR_IA32_QM_CTR, msr_val);
 
-	if (msr_val & RMID_VAL_ERROR) {
-		arg->err = -EIO;
-		return;
-	}
-	if (msr_val & RMID_VAL_UNAVAIL) {
-		arg->err = -EINVAL;
-		return;
-	}
+	if (msr_val & RMID_VAL_ERROR)
+		return -EIO;
+	if (msr_val & RMID_VAL_UNAVAIL)
+		return -EINVAL;
 
-	am = get_arch_mbm_state(arg->hw_dom, rmid, eventid);
 	if (am) {
-		am->chunks += mbm_overflow_count(am->prev_msr, msr_val,
-						 arg->hw_res->mbm_width);
-		chunks = get_corrected_mbm_count(rmid, am->chunks);
-		am->prev_msr = msr_val;
+		chunks = mbm_overflow_count(prev_msr, msr_val,
+					    arg->hw_res->mbm_width);
+
+		if (atomic64_cmpxchg(&am->prev_msr, prev_msr, msr_val) != prev_msr)
+			return -EINTR;
+
+		chunks = atomic64_add_return(chunks, &am->chunks);
+		chunks = get_corrected_mbm_count(rmid, chunks);
 	} else {
 		chunks = msr_val;
 	}
 
 	arg->val = chunks * arg->hw_res->mon_scale;
+
+	return 0;
+}
+
+static void __rmid_read(void *_arg)
+{
+	struct __rmid_read_arg *arg = _arg;
+
+	do {
+		arg->err = ___rmid_read(arg);
+	} while (arg->err && arg->err != -EINTR);
 }
 
 int resctrl_arch_rmid_read(struct rdt_resource *r, struct rdt_domain *d,
@@ -201,7 +214,6 @@ int resctrl_arch_rmid_read(struct rdt_resource *r, struct rdt_domain *d,
 	arg.eventid = eventid;
 	arg.hw_res = resctrl_to_arch_res(r);
 	arg.hw_dom = resctrl_to_arch_dom(d);
-	arg.err = 0;
 
 	err = smp_call_function_any(&d->cpu_mask, __rmid_read, &arg, true);
 	if (err)

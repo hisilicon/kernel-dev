@@ -8,6 +8,7 @@
 #include <linux/fs_context.h>
 #include <linux/jump_label.h>
 
+#include <asm/atomic.h>
 #include <asm/resctrl.h>
 
 #define MSR_IA32_L3_QOS_CFG		0xc81
@@ -44,8 +45,8 @@
  *		find this struct.
  */
 struct arch_mbm_state {
-	u64	chunks;
-	u64	prev_msr;
+	atomic64_t	chunks;
+	atomic64_t	prev_msr;
 };
 
 /**
