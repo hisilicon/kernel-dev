@@ -63,23 +63,23 @@ static inline void update_alloc_hint_after_get(struct sbitmap *sb,
 static inline bool sbitmap_deferred_clear(struct sbitmap_word *map)
 {
 	unsigned long mask;
-	pr_err("%s map=%pS\n", __func__, map);
+	//pr_err("%s map=%pS\n", __func__, map);
 	if (!READ_ONCE(map->cleared))
 		return false;
 
-	pr_err("%s1 map=%pS\n", __func__, map);
+	//pr_err("%s1 map=%pS\n", __func__, map);
 	/*
 	 * First get a stable cleared mask, setting the old mask to 0.
 	 */
 	mask = xchg(&map->cleared, 0);
 
-	pr_err("%s2 map=%pS\n", __func__, map);
+	//pr_err("%s2 map=%pS\n", __func__, map);
 	/*
 	 * Now clear the masked bits in our free word
 	 */
 	atomic_long_andnot(mask, (atomic_long_t *)&map->word);
 	BUILD_BUG_ON(sizeof(atomic_long_t) != sizeof(map->word));
-	pr_err("%s3 map=%pS\n", __func__, map);
+	//pr_err("%s3 map=%pS\n", __func__, map);
 	return true;
 }
 
@@ -121,9 +121,10 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		return -ENOMEM;
 	}
 
-	map = kvzalloc_node(sb->map_nr * sizeof(struct sbitmap_word), flags, node);
-	pr_err("%s2 sb->map=%pS map=%pS sizeof(*sb->map)=%zu sizeof(struct sbitmap_word)=%zu\n", 
-		__func__, sb->map, map, sizeof(*sb->map), sizeof(struct sbitmap_word));
+	map = kvzalloc_node(sb->map_nr * sizeof(**sb->map), flags, node);
+	pr_err("%s2 sb->map=%pS map=%pS sizeof(*sb->map)=%zu sizeof(struct sbitmap_word)=%zu sizeof(sb->map)=%zu sizeof(**sb->map)=%zu\n", 
+		__func__, sb->map, map, sizeof(*sb->map), sizeof(struct sbitmap_word), sizeof(sb->map),
+		sizeof(**sb->map));
 	if (!map)
 		return -ENOMEM;
 
