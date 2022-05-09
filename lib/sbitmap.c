@@ -63,20 +63,23 @@ static inline void update_alloc_hint_after_get(struct sbitmap *sb,
 static inline bool sbitmap_deferred_clear(struct sbitmap_word *map)
 {
 	unsigned long mask;
-
+	pr_err("%s map=%pS\n", __func__, map);
 	if (!READ_ONCE(map->cleared))
 		return false;
 
+	pr_err("%s1 map=%pS\n", __func__, map);
 	/*
 	 * First get a stable cleared mask, setting the old mask to 0.
 	 */
 	mask = xchg(&map->cleared, 0);
 
+	pr_err("%s2 map=%pS\n", __func__, map);
 	/*
 	 * Now clear the masked bits in our free word
 	 */
 	atomic_long_andnot(mask, (atomic_long_t *)&map->word);
 	BUILD_BUG_ON(sizeof(atomic_long_t) != sizeof(map->word));
+	pr_err("%s3 map=%pS\n", __func__, map);
 	return true;
 }
 
@@ -112,23 +115,34 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		sb->alloc_hint = NULL;
 	}
 
-	sb->map = kvzalloc_node(sb->map_nr * sizeof(sb->map), flags, node);
+	sb->map = kvzalloc_node(sb->map_nr * sizeof(*sb->map), flags, node);
 	if (!sb->map) {
 		free_percpu(sb->alloc_hint);
 		return -ENOMEM;
 	}
 
-	map = kvzalloc_node(sb->map_nr * sizeof(*sb->map), flags, node);
+	map = kvzalloc_node(sb->map_nr * sizeof(struct sbitmap_word), flags, node);
+	pr_err("%s2 sb->map=%pS map=%pS sizeof(*sb->map)=%zu sizeof(struct sbitmap_word)=%zu\n", 
+		__func__, sb->map, map, sizeof(*sb->map), sizeof(struct sbitmap_word));
 	if (!map)
 		return -ENOMEM;
 
 	for (index = 0; index < sb->map_nr; index++, map++) {
 		struct sbitmap_word **_map;
+		bool print = false;
 
 		_map = &sb->map[index];
+		if (index == 0)
+			print = true;
+		if (get_taint())
+			print = false;
+		print = true;
+		if (print)
+			pr_err("%s3 sb=%pS index=%d map_nr=%d _map=%pS map=%pS sb->map=%pS\n", 
+				__func__, sb, index, sb->map_nr, _map, map, sb->map);
 		*_map = map;
 	}
-
+	//panic("stop\n");
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sbitmap_init_node);
@@ -137,10 +151,27 @@ void sbitmap_resize(struct sbitmap *sb, unsigned int depth)
 {
 	unsigned int bits_per_word = 1U << sb->shift;
 	unsigned int i;
-
-	for (i = 0; i < sb->map_nr; i++)
+	pr_err("%s sb=%pS bits_per_word=%d depth=%d current depth=%d map_nr=%d sb->map[0]=%pS\n",
+		__func__, sb, bits_per_word, depth, sb->depth, sb->map_nr, sb->map[0]);
+	for (i = 0; i < sb->map_nr; i++) {
+		bool print = false;
+	//	pr_err("%s1 sb=%pS sb->map=%pS i=%d \n", __func__, sb, sb->map, i, sb->depth);
+		if (i == 0)
+			print = true;
+		if (sb->map[i] == NULL)
+			print = true;
+		if (get_taint())
+			print = false;
+		if (print)
+			pr_err("%s2 sb=%pS sb->map[%d]=%pS sb->map_nr=%d sb->depth=%d depth=%d\n", 
+				__func__, sb, i, sb->map[i], sb->map_nr, sb->depth, depth);
 		sbitmap_deferred_clear(sb->map[i]);
+		if (print)
+			pr_err("%s2.1 sb=%pS sb->map[%d]=%pS sb->map_nr=%d sb->depth=%d depth=%d\n", 
+				__func__, sb, i, sb->map[i], sb->map_nr, sb->depth, depth);
+	}
 
+	pr_err("%s3 sb=%pS\n", __func__, sb);
 	sb->depth = depth;
 	sb->map_nr = DIV_ROUND_UP(sb->depth, bits_per_word);
 }
