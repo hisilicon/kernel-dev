@@ -10,6 +10,20 @@
 #include <linux/seq_file.h>
 #include <linux/mm.h>
 
+static unsigned int sbitmap_get_new_hint(struct sbitmap *sb, int cpu)
+{
+	unsigned int shift = sb->shift;
+	unsigned int map_nr_per_node = sb->map_nr_per_node;
+	unsigned int bit_per_node = map_nr_per_node << shift;
+	unsigned int hint_base = bit_per_node * cpu_to_node(cpu);
+	unsigned int val = hint_base + (prandom_u32() % bit_per_node);
+
+//	pr_err("%s cpu%d shift=%d map_nr_per_node=%d bit_per_node=%d hint_base=%d val=%d depth=%d\n",
+//		__func__, cpu, shift, map_nr_per_node, bit_per_node, hint_base, val, sb->depth);
+
+	return val;
+}
+
 static int init_alloc_hint(struct sbitmap *sb, gfp_t flags)
 {
 	unsigned depth = sb->depth;
@@ -22,7 +36,7 @@ static int init_alloc_hint(struct sbitmap *sb, gfp_t flags)
 		int i;
 
 		for_each_possible_cpu(i)
-			*per_cpu_ptr(sb->alloc_hint, i) = prandom_u32() % depth;
+			*per_cpu_ptr(sb->alloc_hint, i) = sbitmap_get_new_hint(sb, i);
 	}
 	return 0;
 }
@@ -111,17 +125,17 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		return 0;
 	}
 
-	pr_err("%s sb->map_nr=%d num_nodes=%d\n", 
-		__func__, sb->map_nr, num_nodes);
+//	pr_err("%s sb->map_nr=%d num_nodes=%d\n", 
+//		__func__, sb->map_nr, num_nodes);
 
 	if (sb->map_nr < num_nodes) {
 		sb->map_nr_per_node = 1;
-		pr_err("%s1.1 sb->map_nr=%d num_nodes=%d map_nr_per_node=%d\n", 
-			__func__, sb->map_nr, num_nodes, sb->map_nr_per_node);
+//		pr_err("%s1.1 sb->map_nr=%d num_nodes=%d map_nr_per_node=%d\n", 
+//			__func__, sb->map_nr, num_nodes, sb->map_nr_per_node);
 	} else {
 		sb->map_nr_per_node = sb->map_nr / num_nodes;
-		pr_err("%s1.2 sb->map_nr=%d num_nodes=%d map_nr_per_node=%d\n", 
-			__func__, sb->map_nr, num_nodes, sb->map_nr_per_node);
+//		pr_err("%s1.2 sb->map_nr=%d num_nodes=%d map_nr_per_node=%d\n", 
+//			__func__, sb->map_nr, num_nodes, sb->map_nr_per_node);
 		//map_nr_per_node = roundup(map_nr_per_node, num_nodes);
 	}
 
@@ -139,8 +153,8 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 	}
 
 //	map = kvzalloc_node(sb->map_nr * sizeof(**sb->map), flags, node);
-	pr_err("%s2 sb->map=%pS map_nr_per_node=%d num_nodes=%d\n", 
-		__func__, sb->map, sb->map_nr_per_node, num_nodes);
+//	pr_err("%s2 sb->map=%pS map_nr_per_node=%d num_nodes=%d\n", 
+//		__func__, sb->map, sb->map_nr_per_node, num_nodes);
 //	if (!map)
 //		return -ENOMEM;
 
@@ -167,8 +181,8 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 			nid++;
 		}
 
-		pr_err("%s4 index=%d map=%pS %s cnt=%d\n", 
-			__func__, index, map, new ? "N" : "", cnt);
+	//	pr_err("%s4 index=%d map=%pS %s cnt=%d\n", 
+	//		__func__, index, map, new ? "N" : "", cnt);
 
 		page = virt_to_page(map);
 		page_nid = page_to_nid(page);
@@ -178,7 +192,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 			print = true;
 		if (get_taint())
 			print = false;
-		print = true;
+		print = false;
 		if (print)
 			pr_err("%s5 index=%d map_nr=%d _map=%pS map=%pS sb->map=%pS page_nid=%d\n", 
 				__func__, index, sb->map_nr, _map, map, sb->map, page_nid);
@@ -193,8 +207,8 @@ void sbitmap_resize(struct sbitmap *sb, unsigned int depth)
 {
 	unsigned int bits_per_word = 1U << sb->shift;
 	unsigned int i;
-	pr_err("%s sb=%pS bits_per_word=%d depth=%d current depth=%d map_nr=%d sb->map[0]=%pS\n",
-		__func__, sb, bits_per_word, depth, sb->depth, sb->map_nr, sb->map[0]);
+	//pr_err("%s sb=%pS bits_per_word=%d depth=%d current depth=%d map_nr=%d sb->map[0]=%pS\n",
+	//	__func__, sb, bits_per_word, depth, sb->depth, sb->map_nr, sb->map[0]);
 	for (i = 0; i < sb->map_nr; i++) {
 		bool print = false;
 	//	pr_err("%s1 sb=%pS sb->map=%pS i=%d \n", __func__, sb, sb->map, i, sb->depth);
@@ -204,6 +218,7 @@ void sbitmap_resize(struct sbitmap *sb, unsigned int depth)
 			print = true;
 		if (get_taint())
 			print = false;
+		print = false;
 		if (print)
 			pr_err("%s2 sb=%pS sb->map[%d]=%pS sb->map_nr=%d sb->depth=%d depth=%d\n", 
 				__func__, sb, i, sb->map[i], sb->map_nr, sb->depth, depth);
@@ -213,7 +228,7 @@ void sbitmap_resize(struct sbitmap *sb, unsigned int depth)
 				__func__, sb, i, sb->map[i], sb->map_nr, sb->depth, depth);
 	}
 
-	pr_err("%s3 sb=%pS\n", __func__, sb);
+	//pr_err("%s3 sb=%pS\n", __func__, sb);
 	sb->depth = depth;
 	sb->map_nr = DIV_ROUND_UP(sb->depth, bits_per_word);
 }
