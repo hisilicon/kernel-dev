@@ -68,7 +68,7 @@ struct sbitmap {
 	/**
 	 * @map: Allocated bitmap.
 	 */
-	struct sbitmap_word *map;
+	struct sbitmap_word **map;
 
 	/*
 	 * @alloc_hint: Cache of last successfully allocated or freed bit.
@@ -256,9 +256,10 @@ static inline void __sbitmap_for_each_set(struct sbitmap *sb,
 		unsigned int depth = min_t(unsigned int,
 					   __map_depth(sb, index) - nr,
 					   sb->depth - scanned);
-
+		struct sbitmap_word *map = sb->map[index];
 		scanned += depth;
-		word = sb->map[index].word & ~sb->map[index].cleared;
+
+		word = map->word & ~map->cleared;
 		if (!word)
 			goto next;
 
@@ -299,7 +300,7 @@ static inline void sbitmap_for_each_set(struct sbitmap *sb, sb_for_each_fn fn,
 static inline unsigned long *__sbitmap_word(struct sbitmap *sb,
 					    unsigned int bitnr)
 {
-	return &sb->map[SB_NR_TO_INDEX(sb, bitnr)].word;
+	return &sb->map[SB_NR_TO_INDEX(sb, bitnr)]->word;
 }
 
 /* Helpers equivalent to the operations in asm/bitops.h and linux/bitmap.h */
@@ -322,7 +323,7 @@ static inline void sbitmap_clear_bit(struct sbitmap *sb, unsigned int bitnr)
  */
 static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, unsigned int bitnr)
 {
-	unsigned long *addr = &sb->map[SB_NR_TO_INDEX(sb, bitnr)].cleared;
+	unsigned long *addr = &sb->map[SB_NR_TO_INDEX(sb, bitnr)]->cleared;
 
 	set_bit(SB_NR_TO_BIT(sb, bitnr), addr);
 }

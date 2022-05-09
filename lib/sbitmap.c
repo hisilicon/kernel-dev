@@ -85,6 +85,8 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		      bool alloc_hint)
 {
 	unsigned int bits_per_word;
+	struct sbitmap_word *map;
+	int index;
 
 	if (shift < 0)
 		shift = sbitmap_calculate_shift(depth);
@@ -110,10 +112,21 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		sb->alloc_hint = NULL;
 	}
 
-	sb->map = kvzalloc_node(sb->map_nr * sizeof(*sb->map), flags, node);
+	sb->map = kvzalloc_node(sb->map_nr * sizeof(sb->map), flags, node);
 	if (!sb->map) {
 		free_percpu(sb->alloc_hint);
 		return -ENOMEM;
+	}
+
+	map = kvzalloc_node(sb->map_nr * sizeof(*sb->map), flags, node);
+	if (!map)
+		return -ENOMEM;
+
+	for (index = 0; index < sb->map_nr; index++, map++) {
+		struct sbitmap_word **_map;
+
+		_map = &sb->map[index];
+		*_map = map;
 	}
 
 	return 0;
@@ -126,7 +139,7 @@ void sbitmap_resize(struct sbitmap *sb, unsigned int depth)
 	unsigned int i;
 
 	for (i = 0; i < sb->map_nr; i++)
-		sbitmap_deferred_clear(&sb->map[i]);
+		sbitmap_deferred_clear(sb->map[i]);
 
 	sb->depth = depth;
 	sb->map_nr = DIV_ROUND_UP(sb->depth, bits_per_word);
@@ -170,7 +183,7 @@ static int __sbitmap_get_word(unsigned long *word, unsigned long depth,
 static int sbitmap_find_bit_in_index(struct sbitmap *sb, int index,
 				     unsigned int alloc_hint)
 {
-	struct sbitmap_word *map = &sb->map[index];
+	struct sbitmap_word *map = sb->map[index];
 	int nr;
 
 	do {
@@ -246,7 +259,7 @@ static int __sbitmap_get_shallow(struct sbitmap *sb,
 
 	for (i = 0; i < sb->map_nr; i++) {
 again:
-		nr = __sbitmap_get_word(&sb->map[index].word,
+		nr = __sbitmap_get_word(&sb->map[index]->word,
 					min_t(unsigned int,
 					      __map_depth(sb, index),
 					      shallow_depth),
@@ -256,7 +269,7 @@ again:
 			break;
 		}
 
-		if (sbitmap_deferred_clear(&sb->map[index]))
+		if (sbitmap_deferred_clear(sb->map[index]))
 			goto again;
 
 		/* Jump to next index. */
@@ -294,7 +307,7 @@ bool sbitmap_any_bit_set(const struct sbitmap *sb)
 	unsigned int i;
 
 	for (i = 0; i < sb->map_nr; i++) {
-		if (sb->map[i].word & ~sb->map[i].cleared)
+		if (sb->map[i]->word & ~sb->map[i]->cleared)
 			return true;
 	}
 	return false;
@@ -306,7 +319,7 @@ static unsigned int __sbitmap_weight(const struct sbitmap *sb, bool set)
 	unsigned int i, weight = 0;
 
 	for (i = 0; i < sb->map_nr; i++) {
-		const struct sbitmap_word *word = &sb->map[i];
+		const struct sbitmap_word *word = sb->map[i];
 		unsigned int word_depth = __map_depth(sb, i);
 
 		if (set)
@@ -358,8 +371,9 @@ void sbitmap_bitmap_show(struct sbitmap *sb, struct seq_file *m)
 	int i;
 
 	for (i = 0; i < sb->map_nr; i++) {
-		unsigned long word = READ_ONCE(sb->map[i].word);
-		unsigned long cleared = READ_ONCE(sb->map[i].cleared);
+		struct sbitmap_word *map = READ_ONCE(sb->map[i]);
+		unsigned long word = READ_ONCE(map->word);
+		unsigned long cleared = READ_ONCE(map->cleared);
 		unsigned int word_bits = __map_depth(sb, i);
 
 		word &= ~cleared;
@@ -522,7 +536,7 @@ unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
 	index = SB_NR_TO_INDEX(sb, hint);
 
 	for (i = 0; i < sb->map_nr; i++) {
-		struct sbitmap_word *map = &sb->map[index];
+		struct sbitmap_word *map = sb->map[index];
 		unsigned long get_mask;
 		unsigned int map_depth = __map_depth(sb, index);
 
@@ -665,7 +679,7 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 		unsigned long *this_addr;
 
 		/* since we're clearing a batch, skip the deferred map */
-		this_addr = &sb->map[SB_NR_TO_INDEX(sb, tag)].word;
+		this_addr = &sb->map[SB_NR_TO_INDEX(sb, tag)]->word;
 		if (!addr) {
 			addr = this_addr;
 		} else if (addr != this_addr) {
