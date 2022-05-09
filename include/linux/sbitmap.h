@@ -60,6 +60,8 @@ struct sbitmap {
 	 */
 	unsigned int map_nr;
 
+	unsigned int map_nr_per_node;
+
 	/**
 	 * @round_robin: Allocate bits in strict round-robin order.
 	 */

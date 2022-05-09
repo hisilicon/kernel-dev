@@ -91,7 +91,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 	unsigned int bits_per_word;
 	struct sbitmap_word *map;
 	int index, num_nodes = num_online_nodes();
-	int map_nr_per_node, nid, map_nr_cnt;
+	int nid, map_nr_cnt;
 
 //	pr_err("%s numa_nodes_parsed=%d MAX_NUMNODES=%d\n", __func__, num_online_nodes(), MAX_NUMNODES);
 	if (shift < 0)
@@ -115,13 +115,13 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		__func__, sb->map_nr, num_nodes);
 
 	if (sb->map_nr < num_nodes) {
-		map_nr_per_node = 1;
+		sb->map_nr_per_node = 1;
 		pr_err("%s1.1 sb->map_nr=%d num_nodes=%d map_nr_per_node=%d\n", 
-			__func__, sb->map_nr, num_nodes, map_nr_per_node);
+			__func__, sb->map_nr, num_nodes, sb->map_nr_per_node);
 	} else {
-		map_nr_per_node = sb->map_nr / num_nodes;
+		sb->map_nr_per_node = sb->map_nr / num_nodes;
 		pr_err("%s1.2 sb->map_nr=%d num_nodes=%d map_nr_per_node=%d\n", 
-			__func__, sb->map_nr, num_nodes, map_nr_per_node);
+			__func__, sb->map_nr, num_nodes, sb->map_nr_per_node);
 		//map_nr_per_node = roundup(map_nr_per_node, num_nodes);
 	}
 
@@ -140,7 +140,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 
 //	map = kvzalloc_node(sb->map_nr * sizeof(**sb->map), flags, node);
 	pr_err("%s2 sb->map=%pS map_nr_per_node=%d num_nodes=%d\n", 
-		__func__, sb->map, map_nr_per_node, num_nodes);
+		__func__, sb->map, sb->map_nr_per_node, num_nodes);
 //	if (!map)
 //		return -ENOMEM;
 
@@ -152,13 +152,13 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		int page_nid;
 		int cnt = -1;
 
-		if ((index % map_nr_per_node) == 0) {
+		if ((index % sb->map_nr_per_node) == 0) {
 
 
 			if (index == 0) {
-				cnt = map_nr_per_node + (sb->map_nr % map_nr_per_node);
+				cnt = sb->map_nr_per_node + (sb->map_nr % sb->map_nr_per_node);
 			} else
-				cnt = map_nr_per_node;
+				cnt = sb->map_nr_per_node;
 
 			new = true;
 			map = kvzalloc_node(cnt * sizeof(**sb->map), flags, nid);
