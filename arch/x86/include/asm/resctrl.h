@@ -197,9 +197,9 @@ static inline u32 resctrl_arch_rmid_idx_encode(u32 closid, u32 rmid)
 
 /* x86 can always read an rmid, nothing needs allocating */
 struct rdt_resource;
-static inline int resctrl_arch_mon_ctx_alloc(struct rdt_resource *r, int evtid)
+static inline int resctrl_arch_mon_ctx_alloc_no_wait(struct rdt_resource *r,
+						     int evtid)
 {
-	might_sleep();
 	return 0;
 };
 
