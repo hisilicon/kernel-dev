@@ -61,6 +61,11 @@ struct sbitmap {
 	unsigned int map_nr;
 
 	/**
+	 * @map_nr_per_node: Number of words being used per NUMA node.
+	 */
+	unsigned int map_nr_per_node;
+
+	/**
 	 * @round_robin: Allocate bits in strict round-robin order.
 	 */
 	bool round_robin;

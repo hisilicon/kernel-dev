@@ -8,6 +8,17 @@
 #include <linux/random.h>
 #include <linux/sbitmap.h>
 #include <linux/seq_file.h>
+#include <linux/mm.h>
+
+static unsigned int sbitmap_get_new_hint(struct sbitmap *sb, int cpu)
+{
+	unsigned int shift = sb->shift;
+	unsigned int map_nr_per_node = sb->map_nr_per_node;
+	unsigned int bit_per_node = map_nr_per_node << shift;
+	unsigned int hint_base = bit_per_node * cpu_to_node(cpu);
+
+	return hint_base + (prandom_u32() % bit_per_node);
+}
 
 static int init_alloc_hint(struct sbitmap *sb, gfp_t flags)
 {
@@ -20,8 +31,10 @@ static int init_alloc_hint(struct sbitmap *sb, gfp_t flags)
 	if (depth && !sb->round_robin) {
 		int i;
 
-		for_each_possible_cpu(i)
-			*per_cpu_ptr(sb->alloc_hint, i) = prandom_u32() % depth;
+		for_each_possible_cpu(i) {
+			*per_cpu_ptr(sb->alloc_hint, i) =
+				sbitmap_get_new_hint(sb, i);
+		}
 	}
 	return 0;
 }
@@ -86,7 +99,8 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 {
 	unsigned int bits_per_word;
 	struct sbitmap_word *map;
-	int index;
+	int index, num_nodes = num_online_nodes();
+	int nid, map_nr_cnt;
 
 	if (shift < 0)
 		shift = sbitmap_calculate_shift(depth);
@@ -105,6 +119,11 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		return 0;
 	}
 
+	if (sb->map_nr < num_nodes) {
+		sb->map_nr_per_node = 1;
+	} else {
+		sb->map_nr_per_node = sb->map_nr / num_nodes;
+	}
 	if (alloc_hint) {
 		if (init_alloc_hint(sb, flags))
 			return -ENOMEM;
@@ -113,23 +132,43 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 	}
 
 	sb->map = kvzalloc_node(sb->map_nr * sizeof(*sb->map), flags, node);
-	if (!sb->map) {
-		free_percpu(sb->alloc_hint);
-		return -ENOMEM;
-	}
+	if (!sb->map)
+		goto err_map;
 
-	map = kvzalloc_node(sb->map_nr * sizeof(**sb->map), flags, node);
-	if (!map)
-		return -ENOMEM;
-
-	for (index = 0; index < sb->map_nr; index++, map++) {
+	for (index = 0, nid = 0; index < sb->map_nr; index++, map++, map_nr_cnt++) {
 		struct sbitmap_word **_map;
+
+		if ((index % sb->map_nr_per_node) == 0) {
+			int cnt;
+
+			if (index == 0) {
+				cnt = sb->map_nr_per_node +
+					(sb->map_nr % sb->map_nr_per_node);
+			} else {
+				cnt = sb->map_nr_per_node;
+			}
+
+			map = kvzalloc_node(cnt * sizeof(**sb->map), flags, nid);
+			if (!map)
+				goto err_map_numa;
+			nid++;
+		}
 
 		_map = &sb->map[index];
 		*_map = map;
 	}
 
 	return 0;
+err_map_numa:
+	for (index = 0; index < sb->map_nr; index++, map++) {
+		if ((index % sb->map_nr_per_node) == 0) {
+			kfree(map);
+		}
+	}
+err_map:
+	free_percpu(sb->alloc_hint);
+
+	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(sbitmap_init_node);
 
