@@ -133,7 +133,7 @@ void sbitmap_resize(struct sbitmap *sb, unsigned int depth)
 }
 EXPORT_SYMBOL_GPL(sbitmap_resize);
 
-static int __sbitmap_get_word(unsigned long *word, unsigned long depth,
+static int __sbitmap_get_word(unsigned long *word, unsigned int depth,
 			      unsigned int hint, bool wrap)
 {
 	int nr;
@@ -167,17 +167,14 @@ static int __sbitmap_get_word(unsigned long *word, unsigned long depth,
 	return nr;
 }
 
-static int sbitmap_find_bit_in_index(struct sbitmap *sb, int index,
-				     unsigned int alloc_hint)
+static int sbitmap_find_bit_in_index(struct sbitmap_word *map, unsigned int depth,
+				     unsigned int alloc_hint, unsigned int round_robin)
 {
-	struct sbitmap_word *map;
 	int nr;
 
-	map = &sb->map[index];
-
 	do {
-		nr = __sbitmap_get_word(&map->word, __map_depth(sb, index),
-					alloc_hint, !sb->round_robin);
+		nr = __sbitmap_get_word(&map->word, depth,
+					alloc_hint, !round_robin);
 		if (nr != -1)
 			break;
 		if (!sbitmap_deferred_clear(map))
@@ -190,6 +187,7 @@ static int sbitmap_find_bit_in_index(struct sbitmap *sb, int index,
 static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 {
 	unsigned int i, index;
+	unsigned int round_robin = sb->round_robin;
 	int nr = -1;
 
 	index = SB_NR_TO_INDEX(sb, alloc_hint);
@@ -205,7 +203,13 @@ static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 		alloc_hint = 0;
 
 	for (i = 0; i < sb->map_nr; i++) {
-		nr = sbitmap_find_bit_in_index(sb, index, alloc_hint);
+		struct sbitmap_word *map;
+		unsigned int depth;
+
+		map = &sb->map[index];
+		depth = __map_depth(sb, index);
+
+		nr = sbitmap_find_bit_in_index(map, depth, alloc_hint, round_robin);
 		if (nr != -1) {
 			nr += index << sb->shift;
 			break;
