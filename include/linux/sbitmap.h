@@ -231,9 +231,16 @@ bool sbitmap_any_bit_set(const struct sbitmap *sb);
 
 typedef bool (*sb_for_each_fn)(struct sbitmap *, unsigned int, void *);
 
-static inline struct sbitmap_word *sbitmap_get_map(struct sbitmap *sb, unsigned int index)
+static inline struct sbitmap_word *sbitmap_get_map(struct sbitmap *sb,
+		struct sbitmap_word *normal_map,
+		struct sbitmap_word **numa_map,
+		unsigned int index)
 {
-	return &sb->map[index];
+	if (sb->numa_map) {
+
+		return NULL;
+	}
+	return normal_map + index;
 }
 
 /**
@@ -253,6 +260,8 @@ static inline void __sbitmap_for_each_set(struct sbitmap *sb,
 	unsigned int index;
 	unsigned int nr;
 	unsigned int scanned = 0;
+	struct sbitmap_word *normal_map = sb->map;
+	struct sbitmap_word **numa_map = sb->numa_map;
 
 	if (start >= sb->depth)
 		start = 0;
@@ -266,7 +275,7 @@ static inline void __sbitmap_for_each_set(struct sbitmap *sb,
 					   sb->depth - scanned);
 		struct sbitmap_word *map;
 
-		map = sbitmap_get_map(sb,index);
+		map = sbitmap_get_map(sb, normal_map, numa_map, index);
 
 		scanned += depth;
 		word = map->word & ~ map->cleared;
@@ -310,7 +319,9 @@ static inline void sbitmap_for_each_set(struct sbitmap *sb, sb_for_each_fn fn,
 static inline unsigned long *__sbitmap_word(struct sbitmap *sb,
 					    unsigned int bitnr)
 {
-	struct sbitmap_word *map = sbitmap_get_map(sb, SB_NR_TO_INDEX(sb, bitnr));
+	struct sbitmap_word *normal_map = sb->map;
+	struct sbitmap_word **numa_map = sb->numa_map;
+	struct sbitmap_word *map = sbitmap_get_map(sb, normal_map, numa_map, SB_NR_TO_INDEX(sb, bitnr));
 
 	return &map->word;
 }
@@ -338,7 +349,10 @@ static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, unsigned int b
 	struct sbitmap_word *map;
 	unsigned long *addr;
 
-	map = sbitmap_get_map(sb, SB_NR_TO_INDEX(sb, bitnr));
+	struct sbitmap_word *normal_map = sb->map;
+	struct sbitmap_word **numa_map = sb->numa_map;
+
+	map = sbitmap_get_map(sb, normal_map, numa_map, SB_NR_TO_INDEX(sb, bitnr));
 	addr = &map->cleared;
 
 	set_bit(SB_NR_TO_BIT(sb, bitnr), addr);

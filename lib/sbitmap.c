@@ -220,6 +220,8 @@ static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 	unsigned int round_robin = sb->round_robin;
 	int nr = -1;
 
+	struct sbitmap_word *normal_map = sb->map;
+	struct sbitmap_word **numa_map = sb->numa_map;
 	index = SB_NR_TO_INDEX(sb, alloc_hint);
 
 	/*
@@ -236,7 +238,7 @@ static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 		struct sbitmap_word *map;
 		unsigned int depth;
 
-		map = sbitmap_get_map(sb, index);
+		map = sbitmap_get_map(sb, normal_map, numa_map, index);
 		depth = __map_depth(sb, index);
 
 		nr = sbitmap_find_bit_in_index(map, depth, alloc_hint, round_robin);
@@ -278,12 +280,15 @@ static int __sbitmap_get_shallow(struct sbitmap *sb,
 	unsigned int i, index;
 	int nr = -1;
 
+	struct sbitmap_word *normal_map = sb->map;
+	struct sbitmap_word **numa_map = sb->numa_map;
+
 	index = SB_NR_TO_INDEX(sb, alloc_hint);
 
 	for (i = 0; i < sb->map_nr; i++) {
 		struct sbitmap_word *map;
 again:
-		map = sbitmap_get_map(sb, index);
+		map = sbitmap_get_map(sb, normal_map, numa_map, index);
 		nr = __sbitmap_get_word(&map->word,
 					min_t(unsigned int,
 					      __map_depth(sb, index),
@@ -331,10 +336,12 @@ bool sbitmap_any_bit_set(const struct sbitmap *sb)
 {
 	unsigned int i;
 
+	struct sbitmap_word *normal_map = sb->map;
+	struct sbitmap_word **numa_map = (struct sbitmap_word **)sb->numa_map;
 	for (i = 0; i < sb->map_nr; i++) {
 		struct sbitmap_word *map;
 
-		map = sbitmap_get_map((struct sbitmap *)sb, i);
+		map = sbitmap_get_map((struct sbitmap *)sb, normal_map, numa_map, i);
 
 		if (map->word & ~map->cleared)
 			return true;
@@ -347,11 +354,14 @@ static unsigned int __sbitmap_weight(const struct sbitmap *sb, bool set)
 {
 	unsigned int i, weight = 0;
 
+	struct sbitmap_word *normal_map = sb->map;
+	struct sbitmap_word **numa_map = (struct sbitmap_word **)sb->numa_map;
+
 	for (i = 0; i < sb->map_nr; i++) {
 		unsigned int word_depth = __map_depth(sb, i);
 		const struct sbitmap_word *map;
 
-		map = sbitmap_get_map(sb, i);
+		map = sbitmap_get_map((struct sbitmap *)sb, normal_map, numa_map, i);
 
 		if (set)
 			weight += bitmap_weight(&map->word, word_depth);
@@ -399,6 +409,8 @@ void sbitmap_bitmap_show(struct sbitmap *sb, struct seq_file *m)
 	u8 byte = 0;
 	unsigned int byte_bits = 0;
 	unsigned int offset = 0;
+	struct sbitmap_word *normal_map = sb->map;
+	struct sbitmap_word **numa_map = sb->numa_map;
 	int i;
 
 	for (i = 0; i < sb->map_nr; i++) {
@@ -406,7 +418,7 @@ void sbitmap_bitmap_show(struct sbitmap *sb, struct seq_file *m)
 		unsigned long word, cleared;
 		struct sbitmap_word *map;
 
-		map = sbitmap_get_map(sb, i);
+		map = sbitmap_get_map(sb, normal_map, numa_map, i);
 		word = READ_ONCE(map->word);
 		cleared = READ_ONCE(map->cleared);
 
@@ -561,6 +573,9 @@ unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
 	unsigned long index, nr;
 	int i;
 
+	struct sbitmap_word *normal_map = sb->map;
+	struct sbitmap_word **numa_map = sb->numa_map;
+
 	if (unlikely(sb->round_robin))
 		return 0;
 
@@ -574,7 +589,7 @@ unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
 		unsigned int map_depth = __map_depth(sb, index);
 		struct sbitmap_word *map;
 
-		map = sbitmap_get_map(sb, index);
+		map = sbitmap_get_map(sb, normal_map, numa_map, index);
 
 		sbitmap_deferred_clear(map);
 		if (map->word == (1UL << (map_depth - 1)) - 1)
@@ -709,6 +724,9 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 	unsigned long mask = 0;
 	int i;
 
+	struct sbitmap_word *normal_map = sb->map;
+	struct sbitmap_word **numa_map = sb->numa_map;
+
 	smp_mb__before_atomic();
 	for (i = 0; i < nr_tags; i++) {
 		const int tag = tags[i] - offset;
@@ -716,7 +734,7 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 		struct sbitmap_word *map;
 
 		/* since we're clearing a batch, skip the deferred map */
-		map = sbitmap_get_map(sb, SB_NR_TO_INDEX(sb, tag));
+		map = sbitmap_get_map(sb, normal_map, numa_map, SB_NR_TO_INDEX(sb, tag));
 		this_addr = &map->word;
 		if (!addr) {
 			addr = this_addr;
