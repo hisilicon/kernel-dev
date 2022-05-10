@@ -106,16 +106,10 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 	}
 
 	if (node == NUMA_NO_NODE) {
-
 		if (sb->map_nr < num_nodes) {
 			sb->map_nr_per_node = 1;
-	//		pr_err("%s1.1 sb->map_nr=%d num_nodes=%d map_nr_per_node=%d\n", 
-	//			__func__, sb->map_nr, num_nodes, sb->map_nr_per_node);
 		} else {
 			sb->map_nr_per_node = sb->map_nr / num_nodes;
-	//		pr_err("%s1.2 sb->map_nr=%d num_nodes=%d map_nr_per_node=%d\n", 
-	//			__func__, sb->map_nr, num_nodes, sb->map_nr_per_node);
-			//map_nr_per_node = roundup(map_nr_per_node, num_nodes);
 		}
 	} else {
 		sb->map_nr_per_node = 0;
@@ -242,7 +236,7 @@ static int __sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint)
 		struct sbitmap_word *map;
 		unsigned int depth;
 
-		map = &sb->map[index];
+		map = sbitmap_get_map(sb, index);
 		depth = __map_depth(sb, index);
 
 		nr = sbitmap_find_bit_in_index(map, depth, alloc_hint, round_robin);
@@ -289,7 +283,7 @@ static int __sbitmap_get_shallow(struct sbitmap *sb,
 	for (i = 0; i < sb->map_nr; i++) {
 		struct sbitmap_word *map;
 again:
-		map = &sb->map[index];
+		map = sbitmap_get_map(sb, index);
 		nr = __sbitmap_get_word(&map->word,
 					min_t(unsigned int,
 					      __map_depth(sb, index),
@@ -340,7 +334,7 @@ bool sbitmap_any_bit_set(const struct sbitmap *sb)
 	for (i = 0; i < sb->map_nr; i++) {
 		struct sbitmap_word *map;
 
-		map = &sb->map[i];
+		map = sbitmap_get_map((struct sbitmap *)sb, i);
 
 		if (map->word & ~map->cleared)
 			return true;
@@ -357,7 +351,7 @@ static unsigned int __sbitmap_weight(const struct sbitmap *sb, bool set)
 		unsigned int word_depth = __map_depth(sb, i);
 		const struct sbitmap_word *map;
 
-		map = &sb->map[i];
+		map = sbitmap_get_map(sb, i);
 
 		if (set)
 			weight += bitmap_weight(&map->word, word_depth);
@@ -412,7 +406,7 @@ void sbitmap_bitmap_show(struct sbitmap *sb, struct seq_file *m)
 		unsigned long word, cleared;
 		struct sbitmap_word *map;
 
-		map = &sb->map[i];
+		map = sbitmap_get_map(sb, i);
 		word = READ_ONCE(map->word);
 		cleared = READ_ONCE(map->cleared);
 
@@ -580,7 +574,7 @@ unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
 		unsigned int map_depth = __map_depth(sb, index);
 		struct sbitmap_word *map;
 
-		map = &sb->map[index];
+		map = sbitmap_get_map(sb, index);
 
 		sbitmap_deferred_clear(map);
 		if (map->word == (1UL << (map_depth - 1)) - 1)
@@ -722,7 +716,7 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 		struct sbitmap_word *map;
 
 		/* since we're clearing a batch, skip the deferred map */
-		map = &sb->map[SB_NR_TO_INDEX(sb, tag)];
+		map = sbitmap_get_map(sb, SB_NR_TO_INDEX(sb, tag));
 		this_addr = &map->word;
 		if (!addr) {
 			addr = this_addr;
