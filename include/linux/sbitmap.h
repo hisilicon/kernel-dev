@@ -60,6 +60,8 @@ struct sbitmap {
 	 */
 	unsigned int map_nr;
 
+	unsigned int map_nr_per_node;
+
 	/**
 	 * @round_robin: Allocate bits in strict round-robin order.
 	 */
@@ -69,6 +71,7 @@ struct sbitmap {
 	 * @map: Allocated bitmap.
 	 */
 	struct sbitmap_word *map;
+	struct sbitmap_word *numa_map[MAX_NUMNODES];
 
 	/*
 	 * @alloc_hint: Cache of last successfully allocated or freed bit.

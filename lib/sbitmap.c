@@ -8,6 +8,7 @@
 #include <linux/random.h>
 #include <linux/sbitmap.h>
 #include <linux/seq_file.h>
+#include <linux/mm.h>
 
 static int init_alloc_hint(struct sbitmap *sb, gfp_t flags)
 {
@@ -84,6 +85,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		      gfp_t flags, int node, bool round_robin,
 		      bool alloc_hint)
 {
+	int num_nodes = num_online_nodes();
 	unsigned int bits_per_word;
 
 	if (shift < 0)
@@ -103,6 +105,22 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		return 0;
 	}
 
+	if (node == NUMA_NO_NODE) {
+
+		if (sb->map_nr < num_nodes) {
+			sb->map_nr_per_node = 1;
+	//		pr_err("%s1.1 sb->map_nr=%d num_nodes=%d map_nr_per_node=%d\n", 
+	//			__func__, sb->map_nr, num_nodes, sb->map_nr_per_node);
+		} else {
+			sb->map_nr_per_node = sb->map_nr / num_nodes;
+	//		pr_err("%s1.2 sb->map_nr=%d num_nodes=%d map_nr_per_node=%d\n", 
+	//			__func__, sb->map_nr, num_nodes, sb->map_nr_per_node);
+			//map_nr_per_node = roundup(map_nr_per_node, num_nodes);
+		}
+	} else {
+		sb->map_nr_per_node = 0;
+	}
+
 	if (alloc_hint) {
 		if (init_alloc_hint(sb, flags))
 			return -ENOMEM;
@@ -110,10 +128,28 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		sb->alloc_hint = NULL;
 	}
 
-	sb->map = kvzalloc_node(sb->map_nr * sizeof(*sb->map), flags, node);
-	if (!sb->map) {
-		free_percpu(sb->alloc_hint);
-		return -ENOMEM;
+	if (node == NUMA_NO_NODE) {
+		unsigned int nid;
+
+		for (nid = 0; nid < num_nodes; nid++) {
+			unsigned int cnt = 0;
+
+			if (nid == 0) {
+				cnt = sb->map_nr_per_node + (sb->map_nr % sb->map_nr_per_node);
+			} else {
+				cnt = sb->map_nr_per_node;
+			}
+
+			sb->numa_map[nid] = kvzalloc_node(cnt * sizeof(*sb->map), flags, nid);
+			if (!sb->numa_map[nid])
+					return -ENOMEM;
+		}
+	} else {
+		sb->map = kvzalloc_node(sb->map_nr * sizeof(*sb->map), flags, node);
+		if (!sb->map) {
+			free_percpu(sb->alloc_hint);
+			return -ENOMEM;
+		}
 	}
 
 	return 0;
