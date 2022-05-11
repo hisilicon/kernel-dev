@@ -80,6 +80,8 @@ struct vfio_device_ops {
 	void	(*unbind_iommufd)(struct vfio_device *vdev);
 	int	(*attach_ioas)(struct vfio_device *vdev,
 			       struct vfio_device_attach_ioas *attach);
+	int	(*attach_hwpt)(struct vfio_device *vdev,
+			       struct vfio_device_attach_hwpt *attach);
 	void	(*detach_hwpt)(struct vfio_device *vdev,
 			       struct vfio_device_detach_hwpt *detach);
 	int	(*open_device)(struct vfio_device *vdev);

@@ -275,6 +275,31 @@ struct vfio_device_detach_hwpt {
 
 #define VFIO_DEVICE_DETACH_HWPT	_IO(VFIO_TYPE, VFIO_BASE + 21)
 
+/*
+ * VFIO_DEVICE_ATTACH_HWPT - _IOW(VFIO_TYPE, VFIO_BASE + 22,
+ *				  struct vfio_device_attach_hwpt)
+ *
+ * Attach a vfio device to the specified hardware page table.
+ *
+ * The hwpt should be a user managed page table allocated via iommufd.
+ * Undo by VFIO_DEVICE_DETACH_HWPT.
+ *
+ * @argsz:	user filled size of this data.
+ * @flags:	must be 0.
+ * @iommufd:	iommufd where the hwpt comes from.
+ * @hwpt_id:	Input the target hwpt.
+ *
+ * Return: 0 on success, -errno on failure.
+ */
+struct vfio_device_attach_hwpt {
+	__u32	argsz;
+	__u32	flags;
+	__s32	iommufd;
+	__u32	hwpt_id;
+};
+
+#define VFIO_DEVICE_ATTACH_HWPT	_IO(VFIO_TYPE, VFIO_BASE + 22)
+
 /**
  * VFIO_DEVICE_GET_INFO - _IOR(VFIO_TYPE, VFIO_BASE + 7,
  *						struct vfio_device_info)

@@ -133,6 +133,7 @@ static const struct vfio_device_ops vfio_pci_ops = {
 	.open_device	= vfio_pci_open_device,
 	.close_device	= vfio_pci_core_close_device,
 	.attach_ioas	= vfio_pci_core_attach_ioas,
+	.attach_hwpt	= vfio_pci_core_attach_hwpt,
 	.detach_hwpt	= vfio_pci_core_detach_hwpt,
 	.ioctl		= vfio_pci_core_ioctl,
 	.device_feature = vfio_pci_core_ioctl_feature,
