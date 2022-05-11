@@ -21,6 +21,7 @@ struct iova {
 	unsigned long	pfn_lo; /* Lowest allocated pfn */
 };
 
+extern unsigned long iova_rcache_range(void);
 
 struct iova_rcache;
 

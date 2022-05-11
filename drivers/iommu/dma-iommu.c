@@ -1442,6 +1442,22 @@ static unsigned long iommu_dma_get_merge_boundary(struct device *dev)
 	return (1UL << __ffs(domain->pgsize_bitmap)) - 1;
 }
 
+size_t iommu_dma_max_mapping_size(struct device *dev)
+{
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
+	struct iommu_dma_cookie *cookie;
+
+	if (!domain)
+		return 0;
+
+	cookie = domain->iova_cookie;
+	if (!cookie || cookie->type != IOMMU_DMA_IOVA_COOKIE)
+		return 0;
+
+	/* This is a soft limit ?! */
+	return iova_rcache_range();
+}
+
 static const struct dma_map_ops iommu_dma_ops = {
 	.alloc			= iommu_dma_alloc,
 	.free			= iommu_dma_free,
@@ -1462,6 +1478,7 @@ static const struct dma_map_ops iommu_dma_ops = {
 	.map_resource		= iommu_dma_map_resource,
 	.unmap_resource		= iommu_dma_unmap_resource,
 	.get_merge_boundary	= iommu_dma_get_merge_boundary,
+	.max_mapping_size = NULL,
 };
 
 /*

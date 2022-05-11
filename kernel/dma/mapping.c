@@ -763,7 +763,7 @@ size_t dma_max_mapping_size(struct device *dev)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 	size_t size = SIZE_MAX;
-
+	dev_err(dev, "%s ops=%pS ops->max_mapping_size=%pS\n", __func__, ops, ops ? ops->max_mapping_size : NULL);
 	if (dma_map_direct(dev, ops))
 		size = dma_direct_max_mapping_size(dev);
 	else if (ops && ops->max_mapping_size)
