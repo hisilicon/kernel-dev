@@ -340,6 +340,32 @@ out_err:
 	return rc;
 }
 
+int iommufd_device_get_caps(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_device_get_caps *cmd = ucmd->cmd;
+	struct iommufd_object *obj;
+	struct iommufd_device *idev;
+	int rc;
+
+	obj = iommufd_get_object(ucmd->ictx, cmd->dev_id, IOMMUFD_OBJ_DEVICE);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	idev = container_of(obj, struct iommufd_device, obj);
+
+	cmd->out_caps = 0;
+	if (device_iommu_capable(idev->dev, IOMMU_CAP_DIRTY))
+		cmd->out_caps |= IOMMUFD_CAP_DIRTY_TRACKING;
+
+	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
+	if (rc)
+		goto out_put;
+
+out_put:
+	iommufd_put_object(obj);
+	return rc;
+}
+
 static int iommufd_group_setup_msi(struct iommufd_group *igroup,
 				   struct iommufd_hw_pagetable *hwpt)
 {

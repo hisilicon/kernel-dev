@@ -246,6 +246,7 @@ int iommufd_option_rlimit_mode(struct iommu_option *cmd,
 int iommufd_vfio_ioas(struct iommufd_ucmd *ucmd);
 int iommufd_check_iova_range(struct iommufd_ioas *ioas,
 			     struct iommufd_dirty_data *bitmap);
+int iommufd_device_get_caps(struct iommufd_ucmd *ucmd);
 
 struct iommufd_hw_s1_fault_data {
 	struct file *fault_file;
