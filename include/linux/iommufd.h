@@ -33,7 +33,7 @@ int iommufd_device_attach(struct iommufd_device *idev, u32 *pt_id,
 			  unsigned int flags);
 int iommufd_device_attach_pasid(struct iommufd_device *idev, u32 *pt_id,
 				ioasid_t pasid, unsigned int flags);
-void iommufd_device_detach(struct iommufd_device *idev);
+void iommufd_device_detach(struct iommufd_device *idev, u32 hwpt_id);
 
 struct iommufd_ctx *
 vfio_group_set_iommufd(int fd, struct list_head *device_list, u32 *hwpt_id);
@@ -65,7 +65,8 @@ static inline int iommufd_device_attach_pasid(struct iommufd_device *idev,
 	return -EOPNOTSUPP;
 }
 
-static inline void iommufd_device_detach(struct iommufd_device *idev)
+static inline void iommufd_device_detach(struct iommufd_device *idev,
+					 u32 hwpt_id)
 {
 }
 

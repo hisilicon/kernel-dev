@@ -232,12 +232,12 @@ static int iommufd_test_mock_domain(struct iommufd_ucmd *ucmd,
 	sobj->idev.hwpt = hwpt;
 
 	/* Creating a real iommufd_device is too hard, fake one */
-	rc = iopt_table_add_domain(&hwpt->ioas->iopt, hwpt->domain);
+	rc = iopt_table_add_domain(&hwpt->kernel.ioas->iopt, hwpt->domain);
 	if (rc)
 		goto out_hwpt;
 
 	/* Convert auto domain to user created */
-	list_del_init(&hwpt->auto_domains_item);
+	list_del_init(&hwpt->kernel.auto_domains_item);
 	cmd->id = hwpt->obj.id;
 	cmd->mock_domain.device_id = sobj->obj.id;
 	iommufd_object_finalize(ucmd->ictx, &sobj->obj);
@@ -448,7 +448,7 @@ void iommufd_selftest_destroy(struct iommufd_object *obj)
 
 	switch (sobj->type) {
 	case TYPE_IDEV:
-		iopt_table_remove_domain(&sobj->idev.hwpt->ioas->iopt,
+		iopt_table_remove_domain(&sobj->idev.hwpt->kernel.ioas->iopt,
 					 sobj->idev.hwpt->domain);
 		iommufd_hw_pagetable_put(sobj->idev.ictx, sobj->idev.hwpt);
 		break;

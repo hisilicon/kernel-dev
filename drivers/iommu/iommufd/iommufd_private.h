@@ -8,6 +8,9 @@
 #include <linux/xarray.h>
 #include <linux/refcount.h>
 #include <linux/uaccess.h>
+#include <uapi/linux/iommufd.h>
+#include <linux/iommufd.h>
+#include <linux/eventfd.h>
 
 struct iommu_domain;
 struct iommu_group;
@@ -108,6 +111,7 @@ enum iommufd_object_type {
 #ifdef CONFIG_IOMMUFD_TEST
 	IOMMUFD_OBJ_SELFTEST,
 #endif
+	IOMMUFD_OBJ_HW_PAGETABLE_S1,
 	IOMMUFD_OBJ_HW_PAGETABLE,
 	IOMMUFD_OBJ_IOAS,
 	IOMMUFD_OBJ_MAX,
@@ -162,6 +166,21 @@ struct iommufd_object *_iommufd_object_alloc(struct iommufd_ctx *ictx,
 		     typeof(*(ptr)), obj)
 
 /*
+ * A iommufd_device object represents the binding relationship between a
+ * consuming driver and the iommufd. These objects are created/destroyed by
+ * external drivers, not by userspace.
+ */
+struct iommufd_device {
+	struct iommufd_object obj;
+	struct iommufd_ctx *ictx;
+	struct rw_semaphore hwpts_rwsem;
+	struct xarray hwpts;
+	/* always the physical device */
+	struct device *dev;
+	struct iommu_group *group;
+};
+
+/*
  * The IO Address Space (IOAS) pagetable is a virtual page table backed by the
  * io_pagetable object. It is a user controlled mapping of IOVA -> PFNs. The
  * mapping is copied into all of the associated domains and made available to
@@ -199,6 +218,36 @@ int iommufd_ioas_copy(struct iommufd_ucmd *ucmd);
 int iommufd_ioas_unmap(struct iommufd_ucmd *ucmd);
 int iommufd_vfio_ioas(struct iommufd_ucmd *ucmd);
 int iommufd_device_get_info(struct iommufd_ucmd *ucmd);
+int iommufd_alloc_s1_hwpt(struct iommufd_ucmd *ucmd);
+
+struct iommufd_hw_pagetable_kernel {
+	struct iommufd_ioas *ioas;
+	bool msi_cookie;
+	/* Head at iommufd_ioas::auto_domains */
+	struct list_head auto_domains_item;
+	struct mutex mutex;
+	struct list_head stage1_domains;
+};
+
+struct iommufd_hw_pagetable_s1 {
+	struct iommufd_hw_pagetable *stage2;
+	u64 stage1_ptr;
+	union iommu_stage1_config config;
+	struct file *fault_file;
+	int fault_fd;
+	struct mutex fault_queue_lock;
+	u8 *fault_pages;
+	size_t fault_region_size;
+	struct mutex notify_gate;
+	struct eventfd_ctx *trigger;
+	/* Head at iommufd_hw_page_table::stage1_domains */
+	struct list_head stage1_domains_item;
+};
+
+enum iommufd_hw_pagetable_type {
+	IOMMUFD_HWPT_KERNEL = 0,
+	IOMMUFD_HWPT_USER_S1,
+};
 
 /*
  * A HW pagetable is called an iommu_domain inside the kernel. This user object
@@ -208,13 +257,22 @@ int iommufd_device_get_info(struct iommufd_ucmd *ucmd);
  */
 struct iommufd_hw_pagetable {
 	struct iommufd_object obj;
-	struct iommufd_ioas *ioas;
 	struct iommu_domain *domain;
-	bool msi_cookie;
-	/* Head at iommufd_ioas::auto_domains */
-	struct list_head auto_domains_item;
+	enum iommufd_hw_pagetable_type type;
 	struct mutex devices_lock;
-	struct list_head devices;
+	struct xarray devices;
+	union {
+		struct iommufd_hw_pagetable_kernel kernel;
+		struct iommufd_hw_pagetable_s1 s1;
+	};
+};
+
+struct iommufd_hwpt_device {
+	struct iommufd_hw_pagetable *hwpt;
+	struct iommufd_device *idev;
+	unsigned int id;
+	ioasid_t pasid;
+	bool pasid_present;
 };
 
 struct iommufd_hw_pagetable *
@@ -225,6 +283,10 @@ void iommufd_hw_pagetable_put(struct iommufd_ctx *ictx,
 void iommufd_hw_pagetable_destroy(struct iommufd_object *obj);
 
 void iommufd_device_destroy(struct iommufd_object *obj);
+
+unsigned int
+iommufd_hw_pagetable_get_dev_id(struct iommufd_hw_pagetable *hwpt,
+				struct device *dev, ioasid_t pasid);
 
 #ifdef CONFIG_IOMMUFD_TEST
 int iommufd_test(struct iommufd_ucmd *ucmd);

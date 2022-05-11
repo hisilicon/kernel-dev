@@ -679,9 +679,9 @@ void vfio_pci_core_unbind_iommufd(struct vfio_device *core_vdev)
 	mutex_lock(&vdev->idev_lock);
 	if (vdev->idev) {
 		if (vdev->hwpt_id != IOMMUFD_INVALID_ID) {
+			iommufd_device_detach(vdev->idev, vdev->hwpt_id);
 			vdev->iommufd = -1;
 			vdev->hwpt_id = IOMMUFD_INVALID_ID;
-			iommufd_device_detach(vdev->idev);
 		}
 		iommufd_unbind_device(vdev->idev);
 		vdev->idev = NULL;
@@ -743,8 +743,8 @@ void vfio_pci_core_detach_hwpt(struct vfio_device *core_vdev,
 	    vdev->hwpt_id != detach->hwpt_id)
 		goto out_unlock;
 
+	iommufd_device_detach(vdev->idev, vdev->hwpt_id);
 	vdev->hwpt_id = IOMMUFD_INVALID_ID;
-	iommufd_device_detach(vdev->idev);
 
 out_unlock:
 	mutex_unlock(&vdev->idev_lock);

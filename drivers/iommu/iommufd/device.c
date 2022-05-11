@@ -11,29 +11,12 @@
 
 #include "iommufd_private.h"
 
-/*
- * A iommufd_device object represents the binding relationship between a
- * consuming driver and the iommufd. These objects are created/destroyed by
- * external drivers, not by userspace.
- */
-struct iommufd_device {
-	struct iommufd_object obj;
-	struct iommufd_ctx *ictx;
-	struct iommufd_hw_pagetable *hwpt;
-	ioasid_t pasid;
-	bool pasid_present;
-	/* Head at iommufd_hw_pagetable::devices */
-	struct list_head devices_item;
-	/* always the physical device */
-	struct device *dev;
-	struct iommu_group *group;
-};
-
 void iommufd_device_destroy(struct iommufd_object *obj)
 {
 	struct iommufd_device *idev =
 		container_of(obj, struct iommufd_device, obj);
 
+	WARN_ON(!xa_empty(&idev->hwpts));
 	iommu_group_release_dma_owner(idev->group);
 	iommu_group_put(idev->group);
 	fput(idev->ictx->filp);
@@ -90,6 +73,8 @@ struct iommufd_device *iommufd_bind_pci_device(int fd, struct pci_dev *pdev,
 	}
 	idev->ictx = ictx;
 	idev->dev = &pdev->dev;
+	xa_init_flags(&idev->hwpts, XA_FLAGS_ALLOC1);
+	init_rwsem(&idev->hwpts_rwsem);
 	/* The calling driver is a user until iommufd_unbind_device() */
 	refcount_inc(&idev->obj.users);
 	/* group refcount moves into iommufd_device */
@@ -172,13 +157,38 @@ out_put:
 	return rc;
 }
 
+unsigned int
+iommufd_hw_pagetable_get_dev_id(struct iommufd_hw_pagetable *hwpt,
+				struct device *dev, ioasid_t pasid)
+{
+	struct iommufd_hwpt_device *hdev = NULL;
+	struct iommufd_device *idev = NULL;
+	unsigned long index;
+	bool check_pasid = pasid != INVALID_IOASID;
+
+	mutex_lock(&hwpt->devices_lock);
+	xa_for_each (&hwpt->devices, index, hdev)
+		if (hdev->idev->dev == dev) {
+			if (!check_pasid || (check_pasid &&
+					     hdev->pasid_present &&
+					     hdev->pasid == pasid)) {
+				idev = hdev->idev;
+				break;
+			}
+		}
+	mutex_unlock(&hwpt->devices_lock);
+
+	return idev ? idev->obj.id : IOMMUFD_INVALID_ID;
+}
+
 static bool iommufd_hw_pagetable_has_group(struct iommufd_hw_pagetable *hwpt,
 					   struct iommu_group *group)
 {
-	struct iommufd_device *cur_dev;
+	struct iommufd_hwpt_device *hdev = NULL;
+	unsigned long index;
 
-	list_for_each_entry (cur_dev, &hwpt->devices, devices_item)
-		if (cur_dev->group == group)
+	xa_for_each (&hwpt->devices, index, hdev)
+		if (hdev->idev->group == group)
 			return true;
 	return false;
 }
@@ -209,12 +219,12 @@ static int iommufd_device_setup_msi(struct iommufd_device *idev,
 		 * iommu_get_msi_cookie() can only be called once per domain,
 		 * it returns -EBUSY on later calls.
 		 */
-		if (hwpt->msi_cookie)
+		if (hwpt->kernel.msi_cookie)
 			return 0;
 		rc = iommu_get_msi_cookie(hwpt->domain, sw_msi_start);
 		if (rc && rc != -ENODEV)
 			return rc;
-		hwpt->msi_cookie = true;
+		hwpt->kernel.msi_cookie = true;
 		return 0;
 	}
 
@@ -241,18 +251,18 @@ __iommufd_device_attach_kernel_hwpt(struct iommufd_device *idev,
 	 * first time enforce is called for this group.
 	 */
 	rc = iopt_table_enforce_group_resv_regions(
-		&hwpt->ioas->iopt, idev->group, &sw_msi_start);
+		&hwpt->kernel.ioas->iopt, idev->group, &sw_msi_start);
 	if (rc)
 		return rc;
 
 	rc = iommufd_device_setup_msi(idev, hwpt, sw_msi_start, flags);
 	if (rc)
-		iopt_remove_reserved_iova(&hwpt->ioas->iopt, idev->group);
+		iopt_remove_reserved_iova(&hwpt->kernel.ioas->iopt, idev->group);
 
-	if (list_empty(&hwpt->devices)) {
-		rc = iopt_table_add_domain(&hwpt->ioas->iopt, hwpt->domain);
+	if (xa_empty(&hwpt->devices)) {
+		rc = iopt_table_add_domain(&hwpt->kernel.ioas->iopt, hwpt->domain);
 		if (rc)
-			iopt_remove_reserved_iova(&hwpt->ioas->iopt, idev->group);
+			iopt_remove_reserved_iova(&hwpt->kernel.ioas->iopt, idev->group);
 	}
 
 	return rc;
@@ -262,9 +272,107 @@ static void
 __iommufd_device_detach_kernel_hwpt(struct iommufd_device *idev,
 				    struct iommufd_hw_pagetable *hwpt)
 {
-	iopt_remove_reserved_iova(&hwpt->ioas->iopt, idev->group);
-	if (list_empty(&hwpt->devices))
-		iopt_table_remove_domain(&hwpt->ioas->iopt, hwpt->domain);
+	iopt_remove_reserved_iova(&hwpt->kernel.ioas->iopt, idev->group);
+	if (xa_empty(&hwpt->devices))
+		iopt_table_remove_domain(&hwpt->kernel.ioas->iopt, hwpt->domain);
+}
+
+static struct iommufd_hwpt_device *
+iommufd_alloc_hwpt_device(struct iommufd_hw_pagetable *hwpt,
+			  struct iommufd_device *idev)
+{
+	struct iommufd_hwpt_device *hdev;
+
+	hdev = kzalloc(sizeof(*hdev), GFP_KERNEL);
+	if (!hdev)
+		return NULL;
+
+	hdev->hwpt = hwpt;
+	hdev->idev = idev;
+
+	return hdev;
+}
+
+static int iommufd_hwpt_device_finalize(struct iommufd_hwpt_device *hdev)
+{
+
+	return xa_alloc(&hdev->hwpt->devices, &hdev->id, hdev,
+		     xa_limit_32b, GFP_KERNEL);
+}
+
+static struct iommufd_hwpt_device *
+iommufd_device_attach_kernel_hwpt(struct iommufd_device *idev,
+				  struct iommufd_hw_pagetable *hwpt,
+				  unsigned int flags)
+{
+	struct iommufd_hwpt_device *hdev;
+	int rc;
+
+	hdev = iommufd_alloc_hwpt_device(hwpt, idev);
+	if (!hdev) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	if (!iommufd_hw_pagetable_has_group(hwpt, idev->group)) {
+		/* FIXME: Use a device-centric iommu api. For now check if the
+		 * hw_pagetable already has a device of the same group joined to tell if
+		 * we are the first and need to attach the group. */
+		rc = iommu_attach_group(hwpt->domain, idev->group);
+		if (rc)
+			goto out_free;;
+		rc = __iommufd_device_attach_kernel_hwpt(idev, hwpt, flags);
+		if (rc)
+			goto out_detach;
+	}
+
+	rc = iommufd_hwpt_device_finalize(hdev);
+	if (rc) {
+		goto out_detach_hwpt;
+	}
+
+	return hdev;
+out_detach_hwpt:
+	if (!iommufd_hw_pagetable_has_group(hwpt, idev->group))
+		__iommufd_device_detach_kernel_hwpt(idev, hwpt);
+out_detach:
+	if (!iommufd_hw_pagetable_has_group(hwpt, idev->group))
+		iommu_detach_group(hwpt->domain, idev->group);
+out_free:
+	kfree(hdev);
+out:
+	return ERR_PTR(rc);
+}
+
+static struct iommufd_hwpt_device *
+iommufd_device_attach_s1_hwpt(struct iommufd_device *idev,
+			      struct iommufd_hw_pagetable *hwpt)
+{
+	struct iommufd_hwpt_device *hdev;
+	int rc;
+
+	hdev = iommufd_alloc_hwpt_device(hwpt, idev);
+	if (!hdev) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	rc = iommu_attach_device(hwpt->domain, idev->dev);
+	if (rc)
+		goto out_free;
+
+	rc = iommufd_hwpt_device_finalize(hdev);
+	if (rc) {
+		goto out_detach;
+	}
+
+	return hdev;
+out_detach:
+	iommu_detach_device(hwpt->domain, idev->dev);
+out_free:
+	kfree(hdev);
+out:
+	return ERR_PTR(rc);
 }
 
 /**
@@ -284,6 +392,7 @@ int iommufd_device_attach(struct iommufd_device *idev, u32 *pt_id,
 			  unsigned int flags)
 {
 	struct iommufd_hw_pagetable *hwpt;
+	struct iommufd_hwpt_device *hdev;
 	int rc;
 
 	refcount_inc(&idev->obj.users);
@@ -294,31 +403,40 @@ int iommufd_device_attach(struct iommufd_device *idev, u32 *pt_id,
 		goto out_users;
 	}
 
-	mutex_lock(&hwpt->devices_lock);
-	/* FIXME: Use a device-centric iommu api. For now check if the
-	 * hw_pagetable already has a device of the same group joined to tell if
-	 * we are the first and need to attach the group. */
-	if (!iommufd_hw_pagetable_has_group(hwpt, idev->group)) {
-		rc = iommu_attach_group(hwpt->domain, idev->group);
-		if (rc)
-			goto out_unlock;
+	down_write(&idev->hwpts_rwsem);
 
-		rc = __iommufd_device_attach_kernel_hwpt(idev, hwpt, flags);
-		if (rc)
-			goto out_detach;
+	rc = xa_reserve(&idev->hwpts, hwpt->obj.id, GFP_KERNEL);
+	if (rc)
+		goto out_unlock_hwpts;
+
+	mutex_lock(&hwpt->devices_lock);
+
+	if (hwpt->type == IOMMUFD_HWPT_USER_S1) {
+		hdev = iommufd_device_attach_s1_hwpt(idev, hwpt);
+	} else if (hwpt->type == IOMMUFD_HWPT_KERNEL) {
+		hdev = iommufd_device_attach_kernel_hwpt(idev, hwpt, flags);
+	} else {
+		rc = -EINVAL;
+		goto out_unlock_devices;
 	}
 
-	idev->hwpt = hwpt;
-	list_add(&idev->devices_item, &hwpt->devices);
-	mutex_unlock(&hwpt->devices_lock);
+	if (IS_ERR(hdev)) {
+		rc = PTR_ERR(hdev);
+		goto out_unlock_devices;
+	}
 
-	*pt_id = idev->hwpt->obj.id;
+	mutex_unlock(&hwpt->devices_lock);
+	xa_store(&idev->hwpts, hwpt->obj.id, hdev, GFP_KERNEL);
+	up_write(&idev->hwpts_rwsem);
+
+	*pt_id = hwpt->obj.id;
 	return 0;
 
-out_detach:
-	iommu_detach_group(hwpt->domain, idev->group);
-out_unlock:
+out_unlock_devices:
 	mutex_unlock(&hwpt->devices_lock);
+	xa_release(&idev->hwpts, hwpt->obj.id);
+out_unlock_hwpts:
+	up_write(&idev->hwpts_rwsem);
 	iommufd_hw_pagetable_put(idev->ictx, hwpt);
 out_users:
 	refcount_dec(&idev->obj.users);
@@ -343,6 +461,7 @@ int iommufd_device_attach_pasid(struct iommufd_device *idev, u32 *pt_id,
 				ioasid_t pasid, unsigned int flags)
 {
 	struct iommufd_hw_pagetable *hwpt;
+	struct iommufd_hwpt_device *hdev;
 	int rc;
 
 	refcount_inc(&idev->obj.users);
@@ -353,29 +472,58 @@ int iommufd_device_attach_pasid(struct iommufd_device *idev, u32 *pt_id,
 		goto out_users;
 	}
 
+	down_write(&idev->hwpts_rwsem);
+
+	rc = xa_reserve(&idev->hwpts, hwpt->obj.id, GFP_KERNEL);
+	if (rc)
+		goto out_unlock_hwpts;
+
 	mutex_lock(&hwpt->devices_lock);
+
+	hdev = iommufd_alloc_hwpt_device(hwpt, idev);
+	if (!hdev) {
+		rc = -ENOMEM;
+		goto out_unlock_devices;
+	}
+
 	rc = iommu_attach_device_pasid(hwpt->domain,
 				       idev->dev, pasid);
 	if (rc)
-		goto out_unlock;
+		goto out_free;
 
-	rc = __iommufd_device_attach_kernel_hwpt(idev, hwpt, flags);
-	if (rc)
-		goto out_detach;
+	if (hwpt->type == IOMMUFD_HWPT_KERNEL) {
+		rc = __iommufd_device_attach_kernel_hwpt(idev, hwpt, flags);
+		if (rc)
+			goto out_detach;
+	}
 
-	idev->hwpt = hwpt;
-	idev->pasid = pasid;
-	idev->pasid_present = true;
-	list_add(&idev->devices_item, &hwpt->devices);
+	hdev->pasid = pasid;
+	hdev->pasid_present = true;
+
+	rc = iommufd_hwpt_device_finalize(hdev);
+	if (rc) {
+		goto out_detach_hwpt;
+	}
+
 	mutex_unlock(&hwpt->devices_lock);
+	xa_store(&idev->hwpts, hwpt->obj.id, hdev, GFP_KERNEL);
+	up_write(&idev->hwpts_rwsem);
 
-	*pt_id = idev->hwpt->obj.id;
+	*pt_id = hwpt->obj.id;
 	return 0;
 
+out_detach_hwpt:
+	if (hwpt->type == IOMMUFD_HWPT_KERNEL)
+		__iommufd_device_detach_kernel_hwpt(idev, hwpt);
 out_detach:
 	iommu_detach_device_pasid(hwpt->domain, idev->dev, pasid);
-out_unlock:
+out_free:
+	kfree(hdev);
+out_unlock_devices:
 	mutex_unlock(&hwpt->devices_lock);
+	xa_release(&idev->hwpts, hwpt->obj.id);
+out_unlock_hwpts:
+	up_write(&idev->hwpts_rwsem);
 	iommufd_hw_pagetable_put(idev->ictx, hwpt);
 out_users:
 	refcount_dec(&idev->obj.users);
@@ -383,24 +531,41 @@ out_users:
 }
 EXPORT_SYMBOL_GPL(iommufd_device_attach_pasid);
 
-void iommufd_device_detach(struct iommufd_device *idev)
+void iommufd_device_detach(struct iommufd_device *idev, u32 hwpt_id)
 {
-	struct iommufd_hw_pagetable *hwpt = idev->hwpt;
+	struct iommufd_hw_pagetable *hwpt;
+	struct iommufd_hwpt_device *hdev;
 
-	mutex_lock(&hwpt->devices_lock);
-	list_del(&idev->devices_item);
-	if (idev->pasid_present) {
-		__iommufd_device_detach_kernel_hwpt(idev, hwpt);
-		iommu_detach_device_pasid(hwpt->domain,
-					  idev->dev, idev->pasid);
-	} else if (!iommufd_hw_pagetable_has_group(hwpt, idev->group)) {
-		__iommufd_device_detach_kernel_hwpt(idev, hwpt);
-		iommu_detach_group(hwpt->domain, idev->group);
+	down_write(&idev->hwpts_rwsem);
+
+	hdev = xa_load(&idev->hwpts, hwpt_id);
+	if (!hdev) {
+		up_write(&idev->hwpts_rwsem);
+		return;
 	}
+
+	hwpt = hdev->hwpt;
+	mutex_lock(&hwpt->devices_lock);
+	xa_erase(&hdev->hwpt->devices, hdev->id);
+	if (!hdev->pasid_present) {
+		if (hwpt->type == IOMMUFD_HWPT_KERNEL &&
+		    !iommufd_hw_pagetable_has_group(hwpt, idev->group)) {
+			__iommufd_device_detach_kernel_hwpt(idev, hwpt);
+			iommu_detach_group(hwpt->domain, idev->group);
+		} else if (hwpt->type == IOMMUFD_HWPT_USER_S1)
+			iommu_detach_device(hwpt->domain, idev->dev);
+	} else {
+		if (hwpt->type == IOMMUFD_HWPT_KERNEL)
+			__iommufd_device_detach_kernel_hwpt(idev, hwpt);
+		iommu_detach_device_pasid(hwpt->domain, idev->dev, hdev->pasid);
+	}
+
+	kfree(hdev);
 	mutex_unlock(&hwpt->devices_lock);
+	xa_erase(&idev->hwpts, hwpt_id);
+	up_write(&idev->hwpts_rwsem);
 
 	iommufd_hw_pagetable_put(idev->ictx, hwpt);
-	idev->hwpt = NULL;
 
 	refcount_dec(&idev->obj.users);
 }
