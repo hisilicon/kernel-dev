@@ -307,6 +307,13 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 		return ret;
 	}
 
+	ret = iommu_dev_enable_feature(&pdev->dev, IOMMU_DEV_FEAT_SVA);
+	if (ret) {
+		dev_warn(&pdev->dev, "Unable to turn on SVA feature.\n");
+	} else {
+		vdev->has_sva = true;
+	}
+
 	msix_pos = pdev->msix_cap;
 	if (msix_pos) {
 		u16 flags;
@@ -374,6 +381,9 @@ void vfio_pci_core_disable(struct vfio_pci_core_device *vdev)
 	vdev->num_regions = 0;
 	kfree(vdev->region);
 	vdev->region = NULL; /* don't krealloc a freed pointer */
+
+	if (vdev->has_sva)
+		iommu_dev_disable_feature(&pdev->dev, IOMMU_DEV_FEAT_SVA);
 
 	vfio_config_free(vdev);
 
@@ -807,10 +817,21 @@ int vfio_pci_core_attach_hwpt(struct vfio_device *core_vdev,
 		goto out_unlock;
 	}
 
-	ret = iommufd_device_attach(vdev->idev, &pt_id, 0);
+	/* TODO: the invalid pasid info needs be defined in uAPI,
+	 * otherwise userspae has no idea about which pasid is valid and
+	 * which is not. */
+	if (attach->flags & VFIO_DEVICE_ATTACH_PASID) {
+		if (attach->pasid == INVALID_IOASID)
+			ret = -EINVAL;
+		else
+			ret = iommufd_device_attach_pasid(vdev->idev, &pt_id,
+							  attach->pasid, 0); //TODO: needs to hold pasid reference
+	} else
+		ret = iommufd_device_attach(vdev->idev, &pt_id, 0);
 	if (ret)
 		goto out_free;
 
+	WARN_ON(attach->hwpt_id != pt_id);
 
 	hwpt->hwpt_id = pt_id;
 	hwpt->stage1 = true;

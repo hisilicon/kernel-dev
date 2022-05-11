@@ -1886,15 +1886,29 @@ static long vfio_device_attach_hwpt(struct vfio_device *device,
 				    unsigned long arg)
 {
 	struct vfio_device_attach_hwpt attach;
-	unsigned long minsz;
+	unsigned long minsz, cursz;
 
 	minsz = offsetofend(struct vfio_device_attach_hwpt, hwpt_id);
+	cursz = offsetofend(struct vfio_device_attach_hwpt, pasid);
+
+	memset((void *)&attach, 0, sizeof(attach));
+
 	if (copy_from_user(&attach, (void __user *)arg, minsz))
 		return -EFAULT;
 
-	if (attach.argsz < minsz || attach.flags ||
+	if (attach.argsz < minsz ||
+	    attach.flags & ~VFIO_DEVICE_ATTACH_PASID ||
 	    attach.iommufd < 0 || attach.hwpt_id == IOMMUFD_INVALID_ID)
 		return -EINVAL;
+
+	if (attach.argsz < cursz &&
+	    attach.flags & VFIO_DEVICE_ATTACH_PASID)
+		return -EINVAL;
+
+	if (attach.argsz >= cursz &&
+	    copy_from_user((void *)&attach + minsz,
+			   (void __user *)arg + minsz, cursz - minsz))
+		return -EFAULT;
 
 	/* not allowed if the device is opened in legacy interface */
 	if (vfio_device_in_container(device))
