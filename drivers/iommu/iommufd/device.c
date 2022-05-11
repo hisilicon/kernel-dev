@@ -125,6 +125,53 @@ void iommufd_unbind_device(struct iommufd_device *idev)
 }
 EXPORT_SYMBOL_GPL(iommufd_unbind_device);
 
+int iommufd_device_get_info(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_device_info *cmd = ucmd->cmd;
+	struct iommufd_object *obj;
+	struct iommufd_device *idev;
+	struct iommu_hw_info hw_info;
+	u32 user_length;
+	int rc;
+
+	if (cmd->flags || cmd->reserved || cmd->dev_id == IOMMUFD_INVALID_ID)
+		return -EOPNOTSUPP;
+
+	obj = iommufd_get_object(ucmd->ictx, cmd->dev_id, IOMMUFD_OBJ_DEVICE);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	idev = container_of(obj, struct iommufd_device, obj);
+
+	rc = iommu_get_hw_info(idev->dev, &hw_info);
+	if (rc < 0)
+		goto out_put;
+
+	cmd->iommu_hw_type = hw_info.type;
+
+	if (hw_info.data_length <= cmd->hw_data_len &&
+	    copy_to_user((void __user *)cmd->hw_data_ptr,
+			 &hw_info.data, hw_info.data_length)) {
+		rc = -EFAULT;
+		goto out_put;
+	}
+
+	user_length = cmd->hw_data_len;
+	cmd->hw_data_len = hw_info.data_length;
+
+	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
+	if (rc)
+		goto out_put;
+
+	if (hw_info.data_length > user_length) {
+		rc = -EMSGSIZE;
+	}
+
+out_put:
+	iommufd_put_object(obj);
+	return rc;
+}
+
 static bool iommufd_hw_pagetable_has_group(struct iommufd_hw_pagetable *hwpt,
 					   struct iommu_group *group)
 {
