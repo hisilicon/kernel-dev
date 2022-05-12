@@ -505,3 +505,32 @@ out_put_stage2:
 	iommufd_put_object(stage2_obj);
 	return rc;
 }
+
+int iommufd_hwpt_invalidate_cache(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_hwpt_invalidate_s1_cache *cmd = ucmd->cmd;
+	struct iommufd_object *obj;
+	struct iommufd_hw_pagetable *hwpt;
+	int rc = 0;
+
+	if (cmd->flags)
+		return -EOPNOTSUPP;
+
+	/* TODO: more sanity check when the struct is finalized */
+	obj = iommufd_get_object(ucmd->ictx, cmd->hwpt_id,
+				 IOMMUFD_OBJ_HW_PAGETABLE_S1);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	hwpt = container_of(obj, struct iommufd_hw_pagetable, obj);
+	if (hwpt->type != IOMMUFD_HWPT_USER_S1) {
+		rc = -EINVAL;
+		goto out_put;
+	}
+
+	iommu_domain_cache_inv(hwpt->domain, &cmd->info);
+
+out_put:
+	iommufd_put_object(obj);
+	return rc;
+}

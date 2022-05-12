@@ -193,6 +193,7 @@ union ucmd_buffer {
 	struct iommu_ioas_map map;
 	struct iommu_ioas_unmap unmap;
 	struct iommu_alloc_s1_hwpt s1_hwpt;
+	struct iommu_hwpt_invalidate_s1_cache cache;
 	struct iommu_destroy destroy;
 	struct iommu_device_info info;
 #ifdef CONFIG_IOMMUFD_TEST
@@ -234,6 +235,8 @@ static struct iommufd_ioctl_op iommufd_ioctl_ops[] = {
 		 hw_data_ptr),
 	IOCTL_OP(IOMMU_ALLOC_S1_HWPT, iommufd_alloc_s1_hwpt, struct iommu_alloc_s1_hwpt,
 		 out_hwpt_id),
+	IOCTL_OP(IOMMU_HWPT_INVAL_S1_CACHE, iommufd_hwpt_invalidate_cache,
+		 struct iommu_hwpt_invalidate_s1_cache, info),
 #ifdef CONFIG_IOMMUFD_TEST
 	IOCTL_OP(IOMMU_TEST_CMD, iommufd_test, struct iommu_test_cmd, last),
 #endif
