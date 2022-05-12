@@ -404,28 +404,51 @@ int iommufd_vfio_ioctl(struct iommufd_ctx *ictx, unsigned int cmd,
 	return -ENOIOCTLCMD;
 }
 
-#define vfio_device_detach_unbind(ictx, id, device, device_list)               \
-	({                                                                     \
-		list_for_each_entry(device, device_list, group_next) {         \
-			struct vfio_device_detach_ioas detach = {            \
-				.argsz = sizeof(detach),                       \
-				.ioas_id = id,                               \
-				.iommufd = ictx->vfio_fd,                      \
-			};                                                     \
-			if (device->ops->detach_ioas)                        \
-				device->ops->detach_ioas(device, &detach);   \
-			if (device->ops->unbind_iommufd)                       \
-				device->ops->unbind_iommufd(device);           \
-		}                                                              \
-	})
+static void vfio_device_detach_unbind(struct vfio_device *device,
+				      int iommufd, u32 id)
+{
+	struct vfio_device_detach_hwpt detach = {
+				.argsz = sizeof(detach),
+				.hwpt_id = id,
+				.iommufd = iommufd,
+				};
 
-struct iommufd_ctx *vfio_group_set_iommufd(int fd, struct list_head *device_list)
+	if (device->ops->detach_hwpt)
+		device->ops->detach_hwpt(device, &detach);
+	if (device->ops->unbind_iommufd)
+		device->ops->unbind_iommufd(device);
+}
+
+static int vfio_device_bind_attach(struct vfio_device *device,
+				   struct vfio_device_bind_iommufd *bind,
+				   struct vfio_device_attach_ioas *attach)
+{
+	int rc;
+
+	if (!device->ops->bind_iommufd || !device->ops->unbind_iommufd ||
+	    !device->ops->attach_ioas || !device->ops->detach_hwpt)
+		return -ENOENT;
+
+	rc = device->ops->bind_iommufd(device, bind);
+	if (rc)
+		return rc;
+
+	rc = device->ops->attach_ioas(device, attach);
+	if (rc)
+		device->ops->unbind_iommufd(device);
+
+	return rc;
+}
+
+struct iommufd_ctx *
+vfio_group_set_iommufd(int fd, struct list_head *device_list, u32 *hwpt_id)
 {
 	struct vfio_device_attach_ioas attach = { .argsz = sizeof(attach) };
 	struct vfio_device_bind_iommufd bind = { .argsz = sizeof(bind) };
 	struct iommufd_ctx *ictx = iommufd_fget(fd);
 	struct iommufd_ioas *ioas;
 	struct vfio_device *device;
+	u32 pt_id;
 	int rc;
 
 	if (!ictx)
@@ -450,31 +473,31 @@ struct iommufd_ctx *vfio_group_set_iommufd(int fd, struct list_head *device_list
 
 	ictx->vfio_ioas = ioas;
 	attach.ioas_id = ioas->obj.id;
+	attach.out_hwpt_id = IOMMUFD_INVALID_ID;
 
 	iommufd_put_object(&ioas->obj);
 
+	pt_id = IOMMUFD_INVALID_ID;
 	list_for_each_entry(device, device_list, group_next) {
-		if (!device->ops->bind_iommufd || !device->ops->unbind_iommufd)
-			goto cleanup_ioas;
-
-		rc = device->ops->bind_iommufd(device, &bind);
+		rc = vfio_device_bind_attach(device, &bind, &attach);
 		if (rc)
-			goto cleanup_ioas;
+			goto unwind;
 
-		if (unlikely(!device->ops->attach_ioas))
-			goto cleanup_ioas;
-
-		rc = device->ops->attach_ioas(device, &attach);
-		if (rc)
-			goto cleanup_ioas;
+		if (pt_id == IOMMUFD_INVALID_ID)
+			pt_id = attach.out_hwpt_id;
+		else if (unlikely(pt_id != attach.out_hwpt_id)) {
+			vfio_device_detach_unbind(device, fd, attach.out_hwpt_id);
+			goto unwind;
+		}
 	}
 
+	*hwpt_id = pt_id;
 	ictx->groups++;
 	mutex_unlock(&ictx->vfio_compat);
 	return ictx;
-
-cleanup_ioas:
-	vfio_device_detach_unbind(ictx, attach.ioas_id, device, device_list);
+unwind:
+	list_for_each_entry_continue_reverse(device, device_list, group_next)
+		vfio_device_detach_unbind(device, fd, pt_id);
 	iommufd_ioas_destroy(&ioas->obj);
 out_fput:
 	mutex_unlock(&ictx->vfio_compat);
@@ -484,12 +507,13 @@ out_fput:
 }
 EXPORT_SYMBOL_GPL(vfio_group_set_iommufd);
 
-void vfio_group_unset_iommufd(void *iommufd, struct list_head *device_list)
+void vfio_group_unset_iommufd(void *iommufd, struct list_head *device_list,
+			      u32 hwpt_id)
 {
 	struct iommufd_ctx *ictx = (struct iommufd_ctx *)iommufd;
 	struct iommufd_ioas *ioas;
 	struct vfio_device *device;
-	unsigned int ioas_id;
+	int fd;
 
 	if (!ictx)
 		return;
@@ -498,10 +522,12 @@ void vfio_group_unset_iommufd(void *iommufd, struct list_head *device_list)
 	if (IS_ERR(ioas))
 		return;
 
-	ioas_id = ioas->obj.id;
+	fd = ictx->vfio_fd;
 	iommufd_put_object(&ioas->obj);
 
-	vfio_device_detach_unbind(ictx, ioas_id, device, device_list);
+	list_for_each_entry(device, device_list, group_next)
+		vfio_device_detach_unbind(device, fd, hwpt_id);
+
 	if (--ictx->groups == 0)
 		iommufd_ioas_destroy(&ioas->obj);
 	mutex_unlock(&ictx->vfio_compat);

@@ -660,8 +660,9 @@ int vfio_pci_core_bind_iommufd(struct vfio_device *core_vdev,
 		goto out_unlock;
 	}
 
+	vdev->iommufd = bind->iommufd;
 	vdev->idev = idev;
-	vdev->ioas_id = IOMMUFD_INVALID_ID;
+	vdev->hwpt_id = IOMMUFD_INVALID_ID;
 	bind->out_devid = id;
 
 out_unlock:
@@ -677,9 +678,9 @@ void vfio_pci_core_unbind_iommufd(struct vfio_device *core_vdev)
 
 	mutex_lock(&vdev->idev_lock);
 	if (vdev->idev) {
-		if (vdev->ioas_id != IOMMUFD_INVALID_ID) {
+		if (vdev->hwpt_id != IOMMUFD_INVALID_ID) {
 			vdev->iommufd = -1;
-			vdev->ioas_id = IOMMUFD_INVALID_ID;
+			vdev->hwpt_id = IOMMUFD_INVALID_ID;
 			iommufd_device_detach(vdev->idev);
 		}
 		iommufd_unbind_device(vdev->idev);
@@ -699,13 +700,13 @@ int vfio_pci_core_attach_ioas(struct vfio_device *core_vdev,
 
 	mutex_lock(&vdev->idev_lock);
 
-	if (!vdev->idev) {
+	if (!vdev->idev || vdev->iommufd != attach->iommufd) {
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 
 	/* Currently only allows one IOAS attach */
-	if (vdev->ioas_id != IOMMUFD_INVALID_ID) {
+	if (vdev->hwpt_id != IOMMUFD_INVALID_ID) {
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -719,8 +720,7 @@ int vfio_pci_core_attach_ioas(struct vfio_device *core_vdev,
 	if (ret)
 		goto out_unlock;
 
-	vdev->iommufd = attach->iommufd;
-	vdev->ioas_id = attach->ioas_id;
+	vdev->hwpt_id = pt_id;
 	attach->out_hwpt_id = pt_id;
 
 out_unlock:
@@ -730,29 +730,26 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_attach_ioas);
 
-void vfio_pci_core_detach_ioas(struct vfio_device *core_vdev,
-			       struct vfio_device_detach_ioas *detach)
+void vfio_pci_core_detach_hwpt(struct vfio_device *core_vdev,
+			       struct vfio_device_detach_hwpt *detach)
 {
 	struct vfio_pci_core_device *vdev =
 		container_of(core_vdev, struct vfio_pci_core_device, vdev);
 
 	mutex_lock(&vdev->idev_lock);
 
-	if (vdev->ioas_id == IOMMUFD_INVALID_ID)
+	if (!vdev->idev ||
+	    vdev->iommufd != detach->iommufd ||
+	    vdev->hwpt_id != detach->hwpt_id)
 		goto out_unlock;
 
-	if (vdev->iommufd != detach->iommufd ||
-	    vdev->ioas_id != detach->ioas_id)
-		goto out_unlock;
-
-	vdev->iommufd = -1;
-	vdev->ioas_id = IOMMUFD_INVALID_ID;
+	vdev->hwpt_id = IOMMUFD_INVALID_ID;
 	iommufd_device_detach(vdev->idev);
 
 out_unlock:
 	mutex_unlock(&vdev->idev_lock);
 }
-EXPORT_SYMBOL_GPL(vfio_pci_core_detach_ioas);
+EXPORT_SYMBOL_GPL(vfio_pci_core_detach_hwpt);
 
 long vfio_pci_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
 		unsigned long arg)

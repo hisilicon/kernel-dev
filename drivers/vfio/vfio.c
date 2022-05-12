@@ -85,6 +85,7 @@ struct vfio_group {
 	struct kvm			*kvm;
 	struct blocking_notifier_head	notifier;
 	void				*iommufd;
+	u32				hwpt_id;
 };
 
 #ifdef CONFIG_VFIO_NOIOMMU
@@ -1092,7 +1093,9 @@ static void __vfio_group_unset_container(struct vfio_group *group)
 	struct vfio_iommu_driver *driver;
 
 	if (group->iommufd) {
-		vfio_group_unset_iommufd(group->iommufd, &group->device_list);
+		vfio_group_unset_iommufd(group->iommufd,
+					 &group->device_list,
+					 group->hwpt_id);
 		group->iommufd = NULL;
 		wake_up(&group->container_q);
 		return;
@@ -1161,6 +1164,7 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 	struct fd f;
 	struct vfio_container *container;
 	struct vfio_iommu_driver *driver;
+	u32 hwpt_id;
 	int ret = 0;
 
 	if (atomic_read(&group->container_users))
@@ -1170,9 +1174,11 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 		return -EPERM;
 
 	group->iommufd = vfio_group_set_iommufd(container_fd,
-						&group->device_list);
+						&group->device_list,
+						&hwpt_id);
 	if (group->iommufd) {
 		atomic_inc(&group->container_users);
+		group->hwpt_id = hwpt_id;
 		return ret;
 	}
 
@@ -1876,28 +1882,28 @@ static long vfio_device_attach_ioas(struct vfio_device *device,
 			    sizeof(attach.out_hwpt_id)) ? -EFAULT : 0;
 }
 
-static long vfio_device_detach_ioas(struct vfio_device *device,
+static long vfio_device_detach_hwpt(struct vfio_device *device,
 				    unsigned long arg)
 {
-	struct vfio_device_detach_ioas detach;
+	struct vfio_device_detach_hwpt detach;
 	unsigned long minsz;
 
-	minsz = offsetofend(struct vfio_device_detach_ioas, ioas_id);
+	minsz = offsetofend(struct vfio_device_detach_hwpt, hwpt_id);
 	if (copy_from_user(&detach, (void __user *)arg, minsz))
 		return -EFAULT;
 
 	if (detach.argsz < minsz || detach.flags ||
-	    detach.iommufd < 0 || detach.ioas_id == IOMMUFD_INVALID_ID)
+	    detach.iommufd < 0 || detach.hwpt_id == IOMMUFD_INVALID_ID)
 		return -EINVAL;
 
 	/* not allowed if the device is opened in legacy interface */
 	if (vfio_device_in_container(device))
 		return -EBUSY;
 
-	if (unlikely(!device->ops->detach_ioas))
+	if (unlikely(!device->ops->detach_hwpt))
 		return -EINVAL;
 
-	device->ops->detach_ioas(device, &detach);
+	device->ops->detach_hwpt(device, &detach);
 
 	return 0;
 }
@@ -1920,8 +1926,8 @@ static long vfio_device_fops_unl_ioctl(struct file *filep,
 	switch (cmd) {
 	case VFIO_DEVICE_ATTACH_IOAS:
 		return vfio_device_attach_ioas(device, arg);
-	case VFIO_DEVICE_DETACH_IOAS:
-		return vfio_device_detach_ioas(device, arg);
+	case VFIO_DEVICE_DETACH_HWPT:
+		return vfio_device_detach_hwpt(device, arg);
 	case VFIO_DEVICE_FEATURE:
 		return vfio_ioctl_device_feature(device, (void __user *)arg);
 	default:

@@ -226,7 +226,7 @@ struct vfio_device_bind_iommufd {
 #define VFIO_DEVICE_BIND_IOMMUFD	_IO(VFIO_TYPE, VFIO_BASE + 19)
 
 /*
- * VFIO_DEVICE_ATTACH_IOAS - _IOW(VFIO_TYPE, VFIO_BASE + 21,
+ * VFIO_DEVICE_ATTACH_IOAS - _IOW(VFIO_TYPE, VFIO_BASE + 20,
  *				  struct vfio_device_attach_ioas)
  *
  * Attach a vfio device to the specified IOAS.
@@ -253,26 +253,27 @@ struct vfio_device_attach_ioas {
 #define VFIO_DEVICE_ATTACH_IOAS	_IO(VFIO_TYPE, VFIO_BASE + 20)
 
 /*
- * VFIO_DEVICE_DETACH_IOAS - _IOW(VFIO_TYPE, VFIO_BASE + 21,
- *				  struct vfio_device_detach_ioas)
+ * VFIO_DEVICE_DETACH_HWPT - _IOW(VFIO_TYPE, VFIO_BASE + 21,
+ *				  struct vfio_device_detach_hwpt)
  *
- * Detach a vfio device from the specified IOAS.
+ * Detach a vfio device from the specified hardware page table.
  *
  * @argsz:	user filled size of this data.
  * @flags:	reserved for future extension.
  * @iommufd:	iommufd where the ioas comes from.
- * @ioas_id:	Input the target I/O address space page table.
+ * @hwpt_id:	Input the target hwpt.
+ * @pasid:	Input a pasid.
  *
  * Return: 0 on success, -errno on failure.
  */
-struct vfio_device_detach_ioas {
+struct vfio_device_detach_hwpt {
 	__u32	argsz;
 	__u32	flags;
 	__s32	iommufd;
-	__u32	ioas_id;
+	__u32	hwpt_id;
 };
 
-#define VFIO_DEVICE_DETACH_IOAS	_IO(VFIO_TYPE, VFIO_BASE + 21)
+#define VFIO_DEVICE_DETACH_HWPT	_IO(VFIO_TYPE, VFIO_BASE + 21)
 
 /**
  * VFIO_DEVICE_GET_INFO - _IOR(VFIO_TYPE, VFIO_BASE + 7,
