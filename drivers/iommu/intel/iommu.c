@@ -618,7 +618,7 @@ static int domain_update_device_node(struct dmar_domain *domain)
 	return nid;
 }
 
-static void domain_update_iotlb(struct dmar_domain *domain);
+static void domain_update_device_iotlb(struct dmar_domain *domain);
 
 /* Return the super pagesize bitmap if supported. */
 static unsigned long domain_super_pgsize_bitmap(struct dmar_domain *domain)
@@ -663,7 +663,7 @@ static void domain_update_iommu_cap(struct dmar_domain *domain)
 		domain->domain.geometry.aperture_end = __DOMAIN_MAX_ADDR(domain->gaw);
 
 	domain->domain.pgsize_bitmap |= domain_super_pgsize_bitmap(domain);
-	domain_update_iotlb(domain);
+	domain_update_device_iotlb(domain);
 }
 
 struct context_entry *iommu_context_addr(struct intel_iommu *iommu, u8 bus,
@@ -1461,20 +1461,28 @@ iommu_support_dev_iotlb (struct dmar_domain *domain, struct intel_iommu *iommu,
 	return NULL;
 }
 
-static void domain_update_iotlb(struct dmar_domain *domain)
+static void domain_update_device_iotlb(struct dmar_domain *domain)
 {
+	struct subdev_domain_info *sinfo;
 	struct device_domain_info *info;
-	bool has_iotlb_device = false;
 
 	assert_spin_locked(&device_domain_lock);
 
-	list_for_each_entry(info, &domain->devices, link)
+	domain->has_iotlb_device = false;
+	list_for_each_entry(info, &domain->devices, link) {
 		if (info->ats_enabled) {
-			has_iotlb_device = true;
-			break;
+			domain->has_iotlb_device = true;
+			return;
 		}
+	}
 
-	domain->has_iotlb_device = has_iotlb_device;
+	list_for_each_entry(sinfo, &domain->subdevices, link_domain) {
+		info = dev_iommu_priv_get(sinfo->pdev);
+		if (info->ats_enabled) {
+			domain->has_iotlb_device = true;
+			return;
+		}
+	}
 }
 
 static void iommu_enable_dev_iotlb(struct device_domain_info *info)
@@ -1519,7 +1527,7 @@ static void iommu_enable_dev_iotlb(struct device_domain_info *info)
 	if (info->ats_supported && pci_ats_page_aligned(pdev) &&
 	    !pci_enable_ats(pdev, VTD_PAGE_SHIFT)) {
 		info->ats_enabled = 1;
-		domain_update_iotlb(info->domain);
+		domain_update_device_iotlb(info->domain);
 		info->ats_qdep = pci_ats_queue_depth(pdev);
 	}
 }
@@ -1538,7 +1546,7 @@ static void iommu_disable_dev_iotlb(struct device_domain_info *info)
 	if (info->ats_enabled) {
 		pci_disable_ats(pdev);
 		info->ats_enabled = 0;
-		domain_update_iotlb(info->domain);
+		domain_update_device_iotlb(info->domain);
 	}
 #ifdef CONFIG_INTEL_IOMMU_SVM
 	if (info->pri_enabled) {
@@ -1571,6 +1579,7 @@ static void iommu_flush_dev_iotlb(struct dmar_domain *domain,
 {
 	unsigned long flags;
 	struct device_domain_info *info;
+	struct subdev_domain_info *sinfo;
 
 	if (!domain->has_iotlb_device)
 		return;
@@ -1578,6 +1587,11 @@ static void iommu_flush_dev_iotlb(struct dmar_domain *domain,
 	spin_lock_irqsave(&device_domain_lock, flags);
 	list_for_each_entry(info, &domain->devices, link)
 		__iommu_flush_dev_iotlb(info, addr, mask);
+
+	list_for_each_entry(sinfo, &domain->subdevices, link_domain) {
+		info = dev_iommu_priv_get(sinfo->pdev);
+		__iommu_flush_dev_iotlb(info, addr, mask);
+	}
 
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 }
