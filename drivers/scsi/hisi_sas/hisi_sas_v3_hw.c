@@ -3181,7 +3181,6 @@ static struct scsi_host_template sht_v3_hw = {
 	.this_id		= -1,
 	.sg_tablesize		= HISI_SAS_SGE_PAGE_CNT,
 	.sg_prot_tablesize	= HISI_SAS_SGE_PAGE_CNT,
-	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.eh_device_reset_handler = sas_eh_device_reset_handler,
 	.eh_target_reset_handler = sas_eh_target_reset_handler,
 	.slave_alloc		= hisi_sas_slave_alloc,
@@ -4808,6 +4807,7 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->max_cmd_len = 16;
 	shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
 	shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;
+	shost->max_sectors = hisi_sas_max_sectors(hisi_hba);
 
 	sha->sas_ha_name = DRV_NAME;
 	sha->dev = dev;

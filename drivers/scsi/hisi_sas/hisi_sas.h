@@ -663,4 +663,5 @@ extern void hisi_sas_release_tasks(struct hisi_hba *hisi_hba);
 extern u8 hisi_sas_get_prog_phy_linkrate_mask(enum sas_linkrate max);
 extern void hisi_sas_controller_reset_prepare(struct hisi_hba *hisi_hba);
 extern void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba);
+extern unsigned int hisi_sas_max_sectors(struct hisi_hba *hisi_hba);
 #endif

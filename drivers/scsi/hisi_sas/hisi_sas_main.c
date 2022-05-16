@@ -2386,6 +2386,20 @@ static int hisi_sas_interrupt_preinit(struct hisi_hba *hisi_hba)
 	return 0;
 }
 
+unsigned int hisi_sas_max_sectors(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = hisi_hba->dev;
+
+	if (!dev->iommu_group)
+		return SCSI_DEFAULT_MAX_SECTORS;
+	/*
+	 * We know that the IOMMU IOVA caching limit is 128KB, so fix max
+	 * hw sectors to fall within that range for performance reasons.
+	 */
+	return min_t(unsigned int, dma_max_mapping_size(dev), SZ_128K);
+}
+EXPORT_SYMBOL_GPL(hisi_sas_max_sectors);
+
 int hisi_sas_probe(struct platform_device *pdev,
 		   const struct hisi_sas_hw *hw)
 {
@@ -2423,6 +2437,18 @@ int hisi_sas_probe(struct platform_device *pdev,
 	shost->max_lun = ~0;
 	shost->max_channel = 1;
 	shost->max_cmd_len = 16;
+	shost->max_sectors = hisi_sas_max_sectors(hisi_hba);
+
+	/*
+	 * We know that the IOMMU IOVA caching limit is 128KB, so fix max
+	 * hw sectors to fall within that range for performance reasons.
+	 */
+	if (dev->iommu_group) {
+		shost->max_sectors =
+			min_t(unsigned int, SZ_128K,
+			      dma_max_mapping_size(dev)) >> SECTOR_SHIFT;
+	}
+
 	if (hisi_hba->hw->slot_index_alloc) {
 		shost->can_queue = HISI_SAS_MAX_COMMANDS;
 		shost->cmd_per_lun = HISI_SAS_MAX_COMMANDS;
