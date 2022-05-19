@@ -1717,13 +1717,49 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
 	blk_status_t ret;
 	int reason;
-
+	bool internal1 = false;
+	bool internal2 = false;
 	WARN_ON_ONCE(cmd->budget_token < 0);
 
+	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
+		internal1 = true;
+	if (cmd->cmnd[0] == ATA_INTERNAL)
+		internal2 = true;
 
-	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL) {
-		pr_err("%s2 req=%pS internal\n", __func__, req);
+	if (internal1 || internal2) {
+		pr_err_once("%s2 req=%pS internal1=%d internal2=%d cmnd[0]=0x%x RQF_DONTPREP=%d hostt=%pS\n",
+			__func__, req, internal1, internal2, cmd->cmnd[0], !!(req->rq_flags & RQF_DONTPREP), shost->hostt);
+
+		if (!(req->rq_flags & RQF_DONTPREP)) {
+			ret = scsi_prepare_cmd(req);
+			if (ret != BLK_STS_OK) {
+
+				pr_err("%s2.1 req=%pS internal out_dec_host_busy\n", __func__, req);
+				BUG();
+
+				goto out_dec_host_busy;
+			}
+			req->rq_flags |= RQF_DONTPREP;
+		} else {
+			clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
+		}
+
 		blk_mq_start_request(req);
+		ret = shost->hostt->internal_queuecommand(shost, cmd);
+		if (ret)
+			BUG();
+/*
+		if (cmnd[0] == ATA_INTERNAL) {
+			struct ata_port *ap = (struct ata_port *)cmd->host_scribble;
+
+			pr_err("%s1 cmd=%pS ATA_16  ap=%pS cmd->host_scribble=%pS\n", __func__, cmd, ap, cmd->host_scribble);
+			spin_lock_irq(ap->lock);
+			res = ata_sas_queuecmd(cmd, ap);
+			spin_unlock_irq(ap->lock);
+			pr_err("%s2 cmd=%pS ATA_16 res=%d\n", __func__, cmd, res);
+			return res;
+		}
+*/
 	}
 	/*
 	 * If the device is not in running state we will reject some or all

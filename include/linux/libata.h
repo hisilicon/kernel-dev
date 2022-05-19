@@ -41,7 +41,7 @@
  */
 #undef ATA_IRQ_TRAP		/* define to ack screaming irqs */
 
-struct ata_internal {
+struct ata_internal_cmd {
 
 };
 

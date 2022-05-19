@@ -1484,7 +1484,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	u8 scsi_cmd[MAX_COMMAND_SIZE];
 	struct scsi_sense_hdr sshdr;
 	int cmd_result;
-	struct ata_internal internal;
+	struct ata_internal_cmd internal;
 	
 	scsi_cmd[0] = ATA_INTERNAL;
 
