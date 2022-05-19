@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/ioasid.h>
 #include <uapi/linux/iommu.h>
+#include <uapi/linux/iommufd.h>
 
 #define IOMMU_READ	(1 << 0)
 #define IOMMU_WRITE	(1 << 1)
@@ -68,6 +69,8 @@ struct iommu_domain_geometry {
 #define __IOMMU_DOMAIN_SHARED	(1U << 4)  /* Page table shared from CPU  */
 #define __IOMMU_DOMAIN_HOST_VA	(1U << 5)  /* Host CPU virtual address */
 
+#define __IOMMU_DOMAIN_USER_IOVA	(1U << 6)  /* User managed IOVA */
+
 /*
  * This are the possible domain-types
  *
@@ -92,6 +95,8 @@ struct iommu_domain_geometry {
 				 __IOMMU_DOMAIN_DMA_FQ)
 #define IOMMU_DOMAIN_SVA	(__IOMMU_DOMAIN_SHARED |	\
 				 __IOMMU_DOMAIN_HOST_VA)
+#define IOMMU_DOMAIN_NESTING	(__IOMMU_DOMAIN_SHARED |	\
+				 __IOMMU_DOMAIN_USER_IOVA)
 
 struct iommu_domain {
 	unsigned type;
@@ -232,6 +237,9 @@ struct iommu_ops {
 
 	/* Domain allocation and freeing by the iommu driver */
 	struct iommu_domain *(*domain_alloc)(unsigned iommu_domain_type);
+	struct iommu_domain *(*nested_domain_alloc)(struct iommu_domain *s2_domain,
+						    unsigned long s1_ptr,
+						    union iommu_stage1_config *cfg);
 
 	struct iommu_device *(*probe_device)(struct device *dev);
 	void (*release_device)(struct device *dev);
@@ -268,6 +276,7 @@ struct iommu_ops {
  * @detach_dev: detach an iommu domain from a device
  * @attach_dev_pasid: attach an iommu domain to a pasid of device
  * @detach_dev_pasid: detach an iommu domain from a pasid of device
+ * @cache_invalidate: invalidate translation caches
  * @map: map a physically contiguous memory region to an iommu domain
  * @map_pages: map a physically contiguous set of pages of the same size to
  *             an iommu domain.
@@ -292,6 +301,8 @@ struct iommu_domain_ops {
 				struct device *dev, ioasid_t pasid);
 	void (*detach_dev_pasid)(struct iommu_domain *domain,
 				 struct device *dev, ioasid_t pasid);
+	int (*cache_invalidate)(struct iommu_domain *domain,
+				struct iommu_cache_invalidate_info *inv_info);
 
 	int (*map)(struct iommu_domain *domain, unsigned long iova,
 		   phys_addr_t paddr, size_t size, int prot, gfp_t gfp);
@@ -693,6 +704,12 @@ void iommu_detach_device_pasid(struct iommu_domain *domain,
 struct iommu_domain *
 iommu_get_domain_for_dev_pasid(struct device *dev, ioasid_t pasid);
 
+struct iommu_domain *
+iommu_alloc_nested_domain(struct bus_type *bus, struct iommu_domain *s2_domain,
+			  unsigned long s1_ptr, union iommu_stage1_config *cfg);
+void iommu_domain_cache_inv(struct iommu_domain *domain,
+			    struct iommu_cache_invalidate_info *inv_info);
+
 #else /* CONFIG_IOMMU_API */
 
 struct iommu_ops {};
@@ -1067,6 +1084,18 @@ static inline struct iommu_domain *
 iommu_get_domain_for_dev_pasid(struct device *dev, ioasid_t pasid)
 {
 	return NULL;
+}
+
+static inline struct iommu_domain *
+iommu_alloc_nested_domain(struct bus_type *bus, struct iommu_domain *s2_domain,
+			  unsigned long s1_ptr, union iommu_stage1_config *cfg)
+{
+}
+
+static inline void
+iommu_domain_cache_inv(struct iommu_domain *domain,
+		       struct iommu_cache_invalidate_info *inv_info)
+{
 }
 #endif /* CONFIG_IOMMU_API */
 

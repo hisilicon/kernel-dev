@@ -3195,3 +3195,28 @@ struct iommu_domain *iommu_get_domain_for_dev_pasid(struct device *dev,
 
 	return domain;
 }
+
+/*
+ * Nesting domain interfaces.
+ */
+struct iommu_domain *
+iommu_alloc_nested_domain(struct bus_type *bus, struct iommu_domain *s2_domain,
+			  unsigned long s1_ptr, union iommu_stage1_config *cfg)
+{
+	struct iommu_domain *domain;
+
+	if (!bus || !bus->iommu_ops || !bus->iommu_ops->nested_domain_alloc)
+		return NULL;
+
+	domain = bus->iommu_ops->nested_domain_alloc(s2_domain, s1_ptr, cfg);
+	if (domain)
+		domain->type = IOMMU_DOMAIN_NESTING;
+
+	return domain;
+}
+
+void iommu_domain_cache_inv(struct iommu_domain *domain,
+			    struct iommu_cache_invalidate_info *inv_info)
+{
+	domain->ops->cache_invalidate(domain, inv_info);
+}
