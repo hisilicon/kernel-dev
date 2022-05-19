@@ -1497,7 +1497,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	}
 
 	sdev = scsi_get_host_dev(scsi_host);
-	pr_err("%s sdev=%pS\n", __func__, sdev);
+	pr_err("%s sdev=%pS ap=%pS\n", __func__, sdev, ap);
 
 	/* initialize internal qc */
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);

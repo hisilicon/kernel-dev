@@ -390,6 +390,7 @@ extern const struct attribute_group *ahci_sdev_groups[];
 	.sdev_groups		= ahci_sdev_groups,			\
 	.change_queue_depth     = ata_scsi_change_queue_depth,		\
 	.tag_alloc_policy       = BLK_TAG_ALLOC_RR,             	\
+	.internal_queuecommand = ahci_internal_queuecommand,	\
 	.slave_configure        = ata_scsi_slave_config
 
 extern struct ata_port_operations ahci_ops;

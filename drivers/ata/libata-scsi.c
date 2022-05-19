@@ -1090,6 +1090,22 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 	return 0;
 }
 
+int ahci_internal_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
+{
+	struct ata_port *ap;
+	int res;
+	pr_err_once("%s shost=%pS scmd=%pS\n", __func__, shost, scmd);
+	ap = ata_shost_to_port(shost);
+	pr_err_once("%s2 shost=%pS scmd=%pS ap=%pS\n", __func__, shost, scmd, ap);
+	spin_lock_irq(ap->lock);
+	res = ata_sas_queuecmd(scmd, ap);
+	spin_unlock_irq(ap->lock);
+	pr_err_once("%s3 shost=%pS scmd=%pS ap=%pS res=%d\n", __func__, shost, scmd, ap, res);
+
+	return res;
+}
+EXPORT_SYMBOL_GPL(ahci_internal_queuecommand);
+
 /**
  *	ata_scsi_slave_config - Set SCSI device attributes
  *	@sdev: SCSI device to examine
@@ -3943,7 +3959,8 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 {
 	u8 scsi_op = scmd->cmnd[0];
 	ata_xlat_func_t xlat_func;
-
+	if (scsi_op == ATA_INTERNAL)
+		pr_err("%s scmd=%pS dev=%pS\n", __func__, scmd, dev);
 	if (unlikely(!scmd->cmd_len))
 		goto bad_cdb_len;
 
