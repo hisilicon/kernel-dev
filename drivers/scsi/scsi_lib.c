@@ -1742,7 +1742,7 @@ static int scsi_mq_get_rq_budget_token(struct request *req)
 
 	return cmd->budget_token;
 }
-extern struct request *special_rq;
+struct request *special_rq;
 static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {

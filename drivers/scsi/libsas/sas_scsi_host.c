@@ -1048,7 +1048,7 @@ static __maybe_unused enum blk_eh_timer_return sas_task_timedout(struct request 
 	return BLK_EH_DONE;
 }
 extern struct request_queue *special_queue;
-struct request *special_rq;
+extern struct request *special_rq;
 
 static int sas_execute_internal_abort(struct domain_device *device,
 				      enum sas_internal_abort type, u16 tag,
