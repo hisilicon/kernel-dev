@@ -539,7 +539,7 @@ static int sas_queue_reset(struct domain_device *dev, int reset_type,
 			list_add_tail(&dev->ssp_dev.eh_list_node, &ha->eh_dev_q);
 			set_bit(SAS_DEV_EH_PENDING, &dev->state);
 			set_bit(reset_type, &dev->state);
-			int_to_scsilun(lun, &dev->ssp_dev.reset_lun);
+			int_to_scsilun(lun, &dev-drivers/scsi/libsas/sas_scsi_host.c:struct>ssp_dev.reset_lun);
 			scsi_schedule_eh(ha->core.shost);
 		}
 		spin_unlock_irq(&ha->lock);
@@ -1047,7 +1047,7 @@ static __maybe_unused enum blk_eh_timer_return sas_task_timedout(struct request 
 		complete(&task->slow_task->completion);
 	return BLK_EH_DONE;
 }
-struct request_queue *special_queue;
+extern struct request_queue *special_queue;
 struct request *special_rq;
 
 static int sas_execute_internal_abort(struct domain_device *device,

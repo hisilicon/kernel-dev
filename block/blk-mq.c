@@ -128,7 +128,7 @@ struct mq_inflight {
 	unsigned int inflight[2];
 };
 
-extern struct request_queue *special_queue;
+struct request_queue *special_queue;
 
 static bool blk_mq_check_inflight(struct request *rq, void *priv,
 				  bool reserved)
