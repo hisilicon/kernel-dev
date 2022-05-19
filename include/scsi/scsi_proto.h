@@ -169,7 +169,7 @@
 
 /* Vendor specific CDBs start here */
 #define VENDOR_SPECIFIC_CDB 0xc0
-
+#define ATA_INTERNAL VENDOR_SPECIFIC_CDB
 /*
  *	SCSI command lengths
  */

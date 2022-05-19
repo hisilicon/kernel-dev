@@ -41,6 +41,9 @@
  */
 #undef ATA_IRQ_TRAP		/* define to ack screaming irqs */
 
+struct ata_internal {
+
+};
 
 #define ata_print_version_once(dev, version)			\
 ({								\
