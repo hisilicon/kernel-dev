@@ -1114,8 +1114,11 @@ EXPORT_SYMBOL_GPL(blk_mq_complete_request_remote);
  **/
 void blk_mq_complete_request(struct request *rq)
 {
-	if (!blk_mq_complete_request_remote(rq))
+	pr_err("%s req=%pS\n", __func__, rq);
+	if (!blk_mq_complete_request_remote(rq)) {
+		pr_err("%s2 req=%pS rq->q->mq_ops->complete=%pS\n", __func__, rq, rq->q->mq_ops->complete);
 		rq->q->mq_ops->complete(rq);
+	}
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 

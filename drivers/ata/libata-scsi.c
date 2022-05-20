@@ -3984,7 +3984,7 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 				  internal_ptr, sizeof(*internal_ptr), 1);
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
-	qc->scsicmd = NULL;
+	qc->scsicmd = scmd;
 	qc->ap = ap;
 	qc->dev = dev;
 	ata_qc_reinit(qc);
@@ -4025,16 +4025,18 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 
 		qc->orig_n_elem = 1;
 		qc->n_elem = n_elem;
+		qc->nbytes = sg_dma_len(qc->sg);
+		pr_err("%s4.1 scmd=%pS qc->nbytes=%d\n", __func__, scmd, qc->nbytes);
 	}
 
 	//qc->private_data = &wait;
 	qc->complete_fn = ata_qc_complete_internal;
-
+	pr_err("%s5 scmd=%pS\n", __func__, scmd);
 	ata_qc_issue(qc);
 
 
 
-	panic("good so far\n");
+	pr_err("%s10 out scmd=%pS\n", __func__, scmd);
 
 	return 0;
 did_err:

@@ -1435,8 +1435,11 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc);
 void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
 	struct completion *waiting = qc->private_data;
-	pr_err("%s qc=%pS\n", __func__, qc);
-	complete(waiting);
+	struct scsi_cmnd *scmd = qc->scsicmd; 
+	pr_err("%s qc=%pS waiting=%pS scmd=%pS\n", __func__, qc, waiting, scmd);
+
+	scsi_done(scmd);
+	pr_err("%s10 qc=%pS waiting=%pS scmd=%pS\n", __func__, qc, waiting, scmd);
 }
 
 /**
@@ -1562,6 +1565,9 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		sg_init_one(scsi_sglist(scmd), buf, buflen);
 	}
 
+	pr_err("%s1.6 sdev=%pS ap=%pS req=%pS qc=%pS=\n",
+	 __func__, sdev, ap, req, qc);
+
 	/*
 	 * head injection *required* here otherwise quiesce won't work
 	 */
@@ -1571,6 +1577,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	#endif
 	pr_err("%s2 sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
 	
+	
 	if (!timeout) {
 		if (ata_probe_timeout)
 			timeout = ata_probe_timeout * 1000;
@@ -1579,15 +1586,16 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 			auto_timeout = 1;
 		}
 	}
-
+	pr_err("%s3 sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
 	if (ap->ops->error_handler)
 		ata_eh_release(ap);
-
+	pr_err("%s4 sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
 
+	pr_err("%s5 sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
 	ata_sff_flush_pio_task(ap);
 
 	if (!rc) {
@@ -1613,6 +1621,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		spin_unlock_irqrestore(ap->lock, flags);
 	}
 
+	pr_err("%s6 sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
 	/* do post_internal_cmd */
 	if (ap->ops->post_internal_cmd)
 		ap->ops->post_internal_cmd(qc);
@@ -1635,6 +1644,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	/* finish up */
 	spin_lock_irqsave(ap->lock, flags);
 
+	pr_err("%s7 sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
 	*tf = qc->result_tf;
 	err_mask = qc->err_mask;
 
@@ -1650,6 +1660,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		ata_internal_cmd_timed_out(dev, command);
 
 	#endif
+	pr_err("%s10out sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
 	err_mask = 0; //hack
 	return err_mask;
 }
@@ -4663,7 +4674,7 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap;
 	struct ata_link *link;
-
+	pr_err("%s qc=%pS\n", __func__, qc);
 	WARN_ON_ONCE(qc == NULL); /* ata_qc_from_tag _might_ return NULL */
 	WARN_ON_ONCE(!(qc->flags & ATA_QCFLAG_ACTIVE));
 	ap = qc->ap;
@@ -4672,6 +4683,7 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 	if (likely(qc->flags & ATA_QCFLAG_DMAMAP))
 		ata_sg_clean(qc);
 
+	pr_err("%s2 qc=%pS\n", __func__, qc);
 	/* command should be marked inactive atomically with qc completion */
 	if (ata_is_ncq(qc->tf.protocol)) {
 		link->sactive &= ~(1 << qc->hw_tag);
@@ -4682,6 +4694,7 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 		ap->nr_active_links--;
 	}
 
+	pr_err("%s3 qc=%pS\n", __func__, qc);
 	/* clear exclusive status */
 	if (unlikely(qc->flags & ATA_QCFLAG_CLEAR_EXCL &&
 		     ap->excl_link == link))
@@ -4694,6 +4707,7 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 	qc->flags &= ~ATA_QCFLAG_ACTIVE;
 	ap->qc_active &= ~(1ULL << qc->tag);
 
+	pr_err("%s4 qc=%pS qc->complete_fn=%pS\n", __func__, qc, qc->complete_fn);
 	/* call completion callback */
 	qc->complete_fn(qc);
 }
@@ -4737,7 +4751,7 @@ static void ata_verify_xfer(struct ata_queued_cmd *qc)
 void ata_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-
+	pr_err("%s= qc=%pS\n", __func__, qc);
 	/* Trigger the LED (if available) */
 	ledtrig_disk_activity(!!(qc->tf.flags & ATA_TFLAG_WRITE));
 
@@ -4754,6 +4768,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 	 * not synchronize with interrupt handler.  Only PIO task is
 	 * taken care of.
 	 */
+	pr_err("%s1 qc=%pS\n", __func__, qc);
 	if (ap->ops->error_handler) {
 		struct ata_device *dev = qc->dev;
 		struct ata_eh_info *ehi = &dev->link->eh_info;
@@ -4761,13 +4776,17 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		if (unlikely(qc->err_mask))
 			qc->flags |= ATA_QCFLAG_FAILED;
 
+		pr_err("%s2 qc=%pS\n", __func__, qc);
 		/*
 		 * Finish internal commands without any further processing
 		 * and always with the result TF filled.
 		 */
 		if (unlikely(ata_tag_internal(qc->tag))) {
+			pr_err("%s2.1 qc=%pS\n", __func__, qc);
 			fill_result_tf(qc);
+			pr_err("%s2.2 qc=%pS\n", __func__, qc);
 			trace_ata_qc_complete_internal(qc);
+			pr_err("%s2.3 qc=%pS\n", __func__, qc);
 			__ata_qc_complete(qc);
 			return;
 		}
@@ -4783,6 +4802,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 			return;
 		}
 
+		pr_err("%s3 qc=%pS\n", __func__, qc);
 		WARN_ON_ONCE(ap->pflags & ATA_PFLAG_FROZEN);
 
 		/* read result TF if requested */
@@ -4793,6 +4813,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		/* Some commands need post-processing after successful
 		 * completion.
 		 */
+		pr_err("%s4 qc=%pS\n", __func__, qc);
 		switch (qc->tf.command) {
 		case ATA_CMD_SET_FEATURES:
 			if (qc->tf.feature != SETFEATURES_WC_ON &&
@@ -4816,8 +4837,10 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		if (unlikely(dev->flags & ATA_DFLAG_DUBIOUS_XFER))
 			ata_verify_xfer(qc);
 
+		pr_err("%s5 qc=%pS\n", __func__, qc);
 		__ata_qc_complete(qc);
 	} else {
+		pr_err("%s6 qc=%pS\n", __func__, qc);
 		if (qc->flags & ATA_QCFLAG_EH_SCHEDULED)
 			return;
 
@@ -4825,6 +4848,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		if (qc->err_mask || qc->flags & ATA_QCFLAG_RESULT_TF)
 			fill_result_tf(qc);
 
+		pr_err("%s7 qc=%pS\n", __func__, qc);
 		__ata_qc_complete(qc);
 	}
 }
@@ -4868,16 +4892,25 @@ EXPORT_SYMBOL_GPL(ata_qc_get_active);
  */
 void ata_qc_issue(struct ata_queued_cmd *qc)
 {
-	struct ata_port *ap = qc->ap;
-	struct ata_link *link = qc->dev->link;
+	struct ata_port *ap;
+	struct ata_link *link;
 	u8 prot = qc->tf.protocol;
+	pr_err("%s qc=%pS\n", __func__, qc);
+	ap = qc->ap;
 
+	pr_err("%s1 qc=%pS ap=%pS\n", __func__, qc, ap);
+	link = qc->dev->link;
+	pr_err("%s2 qc=%pS link=%pS\n", __func__, qc, link);
+
+	prot = qc->tf.protocol;
+	pr_err("%s3 qc=%pS prot=%d\n", __func__, qc, prot);
 	/* Make sure only one non-NCQ command is outstanding.  The
 	 * check is skipped for old EH because it reuses active qc to
 	 * request ATAPI sense.
 	 */
 	WARN_ON_ONCE(ap->ops->error_handler && ata_tag_valid(link->active_tag));
 
+	pr_err("%s4 qc=%pS ata_is_ncq=%d\n", __func__, qc, ata_is_ncq(prot));
 	if (ata_is_ncq(prot)) {
 		WARN_ON_ONCE(link->sactive & (1 << qc->hw_tag));
 
@@ -4894,18 +4927,24 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	qc->flags |= ATA_QCFLAG_ACTIVE;
 	ap->qc_active |= 1ULL << qc->tag;
 
+	pr_err("%s5 qc=%pS\n", __func__, qc);
 	/*
 	 * We guarantee to LLDs that they will have at least one
 	 * non-zero sg if the command is a data command.
 	 */
-	if (ata_is_data(prot) && (!qc->sg || !qc->n_elem || !qc->nbytes))
+	if (ata_is_data(prot) && (!qc->sg || !qc->n_elem || !qc->nbytes)) {
+		pr_err("%s5.1 qc->sg=%pS\n", __func__, qc->sg);
+		pr_err("%s5.2 qc->n_elem=%d\n", __func__, qc->n_elem);
+		pr_err("%s5.3 qc->nbytes=%d\n", __func__, qc->nbytes);
 		goto sys_err;
+	}
 
 	if (ata_is_dma(prot) || (ata_is_pio(prot) &&
 				 (ap->flags & ATA_FLAG_PIO_DMA)))
 		if (ata_sg_setup(qc))
 			goto sys_err;
 
+	pr_err("%s6 qc=%pS\n", __func__, qc);
 	/* if device is sleeping, schedule reset and abort the link */
 	if (unlikely(qc->dev->flags & ATA_DFLAG_SLEEPING)) {
 		link->eh_info.action |= ATA_EH_RESET;
@@ -4914,19 +4953,25 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		return;
 	}
 
+	pr_err("%s7 qc=%pS\n", __func__, qc);
 	trace_ata_qc_prep(qc);
 	qc->err_mask |= ap->ops->qc_prep(qc);
 	if (unlikely(qc->err_mask))
 		goto err;
 	trace_ata_qc_issue(qc);
+	pr_err("%s8 qc=%pS ap->ops=%pS\n", __func__, qc, ap->ops);
+	pr_err("%s9 qc=%pS qc_issue=%pS\n", __func__, qc, ap->ops->qc_issue);
 	qc->err_mask |= ap->ops->qc_issue(qc);
+	pr_err("%s10 qc=%pS qc->err_mask=%d\n", __func__, qc, qc->err_mask);
 	if (unlikely(qc->err_mask))
 		goto err;
 	return;
 
 sys_err:
+	pr_err("%s sys_err qc=%pS qc->err_mask=%d\n", __func__, qc, qc->err_mask);
 	qc->err_mask |= AC_ERR_SYSTEM;
 err:
+	pr_err("%s err qc=%pS qc->err_mask=%d\n", __func__, qc, qc->err_mask);
 	ata_qc_complete(qc);
 }
 

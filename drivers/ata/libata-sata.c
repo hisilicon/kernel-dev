@@ -636,6 +636,7 @@ int ata_qc_complete_multiple(struct ata_port *ap, u64 qc_active)
 {
 	u64 done_mask, ap_qc_active = ap->qc_active;
 	int nr_done = 0;
+	pr_err("%s ap=%pS qc_active=%lld\n", __func__, ap, qc_active);
 
 	/*
 	 * If the internal tag is set on ap->qc_active, then we care about
@@ -655,11 +656,14 @@ int ata_qc_complete_multiple(struct ata_port *ap, u64 qc_active)
 		return -EINVAL;
 	}
 
+	pr_err("%s2 ap=%pS\n", __func__, ap);
 	while (done_mask) {
 		struct ata_queued_cmd *qc;
 		unsigned int tag = __ffs64(done_mask);
 
+		pr_err("%s3 ap=%pS tag=%d\n", __func__, ap, tag);
 		qc = ata_qc_from_tag(ap, tag);
+		pr_err("%s4 ap=%pS tag=%d qc=%pS\n", __func__, ap, tag, qc);
 		if (qc) {
 			ata_qc_complete(qc);
 			nr_done++;
@@ -667,6 +671,7 @@ int ata_qc_complete_multiple(struct ata_port *ap, u64 qc_active)
 		done_mask &= ~(1ULL << tag);
 	}
 
+	pr_err("%s10 ap=%pS nr_done=%d\n", __func__, ap, nr_done);
 	return nr_done;
 }
 EXPORT_SYMBOL_GPL(ata_qc_complete_multiple);

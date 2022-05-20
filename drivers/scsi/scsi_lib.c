@@ -1451,19 +1451,21 @@ static void scsi_complete(struct request *rq)
 {
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 	enum scsi_disposition disposition;
-
+	pr_err("%s rq=%pS cmd=%pS\n", __func__, rq, cmd);
 	INIT_LIST_HEAD(&cmd->eh_entry);
 
 	atomic_inc(&cmd->device->iodone_cnt);
 	if (cmd->result)
 		atomic_inc(&cmd->device->ioerr_cnt);
 
+	pr_err("%s2 rq=%pS cmd=%pS\n", __func__, rq, cmd);
 	disposition = scsi_decide_disposition(cmd);
 	if (disposition != SUCCESS && scsi_cmd_runtime_exceeced(cmd))
 		disposition = SUCCESS;
 
 	scsi_log_completion(cmd, disposition);
 
+	pr_err("%s3 rq=%pS cmd=%pS disposition=%d SUCCESS=%d\n", __func__, rq, cmd, disposition, SUCCESS);
 	switch (disposition) {
 	case SUCCESS:
 		scsi_finish_command(cmd);
@@ -1637,7 +1639,7 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 static void scsi_done_internal(struct scsi_cmnd *cmd, bool complete_directly)
 {
 	struct request *req = scsi_cmd_to_rq(cmd);
-
+	pr_err("%s cmd=%pS complete_directly=%d cmd->submitter=%d\n", __func__, cmd, complete_directly, cmd->submitter);
 	switch (cmd->submitter) {
 	case SUBMITTED_BY_BLOCK_LAYER:
 		break;
@@ -1649,10 +1651,14 @@ static void scsi_done_internal(struct scsi_cmnd *cmd, bool complete_directly)
 		return;
 	}
 
+	pr_err("%s2 cmd=%pS\n", __func__, cmd);
 	if (unlikely(blk_should_fake_timeout(scsi_cmd_to_rq(cmd)->q)))
 		return;
+
+	pr_err("%s3 cmd=%pS\n", __func__, cmd);
 	if (unlikely(test_and_set_bit(SCMD_STATE_COMPLETE, &cmd->state)))
 		return;
+	pr_err("%s4 cmd=%pS req=%pS\n", __func__, cmd, req);
 	trace_scsi_dispatch_cmd_done(cmd);
 
 	if (complete_directly)
