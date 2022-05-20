@@ -3965,8 +3965,7 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	struct ata_internal_cmd *internal_ptr;
 	struct ata_taskfile *tf;
 	enum dma_data_direction dma_dir = scmd->sc_data_direction;
-	struct scatterlist *sgl;
-	unsigned int n_elem;
+
 
 	pr_err("%s scmd=%pS dev=%pS ap=%pS\n", __func__, scmd, dev, ap);
 
@@ -4013,14 +4012,17 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	qc->dma_dir = dma_dir;
 
 	if (dma_dir != DMA_NONE) {
-		unsigned int i, buflen = 0;
-		struct scatterlist *sg;
+	//	struct scatterlist *sgl;
+	//	unsigned int n_elem;
+	//	unsigned int i, buflen = 0;
+	//	struct scatterlist *sg = scsi_sglist
 
-		for_each_sg(sgl, sg, n_elem, i)
-			buflen += sg->length;
 
-		ata_sg_init(qc, sgl, n_elem);
-		qc->nbytes = buflen;
+	//	for_each_sg(sgl, sg, n_elem, i)
+	//		buflen += sg->length;
+
+	//	ata_sg_init(qc, sgl, n_elem);
+	//	qc->nbytes = buflen;
 	}
 
 	//qc->private_data = &wait;

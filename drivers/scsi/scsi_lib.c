@@ -1023,15 +1023,19 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 {
 	struct scsi_device *sdev = cmd->device;
 	struct request *rq = scsi_cmd_to_rq(cmd);
-	unsigned short nr_segs = blk_rq_nr_phys_segments(rq);
+	unsigned short nr_segs;
 	struct scatterlist *last_sg = NULL;
 	blk_status_t ret;
-	bool need_drain = scsi_cmd_needs_dma_drain(sdev, rq);
+	bool need_drain;
 	int count;
+	pr_err("%s cmd=%pS sdev=%pS\n", __func__, cmd, sdev);
+	nr_segs = blk_rq_nr_phys_segments(rq);
 
+	pr_err("%s0 cmd=%pS nr_segs=%d\n", __func__, cmd, nr_segs);
 	if (WARN_ON_ONCE(!nr_segs))
 		return BLK_STS_IOERR;
-
+	need_drain = scsi_cmd_needs_dma_drain(sdev, rq);
+	pr_err("%s1 cmd=%pS need_drain=%d\n", __func__, cmd, need_drain);
 	/*
 	 * Make sure there is space for the drain.  The driver must adjust
 	 * max_hw_segments to be prepared for this.
@@ -1039,6 +1043,7 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 	if (need_drain)
 		nr_segs++;
 
+	pr_err("%s2 cmd=%pS\n", __func__, cmd);
 	/*
 	 * If sg table allocation fails, requeue request later.
 	 */
@@ -1046,12 +1051,14 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 			cmd->sdb.table.sgl, SCSI_INLINE_SG_CNT)))
 		return BLK_STS_RESOURCE;
 
+	pr_err("%s3 cmd=%pS\n", __func__, cmd);
 	/*
 	 * Next, walk the list, and fill in the addresses and sizes of
 	 * each segment.
 	 */
 	count = __blk_rq_map_sg(rq->q, rq, cmd->sdb.table.sgl, &last_sg);
 
+	pr_err("%s4 cmd=%pS\n", __func__, cmd);
 	if (blk_rq_bytes(rq) & rq->q->dma_pad_mask) {
 		unsigned int pad_len =
 			(rq->q->dma_pad_mask & ~blk_rq_bytes(rq)) + 1;
@@ -1060,6 +1067,7 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 		cmd->extra_len += pad_len;
 	}
 
+	pr_err("%s5 cmd=%pS\n", __func__, cmd);
 	if (need_drain) {
 		sg_unmark_end(last_sg);
 		last_sg = sg_next(last_sg);
@@ -1074,6 +1082,7 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 	cmd->sdb.table.nents = count;
 	cmd->sdb.length = blk_rq_payload_bytes(rq);
 
+	pr_err("%s6 cmd=%pS\n", __func__, cmd);
 	if (blk_integrity_rq(rq)) {
 		struct scsi_data_buffer *prot_sdb = cmd->prot_sdb;
 		int ivecs;
@@ -1106,6 +1115,7 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 		cmd->prot_sdb->table.nents = count;
 	}
 
+	pr_err("%s10 out cmd=%pS\n", __func__, cmd);
 	return BLK_STS_OK;
 out_free_sgtables:
 	scsi_free_sgtables(cmd);

@@ -1461,10 +1461,10 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
-unsigned ata_exec_internal_sg(struct ata_device *dev,
+static unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
-			      int dma_dir, struct scatterlist *sgl,
-			      unsigned int n_elem, unsigned long timeout)
+			      int dma_dir, void *buf, unsigned int buflen, 
+			      unsigned long timeout)
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
@@ -1491,71 +1491,14 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	struct ata_internal_cmd *internal_ptr;
 	struct scsi_cmnd *scmd;
 	struct request *req;
+	blk_status_t blk_sts;
 	
 	scsi_cmd[0] = ATA_INTERNAL;
 
+	pr_err("%s ap=%pS \n",	__func__, ap);
 
 	#ifdef old
 
-	spin_lock_irqsave(ap->lock, flags);
-
-	/* no internal command while frozen */
-	if (ap->pflags & ATA_PFLAG_FROZEN) {
-		spin_unlock_irqrestore(ap->lock, flags);
-		return AC_ERR_SYSTEM;
-	}
-
-	/* initialize internal qc */
-	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
-
-	qc->tag = ATA_TAG_INTERNAL;
-	qc->hw_tag = 0;
-	qc->scsicmd = NULL;
-	qc->ap = ap;
-	qc->dev = dev;
-	ata_qc_reinit(qc);
-
-	preempted_tag = link->active_tag;
-	preempted_sactive = link->sactive;
-	preempted_qc_active = ap->qc_active;
-	preempted_nr_active_links = ap->nr_active_links;
-	link->active_tag = ATA_TAG_POISON;
-	link->sactive = 0;
-	ap->qc_active = 0;
-	ap->nr_active_links = 0;
-
-	/* prepare & issue qc */
-	qc->tf = *tf;
-	if (cdb) {
-		internal.cdb_valid = true;
-		memcpy(&internal.cdb, cdb, ATAPI_CDB_LEN);
-		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
-	}
-
-	/* some SATA bridges need us to indicate data xfer direction */
-	if (tf->protocol == ATAPI_PROT_DMA && (dev->flags & ATA_DFLAG_DMADIR) &&
-	    dma_dir == DMA_FROM_DEVICE)
-		qc->tf.feature |= ATAPI_DMADIR;
-
-	qc->flags |= ATA_QCFLAG_RESULT_TF;
-	qc->dma_dir = dma_dir;
-	if (dma_dir != DMA_NONE) {
-		unsigned int i, buflen = 0;
-		struct scatterlist *sg;
-
-		for_each_sg(sgl, sg, n_elem, i)
-			buflen += sg->length;
-
-		ata_sg_init(qc, sgl, n_elem);
-		qc->nbytes = buflen;
-	}
-
-	qc->private_data = &wait;
-	qc->complete_fn = ata_qc_complete_internal;
-
-	ata_qc_issue(qc);
-
-	spin_unlock_irqrestore(ap->lock, flags);
 	#else //// START HERE
 
 /*
@@ -1565,7 +1508,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	*/
 
 	sdev = scsi_get_host_dev(scsi_host);
-	pr_err("%s sdev=%pS ap=%pS sizeof(struct ata_taskfile)=%zu ATAPI_CDB_LEN=%d\n",
+	pr_err("%s0 sdev=%pS ap=%pS sizeof(struct ata_taskfile)=%zu ATAPI_CDB_LEN=%d\n",
 		__func__, sdev, ap, sizeof(struct ata_taskfile), ATAPI_CDB_LEN);
 
 	pr_err("%s1 sdev=%pS ap=%pS\n", __func__, sdev, ap);
@@ -1585,12 +1528,40 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	req->timeout = 10 * HZ;
 	req->rq_flags |= RQF_QUIET;
 	internal_ptr = scsi_cmd_priv(scmd); 
+	scmd->device = sdev;
 	memcpy(&internal_ptr->tf, tf, sizeof(*tf));
 	//scmd->host_scribble = (unsigned char *)&internal;
-	pr_err("%s1.2 sdev=%pS ap=%pS req=%pS internal_ptr=%pS\n", __func__, sdev, ap, req, internal_ptr);
+	pr_err("%s1.2 sdev=%pS ap=%pS req=%pS internal_ptr=%pS scsi_sglist(scmd)=%pS\n",
+	 __func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd));
+
+	if (buflen) {
+		int ret;
+		pr_err("%s1.3 bufflen=%d buffer=%pS ATA_INTERNAL\n", __func__, buflen, buf);
+		ret = blk_rq_map_kern(sdev->request_queue, req,
+				      buf, buflen, GFP_NOIO);
+		pr_err("%s1.4 bufflen=%d buffer=%pS ATA_INTERNAL ret=%d\n", __func__, buflen, buf, ret);
+		if (ret)
+			panic("ata internal fixme\n");
+	}
+
+	blk_sts = scsi_alloc_sgtables(scmd);
+
+	pr_err("%s1.5 sdev=%pS ap=%pS req=%pS internal_ptr=%pS scsi_sglist(scmd)=%pS blk_sts=%d\n",
+	 __func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd), blk_sts);
+
 	print_hex_dump(KERN_INFO, "ata_exec_internal_sg internal_ptr ",
 				  DUMP_PREFIX_NONE, 16, 1,
 				  internal_ptr, sizeof(*internal_ptr), 1);
+
+	if (dma_dir != DMA_NONE) {
+		//struct scsi_data_buffer *sdb = &scmd->sdb;
+		//struct scsi_data_buffer *table = &sdb->table;
+		scsi_sglist(scmd);
+
+		WARN_ON(!buf);
+		sg_init_one(scsi_sglist(scmd), buf, buflen);
+	}
+
 	/*
 	 * head injection *required* here otherwise quiesce won't work
 	 */
@@ -1707,17 +1678,9 @@ unsigned ata_exec_internal(struct ata_device *dev,
 			   int dma_dir, void *buf, unsigned int buflen,
 			   unsigned long timeout)
 {
-	struct scatterlist *psg = NULL, sg;
-	unsigned int n_elem = 0;
 
-	if (dma_dir != DMA_NONE) {
-		WARN_ON(!buf);
-		sg_init_one(&sg, buf, buflen);
-		psg = &sg;
-		n_elem++;
-	}
 
-	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, psg, n_elem,
+	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, buf, buflen,
 				    timeout);
 }
 
