@@ -41,10 +41,6 @@
  */
 #undef ATA_IRQ_TRAP		/* define to ack screaming irqs */
 
-struct ata_internal_cmd {
-
-};
-
 #define ata_print_version_once(dev, version)			\
 ({								\
 	static bool __print_once;				\
@@ -543,6 +539,12 @@ struct ata_taskfile {
 						/* ATA-8 ACS-3 */
 };
 
+struct ata_internal_cmd {
+	struct ata_taskfile tf;
+	bool cdb_valid;
+	u8 cdb[ATAPI_CDB_LEN];
+};
+
 #ifdef CONFIG_ATA_SFF
 struct ata_ioports {
 	void __iomem		*cmd_addr;
@@ -865,6 +867,13 @@ struct ata_port {
 #ifdef CONFIG_ATA_ACPI
 	struct ata_acpi_gtm	__acpi_init_gtm; /* use ata_acpi_init_gtm() */
 #endif
+
+	unsigned int preempted_tag;
+	u32 preempted_sactive;
+	u64 preempted_qc_active;
+	int preempted_nr_active_links;
+
+
 	/* owned by EH */
 	u8			sector_buf[ATA_SECT_SIZE] ____cacheline_aligned;
 };

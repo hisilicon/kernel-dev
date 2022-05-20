@@ -1431,7 +1431,7 @@ unsigned long ata_id_xfermask(const u16 *id)
 }
 EXPORT_SYMBOL_GPL(ata_id_xfermask);
 
-static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
+static __maybe_unused void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
 	struct completion *waiting = qc->private_data;
 
@@ -1472,21 +1472,29 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	u8 command = tf->command;
 	int auto_timeout = 0;
 	struct ata_queued_cmd *qc;
+
+	#ifdef old
 	unsigned int preempted_tag;
 	u32 preempted_sactive;
 	u64 preempted_qc_active;
 	int preempted_nr_active_links;
+	#endif
 	DECLARE_COMPLETION_ONSTACK(wait);
 	unsigned long flags;
 	unsigned int err_mask;
 	int rc;
-	u8 sensebuf[SCSI_SENSE_BUFFERSIZE];
+//	u8 sensebuf[SCSI_SENSE_BUFFERSIZE];
 	u8 scsi_cmd[MAX_COMMAND_SIZE];
-	struct scsi_sense_hdr sshdr;
-	int cmd_result;
-	struct ata_internal_cmd internal;
+	//struct scsi_sense_hdr sshdr;
+	int cmd_result = 0;
+	struct ata_internal_cmd internal = {}, *internal_ptr;
+	struct scsi_cmnd *scmd;
+	struct request *req;
 	
 	scsi_cmd[0] = ATA_INTERNAL;
+
+
+	#ifdef old
 
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -1495,9 +1503,6 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		spin_unlock_irqrestore(ap->lock, flags);
 		return AC_ERR_SYSTEM;
 	}
-
-	sdev = scsi_get_host_dev(scsi_host);
-	pr_err("%s sdev=%pS ap=%pS\n", __func__, sdev, ap);
 
 	/* initialize internal qc */
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
@@ -1520,8 +1525,11 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	/* prepare & issue qc */
 	qc->tf = *tf;
-	if (cdb)
+	if (cdb) {
+		internal.cdb_valid = true;
+		memcpy(&internal.cdb, cdb, ATAPI_CDB_LEN);
 		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
+	}
 
 	/* some SATA bridges need us to indicate data xfer direction */
 	if (tf->protocol == ATAPI_PROT_DMA && (dev->flags & ATA_DFLAG_DMADIR) &&
@@ -1547,9 +1555,45 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	ata_qc_issue(qc);
 
 	spin_unlock_irqrestore(ap->lock, flags);
+	#else
 
-	cmd_result = scsi_execute(sdev, scsi_cmd, dma_dir, &internal, sizeof(internal),
-				  sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
+/*
+	struct ata_taskfile tf;
+	bool cdb_valid;
+	u8 cdb[ATAPI_CDB_LEN];
+	*/
+
+	sdev = scsi_get_host_dev(scsi_host);
+	pr_err("%s sdev=%pS ap=%pS sizeof(struct ata_taskfile)=%zu ATAPI_CDB_LEN=%d\n",
+		__func__, sdev, ap, sizeof(struct ata_taskfile), ATAPI_CDB_LEN);
+	memcpy(&internal.tf, tf, sizeof(*tf));
+
+	pr_err("%s1 sdev=%pS ap=%pS\n", __func__, sdev, ap);
+	//cmd_result = scsi_execute(sdev, scsi_cmd, dma_dir, &internal, sizeof(internal),
+	//			  sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
+
+	req = scsi_alloc_request(sdev->request_queue,
+			dma_dir == DMA_TO_DEVICE ?
+			REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
+			0);
+	pr_err("%s1.1 sdev=%pS ap=%pS req=%pS\n", __func__, sdev, ap, req);
+
+	scmd = blk_mq_rq_to_pdu(req);
+	scmd->cmd_len = 16;
+	memcpy(scmd->cmnd, &scsi_cmd[0], scmd->cmd_len);
+	scmd->allowed = 0;
+	req->timeout = 10 * HZ;
+	req->rq_flags |= RQF_QUIET;
+	//scmd->host_scribble = (unsigned char *)&internal;
+	pr_err("%s1.2 sdev=%pS ap=%pS req=%pS host_scribble=%pS\n", __func__, sdev, ap, req, scmd->host_scribble);
+
+	/*
+	 * head injection *required* here otherwise quiesce won't work
+	 */
+	blk_execute_rq(req, true);
+
+
+	#endif
 	pr_err("%s2 sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
 	
 	if (!timeout) {
@@ -1598,6 +1642,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if (ap->ops->post_internal_cmd)
 		ap->ops->post_internal_cmd(qc);
 
+
+	#ifdef old
 	/* perform minimal error analysis */
 	if (qc->flags & ATA_QCFLAG_FAILED) {
 		if (qc->result_tf.status & (ATA_ERR | ATA_DF))
@@ -1611,7 +1657,6 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	} else if (qc->tf.command == ATA_CMD_REQ_SENSE_DATA) {
 		qc->result_tf.status |= ATA_SENSE;
 	}
-
 	/* finish up */
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -1629,6 +1674,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
 		ata_internal_cmd_timed_out(dev, command);
 
+	#endif
+	err_mask = 0; //hack
 	return err_mask;
 }
 
