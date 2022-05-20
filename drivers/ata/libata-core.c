@@ -1573,10 +1573,10 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	 */
 	blk_execute_rq(req, true);
 
-
+	req = NULL;
+	scmd = NULL;
 	#endif
 	pr_err("%s2 sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
-	
 	
 	if (!timeout) {
 		if (ata_probe_timeout)
@@ -1586,20 +1586,23 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 			auto_timeout = 1;
 		}
 	}
-	pr_err("%s3 sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
+	pr_err("%s3 sdev=%pS cmd_result=%d ap->ops->error_handler=%pS\n", __func__, sdev, cmd_result, ap->ops->error_handler);
 	if (ap->ops->error_handler)
 		ata_eh_release(ap);
-	pr_err("%s4 sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
-	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
+	pr_err("%s4 sdev=%pS cmd_result=%d ap->ops->error_handler=%pS\n", __func__, sdev, cmd_result, ap->ops->error_handler);
+	//rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
 
-	pr_err("%s5 sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
+	pr_err("%s5 sdev=%pS cmd_result=%d rc=%d\n", __func__, sdev, cmd_result, rc);
 	ata_sff_flush_pio_task(ap);
+	pr_err("%s5.1 sdev=%pS cmd_result=%d rc=%d ap=%pS\n", __func__, sdev, cmd_result, rc, ap);
+	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 
 	if (!rc) {
 		spin_lock_irqsave(ap->lock, flags);
+		pr_err("%s5.2 sdev=%pS cmd_result=%d rc=%d\n", __func__, sdev, cmd_result, rc);
 
 		/* We're racing with irq here.  If we lose, the
 		 * following test prevents us from completing the qc
@@ -1618,10 +1621,12 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 				     command);
 		}
 
+		pr_err("%s5.3 sdev=%pS cmd_result=%d rc=%d\n", __func__, sdev, cmd_result, rc);
 		spin_unlock_irqrestore(ap->lock, flags);
 	}
 
-	pr_err("%s6 sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
+	pr_err("%s6 sdev=%pS cmd_result=%d ap->ops->post_internal_cmd=%pS qc=%pS\n", 
+		__func__, sdev, cmd_result, ap->ops->post_internal_cmd, qc);
 	/* do post_internal_cmd */
 	if (ap->ops->post_internal_cmd)
 		ap->ops->post_internal_cmd(qc);
@@ -1647,6 +1652,9 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s7 sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
 	*tf = qc->result_tf;
 	err_mask = qc->err_mask;
+	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf result ",
+				  DUMP_PREFIX_NONE, 16, 1,
+				  tf, sizeof(*tf), 1);
 
 	ata_qc_free(qc);
 	link->active_tag = preempted_tag;
@@ -1660,6 +1668,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		ata_internal_cmd_timed_out(dev, command);
 
 	#endif
+	
 	pr_err("%s10out sdev=%pS cmd_result=%d\n", __func__, sdev, cmd_result);
 	err_mask = 0; //hack
 	return err_mask;

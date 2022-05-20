@@ -960,7 +960,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	struct request_queue *q = cmd->device->request_queue;
 	struct request *req = scsi_cmd_to_rq(cmd);
 	blk_status_t blk_stat = BLK_STS_OK;
-
+	pr_err("%s cmd=%pS good_bytes=%d\n", __func__, cmd, good_bytes);
 	if (unlikely(result))	/* a nz result may or may not be an error */
 		result = scsi_io_completion_nz_result(cmd, result, &blk_stat);
 
@@ -976,7 +976,9 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	 * Failed, zero length commands always need to drop down
 	 * to retry code. Fast path should return in this block.
 	 */
+	pr_err("%s2 cmd=%pS good_bytes=%d\n", __func__, cmd, good_bytes);
 	if (likely(blk_rq_bytes(req) > 0 || blk_stat == BLK_STS_OK)) {
+		pr_err("%s3 cmd=%pS good_bytes=%d\n", __func__, cmd, good_bytes);
 		if (likely(!scsi_end_request(req, blk_stat, good_bytes)))
 			return; /* no bytes remaining */
 	}
@@ -989,6 +991,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		return;
 	}
 
+	pr_err("%s4 cmd=%pS good_bytes=%d result=%d\n", __func__, cmd, good_bytes, result);
 	/*
 	 * If there had been no error, but we have leftover bytes in the
 	 * request just queue the command up again.
@@ -1451,7 +1454,19 @@ static void scsi_complete(struct request *rq)
 {
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 	enum scsi_disposition disposition;
-	pr_err("%s rq=%pS cmd=%pS\n", __func__, rq, cmd);
+	bool internal1, internal2;
+	struct request *req = scsi_cmd_to_rq(cmd);
+
+	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
+		internal1 = true;
+	if (cmd->cmnd[0] == ATA_INTERNAL)
+		internal2 = true;
+	pr_err("%s cmd=%pS internal1=%d internal2=%d\n", __func__, cmd, internal1, internal2);
+	if (internal1 && internal2) {
+		blk_mq_end_request(req, 0);
+		return;
+	}
+
 	INIT_LIST_HEAD(&cmd->eh_entry);
 
 	atomic_inc(&cmd->device->iodone_cnt);

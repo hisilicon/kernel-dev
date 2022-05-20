@@ -4014,6 +4014,7 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	if (dma_dir != DMA_NONE) {
 		int n_elem;
 
+#ifdef old
 		qc->sg = scsi_sglist(scmd);
 		qc->n_elem = scsi_sg_count(scmd);
 
@@ -4027,6 +4028,13 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 		qc->n_elem = n_elem;
 		qc->nbytes = sg_dma_len(qc->sg);
 		pr_err("%s4.1 scmd=%pS qc->nbytes=%d\n", __func__, scmd, qc->nbytes);
+#else
+		n_elem = 1;
+		qc->n_elem = n_elem;
+		qc->sg = scsi_sglist(scmd);
+		qc->nbytes = qc->sg->length;
+		pr_err("%s4.1 2 scmd=%pS qc->nbytes=%d\n", __func__, scmd, qc->nbytes);
+#endif
 	}
 
 	//qc->private_data = &wait;
