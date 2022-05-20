@@ -1431,10 +1431,11 @@ unsigned long ata_id_xfermask(const u16 *id)
 }
 EXPORT_SYMBOL_GPL(ata_id_xfermask);
 
-static __maybe_unused void ata_qc_complete_internal(struct ata_queued_cmd *qc)
+void ata_qc_complete_internal(struct ata_queued_cmd *qc);
+void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
 	struct completion *waiting = qc->private_data;
-
+	pr_err("%s qc=%pS\n", __func__, qc);
 	complete(waiting);
 }
 

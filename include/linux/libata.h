@@ -772,7 +772,9 @@ struct ata_link {
 
 	struct device		tdev;
 	unsigned int		active_tag;	/* active tag on this link */
+	unsigned int		preempted_tag;
 	u32			sactive;	/* active NCQ commands */
+	u32			preempted_sactive;
 
 	unsigned int		flags;		/* ATA_LFLAG_xxx */
 

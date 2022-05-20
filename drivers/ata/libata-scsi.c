@@ -3954,6 +3954,8 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 
 	return NULL;
 }
+
+extern void ata_qc_complete_internal(struct ata_queued_cmd *qc);
 static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device *dev)
 {
 	struct ata_link *link = dev->link;
@@ -3961,11 +3963,21 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	struct ata_queued_cmd *qc;
 	struct request *req = scsi_cmd_to_rq(scmd);
 	struct ata_internal_cmd *internal_ptr;
+	struct ata_taskfile *tf;
+	enum dma_data_direction dma_dir = scmd->sc_data_direction;
+	struct scatterlist *sgl;
+	unsigned int n_elem;
 
 	pr_err("%s scmd=%pS dev=%pS ap=%pS\n", __func__, scmd, dev, ap);
+
+	/* no internal command while frozen */
+	if (ap->pflags & ATA_PFLAG_FROZEN)
+		goto did_err;
+
 	/* initialize internal qc */
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
-	internal_ptr = scsi_cmd_priv(scmd); 
+	internal_ptr = scsi_cmd_priv(scmd);
+	tf = &internal_ptr->tf;
 	pr_err("%s2 scmd=%pS dev=%pS ap=%pS qc=%pS blk_rq_bytes=%d internal_ptr=%pS\n",
 	 __func__, scmd, dev, ap, qc, blk_rq_bytes(req), internal_ptr);
 	print_hex_dump(KERN_INFO, "ata_scsi_internal  internal_ptr ",
@@ -3978,12 +3990,47 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	qc->dev = dev;
 	ata_qc_reinit(qc);
 
+	link->preempted_tag = link->active_tag;
+	link->preempted_sactive = link->sactive;
+	ap->preempted_qc_active = ap->qc_active;
+	ap->preempted_nr_active_links = ap->nr_active_links;
+	link->active_tag = ATA_TAG_POISON;
+	link->sactive = 0;
+	ap->qc_active = 0;
+	ap->nr_active_links = 0;
+
+	/* prepare & issue qc */
+	qc->tf = *tf;
+	if (internal_ptr->cdb_valid)
+		memcpy(qc->cdb, internal_ptr->cdb, ATAPI_CDB_LEN);
+
+	/* some SATA bridges need us to indicate data xfer direction */
+	if (tf->protocol == ATAPI_PROT_DMA && (dev->flags & ATA_DFLAG_DMADIR) &&
+	    dma_dir == DMA_FROM_DEVICE)
+		qc->tf.feature |= ATAPI_DMADIR;
+
+	qc->flags |= ATA_QCFLAG_RESULT_TF;
+	qc->dma_dir = dma_dir;
+
+	if (dma_dir != DMA_NONE) {
+		unsigned int i, buflen = 0;
+		struct scatterlist *sg;
+
+		for_each_sg(sgl, sg, n_elem, i)
+			buflen += sg->length;
+
+		ata_sg_init(qc, sgl, n_elem);
+		qc->nbytes = buflen;
+	}
+
+	//qc->private_data = &wait;
+	qc->complete_fn = ata_qc_complete_internal;
+
+	ata_qc_issue(qc);
+
+
+
 	panic("good so far\n");
-
-	/* no internal command while frozen */
-	if (ap->pflags & ATA_PFLAG_FROZEN)
-		goto did_err;
-
 
 	return 0;
 did_err:

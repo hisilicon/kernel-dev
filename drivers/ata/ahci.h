@@ -376,6 +376,7 @@ extern int ahci_ignore_sss;
 
 extern const struct attribute_group *ahci_shost_groups[];
 extern const struct attribute_group *ahci_sdev_groups[];
+extern int ahci_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd);
 
 /*
  * This must be instantiated by the edge drivers.  Read the comments
@@ -391,7 +392,8 @@ extern const struct attribute_group *ahci_sdev_groups[];
 	.change_queue_depth     = ata_scsi_change_queue_depth,		\
 	.tag_alloc_policy       = BLK_TAG_ALLOC_RR,             	\
 	.internal_queuecommand = ahci_internal_queuecommand,	\
-	.ata_internal_cmd = sizeof(struct ata_internal_struct),\
+	.cmd_size = sizeof(struct ata_internal_cmd),\
+	.init_cmd_priv = ahci_init_cmd_priv,\
 	.slave_configure        = ata_scsi_slave_config
 
 extern struct ata_port_operations ahci_ops;
