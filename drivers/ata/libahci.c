@@ -139,6 +139,21 @@ static struct attribute *ahci_sdev_attrs[] = {
 	NULL
 };
 
+int ahci_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
+{
+	struct ata_internal_cmd *internal_ptr;
+
+	internal_ptr = scsi_cmd_priv(cmd); 
+	pr_err("%s cmd=%pS internal_ptr=%pS\n", __func__, cmd, internal_ptr);
+	print_hex_dump(KERN_INFO, "ahci_init_cmd_priv2 internal_ptr ",
+				  DUMP_PREFIX_NONE, 16, 1,
+				  internal_ptr, sizeof(*internal_ptr), 1);
+	return 0;
+
+}
+EXPORT_SYMBOL_GPL(ahci_init_cmd_priv);
+
+
 static const struct attribute_group ahci_sdev_attr_group = {
 	.attrs = ahci_sdev_attrs
 };

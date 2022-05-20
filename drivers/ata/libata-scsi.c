@@ -3960,13 +3960,17 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	struct ata_port *ap = link->ap;
 	struct ata_queued_cmd *qc;
 	struct request *req = scsi_cmd_to_rq(scmd);
+	struct ata_internal_cmd *internal_ptr;
 
 	pr_err("%s scmd=%pS dev=%pS ap=%pS\n", __func__, scmd, dev, ap);
 	/* initialize internal qc */
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
-
-	pr_err("%s2 scmd=%pS dev=%pS ap=%pS qc=%pS blk_rq_bytes=%d scmd->host_scribble=%pS\n",
-	 __func__, scmd, dev, ap, qc, blk_rq_bytes(req), scmd->host_scribble);
+	internal_ptr = scsi_cmd_priv(scmd); 
+	pr_err("%s2 scmd=%pS dev=%pS ap=%pS qc=%pS blk_rq_bytes=%d internal_ptr=%pS\n",
+	 __func__, scmd, dev, ap, qc, blk_rq_bytes(req), internal_ptr);
+	print_hex_dump(KERN_INFO, "ata_scsi_internal  internal_ptr ",
+				  DUMP_PREFIX_NONE, 16, 1,
+				  internal_ptr, sizeof(*internal_ptr), 1);
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
 	qc->scsicmd = NULL;

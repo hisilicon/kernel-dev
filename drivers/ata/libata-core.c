@@ -1487,7 +1487,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	u8 scsi_cmd[MAX_COMMAND_SIZE];
 	//struct scsi_sense_hdr sshdr;
 	int cmd_result = 0;
-	struct ata_internal_cmd internal = {}, *internal_ptr;
+	struct ata_internal_cmd *internal_ptr;
 	struct scsi_cmnd *scmd;
 	struct request *req;
 	
@@ -1555,7 +1555,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	ata_qc_issue(qc);
 
 	spin_unlock_irqrestore(ap->lock, flags);
-	#else
+	#else //// START HERE
 
 /*
 	struct ata_taskfile tf;
@@ -1566,7 +1566,6 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	sdev = scsi_get_host_dev(scsi_host);
 	pr_err("%s sdev=%pS ap=%pS sizeof(struct ata_taskfile)=%zu ATAPI_CDB_LEN=%d\n",
 		__func__, sdev, ap, sizeof(struct ata_taskfile), ATAPI_CDB_LEN);
-	memcpy(&internal.tf, tf, sizeof(*tf));
 
 	pr_err("%s1 sdev=%pS ap=%pS\n", __func__, sdev, ap);
 	//cmd_result = scsi_execute(sdev, scsi_cmd, dma_dir, &internal, sizeof(internal),
@@ -1584,9 +1583,13 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	scmd->allowed = 0;
 	req->timeout = 10 * HZ;
 	req->rq_flags |= RQF_QUIET;
+	internal_ptr = scsi_cmd_priv(scmd); 
+	memcpy(&internal_ptr->tf, tf, sizeof(*tf));
 	//scmd->host_scribble = (unsigned char *)&internal;
-	pr_err("%s1.2 sdev=%pS ap=%pS req=%pS host_scribble=%pS\n", __func__, sdev, ap, req, scmd->host_scribble);
-
+	pr_err("%s1.2 sdev=%pS ap=%pS req=%pS internal_ptr=%pS\n", __func__, sdev, ap, req, internal_ptr);
+	print_hex_dump(KERN_INFO, "ata_exec_internal_sg internal_ptr ",
+				  DUMP_PREFIX_NONE, 16, 1,
+				  internal_ptr, sizeof(*internal_ptr), 1);
 	/*
 	 * head injection *required* here otherwise quiesce won't work
 	 */
