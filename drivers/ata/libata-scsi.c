@@ -4012,17 +4012,19 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	qc->dma_dir = dma_dir;
 
 	if (dma_dir != DMA_NONE) {
-	//	struct scatterlist *sgl;
-	//	unsigned int n_elem;
-	//	unsigned int i, buflen = 0;
-	//	struct scatterlist *sg = scsi_sglist
+		int n_elem;
 
+		qc->sg = scsi_sglist(scmd);
+		qc->n_elem = scsi_sg_count(scmd);
 
-	//	for_each_sg(sgl, sg, n_elem, i)
-	//		buflen += sg->length;
+		pr_err("%s3 scmd=%pS qc->n_elem=%d ap->dev=%pS\n", __func__, scmd, qc->n_elem, ap->dev);
+		n_elem = dma_map_sg(ap->dev, qc->sg, 1, qc->dma_dir);
+		pr_err("%s4 scmd=%pS n_elem=%d qc->n_elem=%d\n", __func__, scmd, n_elem, qc->n_elem);
+		if (n_elem < 1)
+			return -1;
 
-	//	ata_sg_init(qc, sgl, n_elem);
-	//	qc->nbytes = buflen;
+		qc->orig_n_elem = 1;
+		qc->n_elem = n_elem;
 	}
 
 	//qc->private_data = &wait;
