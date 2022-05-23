@@ -1381,7 +1381,7 @@ extern int ata_link_nr_enabled(struct ata_link *link);
 extern const struct ata_port_operations ata_base_port_ops;
 extern const struct ata_port_operations sata_port_ops;
 extern const struct attribute_group *ata_common_sdev_groups[];
-
+extern int ahci_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd);
 /*
  * All sht initializers (BASE, PIO, BMDMA, NCQ) must be instantiated
  * by the edge drivers.  Because the 'module' field of sht must be the
@@ -1401,7 +1401,9 @@ extern const struct attribute_group *ata_common_sdev_groups[];
 	.slave_destroy		= ata_scsi_slave_destroy,	\
 	.bios_param		= ata_std_bios_param,		\
 	.unlock_native_capacity	= ata_scsi_unlock_native_capacity,\
-	.internal_queuecommand = ahci_internal_queuecommand
+	.internal_queuecommand = ahci_internal_queuecommand,\
+	.cmd_size = sizeof(struct ata_internal_cmd),\
+	.init_cmd_priv = ahci_init_cmd_priv
 
 #define ATA_SUBBASE_SHT(drv_name)				\
 	__ATA_BASE_SHT(drv_name),				\

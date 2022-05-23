@@ -1498,7 +1498,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	
 	scsi_cmd[0] = ATA_INTERNAL;
 
-	pr_err("%s ap=%pS \n",	__func__, ap);
+	pr_err("%s ap=%pS protocol=0x%x\n",	__func__, ap, tf->protocol);
 
 	#ifdef old
 
@@ -1552,9 +1552,13 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s1.5 sdev=%pS ap=%pS req=%pS internal_ptr=%pS scsi_sglist(scmd)=%pS blk_sts=%d scmd=%pS req=%pS\n",
 	 __func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd), blk_sts, scmd, req);
 
-	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf before ",
+	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf before tf ",
 				  DUMP_PREFIX_NONE, 16, 1,
 				  tf, sizeof(*tf), 1);
+
+	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf before internal_ptr ",
+				  DUMP_PREFIX_NONE, 16, 1,
+				  internal_ptr, sizeof(*internal_ptr), 1);
 
 	if (dma_dir != DMA_NONE) {
 		//struct scsi_data_buffer *sdb = &scmd->sdb;
@@ -1844,7 +1848,8 @@ retry:
 	 * controllers.  Always poll IDENTIFY if available.
 	 */
 	tf.flags |= ATA_TFLAG_POLLING;
-
+	pr_err("%s calling ata_do_dev_read_id tf.protocol=0x%x ATA_PROT_PIO=0x%x tf=%pS\n", 
+		__func__, tf.protocol, ATA_PROT_PIO, &tf);
 	if (ap->ops->read_id)
 		err_mask = ap->ops->read_id(dev, &tf, (__le16 *)id);
 	else
@@ -4982,16 +4987,17 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		return;
 	}
 
-	pr_err("%s7 qc=%pS cmd=%pS rq=%pS\n", __func__, qc, cmd, rq);
+	pr_err("%s7 qc=%pS cmd=%pS rq=%pS qc->err_mask=%d\n", __func__, qc, cmd, rq, qc->err_mask);
 	trace_ata_qc_prep(qc);
 	qc->err_mask |= ap->ops->qc_prep(qc);
+	pr_err("%s7.1 qc=%pS cmd=%pS rq=%pS qc->err_mask=%d\n", __func__, qc, cmd, rq, qc->err_mask);
 	if (unlikely(qc->err_mask))
 		goto err;
 	trace_ata_qc_issue(qc);
 	pr_err("%s8 qc=%pS ap->ops=%pS cmd=%pS rq=%pS\n", __func__, qc, ap->ops, cmd, rq);
 	pr_err("%s9 qc=%pS qc_issue=%pS cmd=%pS rq=%pS\n", __func__, qc, ap->ops->qc_issue, cmd, rq);
 	qc->err_mask |= ap->ops->qc_issue(qc);
-	pr_err("%s10 qc=%pS qc->err_mask=%d cmd=%pS rq=%pS\n", __func__, qc, qc->err_mask, cmd, rq);
+	pr_err("%s10 qc=%pS qc->err_mask=%d cmd=%pS rq=%pS qc->err_mask=%d\n", __func__, qc, qc->err_mask, cmd, rq, qc->err_mask);
 	if (unlikely(qc->err_mask))
 		goto err;
 	return;
