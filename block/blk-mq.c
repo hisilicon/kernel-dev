@@ -932,7 +932,7 @@ static inline void __blk_mq_end_request_acct(struct request *rq, u64 now)
 
 inline void __blk_mq_end_request(struct request *rq, blk_status_t error)
 {
-	pr_err("%s rq=%pS rq->end_io=%pS end_io_data=%pS error=%d\n", __func__, rq, rq->end_io, rq->end_io_data, error);
+	//pr_err("%s rq=%pS rq->end_io=%pS end_io_data=%pS error=%d\n", __func__, rq, rq->end_io, rq->end_io_data, error);
 	if (blk_mq_need_time_stamp(rq))
 		__blk_mq_end_request_acct(rq, ktime_get_ns());
 
@@ -947,7 +947,7 @@ EXPORT_SYMBOL(__blk_mq_end_request);
 
 void blk_mq_end_request(struct request *rq, blk_status_t error)
 {
-	pr_err("%s rq=%pS\n", __func__, rq);
+	//pr_err("%s rq=%pS\n", __func__, rq);
 	if (blk_update_request(rq, error, blk_rq_bytes(rq)))
 		BUG();
 	__blk_mq_end_request(rq, error);

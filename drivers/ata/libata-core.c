@@ -1165,7 +1165,7 @@ static int ata_read_native_max_address(struct ata_device *dev, u64 *max_sectors)
 
 	tf.protocol = ATA_PROT_NODATA;
 	tf.device |= ATA_LBA;
-
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	if (err_mask) {
 		ata_dev_warn(dev,
@@ -1228,7 +1228,7 @@ static int ata_set_max_sectors(struct ata_device *dev, u64 new_sectors)
 	tf.lbal = (new_sectors >> 0) & 0xff;
 	tf.lbam = (new_sectors >> 8) & 0xff;
 	tf.lbah = (new_sectors >> 16) & 0xff;
-
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	if (err_mask) {
 		ata_dev_warn(dev,
@@ -1434,11 +1434,11 @@ EXPORT_SYMBOL_GPL(ata_id_xfermask);
 void ata_qc_complete_internal(struct ata_queued_cmd *qc);
 void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
-	struct completion *waiting = qc->private_data;
-	struct scsi_cmnd *scmd = qc->scsicmd; 
-	struct ata_taskfile *tf = &qc->tf;
-	struct request *rq = scsi_cmd_to_rq(scmd);
-	pr_err("%s qc=%pS waiting=%pS scmd=%pS rq=%pS\n", __func__, qc, waiting, scmd, rq);
+	__maybe_unused	struct completion *waiting = qc->private_data;
+	__maybe_unused struct scsi_cmnd *scmd = qc->scsicmd; 
+	__maybe_unused struct ata_taskfile *tf = &qc->tf;
+	__maybe_unused struct request *rq = scsi_cmd_to_rq(scmd);
+//	pr_err("%s qc=%pS waiting=%pS scmd=%pS rq=%pS\n", __func__, qc, waiting, scmd, rq);
 	print_hex_dump(KERN_INFO, "ata_qc_complete_internal tf ",
 				  DUMP_PREFIX_NONE, 16, 1,
 				  &tf, sizeof(*tf), 1);
@@ -1498,7 +1498,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	struct ata_internal_cmd *internal_ptr;
 	struct scsi_cmnd *scmd;
 	struct request *req;
-	blk_status_t blk_sts;
+	__maybe_unused blk_status_t blk_sts;
 	
 	scsi_cmd[0] = ATA_INTERNAL;
 
@@ -1551,8 +1551,8 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	//blk_sts = scsi_alloc_sgtables(scmd);
 
-	pr_err_once("%s1.5 sdev=%pS ap=%pS req=%pS internal_ptr=%pS scsi_sglist(scmd)=%pS blk_sts=%d scmd=%pS req=%pS\n",
-	 __func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd), blk_sts, scmd, req);
+	//pr_err("%s1.5 sdev=%pS ap=%pS req=%pS internal_ptr=%pS scsi_sglist(scmd)=%pS blk_sts=%d scmd=%pS req=%pS\n",
+	// __func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd), blk_sts, scmd, req);
 
 	if (cdb) {
 		panic("%s cdb\n", __func__);
@@ -1685,7 +1685,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if (err_mask)
 		pr_err("%s10out sdev=%pS cmd_result=%d scmd=%pS req=%pS err_mask=%d\n", __func__, sdev, cmd_result, scmd, req, err_mask);
 //panic("sanity2 %s\n", __func__);
-	err_mask = 0; //hack
+	//err_mask = 0; //hack
 	//scsi_free_host_dev(sdev);
 	return err_mask;
 }
@@ -1715,16 +1715,18 @@ unsigned ata_exec_internal(struct ata_device *dev,
 			   unsigned long timeout)
 {
 	int res;
+	char string[200];
 	mutex_lock(&global_mutex);
-
-	print_hex_dump(KERN_INFO, "ata_exec_internal_sg buf before ",
+	sprintf(string, "ata_exec_internal_sg buf before buf=%pS len=%d ", buf, buflen);
+	print_hex_dump(KERN_INFO, string,
 				  DUMP_PREFIX_NONE, 16, 1,
 				  buf, buflen, 1);
 
 	res = ata_exec_internal_sg(dev, tf, cdb, dma_dir, buf, buflen,
 				    timeout);
 
-	print_hex_dump(KERN_INFO, "ata_exec_internal_sg buf result ",
+	sprintf(string, "ata_exec_internal_sg buf after buf=%pS len=%d ", buf, buflen);
+	print_hex_dump(KERN_INFO, string,
 				  DUMP_PREFIX_NONE, 16, 1,
 				  buf, buflen, 1);
 	mutex_unlock(&global_mutex);
@@ -1801,7 +1803,7 @@ static u32 ata_pio_mask_no_iordy(const struct ata_device *adev)
 unsigned int ata_do_dev_read_id(struct ata_device *dev,
 				struct ata_taskfile *tf, __le16 *id)
 {
-	pr_err("%s calling ata_exec_internal\n", __func__);
+	pr_err("%s calling ata_exec_internal id=%pS\n", __func__, id);
 	return ata_exec_internal(dev, tf, NULL, DMA_FROM_DEVICE,
 				     id, sizeof(id[0]) * ATA_ID_WORDS, 0);
 }
@@ -1841,6 +1843,7 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	int rc;
 
 retry:
+	pr_err("%s retry id=%pS\n", __func__, id);
 	ata_tf_init(dev, &tf);
 
 	switch (class) {
@@ -1856,6 +1859,7 @@ retry:
 		break;
 	default:
 		rc = -ENODEV;
+		pr_err("%s retry id=%pS error\n", __func__, id);
 		reason = "unsupported class";
 		goto err_out;
 	}
@@ -1871,15 +1875,15 @@ retry:
 	 * controllers.  Always poll IDENTIFY if available.
 	 */
 	tf.flags |= ATA_TFLAG_POLLING;
-	pr_err("%s calling ata_do_dev_read_id tf.protocol=0x%x ATA_PROT_PIO=0x%x tf=%pS\n", 
-		__func__, tf.protocol, ATA_PROT_PIO, &tf);
+	pr_err("%s0 calling ata_do_dev_read_id tf.protocol=0x%x ATA_PROT_PIO=0x%x tf=%pS id=%pS\n", 
+		__func__, tf.protocol, ATA_PROT_PIO, &tf, id);
 	if (ap->ops->read_id)
 		err_mask = ap->ops->read_id(dev, &tf, (__le16 *)id);
 	else
 		err_mask = ata_do_dev_read_id(dev, &tf, (__le16 *)id);
+		pr_err("%s00 error err_mask=%d id=%pS\n", __func__, err_mask, id);
 
 	if (err_mask) {
-		pr_err("%s00 error err_mask=%d\n", __func__, err_mask);
 		if (err_mask & AC_ERR_NODEV_HINT) {
 			ata_dev_dbg(dev, "NODEV after polling detection\n");
 			return -ENOENT;
@@ -1919,6 +1923,7 @@ retry:
 		}
 
 		rc = -EIO;
+		pr_err("%s -EIO error\n", __func__);
 		reason = "I/O error";
 		goto err_out;
 	}
@@ -1940,6 +1945,7 @@ retry:
 
 	/* sanity check */
 	rc = -EINVAL;
+		pr_err("%s -EINVAL error\n", __func__);
 	reason = "device reports invalid type";
 
 	if (class == ATA_DEV_ATA || class == ATA_DEV_ZAC) {
@@ -1966,6 +1972,7 @@ retry:
 		err_mask = ata_dev_set_feature(dev, SETFEATURES_SPINUP, 0);
 		if (err_mask && id[2] != 0x738c) {
 			rc = -EIO;
+			pr_err("%s -EIO error\n", __func__);
 			reason = "SPINUP failed";
 			goto err_out;
 		}
@@ -1997,6 +2004,7 @@ retry:
 			if (err_mask) {
 				pr_err("%s3 error INIT_DEV_PARAMS failed err_mask=%d\n", __func__, err_mask);
 				rc = -EIO;
+				pr_err("%s3 -EIO error\n", __func__);
 				reason = "INIT_DEV_PARAMS failed";
 				goto err_out;
 			}
@@ -2070,7 +2078,7 @@ retry:
 	tf.hob_nsect = sectors >> 8;
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_LBA48 | ATA_TFLAG_DEVICE;
 
-	pr_err("%s calling ata_exec_internal\n", __func__);
+	pr_err("%s calling ata_exec_internal buf=%pS\n", __func__, buf);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
 				     buf, sectors * ATA_SECT_SIZE, 0);
 
@@ -2764,6 +2772,7 @@ int ata_dev_configure(struct ata_device *dev)
 		if ((rc < 12) || (rc > ATAPI_CDB_LEN)) {
 			ata_dev_warn(dev, "unsupported CDB len %d\n", rc);
 			rc = -EINVAL;
+			pr_err("%s -EINVAL error\n", __func__);
 			goto err_out_nosup;
 		}
 		dev->cdb_len = (unsigned int) rc;
@@ -4392,7 +4401,7 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
 		return 0;
 
 	/* On some disks, this command causes spin-up, so we need longer timeout */
-	pr_err("%s calling ata_exec_internal\n", __func__);
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 15000);
 
 	return err_mask;
@@ -4432,7 +4441,7 @@ unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable, u8 feature)
 	if (enable == SETFEATURES_SPINUP)
 		timeout = ata_probe_timeout ?
 			  ata_probe_timeout * 1000 : SETFEATURES_SPINUP_TIMEOUT;
-	pr_err("%s calling ata_exec_internal\n", __func__);
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, timeout);
 
 	return err_mask;
@@ -4471,7 +4480,7 @@ static unsigned int ata_dev_init_params(struct ata_device *dev,
 	tf.nsect = sectors;
 	tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
 
-	pr_err("%s calling ata_exec_internal\n", __func__);
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	/* A clean abort indicates an original or just out of spec drive
 	   and we should continue as we issue the setup based on the
@@ -4723,12 +4732,12 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 	struct ata_port *ap;
 	struct ata_link *link;
 	struct scsi_cmnd *scmd = qc->scsicmd;
-	struct request *rq = NULL;
+	__maybe_unused struct request *rq = NULL;
 
 	if (scmd)
 		rq = scsi_cmd_to_rq(scmd);
 
-	pr_err_once("%s qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
+	//pr_err("%s qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
 	WARN_ON_ONCE(qc == NULL); /* ata_qc_from_tag _might_ return NULL */
 	WARN_ON_ONCE(!(qc->flags & ATA_QCFLAG_ACTIVE));
 	ap = qc->ap;
@@ -4806,10 +4815,10 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct scsi_cmnd *scmd = qc->scsicmd;
-	struct request *rq = NULL;
+	__maybe_unused struct request *rq = NULL;
 	if (scmd)
 		rq = scsi_cmd_to_rq(scmd);
-	pr_err_once("%s qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
+	//pr_err("%s qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
 	/* Trigger the LED (if available) */
 	ledtrig_disk_activity(!!(qc->tf.flags & ATA_TFLAG_WRITE));
 
@@ -4832,7 +4841,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		struct ata_eh_info *ehi = &dev->link->eh_info;
 
 		if (unlikely(qc->err_mask)) {
-			pr_err("%s2 qc=%pS scmd=%pS rq=%pS error qc->err_mask=%d\n", __func__, qc, scmd, rq, qc->err_mask);
+			pr_err("%s2 qc=%pS scmd=%pS rq=%pS error qc->err_mask=%d ATA_QCFLAG_FAILED\n", __func__, qc, scmd, rq, qc->err_mask);
 			qc->flags |= ATA_QCFLAG_FAILED;
 		}
 

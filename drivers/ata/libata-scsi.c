@@ -3963,13 +3963,13 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
 	struct ata_queued_cmd *qc;
-	struct request *req = scsi_cmd_to_rq(scmd);
+	__maybe_unused struct request *req = scsi_cmd_to_rq(scmd);
 	struct ata_internal_cmd *internal_ptr;
 	struct ata_taskfile *tf;
 	enum dma_data_direction dma_dir = scmd->sc_data_direction;
 
 
-	pr_err_once("%s scmd=%pS dev=%pS ap=%pS req=%pS\n", __func__, scmd, dev, ap, req);
+	//pr_err("%s scmd=%pS dev=%pS ap=%pS req=%pS\n", __func__, scmd, dev, ap, req);
 
 	/* no internal command while frozen */
 	if (ap->pflags & ATA_PFLAG_FROZEN)

@@ -1363,11 +1363,11 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_link *link = qc->dev->link;
-	struct scsi_cmnd *scmd = qc->scsicmd;
-	struct request *rq = NULL;
+	__maybe_unused struct scsi_cmnd *scmd = qc->scsicmd;
+	__maybe_unused struct request *rq = NULL;
 	if (scmd)
 		rq = scsi_cmd_to_rq(scmd);
-	pr_err("%s qc=%pS scmd=%pS rq=%pS qc->tf.protocol=0x%x\n", __func__, qc, scmd, rq, qc->tf.protocol);
+	//pr_err("%s qc=%pS scmd=%pS rq=%pS qc->tf.protocol=0x%x\n", __func__, qc, scmd, rq, qc->tf.protocol);
 	/* Use polling pio if the LLD doesn't handle
 	 * interrupt driven pio and atapi CDB interrupt.
 	 */
@@ -2740,15 +2740,15 @@ unsigned int ata_bmdma_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct ata_link *link = qc->dev->link;
 	struct scsi_cmnd *scmd = qc->scsicmd;
-	struct request *rq = NULL;
+	__maybe_unused struct request *rq = NULL;
 	if (scmd)
 		rq = scsi_cmd_to_rq(scmd);
 
-	pr_err("%s qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
+	//pr_err("%s qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
 
 	/* defer PIO handling to sff_qc_issue */
 	if (!ata_is_dma(qc->tf.protocol)) {
-		pr_err("%s1 qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
+		//pr_err("%s1 qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
 		return ata_sff_qc_issue(qc);
 	}
 
@@ -2785,7 +2785,7 @@ unsigned int ata_bmdma_qc_issue(struct ata_queued_cmd *qc)
 
 	default:
 		WARN_ON(1);
-		pr_err("%s qc=%pS scmd=%pS rq=%pS error qc->tf.protocol=%d\n", __func__, qc, scmd, rq, qc->tf.protocol);
+		pr_err("%s qc=%pS scmd=%pS rq=%pS error qc->tf.protocol=%d error\n", __func__, qc, scmd, rq, qc->tf.protocol);
 		return AC_ERR_SYSTEM;
 	}
 

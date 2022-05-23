@@ -1841,8 +1841,8 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 			clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
 		}
 
-		if (internal)
-				pr_err("%s2.3 req=%pS internal\n", __func__, req);
+		//if (internal)
+		//		pr_err("%s2.3 req=%pS internal\n", __func__, req);
 		blk_mq_start_request(req);
 		if (!shost)
 				pr_err("%s2.4 req=%pS internal shost=%pS error\n", __func__, req, shost);
