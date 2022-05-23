@@ -4052,6 +4052,7 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 did_err:
 	scmd->result = (DID_ERROR << 16);
 	scsi_done(scmd);
+	pr_err("%s11 error did_err out scmd=%pS\n", __func__, scmd);
 	return 0;
 }
 

@@ -277,6 +277,9 @@ static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	int ret = 0;
 	LIST_HEAD(rq_list);
 
+	if (!hctx)
+		pr_err("%s error hctx=NULL\n", __func__);
+
 	/*
 	 * If we have previous entries on our dispatch list, grab them first for
 	 * more fair dispatch.

@@ -1554,6 +1554,10 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s1.5 sdev=%pS ap=%pS req=%pS internal_ptr=%pS scsi_sglist(scmd)=%pS blk_sts=%d scmd=%pS req=%pS\n",
 	 __func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd), blk_sts, scmd, req);
 
+	if (cdb) {
+		panic("%s cdb\n", __func__);
+		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
+	}
 	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf before tf ",
 				  DUMP_PREFIX_NONE, 16, 1,
 				  tf, sizeof(*tf), 1);
@@ -1682,7 +1686,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s10out sdev=%pS cmd_result=%d scmd=%pS req=%pS\n", __func__, sdev, cmd_result, scmd, req);
 //panic("sanity2 %s\n", __func__);
 	err_mask = 0; //hack
-	scsi_free_host_dev(sdev);
+	//scsi_free_host_dev(sdev);
 	return err_mask;
 }
 

@@ -1840,7 +1840,8 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
 
 		rq = list_first_entry(list, struct request, queuelist);
 
-		WARN_ON_ONCE(hctx != rq->mq_hctx);
+		WARN_ONCE(hctx != rq->mq_hctx, "%s rq=%pS mq_hctx=%pS hctx=%pS\n",
+				__func__, rq, rq->mq_hctx, hctx);
 		prep = blk_mq_prep_dispatch_rq(rq, !nr_budgets);
 		if (prep != PREP_DISPATCH_OK)
 			break;
