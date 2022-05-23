@@ -473,8 +473,10 @@ retry:
 	if (!(data->rq_flags & RQF_ELV))
 		blk_mq_tag_busy(data->hctx);
 
-	if (data->flags & BLK_MQ_INTERNAL)
+	if (data->flags & BLK_MQ_INTERNAL) {
+		//panic("%s once set data->flags & BLK_MQ_INTERN\n", __func__);
 		data->rq_flags |= RQF_INTERNAL;
+	}
 
 	/*
 	 * Try batched alloc if we want more than 1 tag.
@@ -623,7 +625,7 @@ void blk_mq_free_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
-
+	pr_err("%s rq=%pS rq->end_io=%pS\n", __func__, rq, rq->end_io);
 	if ((rq->rq_flags & RQF_ELVPRIV) &&
 	    q->elevator->type->ops.finish_request)
 		q->elevator->type->ops.finish_request(rq);
@@ -637,6 +639,7 @@ void blk_mq_free_request(struct request *rq)
 	rq_qos_done(q, rq);
 
 	WRITE_ONCE(rq->state, MQ_RQ_IDLE);
+	pr_err("%s2 rq=%pS rq->end_io=%pS MQ_RQ_IDLE\n", __func__, rq, rq->end_io);
 	if (req_ref_put_and_test(rq))
 		__blk_mq_free_request(rq);
 }
@@ -927,7 +930,7 @@ static inline void __blk_mq_end_request_acct(struct request *rq, u64 now)
 
 inline void __blk_mq_end_request(struct request *rq, blk_status_t error)
 {
-	pr_err("%s rq=%pS\n", __func__, rq);
+	pr_err("%s rq=%pS rq->end_io=%pS\n", __func__, rq, rq->end_io);
 	if (blk_mq_need_time_stamp(rq))
 		__blk_mq_end_request_acct(rq, ktime_get_ns());
 
@@ -1167,6 +1170,7 @@ EXPORT_SYMBOL(blk_mq_start_request);
 static void blk_end_sync_rq(struct request *rq, blk_status_t error)
 {
 	struct completion *waiting = rq->end_io_data;
+	pr_err("%s rq=%pS\n", __func__, rq);
 
 	rq->end_io_data = (void *)(uintptr_t)error;
 

@@ -1479,13 +1479,17 @@ static void scsi_complete(struct request *rq)
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 	enum scsi_disposition disposition;
 	bool internal;
-	struct request *req = scsi_cmd_to_rq(cmd);
 
 	
 	internal = scsi_is_internal_command(cmd);
-	pr_err("%s cmd=%pS internal=%d rq=%pS\n", __func__, cmd, internal, rq);
+	
 	if (internal) {
-		blk_mq_end_request(req, 0);
+		pr_err("%s cmd=%pS internal=%d rq=%pS\n", __func__, cmd, internal, rq);
+		//blk_mq_end_request(rq, 0);
+		scsi_mq_uninit_cmd(cmd);
+
+		__blk_mq_end_request(rq, 0);
+		//panic("%s internal\n", __func__);
 		return;
 	}
 

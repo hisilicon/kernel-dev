@@ -1521,7 +1521,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	req = scsi_alloc_request(sdev->request_queue,
 			dma_dir == DMA_TO_DEVICE ?
 			REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
-			0);
+			BLK_MQ_INTERNAL);
 	pr_err("%s1.1 sdev=%pS ap=%pS req=%pS\n", __func__, sdev, ap, req);
 	if (IS_ERR(req))
 		panic("no request\n");
@@ -1577,8 +1577,12 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	/*
 	 * head injection *required* here otherwise quiesce won't work
 	 */
+	//panic("sanity0 %s\n", __func__);
 	blk_execute_rq(req, true);
 
+	blk_mq_free_request(req);
+	if (blk_mq_request_started(req))
+		panic("sanity1 %s started req=%pS\n", __func__, req);
 	req = NULL;
 	scmd = NULL;
 	pr_err("%s2 sdev=%pS cmd_result=%d scmd=%pS req=%pS should be NULL as req is finished\n", __func__, sdev, cmd_result, scmd, req);
@@ -1604,7 +1608,6 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	ata_sff_flush_pio_task(ap);
 	pr_err("%s5.1 sdev=%pS cmd_result=%d rc=%d ap=%pS scmd=%pS req=%pS\n", __func__, sdev, cmd_result, rc, ap, scmd, req);
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
-
 	if (!rc) {
 		spin_lock_irqsave(ap->lock, flags);
 		pr_err("%s5.2 sdev=%pS cmd_result=%d rc=%d scmd=%pS req=%pS\n", __func__, sdev, cmd_result, rc, scmd, req);
@@ -1677,6 +1680,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 				  DUMP_PREFIX_NONE, 16, 1,
 				  tf, sizeof(*tf), 1);
 	pr_err("%s10out sdev=%pS cmd_result=%d scmd=%pS req=%pS\n", __func__, sdev, cmd_result, scmd, req);
+//panic("sanity2 %s\n", __func__);
 	err_mask = 0; //hack
 	scsi_free_host_dev(sdev);
 	return err_mask;

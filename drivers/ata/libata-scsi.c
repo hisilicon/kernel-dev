@@ -4059,12 +4059,16 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 {
 	u8 scsi_op = scmd->cmnd[0];
 	ata_xlat_func_t xlat_func;
+	static int count_internal;
 	if (scsi_op == ATA_INTERNAL)
 		pr_err("%s scmd=%pS dev=%pS ATA_INTERNAL\n", __func__, scmd, dev);
 	if (unlikely(!scmd->cmd_len))
 		goto bad_cdb_len;
 
 	if (scsi_op == ATA_INTERNAL) {
+		count_internal++;
+		if (count_internal > 1000)
+			panic("%s so many! scmd=%pS rq=%pS\n", __func__, scmd, scsi_cmd_to_rq(scmd));
 		pr_err("%s0 scmd=%pS dev=%pS ATA_INTERNAL\n", __func__, scmd, dev);
 		return ata_scsi_internal(scmd, dev);
 	} else if (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ZAC) {
