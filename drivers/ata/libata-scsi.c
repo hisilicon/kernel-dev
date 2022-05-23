@@ -4062,7 +4062,7 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 	ata_xlat_func_t xlat_func;
 	static int count_internal;
 	if (scsi_op == ATA_INTERNAL)
-		pr_err("%s scmd=%pS dev=%pS ATA_INTERNAL\n", __func__, scmd, dev);
+		pr_err("%s scmd=%pS dev=%pS ATA_INTERNAL rq=%pS\n", __func__, scmd, dev, scsi_cmd_to_rq(scmd));
 	if (unlikely(!scmd->cmd_len))
 		goto bad_cdb_len;
 
@@ -4122,6 +4122,7 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 		pr_err("%s10 scmd=%pS dev=%pS ATA_INTERNAL bad_cdb_len\n", __func__, scmd, dev);
 	scmd->result = DID_ERROR << 16;
 	scsi_done(scmd);
+	panic("%s bad_cdb_len\n", __func__);
 	return 0;
 }
 

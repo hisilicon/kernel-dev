@@ -1584,6 +1584,8 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	//panic("sanity0 %s\n", __func__);
 	blk_execute_rq(req, true);
 
+	pr_err("%s1.7 sdev=%pS ap=%pS req=%pS qc=%pS scmd=%pS req=%pS\n",
+	 __func__, sdev, ap, req, qc, scmd, req);
 	blk_mq_free_request(req);
 	if (blk_mq_request_started(req))
 		panic("sanity1 %s started req=%pS\n", __func__, req);

@@ -512,9 +512,10 @@ static void scsi_uninit_cmd(struct scsi_cmnd *cmd)
 {
 	if (!blk_rq_is_passthrough(scsi_cmd_to_rq(cmd))) {
 		struct scsi_driver *drv = scsi_cmd_to_driver(cmd);
-
+		
 		if (drv->uninit_command)
-			drv->uninit_command(cmd);
+		//	drv->uninit_command(cmd);
+			pr_err("%s cmd=%pS uninit_command=%pS\n", __func__, cmd, drv->uninit_command);
 	}
 }
 
@@ -1854,6 +1855,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 				pr_err("%s2.5 req=%pS internal ret=%d\n", __func__, req, ret);
 		if (ret)
 			BUG();
+		return ret;
 	}
 	/*
 	 * If the device is not in running state we will reject some or all
@@ -1893,6 +1895,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_mq_start_request(req);
 	reason = scsi_dispatch_cmd(cmd);
 	if (reason) {
+		pr_err("%s error reason=%d req=%pS cmd=%pS\n", __func__, reason, req, cmd);
 		scsi_set_blocked(cmd, reason);
 		ret = BLK_STS_RESOURCE;
 		goto out_dec_host_busy;
@@ -1901,11 +1904,14 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_STS_OK;
 
 out_dec_host_busy:
+	pr_err("%s out_dec_host_busy req=%pS cmd=%pS\n", __func__, req, cmd);
 	scsi_dec_host_busy(shost, cmd);
 out_dec_target_busy:
+	pr_err("%s out_dec_target_busy req=%pS cmd=%pS\n", __func__, req, cmd);
 	if (scsi_target(sdev)->can_queue > 0)
 		atomic_dec(&scsi_target(sdev)->target_busy);
 out_put_budget:
+	pr_err("%s out_put_budget req=%pS cmd=%pS\n", __func__, req, cmd);
 	scsi_mq_put_budget(q, cmd->budget_token);
 	cmd->budget_token = -1;
 	switch (ret) {
@@ -1913,6 +1919,7 @@ out_put_budget:
 		break;
 	case BLK_STS_RESOURCE:
 	case BLK_STS_ZONE_RESOURCE:
+		pr_err("%s BLK_STS_ZONE_RESOURCE BLK_STS_RESOURCE req=%pS cmd=%pS\n", __func__, req, cmd);
 		if (scsi_device_blocked(sdev))
 			ret = BLK_STS_DEV_RESOURCE;
 		break;

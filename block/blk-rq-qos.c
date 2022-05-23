@@ -40,6 +40,7 @@ void __rq_qos_cleanup(struct rq_qos *rqos, struct bio *bio)
 
 void __rq_qos_done(struct rq_qos *rqos, struct request *rq)
 {
+	pr_err("%s rq=%pS rqos=%pS\n", __func__, rq, rqos);
 	do {
 		if (rqos->ops->done)
 			rqos->ops->done(rqos, rq);
