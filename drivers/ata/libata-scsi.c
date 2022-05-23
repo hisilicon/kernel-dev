@@ -875,6 +875,7 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
 		ata_to_sense_error(qc->ap->print_id, tf->status, tf->error,
 				   &sense_key, &asc, &ascq, verbose);
 		ata_scsi_set_sense(qc->dev, cmd, sense_key, asc, ascq);
+		pr_err("%s error err_mask=%d\n", __func__, qc->err_mask);
 	} else {
 		/*
 		 * ATA PASS-THROUGH INFORMATION AVAILABLE
@@ -973,12 +974,13 @@ static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 	 */
 	if (qc->err_mask ||
 	    tf->status & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
+		pr_err("%s error err_mask=%d\n", __func__, qc->err_mask);
 		ata_to_sense_error(qc->ap->print_id, tf->status, tf->error,
 				   &sense_key, &asc, &ascq, verbose);
 		ata_scsi_set_sense(dev, cmd, sense_key, asc, ascq);
 	} else {
 		/* Could not decode error */
-		ata_dev_warn(dev, "could not decode error status 0x%x err_mask 0x%x\n",
+		ata_dev_warn(dev, "could not decode error status 0x%x err_mask 0x%x error\n",
 			     tf->status, qc->err_mask);
 		ata_scsi_set_sense(dev, cmd, ABORTED_COMMAND, 0, 0);
 		return;

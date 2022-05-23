@@ -1525,11 +1525,11 @@ do {								\
 #define ata_dev_err(dev, fmt, ...)				\
 	ata_dev_printk(err, dev, fmt, ##__VA_ARGS__)
 #define ata_dev_warn(dev, fmt, ...)				\
-	ata_dev_printk(warn, dev, fmt, ##__VA_ARGS__)
+	ata_dev_printk(err, dev, fmt, ##__VA_ARGS__)
 #define ata_dev_notice(dev, fmt, ...)				\
-	ata_dev_printk(notice, dev, fmt, ##__VA_ARGS__)
+	ata_dev_printk(err, dev, fmt, ##__VA_ARGS__)
 #define ata_dev_info(dev, fmt, ...)				\
-	ata_dev_printk(info, dev, fmt, ##__VA_ARGS__)
+	ata_dev_printk(err, dev, fmt, ##__VA_ARGS__)
 #define ata_dev_dbg(dev, fmt, ...)				\
 	ata_dev_printk(debug, dev, fmt, ##__VA_ARGS__)
 

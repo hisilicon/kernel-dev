@@ -895,6 +895,7 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 			  ireason, bytes);
  err_out:
 	qc->err_mask |= AC_ERR_HSM;
+	pr_err("%s err_out error AC_ERR_HSM\n", __func__);
 	ap->hsm_task_state = HSM_ST_ERR;
 }
 
@@ -1011,14 +1012,16 @@ fsm_start:
 		/* check device status */
 		if (unlikely((status & ATA_DRQ) == 0)) {
 			/* handle BSY=0, DRQ=0 as error */
-			if (likely(status & (ATA_ERR | ATA_DF)))
+			if (likely(status & (ATA_ERR | ATA_DF))) {
 				/* device stops HSM for abort/error */
 				qc->err_mask |= AC_ERR_DEV;
-			else {
+				pr_err("%s error AC_ERR_DEV\n", __func__);
+			} else {
 				/* HSM violation. Let EH handle this */
 				ata_ehi_push_desc(ehi,
 					"ST_FIRST: !(DRQ|ERR|DF)");
 				qc->err_mask |= AC_ERR_HSM;
+				pr_err("%s error AC_ERR_HSM\n", __func__);
 			}
 
 			ap->hsm_task_state = HSM_ST_ERR;
@@ -1042,6 +1045,7 @@ fsm_start:
 					"DRQ=1 with device error, "
 					"dev_stat 0x%X", status);
 				qc->err_mask |= AC_ERR_HSM;
+				pr_err("%s error ST_FIRST AC_ERR_HSM\n", __func__);
 				ap->hsm_task_state = HSM_ST_ERR;
 				goto fsm_start;
 			}
@@ -1090,6 +1094,7 @@ fsm_start:
 					"DRQ=1 with device error, "
 					"dev_stat 0x%X", status);
 				qc->err_mask |= AC_ERR_HSM;
+				pr_err("%s error ST-ATAPI AC_ERR_HSM\n", __func__);
 				ap->hsm_task_state = HSM_ST_ERR;
 				goto fsm_start;
 			}
@@ -1107,6 +1112,7 @@ fsm_start:
 				if (likely(status & (ATA_ERR | ATA_DF))) {
 					/* device stops HSM for abort/error */
 					qc->err_mask |= AC_ERR_DEV;
+					pr_err("%s error ATA PIO protocol AC_ERR_DEV\n", __func__);
 
 					/* If diagnostic failed and this is
 					 * IDENTIFY, it's likely a phantom
@@ -1114,6 +1120,7 @@ fsm_start:
 					 */
 					if (qc->dev->horkage &
 					    ATA_HORKAGE_DIAGNOSTIC)
+					pr_err("%s error AC_ERR_NODEV_HINT\n", __func__);
 						qc->err_mask |=
 							AC_ERR_NODEV_HINT;
 				} else {
@@ -1126,6 +1133,7 @@ fsm_start:
 						"dev_stat 0x%X", status);
 					qc->err_mask |= AC_ERR_HSM |
 							AC_ERR_NODEV_HINT;
+					pr_err("%s error ST-ATA: AC_ERR_HSM AC_ERR_NODEV_HINT qc->err_mask=%d\n", __func__, qc->err_mask);
 				}
 
 				ap->hsm_task_state = HSM_ST_ERR;
@@ -1145,6 +1153,7 @@ fsm_start:
 			if (unlikely(status & (ATA_ERR | ATA_DF))) {
 				/* data might be corrputed */
 				qc->err_mask |= AC_ERR_DEV;
+				pr_err("%s error AC_ERR_DEV data might be corrputed\n", __func__);
 
 				if (!(qc->tf.flags & ATA_TFLAG_WRITE)) {
 					ata_pio_sectors(qc);
@@ -1156,6 +1165,7 @@ fsm_start:
 						"BUSY|DRQ persists on ERR|DF, "
 						"dev_stat 0x%X", status);
 					qc->err_mask |= AC_ERR_HSM;
+					pr_err("%s error AC_ERR_HSM data might be corrputed\n", __func__);
 				}
 
 				/* There are oddball controllers with
@@ -1165,8 +1175,10 @@ fsm_start:
 				 * mechanisms we have.  Set NODEV_HINT
 				 * for it.  Kernel bz#7241.
 				 */
-				if (status == 0x7f)
+				if (status == 0x7f) {
 					qc->err_mask |= AC_ERR_NODEV_HINT;
+					pr_err("%s error AC_ERR_NODEV_HINT data might be corrputed\n", __func__);
+				}
 
 				/* ata_pio_sectors() might change the
 				 * state to HSM_ST_LAST. so, the state
@@ -1192,6 +1204,7 @@ fsm_start:
 	case HSM_ST_LAST:
 		if (unlikely(!ata_ok(status))) {
 			qc->err_mask |= __ac_err_mask(status);
+			pr_err("%s error __ac_err_mask(status) HSM_ST_LAST\n", __func__);
 			ap->hsm_task_state = HSM_ST_ERR;
 			goto fsm_start;
 		}
@@ -1500,6 +1513,7 @@ static unsigned int __ata_sff_port_intr(struct ata_port *ap,
 		if (hsmv_on_idle) {
 			/* BMDMA engine is already stopped, we're screwed */
 			qc->err_mask |= AC_ERR_HSM;
+			pr_err("%s error AC_ERR_HSM\n", __func__);
 			ap->hsm_task_state = HSM_ST_ERR;
 		} else
 			return ata_sff_idle_irq(ap);
@@ -2815,6 +2829,7 @@ unsigned int ata_bmdma_port_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		if (unlikely(host_stat & ATA_DMA_ERR)) {
 			/* error when transferring data to/from memory */
 			qc->err_mask |= AC_ERR_HOST_BUS;
+			pr_err("%s error AC_ERR_HOST_BUS\n", __func__);
 			ap->hsm_task_state = HSM_ST_ERR;
 		}
 	}
@@ -2886,6 +2901,7 @@ void ata_bmdma_error_handler(struct ata_port *ap)
 		 */
 		if (qc->err_mask == AC_ERR_TIMEOUT && (host_stat & ATA_DMA_ERR)) {
 			qc->err_mask = AC_ERR_HOST_BUS;
+			pr_err("%s error AC_ERR_TIMEOUT\n", __func__);
 			thaw = true;
 		}
 

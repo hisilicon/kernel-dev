@@ -1436,8 +1436,12 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
 	struct completion *waiting = qc->private_data;
 	struct scsi_cmnd *scmd = qc->scsicmd; 
+	struct ata_taskfile *tf = &qc->tf;
 	struct request *rq = scsi_cmd_to_rq(scmd);
 	pr_err("%s qc=%pS waiting=%pS scmd=%pS rq=%pS\n", __func__, qc, waiting, scmd, rq);
+	print_hex_dump(KERN_INFO, "ata_qc_complete_internal tf ",
+				  DUMP_PREFIX_NONE, 16, 1,
+				  &tf, sizeof(*tf), 1);
 
 	scsi_done(scmd);
 }
@@ -1523,6 +1527,8 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 			REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
 			0);
 	pr_err("%s1.1 sdev=%pS ap=%pS req=%pS\n", __func__, sdev, ap, req);
+	if (IS_ERR(req))
+		panic("no request\n");
 
 	scmd = blk_mq_rq_to_pdu(req);
 	scmd->cmd_len = 16;
@@ -1675,6 +1681,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 				  tf, sizeof(*tf), 1);
 	pr_err("%s10out sdev=%pS cmd_result=%d scmd=%pS req=%pS\n", __func__, sdev, cmd_result, scmd, req);
 	err_mask = 0; //hack
+	scsi_free_host_dev(sdev);
 	return err_mask;
 }
 
@@ -4802,10 +4809,12 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		struct ata_device *dev = qc->dev;
 		struct ata_eh_info *ehi = &dev->link->eh_info;
 
-		if (unlikely(qc->err_mask))
+		if (unlikely(qc->err_mask)) {
+			pr_err("%s2 qc=%pS scmd=%pS rq=%pS error\n", __func__, qc, scmd, rq);
 			qc->flags |= ATA_QCFLAG_FAILED;
+		}
 
-		pr_err("%s2 qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
+		pr_err("%s2.0 qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
 		/*
 		 * Finish internal commands without any further processing
 		 * and always with the result TF filled.
@@ -4828,6 +4837,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 			fill_result_tf(qc);
 			trace_ata_qc_complete_failed(qc);
 			ata_qc_schedule_eh(qc);
+			pr_err("%s2.4 qc=%pS scmd=%pS rq=%pS error\n", __func__, qc, scmd, rq);
 			return;
 		}
 

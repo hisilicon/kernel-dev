@@ -1405,6 +1405,7 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
 	int i;
 
 	err_mask = ata_read_log_page(dev, ATA_LOG_SATA_NCQ, 0, buf, 1);
+	pr_err("%s error err_mask=%d\n", __func__, err_mask);
 	if (err_mask)
 		return -EIO;
 
@@ -1471,8 +1472,10 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 		if (!(qc->flags & ATA_QCFLAG_FAILED))
 			continue;
 
-		if (qc->err_mask)
+		if (qc->err_mask) {
+			pr_err("%s error err_mask=%d\n", __func__, qc->err_mask);
 			return;
+		}
 	}
 
 	/* okay, this error is ours */
@@ -1495,6 +1498,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 	memcpy(&qc->result_tf, &tf, sizeof(tf));
 	qc->result_tf.flags = ATA_TFLAG_ISADDR | ATA_TFLAG_LBA | ATA_TFLAG_LBA48;
 	qc->err_mask |= AC_ERR_DEV | AC_ERR_NCQ;
+	pr_err("%s error err_mask=%d AC_ERR_DEV AC_ERR_NCQ\n", __func__, qc->err_mask);
 	if (dev->class == ATA_DEV_ZAC &&
 	    ((qc->result_tf.status & ATA_SENSE) || qc->result_tf.auxiliary)) {
 		char sense_key, asc, ascq;
