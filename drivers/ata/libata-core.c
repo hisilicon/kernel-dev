@@ -1504,10 +1504,6 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	pr_err("%s ap=%pS protocol=0x%x\n",	__func__, ap, tf->protocol);
 
-	#ifdef old
-
-	#else //// START HERE
-
 /*
 	struct ata_taskfile tf;
 	bool cdb_valid;
@@ -1585,8 +1581,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	req = NULL;
 	scmd = NULL;
-	#endif
-	pr_err("%s2 sdev=%pS cmd_result=%d scmd=%pS req=%pS\n", __func__, sdev, cmd_result, scmd, req);
+	pr_err("%s2 sdev=%pS cmd_result=%d scmd=%pS req=%pS should be NULL as req is finished\n", __func__, sdev, cmd_result, scmd, req);
 	
 	if (!timeout) {
 		if (ata_probe_timeout)
@@ -1621,6 +1616,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		 */
 		if (qc->flags & ATA_QCFLAG_ACTIVE) {
 			qc->err_mask |= AC_ERR_TIMEOUT;
+			pr_err("%s error AC_ERR_TIMEOUT\n", __func__);
 
 			if (ap->ops->error_handler)
 				ata_port_freeze(ap);
@@ -1642,14 +1638,17 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		ap->ops->post_internal_cmd(qc);
 
 
-	#ifdef old
 	/* perform minimal error analysis */
 	if (qc->flags & ATA_QCFLAG_FAILED) {
-		if (qc->result_tf.status & (ATA_ERR | ATA_DF))
+		if (qc->result_tf.status & (ATA_ERR | ATA_DF)) {
 			qc->err_mask |= AC_ERR_DEV;
+			pr_err("%s error AC_ERR_DEV\n", __func__);
+		}
 
-		if (!qc->err_mask)
+		if (!qc->err_mask) {
+			pr_err("%s error AC_ERR_OTHER\n", __func__);
 			qc->err_mask |= AC_ERR_OTHER;
+		}
 
 		if (qc->err_mask & ~AC_ERR_OTHER)
 			qc->err_mask &= ~AC_ERR_OTHER;
@@ -1664,17 +1663,15 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	err_mask = qc->err_mask;
 
 	ata_qc_free(qc);
-	link->active_tag = preempted_tag;
-	link->sactive = preempted_sactive;
-	ap->qc_active = preempted_qc_active;
-	ap->nr_active_links = preempted_nr_active_links;
+	link->active_tag = link->preempted_tag;
+	link->sactive = link->preempted_sactive;
+	ap->qc_active = ap->preempted_qc_active;
+	ap->nr_active_links = ap->preempted_nr_active_links;
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
 		ata_internal_cmd_timed_out(dev, command);
-
-	#endif
 	
 	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf result ",
 				  DUMP_PREFIX_NONE, 16, 1,
@@ -1863,6 +1860,7 @@ retry:
 		err_mask = ata_do_dev_read_id(dev, &tf, (__le16 *)id);
 
 	if (err_mask) {
+		pr_err("%s00 error err_mask=%d\n", __func__, err_mask);
 		if (err_mask & AC_ERR_NODEV_HINT) {
 			ata_dev_dbg(dev, "NODEV after polling detection\n");
 			return -ENOENT;
@@ -1976,6 +1974,8 @@ retry:
 		if (ata_id_major_version(id) < 4 || !ata_id_has_lba(id)) {
 			err_mask = ata_dev_init_params(dev, id[3], id[6]);
 			if (err_mask) {
+
+				pr_err("%s error INIT_DEV_PARAMS failed\n", __func__);
 				rc = -EIO;
 				reason = "INIT_DEV_PARAMS failed";
 				goto err_out;
@@ -1994,7 +1994,7 @@ retry:
 	return 0;
 
  err_out:
-	ata_dev_warn(dev, "failed to IDENTIFY (%s, err_mask=0x%x)\n",
+	ata_dev_err(dev, "error failed to IDENTIFY (%s, err_mask=0x%x)\n",
 		     reason, err_mask);
 	return rc;
 }
@@ -2055,12 +2055,13 @@ retry:
 				     buf, sectors * ATA_SECT_SIZE, 0);
 
 	if (err_mask) {
+		pr_err("%s error err_mask=%d\n", __func__, err_mask);
 		if (dma) {
 			dev->horkage |= ATA_HORKAGE_NO_DMA_LOG;
 			goto retry;
 		}
 		ata_dev_err(dev,
-			    "Read log 0x%02x page 0x%02x failed, Emask 0x%x\n",
+			    "Read log 0x%02x page 0x%02x failed error, Emask 0x%x\n",
 			    (unsigned int)log, (unsigned int)page, err_mask);
 	}
 
@@ -2182,7 +2183,8 @@ static void ata_dev_config_ncq_send_recv(struct ata_device *dev)
 			cmds[ATA_LOG_NCQ_SEND_RECV_DSM_OFFSET] &=
 				~ATA_LOG_NCQ_SEND_RECV_DSM_TRIM;
 		}
-	}
+	}else
+		pr_err("%s error err_mask=%d\n", __func__, err_mask);
 }
 
 static void ata_dev_config_ncq_non_data(struct ata_device *dev)
@@ -4804,13 +4806,13 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 	 * not synchronize with interrupt handler.  Only PIO task is
 	 * taken care of.
 	 */
-	pr_err("%s1 qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
+	pr_err("%s1 qc=%pS scmd=%pS rq=%pS ap->ops->error_handler=%pS\n", __func__, qc, scmd, rq, ap->ops->error_handler);
 	if (ap->ops->error_handler) {
 		struct ata_device *dev = qc->dev;
 		struct ata_eh_info *ehi = &dev->link->eh_info;
 
 		if (unlikely(qc->err_mask)) {
-			pr_err("%s2 qc=%pS scmd=%pS rq=%pS error\n", __func__, qc, scmd, rq);
+			pr_err("%s2 qc=%pS scmd=%pS rq=%pS error qc->err_mask=%d\n", __func__, qc, scmd, rq, qc->err_mask);
 			qc->flags |= ATA_QCFLAG_FAILED;
 		}
 
