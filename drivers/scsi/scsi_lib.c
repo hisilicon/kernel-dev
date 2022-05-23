@@ -82,6 +82,23 @@ int scsi_init_sense_cache(struct Scsi_Host *shost)
  */
 #define SCSI_QUEUE_DELAY	3
 
+bool scsi_is_internal_command(struct scsi_cmnd *cmd)
+{
+	struct request *rq = scsi_cmd_to_rq(cmd);
+
+	bool internal1, internal2;
+
+	if ((rq->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
+		internal1 = true;
+	if (cmd->cmnd[0] == ATA_INTERNAL)
+		internal2 = true;
+
+	if (internal1 != internal2)
+		BUG();
+
+	return internal1 || internal2;
+}
+
 static void
 scsi_set_blocked(struct scsi_cmnd *cmd, int reason)
 {
@@ -121,6 +138,10 @@ scsi_set_blocked(struct scsi_cmnd *cmd, int reason)
 static void scsi_mq_requeue_cmd(struct scsi_cmnd *cmd)
 {
 	struct request *rq = scsi_cmd_to_rq(cmd);
+
+	bool internal = scsi_is_internal_command(cmd);
+
+	pr_err("%s rq=%pS cmd=%pS internal=%d\n", __func__, rq, cmd, internal);
 
 	if (rq->rq_flags & RQF_DONTPREP) {
 		rq->rq_flags &= ~RQF_DONTPREP;
@@ -223,17 +244,17 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 	if (cmd[0] == ATA_INTERNAL) {
-		pr_err("%s bufflen=%d buffer=%pS ATA_INTERNAL\n", __func__, bufflen, buffer);
+		pr_err("%s bufflen=%d buffer=%pS ATA_INTERNAL req=%pS\n", __func__, bufflen, buffer, req);
 		if (bufflen)
 			print_hex_dump(KERN_INFO, "__scsi_execute ",
 				  DUMP_PREFIX_NONE, 16, 1,
 				  buffer, bufflen, 1);
 	}
 	if (bufflen) {
-		pr_err("%s2 bufflen=%d buffer=%pS ATA_INTERNAL\n", __func__, bufflen, buffer);
+		pr_err("%s2 bufflen=%d buffer=%pS ATA_INTERNAL req=%pS\n", __func__, bufflen, buffer, req);
 		ret = blk_rq_map_kern(sdev->request_queue, req,
 				      buffer, bufflen, GFP_NOIO);
-		pr_err("%s3 bufflen=%d buffer=%pS ATA_INTERNAL ret=%d\n", __func__, bufflen, buffer, ret);
+		pr_err("%s3 bufflen=%d buffer=%pS ATA_INTERNAL ret=%d req=%pS\n", __func__, bufflen, buffer, ret, req);
 		if (ret)
 			goto out;
 	}
@@ -960,7 +981,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	struct request_queue *q = cmd->device->request_queue;
 	struct request *req = scsi_cmd_to_rq(cmd);
 	blk_status_t blk_stat = BLK_STS_OK;
-	pr_err("%s cmd=%pS good_bytes=%d\n", __func__, cmd, good_bytes);
+	pr_err("%s cmd=%pS good_bytes=%d req=%pS\n", __func__, cmd, good_bytes, req);
 	if (unlikely(result))	/* a nz result may or may not be an error */
 		result = scsi_io_completion_nz_result(cmd, result, &blk_stat);
 
@@ -976,9 +997,9 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	 * Failed, zero length commands always need to drop down
 	 * to retry code. Fast path should return in this block.
 	 */
-	pr_err("%s2 cmd=%pS good_bytes=%d\n", __func__, cmd, good_bytes);
+	pr_err("%s2 cmd=%pS good_bytes=%d req=%pS\n", __func__, cmd, good_bytes, req);
 	if (likely(blk_rq_bytes(req) > 0 || blk_stat == BLK_STS_OK)) {
-		pr_err("%s3 cmd=%pS good_bytes=%d\n", __func__, cmd, good_bytes);
+		pr_err("%s3 cmd=%pS good_bytes=%d req=%pS\n", __func__, cmd, good_bytes, req);
 		if (likely(!scsi_end_request(req, blk_stat, good_bytes)))
 			return; /* no bytes remaining */
 	}
@@ -991,7 +1012,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		return;
 	}
 
-	pr_err("%s4 cmd=%pS good_bytes=%d result=%d\n", __func__, cmd, good_bytes, result);
+	pr_err("%s4 cmd=%pS good_bytes=%d result=%d req=%pS\n", __func__, cmd, good_bytes, result, req);
 	/*
 	 * If there had been no error, but we have leftover bytes in the
 	 * request just queue the command up again.
@@ -1031,14 +1052,14 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 	blk_status_t ret;
 	bool need_drain;
 	int count;
-	pr_err("%s cmd=%pS sdev=%pS\n", __func__, cmd, sdev);
+	pr_err("%s cmd=%pS sdev=%pS rq=%pS\n", __func__, cmd, sdev, rq);
 	nr_segs = blk_rq_nr_phys_segments(rq);
 
-	pr_err("%s0 cmd=%pS nr_segs=%d\n", __func__, cmd, nr_segs);
+	//pr_err("%s0 cmd=%pS nr_segs=%d\n", __func__, cmd, nr_segs);
 	if (WARN_ON_ONCE(!nr_segs))
 		return BLK_STS_IOERR;
 	need_drain = scsi_cmd_needs_dma_drain(sdev, rq);
-	pr_err("%s1 cmd=%pS need_drain=%d\n", __func__, cmd, need_drain);
+	//pr_err("%s1 cmd=%pS need_drain=%d\n", __func__, cmd, need_drain);
 	/*
 	 * Make sure there is space for the drain.  The driver must adjust
 	 * max_hw_segments to be prepared for this.
@@ -1046,7 +1067,7 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 	if (need_drain)
 		nr_segs++;
 
-	pr_err("%s2 cmd=%pS\n", __func__, cmd);
+	//pr_err("%s2 cmd=%pS\n", __func__, cmd);
 	/*
 	 * If sg table allocation fails, requeue request later.
 	 */
@@ -1054,14 +1075,14 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 			cmd->sdb.table.sgl, SCSI_INLINE_SG_CNT)))
 		return BLK_STS_RESOURCE;
 
-	pr_err("%s3 cmd=%pS\n", __func__, cmd);
+	//pr_err("%s3 cmd=%pS\n", __func__, cmd);
 	/*
 	 * Next, walk the list, and fill in the addresses and sizes of
 	 * each segment.
 	 */
 	count = __blk_rq_map_sg(rq->q, rq, cmd->sdb.table.sgl, &last_sg);
 
-	pr_err("%s4 cmd=%pS\n", __func__, cmd);
+	//pr_err("%s4 cmd=%pS\n", __func__, cmd);
 	if (blk_rq_bytes(rq) & rq->q->dma_pad_mask) {
 		unsigned int pad_len =
 			(rq->q->dma_pad_mask & ~blk_rq_bytes(rq)) + 1;
@@ -1070,7 +1091,7 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 		cmd->extra_len += pad_len;
 	}
 
-	pr_err("%s5 cmd=%pS\n", __func__, cmd);
+	//pr_err("%s5 cmd=%pS\n", __func__, cmd);
 	if (need_drain) {
 		sg_unmark_end(last_sg);
 		last_sg = sg_next(last_sg);
@@ -1085,7 +1106,7 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 	cmd->sdb.table.nents = count;
 	cmd->sdb.length = blk_rq_payload_bytes(rq);
 
-	pr_err("%s6 cmd=%pS\n", __func__, cmd);
+	//pr_err("%s6 cmd=%pS\n", __func__, cmd);
 	if (blk_integrity_rq(rq)) {
 		struct scsi_data_buffer *prot_sdb = cmd->prot_sdb;
 		int ivecs;
@@ -1118,10 +1139,11 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 		cmd->prot_sdb->table.nents = count;
 	}
 
-	pr_err("%s10 out cmd=%pS\n", __func__, cmd);
+	//pr_err("%s10 out cmd=%pS\n", __func__, cmd);
 	return BLK_STS_OK;
 out_free_sgtables:
 	scsi_free_sgtables(cmd);
+	pr_err("%s out_free_sgtables cmd=%pS error rq=%pS\n", __func__, cmd, rq);
 	return ret;
 }
 EXPORT_SYMBOL(scsi_alloc_sgtables);
@@ -1210,7 +1232,7 @@ static blk_status_t scsi_setup_scsi_cmnd(struct scsi_device *sdev,
 	 */
 	if (req->bio) {
 		blk_status_t ret;
-		pr_err("%s2 sdev=%pS req=%pS calling scsi_alloc_sgtables\n", __func__, sdev, req);
+		//pr_err("%s2 sdev=%pS req=%pS calling scsi_alloc_sgtables\n", __func__, sdev, req);
 		ret = scsi_alloc_sgtables(cmd);
 		if (unlikely(ret != BLK_STS_OK))
 			return ret;
@@ -1456,15 +1478,13 @@ static void scsi_complete(struct request *rq)
 {
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 	enum scsi_disposition disposition;
-	bool internal1, internal2;
+	bool internal;
 	struct request *req = scsi_cmd_to_rq(cmd);
 
-	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
-		internal1 = true;
-	if (cmd->cmnd[0] == ATA_INTERNAL)
-		internal2 = true;
-	pr_err("%s cmd=%pS internal1=%d internal2=%d\n", __func__, cmd, internal1, internal2);
-	if (internal1 && internal2) {
+	
+	internal = scsi_is_internal_command(cmd);
+	pr_err("%s cmd=%pS internal=%d rq=%pS\n", __func__, cmd, internal, rq);
+	if (internal) {
 		blk_mq_end_request(req, 0);
 		return;
 	}
@@ -1475,14 +1495,14 @@ static void scsi_complete(struct request *rq)
 	if (cmd->result)
 		atomic_inc(&cmd->device->ioerr_cnt);
 
-	pr_err("%s2 rq=%pS cmd=%pS\n", __func__, rq, cmd);
+	pr_err("%s2 rq=%pS cmd=%pS rq=%pS\n", __func__, rq, cmd, rq);
 	disposition = scsi_decide_disposition(cmd);
 	if (disposition != SUCCESS && scsi_cmd_runtime_exceeced(cmd))
 		disposition = SUCCESS;
 
 	scsi_log_completion(cmd, disposition);
 
-	pr_err("%s3 rq=%pS cmd=%pS disposition=%d SUCCESS=%d\n", __func__, rq, cmd, disposition, SUCCESS);
+	pr_err("%s3 rq=%pS cmd=%pS disposition=%d SUCCESS=%d rq=%pS\n", __func__, rq, cmd, disposition, SUCCESS, rq);
 	switch (disposition) {
 	case SUCCESS:
 		scsi_finish_command(cmd);
@@ -1596,18 +1616,18 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 	struct scatterlist *sg;
 
 	if (!req)
-		pr_err("%s req=NULL\n", __func__);
+		pr_err("%s req=NULL error\n", __func__);
 	cmd = blk_mq_rq_to_pdu(req);
 	if (!req->q)
-		pr_err("%s req->q=NULL\n", __func__);
+		pr_err("%s req->q=NULL error\n", __func__);
 	if (!req->q->queuedata)
-		pr_err("%s rreq->q->queuedata=NULL\n", __func__);
+		pr_err("%s rreq->q->queuedata=NULL error\n", __func__);
 	sdev = req->q->queuedata;
 	if (!sdev)
-		pr_err("%s sdev=NULL\n", __func__);
+		pr_err("%s sdev=NULL error\n", __func__);
 	shost = sdev->host;
 	if (!cmd)
-		pr_err("%s cmd=NULL\n", __func__);
+		pr_err("%s cmd=NULL error\n", __func__);
 	in_flight = test_bit(SCMD_STATE_INFLIGHT, &cmd->state);
 
 
@@ -1672,7 +1692,7 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 static void scsi_done_internal(struct scsi_cmnd *cmd, bool complete_directly)
 {
 	struct request *req = scsi_cmd_to_rq(cmd);
-	pr_err("%s cmd=%pS complete_directly=%d cmd->submitter=%d\n", __func__, cmd, complete_directly, cmd->submitter);
+	pr_err("%s cmd=%pS complete_directly=%d cmd->submitter=%d req=%pS\n", __func__, cmd, complete_directly, cmd->submitter, req);
 	switch (cmd->submitter) {
 	case SUBMITTED_BY_BLOCK_LAYER:
 		break;
@@ -1684,11 +1704,11 @@ static void scsi_done_internal(struct scsi_cmnd *cmd, bool complete_directly)
 		return;
 	}
 
-	pr_err("%s2 cmd=%pS\n", __func__, cmd);
+	pr_err("%s2 cmd=%pS req=%pS\n", __func__, cmd, req);
 	if (unlikely(blk_should_fake_timeout(scsi_cmd_to_rq(cmd)->q)))
 		return;
 
-	pr_err("%s3 cmd=%pS\n", __func__, cmd);
+	pr_err("%s3 cmd=%pS req=%pS\n", __func__, cmd, req);
 	if (unlikely(test_and_set_bit(SCMD_STATE_COMPLETE, &cmd->state)))
 		return;
 	pr_err("%s4 cmd=%pS req=%pS\n", __func__, cmd, req);
@@ -1774,42 +1794,37 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct scsi_cmnd *cmd;
 	blk_status_t ret;
 	int reason;
-	bool internal1 = false;
-	bool internal2 = false;
 	bool internal;
 
 	req = bd->rq;
 	if (!req)
-		pr_err("%s req=NULL\n", __func__);
+		pr_err("%s req=NULL error\n", __func__);
 	q = req->q;
 	if (!q)
-		pr_err("%s q=NULL\n", __func__);
+		pr_err("%s q=NULL error\n", __func__);
 	sdev = q->queuedata;
 	if (!sdev)
-		pr_err("%s sdev=NULL\n", __func__);
+		pr_err("%s sdev=NULL error\n", __func__);
 	shost = sdev->host;
 	if (!shost)
-		pr_err("%s shost=NULL\n", __func__);
+		pr_err("%s shost=NULL error\n", __func__);
 	cmd = blk_mq_rq_to_pdu(req);
 	if (!cmd)
-		pr_err("%s cmd=NULL\n", __func__);
+		pr_err("%s cmd=NULL error\n", __func__);
 
 	WARN_ON_ONCE(cmd->budget_token < 0);
 
-	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
-		internal1 = true;
-	if (cmd->cmnd[0] == ATA_INTERNAL)
-		internal2 = true;
-	internal = internal1 || internal2;
+
+	internal = scsi_is_internal_command(cmd);
 	if (internal) {
-		pr_err("%s2 req=%pS internal1=%d internal2=%d cmnd[0]=0x%x RQF_DONTPREP=%d hostt=%pS\n",
-			__func__, req, internal1, internal2, cmd->cmnd[0], !!(req->rq_flags & RQF_DONTPREP), shost->hostt);
+		pr_err("%s req=%pS internal=%d cmnd[0]=0x%x RQF_DONTPREP=%d hostt=%pS\n",
+			__func__, req, internal, cmd->cmnd[0], !!(req->rq_flags & RQF_DONTPREP), shost->hostt);
 
 		if (!(req->rq_flags & RQF_DONTPREP)) {
 			ret = scsi_prepare_cmd(req);
 			if (ret != BLK_STS_OK) {
 
-				pr_err("%s2.1 req=%pS internal out_dec_host_busy\n", __func__, req);
+				pr_err("%s2.1 req=%pS internal out_dec_host_busy error\n", __func__, req);
 				BUG();
 
 				goto out_dec_host_busy;
@@ -1824,12 +1839,12 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		if (internal)
 				pr_err("%s2.3 req=%pS internal\n", __func__, req);
 		blk_mq_start_request(req);
-		if (internal)
-				pr_err("%s2.4 req=%pS internal shost=%pS\n", __func__, req, shost);
-		if (internal)
-				pr_err("%s2.4.1 req=%pS internal hostt=%pS\n", __func__, req, shost->hostt);
-		if (internal)
-				pr_err("%s2.4.2 req=%pS internal internal_queuecommand=%pS\n", __func__, req, shost->hostt->internal_queuecommand);
+		if (!shost)
+				pr_err("%s2.4 req=%pS internal shost=%pS error\n", __func__, req, shost);
+		if (!shost->hostt)
+				pr_err("%s2.4.1 req=%pS internal hostt=%pS error\n", __func__, req, shost->hostt);
+		if (!shost->hostt->internal_queuecommand)
+				pr_err("%s2.4.2 req=%pS internal internal_queuecommand=%pS error\n", __func__, req, shost->hostt->internal_queuecommand);
 		ret = shost->hostt->internal_queuecommand(shost, cmd);
 		if (internal)
 				pr_err("%s2.5 req=%pS internal ret=%d\n", __func__, req, ret);

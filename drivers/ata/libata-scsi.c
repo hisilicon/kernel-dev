@@ -1096,11 +1096,11 @@ int ahci_internal_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	int res;
 	pr_err("%s shost=%pS scmd=%pS\n", __func__, shost, scmd);
 	ap = ata_shost_to_port(shost);
-	pr_err_once("%s2 shost=%pS scmd=%pS ap=%pS\n", __func__, shost, scmd, ap);
+	pr_err("%s2 shost=%pS scmd=%pS ap=%pS\n", __func__, shost, scmd, ap);
 	spin_lock_irq(ap->lock);
 	res = ata_sas_queuecmd(scmd, ap);
 	spin_unlock_irq(ap->lock);
-	pr_err_once("%s3 shost=%pS scmd=%pS ap=%pS res=%d\n", __func__, shost, scmd, ap, res);
+	pr_err("%s3 shost=%pS scmd=%pS ap=%pS res=%d\n", __func__, shost, scmd, ap, res);
 
 	return res;
 }

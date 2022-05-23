@@ -1145,7 +1145,7 @@ void blk_mq_start_request(struct request *rq)
 		rq_qos_issue(q, rq);
 	}
 
-	WARN_ON_ONCE(blk_mq_rq_state(rq) != MQ_RQ_IDLE);
+	WARN_ONCE(blk_mq_rq_state(rq) != MQ_RQ_IDLE, "%s rq=%pS blk_mq_rq_state=%d\n", __func__, rq, blk_mq_rq_state(rq));
 
 	blk_add_timer(rq);
 	WRITE_ONCE(rq->state, MQ_RQ_IN_FLIGHT);

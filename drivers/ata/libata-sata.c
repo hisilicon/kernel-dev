@@ -660,10 +660,17 @@ int ata_qc_complete_multiple(struct ata_port *ap, u64 qc_active)
 	while (done_mask) {
 		struct ata_queued_cmd *qc;
 		unsigned int tag = __ffs64(done_mask);
+		struct scsi_cmnd *scmd = NULL;
+		struct request *rq = NULL;
 
 		pr_err("%s3 ap=%pS tag=%d\n", __func__, ap, tag);
 		qc = ata_qc_from_tag(ap, tag);
-		pr_err("%s4 ap=%pS tag=%d qc=%pS\n", __func__, ap, tag, qc);
+		if (qc) {
+			scmd = qc->scsicmd;
+			if (scmd)
+				rq = scsi_cmd_to_rq(scmd);
+		}
+		pr_err("%s4 ap=%pS tag=%d qc=%pS scmd=%pS rq=%pS\n", __func__, ap, tag, qc, scmd, rq);
 		if (qc) {
 			ata_qc_complete(qc);
 			nr_done++;
@@ -1262,10 +1269,12 @@ EXPORT_SYMBOL_GPL(ata_sas_slave_configure);
 int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap)
 {
 	int rc = 0;
-
-	if (likely(ata_dev_enabled(ap->link.device)))
+	pr_err("%s ap->link.device=%pS ata_dev_enabled=%d\n", __func__, ap->link.device, ata_dev_enabled(ap->link.device));
+	//if (likely(ata_dev_enabled(ap->link.device)))
+	if (1) {
 		rc = __ata_scsi_queuecmd(cmd, ap->link.device);
-	else {
+	} else {
+		panic("not enabled\n");
 		cmd->result = (DID_BAD_TARGET << 16);
 		scsi_done(cmd);
 	}

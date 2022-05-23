@@ -507,7 +507,7 @@ enum sw_activity {
 };
 
 struct ata_taskfile {
-	unsigned int		flags;		/* ATA_TFLAG_xxx */
+	unsigned long		flags;		/* ATA_TFLAG_xxx */
 	u8			protocol;	/* ATA_PROT_xxx */
 
 	u8			ctl;		/* control reg */
@@ -1598,6 +1598,7 @@ static inline bool ata_tag_valid(unsigned int tag)
  */
 static inline unsigned int ata_class_enabled(unsigned int class)
 {
+	//pr_err("%s class=%d\n", __func__, class);
 	return class == ATA_DEV_ATA || class == ATA_DEV_ATAPI ||
 		class == ATA_DEV_PMP || class == ATA_DEV_SEMB ||
 		class == ATA_DEV_ZAC;
