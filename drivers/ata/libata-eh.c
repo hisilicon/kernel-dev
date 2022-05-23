@@ -1387,6 +1387,7 @@ unsigned int atapi_eh_tur(struct ata_device *dev, u8 *r_sense_key)
 	tf.command = ATA_CMD_PACKET;
 	tf.protocol = ATAPI_PROT_NODATA;
 
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, cdb, DMA_NONE, NULL, 0, 0);
 	if (err_mask == AC_ERR_DEV)
 		*r_sense_key = tf.error >> 4;
@@ -1430,6 +1431,7 @@ static void ata_eh_request_sense(struct ata_queued_cmd *qc,
 	tf.command = ATA_CMD_REQ_SENSE_DATA;
 	tf.protocol = ATA_PROT_NODATA;
 
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	/* Ignore err_mask; ATA_ERR might be set */
 	if (tf.status & ATA_SENSE) {
@@ -1488,6 +1490,7 @@ unsigned int atapi_eh_request_sense(struct ata_device *dev,
 		tf.lbah = 0;
 	}
 
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	return ata_exec_internal(dev, &tf, cdb, DMA_FROM_DEVICE,
 				 sense_buf, SCSI_SENSE_BUFFERSIZE, 0);
 }
@@ -2911,6 +2914,7 @@ static void ata_eh_park_issue_cmd(struct ata_device *dev, int park)
 
 	tf.flags |= ATA_TFLAG_DEVICE | ATA_TFLAG_ISADDR;
 	tf.protocol = ATA_PROT_NODATA;
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	if (park && (err_mask || tf.lbal != 0xc4)) {
 		ata_dev_err(dev, "head unload failed!\n");
@@ -3193,6 +3197,7 @@ static int ata_eh_maybe_retry_flush(struct ata_device *dev)
 	ata_dev_warn(dev, "retrying FLUSH 0x%x Emask 0x%x\n",
 		       tf.command, qc->err_mask);
 
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	if (!err_mask) {
 		/*

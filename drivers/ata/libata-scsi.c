@@ -1094,7 +1094,7 @@ int ahci_internal_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 {
 	struct ata_port *ap;
 	int res;
-	pr_err_once("%s shost=%pS scmd=%pS\n", __func__, shost, scmd);
+	pr_err("%s shost=%pS scmd=%pS\n", __func__, shost, scmd);
 	ap = ata_shost_to_port(shost);
 	pr_err_once("%s2 shost=%pS scmd=%pS ap=%pS\n", __func__, shost, scmd, ap);
 	spin_lock_irq(ap->lock);

@@ -1201,7 +1201,7 @@ static blk_status_t scsi_setup_scsi_cmnd(struct scsi_device *sdev,
 		struct request *req)
 {
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
-
+	pr_err("%s sdev=%pS req=%pS\n", __func__, sdev, req);
 	/*
 	 * Passthrough requests may transfer data, in which case they must
 	 * a bio attached to them.  Or they might contain a SCSI command
@@ -1209,7 +1209,9 @@ static blk_status_t scsi_setup_scsi_cmnd(struct scsi_device *sdev,
 	 * submit a request without an attached bio.
 	 */
 	if (req->bio) {
-		blk_status_t ret = scsi_alloc_sgtables(cmd);
+		blk_status_t ret;
+		pr_err("%s2 sdev=%pS req=%pS calling scsi_alloc_sgtables\n", __func__, sdev, req);
+		ret = scsi_alloc_sgtables(cmd);
 		if (unlikely(ret != BLK_STS_OK))
 			return ret;
 	} else {
@@ -1587,11 +1589,27 @@ static unsigned int scsi_mq_inline_sgl_size(struct Scsi_Host *shost)
 
 static blk_status_t scsi_prepare_cmd(struct request *req)
 {
-	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
-	struct scsi_device *sdev = req->q->queuedata;
-	struct Scsi_Host *shost = sdev->host;
-	bool in_flight = test_bit(SCMD_STATE_INFLIGHT, &cmd->state);
+	struct scsi_cmnd *cmd;
+	struct scsi_device *sdev;
+	struct Scsi_Host *shost;
+	bool in_flight;
 	struct scatterlist *sg;
+
+	if (!req)
+		pr_err("%s req=NULL\n", __func__);
+	cmd = blk_mq_rq_to_pdu(req);
+	if (!req->q)
+		pr_err("%s req->q=NULL\n", __func__);
+	if (!req->q->queuedata)
+		pr_err("%s rreq->q->queuedata=NULL\n", __func__);
+	sdev = req->q->queuedata;
+	if (!sdev)
+		pr_err("%s sdev=NULL\n", __func__);
+	shost = sdev->host;
+	if (!cmd)
+		pr_err("%s cmd=NULL\n", __func__);
+	in_flight = test_bit(SCMD_STATE_INFLIGHT, &cmd->state);
+
 
 	scsi_init_command(sdev, cmd);
 
@@ -1749,24 +1767,42 @@ static int scsi_mq_get_rq_budget_token(struct request *req)
 static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
-	struct request *req = bd->rq;
-	struct request_queue *q = req->q;
-	struct scsi_device *sdev = q->queuedata;
-	struct Scsi_Host *shost = sdev->host;
-	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
+	struct request *req;
+	struct request_queue *q;
+	struct scsi_device *sdev;
+	struct Scsi_Host *shost;
+	struct scsi_cmnd *cmd;
 	blk_status_t ret;
 	int reason;
 	bool internal1 = false;
 	bool internal2 = false;
+	bool internal;
+
+	req = bd->rq;
+	if (!req)
+		pr_err("%s req=NULL\n", __func__);
+	q = req->q;
+	if (!q)
+		pr_err("%s q=NULL\n", __func__);
+	sdev = q->queuedata;
+	if (!sdev)
+		pr_err("%s sdev=NULL\n", __func__);
+	shost = sdev->host;
+	if (!shost)
+		pr_err("%s shost=NULL\n", __func__);
+	cmd = blk_mq_rq_to_pdu(req);
+	if (!cmd)
+		pr_err("%s cmd=NULL\n", __func__);
+
 	WARN_ON_ONCE(cmd->budget_token < 0);
 
 	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
 		internal1 = true;
 	if (cmd->cmnd[0] == ATA_INTERNAL)
 		internal2 = true;
-
-	if (internal1 || internal2) {
-		pr_err_once("%s2 req=%pS internal1=%d internal2=%d cmnd[0]=0x%x RQF_DONTPREP=%d hostt=%pS\n",
+	internal = internal1 || internal2;
+	if (internal) {
+		pr_err("%s2 req=%pS internal1=%d internal2=%d cmnd[0]=0x%x RQF_DONTPREP=%d hostt=%pS\n",
 			__func__, req, internal1, internal2, cmd->cmnd[0], !!(req->rq_flags & RQF_DONTPREP), shost->hostt);
 
 		if (!(req->rq_flags & RQF_DONTPREP)) {
@@ -1778,13 +1814,25 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 				goto out_dec_host_busy;
 			}
+			if (internal)
+				pr_err("%s2.2 req=%pS internal\n", __func__, req);
 			req->rq_flags |= RQF_DONTPREP;
 		} else {
 			clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
 		}
 
+		if (internal)
+				pr_err("%s2.3 req=%pS internal\n", __func__, req);
 		blk_mq_start_request(req);
+		if (internal)
+				pr_err("%s2.4 req=%pS internal shost=%pS\n", __func__, req, shost);
+		if (internal)
+				pr_err("%s2.4.1 req=%pS internal hostt=%pS\n", __func__, req, shost->hostt);
+		if (internal)
+				pr_err("%s2.4.2 req=%pS internal internal_queuecommand=%pS\n", __func__, req, shost->hostt->internal_queuecommand);
 		ret = shost->hostt->internal_queuecommand(shost, cmd);
+		if (internal)
+				pr_err("%s2.5 req=%pS internal ret=%d\n", __func__, req, ret);
 		if (ret)
 			BUG();
 	}

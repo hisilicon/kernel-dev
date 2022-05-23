@@ -1547,22 +1547,22 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 			panic("ata internal fixme\n");
 	}
 
-	blk_sts = scsi_alloc_sgtables(scmd);
+	//blk_sts = scsi_alloc_sgtables(scmd);
 
 	pr_err("%s1.5 sdev=%pS ap=%pS req=%pS internal_ptr=%pS scsi_sglist(scmd)=%pS blk_sts=%d\n",
 	 __func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd), blk_sts);
 
-	print_hex_dump(KERN_INFO, "ata_exec_internal_sg internal_ptr ",
+	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf before ",
 				  DUMP_PREFIX_NONE, 16, 1,
-				  internal_ptr, sizeof(*internal_ptr), 1);
+				  tf, sizeof(*tf), 1);
 
 	if (dma_dir != DMA_NONE) {
 		//struct scsi_data_buffer *sdb = &scmd->sdb;
 		//struct scsi_data_buffer *table = &sdb->table;
-		scsi_sglist(scmd);
+	//	scsi_sglist(scmd);
 
-		WARN_ON(!buf);
-		sg_init_one(scsi_sglist(scmd), buf, buflen);
+	//	WARN_ON(!buf);
+	//	sg_init_one(scsi_sglist(scmd), buf, buflen);
 	}
 
 	pr_err("%s1.6 sdev=%pS ap=%pS req=%pS qc=%pS=\n",
@@ -1774,6 +1774,7 @@ static u32 ata_pio_mask_no_iordy(const struct ata_device *adev)
 unsigned int ata_do_dev_read_id(struct ata_device *dev,
 				struct ata_taskfile *tf, __le16 *id)
 {
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	return ata_exec_internal(dev, tf, NULL, DMA_FROM_DEVICE,
 				     id, sizeof(id[0]) * ATA_ID_WORDS, 0);
 }
@@ -2037,6 +2038,7 @@ retry:
 	tf.hob_nsect = sectors >> 8;
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_LBA48 | ATA_TFLAG_DEVICE;
 
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
 				     buf, sectors * ATA_SECT_SIZE, 0);
 
@@ -4356,6 +4358,7 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
 		return 0;
 
 	/* On some disks, this command causes spin-up, so we need longer timeout */
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 15000);
 
 	return err_mask;
@@ -4395,6 +4398,7 @@ unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable, u8 feature)
 	if (enable == SETFEATURES_SPINUP)
 		timeout = ata_probe_timeout ?
 			  ata_probe_timeout * 1000 : SETFEATURES_SPINUP_TIMEOUT;
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, timeout);
 
 	return err_mask;
@@ -4433,6 +4437,7 @@ static unsigned int ata_dev_init_params(struct ata_device *dev,
 	tf.nsect = sectors;
 	tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
 
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	/* A clean abort indicates an original or just out of spec drive
 	   and we should continue as we issue the setup based on the
@@ -4575,7 +4580,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	unsigned int n_elem;
-
+	pr_err("%s qc=%pS\n", __func__, qc);
 	n_elem = dma_map_sg(ap->dev, qc->sg, qc->n_elem, qc->dma_dir);
 	if (n_elem < 1)
 		return -1;

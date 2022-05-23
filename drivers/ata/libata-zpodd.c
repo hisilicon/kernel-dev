@@ -46,6 +46,7 @@ static int eject_tray(struct ata_device *dev)
 	tf.command = ATA_CMD_PACKET;
 	tf.protocol = ATAPI_PROT_NODATA;
 
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	return ata_exec_internal(dev, &tf, cdb, DMA_NONE, NULL, 0, 0);
 }
 
@@ -75,6 +76,7 @@ static enum odd_mech_type zpodd_get_mech_type(struct ata_device *dev)
 	tf.protocol = ATAPI_PROT_PIO;
 	tf.lbam = 16;
 
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	ret = ata_exec_internal(dev, &tf, cdb, DMA_FROM_DEVICE,
 				buf, 16, 0);
 	if (ret) {

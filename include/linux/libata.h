@@ -507,7 +507,7 @@ enum sw_activity {
 };
 
 struct ata_taskfile {
-	unsigned long		flags;		/* ATA_TFLAG_xxx */
+	unsigned int		flags;		/* ATA_TFLAG_xxx */
 	u8			protocol;	/* ATA_PROT_xxx */
 
 	u8			ctl;		/* control reg */
@@ -1400,7 +1400,8 @@ extern const struct attribute_group *ata_common_sdev_groups[];
 	.proc_name		= drv_name,			\
 	.slave_destroy		= ata_scsi_slave_destroy,	\
 	.bios_param		= ata_std_bios_param,		\
-	.unlock_native_capacity	= ata_scsi_unlock_native_capacity
+	.unlock_native_capacity	= ata_scsi_unlock_native_capacity,\
+	.internal_queuecommand = ahci_internal_queuecommand
 
 #define ATA_SUBBASE_SHT(drv_name)				\
 	__ATA_BASE_SHT(drv_name),				\
