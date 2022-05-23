@@ -1096,13 +1096,13 @@ int ahci_internal_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 {
 	struct ata_port *ap;
 	int res;
-	pr_err("%s shost=%pS scmd=%pS\n", __func__, shost, scmd);
+	//pr_err("%s shost=%pS scmd=%pS\n", __func__, shost, scmd);
 	ap = ata_shost_to_port(shost);
-	pr_err("%s2 shost=%pS scmd=%pS ap=%pS\n", __func__, shost, scmd, ap);
+	//pr_err("%s2 shost=%pS scmd=%pS ap=%pS\n", __func__, shost, scmd, ap);
 	spin_lock_irq(ap->lock);
 	res = ata_sas_queuecmd(scmd, ap);
 	spin_unlock_irq(ap->lock);
-	pr_err("%s3 shost=%pS scmd=%pS ap=%pS res=%d\n", __func__, shost, scmd, ap, res);
+	//pr_err("%s3 shost=%pS scmd=%pS ap=%pS res=%d\n", __func__, shost, scmd, ap, res);
 
 	return res;
 }
@@ -3969,7 +3969,7 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	enum dma_data_direction dma_dir = scmd->sc_data_direction;
 
 
-	pr_err("%s scmd=%pS dev=%pS ap=%pS\n", __func__, scmd, dev, ap);
+	pr_err_once("%s scmd=%pS dev=%pS ap=%pS req=%pS\n", __func__, scmd, dev, ap, req);
 
 	/* no internal command while frozen */
 	if (ap->pflags & ATA_PFLAG_FROZEN)
@@ -3979,11 +3979,11 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 	internal_ptr = scsi_cmd_priv(scmd);
 	tf = &internal_ptr->tf;
-	pr_err("%s2 scmd=%pS dev=%pS ap=%pS qc=%pS blk_rq_bytes=%d internal_ptr=%pS\n",
-	 __func__, scmd, dev, ap, qc, blk_rq_bytes(req), internal_ptr);
-	print_hex_dump(KERN_INFO, "ata_scsi_internal  internal_ptr ",
-				  DUMP_PREFIX_NONE, 16, 1,
-				  internal_ptr, sizeof(*internal_ptr), 1);
+	//pr_err("%s2 scmd=%pS dev=%pS ap=%pS qc=%pS blk_rq_bytes=%d internal_ptr=%pS\n",
+	// __func__, scmd, dev, ap, qc, blk_rq_bytes(req), internal_ptr);
+	//print_hex_dump(KERN_INFO, "ata_scsi_internal  internal_ptr ",
+	//			  DUMP_PREFIX_NONE, 16, 1,
+	//			  internal_ptr, sizeof(*internal_ptr), 1);
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
 	qc->scsicmd = scmd;
@@ -4035,18 +4035,18 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 		qc->n_elem = n_elem;
 		qc->sg = scsi_sglist(scmd);
 		qc->nbytes = qc->sg->length;
-		pr_err("%s4.1 2 scmd=%pS qc->nbytes=%d\n", __func__, scmd, qc->nbytes);
+		//pr_err("%s4.1 2 scmd=%pS qc->nbytes=%d\n", __func__, scmd, qc->nbytes);
 #endif
 	}
 
 	//qc->private_data = &wait;
 	qc->complete_fn = ata_qc_complete_internal;
-	pr_err("%s5 scmd=%pS\n", __func__, scmd);
+	//pr_err("%s5 scmd=%pS\n", __func__, scmd);
 	ata_qc_issue(qc);
 
 
 
-	pr_err("%s10 out scmd=%pS\n", __func__, scmd);
+	//pr_err("%s10 out scmd=%pS\n", __func__, scmd);
 
 	return 0;
 did_err:
@@ -4061,8 +4061,8 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 	u8 scsi_op = scmd->cmnd[0];
 	ata_xlat_func_t xlat_func;
 	static int count_internal;
-	if (scsi_op == ATA_INTERNAL)
-		pr_err("%s scmd=%pS dev=%pS ATA_INTERNAL rq=%pS\n", __func__, scmd, dev, scsi_cmd_to_rq(scmd));
+	//if (scsi_op == ATA_INTERNAL)
+	//	pr_err("%s scmd=%pS dev=%pS ATA_INTERNAL rq=%pS\n", __func__, scmd, dev, scsi_cmd_to_rq(scmd));
 	if (unlikely(!scmd->cmd_len))
 		goto bad_cdb_len;
 
@@ -4070,7 +4070,7 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 		count_internal++;
 		if (count_internal > 1000)
 			panic("%s so many! scmd=%pS rq=%pS\n", __func__, scmd, scsi_cmd_to_rq(scmd));
-		pr_err("%s0 scmd=%pS dev=%pS ATA_INTERNAL\n", __func__, scmd, dev);
+	//	pr_err("%s0 scmd=%pS dev=%pS ATA_INTERNAL\n", __func__, scmd, dev);
 		return ata_scsi_internal(scmd, dev);
 	} else if (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ZAC) {
 		if (scsi_op == ATA_INTERNAL)

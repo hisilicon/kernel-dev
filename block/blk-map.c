@@ -629,20 +629,24 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	unsigned long addr = (unsigned long) kbuf;
 	struct bio *bio;
 	int ret;
-	pr_err("%s q=%pS rq=%pS kbuf=%pS len=%d\n", __func__, q, rq, kbuf, len);
-	if (len > (queue_max_hw_sectors(q) << 9))
+	//pr_err("%s q=%pS rq=%pS kbuf=%pS len=%d\n", __func__, q, rq, kbuf, len);
+	if (len > (queue_max_hw_sectors(q) << 9)) {
+		pr_err("%s q=%pS rq=%pS kbuf=%pS len=%d error1\n", __func__, q, rq, kbuf, len);
 		return -EINVAL;
-	if (!len || !kbuf)
+	}
+	if (!len || !kbuf) {
+		pr_err("%s q=%pS rq=%pS kbuf=%pS len=%d error2\n", __func__, q, rq, kbuf, len);
 		return -EINVAL;
+	}
 
 	if (!blk_rq_aligned(q, addr, len) || object_is_on_stack(kbuf) ||
 	    blk_queue_may_bounce(q)) {
 
-		pr_err("%s2 q=%pS rq=%pS kbuf=%pS len=%d reading=%d rq_data_dir(rq)=%d READ=%d\n", 
-			__func__, q, rq, kbuf, len, reading, rq_data_dir(rq), READ);
+	//	pr_err("%s2 q=%pS rq=%pS kbuf=%pS len=%d reading=%d rq_data_dir(rq)=%d READ=%d\n", 
+	//		__func__, q, rq, kbuf, len, reading, rq_data_dir(rq), READ);
 		bio = bio_copy_kern(q, kbuf, len, gfp_mask, reading);
 	} else {
-		pr_err("%s3 q=%pS rq=%pS kbuf=%pS len=%d\n", __func__, q, rq, kbuf, len);
+		//pr_err("%s3 q=%pS rq=%pS kbuf=%pS len=%d\n", __func__, q, rq, kbuf, len);
 		bio = bio_map_kern(q, kbuf, len, gfp_mask);
 	}
 
@@ -655,6 +659,8 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	ret = blk_rq_append_bio(rq, bio);
 	if (unlikely(ret))
 		bio_put(bio);
+	if (ret)
+		pr_err("%s10 q=%pS rq=%pS kbuf=%pS len=%d error10 ret=%d\n", __func__, q, rq, kbuf, len, ret);
 	return ret;
 }
 EXPORT_SYMBOL(blk_rq_map_kern);

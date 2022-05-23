@@ -609,7 +609,7 @@ static void __blk_mq_free_request(struct request *rq)
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 	const int sched_tag = rq->internal_tag;
-	pr_err("%s rq=%pS\n", __func__, rq);
+	//pr_err("%s rq=%pS\n", __func__, rq);
 	blk_crypto_free_request(rq);
 	blk_pm_mark_last_busy(rq);
 	rq->mq_hctx = NULL;
@@ -625,7 +625,7 @@ void blk_mq_free_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
-	pr_err("%s rq=%pS rq->end_io=%pS\n", __func__, rq, rq->end_io);
+	//pr_err("%s rq=%pS rq->end_io=%pS\n", __func__, rq, rq->end_io);
 	if ((rq->rq_flags & RQF_ELVPRIV) &&
 	    q->elevator->type->ops.finish_request)
 		q->elevator->type->ops.finish_request(rq);
@@ -639,9 +639,9 @@ void blk_mq_free_request(struct request *rq)
 	rq_qos_done(q, rq);
 
 	WRITE_ONCE(rq->state, MQ_RQ_IDLE);
-	pr_err("%s2 rq=%pS rq->end_io=%pS MQ_RQ_IDLE\n", __func__, rq, rq->end_io);
+//	pr_err("%s2 rq=%pS rq->end_io=%pS MQ_RQ_IDLE\n", __func__, rq, rq->end_io);
 	if (req_ref_put_and_test(rq)){
-		pr_err("%s3 rq=%pS rq->end_io=%pS calling __blk_mq_free_request\n", __func__, rq, rq->end_io);
+		//pr_err("%s3 rq=%pS rq->end_io=%pS calling __blk_mq_free_request\n", __func__, rq, rq->end_io);
 		__blk_mq_free_request(rq);
 	}
 }
@@ -1122,11 +1122,11 @@ EXPORT_SYMBOL_GPL(blk_mq_complete_request_remote);
 void blk_mq_complete_request(struct request *rq)
 {
 	bool remote;
-	pr_err("%s req=%pS\n", __func__, rq);
+	//pr_err("%s req=%pS\n", __func__, rq);
 	remote = blk_mq_complete_request_remote(rq);
-	pr_err("%s1 req=%pS remote=%d\n", __func__, rq, remote);
+	//pr_err("%s1 req=%pS remote=%d\n", __func__, rq, remote);
 	if (!remote) {
-		pr_err("%s2 req=%pS rq->q->mq_ops->complete=%pS\n", __func__, rq, rq->q->mq_ops->complete);
+		//pr_err("%s2 req=%pS rq->q->mq_ops->complete=%pS\n", __func__, rq, rq->q->mq_ops->complete);
 		rq->q->mq_ops->complete(rq);
 	}
 }
@@ -1175,7 +1175,7 @@ EXPORT_SYMBOL(blk_mq_start_request);
 static void blk_end_sync_rq(struct request *rq, blk_status_t error)
 {
 	struct completion *waiting = rq->end_io_data;
-	pr_err("%s rq=%pS waiting=%pS\n", __func__, rq, waiting);
+	//pr_err("%s rq=%pS waiting=%pS\n", __func__, rq, waiting);
 
 	rq->end_io_data = (void *)(uintptr_t)error;
 
@@ -1251,7 +1251,7 @@ blk_status_t blk_execute_rq(struct request *rq, bool at_head)
 	unsigned long hang_check;
 
 	rq->end_io_data = &wait;
-	pr_err("%s rq=%pS end_io_data=wait=%pS\n", __func__, rq, rq->end_io_data);
+	//pr_err("%s rq=%pS end_io_data=wait=%pS\n", __func__, rq, rq->end_io_data);
 	blk_execute_rq_nowait(rq, at_head, blk_end_sync_rq);
 
 	/* Prevent hang_check timer from firing at us during very long I/O */
@@ -1265,7 +1265,7 @@ blk_status_t blk_execute_rq(struct request *rq, bool at_head)
 			;
 	else
 		wait_for_completion_io(&wait);
-	pr_err("%s got completion rq=%pS\n", __func__, rq);
+	//pr_err("%s got completion rq=%pS\n", __func__, rq);
 
 	return (blk_status_t)(uintptr_t)rq->end_io_data;
 }
@@ -1879,7 +1879,8 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
 		if (nr_budgets)
 			nr_budgets--;
 		ret = q->mq_ops->queue_rq(hctx, &bd);
-		pr_err("%s queue_rq=%d rq=%pS\n", __func__, ret, bd.rq);
+		if (ret)
+			pr_err("%s queue_rq=%d rq=%pS ret=%d\n", __func__, ret, bd.rq, ret);
 		switch (ret) {
 		case BLK_STS_OK:
 			queued++;

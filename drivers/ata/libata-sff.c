@@ -1119,10 +1119,11 @@ fsm_start:
 					 * device.  Mark hint.
 					 */
 					if (qc->dev->horkage &
-					    ATA_HORKAGE_DIAGNOSTIC)
-					pr_err("%s error AC_ERR_NODEV_HINT\n", __func__);
+					    ATA_HORKAGE_DIAGNOSTIC) {
+						pr_err("%s error AC_ERR_NODEV_HINT\n", __func__);
 						qc->err_mask |=
 							AC_ERR_NODEV_HINT;
+					}
 				} else {
 					/* HSM violation. Let EH handle this.
 					 * Phantom devices also trigger this

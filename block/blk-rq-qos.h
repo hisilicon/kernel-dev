@@ -155,14 +155,14 @@ void __rq_qos_queue_depth_changed(struct rq_qos *rqos);
 
 static inline void rq_qos_cleanup(struct request_queue *q, struct bio *bio)
 {
-	pr_err("%s q->rq_qos=%pS\n", __func__, q->rq_qos);
+	//pr_err("%s q->rq_qos=%pS\n", __func__, q->rq_qos);
 	if (q->rq_qos)
 		__rq_qos_cleanup(q->rq_qos, bio);
 }
 
 static inline void rq_qos_done(struct request_queue *q, struct request *rq)
 {
-	pr_err("%s rq=%pS rq_qos=%pS\n", __func__, rq, q->rq_qos);
+	//pr_err("%s rq=%pS rq_qos=%pS\n", __func__, rq, q->rq_qos);
 	if (q->rq_qos)
 		__rq_qos_done(q->rq_qos, rq);
 }
