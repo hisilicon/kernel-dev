@@ -1949,6 +1949,7 @@ out_put_budget:
 static enum blk_eh_timer_return scsi_timeout(struct request *req,
 		bool reserved)
 {
+	pr_err("%s req=%pS\n", __func__, req);
 	if (reserved)
 		return BLK_EH_RESET_TIMER;
 	return scsi_times_out(req);

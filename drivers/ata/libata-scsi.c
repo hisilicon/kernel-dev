@@ -3969,7 +3969,7 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	enum dma_data_direction dma_dir = scmd->sc_data_direction;
 
 
-	//pr_err("%s scmd=%pS dev=%pS ap=%pS req=%pS\n", __func__, scmd, dev, ap, req);
+	pr_err("%s scmd=%pS dev=%pS ap=%pS req=%pS\n", __func__, scmd, dev, ap, req);
 
 	/* no internal command while frozen */
 	if (ap->pflags & ATA_PFLAG_FROZEN)

@@ -1834,7 +1834,7 @@ static void ahci_handle_port_interrupt(struct ata_port *ap,
 	int resetting = !!(ap->pflags & ATA_PFLAG_RESETTING);
 	u32 qc_active = 0;
 	int rc;
-
+	pr_err("%s ap=%pS\n", __func__, ap);
 	/* ignore BAD_PMP while resetting */
 	if (unlikely(resetting))
 		status &= ~PORT_IRQ_BAD_PMP;

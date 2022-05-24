@@ -1438,12 +1438,26 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 	__maybe_unused struct scsi_cmnd *scmd = qc->scsicmd; 
 	__maybe_unused struct ata_taskfile *tf = &qc->tf;
 	__maybe_unused struct request *rq = scsi_cmd_to_rq(scmd);
-//	pr_err("%s qc=%pS waiting=%pS scmd=%pS rq=%pS\n", __func__, qc, waiting, scmd, rq);
+	pr_err("%s qc=%pS waiting=%pS scmd=%pS rq=%pS\n", __func__, qc, waiting, scmd, rq);
 	print_hex_dump(KERN_INFO, "ata_qc_complete_internal tf ",
 				  DUMP_PREFIX_NONE, 16, 1,
-				  &tf, sizeof(*tf), 1);
+				  tf, sizeof(*tf), 1);
 
 	scsi_done(scmd);
+}
+
+static void ata_blk_end_sync_rq(struct request *rq, blk_status_t error)
+{
+	struct completion *waiting = rq->end_io_data;
+	pr_err("%s rq=%pS waiting=%pS\n", __func__, rq, waiting);
+
+	rq->end_io_data = (void *)(uintptr_t)error;
+
+	/*
+	 * complete last, if this is a stack request the process (and thus
+	 * the rq pointer) could be invalid right after this complete()
+	 */
+	complete(waiting);
 }
 
 /**
@@ -1536,8 +1550,8 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	scmd->device = sdev;
 	memcpy(&internal_ptr->tf, tf, sizeof(*tf));
 	//scmd->host_scribble = (unsigned char *)&internal;
-	//pr_err("%s1.2 sdev=%pS ap=%pS req=%pS internal_ptr=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS\n",
-	// __func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd), scmd, req);
+	pr_err("%s1.2 sdev=%pS ap=%pS req=%pS internal_ptr=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS\n",
+	__func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd), scmd, req);
 
 	if (buflen) {
 		int ret;
@@ -1578,16 +1592,18 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	 * head injection *required* here otherwise quiesce won't work
 	 */
 	//panic("sanity0 %s\n", __func__);
-	blk_execute_rq(req, true);
+	//blk_execute_rq(req, true);
+
+	req->end_io_data = &wait;
+	//pr_err("%s rq=%pS end_io_data=wait=%pS\n", __func__, rq, rq->end_io_data);
+	blk_execute_rq_nowait(req, true, ata_blk_end_sync_rq);
+
+
+
 
 	//pr_err("%s1.7 sdev=%pS ap=%pS req=%pS qc=%pS scmd=%pS req=%pS\n",
 	// __func__, sdev, ap, req, qc, scmd, req);
-	blk_mq_free_request(req);
-	if (blk_mq_request_started(req))
-		panic("sanity1 %s started req=%pS\n", __func__, req);
-	req = NULL;
-	scmd = NULL;
-	//pr_err("%s2 sdev=%pS cmd_result=%d scmd=%pS req=%pS should be NULL as req is finished\n", __func__, sdev, cmd_result, scmd, req);
+	pr_err("%s2 sdev=%pS cmd_result=%d scmd=%pS req=%pS should be NULL as req is finished\n", __func__, sdev, cmd_result, scmd, req);
 	
 	if (!timeout) {
 		if (ata_probe_timeout)
@@ -1600,8 +1616,16 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	//pr_err("%s3 sdev=%pS cmd_result=%d ap->ops->error_handler=%pS scmd=%pS req=%pS\n", __func__, sdev, cmd_result, ap->ops->error_handler, scmd, req);
 	if (ap->ops->error_handler)
 		ata_eh_release(ap);
-	//pr_err("%s4 sdev=%pS cmd_result=%d ap->ops->error_handler=%pS scmd=%pS req=%pS\n", __func__, sdev, cmd_result, ap->ops->error_handler, scmd, req);
-	//rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
+	pr_err("%s4 sdev=%pS cmd_result=%d ap->ops->error_handler=%pS scmd=%pS req=%pS going to wait\n", __func__, sdev, cmd_result, ap->ops->error_handler, scmd, req);
+	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
+	pr_err("%s4.1 sdev=%pS cmd_result=%d ap->ops->error_handler=%pS scmd=%pS req=%pS finished waiting rc=%d\n",
+		__func__, sdev, cmd_result, ap->ops->error_handler, scmd, req, rc);
+
+	blk_mq_free_request(req);
+	if (blk_mq_request_started(req))
+		panic("sanity1 %s started req=%pS\n", __func__, req);
+	req = NULL;
+	scmd = NULL;
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
@@ -1716,6 +1740,8 @@ unsigned ata_exec_internal(struct ata_device *dev,
 {
 	int res;
 	char string[200];
+
+	
 	mutex_lock(&global_mutex);
 	sprintf(string, "ata_exec_internal_sg buf before buf=%pS len=%d ", buf, buflen);
 	print_hex_dump(KERN_INFO, string,
@@ -4970,7 +4996,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 
 	if (cmd)
 		rq = scsi_cmd_to_rq(cmd);
-	//pr_err("%s qc=%pS cmd=%pS rq=%pS\n", __func__, qc, cmd, rq);
+	pr_err("%s qc=%pS cmd=%pS rq=%pS\n", __func__, qc, cmd, rq);
 	ap = qc->ap;
 
 	//pr_err("%s1 qc=%pS ap=%pS cmd=%pS rq=%pS\n", __func__, qc, ap, cmd, rq);
@@ -5036,18 +5062,18 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		goto err;
 	trace_ata_qc_issue(qc);
 	//pr_err("%s8 qc=%pS ap->ops=%pS cmd=%pS rq=%pS\n", __func__, qc, ap->ops, cmd, rq);
-	//pr_err("%s9 qc=%pS qc_issue=%pS cmd=%pS rq=%pS\n", __func__, qc, ap->ops->qc_issue, cmd, rq);
+	pr_err("%s9 qc=%pS qc_issue=%pS cmd=%pS rq=%pS\n", __func__, qc, ap->ops->qc_issue, cmd, rq);
 	qc->err_mask |= ap->ops->qc_issue(qc);
-	//pr_err("%s10 qc=%pS qc->err_mask=%d cmd=%pS rq=%pS qc->err_mask=%d\n", __func__, qc, qc->err_mask, cmd, rq, qc->err_mask);
+	pr_err("%s10 qc=%pS qc->err_mask=%d cmd=%pS rq=%pS qc->err_mask=%d\n", __func__, qc, qc->err_mask, cmd, rq, qc->err_mask);
 	if (unlikely(qc->err_mask))
 		goto err;
 	return;
 
 sys_err:
-	pr_err("%s sys_err qc=%pS qc->err_mask=%d cmd=%pS rq=%pS\n", __func__, qc, qc->err_mask, cmd, rq);
+	pr_err("%s sys_err qc=%pS qc->err_mask=%d cmd=%pS rq=%pS error\n", __func__, qc, qc->err_mask, cmd, rq);
 	qc->err_mask |= AC_ERR_SYSTEM;
 err:
-	pr_err("%s err qc=%pS qc->err_mask=%d cmd=%pS rq=%pS\n", __func__, qc, qc->err_mask, cmd, rq);
+	pr_err("%s err qc=%pS qc->err_mask=%d cmd=%pS rq=%pS error\n", __func__, qc, qc->err_mask, cmd, rq);
 	ata_qc_complete(qc);
 }
 

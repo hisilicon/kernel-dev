@@ -636,7 +636,7 @@ int ata_qc_complete_multiple(struct ata_port *ap, u64 qc_active)
 {
 	u64 done_mask, ap_qc_active = ap->qc_active;
 	int nr_done = 0;
-	//pr_err("%s ap=%pS qc_active=%lld\n", __func__, ap, qc_active);
+	pr_err("%s ap=%pS qc_active=%lld\n", __func__, ap, qc_active);
 
 	/*
 	 * If the internal tag is set on ap->qc_active, then we care about
