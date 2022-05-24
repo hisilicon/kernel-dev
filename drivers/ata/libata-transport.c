@@ -337,6 +337,7 @@ unsigned int ata_port_classify(struct ata_port *ap,
 {
 	int i;
 	unsigned int class = ata_dev_classify(tf);
+			ata_port_dbg(ap, "%s ap=%pS class=%d\n", __func__, ap, class);
 
 	/* Start with index '1' to skip the 'unknown' entry */
 	for (i = 1; i < ARRAY_SIZE(ata_class_names); i++) {

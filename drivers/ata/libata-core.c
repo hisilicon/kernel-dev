@@ -1516,7 +1516,8 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	
 	scsi_cmd[0] = ATA_INTERNAL;
 
-	//pr_err("%s ap=%pS protocol=0x%x\n",	__func__, ap, tf->protocol);
+	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d\n",
+		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen);
 
 /*
 	struct ata_taskfile tf;
@@ -1603,7 +1604,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	//pr_err("%s1.7 sdev=%pS ap=%pS req=%pS qc=%pS scmd=%pS req=%pS\n",
 	// __func__, sdev, ap, req, qc, scmd, req);
-	pr_err("%s2 sdev=%pS cmd_result=%d scmd=%pS req=%pS should be NULL as req is finished\n", __func__, sdev, cmd_result, scmd, req);
+	pr_err("%s2 sdev=%pS cmd_result=%d scmd=%pS req=%pS\n", __func__, sdev, cmd_result, scmd, req);
 	
 	if (!timeout) {
 		if (ata_probe_timeout)
@@ -5040,6 +5041,10 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		goto sys_err;
 	}
 
+	pr_err("%s X ata_is_dma(prot)=%d\n", __func__, ata_is_dma(prot));
+	pr_err("%s Y ata_is_pio(prot)=%d ap->flags & ATA_FLAG_PIO_DMA=%d\n", 
+		__func__, ata_is_pio(prot), !!(ap->flags & ATA_FLAG_PIO_DMA));
+
 	if (ata_is_dma(prot) || (ata_is_pio(prot) &&
 				 (ap->flags & ATA_FLAG_PIO_DMA)))
 		if (ata_sg_setup(qc))
@@ -5062,7 +5067,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		goto err;
 	trace_ata_qc_issue(qc);
 	//pr_err("%s8 qc=%pS ap->ops=%pS cmd=%pS rq=%pS\n", __func__, qc, ap->ops, cmd, rq);
-	pr_err("%s9 qc=%pS qc_issue=%pS cmd=%pS rq=%pS\n", __func__, qc, ap->ops->qc_issue, cmd, rq);
+	pr_err("%s9 qc=%pS qc_issue=%pS cmd=%pS rq=%pS ap->ops=%pS\n", __func__, qc, ap->ops->qc_issue, cmd, rq, ap->ops);
 	qc->err_mask |= ap->ops->qc_issue(qc);
 	pr_err("%s10 qc=%pS qc->err_mask=%d cmd=%pS rq=%pS qc->err_mask=%d\n", __func__, qc, qc->err_mask, cmd, rq, qc->err_mask);
 	if (unlikely(qc->err_mask))

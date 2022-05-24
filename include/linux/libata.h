@@ -870,8 +870,6 @@ struct ata_port {
 	struct ata_acpi_gtm	__acpi_init_gtm; /* use ata_acpi_init_gtm() */
 #endif
 
-	unsigned int preempted_tag;
-	u32 preempted_sactive;
 	u64 preempted_qc_active;
 	int preempted_nr_active_links;
 
@@ -1483,13 +1481,13 @@ static inline int sata_srst_pmp(struct ata_link *link)
 #define ata_port_err(ap, fmt, ...)				\
 	ata_port_printk(err, ap, fmt, ##__VA_ARGS__)
 #define ata_port_warn(ap, fmt, ...)				\
-	ata_port_printk(warn, ap, fmt, ##__VA_ARGS__)
+	ata_port_printk(err, ap, fmt, ##__VA_ARGS__)
 #define ata_port_notice(ap, fmt, ...)				\
-	ata_port_printk(notice, ap, fmt, ##__VA_ARGS__)
+	ata_port_printk(err, ap, fmt, ##__VA_ARGS__)
 #define ata_port_info(ap, fmt, ...)				\
-	ata_port_printk(info, ap, fmt, ##__VA_ARGS__)
+	ata_port_printk(err, ap, fmt, ##__VA_ARGS__)
 #define ata_port_dbg(ap, fmt, ...)				\
-	ata_port_printk(debug, ap, fmt, ##__VA_ARGS__)
+	ata_port_printk(err, ap, fmt, ##__VA_ARGS__)
 
 #define ata_link_printk(level, link, fmt, ...)			\
 do {								\
@@ -1508,13 +1506,13 @@ do {								\
 #define ata_link_err(link, fmt, ...)				\
 	ata_link_printk(err, link, fmt, ##__VA_ARGS__)
 #define ata_link_warn(link, fmt, ...)				\
-	ata_link_printk(warn, link, fmt, ##__VA_ARGS__)
+	ata_link_printk(err, link, fmt, ##__VA_ARGS__)
 #define ata_link_notice(link, fmt, ...)				\
-	ata_link_printk(notice, link, fmt, ##__VA_ARGS__)
+	ata_link_printk(err, link, fmt, ##__VA_ARGS__)
 #define ata_link_info(link, fmt, ...)				\
-	ata_link_printk(info, link, fmt, ##__VA_ARGS__)
+	ata_link_printk(err, link, fmt, ##__VA_ARGS__)
 #define ata_link_dbg(link, fmt, ...)				\
-	ata_link_printk(debug, link, fmt, ##__VA_ARGS__)
+	ata_link_printk(err, link, fmt, ##__VA_ARGS__)
 
 #define ata_dev_printk(level, dev, fmt, ...)			\
         pr_ ## level("ata%u.%02u: " fmt,			\
@@ -1531,7 +1529,7 @@ do {								\
 #define ata_dev_info(dev, fmt, ...)				\
 	ata_dev_printk(err, dev, fmt, ##__VA_ARGS__)
 #define ata_dev_dbg(dev, fmt, ...)				\
-	ata_dev_printk(debug, dev, fmt, ##__VA_ARGS__)
+	ata_dev_printk(err, dev, fmt, ##__VA_ARGS__)
 
 void ata_print_version(const struct device *dev, const char *version);
 
@@ -1600,17 +1598,24 @@ static inline bool ata_tag_valid(unsigned int tag)
  */
 static inline unsigned int ata_class_enabled(unsigned int class)
 {
-	//pr_err("%s class=%d\n", __func__, class);
-	return class == ATA_DEV_ATA || class == ATA_DEV_ATAPI ||
+	unsigned int res;
+	//pr_err("%s class=%d\n", __func__, class);unsigned int res;
+	res =  class == ATA_DEV_ATA || class == ATA_DEV_ATAPI ||
 		class == ATA_DEV_PMP || class == ATA_DEV_SEMB ||
 		class == ATA_DEV_ZAC;
+//	pr_err("%s class=%d res=%d\n", __func__, class, res);
+	return res;
 }
 
 static inline unsigned int ata_class_disabled(unsigned int class)
 {
-	return class == ATA_DEV_ATA_UNSUP || class == ATA_DEV_ATAPI_UNSUP ||
+	unsigned int res;
+	res = class == ATA_DEV_ATA_UNSUP || class == ATA_DEV_ATAPI_UNSUP ||
 		class == ATA_DEV_PMP_UNSUP || class == ATA_DEV_SEMB_UNSUP ||
 		class == ATA_DEV_ZAC_UNSUP;
+
+//	pr_err("%s class=%d res=%d\n", __func__, class, res);
+	return res;
 }
 
 static inline unsigned int ata_class_absent(unsigned int class)
@@ -1620,17 +1625,23 @@ static inline unsigned int ata_class_absent(unsigned int class)
 
 static inline unsigned int ata_dev_enabled(const struct ata_device *dev)
 {
-	return ata_class_enabled(dev->class);
+	unsigned int res = ata_class_enabled(dev->class);
+//	pr_err("%s dev=%pS res=%d\n", __func__, dev, res);
+	return res;
 }
 
 static inline unsigned int ata_dev_disabled(const struct ata_device *dev)
 {
-	return ata_class_disabled(dev->class);
+	unsigned int res = ata_class_disabled(dev->class);
+//	pr_err("%s dev=%pS res=%d\n", __func__, dev, res);
+	return res;
 }
 
 static inline unsigned int ata_dev_absent(const struct ata_device *dev)
 {
-	return ata_class_absent(dev->class);
+	unsigned int res = ata_class_absent(dev->class);
+//	pr_err("%s dev=%pS res=%d\n", __func__, dev, res);
+	return res;
 }
 
 /*
@@ -1752,6 +1763,7 @@ static inline bool ata_fpdma_zac_mgmt_out_supported(struct ata_device *dev)
 
 static inline void ata_qc_set_polling(struct ata_queued_cmd *qc)
 {
+	pr_err("%s qc=%pS\n", __func__, qc);
 	qc->tf.ctl |= ATA_NIEN;
 }
 
