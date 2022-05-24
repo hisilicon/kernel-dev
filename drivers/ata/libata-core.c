@@ -1573,9 +1573,9 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		panic("%s cdb\n", __func__);
 		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
 	}
-	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf before tf ",
-				  DUMP_PREFIX_NONE, 16, 1,
-				  tf, sizeof(*tf), 1);
+	//print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf before tf ",
+	//			  DUMP_PREFIX_NONE, 16, 1,
+	//			  tf, sizeof(*tf), 1);
 
 	if (dma_dir != DMA_NONE) {
 		//struct scsi_data_buffer *sdb = &scmd->sdb;
@@ -1745,17 +1745,17 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	
 	mutex_lock(&global_mutex);
 	sprintf(string, "ata_exec_internal_sg buf before buf=%pS len=%d ", buf, buflen);
-	print_hex_dump(KERN_INFO, string,
-				  DUMP_PREFIX_NONE, 16, 1,
-				  buf, buflen, 1);
+	//print_hex_dump(KERN_INFO, string,
+	//			  DUMP_PREFIX_NONE, 16, 1,
+	//			  buf, buflen, 1);
 
 	res = ata_exec_internal_sg(dev, tf, cdb, dma_dir, buf, buflen,
 				    timeout);
 
 	sprintf(string, "ata_exec_internal_sg buf after buf=%pS len=%d ", buf, buflen);
-	print_hex_dump(KERN_INFO, string,
-				  DUMP_PREFIX_NONE, 16, 1,
-				  buf, buflen, 1);
+	//print_hex_dump(KERN_INFO, string,
+	//			  DUMP_PREFIX_NONE, 16, 1,
+	//			  buf, buflen, 1);
 	mutex_unlock(&global_mutex);
 	return res;
 }
@@ -5917,6 +5917,7 @@ int ata_port_probe(struct ata_port *ap)
 static void async_port_probe(void *data, async_cookie_t cookie)
 {
 	struct ata_port *ap = data;
+	pr_err("%s ap=%pS\n", __func__, ap);
 
 	/*
 	 * If we're not allowed to scan this host in parallel,
@@ -5925,15 +5926,21 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 	 * Jeff Garzik says this is only within a controller, so we
 	 * don't need to wait for port 0, only for later ports.
 	 */
-	if (!(ap->host->flags & ATA_HOST_PARALLEL_SCAN) && ap->port_no != 0)
+	if (!(ap->host->flags & ATA_HOST_PARALLEL_SCAN) && ap->port_no != 0){
+		pr_err("%s2 ap=%pS calling async_synchronize_cookie\n", __func__, ap);
 		async_synchronize_cookie(cookie);
+	}
 
+	pr_err("%s3 ap=%pS calling ata_port_probe\n", __func__, ap);
 	(void)ata_port_probe(ap);
 
+	pr_err("%s4 ap=%pS calling async_synchronize_cookie\n", __func__, ap);
 	/* in order to keep device order, we need to synchronize at this point */
 	async_synchronize_cookie(cookie);
 
+	pr_err("%s5 ap=%pS calling ata_scsi_scan_host\n", __func__, ap);
 	ata_scsi_scan_host(ap, 1);
+	pr_err("%s10 out ap=%pS \n", __func__, ap);
 }
 
 /**

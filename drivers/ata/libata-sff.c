@@ -2168,14 +2168,18 @@ void ata_sff_postreset(struct ata_link *link, unsigned int *classes)
 		ap->ops->sff_dev_select(ap, 1);
 	if (classes[1] != ATA_DEV_NONE)
 		ap->ops->sff_dev_select(ap, 0);
+	pr_err("%s3 out link=%pS ap=%pS\n", __func__, link, ap);
 
 	/* bail out if no device is present */
-	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE)
+	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {
+		pr_err("%s4 out link=%pS ap=%pS bail\n", __func__, link, ap);
 		return;
-
+	}
+	
 	/* set up device control */
 	if (ata_sff_set_devctl(ap, ap->ctl))
 		ap->last_ctl = ap->ctl;
+	pr_err("%s10 out link=%pS ap=%pS\n", __func__, link, ap);
 }
 EXPORT_SYMBOL_GPL(ata_sff_postreset);
 
@@ -2231,7 +2235,7 @@ void ata_sff_error_handler(struct ata_port *ap)
 	unsigned long flags;
 
 	qc = __ata_qc_from_tag(ap, ap->link.active_tag);
-	pr_err("%s qc=%pS\n", __func__, qc);
+	pr_err("%s ap=%pS qc=%pS\n", __func__, ap, qc);
 	if (qc && !(qc->flags & ATA_QCFLAG_FAILED))
 		qc = NULL;
 
@@ -2253,9 +2257,10 @@ void ata_sff_error_handler(struct ata_port *ap)
 	if ((hardreset == sata_std_hardreset ||
 	     hardreset == sata_sff_hardreset) && !sata_scr_valid(&ap->link))
 		hardreset = NULL;
-
+	pr_err("%s9 ap=%pS calling ata_do_eh\n", __func__, ap);
 	ata_do_eh(ap, ap->ops->prereset, softreset, hardreset,
 		  ap->ops->postreset);
+	pr_err("%s10 out ap=%pS\n", __func__, ap);
 }
 EXPORT_SYMBOL_GPL(ata_sff_error_handler);
 
@@ -3014,8 +3019,10 @@ void ata_bmdma_error_handler(struct ata_port *ap)
 
 	if (thaw)
 		ata_eh_thaw_port(ap);
-
+	pr_err("%s9 ap=%pS calling ata_sff_error_handler\n", __func__, ap);
 	ata_sff_error_handler(ap);
+	pr_err("%s10 out ap=%pS\n", __func__, ap);
+	//WARN_ON(1);
 }
 EXPORT_SYMBOL_GPL(ata_bmdma_error_handler);
 
