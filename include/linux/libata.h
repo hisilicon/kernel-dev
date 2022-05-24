@@ -1812,6 +1812,7 @@ static inline void ata_tf_init(struct ata_device *dev, struct ata_taskfile *tf)
 
 static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 {
+	pr_err("%s qc=%pS cursg=%pS\n", __func__, qc, qc->cursg);
 	qc->dma_dir = DMA_NONE;
 	qc->sg = NULL;
 	qc->flags = 0;
@@ -1821,12 +1822,11 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	qc->n_elem = 0;
 	qc->err_mask = 0;
 	qc->sect_size = ATA_SECT_SIZE;
-
 	ata_tf_init(qc->dev, &qc->tf);
-
 	/* init result_tf such that it indicates normal completion */
 	qc->result_tf.command = ATA_DRDY;
 	qc->result_tf.feature = 0;
+	pr_err("%s10 out qc=%pS cursg=%pS\n", __func__, qc, qc->cursg);
 }
 
 static inline int ata_try_flush_cache(const struct ata_device *dev)

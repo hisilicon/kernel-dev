@@ -667,9 +667,10 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	struct page *page;
 	unsigned int offset;
 
-	pr_err("%s qc=%pS ap=%pS\n", __func__, qc, ap);
+	pr_err("%s qc=%pS ap=%pS qc->cursg=%pS\n", __func__, qc, ap, qc->cursg);
 	if (!qc->cursg) {
 		qc->curbytes = qc->nbytes;
+		pr_err("%s2 qc=%pS ap=%pS\n", __func__, qc, ap);
 		return;
 	}
 	if (qc->curbytes == qc->nbytes - qc->sect_size)
@@ -678,9 +679,11 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	page = sg_page(qc->cursg);
 	offset = qc->cursg->offset + qc->cursg_ofs;
 
+	pr_err("%s3 qc=%pS ap=%pS offset=%d\n", __func__, qc, ap, offset);
 	/* get the current page and offset */
 	page = nth_page(page, (offset >> PAGE_SHIFT));
 	offset %= PAGE_SIZE;
+	pr_err("%s4 qc=%pS ap=%pS offset=%d\n", __func__, qc, ap, offset);
 
 	trace_ata_sff_pio_transfer_data(qc, offset, qc->sect_size);
 
@@ -692,10 +695,12 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	if (offset + qc->sect_size > PAGE_SIZE) {
 		unsigned int split_len = PAGE_SIZE - offset;
 
+		pr_err("%s5 qc=%pS ap=%pS offset=%d\n", __func__, qc, ap, offset);
 		ata_pio_xfer(qc, page, offset, split_len);
 		ata_pio_xfer(qc, nth_page(page, 1), 0,
 			     qc->sect_size - split_len);
 	} else {
+		pr_err("%s6 qc=%pS ap=%pS offset=%d\n", __func__, qc, ap, offset);
 		ata_pio_xfer(qc, page, offset, qc->sect_size);
 	}
 
@@ -955,7 +960,7 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 
 	pr_err("%s qc=%pS in_wq=%d\n", __func__, qc, in_wq);
 	count++;
-	if (count ==2)
+	if (count ==254545)
 		panic("%s\n", __func__);
 	if (ap->ops->error_handler) {
 		if (in_wq) {
@@ -1340,7 +1345,7 @@ static void ata_sff_pio_task(struct work_struct *work)
 	BUG_ON(ap->sff_pio_task_link == NULL);
 	/* qc can be NULL if timeout occurred */
 	qc = ata_qc_from_tag(ap, link->active_tag);
-	pr_err("%s0 ap=%pS qc=%pS\n", __func__, ap, qc);
+	pr_err("%s0 ap=%pS qc=%pS qc->cursg=%pS\n", __func__, ap, qc, qc->cursg);
 	if (!qc) {
 		ap->sff_pio_task_link = NULL;
 		goto out_unlock;
@@ -1417,7 +1422,7 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 	__maybe_unused struct request *rq = NULL;
 	if (scmd)
 		rq = scsi_cmd_to_rq(scmd);
-	pr_err("%s qc=%pS scmd=%pS rq=%pS qc->tf.protocol=0x%x\n", __func__, qc, scmd, rq, qc->tf.protocol);
+	pr_err("%s qc=%pS scmd=%pS rq=%pS qc->tf.protocol=0x%x ->cursg=%pS\n", __func__, qc, scmd, rq, qc->tf.protocol, qc->cursg);
 	/* Use polling pio if the LLD doesn't handle
 	 * interrupt driven pio and atapi CDB interrupt.
 	 */
@@ -2079,12 +2084,14 @@ int ata_sff_softreset(struct ata_link *link, unsigned int *classes,
 
 	/* select device 0 again */
 	ap->ops->sff_dev_select(ap, 0);
-
+	pr_err("%s1 link=%pS ap=%pS\n", __func__, link, ap);
 	/* issue bus reset */
 	rc = ata_bus_softreset(ap, devmask, deadline);
+	pr_err("%s1.1 link=%pS ap=%pS rc=%d\n", __func__, link, ap, rc);
 	/* if link is occupied, -ENODEV too is an error */
 	if (rc && (rc != -ENODEV || sata_scr_valid(link))) {
 		ata_link_err(link, "SRST failed (errno=%d)\n", rc);
+		pr_err("%s1.2 link=%pS ap=%pS SRST failed (errno=%d)\n", __func__, link, ap, rc);
 		return rc;
 	}
 

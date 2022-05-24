@@ -4602,6 +4602,7 @@ EXPORT_SYMBOL_GPL(ata_noop_qc_prep);
 void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 		 unsigned int n_elem)
 {
+	pr_err("%s qc=%pS cursg=sg=%pS n_elem=%d\n", __func__, qc, sg, n_elem);
 	qc->sg = sg;
 	qc->n_elem = n_elem;
 	qc->cursg = qc->sg;
@@ -4997,7 +4998,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 
 	if (cmd)
 		rq = scsi_cmd_to_rq(cmd);
-	pr_err("%s qc=%pS cmd=%pS rq=%pS\n", __func__, qc, cmd, rq);
+	pr_err("%s qc=%pS cmd=%pS rq=%pS cursg=%pS\n", __func__, qc, cmd, rq, qc->cursg);
 	ap = qc->ap;
 
 	//pr_err("%s1 qc=%pS ap=%pS cmd=%pS rq=%pS\n", __func__, qc, ap, cmd, rq);
@@ -5067,7 +5068,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		goto err;
 	trace_ata_qc_issue(qc);
 	//pr_err("%s8 qc=%pS ap->ops=%pS cmd=%pS rq=%pS\n", __func__, qc, ap->ops, cmd, rq);
-	pr_err("%s9 qc=%pS qc_issue=%pS cmd=%pS rq=%pS ap->ops=%pS\n", __func__, qc, ap->ops->qc_issue, cmd, rq, ap->ops);
+	pr_err("%s9 qc=%pS qc_issue=%pS cmd=%pS rq=%pS ap->ops=%pS cursg=%pS\n", __func__, qc, ap->ops->qc_issue, cmd, rq, ap->ops, qc->cursg);
 	qc->err_mask |= ap->ops->qc_issue(qc);
 	pr_err("%s10 qc=%pS qc->err_mask=%d cmd=%pS rq=%pS qc->err_mask=%d\n", __func__, qc, qc->err_mask, cmd, rq, qc->err_mask);
 	if (unlikely(qc->err_mask))

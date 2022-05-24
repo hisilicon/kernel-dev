@@ -4035,6 +4035,7 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 		qc->n_elem = n_elem;
 		qc->sg = scsi_sglist(scmd);
 		qc->nbytes = qc->sg->length;
+		ata_sg_init(qc, qc->sg, n_elem);
 		//pr_err("%s4.1 2 scmd=%pS qc->nbytes=%d\n", __func__, scmd, qc->nbytes);
 #endif
 	}
