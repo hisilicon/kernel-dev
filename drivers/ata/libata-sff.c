@@ -760,9 +760,13 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
 	trace_atapi_send_cdb(qc, 0, qc->dev->cdb_len);
 	WARN_ON_ONCE(qc->dev->cdb_len < 12);
 
-	pr_err("%s qc=%pS ap=%pS\n", __func__, qc, ap);
+	pr_err("%s qc=%pS ap=%pS err_mask=%d\n", __func__, qc, ap, qc->err_mask);
 	ap->ops->sff_data_xfer(qc, qc->cdb, qc->dev->cdb_len, 1);
+	if (qc->err_mask)
+		pr_err("%s2 qc=%pS ap=%pS err_mask=%d\n", __func__, qc, ap, qc->err_mask);
 	ata_sff_sync(ap);
+	if (qc->err_mask)
+		pr_err("%s3 qc=%pS ap=%pS err_mask=%d\n", __func__, qc, ap, qc->err_mask);
 	/* FIXME: If the CDB is for DMA do we need to do the transition delay
 	   or is bmdma_start guaranteed to do it ? */
 	switch (qc->tf.protocol) {
@@ -1037,7 +1041,7 @@ fsm_start:
 			if (likely(status & (ATA_ERR | ATA_DF))) {
 				/* device stops HSM for abort/error */
 				qc->err_mask |= AC_ERR_DEV;
-	//			pr_err("%s error AC_ERR_DEV\n", __func__);
+				pr_err("%s error AC_ERR_DEV\n", __func__);
 			} else {
 				/* HSM violation. Let EH handle this */
 				ata_ehi_push_desc(ehi,
@@ -1187,7 +1191,7 @@ fsm_start:
 			if (unlikely(status & (ATA_ERR | ATA_DF))) {
 				/* data might be corrputed */
 				qc->err_mask |= AC_ERR_DEV;
-		//		pr_err("%s error AC_ERR_DEV data might be corrputed\n", __func__);
+				pr_err("%s error AC_ERR_DEV data might be corrputed\n", __func__);
 
 				if (!(qc->tf.flags & ATA_TFLAG_WRITE)) {
 					ata_pio_sectors(qc);
@@ -1753,7 +1757,7 @@ void ata_sff_freeze(struct ata_port *ap)
 	ap->ctl |= ATA_NIEN;
 	ap->last_ctl = ap->ctl;
 
-	pr_err("%s ap=%pS\n", __func__, ap);
+	pr_err("%s ap=%pS in_atomic()=%d\n", __func__, ap, in_atomic());
 	ata_sff_set_devctl(ap, ap->ctl);
 
 	/* Under certain circumstances, some controllers raise IRQ on
@@ -1778,7 +1782,7 @@ EXPORT_SYMBOL_GPL(ata_sff_freeze);
  */
 void ata_sff_thaw(struct ata_port *ap)
 {
-	pr_err("%s ap=%pS\n", __func__, ap);
+	pr_err("%s ap=%pS in_atomic()=%d\n", __func__, ap, in_atomic());
 	/* clear & re-enable interrupts */
 	ap->ops->sff_check_status(ap);
 	if (ap->ops->sff_irq_clear)
@@ -1855,7 +1859,7 @@ static bool ata_devchk(struct ata_port *ap, unsigned int device)
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	u8 nsect, lbal;
 
-	pr_err("%s ap=%pS\n", __func__, ap);
+	//pr_err("%s ap=%pS\n", __func__, ap);
 	ap->ops->sff_dev_select(ap, device);
 
 	iowrite8(0x55, ioaddr->nsect_addr);
@@ -1871,11 +1875,11 @@ static bool ata_devchk(struct ata_port *ap, unsigned int device)
 	lbal = ioread8(ioaddr->lbal_addr);
 
 	if ((nsect == 0x55) && (lbal == 0xaa)) {
-		pr_err("%s1 ap=%pS true\n", __func__, ap);
+		//pr_err("%s1 ap=%pS true\n", __func__, ap);
 		return true;	/* we found a device */
 	}
 
-		pr_err("%s2 ap=%pS false\n", __func__, ap);
+	//pr_err("%s2 ap=%pS false\n", __func__, ap);
 	return false;		/* nothing found */
 }
 
@@ -1908,7 +1912,7 @@ unsigned int ata_sff_dev_classify(struct ata_device *dev, int present,
 	unsigned int class;
 	u8 err;
 
-	pr_err("%s dev=%pS present=%d\n", __func__, dev, present);
+	//pr_err("%s dev=%pS present=%d\n", __func__, dev, present);
 	ap->ops->sff_dev_select(ap, dev->devno);
 
 	memset(&tf, 0, sizeof(tf));
@@ -2160,7 +2164,7 @@ void ata_sff_postreset(struct ata_link *link, unsigned int *classes)
 {
 	struct ata_port *ap = link->ap;
 
-	pr_err("%s link=%pS ap=%pS\n", __func__, link, ap);
+	pr_err("%s ap=%pS in_atomic()=%d\n", __func__, ap, in_atomic());
 	ata_std_postreset(link, classes);
 
 	/* is double-select really necessary? */
@@ -2168,18 +2172,18 @@ void ata_sff_postreset(struct ata_link *link, unsigned int *classes)
 		ap->ops->sff_dev_select(ap, 1);
 	if (classes[1] != ATA_DEV_NONE)
 		ap->ops->sff_dev_select(ap, 0);
-	pr_err("%s3 out link=%pS ap=%pS\n", __func__, link, ap);
+//	pr_err("%s3 out link=%pS ap=%pS\n", __func__, link, ap);
 
 	/* bail out if no device is present */
 	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {
-		pr_err("%s4 out link=%pS ap=%pS bail\n", __func__, link, ap);
+	//	pr_err("%s4 out link=%pS ap=%pS bail\n", __func__, link, ap);
 		return;
 	}
 	
 	/* set up device control */
 	if (ata_sff_set_devctl(ap, ap->ctl))
 		ap->last_ctl = ap->ctl;
-	pr_err("%s10 out link=%pS ap=%pS\n", __func__, link, ap);
+//	pr_err("%s10 out link=%pS ap=%pS\n", __func__, link, ap);
 }
 EXPORT_SYMBOL_GPL(ata_sff_postreset);
 
@@ -2198,7 +2202,7 @@ void ata_sff_drain_fifo(struct ata_queued_cmd *qc)
 	int count;
 	struct ata_port *ap;
 
-	pr_err("%s qc=%pS\n", __func__, qc);
+//	pr_err("%s qc=%pS\n", __func__, qc);
 	/* We only need to flush incoming data when a command was running */
 	if (qc == NULL || qc->dma_dir == DMA_TO_DEVICE)
 		return;
@@ -2235,7 +2239,7 @@ void ata_sff_error_handler(struct ata_port *ap)
 	unsigned long flags;
 
 	qc = __ata_qc_from_tag(ap, ap->link.active_tag);
-	pr_err("%s ap=%pS qc=%pS\n", __func__, ap, qc);
+	//pr_err("%s ap=%pS qc=%pS\n", __func__, ap, qc);
 	if (qc && !(qc->flags & ATA_QCFLAG_FAILED))
 		qc = NULL;
 
@@ -2257,10 +2261,10 @@ void ata_sff_error_handler(struct ata_port *ap)
 	if ((hardreset == sata_std_hardreset ||
 	     hardreset == sata_sff_hardreset) && !sata_scr_valid(&ap->link))
 		hardreset = NULL;
-	pr_err("%s9 ap=%pS calling ata_do_eh\n", __func__, ap);
+//	pr_err("%s9 ap=%pS calling ata_do_eh\n", __func__, ap);
 	ata_do_eh(ap, ap->ops->prereset, softreset, hardreset,
 		  ap->ops->postreset);
-	pr_err("%s10 out ap=%pS\n", __func__, ap);
+//	pr_err("%s10 out ap=%pS\n", __func__, ap);
 }
 EXPORT_SYMBOL_GPL(ata_sff_error_handler);
 
@@ -2277,7 +2281,7 @@ EXPORT_SYMBOL_GPL(ata_sff_error_handler);
  */
 void ata_sff_std_ports(struct ata_ioports *ioaddr)
 {
-	pr_err("%s ioaddr=%pS\n", __func__, ioaddr);
+	//pr_err("%s ioaddr=%pS\n", __func__, ioaddr);
 	ioaddr->data_addr = ioaddr->cmd_addr + ATA_REG_DATA;
 	ioaddr->error_addr = ioaddr->cmd_addr + ATA_REG_ERR;
 	ioaddr->feature_addr = ioaddr->cmd_addr + ATA_REG_FEATURE;
@@ -2333,7 +2337,7 @@ int ata_pci_sff_init_host(struct ata_host *host)
 	unsigned int mask = 0;
 	int i, rc;
 
-	pr_err("%s host=%pS\n", __func__, host);
+	//pr_err("%s host=%pS\n", __func__, host);
 	/* request, iomap BARs and init port addresses accordingly */
 	for (i = 0; i < 2; i++) {
 		struct ata_port *ap = host->ports[i];
@@ -2409,7 +2413,7 @@ int ata_pci_sff_prepare_host(struct pci_dev *pdev,
 	struct ata_host *host;
 	int rc;
 
-	pr_err("%s pdev=%pS\n", __func__, pdev);
+	//pr_err("%s pdev=%pS\n", __func__, pdev);
 	if (!devres_open_group(&pdev->dev, NULL, GFP_KERNEL))
 		return -ENOMEM;
 
@@ -2459,7 +2463,7 @@ int ata_pci_sff_activate_host(struct ata_host *host,
 	const char *drv_name = dev_driver_string(host->dev);
 	int legacy_mode = 0, rc;
 
-	pr_err("%s host=%pS\n", __func__, host);
+	//pr_err("%s host=%pS\n", __func__, host);
 	rc = ata_host_start(host);
 	if (rc)
 		return rc;
@@ -2558,7 +2562,7 @@ static int ata_pci_init_one(struct pci_dev *pdev,
 	struct ata_host *host = NULL;
 	int rc;
 
-	pr_err("%s pdev=%pS\n", __func__, pdev);
+	//pr_err("%s pdev=%pS\n", __func__, pdev);
 	pi = ata_sff_find_valid_pi(ppi);
 	if (!pi) {
 		dev_err(&pdev->dev, "no valid port_info specified\n");
@@ -2786,7 +2790,7 @@ static void ata_bmdma_fill_sg_dumb(struct ata_queued_cmd *qc)
 enum ata_completion_errors ata_bmdma_qc_prep(struct ata_queued_cmd *qc)
 {
 
-	pr_err("%s qc=%pS DMAMAP=%d\n", __func__, qc, !!(qc->flags & ATA_QCFLAG_DMAMAP));
+	//pr_err("%s qc=%pS DMAMAP=%d\n", __func__, qc, !!(qc->flags & ATA_QCFLAG_DMAMAP));
 	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
 		return AC_ERR_OK;
 
@@ -2807,7 +2811,7 @@ EXPORT_SYMBOL_GPL(ata_bmdma_qc_prep);
  */
 enum ata_completion_errors ata_bmdma_dumb_qc_prep(struct ata_queued_cmd *qc)
 {
-	pr_err("%s qc=%pS DMAMAP=%d\n", __func__, qc, !!(qc->flags & ATA_QCFLAG_DMAMAP));
+	//pr_err("%s qc=%pS DMAMAP=%d\n", __func__, qc, !!(qc->flags & ATA_QCFLAG_DMAMAP));
 	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
 		return AC_ERR_OK;
 
@@ -2909,7 +2913,7 @@ unsigned int ata_bmdma_port_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 	bool bmdma_stopped = false;
 	unsigned int handled;
 
-	pr_err("%s ap=%pS\n", __func__, ap);
+	//pr_err("%s ap=%pS\n", __func__, ap);
 	if (ap->hsm_task_state == HSM_ST_LAST && ata_is_dma(qc->tf.protocol)) {
 		/* check status of DMA engine */
 		host_stat = ap->ops->bmdma_status(ap);
@@ -2978,7 +2982,7 @@ void ata_bmdma_error_handler(struct ata_port *ap)
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 	bool thaw = false;
-	pr_err("%s ap=%pS\n", __func__, ap);
+	//pr_err("%s ap=%pS\n", __func__, ap);
 
 	qc = __ata_qc_from_tag(ap, ap->link.active_tag);
 	if (qc && !(qc->flags & ATA_QCFLAG_FAILED))
@@ -3019,9 +3023,9 @@ void ata_bmdma_error_handler(struct ata_port *ap)
 
 	if (thaw)
 		ata_eh_thaw_port(ap);
-	pr_err("%s9 ap=%pS calling ata_sff_error_handler\n", __func__, ap);
+	//pr_err("%s9 ap=%pS calling ata_sff_error_handler\n", __func__, ap);
 	ata_sff_error_handler(ap);
-	pr_err("%s10 out ap=%pS\n", __func__, ap);
+	//pr_err("%s10 out ap=%pS\n", __func__, ap);
 	//WARN_ON(1);
 }
 EXPORT_SYMBOL_GPL(ata_bmdma_error_handler);
@@ -3082,7 +3086,7 @@ void ata_bmdma_setup(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
 	u8 dmactl;
-	pr_err("%s qc=%pS rw=%d\n", __func__, qc, rw);
+	//pr_err("%s qc=%pS rw=%d\n", __func__, qc, rw);
 	/* load PRD table addr. */
 	mb();	/* make sure PRD table writes are visible to controller */
 	iowrite32(ap->bmdma_prd_dma, ap->ioaddr.bmdma_addr + ATA_DMA_TABLE_OFS);

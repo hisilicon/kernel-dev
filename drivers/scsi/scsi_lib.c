@@ -295,7 +295,7 @@ EXPORT_SYMBOL(__scsi_execute);
  * Wake up the error handler if necessary. Avoid as follows that the error
  * handler is not woken up if host in-flight requests number ==
  * shost->host_failed: use call_rcu() in scsi_eh_scmd_add() in combination
- * with an RCU read lock in this function to ensure that this function in
+ * with an RCU read lock in this function to ensure that this function insh)
  * its entirety either finishes before scsi_eh_scmd_add() increases the
  * host_failed counter or that it notices the shost state change made by
  * scsi_eh_scmd_add().
@@ -1230,7 +1230,7 @@ static blk_status_t scsi_setup_scsi_cmnd(struct scsi_device *sdev,
 	 */
 	if (req->bio) {
 		blk_status_t ret;
-		//pr_err("%s2 sdev=%pS req=%pS calling scsi_alloc_sgtables\n", __func__, sdev, req);
+		pr_err("%s2 sdev=%pS req=%pS calling scsi_alloc_sgtables\n", __func__, sdev, req);
 		ret = scsi_alloc_sgtables(cmd);
 		if (unlikely(ret != BLK_STS_OK))
 			return ret;
@@ -1484,9 +1484,11 @@ static void scsi_complete(struct request *rq)
 	if (internal) {
 		//pr_err("%s cmd=%pS internal=%d rq=%pS\n", __func__, cmd, internal, rq);
 		//blk_mq_end_request(rq, 0);
+		struct scsi_device *sdev = cmd->device;
 		scsi_mq_uninit_cmd(cmd);
-
+		scsi_device_unbusy(sdev, cmd);
 		__blk_mq_end_request(rq, 0);
+
 		//panic("%s internal\n", __func__);
 		return;
 	}
@@ -1738,6 +1740,7 @@ static void scsi_mq_put_budget(struct request_queue *q, int budget_token)
 {
 	struct scsi_device *sdev = q->queuedata;
 
+	pr_err("%s put budget token=%d q=%pS\n", __func__, budget_token, q);
 	sbitmap_put(&sdev->budget_map, budget_token);
 }
 
@@ -1746,8 +1749,10 @@ static int scsi_mq_get_budget(struct request_queue *q)
 	struct scsi_device *sdev = q->queuedata;
 	int token = scsi_dev_queue_ready(q, sdev);
 
-	if (token >= 0)
+	if (token >= 0){
+		pr_err("%s got budget token=%d q=%pS\n", __func__, token, q);
 		return token;
+	}
 
 	atomic_inc(&sdev->restarts);
 
@@ -1769,6 +1774,7 @@ static int scsi_mq_get_budget(struct request_queue *q)
 	if (unlikely(scsi_device_busy(sdev) == 0 &&
 				!scsi_device_blocked(sdev)))
 		blk_mq_delay_run_hw_queues(sdev->request_queue, SCSI_QUEUE_DELAY);
+	pr_err_ratelimited("%s q=%pS no budget\n", __func__, q);
 	return -1;
 }
 
@@ -1946,7 +1952,8 @@ out_put_budget:
 static enum blk_eh_timer_return scsi_timeout(struct request *req,
 		bool reserved)
 {
-	pr_err("%s req=%pS\n", __func__, req);
+	panic("%s req=%pS\n", __func__, req);
+
 	if (reserved)
 		return BLK_EH_RESET_TIMER;
 	return scsi_times_out(req);

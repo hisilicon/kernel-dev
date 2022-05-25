@@ -1408,8 +1408,12 @@ unsigned int atapi_eh_tur(struct ata_device *dev, u8 *r_sense_key)
 
 	pr_err("%s calling ata_exec_internal\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, cdb, DMA_NONE, NULL, 0, 0);
+	if (err_mask)
+		pr_err("%s err_mask=%d\n", __func__, err_mask);
 	if (err_mask == AC_ERR_DEV)
 		*r_sense_key = tf.error >> 4;
+	if (err_mask)
+		pr_err("%s err_mask=%d\n", __func__, err_mask);
 	return err_mask;
 }
 
@@ -1452,6 +1456,8 @@ static void ata_eh_request_sense(struct ata_queued_cmd *qc,
 
 	pr_err("%s calling ata_exec_internal\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
+	if (err_mask)
+		pr_err("%s err_mask=%d\n", __func__, err_mask);
 	/* Ignore err_mask; ATA_ERR might be set */
 	if (tf.status & ATA_SENSE) {
 		ata_scsi_set_sense(dev, cmd, tf.lbah, tf.lbam, tf.lbal);
@@ -1484,6 +1490,7 @@ unsigned int atapi_eh_request_sense(struct ata_device *dev,
 		{ REQUEST_SENSE, 0, 0, 0, SCSI_SENSE_BUFFERSIZE, 0 };
 	struct ata_port *ap = dev->link->ap;
 	struct ata_taskfile tf;
+	unsigned int err_mask;
 
 	memset(sense_buf, 0, SCSI_SENSE_BUFFERSIZE);
 
@@ -1510,8 +1517,11 @@ unsigned int atapi_eh_request_sense(struct ata_device *dev,
 	}
 
 	pr_err("%s calling ata_exec_internal\n", __func__);
-	return ata_exec_internal(dev, &tf, cdb, DMA_FROM_DEVICE,
+	err_mask = ata_exec_internal(dev, &tf, cdb, DMA_FROM_DEVICE,
 				 sense_buf, SCSI_SENSE_BUFFERSIZE, 0);
+	if (err_mask)
+		pr_err("%s err_mask=%d\n", __func__, err_mask);
+	return err_mask;
 }
 
 /**
@@ -1590,6 +1600,7 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 	}
 
 	if (stat & (ATA_ERR | ATA_DF)) {
+		pr_err("%s AC_ERR_DEV\n", __func__);
 		qc->err_mask |= AC_ERR_DEV;
 		/*
 		 * Sense data reporting does not work if the
@@ -2962,6 +2973,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 	unsigned int new_mask = 0;
 	unsigned long flags;
 	int rc = 0;
+	if (in_atomic())
+		pr_err("%s in_atomic\n", __func__);
 
 	/* For PATA drive side cable detection to work, IDENTIFY must
 	 * be done backwards such that PDIAG- is released by the slave
@@ -3249,6 +3262,7 @@ static int ata_eh_maybe_retry_flush(struct ata_device *dev)
 
 		/* if device failed it, report it to upper layers */
 		if (err_mask & AC_ERR_DEV) {
+			pr_err("%s AC_ERR_DEV\n", __func__);
 			qc->err_mask |= AC_ERR_DEV;
 			qc->result_tf = tf;
 			if (!(ap->pflags & ATA_PFLAG_FROZEN))

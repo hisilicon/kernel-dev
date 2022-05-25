@@ -4002,8 +4002,16 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 
 	/* prepare & issue qc */
 	qc->tf = *tf;
-	if (internal_ptr->cdb_valid)
+	print_hex_dump(KERN_INFO, "ata_scsi_internal1 cdb",
+				  DUMP_PREFIX_NONE, 16, 1,
+				  qc->cdb, ATAPI_CDB_LEN, 1);
+	if (internal_ptr->cdb_valid) {
+		panic("%s internal_ptr->cdb_valid\n", __func__);
 		memcpy(qc->cdb, internal_ptr->cdb, ATAPI_CDB_LEN);
+	}
+	print_hex_dump(KERN_INFO, "ata_scsi_internal2 cdb",
+				  DUMP_PREFIX_NONE, 16, 1,
+				  qc->cdb, ATAPI_CDB_LEN, 1);
 
 	/* some SATA bridges need us to indicate data xfer direction */
 	if (tf->protocol == ATAPI_PROT_DMA && (dev->flags & ATA_DFLAG_DMADIR) &&
@@ -4016,36 +4024,18 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	if (dma_dir != DMA_NONE) {
 		int n_elem;
 
-#ifdef old
-		qc->sg = scsi_sglist(scmd);
-		qc->n_elem = scsi_sg_count(scmd);
-
-		pr_err("%s3 scmd=%pS qc->n_elem=%d ap->dev=%pS\n", __func__, scmd, qc->n_elem, ap->dev);
-		n_elem = dma_map_sg(ap->dev, qc->sg, 1, qc->dma_dir);
-		pr_err("%s4 scmd=%pS n_elem=%d qc->n_elem=%d\n", __func__, scmd, n_elem, qc->n_elem);
-		if (n_elem < 1)
-			return -1;
-
-		qc->orig_n_elem = 1;
-		qc->n_elem = n_elem;
-		qc->nbytes = sg_dma_len(qc->sg);
-		pr_err("%s4.1 scmd=%pS qc->nbytes=%d\n", __func__, scmd, qc->nbytes);
-#else
 		n_elem = 1;
 		qc->n_elem = n_elem;
 		qc->sg = scsi_sglist(scmd);
 		qc->nbytes = qc->sg->length;
 		ata_sg_init(qc, qc->sg, n_elem);
 		//pr_err("%s4.1 2 scmd=%pS qc->nbytes=%d\n", __func__, scmd, qc->nbytes);
-#endif
 	}
 
 	//qc->private_data = &wait;
 	qc->complete_fn = ata_qc_complete_internal;
 	//pr_err("%s5 scmd=%pS\n", __func__, scmd);
 	ata_qc_issue(qc);
-
-
 
 	//pr_err("%s10 out scmd=%pS\n", __func__, scmd);
 
@@ -4054,6 +4044,7 @@ did_err:
 	scmd->result = (DID_ERROR << 16);
 	scsi_done(scmd);
 	pr_err("%s11 error did_err out scmd=%pS\n", __func__, scmd);
+	panic("%s diderr\n", __func__);
 	return 0;
 }
 

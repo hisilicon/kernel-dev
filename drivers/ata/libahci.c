@@ -1765,10 +1765,13 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 		 * link.  There's no active qc on NCQ errors.  It will
 		 * be determined by EH by reading log page 10h.
 		 */
-		if (active_qc)
+		if (active_qc){
 			active_qc->err_mask |= AC_ERR_DEV;
-		else
+			pr_err("%s AC_ERR_DEV\n", __func__);
+		} else{
+			pr_err("%s AC_ERR_DEV active_ehi\n", __func__);
 			active_ehi->err_mask |= AC_ERR_DEV;
+		}
 
 		if (hpriv->flags & AHCI_HFLAG_IGN_SERR_INTERNAL)
 			host_ehi->serror &= ~SERR_INTERNAL;
@@ -1797,8 +1800,10 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 	}
 
 	if (irq_stat & PORT_IRQ_IF_ERR) {
-		if (fbs_need_dec)
+		if (fbs_need_dec){
+			pr_err("%s AC_ERR_DEV PORT_IRQ_IF_ERR\n", __func__);
 			active_ehi->err_mask |= AC_ERR_DEV;
+		}
 		else {
 			host_ehi->err_mask |= AC_ERR_ATA_BUS;
 			host_ehi->action |= ATA_EH_RESET;
@@ -2005,7 +2010,7 @@ unsigned int ahci_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	void __iomem *port_mmio = ahci_port_base(ap);
 	struct ahci_port_priv *pp = ap->private_data;
-	pr_err("%s qc=%pS\n", __func__, qc);
+	pr_err("%s qc=%pS err_mask=%d\n", __func__, qc, qc->err_mask);
 	/* Keep track of the currently active link.  It will be used
 	 * in completion path to determine whether NCQ phase is in
 	 * progress.

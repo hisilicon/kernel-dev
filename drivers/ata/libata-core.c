@@ -1167,6 +1167,8 @@ static int ata_read_native_max_address(struct ata_device *dev, u64 *max_sectors)
 	tf.device |= ATA_LBA;
 	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
+	if (err_mask)
+		pr_err("%s err_mask=%d\n", __func__, err_mask);
 	if (err_mask) {
 		ata_dev_warn(dev,
 			     "failed to read native max address (err_mask=0x%x)\n",
@@ -1230,6 +1232,8 @@ static int ata_set_max_sectors(struct ata_device *dev, u64 new_sectors)
 	tf.lbah = (new_sectors >> 16) & 0xff;
 	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
+	if (err_mask)
+		pr_err("%s err_mask=%d\n", __func__, err_mask);
 	if (err_mask) {
 		ata_dev_warn(dev,
 			     "failed to set max address (err_mask=0x%x)\n",
@@ -1516,8 +1520,8 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	
 	scsi_cmd[0] = ATA_INTERNAL;
 
-	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d\n",
-		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen);
+	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS\n",
+		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host);
 
 /*
 	struct ata_taskfile tf;
@@ -1529,15 +1533,21 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	//pr_err("%s0 sdev=%pS ap=%pS sizeof(struct ata_taskfile)=%zu ATAPI_CDB_LEN=%d\n",
 	//	__func__, sdev, ap, sizeof(struct ata_taskfile), ATAPI_CDB_LEN);
 
-	//pr_err("%s1 sdev=%pS ap=%pS\n", __func__, sdev, ap);
+	pr_err("%s1 sdev=%pS ap=%pS\n", __func__, sdev, ap);
 	//cmd_result = scsi_execute(sdev, scsi_cmd, dma_dir, &internal, sizeof(internal),
 	//			  sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
+	//spin_lock_irqsave(ap->lock, flags);
+
+	/* no internal command while frozen */
+	if (ap->pflags & ATA_PFLAG_FROZEN) {
+		WARN(1, "%s ap=%pS frozen\n", __func__, ap);
+	}
 
 	req = scsi_alloc_request(sdev->request_queue,
 			dma_dir == DMA_TO_DEVICE ?
 			REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
 			BLK_MQ_INTERNAL);
-	//pr_err("%s1.1 sdev=%pS ap=%pS req=%pS\n", __func__, sdev, ap, req);
+	pr_err("%s1.1 sdev=%pS ap=%pS req=%pS\n", __func__, sdev, ap, req);
 	if (IS_ERR(req))
 		panic("no request\n");
 
@@ -1551,8 +1561,8 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	scmd->device = sdev;
 	memcpy(&internal_ptr->tf, tf, sizeof(*tf));
 	//scmd->host_scribble = (unsigned char *)&internal;
-	pr_err("%s1.2 sdev=%pS ap=%pS req=%pS internal_ptr=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS\n",
-	__func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd), scmd, req);
+	pr_err("%s1.2 sdev=%pS ap=%pS req=%pS internal_ptr=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
+	__func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd), scmd, req, req->q);
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 	if (buflen) {
 		int ret;
@@ -1564,10 +1574,6 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 			panic("ata internal fixme error\n");
 	}
 
-	//blk_sts = scsi_alloc_sgtables(scmd);
-
-	//pr_err("%s1.5 sdev=%pS ap=%pS req=%pS internal_ptr=%pS scsi_sglist(scmd)=%pS blk_sts=%d scmd=%pS req=%pS\n",
-	// __func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd), blk_sts, scmd, req);
 
 	if (cdb) {
 		//panic("%s cdb\n", __func__);
@@ -1576,27 +1582,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 				  cdb, ATAPI_CDB_LEN, 1);
 		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
 	}
-	//print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf before tf ",
-	//			  DUMP_PREFIX_NONE, 16, 1,
-	//			  tf, sizeof(*tf), 1);
 
-	if (dma_dir != DMA_NONE) {
-		//struct scsi_data_buffer *sdb = &scmd->sdb;
-		//struct scsi_data_buffer *table = &sdb->table;
-	//	scsi_sglist(scmd);
-
-	//	WARN_ON(!buf);
-	//	sg_init_one(scsi_sglist(scmd), buf, buflen);
-	}
-
-	//pr_err("%s1.6 sdev=%pS ap=%pS req=%pS qc=%pS scmd=%pS req=%pS\n",
-	// __func__, sdev, ap, req, qc, scmd, req);
-
-	/*
-	 * head injection *required* here otherwise quiesce won't work
-	 */
-	//panic("sanity0 %s\n", __func__);
-	//blk_execute_rq(req, true);
 
 	req->end_io_data = &wait;
 	//pr_err("%s rq=%pS end_io_data=wait=%pS\n", __func__, rq, rq->end_io_data);
@@ -1607,7 +1593,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	//pr_err("%s1.7 sdev=%pS ap=%pS req=%pS qc=%pS scmd=%pS req=%pS\n",
 	// __func__, sdev, ap, req, qc, scmd, req);
-	pr_err("%s2 sdev=%pS cmd_result=%d scmd=%pS req=%pS\n", __func__, sdev, cmd_result, scmd, req);
+	pr_err("%s2 sdev=%pS ap=%pS cmd_result=%d scmd=%pS req=%pS\n", __func__, sdev, ap, cmd_result, scmd, req);
 	
 	if (!timeout) {
 		if (ata_probe_timeout)
@@ -1620,11 +1606,16 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	//pr_err("%s3 sdev=%pS cmd_result=%d ap->ops->error_handler=%pS scmd=%pS req=%pS\n", __func__, sdev, cmd_result, ap->ops->error_handler, scmd, req);
 	if (ap->ops->error_handler)
 		ata_eh_release(ap);
-	pr_err("%s4 sdev=%pS cmd_result=%d ap->ops->error_handler=%pS scmd=%pS req=%pS going to wait\n", __func__, sdev, cmd_result, ap->ops->error_handler, scmd, req);
+		/* no internal command while frozen */
+	if (ap->pflags & ATA_PFLAG_FROZEN) {
+		panic("%s no frozen\n", __func__);
+	}
+	pr_err("%s4 sdev=%pS cmd_result=%d ap=%pS error_handler=%pS scmd=%pS req=%pS going to wait\n", __func__, sdev, cmd_result, ap, ap->ops->error_handler, scmd, req);
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
-	pr_err("%s4.1 sdev=%pS cmd_result=%d ap->ops->error_handler=%pS scmd=%pS req=%pS finished waiting rc=%d\n",
-		__func__, sdev, cmd_result, ap->ops->error_handler, scmd, req, rc);
-
+	pr_err("%s4.1 sdev=%pS cmd_result=%d ap=%pS error_handler=%pS scmd=%pS req=%pS q=%pS finished waiting rc=%d\n",
+		__func__, sdev, cmd_result, ap, ap->ops->error_handler, scmd, req, req->q, rc);
+	if (rc == 0)
+		panic("%s timeout req=%pS\n", __func__, req);
 	blk_mq_free_request(req);
 	if (blk_mq_request_started(req))
 		panic("sanity1 %s started req=%pS\n", __func__, req);
@@ -1649,7 +1640,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		 */
 		if (qc->flags & ATA_QCFLAG_ACTIVE) {
 			qc->err_mask |= AC_ERR_TIMEOUT;
-			pr_err("%s error AC_ERR_TIMEOUT\n", __func__);
+			pr_err("%s error AC_ERR_TIMEOUT=%d\n", __func__, AC_ERR_TIMEOUT);
 
 			if (ap->ops->error_handler)
 				ata_port_freeze(ap);
@@ -1675,7 +1666,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if (qc->flags & ATA_QCFLAG_FAILED) {
 		if (qc->result_tf.status & (ATA_ERR | ATA_DF)) {
 			qc->err_mask |= AC_ERR_DEV;
-			pr_err("%s error AC_ERR_DEV\n", __func__);
+			pr_err("%s error AC_ERR_DEV=%d\n", __func__, AC_ERR_DEV);
 		}
 
 		if (!qc->err_mask) {
@@ -1746,7 +1737,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	char string[200];
 
 	
-//	mutex_lock(&global_mutex);
+	mutex_lock(&global_mutex);
 	sprintf(string, "ata_exec_internal_sg buf before buf=%pS len=%d ", buf, buflen);
 	//print_hex_dump(KERN_INFO, string,
 	//			  DUMP_PREFIX_NONE, 16, 1,
@@ -1759,7 +1750,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	//print_hex_dump(KERN_INFO, string,
 	//			  DUMP_PREFIX_NONE, 16, 1,
 	//			  buf, buflen, 1);
-//	mutex_unlock(&global_mutex);
+	mutex_unlock(&global_mutex);
 	return res;
 }
 
@@ -2087,8 +2078,10 @@ unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
 	 * Return error without actually issuing the command on controllers
 	 * which e.g. lockup on a read log page.
 	 */
-	if (ap_flags & ATA_FLAG_NO_LOG_PAGE)
+	if (ap_flags & ATA_FLAG_NO_LOG_PAGE){
+		pr_err("%s ATA_FLAG_NO_LOG_PAGE\n", __func__);
 		return AC_ERR_DEV;
+	}
 
 retry:
 	ata_tf_init(dev, &tf);
@@ -5001,7 +4994,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 
 	if (cmd)
 		rq = scsi_cmd_to_rq(cmd);
-	pr_err("%s qc=%pS cmd=%pS rq=%pS cursg=%pS\n", __func__, qc, cmd, rq, qc->cursg);
+	pr_err("%s qc=%pS cmd=%pS rq=%pS cursg=%pS err_mask=%d\n", __func__, qc, cmd, rq, qc->cursg, qc->err_mask);
 	ap = qc->ap;
 
 	//pr_err("%s1 qc=%pS ap=%pS cmd=%pS rq=%pS\n", __func__, qc, ap, cmd, rq);
@@ -5066,14 +5059,16 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	//pr_err("%s7 qc=%pS cmd=%pS rq=%pS qc->err_mask=%d\n", __func__, qc, cmd, rq, qc->err_mask);
 	trace_ata_qc_prep(qc);
 	qc->err_mask |= ap->ops->qc_prep(qc);
-	//pr_err("%s7.1 qc=%pS cmd=%pS rq=%pS qc->err_mask=%d\n", __func__, qc, cmd, rq, qc->err_mask);
+	if (qc->err_mask)
+		pr_err("%s7.1 qc=%pS cmd=%pS rq=%pS qc->err_mask=%d\n", __func__, qc, cmd, rq, qc->err_mask);
 	if (unlikely(qc->err_mask))
 		goto err;
 	trace_ata_qc_issue(qc);
 	//pr_err("%s8 qc=%pS ap->ops=%pS cmd=%pS rq=%pS\n", __func__, qc, ap->ops, cmd, rq);
 //	pr_err("%s9 qc=%pS qc_issue=%pS cmd=%pS rq=%pS ap->ops=%pS cursg=%pS\n", __func__, qc, ap->ops->qc_issue, cmd, rq, ap->ops, qc->cursg);
 	qc->err_mask |= ap->ops->qc_issue(qc);
-//	pr_err("%s10 qc=%pS qc->err_mask=%d cmd=%pS rq=%pS qc->err_mask=%d\n", __func__, qc, qc->err_mask, cmd, rq, qc->err_mask);
+	if (qc->err_mask)
+		pr_err("%s10 qc=%pS qc->err_mask=%d cmd=%pS rq=%pS qc->err_mask=%d\n", __func__, qc, qc->err_mask, cmd, rq, qc->err_mask);
 	if (unlikely(qc->err_mask))
 		goto err;
 	return;
@@ -5906,7 +5901,7 @@ void __ata_port_probe(struct ata_port *ap)
 int ata_port_probe(struct ata_port *ap)
 {
 	int rc = 0;
-	pr_err("%s ap=%pS ap->ops->error_handler=%pS\n", __func__, ap, ap->ops->error_handler);
+	pr_err("%s ap=%pS error_handler=%pS\n", __func__, ap, ap->ops->error_handler);
 	if (ap->ops->error_handler) {
 		pr_err("%s2 ap=%pS calling __ata_port_probe\n", __func__, ap);
 		__ata_port_probe(ap);
