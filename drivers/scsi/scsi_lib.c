@@ -86,17 +86,13 @@ bool scsi_is_internal_command(struct scsi_cmnd *cmd)
 {
 	struct request *rq = scsi_cmd_to_rq(cmd);
 
-	bool internal1 = false, internal2 = false;
+	bool internal1 = false;
 
 	if ((rq->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
 		internal1 = true;
-	if (cmd->cmnd[0] == ATA_INTERNAL)
-		internal2 = true;
 
-	if (internal1 != internal2)
-		BUG();
 
-	return internal1 || internal2;
+	return internal1;
 }
 
 static void
@@ -139,9 +135,9 @@ static void scsi_mq_requeue_cmd(struct scsi_cmnd *cmd)
 {
 	struct request *rq = scsi_cmd_to_rq(cmd);
 
-	bool internal = scsi_is_internal_command(cmd);
+//	bool internal = scsi_is_internal_command(cmd);
 
-	pr_err("%s rq=%pS cmd=%pS internal=%d\n", __func__, rq, cmd, internal);
+//	pr_err("%s rq=%pS cmd=%pS internal=%d\n", __func__, rq, cmd, internal);
 
 	if (rq->rq_flags & RQF_DONTPREP) {
 		rq->rq_flags &= ~RQF_DONTPREP;

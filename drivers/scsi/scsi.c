@@ -162,15 +162,15 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 	struct Scsi_Host *shost = sdev->host;
 	struct scsi_driver *drv;
 	unsigned int good_bytes;
-	bool internal1, internal2;
-	struct request *req = scsi_cmd_to_rq(cmd);
+//	bool internal1 = false, internal2 = false;
+//	struct request *req = scsi_cmd_to_rq(cmd);
 
-	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
-		internal1 = true;
-	if (cmd->cmnd[0] == ATA_INTERNAL)
-		internal2 = true;
+//	if ((req->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
+//		internal1 = true;
+//	if (cmd->cmnd[0] == ATA_INTERNAL)
+//		internal2 = true;
 
-	pr_err("%s cmd=%pS internal1=%d internal2=%d\n", __func__, cmd, internal1, internal2);
+//	pr_err("%s cmd=%pS internal1=%d internal2=%d\n", __func__, cmd, internal1, internal2);
 
 	scsi_device_unbusy(sdev, cmd);
 
@@ -190,11 +190,11 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 				"(result %x)\n", cmd->result));
 
 	good_bytes = scsi_bufflen(cmd);
-	pr_err("%s2 cmd=%pS good_bytes=%d\n", __func__, cmd, good_bytes);
+//	pr_err("%s2 cmd=%pS good_bytes=%d\n", __func__, cmd, good_bytes);
 	if (!blk_rq_is_passthrough(scsi_cmd_to_rq(cmd))) {
 		int old_good_bytes = good_bytes;
 		drv = scsi_cmd_to_driver(cmd);
-		pr_err("%s3 cmd=%pS good_bytes=%d\n", __func__, cmd, good_bytes);
+//		pr_err("%s3 cmd=%pS good_bytes=%d\n", __func__, cmd, good_bytes);
 		if (drv->done)
 			good_bytes = drv->done(cmd);
 		/*
@@ -206,7 +206,7 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 		if (good_bytes == old_good_bytes)
 			good_bytes -= scsi_get_resid(cmd);
 	}
-	pr_err("%s4 cmd=%pS good_bytes=%d\n", __func__, cmd, good_bytes);
+//	pr_err("%s4 cmd=%pS good_bytes=%d\n", __func__, cmd, good_bytes);
 	scsi_io_completion(cmd, good_bytes);
 }
 
