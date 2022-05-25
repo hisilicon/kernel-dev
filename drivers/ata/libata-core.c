@@ -1525,7 +1525,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	u8 cdb[ATAPI_CDB_LEN];
 	*/
 
-	sdev = scsi_get_host_dev(scsi_host);
+	sdev = scsi_host->sdev;
 	//pr_err("%s0 sdev=%pS ap=%pS sizeof(struct ata_taskfile)=%zu ATAPI_CDB_LEN=%d\n",
 	//	__func__, sdev, ap, sizeof(struct ata_taskfile), ATAPI_CDB_LEN);
 
