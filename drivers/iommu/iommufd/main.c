@@ -183,6 +183,7 @@ static int iommufd_fops_release(struct inode *inode, struct file *filp)
 		cur++;
 	}
 	WARN_ON(!xa_empty(&ictx->objects));
+	//TODO: free pasid_set
 	kfree(ictx);
 	return 0;
 }
@@ -196,6 +197,8 @@ union ucmd_buffer {
 	struct iommu_hwpt_invalidate_s1_cache cache;
 	struct iommu_destroy destroy;
 	struct iommu_device_info info;
+	struct iommu_alloc_pasid alloc_pasid;
+	struct iommu_free_pasid free_pasid;
 #ifdef CONFIG_IOMMUFD_TEST
 	struct iommu_test_cmd test;
 #endif
@@ -237,6 +240,10 @@ static struct iommufd_ioctl_op iommufd_ioctl_ops[] = {
 		 out_hwpt_id),
 	IOCTL_OP(IOMMU_HWPT_INVAL_S1_CACHE, iommufd_hwpt_invalidate_cache,
 		 struct iommu_hwpt_invalidate_s1_cache, info),
+	IOCTL_OP(IOMMU_ALLOC_PASID, iommufd_alloc_pasid, struct iommu_alloc_pasid,
+		 pasid),
+	IOCTL_OP(IOMMU_FREE_PASID, iommufd_free_pasid, struct iommu_free_pasid,
+		 pasid),
 #ifdef CONFIG_IOMMUFD_TEST
 	IOCTL_OP(IOMMU_TEST_CMD, iommufd_test, struct iommu_test_cmd, last),
 #endif

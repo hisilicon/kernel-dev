@@ -71,6 +71,7 @@ struct iommufd_ctx {
 	struct file *filp;
 	struct xarray objects;
 
+	struct ioasid_set pasid_set;
 	struct mutex vfio_compat;
 	struct iommufd_ioas *vfio_ioas;
 	int vfio_fd;
@@ -220,6 +221,8 @@ int iommufd_vfio_ioas(struct iommufd_ucmd *ucmd);
 int iommufd_device_get_info(struct iommufd_ucmd *ucmd);
 int iommufd_alloc_s1_hwpt(struct iommufd_ucmd *ucmd);
 int iommufd_hwpt_invalidate_cache(struct iommufd_ucmd *ucmd);
+int iommufd_alloc_pasid(struct iommufd_ucmd *ucmd);
+int iommufd_free_pasid(struct iommufd_ucmd *ucmd);
 
 struct iommufd_hw_pagetable_kernel {
 	struct iommufd_ioas *ioas;
