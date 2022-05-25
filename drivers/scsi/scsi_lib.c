@@ -86,7 +86,7 @@ bool scsi_is_internal_command(struct scsi_cmnd *cmd)
 {
 	struct request *rq = scsi_cmd_to_rq(cmd);
 
-	bool internal1, internal2;
+	bool internal1 = false, internal2 = false;
 
 	if ((rq->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
 		internal1 = true;
@@ -513,9 +513,10 @@ static void scsi_uninit_cmd(struct scsi_cmnd *cmd)
 	if (!blk_rq_is_passthrough(scsi_cmd_to_rq(cmd))) {
 		struct scsi_driver *drv = scsi_cmd_to_driver(cmd);
 		
-		if (drv->uninit_command)
-		//	drv->uninit_command(cmd);
+		if (drv->uninit_command) {
+			drv->uninit_command(cmd);
 			pr_err("%s cmd=%pS uninit_command=%pS\n", __func__, cmd, drv->uninit_command);
+		}
 	}
 }
 

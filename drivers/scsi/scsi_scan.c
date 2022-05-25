@@ -848,7 +848,7 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		blist_flags_t *bflags, int async)
 {
 	int ret;
-
+	pr_err("%s sdev=%pS\n", __func__, sdev);
 	/*
 	 * XXX do not save the inquiry, since it can change underneath us,
 	 * save just vendor/model/rev.

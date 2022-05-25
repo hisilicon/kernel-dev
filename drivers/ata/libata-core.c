@@ -1439,9 +1439,9 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 	__maybe_unused struct ata_taskfile *tf = &qc->tf;
 	__maybe_unused struct request *rq = scsi_cmd_to_rq(scmd);
 	pr_err("%s qc=%pS waiting=%pS scmd=%pS rq=%pS\n", __func__, qc, waiting, scmd, rq);
-	print_hex_dump(KERN_INFO, "ata_qc_complete_internal tf ",
-				  DUMP_PREFIX_NONE, 16, 1,
-				  tf, sizeof(*tf), 1);
+	//print_hex_dump(KERN_INFO, "ata_qc_complete_internal tf ",
+		//		  DUMP_PREFIX_NONE, 16, 1,
+		//		  tf, sizeof(*tf), 1);
 
 	scsi_done(scmd);
 }
@@ -5903,13 +5903,17 @@ void __ata_port_probe(struct ata_port *ap)
 int ata_port_probe(struct ata_port *ap)
 {
 	int rc = 0;
-
+	pr_err("%s ap=%pS ap->ops->error_handler=%pS\n", __func__, ap, ap->ops->error_handler);
 	if (ap->ops->error_handler) {
+		pr_err("%s2 ap=%pS calling __ata_port_probe\n", __func__, ap);
 		__ata_port_probe(ap);
+		pr_err("%s3 ap=%pS calling ata_port_wait_eh\n", __func__, ap);
 		ata_port_wait_eh(ap);
+		pr_err("%s4 ap=%pS\n", __func__, ap);
 	} else {
 		rc = ata_bus_probe(ap);
 	}
+	pr_err("%s10 out ap=%pS rc=%d\n", __func__, ap, rc);
 	return rc;
 }
 
@@ -6028,6 +6032,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 	/* perform each probe asynchronously */
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
+		pr_err("%s ap=%pS calling async_schedule(async_port_probe) port=%d\n", __func__, ap, i);
 		ap->cookie = async_schedule(async_port_probe, ap);
 	}
 
