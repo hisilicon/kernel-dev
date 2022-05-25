@@ -1978,6 +1978,8 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 	tag_set->nr_hw_queues = shost->nr_hw_queues ? : 1;
 	tag_set->nr_maps = shost->nr_maps ? : 1;
 	tag_set->queue_depth = shost->can_queue;
+	tag_set->reserved_tags = shost->nr_reserved_cmds;
+
 	tag_set->cmd_size = cmd_size;
 	tag_set->numa_node = dev_to_node(shost->dma_dev);
 	tag_set->flags = BLK_MQ_F_SHOULD_MERGE;
