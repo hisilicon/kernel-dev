@@ -240,17 +240,17 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 	if (cmd[0] == ATA_INTERNAL) {
-		pr_err("%s bufflen=%d buffer=%pS ATA_INTERNAL req=%pS\n", __func__, bufflen, buffer, req);
-		if (bufflen)
-			print_hex_dump(KERN_INFO, "__scsi_execute ",
-				  DUMP_PREFIX_NONE, 16, 1,
-				  buffer, bufflen, 1);
+	//	pr_err("%s bufflen=%d buffer=%pS ATA_INTERNAL req=%pS\n", __func__, bufflen, buffer, req);
+	//	if (bufflen)
+	//		print_hex_dump(KERN_INFO, "__scsi_execute ",
+	//			  DUMP_PREFIX_NONE, 16, 1,
+	//			  buffer, bufflen, 1);
 	}
 	if (bufflen) {
-		pr_err("%s2 bufflen=%d buffer=%pS ATA_INTERNAL req=%pS\n", __func__, bufflen, buffer, req);
+	//	pr_err("%s2 bufflen=%d buffer=%pS ATA_INTERNAL req=%pS\n", __func__, bufflen, buffer, req);
 		ret = blk_rq_map_kern(sdev->request_queue, req,
 				      buffer, bufflen, GFP_NOIO);
-		pr_err("%s3 bufflen=%d buffer=%pS ATA_INTERNAL ret=%d req=%pS\n", __func__, bufflen, buffer, ret, req);
+	//	pr_err("%s3 bufflen=%d buffer=%pS ATA_INTERNAL ret=%d req=%pS\n", __func__, bufflen, buffer, ret, req);
 		if (ret)
 			goto out;
 	}
@@ -979,7 +979,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	struct request_queue *q = cmd->device->request_queue;
 	struct request *req = scsi_cmd_to_rq(cmd);
 	blk_status_t blk_stat = BLK_STS_OK;
-	pr_err("%s cmd=%pS good_bytes=%d req=%pS\n", __func__, cmd, good_bytes, req);
+//	pr_err("%s cmd=%pS good_bytes=%d req=%pS\n", __func__, cmd, good_bytes, req);
 	if (unlikely(result))	/* a nz result may or may not be an error */
 		result = scsi_io_completion_nz_result(cmd, result, &blk_stat);
 
@@ -995,9 +995,9 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	 * Failed, zero length commands always need to drop down
 	 * to retry code. Fast path should return in this block.
 	 */
-	pr_err("%s2 cmd=%pS good_bytes=%d req=%pS\n", __func__, cmd, good_bytes, req);
+//	pr_err("%s2 cmd=%pS good_bytes=%d req=%pS\n", __func__, cmd, good_bytes, req);
 	if (likely(blk_rq_bytes(req) > 0 || blk_stat == BLK_STS_OK)) {
-		pr_err("%s3 cmd=%pS good_bytes=%d req=%pS\n", __func__, cmd, good_bytes, req);
+//		pr_err("%s3 cmd=%pS good_bytes=%d req=%pS\n", __func__, cmd, good_bytes, req);
 		if (likely(!scsi_end_request(req, blk_stat, good_bytes)))
 			return; /* no bytes remaining */
 	}
@@ -1010,7 +1010,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		return;
 	}
 
-	pr_err("%s4 cmd=%pS good_bytes=%d result=%d req=%pS\n", __func__, cmd, good_bytes, result, req);
+//	pr_err("%s4 cmd=%pS good_bytes=%d result=%d req=%pS\n", __func__, cmd, good_bytes, result, req);
 	/*
 	 * If there had been no error, but we have leftover bytes in the
 	 * request just queue the command up again.

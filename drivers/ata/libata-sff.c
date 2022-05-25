@@ -172,7 +172,7 @@ EXPORT_SYMBOL_GPL(ata_sff_pause);
 
 void ata_sff_dma_pause(struct ata_port *ap)
 {
-	pr_err("%s ap=%pS\n", __func__, ap);
+//	pr_err("%s ap=%pS\n", __func__, ap);
 	/*
 	 * An altstatus read will cause the needed delay without
 	 * messing up the IRQ status
@@ -372,7 +372,7 @@ static void ata_dev_select(struct ata_port *ap, unsigned int device,
  */
 void ata_sff_irq_on(struct ata_port *ap)
 {
-	pr_err("%s ap=%pS\n", __func__, ap);
+//	pr_err("%s ap=%pS\n", __func__, ap);
 	if (ap->ops->sff_irq_on) {
 		ap->ops->sff_irq_on(ap);
 		return;
@@ -489,7 +489,7 @@ EXPORT_SYMBOL_GPL(ata_sff_tf_read);
  */
 void ata_sff_exec_command(struct ata_port *ap, const struct ata_taskfile *tf)
 {
-	pr_err("%s ap=%pS tf=%pS\n", __func__, ap, tf);
+//	pr_err("%s ap=%pS tf=%pS\n", __func__, ap, tf);
 	iowrite8(tf->command, ap->ioaddr.command_addr);
 	ata_sff_pause(ap);
 }
@@ -539,7 +539,7 @@ unsigned int ata_sff_data_xfer(struct ata_queued_cmd *qc, unsigned char *buf,
 	struct ata_port *ap = qc->dev->link->ap;
 	void __iomem *data_addr = ap->ioaddr.data_addr;
 	unsigned int words = buflen >> 1;
-	pr_err("%s qc=%pS buflen=%d\n", __func__, ap, buflen);
+//	pr_err("%s qc=%pS buflen=%d\n", __func__, ap, buflen);
 
 	/* Transfer multiple of 2 bytes */
 	if (rw == READ)
@@ -598,7 +598,7 @@ unsigned int ata_sff_data_xfer32(struct ata_queued_cmd *qc, unsigned char *buf,
 	unsigned int words = buflen >> 2;
 	int slop = buflen & 3;
 
-	pr_err("%s qc=%pS buflen=%d\n", __func__, ap, buflen);
+//	pr_err("%s qc=%pS buflen=%d\n", __func__, ap, buflen);
 	if (!(ap->pflags & ATA_PFLAG_PIO32))
 		return ata_sff_data_xfer(qc, buf, buflen, rw);
 
@@ -643,7 +643,7 @@ static void ata_pio_xfer(struct ata_queued_cmd *qc, struct page *page,
 	bool do_write = (qc->tf.flags & ATA_TFLAG_WRITE);
 	unsigned char *buf;
 
-	pr_err("%s qc=%pS xfer_size=%zu\n", __func__, qc, xfer_size);
+//	pr_err("%s qc=%pS xfer_size=%zu\n", __func__, qc, xfer_size);
 	buf = kmap_atomic(page);
 	qc->ap->ops->sff_data_xfer(qc, buf + offset, xfer_size, do_write);
 	kunmap_atomic(buf);
@@ -667,10 +667,10 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	struct page *page;
 	unsigned int offset;
 
-	pr_err("%s qc=%pS ap=%pS qc->cursg=%pS\n", __func__, qc, ap, qc->cursg);
+//	pr_err("%s qc=%pS ap=%pS qc->cursg=%pS\n", __func__, qc, ap, qc->cursg);
 	if (!qc->cursg) {
 		qc->curbytes = qc->nbytes;
-		pr_err("%s2 qc=%pS ap=%pS\n", __func__, qc, ap);
+	//	pr_err("%s2 qc=%pS ap=%pS\n", __func__, qc, ap);
 		return;
 	}
 	if (qc->curbytes == qc->nbytes - qc->sect_size)
@@ -679,11 +679,11 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	page = sg_page(qc->cursg);
 	offset = qc->cursg->offset + qc->cursg_ofs;
 
-	pr_err("%s3 qc=%pS ap=%pS offset=%d\n", __func__, qc, ap, offset);
+//	pr_err("%s3 qc=%pS ap=%pS offset=%d\n", __func__, qc, ap, offset);
 	/* get the current page and offset */
 	page = nth_page(page, (offset >> PAGE_SHIFT));
 	offset %= PAGE_SIZE;
-	pr_err("%s4 qc=%pS ap=%pS offset=%d\n", __func__, qc, ap, offset);
+//	pr_err("%s4 qc=%pS ap=%pS offset=%d\n", __func__, qc, ap, offset);
 
 	trace_ata_sff_pio_transfer_data(qc, offset, qc->sect_size);
 
@@ -695,12 +695,12 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	if (offset + qc->sect_size > PAGE_SIZE) {
 		unsigned int split_len = PAGE_SIZE - offset;
 
-		pr_err("%s5 qc=%pS ap=%pS offset=%d\n", __func__, qc, ap, offset);
+	//	pr_err("%s5 qc=%pS ap=%pS offset=%d\n", __func__, qc, ap, offset);
 		ata_pio_xfer(qc, page, offset, split_len);
 		ata_pio_xfer(qc, nth_page(page, 1), 0,
 			     qc->sect_size - split_len);
 	} else {
-		pr_err("%s6 qc=%pS ap=%pS offset=%d\n", __func__, qc, ap, offset);
+	//	pr_err("%s6 qc=%pS ap=%pS offset=%d\n", __func__, qc, ap, offset);
 		ata_pio_xfer(qc, page, offset, qc->sect_size);
 	}
 
@@ -807,7 +807,7 @@ static int __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 	unsigned char *buf;
 	unsigned int offset, count, consumed;
 
-	pr_err("%s qc=%pS bytes=%d\n", __func__, qc, bytes);
+//	pr_err("%s qc=%pS bytes=%d\n", __func__, qc, bytes);
 next_sg:
 	sg = qc->cursg;
 	if (unlikely(!sg)) {
@@ -874,7 +874,7 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 	unsigned int ireason, bc_lo, bc_hi, bytes;
 	int i_write, do_write = (qc->tf.flags & ATA_TFLAG_WRITE) ? 1 : 0;
 
-	pr_err("%s qc=%pS\n", __func__, qc);
+//	pr_err("%s qc=%pS\n", __func__, qc);
 	/* Abuse qc->result_tf for temp storage of intermediate TF
 	 * here to save some kernel stack usage.
 	 * For normal completion, qc->result_tf is not relevant. For
@@ -928,7 +928,7 @@ static inline int ata_hsm_ok_in_wq(struct ata_port *ap,
 	if (qc->tf.flags & ATA_TFLAG_POLLING)
 		return 1;
 
-	pr_err("%s qc=%pS ap=%pS\n", __func__, qc, ap);
+//	pr_err("%s qc=%pS ap=%pS\n", __func__, qc, ap);
 	if (ap->hsm_task_state == HSM_ST_FIRST) {
 		if (qc->tf.protocol == ATA_PROT_PIO &&
 		   (qc->tf.flags & ATA_TFLAG_WRITE))
@@ -958,7 +958,7 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 	struct ata_port *ap = qc->ap;
 	static int count;
 
-	pr_err("%s qc=%pS in_wq=%d\n", __func__, qc, in_wq);
+//	pr_err("%s qc=%pS in_wq=%d\n", __func__, qc, in_wq);
 	count++;
 	if (count ==254545)
 		panic("%s\n", __func__);
@@ -1006,7 +1006,7 @@ int ata_sff_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 	struct ata_link *link = qc->dev->link;
 	struct ata_eh_info *ehi = &link->eh_info;
 	int poll_next;
-	pr_err("%s ap=%pS qc=%pS status=%d in_wq=%d\n", __func__, ap, qc, status, in_wq);
+//	pr_err("%s ap=%pS qc=%pS status=%d in_wq=%d\n", __func__, ap, qc, status, in_wq);
 	lockdep_assert_held(ap->lock);
 
 	WARN_ON_ONCE((qc->flags & ATA_QCFLAG_ACTIVE) == 0);
@@ -1019,7 +1019,7 @@ int ata_sff_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 
 fsm_start:
 	trace_ata_sff_hsm_state(qc, status);
-	pr_err("%s0 ap=%pS qc=%pS ap->hsm_task_state=%d\n", __func__, ap, qc, ap->hsm_task_state);
+//	pr_err("%s0 ap=%pS qc=%pS ap->hsm_task_state=%d\n", __func__, ap, qc, ap->hsm_task_state);
 	switch (ap->hsm_task_state) {
 	case HSM_ST_FIRST:
 		/* Send first data block or PACKET CDB */
@@ -1029,7 +1029,7 @@ fsm_start:
 		 * takes over after sending the data.
 		 */
 		poll_next = (qc->tf.flags & ATA_TFLAG_POLLING);
-		pr_err("%s1 ap=%pS qc=%pS poll_next=%d HSM_ST_FIRST\n", __func__, ap, qc, poll_next);
+	//	pr_err("%s1 ap=%pS qc=%pS poll_next=%d HSM_ST_FIRST\n", __func__, ap, qc, poll_next);
 
 		/* check device status */
 		if (unlikely((status & ATA_DRQ) == 0)) {
@@ -1037,17 +1037,17 @@ fsm_start:
 			if (likely(status & (ATA_ERR | ATA_DF))) {
 				/* device stops HSM for abort/error */
 				qc->err_mask |= AC_ERR_DEV;
-				pr_err("%s error AC_ERR_DEV\n", __func__);
+	//			pr_err("%s error AC_ERR_DEV\n", __func__);
 			} else {
 				/* HSM violation. Let EH handle this */
 				ata_ehi_push_desc(ehi,
 					"ST_FIRST: !(DRQ|ERR|DF)");
 				qc->err_mask |= AC_ERR_HSM;
-				pr_err("%s error AC_ERR_HSM\n", __func__);
+	//			pr_err("%s error AC_ERR_HSM\n", __func__);
 			}
 
 			ap->hsm_task_state = HSM_ST_ERR;
-			pr_err("%s error HSM_ST_ERR\n", __func__);
+	//		pr_err("%s error HSM_ST_ERR\n", __func__);
 			goto fsm_start;
 		}
 
@@ -1068,7 +1068,7 @@ fsm_start:
 					"DRQ=1 with device error, "
 					"dev_stat 0x%X", status);
 				qc->err_mask |= AC_ERR_HSM;
-				pr_err("%s error ST_FIRST AC_ERR_HSM HSM_ST_ERR\n", __func__);
+	//			pr_err("%s error ST_FIRST AC_ERR_HSM HSM_ST_ERR\n", __func__);
 				ap->hsm_task_state = HSM_ST_ERR;
 				goto fsm_start;
 			}
@@ -1095,12 +1095,12 @@ fsm_start:
 		break;
 
 	case HSM_ST:
-		pr_err("%s2 ap=%pS qc=%pS HSM_ST qc->tf.protocol == ATAPI_PROT_PIO=%d\n", __func__, ap, qc, !!(qc->tf.protocol == ATAPI_PROT_PIO));
+//		pr_err("%s2 ap=%pS qc=%pS HSM_ST qc->tf.protocol == ATAPI_PROT_PIO=%d\n", __func__, ap, qc, !!(qc->tf.protocol == ATAPI_PROT_PIO));
 		/* complete command or read/write the data register */
 		if (qc->tf.protocol == ATAPI_PROT_PIO) {
 			/* ATAPI PIO protocol */
 			if ((status & ATA_DRQ) == 0) {
-				pr_err("%s2.1 ap=%pS qc=%pS ATA_DRQ=0\n", __func__, ap, qc);
+		//		pr_err("%s2.1 ap=%pS qc=%pS ATA_DRQ=0\n", __func__, ap, qc);
 				/* No more data to transfer or device error.
 				 * Device error will be tagged in HSM_ST_LAST.
 				 */
@@ -1119,7 +1119,7 @@ fsm_start:
 					"DRQ=1 with device error, "
 					"dev_stat 0x%X", status);
 				qc->err_mask |= AC_ERR_HSM;
-				pr_err("%s error ST-ATAPI AC_ERR_HSM\n", __func__);
+	//			pr_err("%s error ST-ATAPI AC_ERR_HSM\n", __func__);
 				ap->hsm_task_state = HSM_ST_ERR;
 				goto fsm_start;
 			}
@@ -1127,16 +1127,16 @@ fsm_start:
 			atapi_pio_bytes(qc);
 
 			if (unlikely(ap->hsm_task_state == HSM_ST_ERR)) {
-				pr_err("%s error HSM_ST_ERR\n", __func__);
+		//		pr_err("%s error HSM_ST_ERR\n", __func__);
 				/* bad ireason reported by device */
 				goto fsm_start;
 			}
 
 		} else {
-			pr_err("%s2.3 ap=%pS qc=%pS ATA PIO protocol\n", __func__, ap, qc);
+	//		pr_err("%s2.3 ap=%pS qc=%pS ATA PIO protocol\n", __func__, ap, qc);
 			/* ATA PIO protocol */
 			if (unlikely((status & ATA_DRQ) == 0)) {
-				pr_err("%s2.4 ap=%pS qc=%pS ATA_DRQ=0\n", __func__, ap, qc);
+	//			pr_err("%s2.4 ap=%pS qc=%pS ATA_DRQ=0\n", __func__, ap, qc);
 				/* handle BSY=0, DRQ=0 as error */
 				if (likely(status & (ATA_ERR | ATA_DF))) {
 					/* device stops HSM for abort/error */
@@ -1155,7 +1155,7 @@ fsm_start:
 					}
 				} else {
 
-					pr_err("%s2.5 ap=%pS qc=%pS DRQ=0 without device error\n", __func__, ap, qc);
+		//			pr_err("%s2.5 ap=%pS qc=%pS DRQ=0 without device error\n", __func__, ap, qc);
 					/* HSM violation. Let EH handle this.
 					 * Phantom devices also trigger this
 					 * condition.  Mark hint.
@@ -1165,7 +1165,7 @@ fsm_start:
 						"dev_stat 0x%X", status);
 					qc->err_mask |= AC_ERR_HSM |
 							AC_ERR_NODEV_HINT;
-					pr_err("%s error ST-ATA: AC_ERR_HSM AC_ERR_NODEV_HINT qc->err_mask=%d\n", __func__, qc->err_mask);
+		//			pr_err("%s error ST-ATA: AC_ERR_HSM AC_ERR_NODEV_HINT qc->err_mask=%d\n", __func__, qc->err_mask);
 				}
 
 				ap->hsm_task_state = HSM_ST_ERR;
@@ -1173,7 +1173,7 @@ fsm_start:
 				goto fsm_start;
 			}
 
-			pr_err("%s2.6 ap=%pS qc=%pS\n", __func__, ap, qc);
+//			pr_err("%s2.6 ap=%pS qc=%pS\n", __func__, ap, qc);
 			/* For PIO reads, some devices may ask for
 			 * data transfer (DRQ=1) alone with ERR=1.
 			 * We respect DRQ here and transfer one
@@ -1187,7 +1187,7 @@ fsm_start:
 			if (unlikely(status & (ATA_ERR | ATA_DF))) {
 				/* data might be corrputed */
 				qc->err_mask |= AC_ERR_DEV;
-				pr_err("%s error AC_ERR_DEV data might be corrputed\n", __func__);
+		//		pr_err("%s error AC_ERR_DEV data might be corrputed\n", __func__);
 
 				if (!(qc->tf.flags & ATA_TFLAG_WRITE)) {
 					ata_pio_sectors(qc);
@@ -1199,7 +1199,7 @@ fsm_start:
 						"BUSY|DRQ persists on ERR|DF, "
 						"dev_stat 0x%X", status);
 					qc->err_mask |= AC_ERR_HSM;
-					pr_err("%s error AC_ERR_HSM data might be corrputed\n", __func__);
+	//				pr_err("%s error AC_ERR_HSM data might be corrputed\n", __func__);
 				}
 
 				/* There are oddball controllers with
@@ -1211,7 +1211,7 @@ fsm_start:
 				 */
 				if (status == 0x7f) {
 					qc->err_mask |= AC_ERR_NODEV_HINT;
-					pr_err("%s error AC_ERR_NODEV_HINT data might be corrputed\n", __func__);
+	//				pr_err("%s error AC_ERR_NODEV_HINT data might be corrputed\n", __func__);
 				}
 
 				/* ata_pio_sectors() might change the
@@ -1223,9 +1223,9 @@ fsm_start:
 				goto fsm_start;
 			}
 
-			pr_err("%s2.7 ap=%pS qc=%pS ap->hsm_task_state=%d ATA_TFLAG_WRITE=%d\n", __func__, ap, qc, ap->hsm_task_state, !!(qc->tf.flags & ATA_TFLAG_WRITE));
+	//		pr_err("%s2.7 ap=%pS qc=%pS ap->hsm_task_state=%d ATA_TFLAG_WRITE=%d\n", __func__, ap, qc, ap->hsm_task_state, !!(qc->tf.flags & ATA_TFLAG_WRITE));
 			ata_pio_sectors(qc);
-			pr_err("%s2.7.0 ap=%pS qc=%pS ap->hsm_task_state=%d ATA_TFLAG_WRITE=%d\n", __func__, ap, qc, ap->hsm_task_state, !!(qc->tf.flags & ATA_TFLAG_WRITE));
+	//		pr_err("%s2.7.0 ap=%pS qc=%pS ap->hsm_task_state=%d ATA_TFLAG_WRITE=%d\n", __func__, ap, qc, ap->hsm_task_state, !!(qc->tf.flags & ATA_TFLAG_WRITE));
 
 			if (ap->hsm_task_state == HSM_ST_LAST &&
 			    (!(qc->tf.flags & ATA_TFLAG_WRITE))) {
@@ -1234,17 +1234,17 @@ fsm_start:
 				pr_err("%s goto fsm_start ATA_TFLAG_WRITE status=%d\n", __func__, status);
 				goto fsm_start;
 			}
-			pr_err("%s2.7.1 ap=%pS qc=%pS\n", __func__, ap, qc);
+	//		pr_err("%s2.7.1 ap=%pS qc=%pS\n", __func__, ap, qc);
 		}
 
 		poll_next = 1;
-		pr_err("%s2.8 ap=%pS qc=%pS poll_next=%d\n", __func__, ap, qc, poll_next);
+	//	pr_err("%s2.8 ap=%pS qc=%pS poll_next=%d\n", __func__, ap, qc, poll_next);
 		break;
 
 	case HSM_ST_LAST:
 		if (unlikely(!ata_ok(status))) {
 			qc->err_mask |= __ac_err_mask(status);
-			pr_err("%s error __ac_err_mask(status) HSM_ST_LAST\n", __func__);
+	//		pr_err("%s error __ac_err_mask(status) HSM_ST_LAST\n", __func__);
 			ap->hsm_task_state = HSM_ST_ERR;
 			goto fsm_start;
 		}
@@ -1260,7 +1260,7 @@ fsm_start:
 		ata_hsm_qc_complete(qc, in_wq);
 
 		poll_next = 0;
-		pr_err("%s3 ap=%pS qc=%pS poll_next=%d\n", __func__, ap, qc, poll_next);
+	//	pr_err("%s3 ap=%pS qc=%pS poll_next=%d\n", __func__, ap, qc, poll_next);
 		break;
 
 	case HSM_ST_ERR:
@@ -1270,16 +1270,16 @@ fsm_start:
 		ata_hsm_qc_complete(qc, in_wq);
 
 		poll_next = 0;
-		pr_err("%s4 ap=%pS qc=%pS poll_next=%d\n", __func__, ap, qc, poll_next);
+	//	pr_err("%s4 ap=%pS qc=%pS poll_next=%d\n", __func__, ap, qc, poll_next);
 		break;
 	default:
 		poll_next = 0;
-		pr_err("%s5 ap=%pS qc=%pS poll_next=%d\n", __func__, ap, qc, poll_next);
+	//	pr_err("%s5 ap=%pS qc=%pS poll_next=%d\n", __func__, ap, qc, poll_next);
 		WARN(true, "ata%d: SFF host state machine in invalid state %d",
 		     ap->print_id, ap->hsm_task_state);
 	}
 
-	pr_err("%s10 out ap=%pS qc=%pS poll_next=%d\n", __func__, ap, qc, poll_next);
+//	pr_err("%s10 out ap=%pS qc=%pS poll_next=%d\n", __func__, ap, qc, poll_next);
 	return poll_next;
 }
 EXPORT_SYMBOL_GPL(ata_sff_hsm_move);
@@ -1339,13 +1339,13 @@ static void ata_sff_pio_task(struct work_struct *work)
 	u8 status;
 	int poll_next;
 	int count = 0;
-	pr_err("%s ap=%pS\n", __func__, ap);
+//	pr_err("%s ap=%pS\n", __func__, ap);
 	spin_lock_irq(ap->lock);
 
 	BUG_ON(ap->sff_pio_task_link == NULL);
 	/* qc can be NULL if timeout occurred */
 	qc = ata_qc_from_tag(ap, link->active_tag);
-	pr_err("%s0 ap=%pS qc=%pS qc->cursg=%pS\n", __func__, ap, qc, qc->cursg);
+//	pr_err("%s0 ap=%pS qc=%pS qc->cursg=%pS\n", __func__, ap, qc, qc->cursg);
 	if (!qc) {
 		ap->sff_pio_task_link = NULL;
 		goto out_unlock;
@@ -1355,7 +1355,7 @@ fsm_start:
 	count++;
 	if (count > 10)
 		panic("%s crash\n", __func__);
-	pr_err("%s1 fsm_start ap=%pS qc=%pS\n", __func__, ap, qc);
+//	pr_err("%s1 fsm_start ap=%pS qc=%pS\n", __func__, ap, qc);
 	WARN_ON_ONCE(ap->hsm_task_state == HSM_ST_IDLE);
 
 	/*
@@ -1366,7 +1366,7 @@ fsm_start:
 	 * chk-status again.  If still busy, queue delayed work.
 	 */
 	status = ata_sff_busy_wait(ap, ATA_BUSY, 5);
-	pr_err("%s1.1 fsm_start ap=%pS qc=%pS status=%d\n", __func__, ap, qc, status);
+//	pr_err("%s1.1 fsm_start ap=%pS qc=%pS status=%d\n", __func__, ap, qc, status);
 	if (status & ATA_BUSY) {
 		spin_unlock_irq(ap->lock);
 		ata_msleep(ap, 2);
@@ -1374,9 +1374,9 @@ fsm_start:
 		pr_err("%s1.2 fsm_start ap=%pS qc=%pS status=%d\n", __func__, ap, qc, status);
 
 		status = ata_sff_busy_wait(ap, ATA_BUSY, 10);
-		pr_err("%s1.3 fsm_start ap=%pS qc=%pS status=%d\n", __func__, ap, qc, status);
+	//	pr_err("%s1.3 fsm_start ap=%pS qc=%pS status=%d\n", __func__, ap, qc, status);
 		if (status & ATA_BUSY) {
-			pr_err("%s1.4 ap=%pS qc=%pS calling ata_sff_queue_pio_task\n", __func__, ap, qc);
+	//		pr_err("%s1.4 ap=%pS qc=%pS calling ata_sff_queue_pio_task\n", __func__, ap, qc);
 			ata_sff_queue_pio_task(link, ATA_SHORT_PAUSE);
 			goto out_unlock;
 		}
@@ -1393,11 +1393,11 @@ fsm_start:
 	/* another command or interrupt handler
 	 * may be running at this point.
 	 */
-	pr_err("%s3 ap=%pS qc=%pS poll_next=%d\n", __func__, ap, qc, poll_next);
+//	pr_err("%s3 ap=%pS qc=%pS poll_next=%d\n", __func__, ap, qc, poll_next);
 	if (poll_next)
 		goto fsm_start;
 out_unlock:
-	pr_err("%s10 out_unlock ap=%pS\n", __func__, ap);
+//	pr_err("%s10 out_unlock ap=%pS\n", __func__, ap);
 	spin_unlock_irq(ap->lock);
 }
 
@@ -1514,7 +1514,7 @@ EXPORT_SYMBOL_GPL(ata_sff_qc_issue);
  */
 bool ata_sff_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
-	pr_err("%s qc=%pS\n", __func__, qc);
+//	pr_err("%s qc=%pS\n", __func__, qc);
 	qc->ap->ops->sff_tf_read(qc->ap, &qc->result_tf);
 	return true;
 }
@@ -2840,11 +2840,11 @@ unsigned int ata_bmdma_qc_issue(struct ata_queued_cmd *qc)
 	if (scmd)
 		rq = scsi_cmd_to_rq(scmd);
 
-	pr_err("%s qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
+//	pr_err("%s qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
 
 	/* defer PIO handling to sff_qc_issue */
 	if (!ata_is_dma(qc->tf.protocol)) {
-		pr_err("%s1 qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
+	//	pr_err("%s1 qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
 		return ata_sff_qc_issue(qc);
 	}
 

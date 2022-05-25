@@ -1553,7 +1553,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	//scmd->host_scribble = (unsigned char *)&internal;
 	pr_err("%s1.2 sdev=%pS ap=%pS req=%pS internal_ptr=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS\n",
 	__func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd), scmd, req);
-
+	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
 	if (buflen) {
 		int ret;
 		//pr_err("%s1.3 bufflen=%d buffer=%pS ATA_INTERNAL scmd=%pS req=%pS\n", __func__, buflen, buf, scmd, req);
@@ -1570,7 +1570,10 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	// __func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd), blk_sts, scmd, req);
 
 	if (cdb) {
-		panic("%s cdb\n", __func__);
+		//panic("%s cdb\n", __func__);
+		print_hex_dump(KERN_INFO, "ata_exec_internal_sg cdb",
+				  DUMP_PREFIX_NONE, 16, 1,
+				  cdb, ATAPI_CDB_LEN, 1);
 		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
 	}
 	//print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf before tf ",
@@ -1634,7 +1637,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	//pr_err("%s5 sdev=%pS cmd_result=%d rc=%d scmd=%pS req=%pS\n", __func__, sdev, cmd_result, rc, scmd, req);
 	ata_sff_flush_pio_task(ap);
 	//pr_err("%s5.1 sdev=%pS cmd_result=%d rc=%d ap=%pS scmd=%pS req=%pS\n", __func__, sdev, cmd_result, rc, ap, scmd, req);
-	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
+	
 	if (!rc) {
 		spin_lock_irqsave(ap->lock, flags);
 		//pr_err("%s5.2 sdev=%pS cmd_result=%d rc=%d scmd=%pS req=%pS\n", __func__, sdev, cmd_result, rc, scmd, req);
@@ -1743,7 +1746,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	char string[200];
 
 	
-	mutex_lock(&global_mutex);
+//	mutex_lock(&global_mutex);
 	sprintf(string, "ata_exec_internal_sg buf before buf=%pS len=%d ", buf, buflen);
 	//print_hex_dump(KERN_INFO, string,
 	//			  DUMP_PREFIX_NONE, 16, 1,
@@ -1756,7 +1759,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	//print_hex_dump(KERN_INFO, string,
 	//			  DUMP_PREFIX_NONE, 16, 1,
 	//			  buf, buflen, 1);
-	mutex_unlock(&global_mutex);
+//	mutex_unlock(&global_mutex);
 	return res;
 }
 
@@ -5042,9 +5045,9 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		goto sys_err;
 	}
 
-	pr_err("%s X ata_is_dma(prot)=%d\n", __func__, ata_is_dma(prot));
-	pr_err("%s Y ata_is_pio(prot)=%d ap->flags & ATA_FLAG_PIO_DMA=%d\n", 
-		__func__, ata_is_pio(prot), !!(ap->flags & ATA_FLAG_PIO_DMA));
+//	pr_err("%s X ata_is_dma(prot)=%d\n", __func__, ata_is_dma(prot));
+//	pr_err("%s Y ata_is_pio(prot)=%d ap->flags & ATA_FLAG_PIO_DMA=%d\n", 
+//		__func__, ata_is_pio(prot), !!(ap->flags & ATA_FLAG_PIO_DMA));
 
 	if (ata_is_dma(prot) || (ata_is_pio(prot) &&
 				 (ap->flags & ATA_FLAG_PIO_DMA)))
@@ -5068,9 +5071,9 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		goto err;
 	trace_ata_qc_issue(qc);
 	//pr_err("%s8 qc=%pS ap->ops=%pS cmd=%pS rq=%pS\n", __func__, qc, ap->ops, cmd, rq);
-	pr_err("%s9 qc=%pS qc_issue=%pS cmd=%pS rq=%pS ap->ops=%pS cursg=%pS\n", __func__, qc, ap->ops->qc_issue, cmd, rq, ap->ops, qc->cursg);
+//	pr_err("%s9 qc=%pS qc_issue=%pS cmd=%pS rq=%pS ap->ops=%pS cursg=%pS\n", __func__, qc, ap->ops->qc_issue, cmd, rq, ap->ops, qc->cursg);
 	qc->err_mask |= ap->ops->qc_issue(qc);
-	pr_err("%s10 qc=%pS qc->err_mask=%d cmd=%pS rq=%pS qc->err_mask=%d\n", __func__, qc, qc->err_mask, cmd, rq, qc->err_mask);
+//	pr_err("%s10 qc=%pS qc->err_mask=%d cmd=%pS rq=%pS qc->err_mask=%d\n", __func__, qc, qc->err_mask, cmd, rq, qc->err_mask);
 	if (unlikely(qc->err_mask))
 		goto err;
 	return;
