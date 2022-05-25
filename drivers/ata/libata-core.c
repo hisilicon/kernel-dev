@@ -1546,16 +1546,16 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	req = scsi_alloc_request(sdev->request_queue,
 			dma_dir == DMA_TO_DEVICE ?
 			REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
-			BLK_MQ_INTERNAL);
+			BLK_MQ_INTERNAL | BLK_MQ_REQ_NOWAIT);
 	pr_err("%s1.1 sdev=%pS ap=%pS req=%pS\n", __func__, sdev, ap, req);
 	if (IS_ERR(req))
-		panic("no request\n");
+		panic("no request can_queue=%d\n", scsi_host->can_queue);
 
 	scmd = blk_mq_rq_to_pdu(req);
 	scmd->cmd_len = 16;
 	memcpy(scmd->cmnd, &scsi_cmd[0], scmd->cmd_len);
 	scmd->allowed = 0;
-	req->timeout = 10 * HZ;
+	req->timeout = 1000 * HZ;
 	req->rq_flags |= RQF_QUIET;
 	internal_ptr = scsi_cmd_priv(scmd); 
 	scmd->device = sdev;
@@ -4842,8 +4842,10 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 	__maybe_unused struct request *rq = NULL;
 	if (scmd)
 		rq = scsi_cmd_to_rq(scmd);
-	//pr_err("%s qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
+	
 	/* Trigger the LED (if available) */
+	if (qc->err_mask)
+		pr_err("%s qc=%pS scmd=%pS rq=%pS err_mask=%d\n", __func__, qc, scmd, rq, qc->err_mask);
 	ledtrig_disk_activity(!!(qc->tf.flags & ATA_TFLAG_WRITE));
 
 	/* XXX: New EH and old EH use different mechanisms to
@@ -5901,17 +5903,17 @@ void __ata_port_probe(struct ata_port *ap)
 int ata_port_probe(struct ata_port *ap)
 {
 	int rc = 0;
-	pr_err("%s ap=%pS error_handler=%pS\n", __func__, ap, ap->ops->error_handler);
+	//pr_err("%s ap=%pS error_handler=%pS\n", __func__, ap, ap->ops->error_handler);
 	if (ap->ops->error_handler) {
-		pr_err("%s2 ap=%pS calling __ata_port_probe\n", __func__, ap);
+		//pr_err("%s2 ap=%pS calling __ata_port_probe\n", __func__, ap);
 		__ata_port_probe(ap);
-		pr_err("%s3 ap=%pS calling ata_port_wait_eh\n", __func__, ap);
+		//pr_err("%s3 ap=%pS calling ata_port_wait_eh\n", __func__, ap);
 		ata_port_wait_eh(ap);
-		pr_err("%s4 ap=%pS\n", __func__, ap);
+		//pr_err("%s4 ap=%pS\n", __func__, ap);
 	} else {
 		rc = ata_bus_probe(ap);
 	}
-	pr_err("%s10 out ap=%pS rc=%d\n", __func__, ap, rc);
+	//pr_err("%s10 out ap=%pS rc=%d\n", __func__, ap, rc);
 	return rc;
 }
 
@@ -5919,7 +5921,7 @@ int ata_port_probe(struct ata_port *ap)
 static void async_port_probe(void *data, async_cookie_t cookie)
 {
 	struct ata_port *ap = data;
-	pr_err("%s ap=%pS\n", __func__, ap);
+	//pr_err("%s ap=%pS\n", __func__, ap);
 
 	/*
 	 * If we're not allowed to scan this host in parallel,
@@ -5929,20 +5931,20 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 	 * don't need to wait for port 0, only for later ports.
 	 */
 	if (!(ap->host->flags & ATA_HOST_PARALLEL_SCAN) && ap->port_no != 0){
-		pr_err("%s2 ap=%pS calling async_synchronize_cookie\n", __func__, ap);
+		//pr_err("%s2 ap=%pS calling async_synchronize_cookie\n", __func__, ap);
 		async_synchronize_cookie(cookie);
 	}
 
-	pr_err("%s3 ap=%pS calling ata_port_probe\n", __func__, ap);
+	//pr_err("%s3 ap=%pS calling ata_port_probe\n", __func__, ap);
 	(void)ata_port_probe(ap);
 
-	pr_err("%s4 ap=%pS calling async_synchronize_cookie\n", __func__, ap);
+	//pr_err("%s4 ap=%pS calling async_synchronize_cookie\n", __func__, ap);
 	/* in order to keep device order, we need to synchronize at this point */
 	async_synchronize_cookie(cookie);
 
-	pr_err("%s5 ap=%pS calling ata_scsi_scan_host\n", __func__, ap);
+	//pr_err("%s5 ap=%pS calling ata_scsi_scan_host\n", __func__, ap);
 	ata_scsi_scan_host(ap, 1);
-	pr_err("%s10 out ap=%pS \n", __func__, ap);
+	//pr_err("%s10 out ap=%pS \n", __func__, ap);
 }
 
 /**

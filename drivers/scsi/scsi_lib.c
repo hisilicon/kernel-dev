@@ -1952,8 +1952,8 @@ out_put_budget:
 static enum blk_eh_timer_return scsi_timeout(struct request *req,
 		bool reserved)
 {
-	panic("%s req=%pS\n", __func__, req);
-
+	//panic("%s req=%pS\n", __func__, req);
+	WARN(1, "%s req=%pS\n", __func__, req);
 	if (reserved)
 		return BLK_EH_RESET_TIMER;
 	return scsi_times_out(req);

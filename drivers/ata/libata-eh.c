@@ -1015,6 +1015,8 @@ static int ata_do_link_abort(struct ata_port *ap, struct ata_link *link)
 	ata_qc_for_each_with_internal(ap, qc, tag) {
 		if (qc && (!link || qc->dev->link == link)) {
 			qc->flags |= ATA_QCFLAG_FAILED;
+			if (qc->err_mask)
+				pr_err("%s qc=%pS err_mask=%d\n", __func__, qc, qc->err_mask);
 			ata_qc_complete(qc);
 			nr_aborted++;
 		}
@@ -1182,6 +1184,8 @@ static void __ata_eh_qc_complete(struct ata_queued_cmd *qc)
 
 	spin_lock_irqsave(ap->lock, flags);
 	qc->scsidone = ata_eh_scsidone;
+	if (qc->err_mask)
+			pr_err("%s qc=%pS err_mask=%d\n", __func__, qc, qc->err_mask);
 	__ata_qc_complete(qc);
 	WARN_ON(ata_tag_valid(qc->tag));
 	spin_unlock_irqrestore(ap->lock, flags);
