@@ -103,6 +103,7 @@ struct iommu_domain {
 	struct iommu_dma_cookie *iova_cookie;
 	struct iommu_sva_ioas *sva_ioas;
 	enum iommu_page_response_code (*iopf_handler)(struct iommu_fault *fault,
+						      struct device *dev,
 						      void *data);
 	void *fault_data;
 };

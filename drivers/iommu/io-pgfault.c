@@ -88,7 +88,7 @@ static void iopf_handle_group(struct work_struct *work)
 		 * faults in the group if there is an error.
 		 */
 		if (status == IOMMU_PAGE_RESP_SUCCESS)
-			status = domain->iopf_handler(&iopf->fault,
+			status = domain->iopf_handler(&iopf->fault, group->dev,
 						      domain->fault_data);
 
 		if (!(iopf->fault.prm.flags &

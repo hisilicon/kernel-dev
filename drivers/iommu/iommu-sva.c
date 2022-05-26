@@ -122,7 +122,7 @@ static void iommu_sva_ioas_put(struct iommu_sva_ioas *ioas)
  * mmap_read_lock().
  */
 static enum iommu_page_response_code
-iommu_sva_handle_iopf(struct iommu_fault *fault, void *data)
+iommu_sva_handle_iopf(struct iommu_fault *fault, struct device *dev, void *data)
 {
 	vm_fault_t ret;
 	struct mm_struct *mm;
