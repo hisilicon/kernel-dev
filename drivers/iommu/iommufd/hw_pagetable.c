@@ -534,3 +534,41 @@ out_put:
 	iommufd_put_object(obj);
 	return rc;
 }
+
+int iommufd_hwpt_page_response(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_hwpt_page_response *cmd = ucmd->cmd;
+	struct iommufd_object *obj, *dev_obj;
+	struct iommufd_hw_pagetable *hwpt;
+	struct iommufd_device *idev;
+	int rc = 0;
+
+	if (cmd->flags)
+		return -EOPNOTSUPP;
+
+	/* TODO: more sanity check when the struct is finalized */
+	obj = iommufd_get_object(ucmd->ictx, cmd->hwpt_id,
+				 IOMMUFD_OBJ_HW_PAGETABLE_S1);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	hwpt = container_of(obj, struct iommufd_hw_pagetable, obj);
+	if (hwpt->type != IOMMUFD_HWPT_USER_S1) {
+		rc = -EINVAL;
+		goto out_put_hwpt;
+	}
+
+	dev_obj = iommufd_get_object(ucmd->ictx,
+				     cmd->dev_id, IOMMUFD_OBJ_DEVICE);
+	if (IS_ERR(dev_obj)) {
+		rc = PTR_ERR(obj);
+		goto out_put_hwpt;
+	}
+
+	idev = container_of(dev_obj, struct iommufd_device, obj);
+	rc = iommu_page_response(idev->dev, &cmd->resp);
+	iommufd_put_object(dev_obj);
+out_put_hwpt:
+	iommufd_put_object(obj);
+	return rc;
+}

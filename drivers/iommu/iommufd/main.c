@@ -199,6 +199,7 @@ union ucmd_buffer {
 	struct iommu_device_info info;
 	struct iommu_alloc_pasid alloc_pasid;
 	struct iommu_free_pasid free_pasid;
+	struct iommu_hwpt_page_response resp;
 #ifdef CONFIG_IOMMUFD_TEST
 	struct iommu_test_cmd test;
 #endif
@@ -244,6 +245,8 @@ static struct iommufd_ioctl_op iommufd_ioctl_ops[] = {
 		 pasid),
 	IOCTL_OP(IOMMU_FREE_PASID, iommufd_free_pasid, struct iommu_free_pasid,
 		 pasid),
+	IOCTL_OP(IOMMU_PAGE_RESPONSE, iommufd_hwpt_page_response, struct iommu_hwpt_page_response,
+		 resp),
 #ifdef CONFIG_IOMMUFD_TEST
 	IOCTL_OP(IOMMU_TEST_CMD, iommufd_test, struct iommu_test_cmd, last),
 #endif

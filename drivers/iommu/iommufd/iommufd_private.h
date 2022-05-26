@@ -223,6 +223,7 @@ int iommufd_alloc_s1_hwpt(struct iommufd_ucmd *ucmd);
 int iommufd_hwpt_invalidate_cache(struct iommufd_ucmd *ucmd);
 int iommufd_alloc_pasid(struct iommufd_ucmd *ucmd);
 int iommufd_free_pasid(struct iommufd_ucmd *ucmd);
+int iommufd_hwpt_page_response(struct iommufd_ucmd *ucmd);
 
 struct iommufd_hw_pagetable_kernel {
 	struct iommufd_ioas *ioas;
