@@ -3964,32 +3964,16 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	struct ata_port *ap = link->ap;
 	struct ata_queued_cmd *qc;
 	__maybe_unused struct request *req = scsi_cmd_to_rq(scmd);
-	struct ata_internal_cmd *internal_ptr;
-	struct ata_taskfile *tf;
-	enum dma_data_direction dma_dir = scmd->sc_data_direction;
-
 
 	pr_err("%s scmd=%pS dev=%pS ap=%pS req=%pS\n", __func__, scmd, dev, ap, req);
-
+	pr_err("%s1.2.4 ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
+		__func__, ap, req, scsi_sglist(scmd), scmd, req, req->q);
 	/* no internal command while frozen */
 	if (ap->pflags & ATA_PFLAG_FROZEN)
 		goto did_err;
 
 	/* initialize internal qc */
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
-	internal_ptr = scsi_cmd_priv(scmd);
-	tf = &internal_ptr->tf;
-	//pr_err("%s2 scmd=%pS dev=%pS ap=%pS qc=%pS blk_rq_bytes=%d internal_ptr=%pS\n",
-	// __func__, scmd, dev, ap, qc, blk_rq_bytes(req), internal_ptr);
-	//print_hex_dump(KERN_INFO, "ata_scsi_internal  internal_ptr ",
-	//			  DUMP_PREFIX_NONE, 16, 1,
-	//			  internal_ptr, sizeof(*internal_ptr), 1);
-	qc->tag = ATA_TAG_INTERNAL;
-	qc->hw_tag = 0;
-	qc->scsicmd = scmd;
-	qc->ap = ap;
-	qc->dev = dev;
-	ata_qc_reinit(qc);
 
 	link->preempted_tag = link->active_tag;
 	link->preempted_sactive = link->sactive;
@@ -4001,27 +3985,15 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	ap->nr_active_links = 0;
 
 	/* prepare & issue qc */
-	qc->tf = *tf;
 	print_hex_dump(KERN_INFO, "ata_scsi_internal1 cdb",
 				  DUMP_PREFIX_NONE, 16, 1,
 				  qc->cdb, ATAPI_CDB_LEN, 1);
-	if (internal_ptr->cdb_valid) {
-		panic("%s internal_ptr->cdb_valid\n", __func__);
-		memcpy(qc->cdb, internal_ptr->cdb, ATAPI_CDB_LEN);
-	}
+
 	print_hex_dump(KERN_INFO, "ata_scsi_internal2 cdb",
 				  DUMP_PREFIX_NONE, 16, 1,
 				  qc->cdb, ATAPI_CDB_LEN, 1);
 
-	/* some SATA bridges need us to indicate data xfer direction */
-	if (tf->protocol == ATAPI_PROT_DMA && (dev->flags & ATA_DFLAG_DMADIR) &&
-	    dma_dir == DMA_FROM_DEVICE)
-		qc->tf.feature |= ATAPI_DMADIR;
-
-	qc->flags |= ATA_QCFLAG_RESULT_TF;
-	qc->dma_dir = dma_dir;
-
-	if (dma_dir != DMA_NONE) {
+	if (qc->dma_dir != DMA_NONE) {
 		int n_elem;
 
 		n_elem = 1;
@@ -4031,10 +4003,6 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 		ata_sg_init(qc, qc->sg, n_elem);
 		//pr_err("%s4.1 2 scmd=%pS qc->nbytes=%d\n", __func__, scmd, qc->nbytes);
 	}
-
-	//qc->private_data = &wait;
-	qc->complete_fn = ata_qc_complete_internal;
-	//pr_err("%s5 scmd=%pS\n", __func__, scmd);
 	ata_qc_issue(qc);
 
 	//pr_err("%s10 out scmd=%pS\n", __func__, scmd);

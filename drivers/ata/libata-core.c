@@ -1513,7 +1513,6 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	u8 scsi_cmd[MAX_COMMAND_SIZE];
 	//struct scsi_sense_hdr sshdr;
 	int cmd_result = 0;
-	struct ata_internal_cmd *internal_ptr;
 	struct scsi_cmnd *scmd;
 	struct request *req;
 	__maybe_unused blk_status_t blk_sts;
@@ -1557,13 +1556,12 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	scmd->allowed = 0;
 	req->timeout = 1000 * HZ;
 	req->rq_flags |= RQF_QUIET;
-	internal_ptr = scsi_cmd_priv(scmd); 
 	scmd->device = sdev;
-	memcpy(&internal_ptr->tf, tf, sizeof(*tf));
-	//scmd->host_scribble = (unsigned char *)&internal;
-	pr_err("%s1.2 sdev=%pS ap=%pS req=%pS internal_ptr=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
-	__func__, sdev, ap, req, internal_ptr, scsi_sglist(scmd), scmd, req, req->q);
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
+
+	//scmd->host_scribble = (unsigned char *)&internal;
+	pr_err("%s1.2 sdev=%pS ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
+	__func__, sdev, ap, req, scsi_sglist(scmd), scmd, req, req->q);
 	if (buflen) {
 		int ret;
 		//pr_err("%s1.3 bufflen=%d buffer=%pS ATA_INTERNAL scmd=%pS req=%pS\n", __func__, buflen, buf, scmd, req);
@@ -1574,15 +1572,37 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 			panic("ata internal fixme error\n");
 	}
 
+	pr_err("%s1.2.1 sdev=%pS ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
+		__func__, sdev, ap, req, scsi_sglist(scmd), scmd, req, req->q);
+	qc->tag = ATA_TAG_INTERNAL;
+	qc->hw_tag = 0;
+	qc->scsicmd = NULL;
+	qc->ap = ap;
+	qc->dev = dev;
+	ata_qc_reinit(qc);
 
-	if (cdb) {
-		//panic("%s cdb\n", __func__);
-		print_hex_dump(KERN_INFO, "ata_exec_internal_sg cdb",
-				  DUMP_PREFIX_NONE, 16, 1,
-				  cdb, ATAPI_CDB_LEN, 1);
+	pr_err("%s1.2.2 sdev=%pS ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
+		__func__, sdev, ap, req, scsi_sglist(scmd), scmd, req, req->q);
+	qc->tf = *tf;
+	if (cdb)
 		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
-	}
 
+	pr_err("%s1.2.3 sdev=%pS ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
+		__func__, sdev, ap, req, scsi_sglist(scmd), scmd, req, req->q);
+	/* some SATA bridges need us to indicate data xfer direction */
+	if (tf->protocol == ATAPI_PROT_DMA && (dev->flags & ATA_DFLAG_DMADIR) &&
+	    dma_dir == DMA_FROM_DEVICE)
+		qc->tf.feature |= ATAPI_DMADIR;
+
+	qc->flags |= ATA_QCFLAG_RESULT_TF;
+	qc->dma_dir = dma_dir;
+	pr_err("%s1.2.4 sdev=%pS ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
+		__func__, sdev, ap, req, scsi_sglist(scmd), scmd, req, req->q);
+
+	pr_err("%s1.2.5 sdev=%pS ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
+		__func__, sdev, ap, req, scsi_sglist(scmd), scmd, req, req->q);
+	qc->private_data = &wait;
+	qc->complete_fn = ata_qc_complete_internal;
 
 	req->end_io_data = &wait;
 	//pr_err("%s rq=%pS end_io_data=wait=%pS\n", __func__, rq, rq->end_io_data);
