@@ -473,9 +473,9 @@ retry:
 	if (!(data->rq_flags & RQF_ELV))
 		blk_mq_tag_busy(data->hctx);
 
-	if (data->flags & BLK_MQ_INTERNAL) {
+	if (data->flags & BLK_MQ_REQ_RESERVED) {
 		//panic("%s once set data->flags & BLK_MQ_INTERN\n", __func__);
-		data->rq_flags |= RQF_INTERNAL;
+		data->rq_flags |= RQF_RESV;
 	}
 
 	/*

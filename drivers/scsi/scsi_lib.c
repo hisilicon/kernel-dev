@@ -88,7 +88,7 @@ bool scsi_is_internal_command(struct scsi_cmnd *cmd)
 
 	bool internal1 = false;
 
-	if ((rq->rq_flags & RQF_INTERNAL) == RQF_INTERNAL)
+	if ((rq->rq_flags & RQF_RESV) == RQF_RESV)
 		internal1 = true;
 
 
