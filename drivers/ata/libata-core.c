@@ -1546,7 +1546,6 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	req = scsi_alloc_request(sdev->request_queue,
 			dma_dir == DMA_TO_DEVICE ?
 			REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
-			BLK_MQ_REQ_NOWAIT |
 			BLK_MQ_REQ_RESERVED);
 	pr_err("%s1.1 sdev=%pS ap=%pS req=%pS\n", __func__, sdev, ap, req);
 	if (IS_ERR(req))
