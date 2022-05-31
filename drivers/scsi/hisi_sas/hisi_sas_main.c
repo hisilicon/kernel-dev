@@ -431,7 +431,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	struct hisi_sas_slot *slot;
 	struct device *dev;
 	int rc;
-	pr_err("%s task=%pS\n", __func__, task);
+	//pr_err("%s task=%pS\n", __func__, task);
 
 	device = task->dev;
 	if (!device)
@@ -459,7 +459,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		return -ECOMM;
 	}
 
-	pr_err("%s2 task=%pS\n", __func__, task);
+	//pr_err("%s2 task=%pS\n", __func__, task);
 	hisi_hba = dev_to_hisi_hba(device);
 	dev = hisi_hba->dev;
 
@@ -520,7 +520,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		return -EINVAL;
 	}
 
-	pr_err("%s3 task=%pS\n", __func__, task);
+	//pr_err("%s3 task=%pS\n", __func__, task);
 	rc = hisi_sas_dma_map(hisi_hba, task, &n_elem,
 			      &n_elem_req);
 	if (rc < 0)
@@ -537,7 +537,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	else
 		rc = sas_task_to_unique_tag(task);
 
-	pr_err("%s4 task=%pS\n", __func__, task);
+	//pr_err("%s4 task=%pS\n", __func__, task);
 	if (rc < 0)
 		goto err_out_dif_dma_unmap;
 
@@ -553,7 +553,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	/* protect task_prep and start_delivery sequence */
 	hisi_sas_task_deliver(hisi_hba, slot, dq, sas_dev);
 
-	pr_err("%s10 task=%pS\n", __func__, task);
+	//pr_err("%s10 task=%pS\n", __func__, task);
 	return 0;
 
 err_out_dif_dma_unmap:

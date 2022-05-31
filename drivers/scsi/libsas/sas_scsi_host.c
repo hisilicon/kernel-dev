@@ -902,6 +902,7 @@ EXPORT_SYMBOL_GPL(sas_bios_param);
 
 void sas_task_internal_done(struct sas_task *task)
 {
+	pr_err("%s task=%pS\n", __func__, task);
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 }

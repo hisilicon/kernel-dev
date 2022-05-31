@@ -31,6 +31,20 @@ static int sas_disable_routing(struct domain_device *dev,  u8 *sas_addr);
 /* Give it some long enough timeout. In seconds. */
 #define SMP_TIMEOUT 10
 
+static void smp_blk_end_sync_rq(struct request *rq, blk_status_t error)
+{
+	struct sas_task *task = sas_rq_to_task(rq);
+
+	pr_err("%s rq=%pS task=%pS\n", __func__, rq, task);
+
+
+	/*
+	 * complete last, if this is a stack request the process (and thus
+	 * the rq pointer) could be invalid right after this complete()
+	 */
+	complete(&task->slow_task->completion);
+}
+
 static int smp_execute_task_sg(struct domain_device *dev,
 		struct scatterlist *req, struct scatterlist *resp)
 {
@@ -73,8 +87,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		task->task_done = sas_task_internal_done;
 
 		rq->timeout = SMP_TIMEOUT*HZ;
-
-		blk_execute_rq_nowait(rq, true, NULL);
+		blk_execute_rq_nowait(rq, true, smp_blk_end_sync_rq);
 
 		wait_for_completion(&task->slow_task->completion);
 		__blk_mq_end_request(rq, BLK_STS_OK);
