@@ -128,8 +128,15 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	if (cmnd->cmnd[0] == ATA_INTERNAL) {
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
 		struct ata_port *ap = qc ? qc->ap : NULL;
+		int res;
 		pr_err("%s cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS\n",
 			__func__, cmnd, cmnd->host_scribble, qc, ap);
+		spin_lock_irq(ap->lock);
+		res = ata_sas_queuecmd(cmnd, ap);
+		spin_unlock_irq(ap->lock);
+		pr_err("%s2 cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS res=%d\n",
+			__func__, cmnd, cmnd->host_scribble, qc, ap, res);
+		return res;
 
 	} else {
 		pr_err("%s2 cmnd=%pS not-ATA INTERNAL host_scribble=%pS\n", __func__, cmnd, cmnd->host_scribble);
