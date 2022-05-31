@@ -44,11 +44,14 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	struct sas_task *task;
 	struct sas_task_slow *slow;
 	struct Scsi_Host *shost = sas_ha->core.shost;
+	struct scsi_cmnd *scmd;
 
 	rq = blk_mq_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_IN,
 					BLK_MQ_REQ_RESERVED);
 	if (IS_ERR(rq))
 		return NULL;
+	scmd = blk_mq_rq_to_pdu(rq);
+	scmd->host_scribble = NULL;
 
 	if (!(rq->rq_flags & RQF_RESV))
 		WARN_ON_ONCE(1);
