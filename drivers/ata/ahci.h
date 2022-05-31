@@ -376,7 +376,6 @@ extern int ahci_ignore_sss;
 
 extern const struct attribute_group *ahci_shost_groups[];
 extern const struct attribute_group *ahci_sdev_groups[];
-extern int ahci_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd);
 
 /*
  * This must be instantiated by the edge drivers.  Read the comments

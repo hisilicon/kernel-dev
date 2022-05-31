@@ -468,19 +468,9 @@ static void ata_eh_clear_action(struct ata_link *link, struct ata_device *dev,
  */
 void ata_eh_acquire(struct ata_port *ap)
 {
-	int res;
-	int count = 0;
-//	if (mutex_is_locked(&ap->host->eh_mutex))
-//		pr_err("%s ap=%pS locked\n", __func__, ap);
-try:
-	res = mutex_trylock(&ap->host->eh_mutex);
-	if (!res) {
-		msleep(1000);
-		count++;
-		if (count > 10)
-			panic("could not get the lock\n");
-		goto try;
-	}
+	if (mutex_is_locked(&ap->host->eh_mutex))
+		pr_err("%s ap=%pS locked\n", __func__, ap);
+	mutex_lock(&ap->host->eh_mutex);
 	WARN_ON_ONCE(ap->host->eh_owner);
 	ap->host->eh_owner = current;
 }
