@@ -93,8 +93,11 @@ static void sas_ata_task_done(struct sas_task *task)
 	spin_unlock_irqrestore(&dev->done_lock, flags);
 
 	/* check if libsas-eh got to the task before us */
-	if (unlikely(!task))
+	if (unlikely(!task)){
+		pr_err("%s qc=%pS scmd=%pS task=%pS\n", __func__, qc, scmd, task);
+		panic("%s no task\n", __func__);
 		return;
+	}
 
 	if (!qc)
 		goto qc_already_gone;
@@ -183,6 +186,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (scmd) {
 		task = sas_alloc_task(GFP_ATOMIC, scmd);
 	} else {
+		panic("%s should not need to alloc a slow task qc=%pS\n", __func__, qc);
 		task = sas_alloc_slow_task(sas_ha, GFP_ATOMIC);
 	}
 
@@ -223,9 +227,9 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	ASSIGN_SAS_TASK(qc->scsicmd, qc);
 
 	ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
-	pr_err("%s2 qc=%pS scmd=%pS\n", __func__, qc, scmd);
+	pr_err("%s3 qc=%pS scmd=%pS ret=%d\n", __func__, qc, scmd, ret);
 	if (ret) {
-		pr_debug("lldd_execute_task returned: %d\n", ret);
+		pr_err("lldd_execute_task returned: %d\n", ret);
 
 		if (qc->scsicmd)
 			ASSIGN_SAS_TASK(qc->scsicmd, NULL);
@@ -235,7 +239,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	}
 
  out:
-	pr_err("%s10 out qc=%pS scmd=%pS\n", __func__, qc, scmd);
+	pr_err("%s10 out qc=%pS scmd=%pS ret=%d\n", __func__, qc, scmd, ret);
 	spin_lock(ap->lock);
 	return ret;
 }
@@ -271,7 +275,7 @@ int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy)
 		res = sas_get_report_phy_sata(dev->parent, phy->phy_id,
 					      &dev->sata_dev.rps_resp);
 		if (res) {
-			pr_debug("report phy sata to %016llx:%02d returned 0x%x\n",
+			pr_err("report phy sata to %016llx:%02d returned 0x%x\n",
 				 SAS_ADDR(dev->parent->sas_addr),
 				 phy->phy_id, res);
 			return res;
@@ -423,7 +427,7 @@ static void sas_ata_internal_abort(struct sas_task *task)
 	if (task->task_state_flags & SAS_TASK_STATE_ABORTED ||
 	    task->task_state_flags & SAS_TASK_STATE_DONE) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
-		pr_debug("%s: Task %p already finished.\n", __func__, task);
+		pr_err("%s: Task %p already finished.\n", __func__, task);
 		goto out;
 	}
 	task->task_state_flags |= SAS_TASK_STATE_ABORTED;

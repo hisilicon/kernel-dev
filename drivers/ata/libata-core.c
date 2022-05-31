@@ -4865,8 +4865,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		rq = scsi_cmd_to_rq(scmd);
 	
 	/* Trigger the LED (if available) */
-	if (qc->err_mask)
-		pr_err("%s qc=%pS scmd=%pS rq=%pS err_mask=%d\n", __func__, qc, scmd, rq, qc->err_mask);
+	pr_err("%s qc=%pS scmd=%pS rq=%pS err_mask=%d\n", __func__, qc, scmd, rq, qc->err_mask);
 	ledtrig_disk_activity(!!(qc->tf.flags & ATA_TFLAG_WRITE));
 
 	/* XXX: New EH and old EH use different mechanisms to
