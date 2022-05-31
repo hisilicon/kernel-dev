@@ -1790,6 +1790,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_status_t ret;
 	int reason;
 	bool internal;
+	static int BLK_STS_RESOURCE_cnt;
 
 	req = bd->rq;
 	if (!req)
@@ -1910,6 +1911,9 @@ out_put_budget:
 		break;
 	case BLK_STS_RESOURCE:
 	case BLK_STS_ZONE_RESOURCE:
+		BLK_STS_RESOURCE_cnt++;
+		if (BLK_STS_RESOURCE_cnt > 5)
+			panic("%s BLK_STS_RESOURCE_cnt\n", __func__);
 		pr_err("%s BLK_STS_ZONE_RESOURCE BLK_STS_RESOURCE req=%pS cmd=%pS\n", __func__, req, cmd);
 		if (scsi_device_blocked(sdev))
 			ret = BLK_STS_DEV_RESOURCE;

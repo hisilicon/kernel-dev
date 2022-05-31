@@ -972,12 +972,19 @@ static const struct blk_mq_ops sas_blk_mq_ops = {
 	.timeout	= sas_task_timedout,
 };
 
-struct request_queue *sas_alloc_request_queue(struct Scsi_Host *shost)
+void sas_blk_end_sync_rq(struct request *rq, blk_status_t error)
 {
-	return blk_mq_init_queue_ops(&shost->tag_set, &sas_blk_mq_ops);
+	struct sas_task *task = sas_rq_to_task(rq);
+
+	pr_err("%s rq=%pS task=%pS\n", __func__, rq, task);
+
+
+	/*
+	 * complete last, if this is a stack request the process (and thus
+	 * the rq pointer) could be invalid right after this complete()
+	 */
+	complete(&task->slow_task->completion);
 }
-
-
 
 static int sas_execute_internal_abort(struct domain_device *device,
 				      enum sas_internal_abort type, u16 tag,
@@ -985,15 +992,10 @@ static int sas_execute_internal_abort(struct domain_device *device,
 {
 	struct sas_ha_struct *ha = device->port->ha;
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
-	struct Scsi_Host *shost = ha->core.shost;
 	struct sas_task *task = NULL;
 	int res, retry;
-	struct request_queue *request_queue;
 	struct request *rq;
 
-	request_queue = sas_alloc_request_queue(shost);
-	if (IS_ERR(request_queue))
-		return PTR_ERR(request_queue);
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
@@ -1006,16 +1008,12 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 		task->dev = device;
 		task->task_proto = SAS_PROTOCOL_INTERNAL_ABORT;
-		task->task_done = sas_task_internal_done;
 
 		task->abort_task.tag = tag;
 		task->abort_task.type = type;
+		task->task_done = sas_task_complete_internal;
 
-		rq = scsi_alloc_request_hwq(request_queue, REQ_OP_DRV_IN, BLK_MQ_REQ_NOWAIT, qid);
-		if (!rq) {
-			res = PTR_ERR(rq);
-			break;
-		}
+		rq = sas_rq_from_task(task);
 
 		scmd = blk_mq_rq_to_pdu(rq);
 		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
@@ -1025,11 +1023,12 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 		rq->timeout = TASK_TIMEOUT;
 
-		blk_execute_rq_nowait(rq, true, NULL);
+		blk_execute_rq_nowait(rq, true, sas_blk_end_sync_rq);
 
+		pr_err("%s3 task=%pS rq=%pS scmd=%pS wait for completion\n", __func__, task, rq, scmd);
 		wait_for_completion(&task->slow_task->completion);
 		res = TMF_RESP_FUNC_FAILED;
-		__blk_mq_end_request(rq, BLK_STS_OK);
+		pr_err("%s4 task=%pS rq=%pS scmd=%pS got completion\n", __func__, task, rq, scmd);
 
 		/* Even if the internal abort timed out, return direct. */
 		if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
@@ -1066,8 +1065,6 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	BUG_ON(retry == TASK_RETRY && task != NULL);
 
 	sas_free_task(task);
-
-	blk_cleanup_queue(request_queue);
 
 	return res;
 }
@@ -1243,7 +1240,6 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 			SAS_ADDR(device->sas_addr), TASK_RETRY);
 	sas_free_task(task);
 
-	blk_cleanup_queue(request_queue);
 
 	return res;
 }
