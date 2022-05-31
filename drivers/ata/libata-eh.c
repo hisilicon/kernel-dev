@@ -535,7 +535,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 	struct ata_port *ap = ata_shost_to_port(host);
 	unsigned long flags;
 	LIST_HEAD(eh_work_q);
-//	pr_err("%s host=%pS ap=%pS\n", __func__, host, ap);
+	pr_err("%s host=%pS ap=%pS\n", __func__, host, ap);
 
 	spin_lock_irqsave(host->host_lock, flags);
 	list_splice_init(&host->eh_cmd_q, &eh_work_q);
@@ -662,7 +662,7 @@ EXPORT_SYMBOL(ata_scsi_cmd_error_handler);
 void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 {
 	unsigned long flags;
-//	pr_err("%s host=%pS ap=%pS ap->ops->error_handler=%pS\n", __func__, host, ap, ap->ops->error_handler);
+	pr_err("%s host=%pS ap=%pS ap->ops->error_handler=%pS\n", __func__, host, ap, ap->ops->error_handler);
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
 		struct ata_link *link;
@@ -704,7 +704,7 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 
 		/* invoke EH, skip if unloading or suspended */
 		if (!(ap->pflags & (ATA_PFLAG_UNLOADING | ATA_PFLAG_SUSPENDED))){
-	//		pr_err("%s5 host=%pS ap=%pS calling error_handler\n", __func__, host, ap);
+			pr_err("%s5 host=%pS ap=%pS calling error_handler\n", __func__, host, ap);
 			ap->ops->error_handler(ap);
 	//		pr_err("%s5.1 host=%pS ap=%pS\n", __func__, host, ap);
 		} else {
@@ -2484,8 +2484,8 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	unsigned long flags;
 	u32 sstatus;
 	int nr_unknown, rc;
-//	pr_err("%s link=%pS ap=%pS prereset=%pS softreset=%pS hardreset=%pS postreset=%pS\n",
-//		__func__, link, ap, prereset, softreset, hardreset, postreset);
+	pr_err("%s link=%pS ap=%pS prereset=%pS softreset=%pS hardreset=%pS postreset=%pS\n",
+		__func__, link, ap, prereset, softreset, hardreset, postreset);
 	/*
 	 * Prepare to reset
 	 */
@@ -2512,7 +2512,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	ap->pflags |= ATA_PFLAG_RESETTING;
 	spin_unlock_irqrestore(ap->lock, flags);
 
-//	pr_err("%s2 link=%pS ap=%pS\n", __func__, link, ap);
+	pr_err("%s2 link=%pS ap=%pS\n", __func__, link, ap);
 	ata_eh_about_to_do(link, NULL, ATA_EH_RESET);
 
 	ata_for_each_dev(dev, link, ALL) {
@@ -2535,7 +2535,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			ap->ops->set_piomode(ap, dev);
 	}
 
-//	pr_err("%s3 link=%pS ap=%pS\n", __func__, link, ap);
+	pr_err("%s3 link=%pS ap=%pS\n", __func__, link, ap);
 	/* prefer hardreset */
 	reset = NULL;
 	ehc->i.action &= ~ATA_EH_RESET;
@@ -2547,7 +2547,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		ehc->i.action |= ATA_EH_SOFTRESET;
 	}
 
-//	pr_err("%s4 link=%pS ap=%pS\n", __func__, link, ap);
+	pr_err("%s4 link=%pS ap=%pS\n", __func__, link, ap);
 	if (prereset) {
 		unsigned long deadline = ata_deadline(jiffies,
 						      ATA_EH_PRERESET_TIMEOUT);
@@ -2604,7 +2604,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	}
 
  retry:
-//	pr_err("%s5 retry link=%pS ap=%pS\n", __func__, link, ap);
+	pr_err("%s5 retry link=%pS ap=%pS\n", __func__, link, ap);
 	/*
 	 * Perform reset
 	 */
@@ -2694,7 +2694,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			lflags |= ATA_LFLAG_ASSUME_ATA;
 	}
 
-//	pr_err("%s6 link=%pS ap=%pS\n", __func__, link, ap);
+	pr_err("%s6 link=%pS ap=%pS\n", __func__, link, ap);
 	/*
 	 * Post-reset processing
 	 */
@@ -2726,7 +2726,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	if (ata_is_host_link(link))
 		ata_eh_thaw_port(ap);
 
-//	pr_err("%s7 link=%pS ap=%pS\n", __func__, link, ap);
+	pr_err("%s7 link=%pS ap=%pS\n", __func__, link, ap);
 
 	/* postreset() should clear hardware SError.  Although SError
 	 * is cleared during link resume, clearing SError here is
@@ -2761,7 +2761,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	if (ap->pflags & ATA_PFLAG_FROZEN)
 		ata_eh_thaw_port(ap);
 
-//	pr_err("%s8 link=%pS ap=%pS\n", __func__, link, ap);
+	pr_err("%s8 link=%pS ap=%pS\n", __func__, link, ap);
 	/*
 	 * Make sure onlineness and classification result correspond.
 	 * Hotplug could have happened during reset and some
@@ -2805,7 +2805,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			      "device detection might fail\n", nr_unknown);
 	}
 
-//	pr_err("%s9 link=%pS ap=%pS\n", __func__, link, ap);
+	pr_err("%s9 link=%pS ap=%pS\n", __func__, link, ap);
 	/* reset successful, schedule revalidation */
 	ata_eh_done(link, NULL, ATA_EH_RESET);
 	if (slave)
@@ -2816,7 +2816,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 
 	rc = 0;
  out:
-//	pr_err("%s10out link=%pS ap=%pS\n", __func__, link, ap);
+	pr_err("%s10out link=%pS ap=%pS\n", __func__, link, ap);
 	/* clear hotplug flag */
 	ehc->i.flags &= ~ATA_EHI_HOTPLUGGED;
 	if (slave)
@@ -2829,7 +2829,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	return rc;
 
  fail:
-//	pr_err("%s10fail link=%pS ap=%pS\n", __func__, link, ap);
+	pr_err("%s10fail link=%pS ap=%pS\n", __func__, link, ap);
 	/* if SCR isn't accessible on a fan-out port, PMP needs to be reset */
 	if (!ata_is_host_link(link) &&
 	    sata_scr_read(link, SCR_STATUS, &sstatus))
@@ -3600,7 +3600,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	struct ata_device *dev;
 	int rc, nr_fails;
 	unsigned long flags, deadline;
-//	pr_err("%s ap=%pS\n", __func__, ap);
+	pr_err("%s ap=%pS\n", __func__, ap);
 
 	/* prep for recovery */
 	ata_for_each_link(link, ap, EDGE) {
@@ -3662,10 +3662,10 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		if (!(ehc->i.action & ATA_EH_RESET))
 			continue;
 
-//		pr_err("%s6 ap=%pS calling ata_eh_reset\n", __func__, ap);
+		pr_err("%s6 ap=%pS calling ata_eh_reset\n", __func__, ap);
 		rc = ata_eh_reset(link, ata_link_nr_vacant(link),
 				  prereset, softreset, hardreset, postreset);
-	//	pr_err("%s6.1 ap=%pS got rc=%d\n", __func__, ap, rc);
+		pr_err("%s6.1 ap=%pS got rc=%d\n", __func__, ap, rc);
 		if (rc) {
 			ata_link_err(link, "reset failed, giving up\n");
 			goto out;
@@ -3830,7 +3830,7 @@ void ata_eh_finish(struct ata_port *ap)
 	int tag;
 
 
-//	pr_err("%s ap=%pS\n", __func__, ap);
+	pr_err("%s ap=%pS\n", __func__, ap);
 	/* retry or finish qcs */
 	ata_qc_for_each_raw(ap, qc, tag) {
 		if (!(qc->flags & ATA_QCFLAG_FAILED)){

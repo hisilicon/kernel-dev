@@ -83,6 +83,8 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct ata_link *link;
 	struct ata_port *ap;
 
+	pr_err("%s qc=%pS scmd=%pS task=%pS\n", __func__, qc, scmd, task);
+
 	spin_lock_irqsave(&dev->done_lock, flags);
 	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))
 		task = NULL;
@@ -166,6 +168,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
 	struct scsi_cmnd *scmd;
+	pr_err("%s qc=%pS\n", __func__, qc);
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
@@ -175,6 +178,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		goto out;
 
 	scmd = qc->scsicmd;
+	pr_err("%s2 qc=%pS scmd=%pS\n", __func__, qc, scmd);
 
 	if (scmd) {
 		task = sas_alloc_task(GFP_ATOMIC, scmd);
@@ -219,6 +223,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	ASSIGN_SAS_TASK(qc->scsicmd, qc);
 
 	ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
+	pr_err("%s2 qc=%pS scmd=%pS\n", __func__, qc, scmd);
 	if (ret) {
 		pr_debug("lldd_execute_task returned: %d\n", ret);
 
@@ -230,6 +235,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	}
 
  out:
+	pr_err("%s10 out qc=%pS scmd=%pS\n", __func__, qc, scmd);
 	spin_lock(ap->lock);
 	return ret;
 }

@@ -737,7 +737,7 @@ retry:
 	list_splice_init(&shost->eh_cmd_q, &eh_work_q);
 	spin_unlock_irq(shost->host_lock);
 
-	pr_notice("Enter %s busy: %d failed: %d\n",
+	pr_err("Enter %s busy: %d failed: %d\n",
 		  __func__, scsi_host_busy(shost), shost->host_failed);
 	/*
 	 * Deal with commands that still have SAS tasks (i.e. they didn't
@@ -1122,7 +1122,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	struct request *rq;
 	struct sas_ha_struct *ha = device->port->ha;
 	struct Scsi_Host *shost = ha->core.shost;
-
+	panic("%s fixme\n", __func__);
 	request_queue = sas_alloc_request_queue(shost);
 	if (IS_ERR(request_queue))
 		return PTR_ERR(request_queue);
