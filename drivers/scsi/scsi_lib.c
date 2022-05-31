@@ -1633,7 +1633,7 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 	cmd->underflow = 0;
 	cmd->transfersize = 0;
 	cmd->host_scribble = NULL;
-	pr_err("%s cmd=%pS rq=%pS host_scribble=NULL\n", __func__, cmd, scsi_cmd_to_rq(cmd));
+	//pr_err("%s cmd=%pS rq=%pS host_scribble=NULL\n", __func__, cmd, scsi_cmd_to_rq(cmd));
 	cmd->result = 0;
 	cmd->extra_len = 0;
 	cmd->state = 0;
@@ -1815,6 +1815,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	internal = scsi_is_reserved_cmd(cmd);
 	if (internal) {
+		unsigned char *host_scribble = cmd->host_scribble;
 		//pr_err("%s req=%pS internal=%d cmnd[0]=0x%x RQF_DONTPREP=%d hostt=%pS\n",
 		//	__func__, req, internal, cmd->cmnd[0], !!(req->rq_flags & RQF_DONTPREP), shost->hostt);
 
@@ -1833,7 +1834,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		} else {
 			clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
 		}
-
+		cmd->host_scribble = host_scribble;
 		//if (internal)
 		//		pr_err("%s2.3 req=%pS internal\n", __func__, req);
 		blk_mq_start_request(req);
