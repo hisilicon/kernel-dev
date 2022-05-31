@@ -50,7 +50,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	if (IS_ERR(rq))
 		return NULL;
 
-	if (!(rq->cmd_flags & RQF_RESV))
+	if (!(rq->rq_flags & RQF_RESV))
 		WARN_ON_ONCE(1);
 	task = sas_rq_to_task(rq);
 	memset(task, 0, sizeof(*task));
