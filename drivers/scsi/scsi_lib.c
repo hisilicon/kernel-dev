@@ -82,19 +82,6 @@ int scsi_init_sense_cache(struct Scsi_Host *shost)
  */
 #define SCSI_QUEUE_DELAY	3
 
-bool scsi_is_internal_command(struct scsi_cmnd *cmd)
-{
-	struct request *rq = scsi_cmd_to_rq(cmd);
-
-	bool internal1 = false;
-
-	if ((rq->rq_flags & RQF_RESV) == RQF_RESV)
-		internal1 = true;
-
-
-	return internal1;
-}
-
 static void
 scsi_set_blocked(struct scsi_cmnd *cmd, int reason)
 {
@@ -1479,7 +1466,7 @@ static void scsi_complete(struct request *rq)
 	bool internal;
 
 	
-	internal = scsi_is_internal_command(cmd);
+	internal = scsi_is_reserved_cmd(cmd);
 	
 	if (internal) {
 		//pr_err("%s cmd=%pS internal=%d rq=%pS\n", __func__, cmd, internal, rq);
@@ -1823,7 +1810,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	WARN_ON_ONCE(cmd->budget_token < 0);
 
 
-	internal = scsi_is_internal_command(cmd);
+	internal = scsi_is_reserved_cmd(cmd);
 	if (internal) {
 		//pr_err("%s req=%pS internal=%d cmnd[0]=0x%x RQF_DONTPREP=%d hostt=%pS\n",
 		//	__func__, req, internal, cmd->cmnd[0], !!(req->rq_flags & RQF_DONTPREP), shost->hostt);
