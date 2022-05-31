@@ -3957,7 +3957,6 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 	return NULL;
 }
 
-extern void ata_qc_complete_internal(struct ata_queued_cmd *qc);
 static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device *dev)
 {
 	struct ata_link *link = dev->link;

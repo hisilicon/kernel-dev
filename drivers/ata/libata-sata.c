@@ -1270,8 +1270,9 @@ int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap)
 {
 	int rc = 0;
 	//pr_err_once("%s ap->link.device=%pS ata_dev_enabled=%d\n", __func__, ap->link.device, ata_dev_enabled(ap->link.device));
-	//if (likely(ata_dev_enabled(ap->link.device)))
-	if (1) {
+	if (cmd->cmnd[0] == ATA_INTERNAL) {
+		rc = __ata_scsi_queuecmd(cmd, ap->link.device);
+	} else if (likely(ata_dev_enabled(ap->link.device))) {
 		rc = __ata_scsi_queuecmd(cmd, ap->link.device);
 	} else {
 		panic("not enabled\n");
