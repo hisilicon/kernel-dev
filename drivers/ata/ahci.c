@@ -1675,11 +1675,6 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_host *host;
 	int n_ports, i, rc;
 	int ahci_pci_bar = AHCI_PCI_BAR_STANDARD;
-	static int pcount;
-
-	if (pcount > 0)
-		return -1;
-	pcount++;
 
 	WARN_ON((int)ATA_MAX_QUEUE > AHCI_MAX_CMDS);
 
