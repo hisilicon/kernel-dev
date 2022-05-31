@@ -39,13 +39,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	struct sas_internal *i =
 		to_sas_internal(dev->port->ha->core.shost->transportt);
 	struct sas_ha_struct *ha = dev->port->ha;
-	struct Scsi_Host *shost = ha->core.shost;
-	struct request_queue *request_queue;
 	struct request *rq;
-
-	request_queue = sas_alloc_request_queue(shost);
-	if (IS_ERR(request_queue))
-		return PTR_ERR(request_queue);
 
 	pm_runtime_get_sync(ha->dev);
 	mutex_lock(&dev->ex_dev.cmd_mutex);
@@ -58,18 +52,16 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		}
 
 		task = sas_alloc_slow_task(dev->port->ha, GFP_KERNEL);
+		pr_err("%s1 task=%pS\n", __func__, task);
 		if (!task) {
 			res = -ENOMEM;
 			break;
 		}
 
-		rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
-		if (IS_ERR(rq)) {
-			res = PTR_ERR(rq);
-			break;
-		}
+		rq = sas_rq_from_task(task);
 
 		scmd = blk_mq_rq_to_pdu(rq);
+		pr_err("%s2 task=%pS rq=%pS scmd=%pS\n", __func__, task, rq, scmd);
 		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
 		ASSIGN_SAS_TASK(scmd, task);
 
@@ -130,8 +122,6 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 	BUG_ON(retry == 3 && task != NULL);
 	sas_free_task(task);
-
-	blk_cleanup_queue(request_queue);
 
 	return res;
 }
