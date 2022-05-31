@@ -4025,50 +4025,50 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 	if (unlikely(!scmd->cmd_len))
 		goto bad_cdb_len;
 
-	if (scsi_op == ATA_INTERNAL) {
+	if (scsi_is_reserved_cmd(scmd)) {
 		count_internal++;
 		if (count_internal > 1000)
 			panic("%s so many! scmd=%pS rq=%pS\n", __func__, scmd, scsi_cmd_to_rq(scmd));
 	//	pr_err("%s0 scmd=%pS dev=%pS ATA_INTERNAL\n", __func__, scmd, dev);
 		return ata_scsi_internal(scmd, dev);
 	} else if (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ZAC) {
-		if (scsi_op == ATA_INTERNAL)
-			pr_err("%s1 scmd=%pS dev=%pS ATA_INTERNAL scmd->cmd_len=%d dev->cdb_len=%d\n",
-					__func__, scmd, dev, scmd->cmd_len, dev->cdb_len);
+	//	if (scsi_op == ATA_INTERNAL)
+	//		pr_err("%s1 scmd=%pS dev=%pS ATA_INTERNAL scmd->cmd_len=%d dev->cdb_len=%d\n",
+	//				__func__, scmd, dev, scmd->cmd_len, dev->cdb_len);
 		if (unlikely(scmd->cmd_len > dev->cdb_len))
 			goto bad_cdb_len;
 
 		xlat_func = ata_get_xlat_func(dev, scsi_op);
-		if (scsi_op == ATA_INTERNAL)
-			pr_err("%s2 scmd=%pS dev=%pS ATA_INTERNAL xlat_func=%pS\n", __func__, scmd, dev, xlat_func);
+	//	if (scsi_op == ATA_INTERNAL)
+	//		pr_err("%s2 scmd=%pS dev=%pS ATA_INTERNAL xlat_func=%pS\n", __func__, scmd, dev, xlat_func);
 	} else if (likely((scsi_op != ATA_16) || !atapi_passthru16)) {
 		/* relay SCSI command to ATAPI device */
 		int len = COMMAND_SIZE(scsi_op);
 
-		if (scsi_op == ATA_INTERNAL)
-			pr_err("%s3 scmd=%pS dev=%pS ATA_INTERNAL\n", __func__, scmd, dev);
+	//	if (scsi_op == ATA_INTERNAL)
+	//		pr_err("%s3 scmd=%pS dev=%pS ATA_INTERNAL\n", __func__, scmd, dev);
 		if (unlikely(len > scmd->cmd_len ||
 			     len > dev->cdb_len ||
 			     scmd->cmd_len > ATAPI_CDB_LEN))
 			goto bad_cdb_len;
 
 		xlat_func = atapi_xlat;
-		if (scsi_op == ATA_INTERNAL)
-			pr_err("%s4 scmd=%pS dev=%pS ATA_INTERNAL xlat_func=%pS\n", __func__, scmd, dev, xlat_func);
+		//if (scsi_op == ATA_INTERNAL)
+	//		pr_err("%s4 scmd=%pS dev=%pS ATA_INTERNAL xlat_func=%pS\n", __func__, scmd, dev, xlat_func);
 	} else {
 		/* ATA_16 passthru, treat as an ATA command */
 		if (unlikely(scmd->cmd_len > 16))
 			goto bad_cdb_len;
 
-		if (scsi_op == ATA_INTERNAL)
-			pr_err("%s5 scmd=%pS dev=%pS ATA_INTERNAL\n", __func__, scmd, dev);
+		//if (scsi_op == ATA_INTERNAL)
+		//	pr_err("%s5 scmd=%pS dev=%pS ATA_INTERNAL\n", __func__, scmd, dev);
 		xlat_func = ata_get_xlat_func(dev, scsi_op);
-		if (scsi_op == ATA_INTERNAL)
-			pr_err("%s6 scmd=%pS dev=%pS ATA_INTERNAL xlat_func=%pS\n", __func__, scmd, dev, xlat_func);
+		//if (scsi_op == ATA_INTERNAL)
+		//	pr_err("%s6 scmd=%pS dev=%pS ATA_INTERNAL xlat_func=%pS\n", __func__, scmd, dev, xlat_func);
 	}
 
-	if (scsi_op == ATA_INTERNAL)
-		pr_err("%s2 scmd=%pS dev=%pS ATA_INTERNAL xlat_func=%pS\n", __func__, scmd, dev, xlat_func);
+	//if (scsi_op == ATA_INTERNAL)
+	//	pr_err("%s2 scmd=%pS dev=%pS ATA_INTERNAL xlat_func=%pS\n", __func__, scmd, dev, xlat_func);
 	if (xlat_func)
 		return ata_scsi_translate(dev, scmd, xlat_func);
 
@@ -4077,8 +4077,8 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 	return 0;
 
  bad_cdb_len:
-	if (scsi_op == ATA_INTERNAL)
-		pr_err("%s10 scmd=%pS dev=%pS ATA_INTERNAL bad_cdb_len\n", __func__, scmd, dev);
+	//if (scsi_op == ATA_INTERNAL)
+	//	pr_err("%s10 scmd=%pS dev=%pS ATA_INTERNAL bad_cdb_len\n", __func__, scmd, dev);
 	scmd->result = DID_ERROR << 16;
 	scsi_done(scmd);
 	panic("%s bad_cdb_len\n", __func__);

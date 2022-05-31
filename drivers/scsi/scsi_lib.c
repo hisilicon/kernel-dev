@@ -226,13 +226,13 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 			rq_flags & RQF_PM ? BLK_MQ_REQ_PM : 0);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
-	if (cmd[0] == ATA_INTERNAL) {
+	//if (cmd[0] == ATA_INTERNAL) {
 	//	pr_err("%s bufflen=%d buffer=%pS ATA_INTERNAL req=%pS\n", __func__, bufflen, buffer, req);
 	//	if (bufflen)
 	//		print_hex_dump(KERN_INFO, "__scsi_execute ",
 	//			  DUMP_PREFIX_NONE, 16, 1,
 	//			  buffer, bufflen, 1);
-	}
+	//}
 	if (bufflen) {
 	//	pr_err("%s2 bufflen=%d buffer=%pS ATA_INTERNAL req=%pS\n", __func__, bufflen, buffer, req);
 		ret = blk_rq_map_kern(sdev->request_queue, req,

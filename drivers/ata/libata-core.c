@@ -1517,7 +1517,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	struct request *req;
 	__maybe_unused blk_status_t blk_sts;
 	
-	scsi_cmd[0] = ATA_INTERNAL;
+	//scsi_cmd[0] = ATA_INTERNAL;
 
 	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS\n",
 		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host);
