@@ -732,7 +732,7 @@ int hisi_sas_slave_alloc(struct scsi_device *sdev)
 	struct device *parent = starget->dev.parent;
 	struct domain_device *ddev;
 	int rc;
-
+	pr_err("%s sdev=%pS ddev=%pS\n", __func__, sdev, sdev_to_domain_dev(sdev));
 	if (scsi_is_host_device(parent))
 		return 0;
 
