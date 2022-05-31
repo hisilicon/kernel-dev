@@ -907,6 +907,20 @@ void sas_task_internal_done(struct sas_task *task)
 	complete(&task->slow_task->completion);
 }
 
+
+void sas_task_complete_internal(struct sas_task *task)
+{
+	__maybe_unused struct request *rq = sas_rq_from_task(task);
+	__maybe_unused struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+
+	pr_err("%s scmd=%pS rq=%pS task=%pS\n", __func__, scmd, rq, task);
+	//print_hex_dump(KERN_INFO, "ata_qc_complete_internal tf ",
+		//		  DUMP_PREFIX_NONE, 16, 1,
+		//		  tf, sizeof(*tf), 1);
+
+	scsi_done(scmd);
+}
+
 #define TASK_TIMEOUT			(20 * HZ)
 #define TASK_RETRY			3
 

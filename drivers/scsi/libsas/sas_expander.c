@@ -84,13 +84,14 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		task->task_proto = dev->tproto;
 		task->smp_task.smp_req = *req;
 		task->smp_task.smp_resp = *resp;
-		task->task_done = sas_task_internal_done;
+		task->task_done = sas_task_complete_internal;
 
 		rq->timeout = SMP_TIMEOUT*HZ;
 		blk_execute_rq_nowait(rq, true, smp_blk_end_sync_rq);
-
+		pr_err("%s3 task=%pS rq=%pS scmd=%pS wait for completion\n", __func__, task, rq, scmd);
 		wait_for_completion(&task->slow_task->completion);
-		__blk_mq_end_request(rq, BLK_STS_OK);
+		pr_err("%s4 task=%pS rq=%pS scmd=%pS got completion\n", __func__, task, rq, scmd);
+		
 		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			pr_notice("smp task timed out or aborted\n");
