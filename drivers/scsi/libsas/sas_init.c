@@ -129,9 +129,10 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
 	struct request *rq = scsi_cmd_to_rq(cmnd);
+	struct scsi_device *sdev = cmnd->device;
 
-	pr_err("%s cmnd=%pS ATA_INTERNAL=%d cmnd->cmnd[0]=%d\n",
-			__func__, cmnd, ATA_INTERNAL, cmnd->cmnd[0]);
+	pr_err("%s cmnd=%pS ATA_INTERNAL=%d cmnd->cmnd[0]=%d sdev=%pS host sdev=%pS\n",
+			__func__, cmnd, ATA_INTERNAL, cmnd->cmnd[0], sdev, shost->sdev);
 	if (cmnd->cmnd[0] == ATA_INTERNAL) {
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
 		struct ata_port *ap = qc ? qc->ap : NULL;
