@@ -1653,7 +1653,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if (!rc) {
 		spin_lock_irqsave(ap->lock, flags);
 		//pr_err("%s5.2 sdev=%pS cmd_result=%d rc=%d scmd=%pS req=%pS\n", __func__, sdev, cmd_result, rc, scmd, req);
-
+		panic("%s scmd=%pS\n", __func__, scmd);
 		/* We're racing with irq here.  If we lose, the
 		 * following test prevents us from completing the qc
 		 * twice.  If we win, the port is frozen and will be
@@ -1674,6 +1674,8 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 		//pr_err("%s5.3 sdev=%pS cmd_result=%d rc=%d scmd=%pS req=%pS\n", __func__, sdev, cmd_result, rc, scmd, req);
 		spin_unlock_irqrestore(ap->lock, flags);
+	} else {
+
 	}
 
 	//pr_err("%s6 sdev=%pS cmd_result=%d ap->ops->post_internal_cmd=%pS qc=%pS scmd=%pS req=%pS\n", 
@@ -1923,7 +1925,7 @@ retry:
 		err_mask = ap->ops->read_id(dev, &tf, (__le16 *)id);
 	else
 		err_mask = ata_do_dev_read_id(dev, &tf, (__le16 *)id);
-		pr_err("%s00 error err_mask=%d id=%pS\n", __func__, err_mask, id);
+	pr_err("%s00 error err_mask=%d id=%pS\n", __func__, err_mask, id);
 
 	if (err_mask) {
 		if (err_mask & AC_ERR_NODEV_HINT) {
@@ -1987,7 +1989,7 @@ retry:
 
 	/* sanity check */
 	rc = -EINVAL;
-		pr_err("%s -EINVAL error\n", __func__);
+	pr_err("%s -EINVAL error\n", __func__);
 	reason = "device reports invalid type";
 
 	if (class == ATA_DEV_ATA || class == ATA_DEV_ZAC) {

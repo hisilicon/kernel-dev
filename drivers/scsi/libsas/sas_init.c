@@ -75,7 +75,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	timer_setup(&slow->timer, NULL, 0);
 	init_completion(&slow->completion);
 	scmd->host_scribble = NULL;
-	pr_err("%s10 task=%pS scmd=%pS host_scribble=%pS cmnd[0]=%d\n", __func__, task,scmd, scmd->host_scribble, scmd->cmnd[0]);
+	//pr_err("%s10 task=%pS scmd=%pS host_scribble=%pS cmnd[0]=%d\n", __func__, task,scmd, scmd->host_scribble, scmd->cmnd[0]);
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
@@ -136,17 +136,17 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
 		struct ata_port *ap = qc ? qc->ap : NULL;
 		int res;
-		pr_err("%s1 cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS\n",
-			__func__, cmnd, cmnd->host_scribble, qc, ap);
+		//pr_err("%s1 cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS\n",
+		//	__func__, cmnd, cmnd->host_scribble, qc, ap);
 		spin_lock_irq(ap->lock);
 		res = ata_sas_queuecmd(cmnd, ap);
 		spin_unlock_irq(ap->lock);
-		pr_err("%s2 cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS res=%d\n",
-			__func__, cmnd, cmnd->host_scribble, qc, ap, res);
+		//pr_err("%s2 cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS res=%d\n",
+		//	__func__, cmnd, cmnd->host_scribble, qc, ap, res);
 		return res;
 
 	} else {
-		pr_err("%s2 cmnd=%pS not-ATA INTERNAL host_scribble=%pS\n", __func__, cmnd, cmnd->host_scribble);
+		//pr_err("%s2 cmnd=%pS not-ATA INTERNAL host_scribble=%pS\n", __func__, cmnd, cmnd->host_scribble);
 	}
 
 	return i->dft->lldd_execute_task(sas_rq_to_task(rq), GFP_KERNEL);
