@@ -478,7 +478,6 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 
 	if (sht->nr_reserved_cmds)
 		shost->nr_reserved_cmds = sht->nr_reserved_cmds;
-	shost->nr_reserved_cmds = 1;
 
 	device_initialize(&shost->shost_gendev);
 	dev_set_name(&shost->shost_gendev, "host%d", shost->host_no);

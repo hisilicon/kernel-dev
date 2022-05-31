@@ -1092,7 +1092,7 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 	return 0;
 }
 
-int ahci_internal_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
+int ata_internal_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 {
 	struct ata_port *ap;
 	int res;
@@ -1106,7 +1106,7 @@ int ahci_internal_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 
 	return res;
 }
-EXPORT_SYMBOL_GPL(ahci_internal_queuecommand);
+EXPORT_SYMBOL_GPL(ata_internal_queuecommand);
 
 /**
  *	ata_scsi_slave_config - Set SCSI device attributes
