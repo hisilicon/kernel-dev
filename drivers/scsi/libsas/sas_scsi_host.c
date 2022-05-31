@@ -130,7 +130,7 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 					       struct domain_device *dev,
 					       gfp_t gfp_flags)
 {
-	struct sas_task *task = sas_alloc_task(gfp_flags);
+	struct sas_task *task = sas_alloc_task(gfp_flags, cmd);
 	struct scsi_lun lun;
 
 	if (!task)
@@ -981,7 +981,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
 
-		task = sas_alloc_slow_task(GFP_KERNEL);
+		task = sas_alloc_slow_task(ha, GFP_KERNEL);
 		if (!task) {
 			res = -ENOMEM;
 			break;
@@ -1113,7 +1113,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
 
-		task = sas_alloc_slow_task(GFP_KERNEL);
+		task = sas_alloc_slow_task(ha, GFP_KERNEL);
 		if (!task) {
 			res = -ENOMEM;
 			break;
