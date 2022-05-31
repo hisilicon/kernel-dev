@@ -128,6 +128,11 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	return i->dft->lldd_execute_task(sas_rq_to_task(rq), GFP_KERNEL);
 }
 
+int sas_init_priv_cmd(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
+{
+	return 0;
+}
+
 int sas_register_ha(struct sas_ha_struct *sas_ha)
 {
 	char name[64];

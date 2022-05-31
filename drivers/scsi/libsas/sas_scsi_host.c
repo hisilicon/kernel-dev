@@ -962,6 +962,8 @@ struct request_queue *sas_alloc_request_queue(struct Scsi_Host *shost)
 	return blk_mq_init_queue_ops(&shost->tag_set, &sas_blk_mq_ops);
 }
 
+
+
 static int sas_execute_internal_abort(struct domain_device *device,
 				      enum sas_internal_abort type, u16 tag,
 				      unsigned int qid, void *data)

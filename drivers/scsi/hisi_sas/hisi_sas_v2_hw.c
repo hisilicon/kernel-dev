@@ -3589,6 +3589,7 @@ static struct scsi_host_template sht_v2_hw = {
 	.map_queues		= map_queues_v2_hw,
 	.host_tagset		= 1,
 	.cmd_size = sizeof(struct sas_task),
+	.init_cmd_priv = sas_init_priv_cmd,
 };
 
 static const struct hisi_sas_hw hisi_sas_v2_hw = {

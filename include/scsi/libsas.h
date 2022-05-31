@@ -695,6 +695,8 @@ extern void sas_resume_ha(struct sas_ha_struct *sas_ha);
 extern void sas_resume_ha_no_sync(struct sas_ha_struct *sas_ha);
 extern void sas_suspend_ha(struct sas_ha_struct *sas_ha);
 
+extern int sas_init_priv_cmd(struct Scsi_Host *shost, struct scsi_cmnd *cmd);
+
 int sas_set_phy_speed(struct sas_phy *phy, struct sas_phy_linkrates *rates);
 int sas_phy_reset(struct sas_phy *phy, int hard_reset);
 int sas_phy_enable(struct sas_phy *phy, int enable);
