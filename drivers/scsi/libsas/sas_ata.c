@@ -381,8 +381,9 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 	int (*check_ready)(struct ata_link *link);
 	struct domain_device *dev = ap->private_data;
 	struct sas_internal *i = dev_to_sas_internal(dev);
-
+	pr_err("%s link=%pS\n", __func__, link);
 	res = i->dft->lldd_I_T_nexus_reset(dev);
+	pr_err("%s2 link=%pS res=%d\n", __func__, link, res);
 	if (res == -ENODEV)
 		return res;
 
@@ -396,10 +397,12 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 		check_ready = smp_ata_check_ready;
 	sas_put_local_phy(phy);
 
+	pr_err("%s3 link=%pS calling ata_wait_after_reset\n", __func__, link);
 	ret = ata_wait_after_reset(link, deadline, check_ready);
 	if (ret && ret != -EAGAIN)
 		sas_ata_printk(KERN_ERR, dev, "reset failed (errno=%d)\n", ret);
 
+	pr_err("%s4 link=%pS called ata_wait_after_reset ret=%d\n", __func__, link, ret);
 	*class = dev->sata_dev.class;
 
 	ap->cbl = ATA_CBL_SATA;
