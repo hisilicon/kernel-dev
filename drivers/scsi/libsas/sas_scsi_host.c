@@ -1115,14 +1115,9 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	struct sas_internal *i =
 		to_sas_internal(device->port->ha->core.shost->transportt);
 	int res, retry;
-	struct request_queue *request_queue;
 	struct request *rq;
 	struct sas_ha_struct *ha = device->port->ha;
-	struct Scsi_Host *shost = ha->core.shost;
-	panic("%s fixme\n", __func__);
-	request_queue = sas_alloc_request_queue(shost);
-	if (IS_ERR(request_queue))
-		return PTR_ERR(request_queue);
+
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
@@ -1136,11 +1131,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		task->dev = device;
 		task->task_proto = device->tproto;
 
-		rq = scsi_alloc_request(request_queue, REQ_OP_DRV_IN, 0);
-		if (IS_ERR(rq)) {
-			res = PTR_ERR(rq);
-			break;
-		}
+		rq = sas_rq_from_task(task);
 
 		scmd = blk_mq_rq_to_pdu(rq);
 		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
@@ -1164,7 +1155,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 
 		rq->timeout = TASK_TIMEOUT;
 
-		blk_execute_rq_nowait(rq, true, NULL);
+		blk_execute_rq_nowait(rq, true, sas_blk_end_sync_rq);
 
 		wait_for_completion(&task->slow_task->completion);
 
