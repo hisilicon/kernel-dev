@@ -740,7 +740,7 @@ int hisi_sas_slave_alloc(struct scsi_device *sdev)
 	if (rc)
 		return rc;
 	ddev = sdev_to_domain_dev(sdev);
-
+	ddev->sdev = sdev;
 	return hisi_sas_init_device(ddev);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_slave_alloc);

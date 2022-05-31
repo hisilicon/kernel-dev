@@ -192,7 +192,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		task = sas_alloc_task(GFP_ATOMIC, scmd);
 	} else {
 		panic("%s should not need to alloc a slow task qc=%pS\n", __func__, qc);
-		task = sas_alloc_slow_task(sas_ha, GFP_ATOMIC);
+		task = sas_alloc_slow_task(dev, sas_ha, GFP_ATOMIC);
 	}
 
 	if (!task)

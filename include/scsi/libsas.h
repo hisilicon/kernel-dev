@@ -170,6 +170,7 @@ struct domain_device {
 	enum sas_linkrate linkrate;
 	enum sas_linkrate min_linkrate;
 	enum sas_linkrate max_linkrate;
+	struct scsi_device *sdev;
 
 	int  pathways;
 
@@ -642,7 +643,7 @@ struct sas_task_slow {
 #define SAS_TASK_NEED_DEV_RESET     8
 
 extern struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd);
-extern struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *, gfp_t flags);
+extern struct sas_task *sas_alloc_slow_task(struct domain_device *, struct sas_ha_struct *, gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
 
 static inline bool sas_is_internal_abort(struct sas_task *task)
