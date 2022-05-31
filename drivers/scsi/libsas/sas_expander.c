@@ -52,7 +52,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		}
 
 		task = sas_alloc_slow_task(dev->port->ha, GFP_KERNEL);
-		pr_err("%s1 task=%pS dev=%pS\n", __func__, task, dev);
+	//	pr_err("%s1 task=%pS dev=%pS\n", __func__, task, dev);
 		if (!task) {
 			res = -ENOMEM;
 			break;
@@ -76,7 +76,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		blk_execute_rq_nowait(rq, true, sas_blk_end_sync_rq);
 		pr_err("%s3 task=%pS rq=%pS scmd=%pS wait for completion\n", __func__, task, rq, scmd);
 		wait_for_completion(&task->slow_task->completion);
-		pr_err("%s4 task=%pS rq=%pS scmd=%pS got completion\n", __func__, task, rq, scmd);
+	//	pr_err("%s4 task=%pS rq=%pS scmd=%pS got completion\n", __func__, task, rq, scmd);
 		
 		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {

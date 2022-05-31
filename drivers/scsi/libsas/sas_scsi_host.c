@@ -997,13 +997,13 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	int res, retry;
 	
 
-	pr_err("%s device=%pS type=%d\n", __func__, device, type);
+	//pr_err("%s device=%pS type=%d\n", __func__, device, type);
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
 		struct request *rq;
 
 		task = sas_alloc_slow_task(ha, GFP_KERNEL);
-		pr_err("%s1 device=%pS type=%d task=%pS\n", __func__, device, type, task);
+		//pr_err("%s1 device=%pS type=%d task=%pS\n", __func__, device, type, task);
 		if (!task) {
 			res = -ENOMEM;
 			break;
@@ -1029,10 +1029,10 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		pr_err("%s2 task=%pS rq=%pS scmd=%pS is internal=%d scribble=%pS\n", __func__, task, rq, scmd, scsi_is_reserved_cmd(scmd), scmd->host_scribble);
 		blk_execute_rq_nowait(rq, true, sas_blk_end_sync_rq);
 
-		pr_err("%s3 task=%pS rq=%pS scmd=%pS wait for completion scribble=%pS\n", __func__, task, rq, scmd, scmd->host_scribble);
+		//pr_err("%s3 task=%pS rq=%pS scmd=%pS wait for completion scribble=%pS\n", __func__, task, rq, scmd, scmd->host_scribble);
 		wait_for_completion(&task->slow_task->completion);
 		res = TMF_RESP_FUNC_FAILED;
-		pr_err("%s4 task=%pS rq=%pS scmd=%pS got completion\n", __func__, task, rq, scmd);
+		//pr_err("%s4 task=%pS rq=%pS scmd=%pS got completion\n", __func__, task, rq, scmd);
 
 		/* Even if the internal abort timed out, return direct. */
 		if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
@@ -1123,7 +1123,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	struct request *rq;
 	struct sas_ha_struct *ha = device->port->ha;
 
-	pr_err("%s device=%pS\n", __func__, device);
+	//pr_err("%s device=%pS\n", __func__, device);
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
 
@@ -1159,7 +1159,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		task->tmf = tmf;
 
 		rq->timeout = TASK_TIMEOUT;
-
+		pr_err("%s2 task=%pS rq=%pS scmd=%pS is internal=%d scribble=%pS\n", __func__, task, rq, scmd, scsi_is_reserved_cmd(scmd), scmd->host_scribble);
 		blk_execute_rq_nowait(rq, true, sas_blk_end_sync_rq);
 
 		wait_for_completion(&task->slow_task->completion);
