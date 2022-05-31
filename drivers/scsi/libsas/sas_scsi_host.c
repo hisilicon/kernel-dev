@@ -173,6 +173,7 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	if (dev_is_sata(dev)) {
 		spin_lock_irq(dev->sata_dev.ap->lock);
+		pr_err("%s cmd=%pS ATA\n", __func__, cmd);
 		res = ata_sas_queuecmd(cmd, dev->sata_dev.ap);
 		spin_unlock_irq(dev->sata_dev.ap->lock);
 		return res;

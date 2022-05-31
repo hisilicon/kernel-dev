@@ -125,6 +125,11 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
 	struct request *rq = scsi_cmd_to_rq(cmnd);
 
+	if (cmnd->cmnd[0] == ATA_INTERNAL)
+		pr_err("%s cmnd=%pS ATA_INTERNAL\n", __func__, cmnd);
+	else
+		pr_err("%s2 cmnd=%pS not-ATA INTERNAL\n", __func__, cmnd);
+
 	return i->dft->lldd_execute_task(sas_rq_to_task(rq), GFP_KERNEL);
 }
 
