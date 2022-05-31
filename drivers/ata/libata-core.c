@@ -1601,7 +1601,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	pr_err("%s1.2.5 sdev=%pS ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
 		__func__, sdev, ap, req, scsi_sglist(scmd), scmd, req, req->q);
-	qc->private_data = &wait;
+	qc->private_data = NULL;
 	qc->complete_fn = ata_qc_complete_internal;
 
 	req->end_io_data = &wait;
