@@ -1144,7 +1144,7 @@ EXPORT_SYMBOL(scsi_alloc_sgtables);
 static void scsi_initialize_rq(struct request *rq)
 {
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
-	pr_err("%s rq=%pS cmd=%pS\n", __func__, rq, cmd);
+	pr_err("%s rq=%pS cmd=%pS just clear cdb, sense, and a small count of others\n", __func__, rq, cmd);
 	memset(cmd->cmnd, 0, sizeof(cmd->cmnd));
 	cmd->cmd_len = MAX_COMMAND_SIZE;
 	cmd->sense_len = 0;

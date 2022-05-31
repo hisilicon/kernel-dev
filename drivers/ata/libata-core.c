@@ -4782,7 +4782,7 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 	if (scmd)
 		rq = scsi_cmd_to_rq(scmd);
 
-	//pr_err("%s qc=%pS scmd=%pS rq=%pS\n", __func__, qc, scmd, rq);
+	pr_err("%s qc=%pS scmd=%pS rq=%pS qc->complete_fn=%pS\n", __func__, qc, scmd, rq, qc->complete_fn);
 	WARN_ON_ONCE(qc == NULL); /* ata_qc_from_tag _might_ return NULL */
 	WARN_ON_ONCE(!(qc->flags & ATA_QCFLAG_ACTIVE));
 	ap = qc->ap;
@@ -4914,7 +4914,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 			fill_result_tf(qc);
 			trace_ata_qc_complete_failed(qc);
 			ata_qc_schedule_eh(qc);
-		//	pr_err("%s2.4 qc=%pS scmd=%pS rq=%pS error\n", __func__, qc, scmd, rq);
+			pr_err("%s2.4 qc=%pS scmd=%pS rq=%pS error ATA_QCFLAG_FAILED\n", __func__, qc, scmd, rq);
 			return;
 		}
 

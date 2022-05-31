@@ -1096,7 +1096,7 @@ int ata_internal_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 {
 	struct ata_port *ap;
 	int res;
-	pr_err("%s shost=%pS scmd=%pS host_scribble=%pS\n", __func__, shost, scmd, scmd->host_scribble);
+	pr_err("%s shost=%pS scmd=%pS host_scribble=%pS scmd->cmnd[0]=%d\n", __func__, shost, scmd, scmd->host_scribble, scmd->cmnd[0]);
 	ap = ata_shost_to_port(shost);
 	//pr_err("%s2 shost=%pS scmd=%pS ap=%pS\n", __func__, shost, scmd, ap);
 	spin_lock_irq(ap->lock);

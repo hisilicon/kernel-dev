@@ -94,13 +94,15 @@ static void sas_ata_task_done(struct sas_task *task)
 
 	/* check if libsas-eh got to the task before us */
 	if (unlikely(!task)){
-		pr_err("%s qc=%pS scmd=%pS task=%pS\n", __func__, qc, scmd, task);
+		pr_err("%s2 qc=%pS scmd=%pS task=%pS\n", __func__, qc, scmd, task);
 		panic("%s no task\n", __func__);
 		return;
 	}
 
-	if (!qc)
+	if (!qc){
+		pr_err("%s3 qc=%pS scmd=%pS task=%pS !qc\n", __func__, qc, scmd, task);
 		goto qc_already_gone;
+	}
 
 	ap = qc->ap;
 	link = &ap->link;
