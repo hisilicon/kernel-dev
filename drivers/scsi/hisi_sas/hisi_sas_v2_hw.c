@@ -2496,7 +2496,7 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	u8 *buf_cmd;
 	int has_data = 0, hdr_tag = 0;
 	u32 dw0, dw1 = 0, dw2 = 0;
-
+	pr_err("%s task=%pS\n", __func__, task);
 	/* create header */
 	/* dw0 */
 	dw0 = port->id << CMD_HDR_PORT_OFF;
