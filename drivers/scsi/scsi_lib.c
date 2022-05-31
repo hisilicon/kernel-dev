@@ -1816,8 +1816,8 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	internal = scsi_is_reserved_cmd(cmd);
 	if (internal) {
 		unsigned char *host_scribble = cmd->host_scribble;
-		//pr_err("%s req=%pS internal=%d cmnd[0]=0x%x RQF_DONTPREP=%d hostt=%pS\n",
-		//	__func__, req, internal, cmd->cmnd[0], !!(req->rq_flags & RQF_DONTPREP), shost->hostt);
+		pr_err("%s2.0 req=%pS internal=%d cmnd[0]=0x%x RQF_DONTPREP=%d hostt=%pS\n",
+			__func__, req, internal, cmd->cmnd[0], !!(req->rq_flags & RQF_DONTPREP), shost->hostt);
 
 		if (!(req->rq_flags & RQF_DONTPREP)) {
 			ret = scsi_prepare_cmd(req);
@@ -1834,16 +1834,22 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		} else {
 			clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
 		}
+		pr_err("%s2.1 req=%pS internal=%d cmnd[0]=0x%x RQF_DONTPREP=%d hostt=%pS\n",
+			__func__, req, internal, cmd->cmnd[0], !!(req->rq_flags & RQF_DONTPREP), shost->hostt);
 		cmd->host_scribble = host_scribble;
 		//if (internal)
 		//		pr_err("%s2.3 req=%pS internal\n", __func__, req);
 		blk_mq_start_request(req);
+		pr_err("%s2.3 req=%pS internal=%d cmnd[0]=0x%x RQF_DONTPREP=%d hostt=%pS\n",
+			__func__, req, internal, cmd->cmnd[0], !!(req->rq_flags & RQF_DONTPREP), shost->hostt);
 		if (!shost)
 				pr_err("%s2.4 req=%pS internal shost=%pS error\n", __func__, req, shost);
 		if (!shost->hostt)
 				pr_err("%s2.4.1 req=%pS internal hostt=%pS error\n", __func__, req, shost->hostt);
 		if (!shost->hostt->internal_queuecommand)
 				pr_err("%s2.4.2 req=%pS internal internal_queuecommand=%pS error\n", __func__, req, shost->hostt->internal_queuecommand);
+		pr_err("%s2.4 req=%pS internal=%d cmnd[0]=0x%x RQF_DONTPREP=%d hostt=%pS\n",
+			__func__, req, internal, cmd->cmnd[0], !!(req->rq_flags & RQF_DONTPREP), shost->hostt);
 		ret = shost->hostt->internal_queuecommand(shost, cmd);
 		if (internal && ret)
 				pr_err("%s2.5 req=%pS internal ret=%d\n", __func__, req, ret);

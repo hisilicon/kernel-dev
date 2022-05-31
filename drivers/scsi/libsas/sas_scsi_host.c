@@ -997,7 +997,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	int res, retry;
 	struct request *rq;
 
-
+	pr_err("%s device=%pS type=%d\n", __func__, device, type);
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
 
@@ -1024,6 +1024,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 		rq->timeout = TASK_TIMEOUT;
 
+		pr_err("%s2 task=%pS rq=%pS scmd=%pS is internal=%d\n", __func__, task, rq, scmd, scsi_is_reserved_cmd(scmd));
 		blk_execute_rq_nowait(rq, true, sas_blk_end_sync_rq);
 
 		pr_err("%s3 task=%pS rq=%pS scmd=%pS wait for completion\n", __func__, task, rq, scmd);
@@ -1034,7 +1035,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		/* Even if the internal abort timed out, return direct. */
 		if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
 			bool quit = true;
-
+			pr_err("%s5 task=%pS rq=%pS scmd=%pS SAS_TASK_STATE_ABORTED\n", __func__, task, rq, scmd);
 			if (i->dft->lldd_abort_timeout)
 				quit = i->dft->lldd_abort_timeout(task, data);
 			else
@@ -1067,6 +1068,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 	sas_free_task(task);
 
+	pr_err("%s10 exit res=%d\n", __func__, res);
 	return res;
 }
 
@@ -1119,7 +1121,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	struct request *rq;
 	struct sas_ha_struct *ha = device->port->ha;
 
-
+	pr_err("%s device=%pS\n", __func__, device);
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
 
