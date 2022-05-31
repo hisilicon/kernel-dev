@@ -168,7 +168,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
 	struct scsi_cmnd *scmd;
-	pr_err("%s qc=%pS\n", __func__, qc);
+	pr_err("%s qc=%pS dev=%pS ap=%pS\n", __func__, qc, dev, ap);
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
