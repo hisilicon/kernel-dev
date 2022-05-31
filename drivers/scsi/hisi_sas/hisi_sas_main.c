@@ -435,13 +435,13 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 
 	device = task->dev;
 	if (!device)
-		pr_err("%s00 task=%pS device=NULL\n", __func__, task);
+		WARN_ONCE(1, "%s00 task=%pS device=NULL\n", __func__, task);
 	sas_port = device->port;
 	if (!sas_port)
-		pr_err("%s01 task=%pS sas_port=NULL\n", __func__, task);
+		WARN_ONCE(1, "%s01 task=%pS sas_port=NULL\n", __func__, task);
 	sas_dev = device->lldd_dev;
 	if (!sas_dev)
-		pr_err("%s02 task=%pS sas_dev=NULL\n", __func__, task);
+		WARN_ONCE(1, "%s02 task=%pS sas_dev=NULL\n", __func__, task);
 	internal_abort = sas_is_internal_abort(task);
 
 
