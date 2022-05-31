@@ -421,16 +421,29 @@ void hisi_sas_task_deliver(struct hisi_hba *hisi_hba,
 static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
 	int n_elem = 0, n_elem_dif = 0, n_elem_req = 0;
-	struct domain_device *device = task->dev;
-	struct asd_sas_port *sas_port = device->port;
-	struct hisi_sas_device *sas_dev = device->lldd_dev;
-	bool internal_abort = sas_is_internal_abort(task);
+	struct domain_device *device;
+	struct asd_sas_port *sas_port;
+	struct hisi_sas_device *sas_dev;
+	bool internal_abort;
 	struct hisi_sas_dq *dq = NULL;
 	struct hisi_sas_port *port;
 	struct hisi_hba *hisi_hba;
 	struct hisi_sas_slot *slot;
 	struct device *dev;
 	int rc;
+	pr_err("%s task=%pS\n", __func__, task);
+
+	device = task->dev;
+	if (!device)
+		pr_err("%s00 task=%pS device=NULL\n", __func__, task);
+	sas_port = device->port;
+	if (!sas_port)
+		pr_err("%s01 task=%pS sas_port=NULL\n", __func__, task);
+	sas_dev = device->lldd_dev;
+	if (!sas_dev)
+		pr_err("%s02 task=%pS sas_dev=NULL\n", __func__, task);
+	internal_abort = sas_is_internal_abort(task);
+
 
 	if (!sas_port) {
 		struct task_status_struct *ts = &task->task_status;
@@ -446,6 +459,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		return -ECOMM;
 	}
 
+	pr_err("%s2 task=%pS\n", __func__, task);
 	hisi_hba = dev_to_hisi_hba(device);
 	dev = hisi_hba->dev;
 
@@ -506,6 +520,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		return -EINVAL;
 	}
 
+	pr_err("%s3 task=%pS\n", __func__, task);
 	rc = hisi_sas_dma_map(hisi_hba, task, &n_elem,
 			      &n_elem_req);
 	if (rc < 0)
@@ -522,6 +537,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	else
 		rc = sas_task_to_unique_tag(task);
 
+	pr_err("%s4 task=%pS\n", __func__, task);
 	if (rc < 0)
 		goto err_out_dif_dma_unmap;
 
@@ -537,15 +553,19 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	/* protect task_prep and start_delivery sequence */
 	hisi_sas_task_deliver(hisi_hba, slot, dq, sas_dev);
 
+	pr_err("%s10 task=%pS\n", __func__, task);
 	return 0;
 
 err_out_dif_dma_unmap:
+	pr_err("%s err_out_dif_dma_unmap task=%pS\n", __func__, task);
 	if (!sas_protocol_ata(task->task_proto))
 		hisi_sas_dif_dma_unmap(hisi_hba, task, n_elem_dif);
 err_out_dma_unmap:
+	pr_err("%s err_out_dma_unmap task=%pS\n", __func__, task);
 	hisi_sas_dma_unmap(hisi_hba, task, n_elem,
 				   n_elem_req);
 prep_out:
+	pr_err("%s prep_out task=%pS\n", __func__, task);
 	dev_err(dev, "task exec: failed[%d]!\n", rc);
 	return rc;
 }
