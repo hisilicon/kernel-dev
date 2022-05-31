@@ -995,11 +995,12 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
 	struct sas_task *task = NULL;
 	int res, retry;
-	struct request *rq;
+	
 
 	pr_err("%s device=%pS type=%d\n", __func__, device, type);
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
+		struct request *rq;
 
 		task = sas_alloc_slow_task(ha, GFP_KERNEL);
 		if (!task) {
@@ -1024,10 +1025,10 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 		rq->timeout = TASK_TIMEOUT;
 
-		pr_err("%s2 task=%pS rq=%pS scmd=%pS is internal=%d\n", __func__, task, rq, scmd, scsi_is_reserved_cmd(scmd));
+		pr_err("%s2 task=%pS rq=%pS scmd=%pS is internal=%d scribble=%pS\n", __func__, task, rq, scmd, scsi_is_reserved_cmd(scmd), scmd->host_scribble);
 		blk_execute_rq_nowait(rq, true, sas_blk_end_sync_rq);
 
-		pr_err("%s3 task=%pS rq=%pS scmd=%pS wait for completion\n", __func__, task, rq, scmd);
+		pr_err("%s3 task=%pS rq=%pS scmd=%pS wait for completion scribble=%pS\n", __func__, task, rq, scmd, scmd->host_scribble);
 		wait_for_completion(&task->slow_task->completion);
 		res = TMF_RESP_FUNC_FAILED;
 		pr_err("%s4 task=%pS rq=%pS scmd=%pS got completion\n", __func__, task, rq, scmd);
@@ -1162,7 +1163,6 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 
 		wait_for_completion(&task->slow_task->completion);
 
-		__blk_mq_end_request(rq, BLK_STS_OK);
 
 		if (i->dft->lldd_tmf_exec_complete)
 			i->dft->lldd_tmf_exec_complete(device);

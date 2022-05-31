@@ -51,7 +51,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	if (IS_ERR(rq))
 		return NULL;
 	scmd = blk_mq_rq_to_pdu(rq);
-	scmd->host_scribble = NULL;
+
 
 	if (!(rq->rq_flags & RQF_RESV))
 		WARN_ON_ONCE(1);
@@ -74,6 +74,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	slow->task = task;
 	timer_setup(&slow->timer, NULL, 0);
 	init_completion(&slow->completion);
+	scmd->host_scribble = NULL;
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
