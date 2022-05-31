@@ -46,7 +46,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	struct Scsi_Host *shost = sas_ha->core.shost;
 	struct scsi_cmnd *scmd;
 
-	rq = blk_mq_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_IN,
+	rq = scsi_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_IN,
 					BLK_MQ_REQ_RESERVED);
 	if (IS_ERR(rq))
 		return NULL;
@@ -75,7 +75,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	timer_setup(&slow->timer, NULL, 0);
 	init_completion(&slow->completion);
 	scmd->host_scribble = NULL;
-	pr_err("%s10 task=%pS scmd=%pS host_scribble=%pS\n", __func__, task,scmd, scmd->host_scribble);
+	pr_err("%s10 task=%pS scmd=%pS host_scribble=%pS cmnd[0]=%d\n", __func__, task,scmd, scmd->host_scribble, scmd->cmnd[0]);
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
