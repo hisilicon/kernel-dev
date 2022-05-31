@@ -914,7 +914,7 @@ void sas_task_complete_internal(struct sas_task *task)
 	__maybe_unused struct request *rq = sas_rq_from_task(task);
 	__maybe_unused struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 
-	pr_err("%s scmd=%pS rq=%pS task=%pS\n", __func__, scmd, rq, task);
+	//pr_err("%s scmd=%pS rq=%pS task=%pS\n", __func__, scmd, rq, task);
 	//print_hex_dump(KERN_INFO, "ata_qc_complete_internal tf ",
 		//		  DUMP_PREFIX_NONE, 16, 1,
 		//		  tf, sizeof(*tf), 1);
@@ -1070,7 +1070,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 	sas_free_task(task);
 
-	pr_err("%s10 exit res=%d\n", __func__, res);
+	//pr_err("%s10 exit res=%d\n", __func__, res);
 	return res;
 }
 
@@ -1243,7 +1243,7 @@ static int sas_execute_ssp_tmf(struct domain_device *device, u8 *lun,
 			       struct sas_tmf_task *tmf)
 {
 	struct sas_ssp_task ssp_task;
-
+	pr_err("%s device=%pS\n", __func__, device);
 	if (!(device->tproto & SAS_PROTOCOL_SSP))
 		return TMF_RESP_FUNC_ESUPP;
 
@@ -1258,6 +1258,7 @@ int sas_abort_task_set(struct domain_device *dev, u8 *lun)
 		.tmf = TMF_ABORT_TASK_SET,
 	};
 
+	pr_err("%s dev=%pS\n", __func__, dev);
 	return sas_execute_ssp_tmf(dev, lun, &tmf_task);
 }
 EXPORT_SYMBOL_GPL(sas_abort_task_set);
@@ -1268,6 +1269,7 @@ int sas_clear_task_set(struct domain_device *dev, u8 *lun)
 		.tmf = TMF_CLEAR_TASK_SET,
 	};
 
+	pr_err("%s dev=%pS\n", __func__, dev);
 	return sas_execute_ssp_tmf(dev, lun, &tmf_task);
 }
 EXPORT_SYMBOL_GPL(sas_clear_task_set);

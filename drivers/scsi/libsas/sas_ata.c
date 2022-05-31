@@ -173,14 +173,17 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
 	struct scsi_cmnd *scmd;
-	pr_err("%s qc=%pS dev=%pS ap=%pS\n", __func__, qc, dev, ap);
+	
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
 
 	/* If the device fell off, no sense in issuing commands */
-	if (test_bit(SAS_DEV_GONE, &dev->state))
+	if (test_bit(SAS_DEV_GONE, &dev->state)) {
+		pr_err("%s qc=%pS dev=%pS ap=%pS\n", __func__, qc, dev, ap);
+		panic("%s SAS_DEV_GONE\n", __func__);
 		goto out;
+	}
 
 	scmd = qc->scsicmd;
 	pr_err("%s2 qc=%pS scmd=%pS\n", __func__, qc, scmd);
@@ -229,7 +232,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	ASSIGN_SAS_TASK(qc->scsicmd, qc);
 
 	ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
-	pr_err("%s3 qc=%pS scmd=%pS ret=%d\n", __func__, qc, scmd, ret);
+	//pr_err("%s3 qc=%pS scmd=%pS ret=%d\n", __func__, qc, scmd, ret);
 	if (ret) {
 		pr_err("lldd_execute_task returned: %d\n", ret);
 
@@ -241,7 +244,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	}
 
  out:
-	pr_err("%s10 out qc=%pS scmd=%pS ret=%d\n", __func__, qc, scmd, ret);
+ 	if (ret)
+		pr_err("%s10 out qc=%pS scmd=%pS ret=%d\n", __func__, qc, scmd, ret);
 	spin_lock(ap->lock);
 	return ret;
 }
@@ -389,7 +393,8 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 	struct sas_internal *i = dev_to_sas_internal(dev);
 	pr_err("%s link=%pS\n", __func__, link);
 	res = i->dft->lldd_I_T_nexus_reset(dev);
-	pr_err("%s2 link=%pS res=%d\n", __func__, link, res);
+	if (res)
+		pr_err("%s2 link=%pS res=%d\n", __func__, link, res);
 	if (res == -ENODEV)
 		return res;
 
@@ -403,12 +408,12 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 		check_ready = smp_ata_check_ready;
 	sas_put_local_phy(phy);
 
-	pr_err("%s3 link=%pS calling ata_wait_after_reset\n", __func__, link);
+	//pr_err("%s3 link=%pS calling ata_wait_after_reset\n", __func__, link);
 	ret = ata_wait_after_reset(link, deadline, check_ready);
 	if (ret && ret != -EAGAIN)
 		sas_ata_printk(KERN_ERR, dev, "reset failed (errno=%d)\n", ret);
 
-	pr_err("%s4 link=%pS called ata_wait_after_reset ret=%d\n", __func__, link, ret);
+	//pr_err("%s4 link=%pS called ata_wait_after_reset ret=%d\n", __func__, link, ret);
 	*class = dev->sata_dev.class;
 
 	ap->cbl = ATA_CBL_SATA;
@@ -875,6 +880,7 @@ void sas_ata_wait_eh(struct domain_device *dev)
 int sas_execute_ata_cmd(struct domain_device *device, u8 *fis, int force_phy_id)
 {
 	struct sas_tmf_task tmf_task = {};
+	pr_err("%s device=%pS\n", __func__, device);
 	return sas_execute_tmf(device, fis, sizeof(struct host_to_dev_fis),
 			       force_phy_id, &tmf_task);
 }

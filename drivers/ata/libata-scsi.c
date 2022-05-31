@@ -3965,11 +3965,13 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	__maybe_unused struct request *req = scsi_cmd_to_rq(scmd);
 
 	pr_err("%s scmd=%pS dev=%pS ap=%pS req=%pS\n", __func__, scmd, dev, ap, req);
-	pr_err("%s1.2.4 ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
-		__func__, ap, req, scsi_sglist(scmd), scmd, req, req->q);
+//	pr_err("%s1.2.4 ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
+//		__func__, ap, req, scsi_sglist(scmd), scmd, req, req->q);
 	/* no internal command while frozen */
-	if (ap->pflags & ATA_PFLAG_FROZEN)
+	if (ap->pflags & ATA_PFLAG_FROZEN) {
+		panic("%s frozen\n", __func__);
 		goto did_err;
+	}
 
 	/* initialize internal qc */
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
@@ -3984,13 +3986,13 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	ap->nr_active_links = 0;
 
 	/* prepare & issue qc */
-	print_hex_dump(KERN_INFO, "ata_scsi_internal1 cdb",
-				  DUMP_PREFIX_NONE, 16, 1,
-				  qc->cdb, ATAPI_CDB_LEN, 1);
+//	print_hex_dump(KERN_INFO, "ata_scsi_internal1 cdb",
+//				  DUMP_PREFIX_NONE, 16, 1,
+//				  qc->cdb, ATAPI_CDB_LEN, 1);
 
-	print_hex_dump(KERN_INFO, "ata_scsi_internal2 cdb",
-				  DUMP_PREFIX_NONE, 16, 1,
-				  qc->cdb, ATAPI_CDB_LEN, 1);
+//	print_hex_dump(KERN_INFO, "ata_scsi_internal2 cdb",
+//				  DUMP_PREFIX_NONE, 16, 1,
+//				  qc->cdb, ATAPI_CDB_LEN, 1);
 
 	if (qc->dma_dir != DMA_NONE) {
 		int n_elem;

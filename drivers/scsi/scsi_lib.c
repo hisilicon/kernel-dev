@@ -1144,7 +1144,7 @@ EXPORT_SYMBOL(scsi_alloc_sgtables);
 static void scsi_initialize_rq(struct request *rq)
 {
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
-	pr_err("%s rq=%pS cmd=%pS just clear cdb, sense, and a small count of others\n", __func__, rq, cmd);
+	//pr_err("%s rq=%pS cmd=%pS just clear cdb, sense, and a small count of others\n", __func__, rq, cmd);
 	memset(cmd->cmnd, 0, sizeof(cmd->cmnd));
 	cmd->cmd_len = MAX_COMMAND_SIZE;
 	cmd->sense_len = 0;
@@ -1816,8 +1816,8 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	internal = scsi_is_reserved_cmd(cmd);
 	if (internal) {
 		unsigned char *host_scribble = cmd->host_scribble;
-		pr_err("%s2.0 req=%pS internal=%d cmnd[0]=0x%x RQF_DONTPREP=%d hostt=%pS\n",
-			__func__, req, internal, cmd->cmnd[0], !!(req->rq_flags & RQF_DONTPREP), shost->hostt);
+		pr_err("%s2.0 req=%pS internal=%d cmnd[0]=0x%x hostt=%pS cmd=%pS\n",
+			__func__, req, internal, cmd->cmnd[0], shost->hostt, cmd);
 
 		if (!(req->rq_flags & RQF_DONTPREP)) {
 			ret = scsi_prepare_cmd(req);
