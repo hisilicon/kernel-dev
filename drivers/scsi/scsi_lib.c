@@ -1953,11 +1953,12 @@ static enum blk_eh_timer_return scsi_timeout(struct request *req,
 		bool reserved)
 {
 	static int count_to;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
 
 	count_to++;
-	if (count_to>5)
-		panic("%s req=%pS\n", __func__, req);
-	WARN(1, "%s req=%pS\n", __func__, req);
+	//if (count_to>5)
+		panic("%s req=%pS scmd=%pS scmd->cmd[0]=%d internal=%d\n", __func__, req, scmd, scmd->cmnd[0], scsi_is_reserved_cmd(scmd));
+	WARN(1, "%s req=%pS \n", __func__, req);
 	if (reserved)
 		return BLK_EH_RESET_TIMER;
 	return scsi_times_out(req);
