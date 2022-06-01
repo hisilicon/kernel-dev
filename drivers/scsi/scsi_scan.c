@@ -283,7 +283,7 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	struct request_queue *q;
 	int display_failure_msg = 1, ret;
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-
+	pr_err("%s starget=%pS hostdata=%pS\n", __func__, starget, hostdata);
 	sdev = kzalloc(sizeof(*sdev) + shost->transportt->device_size,
 		       GFP_KERNEL);
 	if (!sdev)
@@ -332,6 +332,7 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 
 	sdev->sg_reserved_size = INT_MAX;
 
+	pr_err("%s2 starget=%pS hostdata=%pS calling blk_mq_init_queue\n", __func__, starget, hostdata);
 	q = blk_mq_init_queue(&sdev->host->tag_set);
 	if (IS_ERR(q)) {
 		/* release fn is set up in scsi_sysfs_device_initialise, so
@@ -342,6 +343,7 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	}
 	sdev->request_queue = q;
 	q->queuedata = sdev;
+	pr_err("%s3 starget=%pS hostdata=%pS calling __scsi_init_queue\n", __func__, starget, hostdata);
 	__scsi_init_queue(sdev->host, q);
 	WARN_ON_ONCE(!blk_get_queue(q));
 
@@ -363,6 +365,7 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 
 	scsi_sysfs_device_initialize(sdev);
 
+	pr_err("%s4 starget=%pS hostdata=%pS calling slave_alloc\n", __func__, starget, hostdata);
 	if (shost->hostt->slave_alloc) {
 		ret = shost->hostt->slave_alloc(sdev);
 		if (ret) {
@@ -376,11 +379,14 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 		}
 	}
 
+	pr_err("%s10 sdev=%pS out_device_destroy starget=%pS hostdata=%pS calling slave_alloc\n", __func__, sdev, starget, hostdata);
 	return sdev;
 
 out_device_destroy:
+	pr_err("%s4 out_device_destroy starget=%pS hostdata=%pS calling slave_alloc\n", __func__, starget, hostdata);
 	__scsi_remove_device(sdev);
 out:
+	pr_err("%s4 out starget=%pS hostdata=%pS calling slave_alloc\n", __func__, starget, hostdata);
 	if (display_failure_msg)
 		printk(ALLOC_FAILURE_MSG, __func__);
 	return NULL;
