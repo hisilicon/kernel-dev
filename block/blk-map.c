@@ -639,6 +639,11 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 		return -EINVAL;
 	}
 
+	pr_err("%s1 blk_rq_aligned=%d object_is_on_stack=%d blk_queue_may_bounce=%d\n", 
+		__func__, blk_rq_aligned(q, addr, len), 
+		object_is_on_stack(kbuf),
+		blk_queue_may_bounce(q));
+
 	if (!blk_rq_aligned(q, addr, len) || object_is_on_stack(kbuf) ||
 	    blk_queue_may_bounce(q)) {
 

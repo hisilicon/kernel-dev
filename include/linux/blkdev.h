@@ -1381,7 +1381,9 @@ static inline int queue_dma_alignment(const struct request_queue *q)
 static inline int blk_rq_aligned(struct request_queue *q, unsigned long addr,
 				 unsigned int len)
 {
-	unsigned int alignment = queue_dma_alignment(q) | q->dma_pad_mask;
+	unsigned int alignment;
+	alignment = queue_dma_alignment(q) | q->dma_pad_mask;
+	pr_err("%s queue_dma_alignment(q)=%d dma_pad_mask=%d addr=0x%lx len=0x%x alignment=%d\n", __func__, queue_dma_alignment(q), q->dma_pad_mask, addr, len, alignment);
 	return !(addr & alignment) && !(len & alignment);
 }
 
