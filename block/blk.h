@@ -493,7 +493,7 @@ static inline bool req_ref_inc_not_zero(struct request *req)
 
 static inline bool req_ref_put_and_test(struct request *req)
 {
-	WARN_ON_ONCE(req_ref_zero_or_close_to_overflow(req));
+	WARN_ON(req_ref_zero_or_close_to_overflow(req));
 	return atomic_dec_and_test(&req->ref);
 }
 
