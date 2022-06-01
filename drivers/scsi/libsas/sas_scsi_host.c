@@ -1341,7 +1341,6 @@ int sas_slave_alloc(struct scsi_device *sdev)
 		return -ENXIO;
 	ddev = sdev_to_domain_dev(sdev);
 	pr_err("%s ddev=%pS sdev=%pS\n", __func__, ddev, sdev);
-	ddev->sdev = sdev;
 	WARN_ONCE(dev_is_sata(ddev), "%s domain_device=%pS sdev=%pS\n", __func__, ddev, sdev);
 	return 0;
 }
