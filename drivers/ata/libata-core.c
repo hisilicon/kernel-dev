@@ -4649,7 +4649,7 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 	int dir = qc->dma_dir;
 
 	WARN_ON_ONCE(sg == NULL);
-
+	pr_err("%s qc=%pS qc->n_elem=%d\n", __func__, qc, qc->n_elem);
 	if (qc->n_elem)
 		dma_unmap_sg(ap->dev, sg, qc->orig_n_elem, dir);
 
