@@ -1568,7 +1568,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	__func__, sdev, ap, req, scsi_sglist(scmd), scmd, req, req->q, ap, qc, qc);
 	if (buflen) {
 		int ret;
-		//pr_err("%s1.3 bufflen=%d buffer=%pS ATA_INTERNAL scmd=%pS req=%pS\n", __func__, buflen, buf, scmd, req);
+		pr_err("%s1.3 bufflen=%d buffer=%pS ATA_INTERNAL scmd=%pS req=%pS\n", __func__, buflen, buf, scmd, req);
 		ret = blk_rq_map_kern(sdev->request_queue, req,
 				      buf, buflen, GFP_NOIO);
 	//	pr_err("%s1.4 bufflen=%d buffer=%pS ATA_INTERNAL ret=%d scmd=%pS req=%pS\n", __func__, buflen, buf, ret, scmd, req);

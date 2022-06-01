@@ -2500,6 +2500,8 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	u32 dw0, dw1 = 0, dw2 = 0;
 	//pr_err("%s task=%pS\n", __func__, task);
 	/* create header */
+	if (tmf)
+		panic("%s can't deal with tmf\n", __func__);
 	/* dw0 */
 	dw0 = port->id << CMD_HDR_PORT_OFF;
 	if (parent_dev && dev_is_expander(parent_dev->dev_type))

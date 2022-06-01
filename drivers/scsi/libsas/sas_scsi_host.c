@@ -178,8 +178,8 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 		res = ata_sas_queuecmd(cmnd, ap);
 		spin_unlock_irq(ap->lock);
 		if (res)
-		pr_err("%s2 cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS res=%d\n",
-			__func__, cmnd, cmnd->host_scribble, qc, ap, res);
+			pr_err("%s2 cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS res=%d\n",
+				__func__, cmnd, cmnd->host_scribble, qc, ap, res);
 		return res;
 
 	} else {
