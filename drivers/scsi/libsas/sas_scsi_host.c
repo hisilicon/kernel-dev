@@ -860,6 +860,7 @@ int sas_target_alloc(struct scsi_target *starget)
 	struct device *parent = starget->dev.parent;
 	struct sas_rphy *rphy;
 	struct domain_device *found_dev;
+	pr_err("%s starget=%pS\n", __func__, starget);
 
 	if (scsi_is_host_device(parent))
 		return 0;
@@ -1336,7 +1337,8 @@ int sas_slave_alloc(struct scsi_device *sdev)
 
 	if (dev_is_sata(sdev_to_domain_dev(sdev)) && sdev->lun)
 		return -ENXIO;
-
+	pr_err("%s ddev=%pS sdev=%pS\n", __func__, sdev_to_domain_dev(sdev), sdev);
+	sdev_to_domain_dev(sdev)->sdev = sdev;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sas_slave_alloc);

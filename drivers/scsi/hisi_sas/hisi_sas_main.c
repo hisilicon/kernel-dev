@@ -740,7 +740,7 @@ int hisi_sas_slave_alloc(struct scsi_device *sdev)
 	if (rc)
 		return rc;
 	ddev = sdev_to_domain_dev(sdev);
-	ddev->sdev = sdev;
+	
 	return hisi_sas_init_device(ddev);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_slave_alloc);
@@ -802,7 +802,11 @@ err_out:
 int hisi_sas_slave_configure(struct scsi_device *sdev)
 {
 	struct domain_device *dev = sdev_to_domain_dev(sdev);
-	int ret = sas_slave_configure(sdev);
+	int ret;
+
+	pr_err("%s sdev=%pS domain_device=%pS\n", __func__, sdev, dev);
+
+	ret = sas_slave_configure(sdev);
 
 	if (ret)
 		return ret;
