@@ -69,8 +69,8 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	slow = kmalloc(sizeof(*slow), flags);
 
 	if (!task || !slow) {
-		pr_err("%s2 sas_ha=%pS flags=%d rq=%pS task=%pS slow=%pS\n",
-			__func__, sas_ha, flags, rq, task, slow);
+		//pr_err("%s2 sas_ha=%pS flags=%d rq=%pS task=%pS slow=%pS\n",
+			//__func__, sas_ha, flags, rq, task, slow);
 		kfree(slow);
 		return NULL;
 	}
@@ -80,8 +80,8 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	timer_setup(&slow->timer, NULL, 0);
 	init_completion(&slow->completion);
 	scmd->host_scribble = NULL;
-	pr_err("%s10 task=%pS scmd=%pS host_scribble=%pS cmnd[0]=%d q_usage_count=%ld\n", 
-		__func__, task,scmd, scmd->host_scribble, scmd->cmnd[0], percpu_ref_read(&sdev->request_queue->q_usage_counter));
+	//pr_err("%s10 task=%pS scmd=%pS host_scribble=%pS cmnd[0]=%d q_usage_count=%ld\n", 
+	//	__func__, task,scmd, scmd->host_scribble, scmd->cmnd[0], percpu_ref_read(&sdev->request_queue->q_usage_counter));
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
@@ -95,7 +95,7 @@ void sas_free_task(struct sas_task *task)
 			reserved = true;
 
 		kfree(task->slow_task);
-		pr_err("%s task=%pS reserved=%d rq->end_io=%pS\n", __func__, task, reserved, rq->end_io);
+	//	pr_err("%s task=%pS reserved=%d rq->end_io=%pS\n", __func__, task, reserved, rq->end_io);
 
 		if (reserved)
 			blk_mq_free_request(rq);
