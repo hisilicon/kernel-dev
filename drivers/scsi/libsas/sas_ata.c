@@ -570,7 +570,7 @@ int sas_ata_init(struct domain_device *found_dev)
 	struct ata_host *ata_host;
 	struct ata_port *ap;
 	int rc;
-
+	pr_err("%s found_dev=%pS\n", __func__, found_dev);
 	ata_host = kzalloc(sizeof(*ata_host), GFP_KERNEL);
 	if (!ata_host)	{
 		pr_err("ata host alloc failed.\n");
@@ -586,6 +586,7 @@ int sas_ata_init(struct domain_device *found_dev)
 		goto free_host;
 	}
 
+	pr_err("%s2 found_dev=%pS ap=%pS\n", __func__, found_dev, ap);
 	ap->private_data = found_dev;
 	ap->cbl = ATA_CBL_SATA;
 	ap->scsi_host = shost;
@@ -646,12 +647,13 @@ static int sas_get_ata_command_set(struct domain_device *dev)
 void sas_probe_sata(struct asd_sas_port *port)
 {
 	struct domain_device *dev, *n;
-
+	pr_err("%s port=%pS\n", __func__, port);
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->disco_list, disco_list_node) {
 		if (!dev_is_sata(dev))
 			continue;
 
+		pr_err("%s2 port=%pS dev=%pS dev->sata_dev.ap=%pS\n", __func__, port, dev, dev->sata_dev.ap);
 		ata_sas_async_probe(dev->sata_dev.ap);
 	}
 	mutex_unlock(&port->ha->disco_mutex);

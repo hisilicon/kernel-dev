@@ -1522,6 +1522,9 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS\n",
 		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host);
 
+	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf initial ",
+			DUMP_PREFIX_NONE, 16, 1,
+			tf, sizeof(*tf), 1);
 /*
 	struct ata_taskfile tf;
 	bool cdb_valid;
@@ -1712,7 +1715,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 				  DUMP_PREFIX_NONE, 16, 1,
 				  tf, sizeof(*tf), 1);
 
-
+	panic("%s just stop\n", __func__);
 	ata_qc_free(qc);
 	link->active_tag = link->preempted_tag;
 	link->sactive = link->preempted_sactive;
@@ -5907,7 +5910,7 @@ void __ata_port_probe(struct ata_port *ap)
 {
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	unsigned long flags;
-
+	pr_err("%s ap=%pS\n", __func__, ap);
 	/* kick EH for boot probing */
 	spin_lock_irqsave(ap->lock, flags);
 

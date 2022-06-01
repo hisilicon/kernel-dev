@@ -1816,8 +1816,8 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	internal = scsi_is_reserved_cmd(cmd);
 	if (internal) {
 		unsigned char *host_scribble = cmd->host_scribble;
-		pr_err("%s2.0 req=%pS internal=%d cmnd[0]=0x%x hostt=%pS cmd=%pS\n",
-			__func__, req, internal, cmd->cmnd[0], shost->hostt, cmd);
+	//	pr_err("%s2.0 req=%pS internal=%d cmnd[0]=0x%x hostt=%pS cmd=%pS\n",
+	//		__func__, req, internal, cmd->cmnd[0], shost->hostt, cmd);
 
 		if (!(req->rq_flags & RQF_DONTPREP)) {
 			ret = scsi_prepare_cmd(req);

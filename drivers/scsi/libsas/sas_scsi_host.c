@@ -961,7 +961,7 @@ void sas_blk_end_sync_rq(struct request *rq, blk_status_t error)
 {
 	struct sas_task *task = sas_rq_to_task(rq);
 
-	pr_err("%s rq=%pS task=%pS\n", __func__, rq, task);
+	//pr_err("%s rq=%pS task=%pS\n", __func__, rq, task);
 
 
 	/*
@@ -1331,14 +1331,17 @@ int sas_slave_alloc(struct scsi_device *sdev)
 {
 	struct scsi_target *starget = sdev->sdev_target;
 	struct device *parent = starget->dev.parent;
+	struct domain_device *ddev;
 
 	if (scsi_is_host_device(parent))
 		return 0;
 
 	if (dev_is_sata(sdev_to_domain_dev(sdev)) && sdev->lun)
 		return -ENXIO;
-	pr_err("%s ddev=%pS sdev=%pS\n", __func__, sdev_to_domain_dev(sdev), sdev);
-	sdev_to_domain_dev(sdev)->sdev = sdev;
+	ddev = sdev_to_domain_dev(sdev);
+	pr_err("%s ddev=%pS sdev=%pS\n", __func__, ddev, sdev);
+	ddev->sdev = sdev;
+	WARN_ONCE(dev_is_sata(ddev), "%s domain_device=%pS sdev=%pS\n", __func__, ddev, sdev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sas_slave_alloc);

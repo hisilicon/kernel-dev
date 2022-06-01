@@ -3018,7 +3018,7 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 			if (dev->class == ATA_DEV_PMP)
 				rc = sata_pmp_attach(dev);
 			else {
-				pr_err("%s calling ata_dev_read_id\n", __func__);
+				pr_err("%s calling ata_dev_read_id link=%pS ap=%pS dev=%pS\n", __func__, link, ap, dev);
 				rc = ata_dev_read_id(dev, &dev->class,
 						     readid_flags, dev->id);
 			}
