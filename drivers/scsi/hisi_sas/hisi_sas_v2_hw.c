@@ -2510,7 +2510,7 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 		dw0 |= CMD_HDR_FORCE_PHY_MSK;
 		dw0 |= (1 << ata_task->force_phy_id) << CMD_HDR_PHY_ID_OFF;
 	}
-
+	pr_err("%s task=%pS lldd_task=%pS uldd_task=%pS\n", __func__, task, task->lldd_task, task->uldd_task);
 	hdr->dw0 = cpu_to_le32(dw0);
 
 	/* dw1 */
@@ -2541,6 +2541,7 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	if (task->ata_task.use_ncq) {
 		struct scsi_cmnd *scmd = task->uldd_task;
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)scmd->host_scribble;
+		pr_err("%s2 task=%pS lldd_task=%pS uldd_task=%pS qc=%pS\n", __func__, task, task->lldd_task, task->uldd_task, qc);
 
 		hdr_tag = qc->tag;
 		task->ata_task.fis.sector_count |= (u8) (hdr_tag << 3);
