@@ -52,7 +52,7 @@ extern u64 ata_tf_read_block(const struct ata_taskfile *tf,
 			     struct ata_device *dev);
 extern unsigned ata_exec_internal(struct ata_device *dev,
 				  struct ata_taskfile *tf, const u8 *cdb,
-				  int dma_dir, void *buf, unsigned int buflen,
+				  int dma_dir, void * const buf, unsigned int buflen,
 				  unsigned long timeout);
 extern int ata_wait_ready(struct ata_link *link, unsigned long deadline,
 			  int (*check_ready)(struct ata_link *link));

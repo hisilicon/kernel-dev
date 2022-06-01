@@ -1756,14 +1756,15 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
  */
 unsigned ata_exec_internal(struct ata_device *dev,
 			   struct ata_taskfile *tf, const u8 *cdb,
-			   int dma_dir, void *buf, unsigned int buflen,
+			   int dma_dir, void * const buf, unsigned int buflen,
 			   unsigned long timeout)
 {
 	int res;
 	char string[200];
 
 	
-	//mutex_lock(&global_mutex);
+	mutex_lock(&global_mutex);
+	pr_err("%s before buf=%pS\n", __func__, buf);
 	sprintf(string, "ata_exec_internal_sg buf before buf=%pS len=%d ", buf, buflen);
 	print_hex_dump(KERN_INFO, string,
 				  DUMP_PREFIX_NONE, 16, 1,
@@ -1773,10 +1774,11 @@ unsigned ata_exec_internal(struct ata_device *dev,
 				    timeout);
 
 	sprintf(string, "ata_exec_internal_sg buf after buf=%pS len=%d ", buf, buflen);
+	pr_err("%s2 after buf=%pS\n", __func__, buf);
 	print_hex_dump(KERN_INFO, string,
 				  DUMP_PREFIX_NONE, 16, 1,
 				  buf, buflen, 1);
-	//mutex_unlock(&global_mutex);
+	mutex_unlock(&global_mutex);
 	panic("%s just one for now\n", __func__);
 	return res;
 }
