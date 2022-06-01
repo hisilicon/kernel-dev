@@ -3964,7 +3964,6 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	struct ata_queued_cmd *qc;
 	__maybe_unused struct request *req = scsi_cmd_to_rq(scmd);
 
-	pr_err("%s scmd=%pS dev=%pS ap=%pS req=%pS\n", __func__, scmd, dev, ap, req);
 //	pr_err("%s1.2.4 ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
 //		__func__, ap, req, scsi_sglist(scmd), scmd, req, req->q);
 	/* no internal command while frozen */
@@ -3975,6 +3974,7 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 
 	/* initialize internal qc */
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
+	pr_err("%s scmd=%pS dev=%pS ap=%pS req=%pS qc=%pS\n", __func__, scmd, dev, ap, req, qc);
 
 	link->preempted_tag = link->active_tag;
 	link->preempted_sactive = link->sactive;

@@ -1564,8 +1564,8 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	scmd->cmnd[0] = ATA_INTERNAL;
 
 	scmd->host_scribble = (unsigned char *)qc;
-	pr_err("%s1.2 sdev=%pS ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS ap=%pS host_scribble=qc=%pS\n",
-	__func__, sdev, ap, req, scsi_sglist(scmd), scmd, req, req->q, ap, qc);
+	pr_err("%s1.2 sdev=%pS ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS ap=%pS host_scribble=qc=%pS qc=%pS\n",
+	__func__, sdev, ap, req, scsi_sglist(scmd), scmd, req, req->q, ap, qc, qc);
 	if (buflen) {
 		int ret;
 		//pr_err("%s1.3 bufflen=%d buffer=%pS ATA_INTERNAL scmd=%pS req=%pS\n", __func__, buflen, buf, scmd, req);
