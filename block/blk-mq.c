@@ -3832,8 +3832,9 @@ static void queue_set_hctx_shared(struct request_queue *q, bool shared)
 static void blk_mq_update_tag_set_shared(struct blk_mq_tag_set *set,
 					 bool shared)
 {
+	return;
+#ifdef dfdf
 	struct request_queue *q;
-
 	lockdep_assert_held(&set->tag_list_lock);
 	pr_err("%s set=%pS shared=%d\n", __func__, set, shared);
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
@@ -3845,6 +3846,7 @@ static void blk_mq_update_tag_set_shared(struct blk_mq_tag_set *set,
 		blk_mq_unfreeze_queue(q);
 		pr_err("%s5 set=%pS shared=%d q=%pS\n", __func__, set, shared, q);
 	}
+	#endif
 }
 
 static void blk_mq_del_queue_tag_set(struct request_queue *q)
