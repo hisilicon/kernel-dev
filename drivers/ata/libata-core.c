@@ -1648,6 +1648,8 @@ unsigned ata_exec_internal(struct ata_device *dev,
 {
 	struct scatterlist *psg = NULL, sg;
 	unsigned int n_elem = 0;
+	char string[200];
+	int res;
 
 	if (dma_dir != DMA_NONE) {
 		WARN_ON(!buf);
@@ -1655,9 +1657,18 @@ unsigned ata_exec_internal(struct ata_device *dev,
 		psg = &sg;
 		n_elem++;
 	}
+	sprintf(string, "ata_exec_internal_sg buf before buf=%pS len=%d ", buf, buflen);
+	print_hex_dump(KERN_INFO, string,
+				  DUMP_PREFIX_NONE, 16, 1,
+				  buf, buflen, 1);
 
-	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, psg, n_elem,
+	res = ata_exec_internal_sg(dev, tf, cdb, dma_dir, psg, n_elem,
 				    timeout);
+	sprintf(string, "ata_exec_internal_sg buf after buf=%pS len=%d ", buf, buflen);
+	print_hex_dump(KERN_INFO, string,
+				  DUMP_PREFIX_NONE, 16, 1,
+				  buf, buflen, 1);
+	return res;
 }
 
 /**
@@ -1867,6 +1878,7 @@ retry:
 
 	/* sanity check */
 	rc = -EINVAL;
+	pr_err("%s -EINVAL error\n", __func__);
 	reason = "device reports invalid type";
 
 	if (class == ATA_DEV_ATA || class == ATA_DEV_ZAC) {
@@ -1893,6 +1905,7 @@ retry:
 		err_mask = ata_dev_set_feature(dev, SETFEATURES_SPINUP, 0);
 		if (err_mask && id[2] != 0x738c) {
 			rc = -EIO;
+			pr_err("%s -EIO error\n", __func__);
 			reason = "SPINUP failed";
 			goto err_out;
 		}
