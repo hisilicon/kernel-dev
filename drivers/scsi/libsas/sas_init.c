@@ -38,7 +38,7 @@ struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd)
 }
 EXPORT_SYMBOL_GPL(sas_alloc_task);
 
-struct sas_task *sas_alloc_slow_task(struct domain_device *device, struct sas_ha_struct *sas_ha, gfp_t flags)
+struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 {
 	struct request *rq;
 	struct sas_task *task;
@@ -47,10 +47,7 @@ struct sas_task *sas_alloc_slow_task(struct domain_device *device, struct sas_ha
 	struct scsi_cmnd *scmd;
 	struct scsi_device *sdev;
 
-	if (device && device->sdev) {
-		sdev = device->sdev;
-	} else
-		sdev = shost->sdev;
+	sdev = shost->sdev;
 
 	rq = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN,
 						BLK_MQ_REQ_RESERVED);
