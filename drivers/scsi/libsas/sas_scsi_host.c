@@ -163,11 +163,11 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
 	struct request *rq = scsi_cmd_to_rq(cmnd);
-	struct scsi_device *sdev = cmnd->device;
+	//struct scsi_device *sdev = cmnd->device;
 	//struct domain_device *dev = cmd_to_domain_dev(cmd);
 
-	pr_err("%s cmnd=%pS ATA_INTERNAL=%d cmnd->cmnd[0]=%d sdev=%pS host sdev=%pS host_scribble=%pS\n",
-			__func__, cmnd, ATA_INTERNAL, cmnd->cmnd[0], sdev, shost->sdev, cmnd->host_scribble);
+	//pr_err("%s cmnd=%pS ATA_INTERNAL=%d cmnd->cmnd[0]=%d sdev=%pS host sdev=%pS host_scribble=%pS\n",
+		//	__func__, cmnd, ATA_INTERNAL, cmnd->cmnd[0], sdev, shost->sdev, cmnd->host_scribble);
 	if (cmnd->cmnd[0] == ATA_INTERNAL) {
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
 		struct ata_port *ap = qc ? qc->ap : NULL;
@@ -965,7 +965,7 @@ void sas_blk_end_sync_rq(struct request *rq, blk_status_t error)
 {
 	struct sas_task *task = sas_rq_to_task(rq);
 
-	pr_err("%s rq=%pS task=%pS\n", __func__, rq, task);
+	//pr_err("%s rq=%pS task=%pS\n", __func__, rq, task);
 
 
 	/*
@@ -1014,7 +1014,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 		rq->timeout = TASK_TIMEOUT;
 
-		pr_err("%s2 task=%pS rq=%pS scmd=%pS is internal=%d scribble=%pS\n", __func__, task, rq, scmd, scsi_is_reserved_cmd(scmd), scmd->host_scribble);
+	//	pr_err("%s2 task=%pS rq=%pS scmd=%pS is internal=%d scribble=%pS\n", __func__, task, rq, scmd, scsi_is_reserved_cmd(scmd), scmd->host_scribble);
 		blk_execute_rq_nowait(rq, true, sas_blk_end_sync_rq);
 
 		//pr_err("%s3 task=%pS rq=%pS scmd=%pS wait for completion scribble=%pS\n", __func__, task, rq, scmd, scmd->host_scribble);
@@ -1025,7 +1025,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		/* Even if the internal abort timed out, return direct. */
 		if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
 			bool quit = true;
-			pr_err("%s5 task=%pS rq=%pS scmd=%pS SAS_TASK_STATE_ABORTED\n", __func__, task, rq, scmd);
+		//	pr_err("%s5 task=%pS rq=%pS scmd=%pS SAS_TASK_STATE_ABORTED\n", __func__, task, rq, scmd);
 			if (i->dft->lldd_abort_timeout)
 				quit = i->dft->lldd_abort_timeout(task, data);
 			else
@@ -1344,7 +1344,7 @@ int sas_slave_alloc(struct scsi_device *sdev)
 	if (dev_is_sata(sdev_to_domain_dev(sdev)) && sdev->lun)
 		return -ENXIO;
 	ddev = sdev_to_domain_dev(sdev);
-	pr_err("%s ddev=%pS sdev=%pS\n", __func__, ddev, sdev);
+	//pr_err("%s ddev=%pS sdev=%pS\n", __func__, ddev, sdev);
 	WARN_ONCE(dev_is_sata(ddev), "%s domain_device=%pS sdev=%pS\n", __func__, ddev, sdev);
 	return 0;
 }
