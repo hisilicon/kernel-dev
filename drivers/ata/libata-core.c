@@ -4505,6 +4505,7 @@ EXPORT_SYMBOL_GPL(ata_noop_qc_prep);
 void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 		 unsigned int n_elem)
 {
+	pr_err("%s qc=%pS cursg=sg=%pS n_elem=%d\n", __func__, qc, sg, n_elem);
 	qc->sg = sg;
 	qc->n_elem = n_elem;
 	qc->cursg = qc->sg;
@@ -4553,7 +4554,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	unsigned int n_elem;
-
+	pr_err("%s qc=%pS\n", __func__, qc);
 	n_elem = dma_map_sg(ap->dev, qc->sg, qc->n_elem, qc->dma_dir);
 	if (n_elem < 1)
 		return -1;
@@ -4869,7 +4870,12 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct ata_link *link = qc->dev->link;
 	u8 prot = qc->tf.protocol;
+	struct scsi_cmnd *cmd = qc->scsicmd;
+	struct request *rq = NULL;
 
+	if (cmd)
+		rq = scsi_cmd_to_rq(cmd);
+	pr_err("%s qc=%pS cmd=%pS rq=%pS cursg=%pS err_mask=%d\n", __func__, qc, cmd, rq, qc->cursg, qc->err_mask);
 	/* Make sure only one non-NCQ command is outstanding.  The
 	 * check is skipped for old EH because it reuses active qc to
 	 * request ATAPI sense.
