@@ -50,7 +50,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	sdev = shost->sdev;
 
 	rq = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN,
-						BLK_MQ_REQ_RESERVED);
+						BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
 
 	if (IS_ERR(rq))
 		return NULL;

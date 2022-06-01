@@ -1522,9 +1522,9 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS\n",
 		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host);
 
-	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf initial ",
-			DUMP_PREFIX_NONE, 16, 1,
-			tf, sizeof(*tf), 1);
+//	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf initial ",
+//			DUMP_PREFIX_NONE, 16, 1,
+//			tf, sizeof(*tf), 1);
 /*
 	struct ata_taskfile tf;
 	bool cdb_valid;
@@ -1568,7 +1568,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	__func__, sdev, ap, req, scsi_sglist(scmd), scmd, req, req->q, ap, qc, qc);
 	if (buflen) {
 		int ret;
-		pr_err("%s1.3 bufflen=%d buffer=%pS ATA_INTERNAL scmd=%pS req=%pS\n", __func__, buflen, buf, scmd, req);
+		//pr_err("%s1.3 bufflen=%d buffer=%pS ATA_INTERNAL scmd=%pS req=%pS\n", __func__, buflen, buf, scmd, req);
 		ret = blk_rq_map_kern(sdev->request_queue, req,
 				      buf, buflen, GFP_NOIO);
 	//	pr_err("%s1.4 bufflen=%d buffer=%pS ATA_INTERNAL ret=%d scmd=%pS req=%pS\n", __func__, buflen, buf, ret, scmd, req);
@@ -1585,8 +1585,8 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	qc->dev = dev;
 	ata_qc_reinit(qc);
 
-	pr_err("%s1.2.2 sdev=%pS ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
-		__func__, sdev, ap, req, scsi_sglist(scmd), scmd, req, req->q);
+	//pr_err("%s1.2.2 sdev=%pS ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
+	//	__func__, sdev, ap, req, scsi_sglist(scmd), scmd, req, req->q);
 	qc->tf = *tf;
 	if (cdb)
 		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);

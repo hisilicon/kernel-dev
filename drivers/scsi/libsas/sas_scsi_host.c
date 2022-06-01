@@ -933,6 +933,9 @@ int sas_bios_param(struct scsi_device *scsi_dev,
 }
 EXPORT_SYMBOL_GPL(sas_bios_param);
 
+
+
+
 void sas_task_internal_done(struct sas_task *task)
 {
 	pr_err("%s task=%pS\n", __func__, task);
@@ -1145,7 +1148,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 			memcpy(&task->ssp_task, parameter, para_len);
 		}
 
-		task->task_done = sas_task_complete_internal;
+		task->task_done = sas_task_complete_internal; 
 		task->tmf = tmf;
 
 		rq->timeout = TASK_TIMEOUT;
