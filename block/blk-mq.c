@@ -3606,15 +3606,21 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 	struct blk_mq_tag_set *set = q->tag_set;
 	unsigned int i, j;
 
+	pr_err("%s set=%pS q=%pS nr_hw_queues=%d\n", __func__, set, q, nr_hw_queues);
+
 	for_each_possible_cpu(i) {
 		struct blk_mq_ctx *__ctx = per_cpu_ptr(q->queue_ctx, i);
 		struct blk_mq_hw_ctx *hctx;
 		int k;
 
+		pr_err("%s set=%pS q=%pS nr_hw_queues=%d cpu%d\n", __func__, set, q, nr_hw_queues, i);
+
 		__ctx->cpu = i;
 		spin_lock_init(&__ctx->lock);
-		for (k = HCTX_TYPE_DEFAULT; k < HCTX_MAX_TYPES; k++)
+		for (k = HCTX_TYPE_DEFAULT; k < HCTX_MAX_TYPES; k++){
+			pr_err("%s2 set=%pS q=%pS nr_hw_queues=%d cpu%d k=%d\n", __func__, set, q, nr_hw_queues, i, k);
 			INIT_LIST_HEAD(&__ctx->rq_lists[k]);
+		}
 
 		__ctx->queue = q;
 
@@ -3622,8 +3628,12 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 		 * Set local node, IFF we have more than one hw queue. If
 		 * not, we remain on the home node of the device
 		 */
+		pr_err("%s3 set=%pS q=%pS nr_hw_queues=%d cpu%d set->nr_maps=%d\n", __func__, set, q, nr_hw_queues, i, set->nr_maps);
 		for (j = 0; j < set->nr_maps; j++) {
+			pr_err("%s4 set=%pS q=%pS nr_hw_queues=%d cpu%d set->nr_maps=%d j=%d\n", __func__, set, q, nr_hw_queues, i, set->nr_maps, j);
 			hctx = blk_mq_map_queue_type(q, j, i);
+			pr_err("%s5 set=%pS q=%pS nr_hw_queues=%d cpu%d set->nr_maps=%d j=%d hctx=%pS\n", 
+				__func__, set, q, nr_hw_queues, i, set->nr_maps, j, hctx);
 			if (nr_hw_queues > 1 && hctx->numa_node == NUMA_NO_NODE)
 				hctx->numa_node = cpu_to_node(i);
 		}
@@ -4106,7 +4116,7 @@ int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	 */
 	q->poll_nsec = BLK_MQ_POLL_CLASSIC;
 
-	pr_err("%s9 set=%pS q=%pS\n", __func__, set, q);
+	pr_err("%s9 set=%pS q=%pS set->nr_hw_queues=%d\n", __func__, set, q, set->nr_hw_queues);
 	blk_mq_init_cpu_queues(q, set->nr_hw_queues);
 	pr_err("%s9.1 set=%pS q=%pS\n", __func__, set, q);
 	blk_mq_add_queue_tag_set(set, q);
