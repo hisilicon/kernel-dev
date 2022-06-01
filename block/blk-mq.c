@@ -163,9 +163,7 @@ void blk_mq_in_flight_rw(struct request_queue *q, struct block_device *part,
 void blk_freeze_queue_start(struct request_queue *q)
 {
 	mutex_lock(&q->mq_freeze_lock);
-	pr_err("%s q=%pS q->mq_freeze_depth=%d\n", __func__, q, q->mq_freeze_depth);
 	if (++q->mq_freeze_depth == 1) {
-		pr_err("%s2 q=%pS q->mq_freeze_depth=%d\n", __func__, q, q->mq_freeze_depth);
 		percpu_ref_kill(&q->q_usage_counter);
 		mutex_unlock(&q->mq_freeze_lock);
 		if (queue_is_mq(q))
@@ -173,33 +171,12 @@ void blk_freeze_queue_start(struct request_queue *q)
 	} else {
 		mutex_unlock(&q->mq_freeze_lock);
 	}
-	pr_err("%s10 out q=%pS q->mq_freeze_depth=%d\n", __func__,q, q->mq_freeze_depth);
 }
 EXPORT_SYMBOL_GPL(blk_freeze_queue_start);
 
-unsigned long percpu_ref_read(struct percpu_ref *ref)
-{
-	//unsigned long __percpu *percpu_count;
-	unsigned long count;//, flags;
-
-	/* protect us from being destroyed */
-	//spin_lock_irqsave(&percpu_ref_switch_lock, flags);
-	if (ref->data)
-		count = atomic_long_read(&ref->data->count);
-	else
-		count = ref->percpu_count_ptr >> __PERCPU_REF_FLAG_BITS;
-	//spin_unlock_irqrestore(&percpu_ref_switch_lock, flags);
-
-	return count;
-}
-
 void blk_mq_freeze_queue_wait(struct request_queue *q)
 {
-	struct percpu_ref *q_usage_counter = &q->q_usage_counter;
-	unsigned long count = percpu_ref_read(q_usage_counter);
-	pr_err("%s q=%pS q_usage_counter=%ld\n", __func__, q, count);
 	wait_event(q->mq_freeze_wq, percpu_ref_is_zero(&q->q_usage_counter));
-	pr_err("%s finished waiting q=%pS\n", __func__, q);
 }
 EXPORT_SYMBOL_GPL(blk_mq_freeze_queue_wait);
 
@@ -1298,7 +1275,6 @@ static void __blk_mq_requeue_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 
-	pr_err("%s rq=%pS\n", __func__, rq);
 	blk_mq_put_driver_tag(rq);
 
 	trace_block_rq_requeue(rq);
@@ -1312,7 +1288,6 @@ static void __blk_mq_requeue_request(struct request *rq)
 
 void blk_mq_requeue_request(struct request *rq, bool kick_requeue_list)
 {
-	pr_err("%s rq=%pS calling __blk_mq_requeue_request\n", __func__, rq);
 	__blk_mq_requeue_request(rq);
 
 	/* this request will be re-inserted to io scheduler queue */
@@ -1365,7 +1340,6 @@ void blk_mq_add_to_requeue_list(struct request *rq, bool at_head,
 	struct request_queue *q = rq->q;
 	unsigned long flags;
 
-	pr_err("%s rq=%pS\n", __func__, rq);
 	/*
 	 * We abuse this flag that is otherwise used by the I/O scheduler to
 	 * request head insertion from the workqueue.
@@ -1772,7 +1746,7 @@ static void blk_mq_handle_dev_resource(struct request *rq,
 	 */
 	if (next)
 		blk_mq_put_driver_tag(next);
-	pr_err("%s rq=%pS calling __blk_mq_requeue_request\n", __func__, rq);
+
 	list_add(&rq->queuelist, list);
 	__blk_mq_requeue_request(rq);
 }
@@ -1787,7 +1761,6 @@ static void blk_mq_handle_zone_resource(struct request *rq,
 	 * aside in zone_list for retrying it later.
 	 */
 	list_add(&rq->queuelist, zone_list);
-	pr_err("%s rq=%pS calling __blk_mq_requeue_request\n", __func__, rq);
 	__blk_mq_requeue_request(rq);
 }
 
@@ -3835,15 +3808,11 @@ static void blk_mq_update_tag_set_shared(struct blk_mq_tag_set *set,
 	struct request_queue *q;
 
 	lockdep_assert_held(&set->tag_list_lock);
-	pr_err("%s set=%pS shared=%d\n", __func__, set, shared);
+
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
-		pr_err("%s2 set=%pS shared=%d q=%pS\n", __func__, set, shared, q);
 		blk_mq_freeze_queue(q);
-		pr_err("%s3 set=%pS shared=%d q=%pS\n", __func__, set, shared, q);
 		queue_set_hctx_shared(q, shared);
-		pr_err("%s24 set=%pS shared=%d q=%pS\n", __func__, set, shared, q);
 		blk_mq_unfreeze_queue(q);
-		pr_err("%s5 set=%pS shared=%d q=%pS\n", __func__, set, shared, q);
 	}
 }
 
@@ -3866,9 +3835,7 @@ static void blk_mq_del_queue_tag_set(struct request_queue *q)
 static void blk_mq_add_queue_tag_set(struct blk_mq_tag_set *set,
 				     struct request_queue *q)
 {
-	pr_err("%s getting tag_list_lock set=%pS q=%pS\n", __func__, set, q);
 	mutex_lock(&set->tag_list_lock);
-	pr_err("%s2 got tag_list_lock set=%pS q=%pS\n", __func__, set, q);
 
 	/*
 	 * Check to see if we're transitioning to shared (from 1 to 2 queues).
@@ -3877,14 +3844,10 @@ static void blk_mq_add_queue_tag_set(struct blk_mq_tag_set *set,
 	    !(set->flags & BLK_MQ_F_TAG_QUEUE_SHARED)) {
 		set->flags |= BLK_MQ_F_TAG_QUEUE_SHARED;
 		/* update existing queue */
-		pr_err("%s3 calling blk_mq_update_tag_set_shared set=%pS q=%pS\n", __func__, set, q);
 		blk_mq_update_tag_set_shared(set, true);
 	}
-	pr_err("%s4 set=%pS q=%pS\n", __func__, set, q);
-	if (set->flags & BLK_MQ_F_TAG_QUEUE_SHARED){
-		pr_err("%s5 calling queue_set_hctx_shared set=%pS q=%pS\n", __func__, set, q);
+	if (set->flags & BLK_MQ_F_TAG_QUEUE_SHARED)
 		queue_set_hctx_shared(q, true);
-	}
 	list_add_tail(&q->tag_set_list, &set->tag_list);
 
 	mutex_unlock(&set->tag_list_lock);
@@ -3952,20 +3915,16 @@ static struct request_queue *blk_mq_init_queue_data(struct blk_mq_tag_set *set,
 {
 	struct request_queue *q;
 	int ret;
-	pr_err("%s set=%pS queuedata=%pS\n", __func__, set, queuedata);
 
 	q = blk_alloc_queue(set->numa_node, set->flags & BLK_MQ_F_BLOCKING);
-	pr_err("%s2 set=%pS queuedata=%pS q=%pS\n", __func__, set, queuedata, q);
 	if (!q)
 		return ERR_PTR(-ENOMEM);
 	q->queuedata = queuedata;
 	ret = blk_mq_init_allocated_queue(set, q);
-	pr_err("%s3 set=%pS queuedata=%pS q=%pS ret=%d\n", __func__, set, queuedata, q, ret);
 	if (ret) {
 		blk_cleanup_queue(q);
 		return ERR_PTR(ret);
 	}
-
 	return q;
 }
 
@@ -4089,41 +4048,35 @@ int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	WARN_ON_ONCE(blk_queue_has_srcu(q) !=
 			!!(set->flags & BLK_MQ_F_BLOCKING));
 
-	pr_err("%s set=%pS q=%pS\n", __func__, set, q);
+	/* mark the queue as mq asap */
 	q->mq_ops = set->ops;
 
 	q->poll_cb = blk_stat_alloc_callback(blk_mq_poll_stats_fn,
 					     blk_mq_poll_stats_bkt,
 					     BLK_MQ_POLL_STATS_BKTS, q);
-	pr_err("%s2 set=%pS q=%pS\n", __func__, set, q);
 	if (!q->poll_cb)
 		goto err_exit;
 
-	pr_err("%s3 set=%pS q=%pS\n", __func__, set, q);
 	if (blk_mq_alloc_ctxs(q))
 		goto err_poll;
 
 	/* init q->mq_kobj and sw queues' kobjects */
 	blk_mq_sysfs_init(q);
 
-	pr_err("%s4 set=%pS q=%pS\n", __func__, set, q);
 	INIT_LIST_HEAD(&q->unused_hctx_list);
 	spin_lock_init(&q->unused_hctx_lock);
 
 	xa_init(&q->hctx_table);
 
-	pr_err("%s5 set=%pS q=%pS\n", __func__, set, q);
 	blk_mq_realloc_hw_ctxs(set, q);
 	if (!q->nr_hw_queues)
 		goto err_hctxs;
 
-	pr_err("%s6 set=%pS q=%pS\n", __func__, set, q);
 	INIT_WORK(&q->timeout_work, blk_mq_timeout_work);
 	blk_queue_rq_timeout(q, set->timeout ? set->timeout : 30 * HZ);
 
 	q->tag_set = set;
 
-	pr_err("%s7 set=%pS q=%pS\n", __func__, set, q);
 	q->queue_flags |= QUEUE_FLAG_MQ_DEFAULT;
 	blk_mq_update_poll_flag(q);
 
@@ -4131,7 +4084,6 @@ int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	INIT_LIST_HEAD(&q->requeue_list);
 	spin_lock_init(&q->requeue_lock);
 
-	pr_err("%s8 set=%pS q=%pS\n", __func__, set, q);
 	q->nr_requests = set->queue_depth;
 
 	/*
@@ -4139,26 +4091,19 @@ int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	 */
 	q->poll_nsec = BLK_MQ_POLL_CLASSIC;
 
-	pr_err("%s9 set=%pS q=%pS set->nr_hw_queues=%d\n", __func__, set, q, set->nr_hw_queues);
 	blk_mq_init_cpu_queues(q, set->nr_hw_queues);
-	pr_err("%s9.1 set=%pS q=%pS\n", __func__, set, q);
 	blk_mq_add_queue_tag_set(set, q);
-	pr_err("%s9.2 set=%pS q=%pS\n", __func__, set, q);
 	blk_mq_map_swqueue(q);
-	pr_err("%s10 out set=%pS q=%pS\n", __func__, set, q);
 	return 0;
 
 err_hctxs:
-	pr_err("%s err_hctxs set=%pS q=%pS\n", __func__, set, q);
 	xa_destroy(&q->hctx_table);
 	q->nr_hw_queues = 0;
 	blk_mq_sysfs_deinit(q);
 err_poll:
-	pr_err("%s err_poll set=%pS q=%pS\n", __func__, set, q);
 	blk_stat_free_callback(q->poll_cb);
 	q->poll_cb = NULL;
 err_exit:
-	pr_err("%s err_exit set=%pS q=%pS\n", __func__, set, q);
 	q->mq_ops = NULL;
 	return -ENOMEM;
 }
