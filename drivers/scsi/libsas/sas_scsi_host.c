@@ -962,7 +962,7 @@ void sas_blk_end_sync_rq(struct request *rq, blk_status_t error)
 {
 	struct sas_task *task = sas_rq_to_task(rq);
 
-	//pr_err("%s rq=%pS task=%pS\n", __func__, rq, task);
+	pr_err("%s rq=%pS task=%pS\n", __func__, rq, task);
 
 
 	/*
@@ -1111,7 +1111,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	struct request *rq;
 	struct sas_ha_struct *ha = device->port->ha;
 
-	//pr_err("%s device=%pS\n", __func__, device);
+	pr_err("%s device=%pS\n", __func__, device);
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
 
@@ -1152,7 +1152,9 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		pr_err("%s4 task=%pS rq=%pS scmd=%pS is internal=%d scribble=%pS\n", __func__, task, rq, scmd, scsi_is_reserved_cmd(scmd), scmd->host_scribble);
 		blk_execute_rq_nowait(rq, true, sas_blk_end_sync_rq);
 
+		pr_err("%s5 waiting for completion task=%pS rq=%pS scmd=%pS is internal=%d scribble=%pS\n", __func__, task, rq, scmd, scsi_is_reserved_cmd(scmd), scmd->host_scribble);
 		wait_for_completion(&task->slow_task->completion);
+		pr_err("%s6 got completion task=%pS rq=%pS scmd=%pS is internal=%d scribble=%pS\n", __func__, task, rq, scmd, scsi_is_reserved_cmd(scmd), scmd->host_scribble);
 
 
 		if (i->dft->lldd_tmf_exec_complete)
@@ -1225,8 +1227,8 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 			SAS_ADDR(device->sas_addr), TASK_RETRY);
 	sas_free_task(task);
 
-	if (res)
-		pr_err("%s10out res=%d\n", __func__, res);
+	//if (res)
+		pr_err("%s10out res=%d task=%pS\n", __func__, res, task);
 	return res;
 }
 

@@ -89,11 +89,11 @@ void sas_free_task(struct sas_task *task)
 	if (task) {
 		bool reserved = false;
 		struct request *rq = sas_rq_from_task(task);
-
 		if (rq->cmd_flags & RQF_RESV)
 			reserved = true;
 
 		kfree(task->slow_task);
+		pr_err("%s task=%pS reserved=%d\n", __func__, task, reserved);
 
 		if (reserved)
 			blk_mq_end_request(rq, BLK_STS_OK);

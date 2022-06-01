@@ -2484,8 +2484,8 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	unsigned long flags;
 	u32 sstatus;
 	int nr_unknown, rc;
-	pr_err("%s link=%pS ap=%pS prereset=%pS softreset=%pS hardreset=%pS postreset=%pS\n",
-		__func__, link, ap, prereset, softreset, hardreset, postreset);
+	//pr_err("%s link=%pS ap=%pS prereset=%pS softreset=%pS hardreset=%pS postreset=%pS\n",
+	//	__func__, link, ap, prereset, softreset, hardreset, postreset);
 	/*
 	 * Prepare to reset
 	 */
@@ -2512,7 +2512,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	ap->pflags |= ATA_PFLAG_RESETTING;
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	pr_err("%s2 link=%pS ap=%pS\n", __func__, link, ap);
+	//pr_err("%s2 link=%pS ap=%pS\n", __func__, link, ap);
 	ata_eh_about_to_do(link, NULL, ATA_EH_RESET);
 
 	ata_for_each_dev(dev, link, ALL) {
@@ -2535,7 +2535,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			ap->ops->set_piomode(ap, dev);
 	}
 
-	pr_err("%s3 link=%pS ap=%pS\n", __func__, link, ap);
+	//pr_err("%s3 link=%pS ap=%pS\n", __func__, link, ap);
 	/* prefer hardreset */
 	reset = NULL;
 	ehc->i.action &= ~ATA_EH_RESET;
@@ -2547,7 +2547,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		ehc->i.action |= ATA_EH_SOFTRESET;
 	}
 
-	pr_err("%s4 link=%pS ap=%pS\n", __func__, link, ap);
+	//pr_err("%s4 link=%pS ap=%pS\n", __func__, link, ap);
 	if (prereset) {
 		unsigned long deadline = ata_deadline(jiffies,
 						      ATA_EH_PRERESET_TIMEOUT);
@@ -2604,7 +2604,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	}
 
  retry:
-	pr_err("%s5 retry link=%pS ap=%pS\n", __func__, link, ap);
+	//pr_err("%s5 retry link=%pS ap=%pS\n", __func__, link, ap);
 	/*
 	 * Perform reset
 	 */
@@ -2694,7 +2694,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			lflags |= ATA_LFLAG_ASSUME_ATA;
 	}
 
-	pr_err("%s6 link=%pS ap=%pS\n", __func__, link, ap);
+	//pr_err("%s6 link=%pS ap=%pS\n", __func__, link, ap);
 	/*
 	 * Post-reset processing
 	 */
@@ -2726,7 +2726,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	if (ata_is_host_link(link))
 		ata_eh_thaw_port(ap);
 
-	pr_err("%s7 link=%pS ap=%pS\n", __func__, link, ap);
+	//pr_err("%s7 link=%pS ap=%pS\n", __func__, link, ap);
 
 	/* postreset() should clear hardware SError.  Although SError
 	 * is cleared during link resume, clearing SError here is
@@ -2761,7 +2761,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	if (ap->pflags & ATA_PFLAG_FROZEN)
 		ata_eh_thaw_port(ap);
 
-	pr_err("%s8 link=%pS ap=%pS\n", __func__, link, ap);
+	//pr_err("%s8 link=%pS ap=%pS\n", __func__, link, ap);
 	/*
 	 * Make sure onlineness and classification result correspond.
 	 * Hotplug could have happened during reset and some
@@ -2805,7 +2805,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			      "device detection might fail\n", nr_unknown);
 	}
 
-	pr_err("%s9 link=%pS ap=%pS\n", __func__, link, ap);
+	//pr_err("%s9 link=%pS ap=%pS\n", __func__, link, ap);
 	/* reset successful, schedule revalidation */
 	ata_eh_done(link, NULL, ATA_EH_RESET);
 	if (slave)
@@ -2816,7 +2816,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 
 	rc = 0;
  out:
-	pr_err("%s10out link=%pS ap=%pS\n", __func__, link, ap);
+	//pr_err("%s10out link=%pS ap=%pS\n", __func__, link, ap);
 	/* clear hotplug flag */
 	ehc->i.flags &= ~ATA_EHI_HOTPLUGGED;
 	if (slave)
