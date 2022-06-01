@@ -1145,7 +1145,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 			memcpy(&task->ssp_task, parameter, para_len);
 		}
 
-		task->task_done = sas_task_internal_done;
+		task->task_done = sas_task_complete_internal;
 		task->tmf = tmf;
 
 		rq->timeout = TASK_TIMEOUT;
