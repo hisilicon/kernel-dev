@@ -1765,17 +1765,17 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	
 	mutex_lock(&global_mutex);
 	sprintf(string, "ata_exec_internal_sg buf before buf=%pS len=%d ", buf, buflen);
-	//print_hex_dump(KERN_INFO, string,
-	//			  DUMP_PREFIX_NONE, 16, 1,
-	//			  buf, buflen, 1);
+	print_hex_dump(KERN_INFO, string,
+				  DUMP_PREFIX_NONE, 16, 1,
+				  buf, buflen, 1);
 
 	res = ata_exec_internal_sg(dev, tf, cdb, dma_dir, buf, buflen,
 				    timeout);
 
 	sprintf(string, "ata_exec_internal_sg buf after buf=%pS len=%d ", buf, buflen);
-	//print_hex_dump(KERN_INFO, string,
-	//			  DUMP_PREFIX_NONE, 16, 1,
-	//			  buf, buflen, 1);
+	print_hex_dump(KERN_INFO, string,
+				  DUMP_PREFIX_NONE, 16, 1,
+				  buf, buflen, 1);
 	mutex_unlock(&global_mutex);
 	return res;
 }
