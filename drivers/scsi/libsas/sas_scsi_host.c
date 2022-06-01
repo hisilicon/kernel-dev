@@ -166,8 +166,8 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct scsi_device *sdev = cmnd->device;
 	//struct domain_device *dev = cmd_to_domain_dev(cmd);
 
-	pr_err("%s cmnd=%pS ATA_INTERNAL=%d cmnd->cmnd[0]=%d sdev=%pS host sdev=%pS\n",
-			__func__, cmnd, ATA_INTERNAL, cmnd->cmnd[0], sdev, shost->sdev);
+	pr_err("%s cmnd=%pS ATA_INTERNAL=%d cmnd->cmnd[0]=%d sdev=%pS host sdev=%pS host_scribble=%pS\n",
+			__func__, cmnd, ATA_INTERNAL, cmnd->cmnd[0], sdev, shost->sdev, cmnd->host_scribble);
 	if (cmnd->cmnd[0] == ATA_INTERNAL) {
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
 		struct ata_port *ap = qc ? qc->ap : NULL;
@@ -1133,6 +1133,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		//task->uldd_task = scmd;
 
 		if (dev_is_sata(device)) {
+			pr_err("%s2 dev_is_sata rq=%pS scmd=%pS\n", __func__, rq, scmd);
 			task->ata_task.device_control_reg_update = 1;
 			if (force_phy_id >= 0) {
 				task->ata_task.force_phy = true;
@@ -1140,6 +1141,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 			}
 			memcpy(&task->ata_task.fis, parameter, para_len);
 		} else {
+			pr_err("%s3 ssp rq=%pS scmd=%pS\n", __func__, rq, scmd);
 			memcpy(&task->ssp_task, parameter, para_len);
 		}
 
