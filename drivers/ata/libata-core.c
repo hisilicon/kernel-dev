@@ -1715,7 +1715,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 				  DUMP_PREFIX_NONE, 16, 1,
 				  tf, sizeof(*tf), 1);
 
-	panic("%s just stop\n", __func__);
+	//panic("%s just stop\n", __func__);
 	ata_qc_free(qc);
 	link->active_tag = link->preempted_tag;
 	link->sactive = link->preempted_sactive;
