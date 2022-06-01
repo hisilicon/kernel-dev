@@ -3606,21 +3606,15 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 	struct blk_mq_tag_set *set = q->tag_set;
 	unsigned int i, j;
 
-	pr_err("%s set=%pS q=%pS nr_hw_queues=%d\n", __func__, set, q, nr_hw_queues);
-
 	for_each_possible_cpu(i) {
 		struct blk_mq_ctx *__ctx = per_cpu_ptr(q->queue_ctx, i);
 		struct blk_mq_hw_ctx *hctx;
 		int k;
 
-		pr_err("%s set=%pS q=%pS nr_hw_queues=%d cpu%d\n", __func__, set, q, nr_hw_queues, i);
-
 		__ctx->cpu = i;
 		spin_lock_init(&__ctx->lock);
-		for (k = HCTX_TYPE_DEFAULT; k < HCTX_MAX_TYPES; k++){
-			pr_err("%s2 set=%pS q=%pS nr_hw_queues=%d cpu%d k=%d\n", __func__, set, q, nr_hw_queues, i, k);
+		for (k = HCTX_TYPE_DEFAULT; k < HCTX_MAX_TYPES; k++)
 			INIT_LIST_HEAD(&__ctx->rq_lists[k]);
-		}
 
 		__ctx->queue = q;
 
@@ -3628,17 +3622,12 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 		 * Set local node, IFF we have more than one hw queue. If
 		 * not, we remain on the home node of the device
 		 */
-	//	pr_err("%s3 set=%pS q=%pS nr_hw_queues=%d cpu%d set->nr_maps=%d\n", __func__, set, q, nr_hw_queues, i, set->nr_maps);
 		for (j = 0; j < set->nr_maps; j++) {
-	//		pr_err("%s4 set=%pS q=%pS nr_hw_queues=%d cpu%d set->nr_maps=%d j=%d\n", __func__, set, q, nr_hw_queues, i, set->nr_maps, j);
 			hctx = blk_mq_map_queue_type(q, j, i);
-		//	pr_err("%s5 set=%pS q=%pS nr_hw_queues=%d cpu%d set->nr_maps=%d j=%d hctx=%pS\n", 
-		//		__func__, set, q, nr_hw_queues, i, set->nr_maps, j, hctx);
 			if (nr_hw_queues > 1 && hctx->numa_node == NUMA_NO_NODE)
 				hctx->numa_node = cpu_to_node(i);
 		}
 	}
-	pr_err("%s10 out set=%pS q=%pS nr_hw_queues=%d\n", __func__, set, q, nr_hw_queues);
 }
 
 struct blk_mq_tags *blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
@@ -3823,11 +3812,15 @@ static void blk_mq_update_tag_set_shared(struct blk_mq_tag_set *set,
 	struct request_queue *q;
 
 	lockdep_assert_held(&set->tag_list_lock);
-
+	pr_err("%s set=%pS shared=%d\n", __func__, set, shared);
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
+		pr_err("%s2 set=%pS shared=%d q=%pS\n", __func__, set, shared, q);
 		blk_mq_freeze_queue(q);
+		pr_err("%s3 set=%pS shared=%d q=%pS\n", __func__, set, shared, q);
 		queue_set_hctx_shared(q, shared);
+		pr_err("%s24 set=%pS shared=%d q=%pS\n", __func__, set, shared, q);
 		blk_mq_unfreeze_queue(q);
+		pr_err("%s5 set=%pS shared=%d q=%pS\n", __func__, set, shared, q);
 	}
 }
 
