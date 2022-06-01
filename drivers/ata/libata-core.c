@@ -1761,23 +1761,30 @@ unsigned ata_exec_internal(struct ata_device *dev,
 {
 	int res;
 	char string[200];
+	void *tmpbuf = kmemdup(buf, buflen, GFP_KERNEL);
+	if (!tmpbuf){
+		pr_err("%s !tmpbuf buf=%pS\n", __func__, buf);
+		return -ENOMEM;
+	}
 
 	
 	mutex_lock(&global_mutex);
-	pr_err("%s before buf=%pS\n", __func__, buf);
-	sprintf(string, "ata_exec_internal_sg buf before buf=%pS len=%d ", buf, buflen);
+	pr_err("%s before buf=%pS tmpbuf=%pS\n", __func__, buf, tmpbuf);
+	sprintf(string, "ata_exec_internal_sg buf before buf=%pS len=%d tmpbuf=%pS", buf, buflen, tmpbuf);
 	print_hex_dump(KERN_INFO, string,
 				  DUMP_PREFIX_NONE, 16, 1,
-				  buf, buflen, 1);
+				  tmpbuf, buflen, 1);
 
-	res = ata_exec_internal_sg(dev, tf, cdb, dma_dir, buf, buflen,
+	res = ata_exec_internal_sg(dev, tf, cdb, dma_dir, tmpbuf, buflen,
 				    timeout);
 
-	sprintf(string, "ata_exec_internal_sg buf after buf=%pS len=%d ", buf, buflen);
-	pr_err("%s2 after buf=%pS\n", __func__, buf);
+	sprintf(string, "ata_exec_internal_sg buf after buf=%pS len=%d tmpbuf=%pS", buf, buflen, tmpbuf);
+	pr_err("%s2 after buf=%pS tmpbuf=%pS\n", __func__, buf, tmpbuf);
 	print_hex_dump(KERN_INFO, string,
 				  DUMP_PREFIX_NONE, 16, 1,
-				  buf, buflen, 1);
+				  tmpbuf, buflen, 1);
+	memcpy(buf, tmpbuf, buflen);
+	kfree(tmpbuf);
 	mutex_unlock(&global_mutex);
 	panic("%s just one for now\n", __func__);
 	return res;
