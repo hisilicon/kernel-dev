@@ -2530,6 +2530,7 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 		dw1 &= ~CMD_HDR_DIR_MSK;
 	}
 
+	pr_err("%s task=%pS lldd_task=%pS scmd=%pS has_data=%d\n", __func__, task, task->lldd_task, scmd, has_data);
 	if ((task->ata_task.fis.command == ATA_CMD_DEV_RESET) &&
 			(task->ata_task.fis.control & ATA_SRST))
 		dw1 |= 1 << CMD_HDR_RESET_OFF;

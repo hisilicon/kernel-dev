@@ -1149,7 +1149,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		task->tmf = tmf;
 
 		rq->timeout = TASK_TIMEOUT;
-		pr_err("%s2 task=%pS rq=%pS scmd=%pS is internal=%d scribble=%pS\n", __func__, task, rq, scmd, scsi_is_reserved_cmd(scmd), scmd->host_scribble);
+		pr_err("%s4 task=%pS rq=%pS scmd=%pS is internal=%d scribble=%pS\n", __func__, task, rq, scmd, scsi_is_reserved_cmd(scmd), scmd->host_scribble);
 		blk_execute_rq_nowait(rq, true, sas_blk_end_sync_rq);
 
 		wait_for_completion(&task->slow_task->completion);
@@ -1225,7 +1225,8 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 			SAS_ADDR(device->sas_addr), TASK_RETRY);
 	sas_free_task(task);
 
-
+	if (res)
+		pr_err("%s10out res=%d\n", __func__, res);
 	return res;
 }
 
