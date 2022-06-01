@@ -1668,6 +1668,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	print_hex_dump(KERN_INFO, string,
 				  DUMP_PREFIX_NONE, 16, 1,
 				  buf, buflen, 1);
+	panic("%s just one for now\n", __func__);
 	return res;
 }
 
@@ -4529,7 +4530,7 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 	int dir = qc->dma_dir;
 
 	WARN_ON_ONCE(sg == NULL);
-
+	pr_err("%s qc=%pS qc->n_elem=%d\n", __func__, qc, qc->n_elem);
 	if (qc->n_elem)
 		dma_unmap_sg(ap->dev, sg, qc->orig_n_elem, dir);
 
@@ -4882,6 +4883,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 */
 	WARN_ON_ONCE(ap->ops->error_handler && ata_tag_valid(link->active_tag));
 
+	pr_err("%s4 qc=%pS ata_is_ncq=%d cmd=%pS rq=%pS\n", __func__, qc, ata_is_ncq(prot), cmd, rq);
 	if (ata_is_ncq(prot)) {
 		WARN_ON_ONCE(link->sactive & (1 << qc->hw_tag));
 
