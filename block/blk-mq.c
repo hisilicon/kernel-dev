@@ -177,7 +177,7 @@ void blk_freeze_queue_start(struct request_queue *q)
 }
 EXPORT_SYMBOL_GPL(blk_freeze_queue_start);
 
-static unsigned long percpu_ref_read(struct percpu_ref *ref)
+unsigned long percpu_ref_read(struct percpu_ref *ref)
 {
 	//unsigned long __percpu *percpu_count;
 	unsigned long count;//, flags;

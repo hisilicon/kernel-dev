@@ -37,7 +37,7 @@ struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd)
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_task);
-
+extern unsigned long percpu_ref_read(struct percpu_ref *ref);
 struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 {
 	struct request *rq;
@@ -54,6 +54,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 
 	if (IS_ERR(rq))
 		return NULL;
+
 	scmd = blk_mq_rq_to_pdu(rq);
 
 
@@ -79,7 +80,8 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	timer_setup(&slow->timer, NULL, 0);
 	init_completion(&slow->completion);
 	scmd->host_scribble = NULL;
-	//pr_err("%s10 task=%pS scmd=%pS host_scribble=%pS cmnd[0]=%d\n", __func__, task,scmd, scmd->host_scribble, scmd->cmnd[0]);
+	pr_err("%s10 task=%pS scmd=%pS host_scribble=%pS cmnd[0]=%d q_usage_count=%ld\n", 
+		__func__, task,scmd, scmd->host_scribble, scmd->cmnd[0], percpu_ref_read(&sdev->request_queue->q_usage_counter));
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
