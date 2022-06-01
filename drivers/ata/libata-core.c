@@ -1786,7 +1786,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	memcpy(buf, tmpbuf, buflen);
 	kfree(tmpbuf);
 	mutex_unlock(&global_mutex);
-	panic("%s just one for now\n", __func__);
+	//panic("%s just one for now\n", __func__);
 	return res;
 }
 
