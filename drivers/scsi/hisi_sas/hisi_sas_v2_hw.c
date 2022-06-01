@@ -1678,46 +1678,19 @@ static void prep_prd_sge_v2_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_sge_page *sge_page = hisi_sas_sge_addr_mem(slot);
 	struct scatterlist *sg;
 	int i;
-	pr_err("%s scatter=%pS n_elem=%d\n", __func__, scatter, n_elem);
+
 	for_each_sg(scatter, sg, n_elem, i) {
 		struct hisi_sas_sge *entry = &sge_page->sge[i];
-		void *virt = sg_virt(sg);
 
 		entry->addr = cpu_to_le64(sg_dma_address(sg));
 		entry->page_ctrl_0 = entry->page_ctrl_1 = 0;
 		entry->data_len = cpu_to_le32(sg_dma_len(sg));
-		pr_err("%s2 scatter=%pS n_elem=%d i=%d addr=0x%llx data_len=0x%x virt=%pS\n", __func__, scatter, n_elem, i, entry->addr, entry->data_len, virt);
 		entry->data_off = 0;
 	}
 
 	hdr->prd_table_addr = cpu_to_le64(hisi_sas_sge_addr_dma(slot));
-	pr_err("%s3 scatter=%pS n_elem=%d prd_table_addr=0x%llx\n", __func__, scatter, n_elem, hdr->prd_table_addr);
 
 	hdr->sg_len = cpu_to_le32(n_elem << CMD_HDR_DATA_SGL_LEN_OFF);
-}
-
-
-void print_prd_sge_v2_hw(struct hisi_sas_slot *slot)
-{
-	struct hisi_sas_sge_page *sge_page = hisi_sas_sge_addr_mem(slot);
-	struct sas_task *task = slot->task;
-	struct scsi_cmnd *scmd = sas_scmd_from_task(task);
-	struct scatterlist *sg;
-	struct scatterlist *scatter = task->scatter;
-	int n_elem = task->num_scatter;
-	int i;
-	pr_err("%s scatter=%pS slot->n_elem=%lld n_elem=%d scmd=%pS\n", __func__, scatter, slot->n_elem, task->num_scatter, scmd);
-	for_each_sg(scatter, sg, n_elem, i) {
-		struct hisi_sas_sge *entry = &sge_page->sge[i];
-		void *virt = sg_virt(sg);
-
-		pr_err("%s2 scatter=%pS n_elem=%d i=%d addr=0x%llx data_len=0x%x virt=%pS\n", __func__, scatter, n_elem, i, entry->addr, entry->data_len, virt);
-
-			print_hex_dump(KERN_INFO, "print_prd_sge_v2_hw3 ",
-				  DUMP_PREFIX_NONE, 16, 1,
-				  virt, entry->data_len, 1);
-
-	}
 }
 
 static void prep_smp_v2_hw(struct hisi_hba *hisi_hba,
@@ -2470,7 +2443,6 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
 	{
-		pr_err("%s task=%pS\n", __func__, task);
 		ts->stat = SAS_SAM_STAT_GOOD;
 		hisi_sas_sata_done(task, slot);
 		break;
@@ -2559,7 +2531,6 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 		dw1 &= ~CMD_HDR_DIR_MSK;
 	}
 
-	pr_err("%s task=%pS lldd_task=%pS scmd=%pS has_data=%d\n", __func__, task, task->lldd_task, scmd, has_data);
 	if ((task->ata_task.fis.command == ATA_CMD_DEV_RESET) &&
 			(task->ata_task.fis.control & ATA_SRST))
 		dw1 |= 1 << CMD_HDR_RESET_OFF;
@@ -2573,7 +2544,6 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	/* dw2 */
 	if (task->ata_task.use_ncq) {
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)scmd->host_scribble;
-		pr_err("%s2 task=%pS lldd_task=%pS qc=%pS\n", __func__, task, task->lldd_task, qc);
 
 		hdr_tag = qc->tag;
 		task->ata_task.fis.sector_count |= (u8) (hdr_tag << 3);
@@ -2595,20 +2565,12 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	hdr->cmd_table_addr = cpu_to_le64(hisi_sas_cmd_hdr_addr_dma(slot));
 	hdr->sts_buffer_addr = cpu_to_le64(hisi_sas_status_buf_addr_dma(slot));
 
-	print_hex_dump(KERN_INFO, "prep_ata_v2_hw hdr ",
-				  DUMP_PREFIX_NONE, 16, 1,
-				  hdr, sizeof(*hdr), 1);
-
 	buf_cmd = hisi_sas_cmd_hdr_addr_mem(slot);
 
 	if (likely(!task->ata_task.device_control_reg_update))
 		task->ata_task.fis.flags |= 0x80; /* C=1: update ATA cmd reg */
 	/* fill in command FIS */
 	memcpy(buf_cmd, &task->ata_task.fis, sizeof(struct host_to_dev_fis));
-
-	print_hex_dump(KERN_INFO, "prep_ata_v2_hw buf_cmd ",
-				  DUMP_PREFIX_NONE, 16, 1,
-				  buf_cmd, sizeof(struct host_to_dev_fis), 1);
 }
 
 static void hisi_sas_internal_abort_quirk_timeout(struct timer_list *t)
