@@ -1165,7 +1165,7 @@ static int ata_read_native_max_address(struct ata_device *dev, u64 *max_sectors)
 
 	tf.protocol = ATA_PROT_NODATA;
 	tf.device |= ATA_LBA;
-
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	if (err_mask) {
 		ata_dev_warn(dev,
@@ -1228,7 +1228,7 @@ static int ata_set_max_sectors(struct ata_device *dev, u64 new_sectors)
 	tf.lbal = (new_sectors >> 0) & 0xff;
 	tf.lbam = (new_sectors >> 8) & 0xff;
 	tf.lbah = (new_sectors >> 16) & 0xff;
-
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	if (err_mask) {
 		ata_dev_warn(dev,
@@ -1478,6 +1478,9 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned long flags;
 	unsigned int err_mask;
 	int rc;
+	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf initial ",
+			DUMP_PREFIX_NONE, 16, 1,
+			tf, sizeof(*tf), 1);
 
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -1601,6 +1604,9 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	*tf = qc->result_tf;
 	err_mask = qc->err_mask;
+	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf result ",
+				  DUMP_PREFIX_NONE, 16, 1,
+				  tf, sizeof(*tf), 1);
 
 	ata_qc_free(qc);
 	link->active_tag = preempted_tag;
@@ -1724,6 +1730,7 @@ static u32 ata_pio_mask_no_iordy(const struct ata_device *adev)
 unsigned int ata_do_dev_read_id(struct ata_device *dev,
 				struct ata_taskfile *tf, __le16 *id)
 {
+	pr_err("%s calling ata_exec_internal id=%pS\n", __func__, id);
 	return ata_exec_internal(dev, tf, NULL, DMA_FROM_DEVICE,
 				     id, sizeof(id[0]) * ATA_ID_WORDS, 0);
 }
@@ -1910,10 +1917,14 @@ retry:
 		 * Note that ATA4 says lba is mandatory so the second check
 		 * should never trigger.
 		 */
+		pr_err("%s ata_id_major_version(id)=%d ata_id_has_lba(id)=%d\n", __func__, ata_id_major_version(id), ata_id_has_lba(id));
 		if (ata_id_major_version(id) < 4 || !ata_id_has_lba(id)) {
 			err_mask = ata_dev_init_params(dev, id[3], id[6]);
+			pr_err("%s2 id[3]=%d id[6]=%d\n", __func__, id[3], id[6]);
 			if (err_mask) {
+				pr_err("%s3 error INIT_DEV_PARAMS failed err_mask=%d\n", __func__, err_mask);
 				rc = -EIO;
+				pr_err("%s3 -EIO error\n", __func__);
 				reason = "INIT_DEV_PARAMS failed";
 				goto err_out;
 			}
@@ -1931,7 +1942,7 @@ retry:
 	return 0;
 
  err_out:
-	ata_dev_warn(dev, "failed to IDENTIFY (%s, err_mask=0x%x)\n",
+	ata_dev_err(dev, "error failed to IDENTIFY (%s, err_mask=0x%x)\n",
 		     reason, err_mask);
 	return rc;
 }
@@ -1987,6 +1998,7 @@ retry:
 	tf.hob_nsect = sectors >> 8;
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_LBA48 | ATA_TFLAG_DEVICE;
 
+	pr_err("%s calling ata_exec_internal buf=%pS\n", __func__, buf);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
 				     buf, sectors * ATA_SECT_SIZE, 0);
 
@@ -4306,6 +4318,7 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
 		return 0;
 
 	/* On some disks, this command causes spin-up, so we need longer timeout */
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 15000);
 
 	return err_mask;
@@ -4345,6 +4358,7 @@ unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable, u8 feature)
 	if (enable == SETFEATURES_SPINUP)
 		timeout = ata_probe_timeout ?
 			  ata_probe_timeout * 1000 : SETFEATURES_SPINUP_TIMEOUT;
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, timeout);
 
 	return err_mask;
@@ -4383,6 +4397,7 @@ static unsigned int ata_dev_init_params(struct ata_device *dev,
 	tf.nsect = sectors;
 	tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
 
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	/* A clean abort indicates an original or just out of spec drive
 	   and we should continue as we issue the setup based on the
@@ -5702,7 +5717,7 @@ void __ata_port_probe(struct ata_port *ap)
 {
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	unsigned long flags;
-
+	pr_err("%s ap=%pS\n", __func__, ap);
 	/* kick EH for boot probing */
 	spin_lock_irqsave(ap->lock, flags);
 

@@ -768,8 +768,10 @@ static int hisi_sas_init_device(struct domain_device *device)
 
 int hisi_sas_slave_alloc(struct scsi_device *sdev)
 {
+	struct scsi_target *starget = sdev->sdev_target;
 	struct domain_device *ddev;
 	int rc;
+	pr_err("%s sdev=%pS ddev=%pS starget=%pS\n", __func__, sdev, sdev_to_domain_dev(sdev), starget);
 
 	rc = sas_slave_alloc(sdev);
 	if (rc)
@@ -837,7 +839,11 @@ err_out:
 int hisi_sas_slave_configure(struct scsi_device *sdev)
 {
 	struct domain_device *dev = sdev_to_domain_dev(sdev);
-	int ret = sas_slave_configure(sdev);
+	int ret;
+
+	pr_err("%s sdev=%pS domain_device=%pS\n", __func__, sdev, dev);
+
+	ret = sas_slave_configure(sdev);
 
 	if (ret)
 		return ret;

@@ -532,6 +532,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 	struct ata_port *ap = ata_shost_to_port(host);
 	unsigned long flags;
 	LIST_HEAD(eh_work_q);
+	pr_err("%s host=%pS ap=%pS\n", __func__, host, ap);
 
 	spin_lock_irqsave(host->host_lock, flags);
 	list_splice_init(&host->eh_cmd_q, &eh_work_q);
@@ -654,7 +655,7 @@ EXPORT_SYMBOL(ata_scsi_cmd_error_handler);
 void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 {
 	unsigned long flags;
-
+	pr_err("%s host=%pS ap=%pS ap->ops->error_handler=%pS\n", __func__, host, ap, ap->ops->error_handler);
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
 		struct ata_link *link;
@@ -1384,6 +1385,7 @@ unsigned int atapi_eh_tur(struct ata_device *dev, u8 *r_sense_key)
 	tf.command = ATA_CMD_PACKET;
 	tf.protocol = ATAPI_PROT_NODATA;
 
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, cdb, DMA_NONE, NULL, 0, 0);
 	if (err_mask == AC_ERR_DEV)
 		*r_sense_key = tf.error >> 4;
@@ -1427,6 +1429,7 @@ static void ata_eh_request_sense(struct ata_queued_cmd *qc,
 	tf.command = ATA_CMD_REQ_SENSE_DATA;
 	tf.protocol = ATA_PROT_NODATA;
 
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	/* Ignore err_mask; ATA_ERR might be set */
 	if (tf.status & ATA_SENSE) {
@@ -1485,6 +1488,7 @@ unsigned int atapi_eh_request_sense(struct ata_device *dev,
 		tf.lbah = 0;
 	}
 
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	return ata_exec_internal(dev, &tf, cdb, DMA_FROM_DEVICE,
 				 sense_buf, SCSI_SENSE_BUFFERSIZE, 0);
 }
@@ -2908,6 +2912,7 @@ static void ata_eh_park_issue_cmd(struct ata_device *dev, int park)
 
 	tf.flags |= ATA_TFLAG_DEVICE | ATA_TFLAG_ISADDR;
 	tf.protocol = ATA_PROT_NODATA;
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	if (park && (err_mask || tf.lbal != 0xc4)) {
 		ata_dev_err(dev, "head unload failed!\n");
@@ -2972,9 +2977,11 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 
 			if (dev->class == ATA_DEV_PMP)
 				rc = sata_pmp_attach(dev);
-			else
+			else {
+				pr_err("%s calling ata_dev_read_id link=%pS ap=%pS dev=%pS\n", __func__, link, ap, dev);
 				rc = ata_dev_read_id(dev, &dev->class,
 						     readid_flags, dev->id);
+			}
 
 			/* read_id might have changed class, store and reset */
 			ehc->classes[dev->devno] = dev->class;
@@ -3190,6 +3197,7 @@ static int ata_eh_maybe_retry_flush(struct ata_device *dev)
 	ata_dev_warn(dev, "retrying FLUSH 0x%x Emask 0x%x\n",
 		       tf.command, qc->err_mask);
 
+	pr_err("%s calling ata_exec_internal\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	if (!err_mask) {
 		/*
@@ -3208,6 +3216,7 @@ static int ata_eh_maybe_retry_flush(struct ata_device *dev)
 
 		/* if device failed it, report it to upper layers */
 		if (err_mask & AC_ERR_DEV) {
+			pr_err("%s AC_ERR_DEV\n", __func__);
 			qc->err_mask |= AC_ERR_DEV;
 			qc->result_tf = tf;
 			if (!(ap->pflags & ATA_PFLAG_FROZEN))
@@ -3551,6 +3560,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	struct ata_device *dev;
 	int rc, nr_fails;
 	unsigned long flags, deadline;
+	pr_err("%s ap=%pS\n", __func__, ap);
 
 	/* prep for recovery */
 	ata_for_each_link(link, ap, EDGE) {
