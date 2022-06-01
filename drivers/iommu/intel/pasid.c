@@ -785,7 +785,7 @@ int intel_pasid_setup_nested(struct intel_iommu *iommu, struct device *dev,
 	struct dma_pte *pgd;
 	u64 pgd_val;
 	int agaw;
-	u16 did;
+	u16 did, pgtt;
 
 	if (!ecap_nest(iommu->ecap)) {
 		pr_err_ratelimited("%s: No nested translation support\n",
@@ -799,9 +799,12 @@ int intel_pasid_setup_nested(struct intel_iommu *iommu, struct device *dev,
 
 	/*
 	 * Caller must ensure PASID entry is not in use, i.e. not bind the
-	 * same PASID to the same device twice.
+	 * same PASID to the same device twice. But special thing is
+	 * convert non-nested to nested. Such change is valid, so needs
+	 * to enhance the below check.
 	 */
-	if (pasid_pte_is_present(pte))
+	pgtt = pasid_pte_get_pgtt(pte);
+	if (pgtt == PASID_ENTRY_PGTT_NESTED && pasid_pte_is_present(pte))
 		return -EBUSY;
 	pasid_clear_entry(pte);
 

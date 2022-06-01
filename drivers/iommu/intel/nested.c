@@ -19,7 +19,7 @@
 struct nested_domain {
 	struct dmar_domain *s2_domain;
 	unsigned long s1_pgtbl;
-	struct iommu_stage1_config_vtd *s1_cfg;
+	struct iommu_stage1_config_vtd s1_cfg;
 
 	/* Protect the device list. */
 	struct mutex mutex;
@@ -39,10 +39,24 @@ static int intel_nested_attach_dev_pasid(struct iommu_domain *domain,
 	struct intel_iommu *iommu = info->iommu;
 	int ret = 0;
 
+	/*
+	 * Set up device context entry for PASID if not enabled already, one
+	 * strange thing, the intel_iommu_enable_pasid() is supposed to
+	 * be done when calling iommu_dev_enable_feature(, SVA). However,
+	 * without below intel_iommu_enable_pasid(), error is observed.
+	 * "SM: PASID Enable field in Context Entry is clear". @Baolu,
+	 * may you have a look.
+	 */
+	ret = intel_iommu_enable_pasid(iommu, dev);
+	if (ret) {
+		dev_err_ratelimited(dev, "Failed to enable PASID capability\n");
+		return ret;
+	}
+
 	spin_lock(&iommu->lock);
 	ret = intel_pasid_setup_nested(iommu, dev, pasid,
 				       (pgd_t *)(uintptr_t)ndomain->s1_pgtbl,
-				       dmar_domain, ndomain->s1_cfg);
+				       dmar_domain, &ndomain->s1_cfg);
 	spin_unlock(&iommu->lock);
 	if (ret)
 		return ret;
@@ -281,7 +295,7 @@ struct iommu_domain *intel_nested_domain_alloc(struct iommu_domain *s2_domain,
 
 	ndomain->s2_domain = to_dmar_domain(s2_domain);
 	ndomain->s1_pgtbl = s1_pgtbl;
-	ndomain->s1_cfg = &cfg->vtd;
+	ndomain->s1_cfg = cfg->vtd;
 	ndomain->domain.ops = &intel_nested_domain_ops;
 	mutex_init(&ndomain->mutex);
 	INIT_LIST_HEAD(&ndomain->devices);

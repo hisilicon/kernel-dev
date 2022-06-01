@@ -2065,9 +2065,13 @@ static int __iommu_attach_group(struct iommu_domain *domain,
 {
 	int ret;
 
+	/*
+	 * Commment out for simple, in future, there should be an API
+	 * to perform group->domain replacement which doesn't have this
+	 * check.
 	if (group->domain && group->domain != group->default_domain)
 		return -EBUSY;
-
+	*/
 	ret = __iommu_group_for_each_dev(group, domain,
 					 iommu_group_do_attach_device);
 	if (ret == 0)
