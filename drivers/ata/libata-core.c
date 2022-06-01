@@ -5037,7 +5037,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 */
 	WARN_ON_ONCE(ap->ops->error_handler && ata_tag_valid(link->active_tag));
 
-	//pr_err("%s4 qc=%pS ata_is_ncq=%d cmd=%pS rq=%pS\n", __func__, qc, ata_is_ncq(prot), cmd, rq);
+	pr_err("%s4 qc=%pS ata_is_ncq=%d cmd=%pS rq=%pS\n", __func__, qc, ata_is_ncq(prot), cmd, rq);
 	if (ata_is_ncq(prot)) {
 		WARN_ON_ONCE(link->sactive & (1 << qc->hw_tag));
 

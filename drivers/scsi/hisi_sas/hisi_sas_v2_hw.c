@@ -2337,8 +2337,10 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	bool is_internal = slot->is_internal;
 	u32 dw0;
 
-	if (unlikely(!task || !task->lldd_task || !task->dev))
+	if (unlikely(!task || !task->lldd_task || !task->dev)){
+		panic("!task\n");
 		return;
+	}
 
 	ts = &task->task_status;
 	device = task->dev;
@@ -2406,6 +2408,7 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 				 error_info[2], error_info[3]);
 
 		if (unlikely(slot->abort)) {
+			panic("sas_task_abort\n");
 			sas_task_abort(task);
 			return;
 		}
@@ -2515,7 +2518,6 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 		dw0 |= CMD_HDR_FORCE_PHY_MSK;
 		dw0 |= (1 << ata_task->force_phy_id) << CMD_HDR_PHY_ID_OFF;
 	}
-	pr_err("%s task=%pS lldd_task=%pS scmd=%pS\n", __func__, task, task->lldd_task, scmd);
 	hdr->dw0 = cpu_to_le32(dw0);
 
 	/* dw1 */
