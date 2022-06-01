@@ -1681,11 +1681,12 @@ static void prep_prd_sge_v2_hw(struct hisi_hba *hisi_hba,
 	pr_err("%s scatter=%pS n_elem=%d\n", __func__, scatter, n_elem);
 	for_each_sg(scatter, sg, n_elem, i) {
 		struct hisi_sas_sge *entry = &sge_page->sge[i];
+		void *virt = sg_virt(sg);
 
 		entry->addr = cpu_to_le64(sg_dma_address(sg));
 		entry->page_ctrl_0 = entry->page_ctrl_1 = 0;
 		entry->data_len = cpu_to_le32(sg_dma_len(sg));
-		pr_err("%s2 scatter=%pS n_elem=%d i=%d addr=0x%llx data_len=0x%x\n", __func__, scatter, n_elem, i, entry->addr, entry->data_len);
+		pr_err("%s2 scatter=%pS n_elem=%d i=%d addr=0x%llx data_len=0x%x virt=%pS\n", __func__, scatter, n_elem, i, entry->addr, entry->data_len, virt);
 		entry->data_off = 0;
 	}
 
@@ -1693,6 +1694,30 @@ static void prep_prd_sge_v2_hw(struct hisi_hba *hisi_hba,
 	pr_err("%s3 scatter=%pS n_elem=%d prd_table_addr=0x%llx\n", __func__, scatter, n_elem, hdr->prd_table_addr);
 
 	hdr->sg_len = cpu_to_le32(n_elem << CMD_HDR_DATA_SGL_LEN_OFF);
+}
+
+
+void print_prd_sge_v2_hw(struct hisi_sas_slot *slot)
+{
+	struct hisi_sas_sge_page *sge_page = hisi_sas_sge_addr_mem(slot);
+	struct sas_task *task = slot->task;
+	struct scsi_cmnd *scmd = sas_scmd_from_task(task);
+	struct scatterlist *sg;
+	struct scatterlist *scatter = task->scatter;
+	int n_elem = task->num_scatter;
+	int i;
+	pr_err("%s scatter=%pS slot->n_elem=%lld n_elem=%d scmd=%pS\n", __func__, scatter, slot->n_elem, task->num_scatter, scmd);
+	for_each_sg(scatter, sg, n_elem, i) {
+		struct hisi_sas_sge *entry = &sge_page->sge[i];
+		void *virt = sg_virt(sg);
+
+		pr_err("%s2 scatter=%pS n_elem=%d i=%d addr=0x%llx data_len=0x%x virt=%pS\n", __func__, scatter, n_elem, i, entry->addr, entry->data_len, virt);
+
+			print_hex_dump(KERN_INFO, "print_prd_sge_v2_hw3 ",
+				  DUMP_PREFIX_NONE, 16, 1,
+				  virt, entry->data_len, 1);
+
+	}
 }
 
 static void prep_smp_v2_hw(struct hisi_hba *hisi_hba,
