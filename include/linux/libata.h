@@ -1465,13 +1465,13 @@ static inline int sata_srst_pmp(struct ata_link *link)
 #define ata_port_err(ap, fmt, ...)				\
 	ata_port_printk(err, ap, fmt, ##__VA_ARGS__)
 #define ata_port_warn(ap, fmt, ...)				\
-	ata_port_printk(warn, ap, fmt, ##__VA_ARGS__)
+	ata_port_printk(err, ap, fmt, ##__VA_ARGS__)
 #define ata_port_notice(ap, fmt, ...)				\
-	ata_port_printk(notice, ap, fmt, ##__VA_ARGS__)
+	ata_port_printk(err, ap, fmt, ##__VA_ARGS__)
 #define ata_port_info(ap, fmt, ...)				\
-	ata_port_printk(info, ap, fmt, ##__VA_ARGS__)
+	ata_port_printk(err, ap, fmt, ##__VA_ARGS__)
 #define ata_port_dbg(ap, fmt, ...)				\
-	ata_port_printk(debug, ap, fmt, ##__VA_ARGS__)
+	ata_port_printk(err, ap, fmt, ##__VA_ARGS__)
 
 #define ata_link_printk(level, link, fmt, ...)			\
 do {								\
@@ -1490,13 +1490,13 @@ do {								\
 #define ata_link_err(link, fmt, ...)				\
 	ata_link_printk(err, link, fmt, ##__VA_ARGS__)
 #define ata_link_warn(link, fmt, ...)				\
-	ata_link_printk(warn, link, fmt, ##__VA_ARGS__)
+	ata_link_printk(err, link, fmt, ##__VA_ARGS__)
 #define ata_link_notice(link, fmt, ...)				\
-	ata_link_printk(notice, link, fmt, ##__VA_ARGS__)
+	ata_link_printk(err, link, fmt, ##__VA_ARGS__)
 #define ata_link_info(link, fmt, ...)				\
-	ata_link_printk(info, link, fmt, ##__VA_ARGS__)
+	ata_link_printk(err, link, fmt, ##__VA_ARGS__)
 #define ata_link_dbg(link, fmt, ...)				\
-	ata_link_printk(debug, link, fmt, ##__VA_ARGS__)
+	ata_link_printk(err, link, fmt, ##__VA_ARGS__)
 
 #define ata_dev_printk(level, dev, fmt, ...)			\
         pr_ ## level("ata%u.%02u: " fmt,			\
@@ -1507,13 +1507,13 @@ do {								\
 #define ata_dev_err(dev, fmt, ...)				\
 	ata_dev_printk(err, dev, fmt, ##__VA_ARGS__)
 #define ata_dev_warn(dev, fmt, ...)				\
-	ata_dev_printk(warn, dev, fmt, ##__VA_ARGS__)
+	ata_dev_printk(err, dev, fmt, ##__VA_ARGS__)
 #define ata_dev_notice(dev, fmt, ...)				\
-	ata_dev_printk(notice, dev, fmt, ##__VA_ARGS__)
+	ata_dev_printk(err, dev, fmt, ##__VA_ARGS__)
 #define ata_dev_info(dev, fmt, ...)				\
-	ata_dev_printk(info, dev, fmt, ##__VA_ARGS__)
+	ata_dev_printk(err, dev, fmt, ##__VA_ARGS__)
 #define ata_dev_dbg(dev, fmt, ...)				\
-	ata_dev_printk(debug, dev, fmt, ##__VA_ARGS__)
+	ata_dev_printk(err, dev, fmt, ##__VA_ARGS__)
 
 void ata_print_version(const struct device *dev, const char *version);
 
@@ -1733,6 +1733,7 @@ static inline bool ata_fpdma_zac_mgmt_out_supported(struct ata_device *dev)
 
 static inline void ata_qc_set_polling(struct ata_queued_cmd *qc)
 {
+	pr_err("%s qc=%pS\n", __func__, qc);
 	qc->tf.ctl |= ATA_NIEN;
 }
 
@@ -1781,6 +1782,7 @@ static inline void ata_tf_init(struct ata_device *dev, struct ata_taskfile *tf)
 
 static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 {
+	pr_err("%s qc=%pS cursg=%pS\n", __func__, qc, qc->cursg);
 	qc->dma_dir = DMA_NONE;
 	qc->sg = NULL;
 	qc->flags = 0;
@@ -1790,12 +1792,11 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	qc->n_elem = 0;
 	qc->err_mask = 0;
 	qc->sect_size = ATA_SECT_SIZE;
-
 	ata_tf_init(qc->dev, &qc->tf);
-
 	/* init result_tf such that it indicates normal completion */
 	qc->result_tf.command = ATA_DRDY;
 	qc->result_tf.feature = 0;
+	pr_err("%s10 out qc=%pS cursg=%pS\n", __func__, qc, qc->cursg);
 }
 
 static inline int ata_try_flush_cache(const struct ata_device *dev)
