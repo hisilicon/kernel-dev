@@ -4931,8 +4931,10 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	return;
 
 sys_err:
+	pr_err("%s sys_err qc=%pS qc->err_mask=%d cmd=%pS rq=%pS error\n", __func__, qc, qc->err_mask, cmd, rq);
 	qc->err_mask |= AC_ERR_SYSTEM;
 err:
+	pr_err("%s err qc=%pS qc->err_mask=%d cmd=%pS rq=%pS error\n", __func__, qc, qc->err_mask, cmd, rq);
 	ata_qc_complete(qc);
 }
 

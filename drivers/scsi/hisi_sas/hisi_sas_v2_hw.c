@@ -2337,8 +2337,10 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	bool is_internal = slot->is_internal;
 	u32 dw0;
 
-	if (unlikely(!task || !task->lldd_task || !task->dev))
+	if (unlikely(!task || !task->lldd_task || !task->dev)){
+		panic("!task\n");
 		return;
+	}
 
 	ts = &task->task_status;
 	device = task->dev;
@@ -2406,6 +2408,7 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 				 error_info[2], error_info[3]);
 
 		if (unlikely(slot->abort)) {
+			panic("sas_task_abort\n");
 			sas_task_abort(task);
 			return;
 		}

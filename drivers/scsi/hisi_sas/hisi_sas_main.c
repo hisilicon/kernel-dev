@@ -108,6 +108,10 @@ void hisi_sas_sata_done(struct sas_task *task,
 			hisi_sas_status_buf_addr_mem(slot);
 	u8 *iu = &status_buf->iu[0];
 	struct dev_to_host_fis *d2h =  (struct dev_to_host_fis *)iu;
+	
+	print_hex_dump(KERN_INFO, "hisi_sas_sata_done d2h ",
+				  DUMP_PREFIX_NONE, 16, 1,
+				  d2h, sizeof(*d2h), 1);
 
 	resp->frame_len = sizeof(struct dev_to_host_fis);
 	memcpy(&resp->ending_fis[0], d2h, sizeof(struct dev_to_host_fis));
@@ -296,6 +300,7 @@ static int hisi_sas_dma_map(struct hisi_hba *hisi_hba,
 	int rc;
 
 	if (sas_protocol_ata(task->task_proto)) {
+		pr_err("%s sas_protocol_ata task->num_scatter=%d\n", __func__, task->num_scatter);
 		*n_elem = task->num_scatter;
 	} else {
 		unsigned int req_len;
