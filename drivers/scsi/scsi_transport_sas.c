@@ -1539,9 +1539,10 @@ int sas_rphy_add(struct sas_rphy *rphy)
 			lun = SCAN_WILD_CARD;
 		else
 			lun = 0;
-		pr_err("%s rphy->scsi_target_id=%d lun=%d\n", __func__, rphy->scsi_target_id, lun);
+		pr_err("%s rphy->scsi_target_id=%d lun=%d calling scsi_scan_target\n", __func__, rphy->scsi_target_id, lun);
 		scsi_scan_target(&rphy->dev, 0, rphy->scsi_target_id, lun,
 				 SCSI_SCAN_INITIAL);
+		pr_err("%s2 rphy->scsi_target_id=%d lun=%d called scsi_scan_target\n", __func__, rphy->scsi_target_id, lun);
 	}
 
 	return 0;

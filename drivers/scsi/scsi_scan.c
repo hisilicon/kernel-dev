@@ -651,6 +651,7 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 
 	*bflags = 0;
 
+	pr_err("%s sdev=%pS\n", __func__, sdev);
 	/* Perform up to 3 passes.  The first pass uses a conservative
 	 * transfer length of 36 unless sdev->inquiry_len specifies a
 	 * different value. */
@@ -1146,11 +1147,13 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	int res = SCSI_SCAN_NO_RESPONSE, result_len = 256;
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 
+	pr_err("%s starget=%pS\n", __func__, starget);
 	/*
 	 * The rescan flag is used as an optimization, the first scan of a
 	 * host adapter calls into here with rescan == 0.
 	 */
 	sdev = scsi_device_lookup_by_target(starget, lun);
+	pr_err("%s2 starget=%pS sdev=%pS\n", __func__, starget, sdev);
 	if (sdev) {
 		if (rescan != SCSI_SCAN_INITIAL || !scsi_device_created(sdev)) {
 			SCSI_LOG_SCAN_BUS(3, sdev_printk(KERN_INFO, sdev,
@@ -1170,6 +1173,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		scsi_device_put(sdev);
 	} else
 		sdev = scsi_alloc_sdev(starget, lun, hostdata);
+	pr_err("%s3 starget=%pS sdev=%pS\n", __func__, starget, sdev);
 	if (!sdev)
 		goto out;
 
@@ -1180,6 +1184,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	if (scsi_probe_lun(sdev, result, result_len, &bflags))
 		goto out_free_result;
 
+	pr_err("%s4 starget=%pS sdev=%pS\n", __func__, starget, sdev);
 	if (bflagsp)
 		*bflagsp = bflags;
 	/*
@@ -1270,6 +1275,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	} else
 		__scsi_remove_device(sdev);
  out:
+	pr_err("%s10out res=%d starget=%pS sdev=%pS\n", __func__, res, starget, sdev);
 	return res;
 }
 
@@ -1627,7 +1633,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 	blist_flags_t bflags = 0;
 	int res;
 	struct scsi_target *starget;
-
+	pr_err("%s id=%d lun=0x%llx\n", __func__, id, lun);
 	if (shost->this_id == id)
 		/*
 		 * Don't scan the host adapter
@@ -1635,6 +1641,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 		return;
 
 	starget = scsi_alloc_target(parent, channel, id);
+	pr_err("%s2 id=%d lun=0x%llx starget=%pS\n", __func__, id, lun, starget);
 	if (!starget)
 		return;
 	scsi_autopm_get_target(starget);
