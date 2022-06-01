@@ -3922,10 +3922,12 @@ static struct request_queue *blk_mq_init_queue_data(struct blk_mq_tag_set *set,
 	pr_err("%s set=%pS queuedata=%pS\n", __func__, set, queuedata);
 
 	q = blk_alloc_queue(set->numa_node, set->flags & BLK_MQ_F_BLOCKING);
+	pr_err("%s2 set=%pS queuedata=%pS q=%pS\n", __func__, set, queuedata, q);
 	if (!q)
 		return ERR_PTR(-ENOMEM);
 	q->queuedata = queuedata;
 	ret = blk_mq_init_allocated_queue(set, q);
+	pr_err("%s3 set=%pS queuedata=%pS q=%pS ret=%d\n", __func__, set, queuedata, q, ret);
 	if (ret) {
 		blk_cleanup_queue(q);
 		return ERR_PTR(ret);
@@ -4054,34 +4056,41 @@ int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	WARN_ON_ONCE(blk_queue_has_srcu(q) !=
 			!!(set->flags & BLK_MQ_F_BLOCKING));
 
+	pr_err("%s set=%pS q=%pS\n", __func__, set, q);
 	q->mq_ops = set->ops;
 
 	q->poll_cb = blk_stat_alloc_callback(blk_mq_poll_stats_fn,
 					     blk_mq_poll_stats_bkt,
 					     BLK_MQ_POLL_STATS_BKTS, q);
+	pr_err("%s2 set=%pS q=%pS\n", __func__, set, q);
 	if (!q->poll_cb)
 		goto err_exit;
 
+	pr_err("%s3 set=%pS q=%pS\n", __func__, set, q);
 	if (blk_mq_alloc_ctxs(q))
 		goto err_poll;
 
 	/* init q->mq_kobj and sw queues' kobjects */
 	blk_mq_sysfs_init(q);
 
+	pr_err("%s4 set=%pS q=%pS\n", __func__, set, q);
 	INIT_LIST_HEAD(&q->unused_hctx_list);
 	spin_lock_init(&q->unused_hctx_lock);
 
 	xa_init(&q->hctx_table);
 
+	pr_err("%s5 set=%pS q=%pS\n", __func__, set, q);
 	blk_mq_realloc_hw_ctxs(set, q);
 	if (!q->nr_hw_queues)
 		goto err_hctxs;
 
+	pr_err("%s6 set=%pS q=%pS\n", __func__, set, q);
 	INIT_WORK(&q->timeout_work, blk_mq_timeout_work);
 	blk_queue_rq_timeout(q, set->timeout ? set->timeout : 30 * HZ);
 
 	q->tag_set = set;
 
+	pr_err("%s7 set=%pS q=%pS\n", __func__, set, q);
 	q->queue_flags |= QUEUE_FLAG_MQ_DEFAULT;
 	blk_mq_update_poll_flag(q);
 
@@ -4089,6 +4098,7 @@ int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	INIT_LIST_HEAD(&q->requeue_list);
 	spin_lock_init(&q->requeue_lock);
 
+	pr_err("%s8 set=%pS q=%pS\n", __func__, set, q);
 	q->nr_requests = set->queue_depth;
 
 	/*
@@ -4096,19 +4106,26 @@ int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	 */
 	q->poll_nsec = BLK_MQ_POLL_CLASSIC;
 
+	pr_err("%s9 set=%pS q=%pS\n", __func__, set, q);
 	blk_mq_init_cpu_queues(q, set->nr_hw_queues);
+	pr_err("%s9.1 set=%pS q=%pS\n", __func__, set, q);
 	blk_mq_add_queue_tag_set(set, q);
+	pr_err("%s9.2 set=%pS q=%pS\n", __func__, set, q);
 	blk_mq_map_swqueue(q);
+	pr_err("%s10 out set=%pS q=%pS\n", __func__, set, q);
 	return 0;
 
 err_hctxs:
+	pr_err("%s err_hctxs set=%pS q=%pS\n", __func__, set, q);
 	xa_destroy(&q->hctx_table);
 	q->nr_hw_queues = 0;
 	blk_mq_sysfs_deinit(q);
 err_poll:
+	pr_err("%s err_poll set=%pS q=%pS\n", __func__, set, q);
 	blk_stat_free_callback(q->poll_cb);
 	q->poll_cb = NULL;
 err_exit:
+	pr_err("%s err_exit set=%pS q=%pS\n", __func__, set, q);
 	q->mq_ops = NULL;
 	return -ENOMEM;
 }
