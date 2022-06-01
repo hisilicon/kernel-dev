@@ -3628,16 +3628,17 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 		 * Set local node, IFF we have more than one hw queue. If
 		 * not, we remain on the home node of the device
 		 */
-		pr_err("%s3 set=%pS q=%pS nr_hw_queues=%d cpu%d set->nr_maps=%d\n", __func__, set, q, nr_hw_queues, i, set->nr_maps);
+	//	pr_err("%s3 set=%pS q=%pS nr_hw_queues=%d cpu%d set->nr_maps=%d\n", __func__, set, q, nr_hw_queues, i, set->nr_maps);
 		for (j = 0; j < set->nr_maps; j++) {
-			pr_err("%s4 set=%pS q=%pS nr_hw_queues=%d cpu%d set->nr_maps=%d j=%d\n", __func__, set, q, nr_hw_queues, i, set->nr_maps, j);
+	//		pr_err("%s4 set=%pS q=%pS nr_hw_queues=%d cpu%d set->nr_maps=%d j=%d\n", __func__, set, q, nr_hw_queues, i, set->nr_maps, j);
 			hctx = blk_mq_map_queue_type(q, j, i);
-			pr_err("%s5 set=%pS q=%pS nr_hw_queues=%d cpu%d set->nr_maps=%d j=%d hctx=%pS\n", 
-				__func__, set, q, nr_hw_queues, i, set->nr_maps, j, hctx);
+		//	pr_err("%s5 set=%pS q=%pS nr_hw_queues=%d cpu%d set->nr_maps=%d j=%d hctx=%pS\n", 
+		//		__func__, set, q, nr_hw_queues, i, set->nr_maps, j, hctx);
 			if (nr_hw_queues > 1 && hctx->numa_node == NUMA_NO_NODE)
 				hctx->numa_node = cpu_to_node(i);
 		}
 	}
+	pr_err("%s10 out set=%pS q=%pS nr_hw_queues=%d\n", __func__, set, q, nr_hw_queues);
 }
 
 struct blk_mq_tags *blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
@@ -3849,7 +3850,9 @@ static void blk_mq_del_queue_tag_set(struct request_queue *q)
 static void blk_mq_add_queue_tag_set(struct blk_mq_tag_set *set,
 				     struct request_queue *q)
 {
+	pr_err("%s getting tag_list_lock set=%pS q=%pS\n", __func__, set, q);
 	mutex_lock(&set->tag_list_lock);
+	pr_err("%s2 got tag_list_lock set=%pS q=%pS\n", __func__, set, q);
 
 	/*
 	 * Check to see if we're transitioning to shared (from 1 to 2 queues).
@@ -3858,10 +3861,14 @@ static void blk_mq_add_queue_tag_set(struct blk_mq_tag_set *set,
 	    !(set->flags & BLK_MQ_F_TAG_QUEUE_SHARED)) {
 		set->flags |= BLK_MQ_F_TAG_QUEUE_SHARED;
 		/* update existing queue */
+		pr_err("%s3 calling blk_mq_update_tag_set_shared set=%pS q=%pS\n", __func__, set, q);
 		blk_mq_update_tag_set_shared(set, true);
 	}
-	if (set->flags & BLK_MQ_F_TAG_QUEUE_SHARED)
+	pr_err("%s4 set=%pS q=%pS\n", __func__, set, q);
+	if (set->flags & BLK_MQ_F_TAG_QUEUE_SHARED){
+		pr_err("%s5 calling queue_set_hctx_shared set=%pS q=%pS\n", __func__, set, q);
 		queue_set_hctx_shared(q, true);
+	}
 	list_add_tail(&q->tag_set_list, &set->tag_list);
 
 	mutex_unlock(&set->tag_list_lock);
