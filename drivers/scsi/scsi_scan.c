@@ -332,7 +332,7 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 
 	sdev->sg_reserved_size = INT_MAX;
 
-	pr_err("%s2 starget=%pS hostdata=%pS calling blk_mq_init_queue\n", __func__, starget, hostdata);
+	pr_err("%s2 starget=%pS hostdata=%pS calling blk_mq_init_queue &sdev->host->tag_set=%pS\n", __func__, starget, hostdata, &sdev->host->tag_set);
 	q = blk_mq_init_queue(&sdev->host->tag_set);
 	if (IS_ERR(q)) {
 		/* release fn is set up in scsi_sysfs_device_initialise, so
