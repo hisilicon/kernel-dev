@@ -91,7 +91,7 @@ void sas_free_task(struct sas_task *task)
 	if (task) {
 		bool reserved = false;
 		struct request *rq = sas_rq_from_task(task);
-		if (rq->cmd_flags & RQF_RESV)
+		if (rq->rq_flags & RQF_RESV)
 			reserved = true;
 
 		kfree(task->slow_task);
