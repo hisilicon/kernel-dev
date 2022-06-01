@@ -163,7 +163,9 @@ void blk_mq_in_flight_rw(struct request_queue *q, struct block_device *part,
 void blk_freeze_queue_start(struct request_queue *q)
 {
 	mutex_lock(&q->mq_freeze_lock);
+	pr_err("%s q=%pS q->mq_freeze_depth=%d\n", __func__, q, q->mq_freeze_depth);
 	if (++q->mq_freeze_depth == 1) {
+		pr_err("%s2 q=%pS q->mq_freeze_depth=%d\n", __func__, q, q->mq_freeze_depth);
 		percpu_ref_kill(&q->q_usage_counter);
 		mutex_unlock(&q->mq_freeze_lock);
 		if (queue_is_mq(q))
@@ -171,12 +173,33 @@ void blk_freeze_queue_start(struct request_queue *q)
 	} else {
 		mutex_unlock(&q->mq_freeze_lock);
 	}
+	pr_err("%s10 out q=%pS q->mq_freeze_depth=%d\n", __func__,q, q->mq_freeze_depth);
 }
 EXPORT_SYMBOL_GPL(blk_freeze_queue_start);
 
+static unsigned long percpu_ref_read(struct percpu_ref *ref)
+{
+	//unsigned long __percpu *percpu_count;
+	unsigned long count;//, flags;
+
+	/* protect us from being destroyed */
+	//spin_lock_irqsave(&percpu_ref_switch_lock, flags);
+	if (ref->data)
+		count = atomic_long_read(&ref->data->count);
+	else
+		count = ref->percpu_count_ptr >> __PERCPU_REF_FLAG_BITS;
+	//spin_unlock_irqrestore(&percpu_ref_switch_lock, flags);
+
+	return count;
+}
+
 void blk_mq_freeze_queue_wait(struct request_queue *q)
 {
+	struct percpu_ref *q_usage_counter = &q->q_usage_counter;
+	unsigned long count = percpu_ref_read(q_usage_counter);
+	pr_err("%s q=%pS q_usage_counter=%ld\n", __func__, q, count);
 	wait_event(q->mq_freeze_wq, percpu_ref_is_zero(&q->q_usage_counter));
+	pr_err("%s finished waiting q=%pS\n", __func__, q);
 }
 EXPORT_SYMBOL_GPL(blk_mq_freeze_queue_wait);
 
