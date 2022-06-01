@@ -629,7 +629,7 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	unsigned long addr = (unsigned long) kbuf;
 	struct bio *bio;
 	int ret;
-	//pr_err("%s q=%pS rq=%pS kbuf=%pS len=%d\n", __func__, q, rq, kbuf, len);
+	pr_err("%s q=%pS rq=%pS kbuf=%pS len=%d reading=%d\n", __func__, q, rq, kbuf, len, reading);
 	if (len > (queue_max_hw_sectors(q) << 9)) {
 		pr_err("%s q=%pS rq=%pS kbuf=%pS len=%d error1\n", __func__, q, rq, kbuf, len);
 		return -EINVAL;
