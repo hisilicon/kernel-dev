@@ -1763,7 +1763,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	char string[200];
 
 	
-	mutex_lock(&global_mutex);
+	//mutex_lock(&global_mutex);
 	sprintf(string, "ata_exec_internal_sg buf before buf=%pS len=%d ", buf, buflen);
 	print_hex_dump(KERN_INFO, string,
 				  DUMP_PREFIX_NONE, 16, 1,
@@ -1776,7 +1776,8 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	print_hex_dump(KERN_INFO, string,
 				  DUMP_PREFIX_NONE, 16, 1,
 				  buf, buflen, 1);
-	mutex_unlock(&global_mutex);
+	//mutex_unlock(&global_mutex);
+	panic("%s just one for now\n", __func__);
 	return res;
 }
 
