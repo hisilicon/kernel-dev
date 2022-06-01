@@ -158,6 +158,36 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	return task;
 }
 
+int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
+{
+	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
+	struct request *rq = scsi_cmd_to_rq(cmnd);
+	struct scsi_device *sdev = cmnd->device;
+	//struct domain_device *dev = cmd_to_domain_dev(cmd);
+
+	pr_err("%s cmnd=%pS ATA_INTERNAL=%d cmnd->cmnd[0]=%d sdev=%pS host sdev=%pS\n",
+			__func__, cmnd, ATA_INTERNAL, cmnd->cmnd[0], sdev, shost->sdev);
+	if (cmnd->cmnd[0] == ATA_INTERNAL) {
+		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
+		struct ata_port *ap = qc ? qc->ap : NULL;
+		int res;
+		//pr_err("%s1 cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS\n",
+		//	__func__, cmnd, cmnd->host_scribble, qc, ap);
+		spin_lock_irq(ap->lock);
+		res = ata_sas_queuecmd(cmnd, ap);
+		spin_unlock_irq(ap->lock);
+		//pr_err("%s2 cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS res=%d\n",
+		//	__func__, cmnd, cmnd->host_scribble, qc, ap, res);
+		return res;
+
+	} else {
+		//pr_err("%s2 cmnd=%pS not-ATA INTERNAL host_scribble=%pS\n", __func__, cmnd, cmnd->host_scribble);
+	}
+
+	return i->dft->lldd_execute_task(sas_rq_to_task(rq), GFP_KERNEL);
+}
+
 int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 {
 	struct sas_internal *i = to_sas_internal(host->transportt);
