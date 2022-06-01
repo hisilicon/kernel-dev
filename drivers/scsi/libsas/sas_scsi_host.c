@@ -1077,7 +1077,10 @@ EXPORT_SYMBOL_GPL(sas_execute_internal_abort_dev);
 
 static u32 sas_task_to_rq_unique_tag(struct sas_task *task)
 {
-	return blk_mq_unique_tag(scsi_cmd_to_rq(task->uldd_task));
+	struct request *rq = sas_rq_from_task(task);
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	pr_err("%s rq=%pS task=%pS scmd=%pS\n", __func__, rq, task, scmd);
+	return blk_mq_unique_tag(rq);
 }
 
 unsigned int sas_task_to_unique_tag(struct sas_task *task)

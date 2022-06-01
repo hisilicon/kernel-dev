@@ -261,6 +261,7 @@ static int hisi_sas_dma_map(struct hisi_hba *hisi_hba,
 	int rc;
 
 	if (sas_protocol_ata(task->task_proto)) {
+		pr_err("%s sas_protocol_ata task->num_scatter=%d\n", __func__, task->num_scatter);
 		*n_elem = task->num_scatter;
 	} else {
 		unsigned int req_len;
