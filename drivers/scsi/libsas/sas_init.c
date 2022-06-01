@@ -98,7 +98,7 @@ void sas_free_task(struct sas_task *task)
 		pr_err("%s task=%pS reserved=%d rq->end_io=%pS\n", __func__, task, reserved, rq->end_io);
 
 		if (reserved)
-			blk_mq_end_request(rq, BLK_STS_OK);
+			blk_mq_free_request(rq);
 	}
 }
 EXPORT_SYMBOL_GPL(sas_free_task);
