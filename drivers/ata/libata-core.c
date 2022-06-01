@@ -4634,7 +4634,6 @@ EXPORT_SYMBOL_GPL(ata_noop_qc_prep);
 void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 		 unsigned int n_elem)
 {
-	pr_err("%s qc=%pS cursg=sg=%pS n_elem=%d\n", __func__, qc, sg, n_elem);
 	qc->sg = sg;
 	qc->n_elem = n_elem;
 	qc->cursg = qc->sg;
@@ -5026,11 +5025,10 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_link *link;
 	u8 prot = qc->tf.protocol;
 	struct scsi_cmnd *cmd = qc->scsicmd;
-	struct request *rq = NULL;
+	__maybe_unused struct request *rq = NULL;
 
 	if (cmd)
 		rq = scsi_cmd_to_rq(cmd);
-	pr_err("%s qc=%pS cmd=%pS rq=%pS cursg=%pS err_mask=%d\n", __func__, qc, cmd, rq, qc->cursg, qc->err_mask);
 	ap = qc->ap;
 
 	//pr_err("%s1 qc=%pS ap=%pS cmd=%pS rq=%pS\n", __func__, qc, ap, cmd, rq);

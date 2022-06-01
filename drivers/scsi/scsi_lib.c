@@ -1204,7 +1204,7 @@ static blk_status_t scsi_setup_scsi_cmnd(struct scsi_device *sdev,
 	 */
 	if (req->bio) {
 		blk_status_t ret;
-		pr_err("%s2 sdev=%pS req=%pS calling scsi_alloc_sgtables\n", __func__, sdev, req);
+		//pr_err("%s2 sdev=%pS req=%pS calling scsi_alloc_sgtables\n", __func__, sdev, req);
 		ret = scsi_alloc_sgtables(cmd);
 		if (unlikely(ret != BLK_STS_OK))
 			return ret;
@@ -1715,7 +1715,7 @@ static void scsi_mq_put_budget(struct request_queue *q, int budget_token)
 {
 	struct scsi_device *sdev = q->queuedata;
 
-	pr_err("%s put budget token=%d q=%pS\n", __func__, budget_token, q);
+	//pr_err("%s put budget token=%d q=%pS\n", __func__, budget_token, q);
 	sbitmap_put(&sdev->budget_map, budget_token);
 }
 
@@ -1943,7 +1943,7 @@ static enum blk_eh_timer_return scsi_timeout(struct request *req,
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
 
 	count_to++;
-	//if (count_to>5)
+	if (count_to>5)
 		panic("%s req=%pS scmd=%pS scmd->cmd[0]=%d internal=%d\n", __func__, req, scmd, scmd->cmnd[0], scsi_is_reserved_cmd(scmd));
 	WARN(1, "%s req=%pS \n", __func__, req);
 	if (reserved)
