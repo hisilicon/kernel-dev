@@ -619,7 +619,7 @@ struct sas_task {
 	void   (*task_done)(struct sas_task *);
 
 	void   *lldd_task;	  /* for use by LLDDs */
-	void   *uldd_task;
+	//void   *uldd_task;
 	struct sas_task_slow *slow_task;
 	struct sas_tmf_task *tmf;
 };
@@ -773,6 +773,12 @@ static inline struct request *sas_rq_from_task(void *task)
 	struct scsi_cmnd *scmd = task - sizeof(*scmd);
 
 	return blk_mq_rq_from_pdu(scmd);
+}
+static inline struct scsi_cmnd *sas_scmd_from_task(void *task)
+{
+	struct scsi_cmnd *scmd = task - sizeof(*scmd);
+
+	return scmd;
 }
 
 #endif /* _SASLIB_H_ */

@@ -72,7 +72,7 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 
 static void sas_ata_task_done(struct sas_task *task)
 {
-	struct scsi_cmnd *scmd = task->uldd_task;
+	struct scsi_cmnd *scmd = sas_scmd_from_task(task);
 	struct ata_queued_cmd *qc = TO_SAS_TASK(scmd);
 	struct domain_device *dev = task->dev;
 	struct task_status_struct *stat = &task->task_status;
@@ -206,7 +206,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		qc->tf.nsect = 0;
 
 	ata_tf_to_fis(&qc->tf, qc->dev->link->pmp, 1, (u8 *)&task->ata_task.fis);
-	task->uldd_task = qc->scsicmd;
+	//task->uldd_task = qc->scsicmd;
 	if (ata_is_atapi(qc->tf.protocol)) {
 		memcpy(task->ata_task.atapi_packet, qc->cdb, qc->dev->cdb_len);
 		task->total_xfer_len = qc->nbytes;
@@ -491,7 +491,7 @@ static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 		qc->lldd_task = NULL;
 		if (!task)
 			return;
-		task->uldd_task = NULL;
+		//task->uldd_task = NULL;
 		sas_ata_internal_abort(task);
 	}
 }
@@ -619,7 +619,7 @@ free_host:
 
 void sas_ata_task_abort(struct sas_task *task)
 {
-	struct scsi_cmnd *scmd = task->uldd_task;
+	struct scsi_cmnd *scmd = sas_scmd_from_task(task);
 	struct ata_queued_cmd *qc = TO_SAS_TASK(scmd);
 	struct completion *waiting;
 

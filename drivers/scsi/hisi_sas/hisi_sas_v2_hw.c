@@ -2494,6 +2494,7 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
 	struct sas_ata_task *ata_task = &task->ata_task;
 	struct sas_tmf_task *tmf = slot->tmf;
+	struct scsi_cmnd *scmd = sas_scmd_from_task(task);
 	u8 *buf_cmd;
 	int has_data = 0, hdr_tag = 0;
 	u32 dw0, dw1 = 0, dw2 = 0;
@@ -2510,7 +2511,7 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 		dw0 |= CMD_HDR_FORCE_PHY_MSK;
 		dw0 |= (1 << ata_task->force_phy_id) << CMD_HDR_PHY_ID_OFF;
 	}
-	pr_err("%s task=%pS lldd_task=%pS uldd_task=%pS\n", __func__, task, task->lldd_task, task->uldd_task);
+	pr_err("%s task=%pS lldd_task=%pS scmd=%pS\n", __func__, task, task->lldd_task, scmd);
 	hdr->dw0 = cpu_to_le32(dw0);
 
 	/* dw1 */
@@ -2539,9 +2540,8 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 
 	/* dw2 */
 	if (task->ata_task.use_ncq) {
-		struct scsi_cmnd *scmd = task->uldd_task;
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)scmd->host_scribble;
-		pr_err("%s2 task=%pS lldd_task=%pS uldd_task=%pS qc=%pS\n", __func__, task, task->lldd_task, task->uldd_task, qc);
+		pr_err("%s2 task=%pS lldd_task=%pS qc=%pS\n", __func__, task, task->lldd_task, qc);
 
 		hdr_tag = qc->tag;
 		task->ata_task.fis.sector_count |= (u8) (hdr_tag << 3);

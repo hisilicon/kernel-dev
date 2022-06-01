@@ -98,7 +98,7 @@ static void sas_end_task(struct scsi_cmnd *sc, struct sas_task *task)
 
 static void sas_scsi_task_done(struct sas_task *task)
 {
-	struct scsi_cmnd *sc = task->uldd_task;
+	struct scsi_cmnd *sc = sas_scmd_from_task(task);
 	struct domain_device *dev = task->dev;
 	struct sas_ha_struct *ha = dev->port->ha;
 	unsigned long flags;
@@ -136,7 +136,7 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	if (!task)
 		return NULL;
 
-	task->uldd_task = cmd;
+//	task->uldd_task = cmd;
 	ASSIGN_SAS_TASK(cmd, task);
 
 	task->dev = dev;
@@ -1007,7 +1007,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
 		ASSIGN_SAS_TASK(scmd, task);
 
-		task->uldd_task = scmd;
+		//task->uldd_task = scmd;
 
 		rq->timeout = TASK_TIMEOUT;
 
@@ -1130,7 +1130,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
 		ASSIGN_SAS_TASK(scmd, task);
 
-		task->uldd_task = scmd;
+		//task->uldd_task = scmd;
 
 		if (dev_is_sata(device)) {
 			task->ata_task.device_control_reg_update = 1;
@@ -1278,7 +1278,7 @@ int sas_query_task(struct sas_task *task, u16 tag)
 		.tmf = TMF_QUERY_TASK,
 		.tag_of_task_to_be_managed = tag,
 	};
-	struct scsi_cmnd *cmnd = task->uldd_task;
+	struct scsi_cmnd *cmnd = sas_scmd_from_task(task);
 	struct domain_device *dev = task->dev;
 	struct scsi_lun lun;
 
@@ -1294,7 +1294,7 @@ int sas_abort_task(struct sas_task *task, u16 tag)
 		.tmf = TMF_ABORT_TASK,
 		.tag_of_task_to_be_managed = tag,
 	};
-	struct scsi_cmnd *cmnd = task->uldd_task;
+	struct scsi_cmnd *cmnd = sas_scmd_from_task(task);
 	struct domain_device *dev = task->dev;
 	struct scsi_lun lun;
 
@@ -1310,7 +1310,7 @@ EXPORT_SYMBOL_GPL(sas_abort_task);
  */
 void sas_task_abort(struct sas_task *task)
 {
-	struct scsi_cmnd *sc = task->uldd_task;
+	struct scsi_cmnd *sc = sas_scmd_from_task(task);
 
 	/* Escape for libsas internal commands */
 	if (!sc) {

@@ -66,7 +66,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		ASSIGN_SAS_TASK(scmd, task);
 
 		task->dev = dev;
-		task->uldd_task = scmd;
+		//task->uldd_task = scmd;
 		task->task_proto = dev->tproto;
 		task->smp_task.smp_req = *req;
 		task->smp_task.smp_resp = *resp;
