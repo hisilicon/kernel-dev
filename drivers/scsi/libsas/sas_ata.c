@@ -83,8 +83,6 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct ata_link *link;
 	struct ata_port *ap;
 
-	pr_err("%s qc=%pS scmd=%pS task=%pS\n", __func__, qc, scmd, task);
-
 	spin_lock_irqsave(&dev->done_lock, flags);
 	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))
 		task = NULL;
@@ -173,8 +171,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
 	struct scsi_cmnd *scmd;
-	
-	pr_err("%s qc=%pS dev=%pS\n", __func__, qc, dev);
+
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
 
@@ -186,7 +183,6 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	}
 
 	scmd = qc->scsicmd;
-	pr_err("%s2 qc=%pS scmd=%pS\n", __func__, qc, scmd);
 
 	if (scmd) {
 		task = sas_alloc_task(GFP_ATOMIC, scmd);
@@ -398,7 +394,6 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 	int (*check_ready)(struct ata_link *link);
 	struct domain_device *dev = ap->private_data;
 	struct sas_internal *i = dev_to_sas_internal(dev);
-	pr_err("%s link=%pS\n", __func__, link);
 	res = i->dft->lldd_I_T_nexus_reset(dev);
 	if (res)
 		pr_err("%s2 link=%pS res=%d\n", __func__, link, res);
@@ -577,7 +572,6 @@ int sas_ata_init(struct domain_device *found_dev)
 	struct ata_host *ata_host;
 	struct ata_port *ap;
 	int rc;
-	pr_err("%s found_dev=%pS\n", __func__, found_dev);
 	ata_host = kzalloc(sizeof(*ata_host), GFP_KERNEL);
 	if (!ata_host)	{
 		pr_err("ata host alloc failed.\n");
@@ -593,7 +587,6 @@ int sas_ata_init(struct domain_device *found_dev)
 		goto free_host;
 	}
 
-	pr_err("%s2 found_dev=%pS ap=%pS\n", __func__, found_dev, ap);
 	ap->private_data = found_dev;
 	ap->cbl = ATA_CBL_SATA;
 	ap->scsi_host = shost;
@@ -654,13 +647,11 @@ static int sas_get_ata_command_set(struct domain_device *dev)
 void sas_probe_sata(struct asd_sas_port *port)
 {
 	struct domain_device *dev, *n;
-	pr_err("%s port=%pS\n", __func__, port);
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->disco_list, disco_list_node) {
 		if (!dev_is_sata(dev))
 			continue;
 
-		pr_err("%s2 port=%pS dev=%pS dev->sata_dev.ap=%pS\n", __func__, port, dev, dev->sata_dev.ap);
 		ata_sas_async_probe(dev->sata_dev.ap);
 	}
 	mutex_unlock(&port->ha->disco_mutex);
@@ -889,7 +880,6 @@ void sas_ata_wait_eh(struct domain_device *dev)
 int sas_execute_ata_cmd(struct domain_device *device, u8 *fis, int force_phy_id)
 {
 	struct sas_tmf_task tmf_task = {};
-	pr_err("%s device=%pS\n", __func__, device);
 	return sas_execute_tmf(device, fis, sizeof(struct host_to_dev_fis),
 			       force_phy_id, &tmf_task);
 }

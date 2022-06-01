@@ -4658,7 +4658,7 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 	int dir = qc->dma_dir;
 
 	WARN_ON_ONCE(sg == NULL);
-	pr_err("%s qc=%pS qc->n_elem=%d\n", __func__, qc, qc->n_elem);
+
 	if (qc->n_elem)
 		dma_unmap_sg(ap->dev, sg, qc->orig_n_elem, dir);
 
@@ -4683,7 +4683,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	unsigned int n_elem;
-	pr_err("%s qc=%pS\n", __func__, qc);
+
 	n_elem = dma_map_sg(ap->dev, qc->sg, qc->n_elem, qc->dma_dir);
 	if (n_elem < 1)
 		return -1;
@@ -4797,7 +4797,6 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 	if (scmd)
 		rq = scsi_cmd_to_rq(scmd);
 
-	pr_err("%s qc=%pS scmd=%pS rq=%pS qc->complete_fn=%pS\n", __func__, qc, scmd, rq, qc->complete_fn);
 	WARN_ON_ONCE(qc == NULL); /* ata_qc_from_tag _might_ return NULL */
 	WARN_ON_ONCE(!(qc->flags & ATA_QCFLAG_ACTIVE));
 	ap = qc->ap;

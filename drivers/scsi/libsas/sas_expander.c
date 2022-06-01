@@ -74,7 +74,6 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 		rq->timeout = SMP_TIMEOUT*HZ;
 		blk_execute_rq_nowait(rq, true, sas_blk_end_sync_rq);
-		pr_err("%s3 task=%pS rq=%pS scmd=%pS wait for completion\n", __func__, task, rq, scmd);
 		wait_for_completion(&task->slow_task->completion);
 	//	pr_err("%s4 task=%pS rq=%pS scmd=%pS got completion\n", __func__, task, rq, scmd);
 		
