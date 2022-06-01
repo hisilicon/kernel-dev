@@ -2560,12 +2560,20 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	hdr->cmd_table_addr = cpu_to_le64(hisi_sas_cmd_hdr_addr_dma(slot));
 	hdr->sts_buffer_addr = cpu_to_le64(hisi_sas_status_buf_addr_dma(slot));
 
+	print_hex_dump(KERN_INFO, "prep_ata_v2_hw hdr ",
+				  DUMP_PREFIX_NONE, 16, 1,
+				  hdr, sizeof(*hdr), 1);
+
 	buf_cmd = hisi_sas_cmd_hdr_addr_mem(slot);
 
 	if (likely(!task->ata_task.device_control_reg_update))
 		task->ata_task.fis.flags |= 0x80; /* C=1: update ATA cmd reg */
 	/* fill in command FIS */
 	memcpy(buf_cmd, &task->ata_task.fis, sizeof(struct host_to_dev_fis));
+
+	print_hex_dump(KERN_INFO, "prep_ata_v2_hw buf_cmd ",
+				  DUMP_PREFIX_NONE, 16, 1,
+				  buf_cmd, sizeof(struct host_to_dev_fis), 1);
 }
 
 static void hisi_sas_internal_abort_quirk_timeout(struct timer_list *t)
