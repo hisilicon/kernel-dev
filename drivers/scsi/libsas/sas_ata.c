@@ -174,13 +174,13 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct sas_internal *i = to_sas_internal(host->transportt);
 	struct scsi_cmnd *scmd;
 	
-
+	pr_err("%s qc=%pS dev=%pS\n", __func__, qc, dev);
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
 
 	/* If the device fell off, no sense in issuing commands */
 	if (test_bit(SAS_DEV_GONE, &dev->state)) {
-		pr_err("%s qc=%pS dev=%pS ap=%pS\n", __func__, qc, dev, ap);
+		pr_err("%s  SAS_DEV_GONE qc=%pS dev=%pS ap=%pS\n", __func__, qc, dev, ap);
 		panic("%s SAS_DEV_GONE\n", __func__);
 		goto out;
 	}
@@ -212,7 +212,11 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		task->total_xfer_len = qc->nbytes;
 		task->num_scatter = qc->n_elem;
 		task->data_dir = qc->dma_dir;
+		pr_err("%s error ATAPI qc=%pS dev=%pS\n", __func__, qc, dev);
+		panic("%s\n", __func__);
 	} else if (!ata_is_data(qc->tf.protocol)) {
+		pr_err("%s error DMA_NONE qc=%pS dev=%pS\n", __func__, qc, dev);
+		//panic("%s\n", __func__);
 		task->data_dir = DMA_NONE;
 	} else {
 		for_each_sg(qc->sg, sg, qc->n_elem, si)
@@ -235,6 +239,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	//pr_err("%s3 qc=%pS scmd=%pS ret=%d\n", __func__, qc, scmd, ret);
 	if (ret) {
 		pr_err("lldd_execute_task returned: %d\n", ret);
+		panic("%s\n", __func__);
 
 		if (qc->scsicmd)
 			ASSIGN_SAS_TASK(qc->scsicmd, NULL);
@@ -244,8 +249,10 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	}
 
  out:
- 	if (ret)
+ 	if (ret){
 		pr_err("%s10 out qc=%pS scmd=%pS ret=%d\n", __func__, qc, scmd, ret);
+		panic("%s\n", __func__);
+ 	}
 	spin_lock(ap->lock);
 	return ret;
 }
