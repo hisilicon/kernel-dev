@@ -95,7 +95,7 @@ void sas_free_task(struct sas_task *task)
 			reserved = true;
 
 		kfree(task->slow_task);
-		pr_err("%s task=%pS reserved=%d\n", __func__, task, reserved);
+		pr_err("%s task=%pS reserved=%d rq->end_io=%pS\n", __func__, task, reserved, rq->end_io);
 
 		if (reserved)
 			blk_mq_end_request(rq, BLK_STS_OK);

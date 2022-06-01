@@ -1693,7 +1693,7 @@ static void scsi_done_internal(struct scsi_cmnd *cmd, bool complete_directly)
 	case SUBMITTED_BY_SCSI_RESET_IOCTL:
 		return;
 	case SUBMITTED_BY_SCSI_CUSTOM_OPS:
-		return;
+		break;
 	}
 
 	//pr_err("%s2 cmd=%pS req=%pS\n", __func__, cmd, req);
