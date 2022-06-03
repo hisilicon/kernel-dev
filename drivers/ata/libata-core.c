@@ -5974,7 +5974,7 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 	/* in order to keep device order, we need to synchronize at this point */
 	async_synchronize_cookie(cookie);
 
-	//pr_err("%s5 ap=%pS calling ata_scsi_scan_host\n", __func__, ap);
+	pr_err("%s5 ap=%pS calling ata_scsi_scan_host\n", __func__, ap);
 	ata_scsi_scan_host(ap, 1);
 	//pr_err("%s10 out ap=%pS \n", __func__, ap);
 }

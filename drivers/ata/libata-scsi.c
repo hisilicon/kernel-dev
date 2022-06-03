@@ -4343,8 +4343,11 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 	struct ata_link *link;
 	struct ata_device *dev;
 
+	pr_err("%s ap=%pS\n", __func__, ap);
+
  repeat:
 	ata_for_each_link(link, ap, EDGE) {
+		pr_err("%s1 ap=%pS link=%pS\n", __func__, ap, link);
 		ata_for_each_dev(dev, link, ENABLED) {
 			struct scsi_device *sdev;
 			int channel = 0, id = 0;
@@ -4356,6 +4359,9 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 				id = dev->devno;
 			else
 				channel = link->pmp;
+
+			pr_err("%s3 ap=%pS link=%pS dev=%pS id=%d channel=%d ata_is_host_link=%d\n", 
+				__func__, ap, link, dev, id, channel, ata_is_host_link(link));
 
 			sdev = __scsi_add_device(ap->scsi_host, channel, id, 0,
 						 NULL);
