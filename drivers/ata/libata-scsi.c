@@ -1037,6 +1037,7 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 	if (!ata_id_has_unload(dev->id))
 		dev->flags |= ATA_DFLAG_NO_UNLOAD;
 
+	WARN_ON_ONCE(1);
 	/* configure max sectors */
 	blk_queue_max_hw_sectors(q, dev->max_sectors);
 
@@ -1127,7 +1128,7 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 	int rc = 0;
 
 	ata_scsi_sdev_config(sdev);
-
+	pr_err("%s sdev=%pS ap=%pS dev=%pS\n", __func__, sdev, ap, dev);
 	if (dev)
 		rc = ata_scsi_dev_config(sdev, dev);
 

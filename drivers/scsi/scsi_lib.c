@@ -1457,7 +1457,7 @@ static void scsi_complete(struct request *rq)
 	
 	if (internal) {
 		struct scsi_device *sdev = cmd->device;
-		pr_err("%s cmd=%pS internal=%d rq=%pS end_io=%pS calling __blk_mq_end_request\n", __func__, cmd, internal, rq, rq->end_io);
+		//pr_err("%s cmd=%pS internal=%d rq=%pS end_io=%pS calling __blk_mq_end_request\n", __func__, cmd, internal, rq, rq->end_io);
 		//blk_mq_end_request(rq, 0);
 		scsi_mq_uninit_cmd(cmd);
 		scsi_device_unbusy(sdev, cmd);
@@ -1671,8 +1671,8 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 static void scsi_done_internal(struct scsi_cmnd *cmd, bool complete_directly)
 {
 	struct request *req = scsi_cmd_to_rq(cmd);
-	if (scsi_is_reserved_cmd(cmd))
-		pr_err("%s cmd=%pS complete_directly=%d cmd->submitter=%d req=%pS\n", __func__, cmd, complete_directly, cmd->submitter, req);
+	//if (scsi_is_reserved_cmd(cmd))
+	//	pr_err("%s cmd=%pS complete_directly=%d cmd->submitter=%d req=%pS\n", __func__, cmd, complete_directly, cmd->submitter, req);
 	switch (cmd->submitter) {
 	case SUBMITTED_BY_BLOCK_LAYER:
 	case SUBMITTED_BY_LIBATA_INTERNAL:
