@@ -609,7 +609,8 @@ static void __blk_mq_free_request(struct request *rq)
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 	const int sched_tag = rq->internal_tag;
-	//pr_err("%s rq=%pS\n", __func__, rq);
+	if (blk_mq_is_reserved_rq(rq))
+		pr_err("%s rq=%pS\n", __func__, rq);
 	blk_crypto_free_request(rq);
 	blk_pm_mark_last_busy(rq);
 	rq->mq_hctx = NULL;
@@ -625,7 +626,9 @@ void blk_mq_free_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
-	//pr_err("%s rq=%pS rq->end_io=%pS\n", __func__, rq, rq->end_io);
+
+	if (blk_mq_is_reserved_rq(rq))
+		pr_err("%s rq=%pS rq->end_io=%pS\n", __func__, rq, rq->end_io);
 	if ((rq->rq_flags & RQF_ELVPRIV) &&
 	    q->elevator->type->ops.finish_request)
 		q->elevator->type->ops.finish_request(rq);
@@ -932,7 +935,8 @@ static inline void __blk_mq_end_request_acct(struct request *rq, u64 now)
 
 inline void __blk_mq_end_request(struct request *rq, blk_status_t error)
 {
-	//pr_err("%s rq=%pS rq->end_io=%pS end_io_data=%pS error=%d\n", __func__, rq, rq->end_io, rq->end_io_data, error);
+	if (blk_mq_is_reserved_rq(rq))
+		pr_err("%s rq=%pS rq->end_io=%pS end_io_data=%pS error=%d\n", __func__, rq, rq->end_io, rq->end_io_data, error);
 	if (blk_mq_need_time_stamp(rq))
 		__blk_mq_end_request_acct(rq, ktime_get_ns());
 
@@ -947,7 +951,9 @@ EXPORT_SYMBOL(__blk_mq_end_request);
 
 void blk_mq_end_request(struct request *rq, blk_status_t error)
 {
-	//pr_err("%s rq=%pS\n", __func__, rq);
+	//pr_err("%s rq=%pS\n", __func__, rq);	
+	if (blk_mq_is_reserved_rq(rq))
+		pr_err("%s rq=%pS\n", __func__, rq);
 	if (blk_update_request(rq, error, blk_rq_bytes(rq)))
 		BUG();
 	__blk_mq_end_request(rq, error);
