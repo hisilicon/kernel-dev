@@ -1519,8 +1519,9 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	
 	//scsi_cmd[0] = ATA_INTERNAL;
 
-	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS\n",
-		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host);
+	sdev = ap->sdev_internal;
+	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS sdev=%pS\n",
+		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, sdev);
 
 //	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf initial ",
 //			DUMP_PREFIX_NONE, 16, 1,
@@ -1531,7 +1532,6 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	u8 cdb[ATAPI_CDB_LEN];
 	*/
 
-	sdev = scsi_host->sdev;
 	//pr_err("%s0 sdev=%pS ap=%pS sizeof(struct ata_taskfile)=%zu ATAPI_CDB_LEN=%d\n",
 	//	__func__, sdev, ap, sizeof(struct ata_taskfile), ATAPI_CDB_LEN);
 
