@@ -82,6 +82,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	unsigned long flags;
 	struct ata_link *link;
 	struct ata_port *ap;
+	struct request *rq = scsi_cmd_to_rq(scmd);
 
 	spin_lock_irqsave(&dev->done_lock, flags);
 	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))
@@ -89,6 +90,9 @@ static void sas_ata_task_done(struct sas_task *task)
 	else if (qc && qc->scsicmd)
 		ASSIGN_SAS_TASK(qc->scsicmd, NULL);
 	spin_unlock_irqrestore(&dev->done_lock, flags);
+
+	if (scsi_is_reserved_cmd(scmd))
+		pr_err("%s task=%pS scmd=%pS rq=%pS\n", __func__, task, scmd, rq);
 
 	/* check if libsas-eh got to the task before us */
 	if (unlikely(!task)){
@@ -151,11 +155,17 @@ static void sas_ata_task_done(struct sas_task *task)
 	}
 
 	qc->lldd_task = NULL;
+	if (scsi_is_reserved_cmd(scmd))
+		pr_err("%s9 task=%pS scmd=%pS rq=%pS calling ata_qc_complete\n", __func__, task, scmd, rq);
+
 	ata_qc_complete(qc);
 	spin_unlock_irqrestore(ap->lock, flags);
 
 qc_already_gone:
-	sas_free_task(task);
+	if (scsi_is_reserved_cmd(scmd))
+		pr_err("%s9.1 task=%pS scmd=%pS rq=%pS qc_already_gone calling sas_free_task with NULL\n", __func__, task, scmd, rq);
+	// we leak slow->task while passing NULL here
+	sas_free_task(NULL);
 }
 
 static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
@@ -171,6 +181,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
 	struct scsi_cmnd *scmd;
+	struct request *rq;
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
@@ -190,6 +201,9 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		panic("%s should not need to alloc a slow task qc=%pS\n", __func__, qc);
 		task = sas_alloc_slow_task(sas_ha, GFP_ATOMIC);
 	}
+	rq = scsi_cmd_to_rq(scmd);
+	if (scsi_is_reserved_cmd(scmd))
+		pr_err("%s1 task=%pS scmd=%pS rq=%pS\n", __func__, task, scmd, rq);
 
 	if (!task)
 		goto out;
