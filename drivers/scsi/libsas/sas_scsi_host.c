@@ -174,6 +174,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 		int res;
 		//pr_err("%s1 cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS\n",
 		//	__func__, cmnd, cmnd->host_scribble, qc, ap);
+		cmnd->submitter = SUBMITTED_BY_LIBATA_INTERNAL;
 		spin_lock_irq(ap->lock);
 		res = ata_sas_queuecmd(cmnd, ap);
 		spin_unlock_irq(ap->lock);
@@ -186,6 +187,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 		//pr_err("%s2 cmnd=%pS not-ATA INTERNAL host_scribble=%pS\n", __func__, cmnd, cmnd->host_scribble);
 	}
 
+	cmnd->submitter = SUBMITTED_BY_SCSI_RESV;
 	return i->dft->lldd_execute_task(sas_rq_to_task(rq), GFP_KERNEL);
 }
 
@@ -1007,7 +1009,6 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		rq = sas_rq_from_task(task);
 
 		scmd = blk_mq_rq_to_pdu(rq);
-		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
 		ASSIGN_SAS_TASK(scmd, task);
 
 		//task->uldd_task = scmd;
@@ -1129,7 +1130,6 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		rq = sas_rq_from_task(task);
 
 		scmd = blk_mq_rq_to_pdu(rq);
-		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
 		ASSIGN_SAS_TASK(scmd, task);
 
 		//task->uldd_task = scmd;

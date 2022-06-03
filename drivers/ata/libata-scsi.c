@@ -4022,7 +4022,7 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 	u8 scsi_op = scmd->cmnd[0];
 	ata_xlat_func_t xlat_func;
 	static int count_internal;
-	if (scsi_op == ATA_INTERNAL)
+	if (scsi_is_reserved_cmd(scmd))
 		pr_err("%s scmd=%pS dev=%pS ATA_INTERNAL rq=%pS\n", __func__, scmd, dev, scsi_cmd_to_rq(scmd));
 	if (unlikely(!scmd->cmd_len))
 		goto bad_cdb_len;

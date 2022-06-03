@@ -1675,13 +1675,13 @@ static void scsi_done_internal(struct scsi_cmnd *cmd, bool complete_directly)
 		pr_err("%s cmd=%pS complete_directly=%d cmd->submitter=%d req=%pS\n", __func__, cmd, complete_directly, cmd->submitter, req);
 	switch (cmd->submitter) {
 	case SUBMITTED_BY_BLOCK_LAYER:
+	case SUBMITTED_BY_LIBATA_INTERNAL:
+	case SUBMITTED_BY_SCSI_RESV:
 		break;
 	case SUBMITTED_BY_SCSI_ERROR_HANDLER:
 		return scsi_eh_done(cmd);
 	case SUBMITTED_BY_SCSI_RESET_IOCTL:
 		return;
-	case SUBMITTED_BY_SCSI_CUSTOM_OPS:
-		break;
 	}
 
 	//pr_err("%s2 cmd=%pS req=%pS\n", __func__, cmd, req);

@@ -62,7 +62,6 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 		scmd = blk_mq_rq_to_pdu(rq);
 		//pr_err("%s2 task=%pS rq=%pS scmd=%pS\n", __func__, task, rq, scmd);
-		scmd->submitter = SUBMITTED_BY_SCSI_CUSTOM_OPS;
 		ASSIGN_SAS_TASK(scmd, task);
 
 		task->dev = dev;
