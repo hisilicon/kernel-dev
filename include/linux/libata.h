@@ -867,6 +867,7 @@ struct ata_port {
 	u64 preempted_qc_active;
 	int preempted_nr_active_links;
 
+	struct scsi_device *sdev_internal;
 
 	/* owned by EH */
 	u8			sector_buf[ATA_SECT_SIZE] ____cacheline_aligned;

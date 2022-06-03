@@ -4277,6 +4277,8 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		shost->eh_noresume = 1;
 		*(struct ata_port **)&shost->hostdata[0] = ap;
 		ap->scsi_host = shost;
+		pr_err("%s host=%pS sht=%pS shost=%pS\n", __func__, host, sht, shost);
+		
 
 		shost->transportt = ata_scsi_transport_template;
 		shost->unique_id = ap->print_id;
@@ -4295,6 +4297,8 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		rc = scsi_add_host_with_dma(shost, &ap->tdev, ap->host->dev);
 		if (rc)
 			goto err_alloc;
+		ap->sdev_internal = scsi_get_host_dev(shost);
+		pr_err("%s 2host=%pS sht=%pS shost=%pS sdev_internal=%pS\n", __func__, host, sht, shost, ap->sdev_internal);
 	}
 
 	return 0;

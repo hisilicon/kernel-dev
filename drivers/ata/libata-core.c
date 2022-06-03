@@ -5545,6 +5545,7 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	struct ata_port *ap;
 
 	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
+	pr_err("%s ap=%pS host=%pS\n", __func__, ap, host);
 	if (!ap)
 		return NULL;
 
