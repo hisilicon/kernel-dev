@@ -168,7 +168,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 
 	//pr_err("%s cmnd=%pS ATA_INTERNAL=%d cmnd->cmnd[0]=%d sdev=%pS host sdev=%pS host_scribble=%pS\n",
 		//	__func__, cmnd, ATA_INTERNAL, cmnd->cmnd[0], sdev, shost->sdev, cmnd->host_scribble);
-	if (cmnd->cmnd[0] == ATA_INTERNAL) {
+	if (cmnd->cmnd[0] == ATA_16) {
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
 		struct ata_port *ap = qc ? qc->ap : NULL;
 		int res;

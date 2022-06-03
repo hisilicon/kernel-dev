@@ -1561,7 +1561,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	req->rq_flags |= RQF_QUIET;
 	scmd->device = sdev;
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
-	scmd->cmnd[0] = ATA_INTERNAL;
+	scmd->cmnd[0] = ATA_16;
 
 	scmd->host_scribble = (unsigned char *)qc;
 	//pr_err("%s1.2 sdev=%pS ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS ap=%pS host_scribble=qc=%pS qc=%pS\n",
