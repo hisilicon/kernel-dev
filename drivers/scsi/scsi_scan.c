@@ -1568,6 +1568,8 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	struct device *parent = &shost->shost_gendev;
 	struct scsi_target *starget;
 
+	pr_err("%s shost=%pS channel=%d id=%d lun=%lld\n", __func__, shost, channel, id, lun);
+	
 	if (strncmp(scsi_scan_type, "none", 4) == 0)
 		return ERR_PTR(-ENODEV);
 
@@ -1600,8 +1602,11 @@ EXPORT_SYMBOL(__scsi_add_device);
 int scsi_add_device(struct Scsi_Host *host, uint channel,
 		    uint target, u64 lun)
 {
-	struct scsi_device *sdev = 
-		__scsi_add_device(host, channel, target, lun, NULL);
+	struct scsi_device *sdev;
+
+	pr_err("%s shost=%pS channel=%d target=%d lun=%lld\n", __func__, host, channel, target, lun);
+
+	sdev = __scsi_add_device(host, channel, target, lun, NULL);
 	if (IS_ERR(sdev))
 		return PTR_ERR(sdev);
 

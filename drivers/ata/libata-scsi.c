@@ -4298,7 +4298,8 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		if (rc)
 			goto err_alloc;
 		ap->sdev_internal = scsi_get_host_dev(shost);
-		pr_err("%s 2host=%pS sht=%pS shost=%pS sdev_internal=%pS\n", __func__, host, sht, shost, ap->sdev_internal);
+		pr_err("%s1 host=%pS sht=%pS shost=%pS sdev_internal=%pS\n", __func__, host, sht, shost, ap->sdev_internal);
+		pr_err("%s3 host=%pS sht=%pS shost=%pS scsi_get_host_dev=%pS\n", __func__, host, sht, shost, scsi_get_host_dev(shost));
 	}
 
 	return 0;
