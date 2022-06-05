@@ -4268,6 +4268,8 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 		struct Scsi_Host *shost;
+		struct ata_link *link;
+		struct ata_device *dev;
 
 		rc = -ENOMEM;
 		shost = scsi_host_alloc(sht, sizeof(struct ata_port *));
@@ -4297,9 +4299,15 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		rc = scsi_add_host_with_dma(shost, &ap->tdev, ap->host->dev);
 		if (rc)
 			goto err_alloc;
-		ap->sdev_internal = scsi_get_host_dev(shost);
-		pr_err("%s1 host=%pS sht=%pS shost=%pS sdev_internal=%pS\n", __func__, host, sht, shost, ap->sdev_internal);
-		pr_err("%s3 host=%pS sht=%pS shost=%pS scsi_get_host_dev=%pS\n", __func__, host, sht, shost, scsi_get_host_dev(shost));
+		ata_for_each_link(link, ap, EDGE) {
+			pr_err("%s1 ap=%pS link=%pS\n", __func__, ap, link);
+			ata_for_each_dev(dev, link, ALL) {
+				pr_err("%s2 host=%pS ap=%pS link=%pS dev=%pS\n", __func__, host, ap, link, dev);
+			}
+		}
+		//ap->sdev_internal = scsi_get_host_dev(shost);
+		//pr_err("%s1 host=%pS sht=%pS shost=%pS sdev_internal=%pS\n", __func__, host, sht, shost, ap->sdev_internal);
+		//pr_err("%s3 host=%pS sht=%pS shost=%pS scsi_get_host_dev=%pS\n", __func__, host, sht, shost, scsi_get_host_dev(shost));
 	}
 
 	return 0;
@@ -4341,6 +4349,29 @@ static void ata_scsi_assign_ofnode(struct ata_device *dev, struct ata_port *ap)
 {
 }
 #endif
+
+struct scsi_device *ata_scsi_alloc_device(struct ata_device *dev)
+{
+	struct scsi_device *sdev;
+	struct ata_link *link = dev->link;
+	struct ata_port *ap = link->ap;
+	int channel = 0, id = 0;
+
+	pr_err("%s dev=%pS ap=%pS link=%pS\n", __func__, dev, ap, link);
+	pr_err("%s1 dev=%pS &link->ap->link=%pS link=%pS\n", __func__, dev, &link->ap->link, link);
+	pr_err("%s2 dev=%pS link->ap->slave_link=%pS link=%pS ap->scsi_host=%pS\n", __func__, dev, link->ap->slave_link, link, ap->scsi_host);
+
+	if (ata_is_host_link(link))
+		id = dev->devno;
+	else
+		channel = link->pmp;
+
+	sdev = __scsi_add_device(ap->scsi_host, channel, id, 0,
+					 NULL);
+
+	pr_err("%s2 dev=%pS ap=%pS link=%pS sdev=%pS\n", __func__, dev, ap, link, sdev);
+	return sdev;
+}
 
 void ata_scsi_scan_host(struct ata_port *ap, int sync)
 {

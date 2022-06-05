@@ -1569,11 +1569,12 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	struct scsi_target *starget;
 
 	pr_err("%s shost=%pS channel=%d id=%d lun=%lld\n", __func__, shost, channel, id, lun);
-	
+
 	if (strncmp(scsi_scan_type, "none", 4) == 0)
 		return ERR_PTR(-ENODEV);
 
 	starget = scsi_alloc_target(parent, channel, id);
+	pr_err("%s2 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 	if (!starget)
 		return ERR_PTR(-ENOMEM);
 	scsi_autopm_get_target(starget);
@@ -1582,12 +1583,18 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	if (!shost->async_scan)
 		scsi_complete_async_scans();
 
+	pr_err("%s3 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) {
+		pr_err("%s4 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
+		
+		pr_err("%s5 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 		scsi_autopm_put_host(shost);
 	}
+	pr_err("%s6 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 	mutex_unlock(&shost->scan_mutex);
 	scsi_autopm_put_target(starget);
+	pr_err("%s7 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 	/*
 	 * paired with scsi_alloc_target().  Target will be destroyed unless
 	 * scsi_probe_and_add_lun made an underlying device visible
@@ -1595,6 +1602,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	scsi_target_reap(starget);
 	put_device(&starget->dev);
 
+	pr_err("%s10 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 	return sdev;
 }
 EXPORT_SYMBOL(__scsi_add_device);

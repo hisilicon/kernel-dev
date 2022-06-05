@@ -732,6 +732,7 @@ EXPORT_SYMBOL_GPL(ata_qc_complete_multiple);
 int ata_slave_link_init(struct ata_port *ap)
 {
 	struct ata_link *link;
+	pr_err("%s ap=%pS\n", __func__, ap);
 
 	WARN_ON(ap->slave_link);
 	WARN_ON(ap->flags & ATA_FLAG_PMP);

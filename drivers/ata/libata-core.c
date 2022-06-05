@@ -1486,6 +1486,7 @@ static void ata_blk_end_sync_rq(struct request *rq, blk_status_t error)
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
+extern struct scsi_device *ata_scsi_alloc_device(struct ata_device *dev);
 static unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, void *buf, unsigned int buflen, 
@@ -1518,9 +1519,12 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	__maybe_unused blk_status_t blk_sts;
 	
 	//scsi_cmd[0] = ATA_INTERNAL;
+	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS\n",
+		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host);
 
-	sdev = ap->sdev_internal;
-	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS sdev=%pS\n",
+
+	sdev = scsi_host->sdev;
+	pr_err("%s0.2 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS sdev=%pS\n",
 		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, sdev);
 
 //	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf initial ",
@@ -5456,6 +5460,7 @@ void ata_dev_init(struct ata_device *dev)
 	dev->pio_mask = UINT_MAX;
 	dev->mwdma_mask = UINT_MAX;
 	dev->udma_mask = UINT_MAX;
+
 }
 
 /**
