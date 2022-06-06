@@ -2095,8 +2095,9 @@ struct scsi_device *scsi_get_dev(struct Scsi_Host *shost, struct device *parent,
 		sdev->borken = 0;
 	} else {
 		pr_err("%s !sdev\n", __func__);
-		scsi_target_reap(starget);
+		
 	}
+	scsi_target_reap(starget); //matches call in __scsi_add_device
 	put_device(&starget->dev);
  out:
 	mutex_unlock(&shost->scan_mutex);
