@@ -292,8 +292,8 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 
 	scsi_proc_host_add(shost);
 	scsi_autopm_put_host(shost);
-	//shost->sdev = scsi_get_host_dev(shost);
-	//dev_err(dma_dev, "%s shost->sdev=%pS\n", __func__, shost->sdev);
+	shost->sdev = scsi_get_host_dev(shost);
+	dev_err(dma_dev, "%s shost->sdev=%pS\n", __func__, shost->sdev);
 	return 0;
 
 	/*
