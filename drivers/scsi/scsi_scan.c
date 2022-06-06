@@ -249,8 +249,8 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
 				sdev->request_queue->node, false, true);
 	if (!ret)
 		sbitmap_resize(&sdev->budget_map, depth);
-	pr_err("%s sdev=%pS depth=%d scsi_device_max_queue_depth(sdev)=%d ret=%d\n",
-		__func__, sdev, depth, scsi_device_max_queue_depth(sdev), ret);
+	//pr_err("%s sdev=%pS depth=%d scsi_device_max_queue_depth(sdev)=%d ret=%d\n",
+	//	__func__, sdev, depth, scsi_device_max_queue_depth(sdev), ret);
 	if (need_free) {
 		if (ret)
 			sdev->budget_map = sb_backup;
@@ -465,7 +465,7 @@ static void scsi_target_reap_ref_release(struct kref *kref)
 {
 	struct scsi_target *starget
 		= container_of(kref, struct scsi_target, reap_ref);
-	pr_err("%s starget=%pS\n", __func__, starget);
+	//pr_err("%s starget=%pS\n", __func__, starget);
 	/*
 	 * if we get here and the target is still in a CREATED state that
 	 * means it was allocated but never made visible (because a scan
@@ -482,8 +482,8 @@ static void scsi_target_reap_ref_release(struct kref *kref)
 static void scsi_target_reap_ref_put(struct scsi_target *starget)
 {
 	struct kref *kref = &starget->reap_ref;
-	pr_err("%s starget=%pS refcount before put=%d\n", __func__, starget, kref_read(kref));
-	kref_put(&starget->reap_ref, scsi_target_reap_ref_release);
+	//pr_err("%s starget=%pS refcount before put=%d\n", __func__, starget, kref_read(kref));
+	kref_put(kref, scsi_target_reap_ref_release);
 }
 
 /**
@@ -509,7 +509,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	struct scsi_target *starget;
 	struct scsi_target *found_target;
 	int error, ref_got;
-	dev_err(parent, "%s channel=%d id=%d\n", __func__, channel, id);
+	//dev_err(parent, "%s channel=%d id=%d\n", __func__, channel, id);
 	starget = kzalloc(size, GFP_KERNEL);
 	if (!starget) {
 		printk(KERN_ERR "%s: allocation failure\n", __func__);
@@ -534,9 +534,9 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
  retry:
 	spin_lock_irqsave(shost->host_lock, flags);
 
-	dev_err(parent, "%s2 retry  channel=%d id=%d\n", __func__, channel, id);
+	//dev_err(parent, "%s2 retry  channel=%d id=%d\n", __func__, channel, id);
 	found_target = __scsi_find_target(parent, channel, id);
-	dev_err(parent, "%s3 channel=%d id=%d found_target=%pS\n", __func__, channel, id, found_target);
+	//dev_err(parent, "%s3 channel=%d id=%d found_target=%pS\n", __func__, channel, id, found_target);
 	if (found_target)
 		goto found;
 
@@ -558,11 +558,11 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	}
 	get_device(dev);
 
-	dev_err(parent, "%s10 channel=%d id=%d returning starget=%pS kref=%d\n", __func__, channel, id, starget, kref_read(&starget->reap_ref));
+	//dev_err(parent, "%s10 channel=%d id=%d returning starget=%pS kref=%d\n", __func__, channel, id, starget, kref_read(&starget->reap_ref));
 	return starget;
 
  found:
-	dev_err(parent, "%s3 found_target channel=%d id=%d found_target=%pS kref before get=%d\n", __func__, channel, id, found_target, kref_read(&starget->reap_ref));
+	//dev_err(parent, "%s3 found_target channel=%d id=%d found_target=%pS kref before get=%d\n", __func__, channel, id, found_target, kref_read(&starget->reap_ref));
 	/*
 	 * release routine already fired if kref is zero, so if we can still
 	 * take the reference, the target must be alive.  If we can't, it must
@@ -573,7 +573,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	if (ref_got) {
 		put_device(dev);
-		dev_err(parent, "%s9 returning found_target channel=%d id=%d found_target=%pS kref=%d \n", __func__, channel, id, found_target, kref_read(&starget->reap_ref));
+		//dev_err(parent, "%s9 returning found_target channel=%d id=%d found_target=%pS kref=%d \n", __func__, channel, id, found_target, kref_read(&starget->reap_ref));
 		return found_target;
 	}
 	/*
@@ -604,7 +604,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
  */
 void scsi_target_reap(struct scsi_target *starget)
 {
-	pr_err("%s starget=%pS\n", __func__, starget);
+	//pr_err("%s starget=%pS\n", __func__, starget);
 	/*
 	 * serious problem if this triggers: STARGET_DEL is only set in the if
 	 * the reap_ref drops to zero, so we're trying to do another final put
@@ -1163,7 +1163,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	int res = SCSI_SCAN_NO_RESPONSE, result_len = 256;
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 
-	pr_err("%s starget=%pS\n", __func__, starget);
+	//pr_err("%s starget=%pS\n", __func__, starget);
 	/*
 	 * The rescan flag is used as an optimization, the first scan of a
 	 * host adapter calls into here with rescan == 0.
@@ -1189,7 +1189,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		scsi_device_put(sdev);
 	} else
 		sdev = scsi_alloc_sdev(starget, lun, hostdata);
-	pr_err("%s3 starget=%pS sdev=%pS\n", __func__, starget, sdev);
+	//pr_err("%s3 starget=%pS sdev=%pS\n", __func__, starget, sdev);
 	if (!sdev)
 		goto out;
 
@@ -1198,11 +1198,11 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		goto out_free_sdev;
 
 	if (scsi_probe_lun(sdev, result, result_len, &bflags)) {
-		pr_err("%s3.1 calling out_free_result starget=%pS sdev=%pS\n", __func__, starget, sdev);
+	//	pr_err("%s3.1 calling out_free_result starget=%pS sdev=%pS\n", __func__, starget, sdev);
 		goto out_free_result;
 	}
 
-	pr_err("%s4 starget=%pS sdev=%pS\n", __func__, starget, sdev);
+	//pr_err("%s4 starget=%pS sdev=%pS\n", __func__, starget, sdev);
 	if (bflagsp)
 		*bflagsp = bflags;
 	/*
@@ -1293,7 +1293,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	} else
 		__scsi_remove_device(sdev);
  out:
-	pr_err("%s10out res=%d starget=%pS sdev=%pS *sdevp=%pS\n", __func__, res, starget, sdev, sdevp ? *sdevp : NULL);
+	//pr_err("%s10out res=%d starget=%pS sdev=%pS *sdevp=%pS\n", __func__, res, starget, sdev, sdevp ? *sdevp : NULL);
 	return res;
 }
 
@@ -1580,13 +1580,13 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	struct device *parent = &shost->shost_gendev;
 	struct scsi_target *starget;
 
-	pr_err("%s shost=%pS channel=%d id=%d lun=%lld\n", __func__, shost, channel, id, lun);
+	//pr_err("%s shost=%pS channel=%d id=%d lun=%lld\n", __func__, shost, channel, id, lun);
 
 	if (strncmp(scsi_scan_type, "none", 4) == 0)
 		return ERR_PTR(-ENODEV);
 
 	starget = scsi_alloc_target(parent, channel, id);
-	pr_err("%s2 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
+	//pr_err("%s2 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 	if (!starget)
 		return ERR_PTR(-ENOMEM);
 	scsi_autopm_get_target(starget);
@@ -1595,18 +1595,18 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	if (!shost->async_scan)
 		scsi_complete_async_scans();
 
-	pr_err("%s3 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
+	//pr_err("%s3 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) {
-		pr_err("%s4 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
+		//pr_err("%s4 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
 		
-		pr_err("%s5 shost=%pS channel=%d id=%d lun=%lld starget=%pS sdev=%pS\n", __func__, shost, channel, id, lun, starget, sdev);
+		//pr_err("%s5 shost=%pS channel=%d id=%d lun=%lld starget=%pS sdev=%pS\n", __func__, shost, channel, id, lun, starget, sdev);
 		scsi_autopm_put_host(shost);
 	}
-	pr_err("%s6 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
+	//pr_err("%s6 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 	mutex_unlock(&shost->scan_mutex);
 	scsi_autopm_put_target(starget);
-	pr_err("%s7 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
+	//pr_err("%s7 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 	/*
 	 * paired with scsi_alloc_target().  Target will be destroyed unless
 	 * scsi_probe_and_add_lun made an underlying device visible
@@ -1614,7 +1614,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	scsi_target_reap(starget);
 	put_device(&starget->dev);
 
-	pr_err("%s10 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
+	//pr_err("%s10 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 	return sdev;
 }
 EXPORT_SYMBOL(__scsi_add_device);
@@ -1624,7 +1624,7 @@ int scsi_add_device(struct Scsi_Host *host, uint channel,
 {
 	struct scsi_device *sdev;
 
-	pr_err("%s shost=%pS channel=%d target=%d lun=%lld\n", __func__, host, channel, target, lun);
+	//pr_err("%s shost=%pS channel=%d target=%d lun=%lld\n", __func__, host, channel, target, lun);
 
 	sdev = __scsi_add_device(host, channel, target, lun, NULL);
 	if (IS_ERR(sdev))
@@ -1664,7 +1664,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 	blist_flags_t bflags = 0;
 	int res;
 	struct scsi_target *starget;
-	pr_err("%s id=%d lun=0x%llx\n", __func__, id, lun);
+	//pr_err("%s id=%d lun=0x%llx\n", __func__, id, lun);
 	if (shost->this_id == id)
 		/*
 		 * Don't scan the host adapter
@@ -1672,7 +1672,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 		return;
 
 	starget = scsi_alloc_target(parent, channel, id);
-	pr_err("%s2 id=%d lun=0x%llx starget=%pS\n", __func__, id, lun, starget);
+	//pr_err("%s2 id=%d lun=0x%llx starget=%pS\n", __func__, id, lun, starget);
 	if (!starget)
 		return;
 	scsi_autopm_get_target(starget);
@@ -2077,7 +2077,9 @@ struct scsi_device *scsi_get_dev(struct Scsi_Host *shost, struct device *parent,
 	struct scsi_target *starget;
 	//pr_err("%s shost=%pS getting mutex\n", __func__, shost);
 	mutex_lock(&shost->scan_mutex);
-	pr_err("%s shost=%pS got mutex\n", __func__, shost);
+	dev_err(parent, "%s shost=%pS got mutex parent=%pS->parent=%pS\n", __func__, shost, parent, parent ? parent->parent : NULL);
+	if (parent->parent)
+		dev_err(parent->parent, "%s0 shost=%pS got mutex parent=%pS->parent=%pS\n", __func__, shost, parent, parent ? parent->parent : NULL);
 	if (!scsi_host_scan_allowed(shost)){
 		pr_err("%s !scsi_host_scan_allowed\n", __func__);
 		goto out;

@@ -535,7 +535,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 	struct ata_port *ap = ata_shost_to_port(host);
 	unsigned long flags;
 	LIST_HEAD(eh_work_q);
-	pr_err("%s host=%pS ap=%pS\n", __func__, host, ap);
+	//pr_err("%s host=%pS ap=%pS\n", __func__, host, ap);
 
 	spin_lock_irqsave(host->host_lock, flags);
 	list_splice_init(&host->eh_cmd_q, &eh_work_q);
@@ -662,7 +662,7 @@ EXPORT_SYMBOL(ata_scsi_cmd_error_handler);
 void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 {
 	unsigned long flags;
-	pr_err("%s host=%pS ap=%pS ap->ops->error_handler=%pS\n", __func__, host, ap, ap->ops->error_handler);
+	//pr_err("%s host=%pS ap=%pS ap->ops->error_handler=%pS\n", __func__, host, ap, ap->ops->error_handler);
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
 		struct ata_link *link;
@@ -704,7 +704,7 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 
 		/* invoke EH, skip if unloading or suspended */
 		if (!(ap->pflags & (ATA_PFLAG_UNLOADING | ATA_PFLAG_SUSPENDED))){
-			pr_err("%s5 host=%pS ap=%pS calling error_handler\n", __func__, host, ap);
+		//	pr_err("%s5 host=%pS ap=%pS calling error_handler\n", __func__, host, ap);
 			ap->ops->error_handler(ap);
 	//		pr_err("%s5.1 host=%pS ap=%pS\n", __func__, host, ap);
 		} else {
@@ -3600,7 +3600,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	struct ata_device *dev;
 	int rc, nr_fails;
 	unsigned long flags, deadline;
-	pr_err("%s ap=%pS\n", __func__, ap);
+	//pr_err("%s ap=%pS\n", __func__, ap);
 
 	/* prep for recovery */
 	ata_for_each_link(link, ap, EDGE) {
@@ -3662,10 +3662,10 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		if (!(ehc->i.action & ATA_EH_RESET))
 			continue;
 
-		pr_err("%s6 ap=%pS calling ata_eh_reset\n", __func__, ap);
+	//	pr_err("%s6 ap=%pS calling ata_eh_reset\n", __func__, ap);
 		rc = ata_eh_reset(link, ata_link_nr_vacant(link),
 				  prereset, softreset, hardreset, postreset);
-		pr_err("%s6.1 ap=%pS got rc=%d\n", __func__, ap, rc);
+	//	pr_err("%s6.1 ap=%pS got rc=%d\n", __func__, ap, rc);
 		if (rc) {
 			ata_link_err(link, "reset failed, giving up\n");
 			goto out;
@@ -3830,7 +3830,7 @@ void ata_eh_finish(struct ata_port *ap)
 	int tag;
 
 
-	pr_err("%s ap=%pS\n", __func__, ap);
+	//pr_err("%s ap=%pS\n", __func__, ap);
 	/* retry or finish qcs */
 	ata_qc_for_each_raw(ap, qc, tag) {
 		if (!(qc->flags & ATA_QCFLAG_FAILED)){
@@ -3894,17 +3894,17 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 
 	ata_eh_autopsy(ap);
 	ata_eh_report(ap);
-	pr_err("%s ap=%pS calling ata_eh_recover\n", __func__, ap);
+	//pr_err("%s ap=%pS calling ata_eh_recover\n", __func__, ap);
 	rc = ata_eh_recover(ap, prereset, softreset, hardreset, postreset,
 			    NULL);
-	pr_err("%s2 ap=%pS got rc=%d\n", __func__, ap, rc);
+	//pr_err("%s2 ap=%pS got rc=%d\n", __func__, ap, rc);
 	if (rc) {
 		ata_for_each_dev(dev, &ap->link, ALL)
 			ata_dev_disable(dev);
 	}
 
 	ata_eh_finish(ap);
-	pr_err("%s10 out ap=%pS got rc=%d\n", __func__, ap, rc);
+	//pr_err("%s10 out ap=%pS got rc=%d\n", __func__, ap, rc);
 }
 
 /**
@@ -3925,9 +3925,9 @@ void ata_std_error_handler(struct ata_port *ap)
 	if (hardreset == sata_std_hardreset && !sata_scr_valid(&ap->link))
 		hardreset = NULL;
 
-	pr_err("%s ap=%pS calling ata_do_eh\n", __func__, ap);
+	//pr_err("%s ap=%pS calling ata_do_eh\n", __func__, ap);
 	ata_do_eh(ap, ops->prereset, ops->softreset, hardreset, ops->postreset);
-	pr_err("%s10 out ap=%pS\n", __func__, ap);
+	//pr_err("%s10 out ap=%pS\n", __func__, ap);
 }
 EXPORT_SYMBOL_GPL(ata_std_error_handler);
 

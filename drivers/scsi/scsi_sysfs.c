@@ -1400,8 +1400,8 @@ void __scsi_remove_device(struct scsi_device *sdev)
 {
 	struct device *dev = &sdev->sdev_gendev;
 	int res;
-	pr_err("%s dev=%pS sdev_target = starget=%pS scsi_target(sdev)=%pS kref sdev_target=%d\n",
-	 __func__, sdev, sdev->sdev_target, scsi_target(sdev), kref_read(&sdev->sdev_target->reap_ref));
+//	pr_err("%s dev=%pS sdev_target = starget=%pS scsi_target(sdev)=%pS kref sdev_target=%d\n",
+	// __func__, sdev, sdev->sdev_target, scsi_target(sdev), kref_read(&sdev->sdev_target->reap_ref));
 	/*
 	 * This cleanup path is not reentrant and while it is impossible
 	 * to get a new reference with scsi_device_get() someone can still
@@ -1410,8 +1410,8 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	if (sdev->sdev_state == SDEV_DEL)
 		return;
 
-	pr_err("%s2 dev=%pS sdev_target = starget=%pS scsi_target(sdev)=%pS kref sdev_target=%d\n", 
-		__func__, sdev, sdev->sdev_target, scsi_target(sdev), kref_read(&sdev->sdev_target->reap_ref));
+	//pr_err("%s2 dev=%pS sdev_target = starget=%pS scsi_target(sdev)=%pS kref sdev_target=%d\n", 
+	//	__func__, sdev, sdev->sdev_target, scsi_target(sdev), kref_read(&sdev->sdev_target->reap_ref));
 	if (sdev->is_visible) {
 		/*
 		 * If scsi_internal_target_block() is running concurrently,
@@ -1442,8 +1442,8 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	} else
 		put_device(&sdev->sdev_dev);
 
-	pr_err("%s3 dev=%pS sdev_target = starget=%pS scsi_target(sdev)=%pS kref sdev_target=%d\n",
-		__func__, sdev, sdev->sdev_target, scsi_target(sdev), kref_read(&sdev->sdev_target->reap_ref));
+	//pr_err("%s3 dev=%pS sdev_target = starget=%pS scsi_target(sdev)=%pS kref sdev_target=%d\n",
+	//	__func__, sdev, sdev->sdev_target, scsi_target(sdev), kref_read(&sdev->sdev_target->reap_ref));
 	/*
 	 * Stop accepting new requests and wait until all queuecommand() and
 	 * scsi_run_queue() invocations have finished before tearing down the
@@ -1466,8 +1466,8 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	 * invisible if this was the last device underneath it.
 	 */
 
-	pr_err("%s10 dev=%pS sdev_target = starget=%pS calling scsi_target_reap scsi_target(sdev)=%pS  kref sdev_target=%d\n",
-	 __func__, sdev, sdev->sdev_target, scsi_target(sdev), kref_read(&sdev->sdev_target->reap_ref));
+	//pr_err("%s10 dev=%pS sdev_target = starget=%pS calling scsi_target_reap scsi_target(sdev)=%pS  kref sdev_target=%d\n",
+	// __func__, sdev, sdev->sdev_target, scsi_target(sdev), kref_read(&sdev->sdev_target->reap_ref));
 	scsi_target_reap(scsi_target(sdev));
 
 	put_device(dev);

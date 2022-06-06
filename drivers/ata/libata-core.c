@@ -1529,19 +1529,19 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if (!sdev) {
 		dev->sdev_tmp = ata_scsi_alloc_device(dev);
 
-		pr_err("%s0.1 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS dev->sdev_tmp=%pS\n",
-			__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev, dev->sdev_tmp);
+		//pr_err("%s0.1 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS dev->sdev_tmp=%pS\n",
+		//	__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev, dev->sdev_tmp);
 		if (IS_ERR(dev->sdev_tmp))
 			panic("%s sdev_tmp = NULL\n", __func__);
 		
-		pr_err("%s0.2 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS\n",
-			__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev);
+		//pr_err("%s0.2 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS\n",
+		//	__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev);
 		sdev = dev->sdev_tmp;
 	}
 
 	//sdev = scsi_host->sdev;
-	pr_err("%s0.3 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS sdev=%pS\n",
-		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, sdev);
+	//pr_err("%s0.3 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS sdev=%pS\n",
+	//	__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, sdev);
 
 //	print_hex_dump(KERN_INFO, "ata_exec_internal_sg tf initial ",
 //			DUMP_PREFIX_NONE, 16, 1,
@@ -1666,12 +1666,12 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	req = NULL;
 	scmd = NULL;
 	if (dev->sdev_tmp) {
-		struct scsi_target *starget = scsi_target(dev->sdev_tmp);
+		__maybe_unused struct scsi_target *starget = scsi_target(dev->sdev_tmp);
 		
 		//scsi_remove_device(dev->sdev_tmp);
 		extern void __scsi_remove_device(struct scsi_device *sdev);
-		pr_err("%s4.2 sdev=%pS starget=%pS calling __scsi_remove_device\n",
-		__func__, sdev, starget);
+		//pr_err("%s4.2 sdev=%pS starget=%pS calling __scsi_remove_device\n",
+		//__func__, sdev, starget);
 		__scsi_remove_device(dev->sdev_tmp);
 		dev->sdev_tmp = NULL;
 	}
@@ -1799,7 +1799,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 
 	
 	mutex_lock(&global_mutex);
-	pr_err("%s before buf=%pS tmpbuf=%pS\n", __func__, buf, tmpbuf);
+	//pr_err("%s before buf=%pS tmpbuf=%pS\n", __func__, buf, tmpbuf);
 	sprintf(string, "ata_exec_internal_sg buf before buf=%pS len=%d tmpbuf=%pS", buf, buflen, tmpbuf);
 	//print_hex_dump(KERN_INFO, string,
 	//			  DUMP_PREFIX_NONE, 16, 1,
@@ -1809,7 +1809,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 				    timeout);
 
 	sprintf(string, "ata_exec_internal_sg buf after buf=%pS len=%d tmpbuf=%pS", buf, buflen, tmpbuf);
-	pr_err("%s2 after buf=%pS tmpbuf=%pS\n", __func__, buf, tmpbuf);
+	//pr_err("%s2 after buf=%pS tmpbuf=%pS\n", __func__, buf, tmpbuf);
 	//print_hex_dump(KERN_INFO, string,
 	//			  DUMP_PREFIX_NONE, 16, 1,
 	//			  tmpbuf, buflen, 1);
@@ -5576,8 +5576,8 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	struct ata_port *ap;
 
 	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
-	WARN_ON_ONCE(1);
-	pr_err("%s ap=%pS host=%pS\n", __func__, ap, host);
+//	WARN_ON_ONCE(1);
+//	pr_err("%s ap=%pS host=%pS\n", __func__, ap, host);
 	if (!ap)
 		return NULL;
 
@@ -5950,7 +5950,7 @@ void __ata_port_probe(struct ata_port *ap)
 {
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	unsigned long flags;
-	pr_err("%s ap=%pS\n", __func__, ap);
+	//pr_err("%s ap=%pS\n", __func__, ap);
 	/* kick EH for boot probing */
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -5986,7 +5986,7 @@ int ata_port_probe(struct ata_port *ap)
 static void async_port_probe(void *data, async_cookie_t cookie)
 {
 	struct ata_port *ap = data;
-	pr_err("%s ap=%pS\n", __func__, ap);
+	//pr_err("%s ap=%pS\n", __func__, ap);
 
 	/*
 	 * If we're not allowed to scan this host in parallel,
@@ -6000,16 +6000,16 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 		async_synchronize_cookie(cookie);
 	}
 
-	pr_err("%s3 ap=%pS calling ata_port_probe\n", __func__, ap);
+	//pr_err("%s3 ap=%pS calling ata_port_probe\n", __func__, ap);
 	(void)ata_port_probe(ap);
 
 	//pr_err("%s4 ap=%pS calling async_synchronize_cookie\n", __func__, ap);
 	/* in order to keep device order, we need to synchronize at this point */
 	async_synchronize_cookie(cookie);
 
-	pr_err("%s5 ap=%pS calling ata_scsi_scan_host\n", __func__, ap);
+	//pr_err("%s5 ap=%pS calling ata_scsi_scan_host\n", __func__, ap);
 	ata_scsi_scan_host(ap, 1);
-	pr_err("%s10 out ap=%pS \n", __func__, ap);
+	//pr_err("%s10 out ap=%pS \n", __func__, ap);
 }
 
 /**
@@ -6036,8 +6036,8 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 
 	/* host must have been started */
 	if (!(host->flags & ATA_HOST_STARTED)) {
-		dev_err(host->dev, "BUG: trying to register unstarted host\n");
-		WARN_ON(1);
+		//dev_err(host->dev, "BUG: trying to register unstarted host\n");
+		//WARN_ON(1);
 		return -EINVAL;
 	}
 
@@ -6097,7 +6097,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 	/* perform each probe asynchronously */
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
-		pr_err("%s ap=%pS calling async_schedule(async_port_probe) port=%d\n", __func__, ap, i);
+		//pr_err("%s ap=%pS calling async_schedule(async_port_probe) port=%d\n", __func__, ap, i);
 		ap->cookie = async_schedule(async_port_probe, ap);
 	}
 

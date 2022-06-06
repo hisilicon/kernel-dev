@@ -747,11 +747,16 @@ int scsi_is_host_device(const struct device *);
 
 static inline struct Scsi_Host *dev_to_shost(struct device *dev)
 {
+	struct device *orig_dev = dev;
+	dev_err(orig_dev, "%s\n", __func__);
 	while (!scsi_is_host_device(dev)) {
-		if (!dev->parent)
+		if (!dev->parent){
+			dev_err(orig_dev, "%s1 NULL dev=%s\n", __func__, dev_name(dev));
 			return NULL;
+		}
 		dev = dev->parent;
 	}
+	dev_err(orig_dev, "%s10 host=%pS dev=%s\n", __func__, container_of(dev, struct Scsi_Host, shost_gendev), dev_name(dev));
 	return container_of(dev, struct Scsi_Host, shost_gendev);
 }
 
