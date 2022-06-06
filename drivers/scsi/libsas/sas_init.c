@@ -43,11 +43,11 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	struct request *rq;
 	struct sas_task *task;
 	struct sas_task_slow *slow;
-	struct Scsi_Host *shost = sas_ha->core.shost;
+	//struct Scsi_Host *shost = sas_ha->core.shost;
 	struct scsi_cmnd *scmd;
 	struct scsi_device *sdev;
 
-	sdev = shost->sdev;
+	sdev = NULL;//shost->sdev;
 
 	rq = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN,
 						BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);

@@ -1750,7 +1750,7 @@ static int scsi_mq_get_budget(struct request_queue *q)
 	if (unlikely(scsi_device_busy(sdev) == 0 &&
 				!scsi_device_blocked(sdev)))
 		blk_mq_delay_run_hw_queues(sdev->request_queue, SCSI_QUEUE_DELAY);
-	pr_err_ratelimited("%s q=%pS no budget\n", __func__, q);
+	pr_err_ratelimited("%s q=%pS no budget sdev=%pS\n", __func__, q, sdev);
 	return -1;
 }
 

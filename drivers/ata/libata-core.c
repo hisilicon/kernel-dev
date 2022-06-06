@@ -1530,13 +1530,15 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 		pr_err("%s0.1 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS sdev_tmp=%pS\n",
 			__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev, sdev_tmp);
-		if (!IS_ERR(sdev_tmp))
-					scsi_remove_device(sdev_tmp);
+		if (IS_ERR(sdev_tmp))
+			panic("%s sdev_tmp = NULL\n", __func__);
+		
 		pr_err("%s0.2 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS\n",
 			__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev);
+		sdev = sdev_tmp;
 	}
 
-	sdev = scsi_host->sdev;
+	//sdev = scsi_host->sdev;
 	pr_err("%s0.3 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS sdev=%pS\n",
 		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, sdev);
 
@@ -1662,6 +1664,8 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		panic("sanity1 %s started req=%pS\n", __func__, req);
 	req = NULL;
 	scmd = NULL;
+	if (sdev_tmp)
+		scsi_remove_device(sdev_tmp);
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
