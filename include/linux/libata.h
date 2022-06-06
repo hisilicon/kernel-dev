@@ -661,7 +661,7 @@ struct ata_device {
 #ifdef CONFIG_SATA_ZPODD
 	void			*zpodd;
 #endif
-	struct device		tdev;
+	struct device		tdev, jdev;
 	/* n_sector is CLEAR_BEGIN, read comment above CLEAR_BEGIN */
 	u64			n_sectors;	/* size of device, if ATA */
 	u64			n_native_sectors; /* native size, if ATA */

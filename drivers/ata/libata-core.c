@@ -5486,7 +5486,9 @@ void ata_dev_init(struct ata_device *dev)
 	dev->pio_mask = UINT_MAX;
 	dev->mwdma_mask = UINT_MAX;
 	dev->udma_mask = UINT_MAX;
-
+	
+	pr_err("%s dev=%pS scsi_host=%pS\n", __func__, dev, ap->scsi_host);
+	//&dev->jdev.parent = 
 }
 
 /**

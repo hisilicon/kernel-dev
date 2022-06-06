@@ -2084,7 +2084,7 @@ struct scsi_device *scsi_get_dev(struct Scsi_Host *shost, struct device *parent,
 		pr_err("%s !scsi_host_scan_allowed\n", __func__);
 		goto out;
 	}
-	starget = scsi_alloc_target(&shost->shost_gendev, channel, id);
+	starget = scsi_alloc_target(parent, channel, id);
 	pr_err("%s2 shost=%pS starget=%pS\n", __func__, shost, starget);
 	if (!starget){
 		pr_err("%s !starget\n", __func__);

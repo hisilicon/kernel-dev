@@ -4284,7 +4284,7 @@ struct scsi_device *ata_scsi_alloc_device(struct ata_device *dev)
 		id = dev->devno;
 	else
 		channel = link->pmp;
-	sdev = scsi_get_dev(ap->scsi_host, jdev, channel, id, 0);
+	sdev = scsi_get_dev(shost, jdev, channel, id, 0);
 
 	pr_err("%s2 dev=%pS ap=%pS link=%pS sdev=%pS\n", __func__, dev, ap, link, sdev);
 	return sdev;
@@ -4331,7 +4331,8 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		ata_for_each_link(link, ap, EDGE) {
 			pr_err("%s1 ap=%pS link=%pS\n", __func__, ap, link);
 			ata_for_each_dev(dev, link, ALL) {
-				device_initialize(&dev->jdev);
+				struct device *jdev = &dev->jdev;
+				device_initialize(jdev);
 				jdev->parent = &shost->shost_gendev;
 				#ifdef dsdfdf
 				struct scsi_device *sdev_tmp;
