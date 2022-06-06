@@ -449,7 +449,7 @@ static struct scsi_target *__scsi_find_target(struct device *parent,
 	if (found_starget)
 		get_device(&found_starget->dev);
 
-	return found_starget;
+	return NULL;
 }
 
 /**
