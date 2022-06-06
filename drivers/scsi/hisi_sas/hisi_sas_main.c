@@ -675,7 +675,7 @@ static int hisi_sas_init_device(struct domain_device *device)
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = hisi_hba->dev;
 	struct sas_phy *local_phy;
-
+	pr_err("%s device=%pS\n", __func__, device);
 	switch (device->dev_type) {
 	case SAS_END_DEVICE:
 		int_to_scsilun(0, &lun);
@@ -696,6 +696,7 @@ static int hisi_sas_init_device(struct domain_device *device)
 		 * send HARD RESET to clear previous affiliation of
 		 * STP target port
 		 */
+		pr_err("%s4 device=%pS SAS_SATA_DEV\n", __func__, device);
 		local_phy = sas_get_local_phy(device);
 		if (!scsi_is_sas_phy_local(local_phy) &&
 		    !test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags)) {
@@ -707,6 +708,7 @@ static int hisi_sas_init_device(struct domain_device *device)
 			struct ata_link *link;
 			unsigned int classes;
 
+			pr_err("%s5 device=%pS SAS_SATA_DEV calling ops->hardreset\n", __func__, device);
 			ata_for_each_link(link, ap, EDGE)
 				rc = ops->hardreset(link, &classes,
 						    deadline);
@@ -736,7 +738,7 @@ int hisi_sas_slave_alloc(struct scsi_device *sdev)
 	struct device *parent = starget->dev.parent;
 	struct domain_device *ddev;
 	int rc;
-	pr_err("%s sdev=%pS ddev=%pS\n", __func__, sdev, sdev_to_domain_dev(sdev));
+	pr_err("%s sdev=%pS ddev=%pS scsi_is_host_device=%d\n", __func__, sdev, sdev_to_domain_dev(sdev), scsi_is_host_device(parent));
 	if (scsi_is_host_device(parent))
 		return 0;
 

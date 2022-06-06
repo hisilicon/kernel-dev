@@ -627,8 +627,8 @@ void blk_mq_free_request(struct request *rq)
 	struct request_queue *q = rq->q;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
-	if (blk_mq_is_reserved_rq(rq))
-		pr_err("%s rq=%pS rq->end_io=%pS\n", __func__, rq, rq->end_io);
+	//if (blk_mq_is_reserved_rq(rq))
+	//	pr_err("%s rq=%pS rq->end_io=%pS\n", __func__, rq, rq->end_io);
 	if ((rq->rq_flags & RQF_ELVPRIV) &&
 	    q->elevator->type->ops.finish_request)
 		q->elevator->type->ops.finish_request(rq);

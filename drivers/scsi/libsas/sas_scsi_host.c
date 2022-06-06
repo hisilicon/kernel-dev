@@ -194,9 +194,22 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 {
 	struct sas_internal *i = to_sas_internal(host->transportt);
-	struct domain_device *dev = cmd_to_domain_dev(cmd);
+	struct domain_device *dev;
 	struct sas_task *task;
 	int res = 0;
+
+	if (!cmd)
+		pr_err("%s host=%pS cmd=NULL\n", __func__, host);
+	if (!cmd->device)
+		pr_err("%s host=%pS cmd=%pS cmd->device=NULL\n", __func__, host, cmd);
+	if (!cmd->device->sdev_target)
+		pr_err("%s host=%pS cmd=%pS cmd->device=%pS starget=NULL\n", __func__, host, cmd, cmd->device);
+	if (!cmd->device->sdev_target->hostdata)
+		pr_err("%s host=%pS cmd=%pS cmd->device=%pS starget=%pS hostdata=NULL\n", __func__, host, cmd, cmd->device, cmd->device->sdev_target);
+	
+	dev = cmd_to_domain_dev(cmd);
+	if (!dev)
+		pr_err("%s host=%pS cmd=%pS dev=NULL\n", __func__, host, cmd);
 
 	/* If the device fell off, no sense in issuing commands */
 	if (test_bit(SAS_DEV_GONE, &dev->state)) {
@@ -222,7 +235,7 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	return 0;
 
 out_free_task:
-	pr_debug("lldd_execute_task returned: %d\n", res);
+	pr_err("lldd_execute_task returned: %d\n", res);
 	ASSIGN_SAS_TASK(cmd, NULL);
 	sas_free_task(task);
 	if (res == -SAS_QUEUE_FULL)
@@ -230,6 +243,7 @@ out_free_task:
 	else
 		cmd->result = DID_ERROR << 16;
 out_done:
+	pr_err("%s lldd_execute_task out_done: %d\n", __func__, res);
 	scsi_done(cmd);
 	return 0;
 }
@@ -863,7 +877,8 @@ int sas_target_alloc(struct scsi_target *starget)
 	struct device *parent = starget->dev.parent;
 	struct sas_rphy *rphy;
 	struct domain_device *found_dev;
-	pr_err("%s starget=%pS\n", __func__, starget);
+	pr_err("%s starget=%pS scsi_is_host_device=%d\n", __func__, starget, scsi_is_host_device(parent));
+	dev_err(parent, "%s parent=%pS starget=%pS scsi_is_host_device=%d\n", __func__, parent, starget, scsi_is_host_device(parent));
 
 	if (scsi_is_host_device(parent))
 		return 0;
@@ -871,6 +886,7 @@ int sas_target_alloc(struct scsi_target *starget)
 	rphy = dev_to_rphy(parent);
 	found_dev = sas_find_dev_by_rphy(rphy);
 
+	pr_err("%s2 starget=%pS scsi_is_host_device=%d found_dev=%pS\n", __func__, starget, scsi_is_host_device(parent), found_dev);
 	if (!found_dev)
 		return -ENODEV;
 

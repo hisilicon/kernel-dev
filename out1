@@ -1,0 +1,4 @@
+  CALL    scripts/checksyscalls.sh
+  CALL    scripts/atomic/check-atomics.sh
+  DESCEND objtool
+  CC      lib/sbitmap.o
