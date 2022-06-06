@@ -1486,7 +1486,7 @@ static void ata_blk_end_sync_rq(struct request *rq, blk_status_t error)
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
-extern struct scsi_device *ata_scsi_alloc_device(struct ata_device *dev);
+
 static unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, void *buf, unsigned int buflen, 

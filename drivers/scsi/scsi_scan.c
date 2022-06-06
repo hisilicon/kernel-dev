@@ -261,6 +261,7 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
 	return ret;
 }
 
+
 /**
  * scsi_alloc_sdev - allocate and setup a scsi_Device
  * @starget: which target to allocate a &scsi_device for
@@ -654,7 +655,7 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	int response_len = 0;
 	int pass, count, result;
 	struct scsi_sense_hdr sshdr;
-
+	pr_err("%s sdev=%pS\n", __func__, sdev);
 	*bflags = 0;
 
 	//pr_err("%s sdev=%pS\n", __func__, sdev);
@@ -1153,13 +1154,13 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	int res = SCSI_SCAN_NO_RESPONSE, result_len = 256;
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 
-	//pr_err("%s starget=%pS\n", __func__, starget);
+	pr_err("%s starget=%pS\n", __func__, starget);
 	/*
 	 * The rescan flag is used as an optimization, the first scan of a
 	 * host adapter calls into here with rescan == 0.
 	 */
 	sdev = scsi_device_lookup_by_target(starget, lun);
-	//pr_err("%s2 starget=%pS sdev=%pS\n", __func__, starget, sdev);
+	pr_err("%s2 starget=%pS sdev=%pS\n", __func__, starget, sdev);
 	if (sdev) {
 		if (rescan != SCSI_SCAN_INITIAL || !scsi_device_created(sdev)) {
 			SCSI_LOG_SCAN_BUS(3, sdev_printk(KERN_INFO, sdev,
@@ -1179,7 +1180,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		scsi_device_put(sdev);
 	} else
 		sdev = scsi_alloc_sdev(starget, lun, hostdata);
-	//pr_err("%s3 starget=%pS sdev=%pS\n", __func__, starget, sdev);
+	pr_err("%s3 starget=%pS sdev=%pS\n", __func__, starget, sdev);
 	if (!sdev)
 		goto out;
 
@@ -1187,10 +1188,12 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	if (!result)
 		goto out_free_sdev;
 
-	if (scsi_probe_lun(sdev, result, result_len, &bflags))
+	if (scsi_probe_lun(sdev, result, result_len, &bflags)) {
+		pr_err("%s3.1 calling out_free_result starget=%pS sdev=%pS\n", __func__, starget, sdev);
 		goto out_free_result;
+	}
 
-	//pr_err("%s4 starget=%pS sdev=%pS\n", __func__, starget, sdev);
+	pr_err("%s4 starget=%pS sdev=%pS\n", __func__, starget, sdev);
 	if (bflagsp)
 		*bflagsp = bflags;
 	/*
@@ -1281,7 +1284,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	} else
 		__scsi_remove_device(sdev);
  out:
-	//pr_err("%s10out res=%d starget=%pS sdev=%pS\n", __func__, res, starget, sdev);
+	pr_err("%s10out res=%d starget=%pS sdev=%pS *sdevp=%pS\n", __func__, res, starget, sdev, sdevp ? *sdevp : NULL);
 	return res;
 }
 
@@ -1588,7 +1591,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 		pr_err("%s4 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
 		
-		pr_err("%s5 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
+		pr_err("%s5 shost=%pS channel=%d id=%d lun=%lld starget=%pS sdev=%pS\n", __func__, shost, channel, id, lun, starget, sdev);
 		scsi_autopm_put_host(shost);
 	}
 	pr_err("%s6 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
@@ -2058,3 +2061,36 @@ void scsi_free_host_dev(struct scsi_device *sdev)
 }
 EXPORT_SYMBOL(scsi_free_host_dev);
 
+
+struct scsi_device *scsi_get_dev(struct Scsi_Host *shost, int channel, int id, u64 lun)
+{
+	struct scsi_device *sdev = NULL;
+	struct scsi_target *starget;
+	//pr_err("%s shost=%pS getting mutex\n", __func__, shost);
+	mutex_lock(&shost->scan_mutex);
+	pr_err("%s shost=%pS got mutex\n", __func__, shost);
+	if (!scsi_host_scan_allowed(shost)){
+		pr_err("%s !scsi_host_scan_allowed\n", __func__);
+		goto out;
+	}
+	starget = scsi_alloc_target(&shost->shost_gendev, channel, id);
+	pr_err("%s2 shost=%pS starget=%pS\n", __func__, shost, starget);
+	if (!starget){
+		pr_err("%s !starget\n", __func__);
+		goto out;
+	}
+
+	sdev = scsi_alloc_sdev(starget, lun, NULL);
+	pr_err("%s3 shost=%pS starget=%pS sdev=%pS\n", __func__, shost, starget, sdev);
+	if (sdev){
+		sdev->borken = 0;
+	} else {
+		pr_err("%s !sdev\n", __func__);
+		scsi_target_reap(starget);
+	}
+	put_device(&starget->dev);
+ out:
+	mutex_unlock(&shost->scan_mutex);
+	return sdev;
+}
+EXPORT_SYMBOL(scsi_get_dev);
