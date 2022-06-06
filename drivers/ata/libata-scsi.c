@@ -4262,7 +4262,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 }
 
 
-extern struct scsi_device *scsi_get_dev(struct Scsi_Host *shost, int channel, int id, u64 lun);
+extern struct scsi_device *scsi_get_dev(struct Scsi_Host *shost, struct device *parent, int channel, int id, u64 lun);
 struct scsi_device *ata_scsi_alloc_device(struct ata_device *dev)
 {
 	struct scsi_device *sdev;
@@ -4283,7 +4283,7 @@ struct scsi_device *ata_scsi_alloc_device(struct ata_device *dev)
 	else
 		channel = link->pmp;
 
-	sdev = scsi_get_dev(ap->scsi_host, channel, id, 0);
+	sdev = scsi_get_dev(ap->scsi_host, &dev->tdev, channel, id, 0);
 
 	pr_err("%s2 dev=%pS ap=%pS link=%pS sdev=%pS\n", __func__, dev, ap, link, sdev);
 	return sdev;

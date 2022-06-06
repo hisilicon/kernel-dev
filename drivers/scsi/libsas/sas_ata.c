@@ -587,6 +587,7 @@ int sas_ata_init(struct domain_device *found_dev)
 	struct ata_port *ap;
 	int rc;
 	ata_host = kzalloc(sizeof(*ata_host), GFP_KERNEL);
+	pr_err("%s found_dev=%pS shost=%pS\n", __func__, found_dev, shost);
 	if (!ata_host)	{
 		pr_err("ata host alloc failed.\n");
 		return -ENOMEM;
@@ -595,6 +596,7 @@ int sas_ata_init(struct domain_device *found_dev)
 	ata_host_init(ata_host, ha->dev, &sas_sata_ops);
 
 	ap = ata_sas_port_alloc(ata_host, &sata_port_info, shost);
+	pr_err("%s2 found_dev=%pS shost=%pS ap=%pS\n", __func__, found_dev, shost, ap);
 	if (!ap) {
 		pr_err("ata_sas_port_alloc failed.\n");
 		rc = -ENODEV;

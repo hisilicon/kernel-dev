@@ -2063,7 +2063,7 @@ void scsi_free_host_dev(struct scsi_device *sdev)
 EXPORT_SYMBOL(scsi_free_host_dev);
 
 
-struct scsi_device *scsi_get_dev(struct Scsi_Host *shost, int channel, int id, u64 lun)
+struct scsi_device *scsi_get_dev(struct Scsi_Host *shost, struct device *parent, int channel, int id, u64 lun)
 {
 	struct scsi_device *sdev = NULL;
 	struct scsi_target *starget;

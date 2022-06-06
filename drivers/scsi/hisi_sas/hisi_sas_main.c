@@ -758,7 +758,7 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	struct hisi_sas_device *sas_dev;
 	struct device *dev = hisi_hba->dev;
 	int rc;
-
+	pr_err("%s device=%pS\n", __func__, device);
 	if (hisi_hba->hw->alloc_dev)
 		sas_dev = hisi_hba->hw->alloc_dev(device);
 	else
@@ -794,7 +794,7 @@ static int hisi_sas_dev_found(struct domain_device *device)
 		}
 	}
 
-	dev_info(dev, "dev[%d:%x] found\n",
+	dev_err(dev, "dev[%d:%x] found\n",
 		sas_dev->device_id, sas_dev->dev_type);
 
 	sas_dev->dev_status = HISI_SAS_DEV_NORMAL;

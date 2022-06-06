@@ -163,26 +163,41 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
 	struct request *rq = scsi_cmd_to_rq(cmnd);
+	struct domain_device *dev;
 	//struct scsi_device *sdev = cmnd->device;
 	//struct domain_device *dev = cmd_to_domain_dev(cmd);
 
+
+	if (!cmnd)
+		pr_err("%s shost=%pS cmnd=NULL\n", __func__, shost);
+	if (!cmnd->device)
+		pr_err("%s shost=%pS cmnd=%pS cmd->device=NULL shost->sdev=%pS\n", __func__, shost, cmnd, shost->sdev);
+
+	//pr_err("%s shost=%pS cmnd=%pS shost->sdev=%pS\n", __func__, shost, cmnd, shost->sdev);
 	//pr_err("%s cmnd=%pS ATA_INTERNAL=%d cmnd->cmnd[0]=%d sdev=%pS host sdev=%pS host_scribble=%pS\n",
 		//	__func__, cmnd, ATA_INTERNAL, cmnd->cmnd[0], sdev, shost->sdev, cmnd->host_scribble);
-	if (cmnd->cmnd[0] == ATA_16) {
-		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
-		struct ata_port *ap = qc ? qc->ap : NULL;
-		int res;
-		//pr_err("%s1 cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS\n",
-		//	__func__, cmnd, cmnd->host_scribble, qc, ap);
-		cmnd->submitter = SUBMITTED_BY_LIBATA_INTERNAL;
-		spin_lock_irq(ap->lock);
-		res = ata_sas_queuecmd(cmnd, ap);
-		spin_unlock_irq(ap->lock);
-		if (res)
-			pr_err("%s2 cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS res=%d\n",
-				__func__, cmnd, cmnd->host_scribble, qc, ap, res);
-		return res;
+	if (cmnd->device != shost->sdev) {
 
+		if (!cmnd->device->sdev_target)
+			pr_err("%s shost=%pS cmnd=%pS cmd->device=%pS starget=NULL shost->sdev=%pS\n", __func__, shost, cmnd, cmnd->device, shost->sdev);
+		if (!cmnd->device->sdev_target->hostdata)
+			pr_err("%s shost=%pS cmnd=%pS cmd->device=%pS starget=%pS hostdata=NULL shost->sdev=%pS\n", 
+				__func__, shost, cmnd, cmnd->device, cmnd->device->sdev_target, shost->sdev);
+		if (dev_is_sata(dev)) {
+			struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
+			struct ata_port *ap = qc ? qc->ap : NULL;
+			int res;
+			//pr_err("%s1 cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS\n",
+			//	__func__, cmnd, cmnd->host_scribble, qc, ap);
+			cmnd->submitter = SUBMITTED_BY_LIBATA_INTERNAL;
+			spin_lock_irq(ap->lock);
+			res = ata_sas_queuecmd(cmnd, ap);
+			spin_unlock_irq(ap->lock);
+			if (res)
+				pr_err("%s2 cmnd=%pS ATA_INTERNAL host_scribble=%pS qc=%pS ap=%pS res=%d\n",
+					__func__, cmnd, cmnd->host_scribble, qc, ap, res);
+			return res;
+		}
 	} else {
 		//pr_err("%s2 cmnd=%pS not-ATA INTERNAL host_scribble=%pS\n", __func__, cmnd, cmnd->host_scribble);
 	}
@@ -872,16 +887,53 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 	return found_dev;
 }
 
+void print_all_found_devs(struct Scsi_Host *shost)
+{
+	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ha->phy_port_lock, flags);
+	for (i = 0; i < ha->num_phys; i++) {
+		struct asd_sas_port *port = ha->sas_port[i];
+		struct domain_device *dev;
+
+		spin_lock(&port->dev_list_lock);
+		list_for_each_entry(dev, &port->dev_list, dev_list_node) {
+			pr_err("%s shost=%pS i=%d dev=%pS dev_type=%d dev_is_sata=%d\n", __func__, shost, i, dev, dev->dev_type, dev_is_sata(dev));
+		}
+		spin_unlock(&port->dev_list_lock);
+	}
+
+	spin_unlock_irqrestore(&ha->phy_port_lock, flags);
+}
+
 int sas_target_alloc(struct scsi_target *starget)
 {
 	struct device *parent = starget->dev.parent;
 	struct sas_rphy *rphy;
 	struct domain_device *found_dev;
-	pr_err("%s starget=%pS scsi_is_host_device=%d\n", __func__, starget, scsi_is_host_device(parent));
-	dev_err(parent, "%s parent=%pS starget=%pS scsi_is_host_device=%d\n", __func__, parent, starget, scsi_is_host_device(parent));
+	WARN_ON_ONCE(1);
+	pr_err("%s starget=%pS scsi_is_host_device=%d id=%d channel=%d\n", 
+			__func__, starget, scsi_is_host_device(parent), starget->id, starget->channel);
 
-	if (scsi_is_host_device(parent))
+	dev_err(parent, "%s parent=%pS starget=%pS scsi_is_host_device=%d\n", __func__, parent, starget, scsi_is_host_device(parent));
+	if (scsi_is_host_device(parent)) {
+		
+		struct scsi_device *sdev; 
+		struct device *shost_gendev = parent;
+		struct Scsi_Host *shost = container_of(shost_gendev, struct Scsi_Host, shost_gendev);
+
+	pr_err("%s1 starget=%pS scsi_is_host_device=%d id=%d channel=%d shost=%pS\n", 
+			__func__, starget, scsi_is_host_device(parent), starget->id, starget->channel, shost);
+			shost_for_each_device(sdev, shost) {
+
+				pr_err("%s1.1 starget=%pS shost=%pS host knows device -> sdev=%pS id=%d channel=%d lun=%lld sdev_target=%pS\n", 
+						__func__, starget, shost, sdev, sdev->id, sdev->channel, sdev->lun, sdev->sdev_target);
+				print_all_found_devs(shost);
+			}
 		return 0;
+	}
 
 	rphy = dev_to_rphy(parent);
 	found_dev = sas_find_dev_by_rphy(rphy);
