@@ -507,7 +507,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	struct scsi_target *starget;
 	struct scsi_target *found_target;
 	int error, ref_got;
-
+	dev_err(parent, "%s channel=%d id=%d\n", __func__, channel, id);
 	starget = kzalloc(size, GFP_KERNEL);
 	if (!starget) {
 		printk(KERN_ERR "%s: allocation failure\n", __func__);
@@ -532,7 +532,9 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
  retry:
 	spin_lock_irqsave(shost->host_lock, flags);
 
+	dev_err(parent, "%s2 retry  channel=%d id=%d\n", __func__, channel, id);
 	found_target = __scsi_find_target(parent, channel, id);
+	dev_err(parent, "%s3 found_target channel=%d id=%d found_target=%pS\n", __func__, channel, id, found_target);
 	if (found_target)
 		goto found;
 
@@ -557,6 +559,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	return starget;
 
  found:
+	dev_err(parent, "%s3 found_target channel=%d id=%d found_target=%pS\n", __func__, channel, id, found_target);
 	/*
 	 * release routine already fired if kref is zero, so if we can still
 	 * take the reference, the target must be alive.  If we can't, it must
@@ -567,6 +570,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	if (ref_got) {
 		put_device(dev);
+		dev_err(parent, "%s9 returning found_target channel=%d id=%d found_target=%pS\n", __func__, channel, id, found_target);
 		return found_target;
 	}
 	/*
@@ -1656,7 +1660,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 	blist_flags_t bflags = 0;
 	int res;
 	struct scsi_target *starget;
-	//pr_err("%s id=%d lun=0x%llx\n", __func__, id, lun);
+	pr_err("%s id=%d lun=0x%llx\n", __func__, id, lun);
 	if (shost->this_id == id)
 		/*
 		 * Don't scan the host adapter
@@ -1664,7 +1668,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 		return;
 
 	starget = scsi_alloc_target(parent, channel, id);
-	//pr_err("%s2 id=%d lun=0x%llx starget=%pS\n", __func__, id, lun, starget);
+	pr_err("%s2 id=%d lun=0x%llx starget=%pS\n", __func__, id, lun, starget);
 	if (!starget)
 		return;
 	scsi_autopm_get_target(starget);
