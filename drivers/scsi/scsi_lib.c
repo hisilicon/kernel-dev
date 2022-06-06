@@ -1428,6 +1428,16 @@ static void scsi_complete(struct request *rq)
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 	enum scsi_disposition disposition;
 
+	if (blk_mq_is_reserved_rq(rq)) {
+		struct scsi_device *sdev = cmd->device;
+
+		scsi_mq_uninit_cmd(cmd);
+		scsi_device_unbusy(sdev, cmd);
+		__blk_mq_end_request(rq, 0);
+
+		return;
+	}
+
 	INIT_LIST_HEAD(&cmd->eh_entry);
 
 	atomic_inc(&cmd->device->iodone_cnt);
@@ -1717,6 +1727,21 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
 	blk_status_t ret;
 	int reason;
+
+	if (blk_mq_is_reserved_rq(req)) {
+		if (!(req->rq_flags & RQF_DONTPREP)) {
+			ret = scsi_prepare_cmd(req);
+			if (ret != BLK_STS_OK)
+				goto out_dec_host_busy;
+
+			req->rq_flags |= RQF_DONTPREP;
+		} else {
+			clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
+		}
+		blk_mq_start_request(req);
+
+		return shost->hostt->reserved_queuecommand(shost, cmd);
+	}
 
 	WARN_ON_ONCE(cmd->budget_token < 0);
 

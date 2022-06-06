@@ -73,6 +73,7 @@ struct scsi_host_template {
 	 * STATUS: REQUIRED
 	 */
 	int (* queuecommand)(struct Scsi_Host *, struct scsi_cmnd *);
+	int (*reserved_queuecommand)(struct Scsi_Host *, struct scsi_cmnd *);
 
 	/*
 	 * The commit_rqs function is used to trigger a hardware
