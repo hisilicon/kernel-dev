@@ -158,12 +158,75 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	return task;
 }
 
+void print_all_found_devs(struct Scsi_Host *shost)
+{
+	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ha->phy_port_lock, flags);
+	for (i = 0; i < ha->num_phys; i++) {
+		struct asd_sas_port *port = ha->sas_port[i];
+		struct domain_device *dev;
+
+		spin_lock(&port->dev_list_lock);
+		list_for_each_entry(dev, &port->dev_list, dev_list_node) {
+			pr_err("%s shost=%pS i=%d dev=%pS dev_type=%d dev_is_sata=%d\n", __func__, shost, i, dev, dev->dev_type, dev_is_sata(dev));
+			if (dev_is_sata(dev)) {
+				struct sata_device *sata_dev = &dev->sata_dev;
+				struct ata_port *ap = sata_dev->ap;
+				struct ata_device *adev = sas_to_ata_dev(dev);
+				pr_err("%s2 SATA DEV shost=%pS i=%d dev=%pS dev_type=%d dev_is_sata=%d ap=%pS adev=%pS sdev_tmp=%pS\n",
+					__func__, shost, i, dev, dev->dev_type, dev_is_sata(dev), ap, adev, adev->sdev_tmp);
+			}
+		}
+		spin_unlock(&port->dev_list_lock);
+	}
+
+	spin_unlock_irqrestore(&ha->phy_port_lock, flags);
+}
+
+struct domain_device *sas_find_sata_device(struct sas_ha_struct *ha, struct scsi_device *sdev)
+{
+	struct domain_device *found_adev = NULL;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&ha->phy_port_lock, flags);
+	for (i = 0; i < ha->num_phys; i++) {
+		struct asd_sas_port *port = ha->sas_port[i];
+		struct domain_device *dev;
+
+		spin_lock(&port->dev_list_lock);
+		list_for_each_entry(dev, &port->dev_list, dev_list_node) {
+			pr_err("%s ha=%pS i=%d dev=%pS dev_type=%d dev_is_sata=%d\n", __func__, ha, i, dev, dev->dev_type, dev_is_sata(dev));
+			if (dev_is_sata(dev)) {
+				struct sata_device *sata_dev = &dev->sata_dev;
+				struct ata_port *ap = sata_dev->ap;
+				struct ata_device *adev = sas_to_ata_dev(dev);
+				pr_err("%s2 SATA DEV ha=%pS i=%d dev=%pS dev_type=%d dev_is_sata=%d ap=%pS adev=%pS sdev_tmp=%pS\n",
+					__func__, ha, i, dev, dev->dev_type, dev_is_sata(dev), ap, adev, adev->sdev_tmp);
+				if (adev->sdev_tmp == sdev) {
+					spin_unlock(&port->dev_list_lock);
+					found_adev = dev;
+					goto out;
+				}
+
+			}
+		}
+		spin_unlock(&port->dev_list_lock);
+	}
+out:
+	spin_unlock_irqrestore(&ha->phy_port_lock, flags);
+	return found_adev;
+}
+
 int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 {
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
 	struct request *rq = scsi_cmd_to_rq(cmnd);
-	struct domain_device *dev;
+	//struct domain_device *dev;
 	//struct scsi_device *sdev = cmnd->device;
 	//struct domain_device *dev = cmd_to_domain_dev(cmd);
 
@@ -177,13 +240,19 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	//pr_err("%s cmnd=%pS ATA_INTERNAL=%d cmnd->cmnd[0]=%d sdev=%pS host sdev=%pS host_scribble=%pS\n",
 		//	__func__, cmnd, ATA_INTERNAL, cmnd->cmnd[0], sdev, shost->sdev, cmnd->host_scribble);
 	if (cmnd->device != shost->sdev) {
+		struct domain_device *adev = cmnd->device->sdev_target->hostdata;
 
 		if (!cmnd->device->sdev_target)
 			pr_err("%s shost=%pS cmnd=%pS cmd->device=%pS starget=NULL shost->sdev=%pS\n", __func__, shost, cmnd, cmnd->device, shost->sdev);
-		if (!cmnd->device->sdev_target->hostdata)
+		if (!cmnd->device->sdev_target->hostdata) {
 			pr_err("%s shost=%pS cmnd=%pS cmd->device=%pS starget=%pS hostdata=NULL shost->sdev=%pS\n", 
 				__func__, shost, cmnd, cmnd->device, cmnd->device->sdev_target, shost->sdev);
-		if (dev_is_sata(dev)) {
+			adev = sas_find_sata_device(ha, cmnd->device);
+			pr_err("%s2 shost=%pS cmnd=%pS cmd->device=%pS starget=%pS hostdata=NULL shost->sdev=%pS adev=%pS\n", 
+				__func__, shost, cmnd, cmnd->device, cmnd->device->sdev_target, shost->sdev, adev);
+		}
+
+		if (dev_is_sata(adev)) {
 			struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
 			struct ata_port *ap = qc ? qc->ap : NULL;
 			int res;
@@ -885,27 +954,6 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 	spin_unlock_irqrestore(&ha->phy_port_lock, flags);
 
 	return found_dev;
-}
-
-void print_all_found_devs(struct Scsi_Host *shost)
-{
-	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
-	int i;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ha->phy_port_lock, flags);
-	for (i = 0; i < ha->num_phys; i++) {
-		struct asd_sas_port *port = ha->sas_port[i];
-		struct domain_device *dev;
-
-		spin_lock(&port->dev_list_lock);
-		list_for_each_entry(dev, &port->dev_list, dev_list_node) {
-			pr_err("%s shost=%pS i=%d dev=%pS dev_type=%d dev_is_sata=%d\n", __func__, shost, i, dev, dev->dev_type, dev_is_sata(dev));
-		}
-		spin_unlock(&port->dev_list_lock);
-	}
-
-	spin_unlock_irqrestore(&ha->phy_port_lock, flags);
 }
 
 int sas_target_alloc(struct scsi_target *starget)

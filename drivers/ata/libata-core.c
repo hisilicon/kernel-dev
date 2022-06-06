@@ -1517,7 +1517,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	struct scsi_cmnd *scmd;
 	struct request *req;
 	__maybe_unused blk_status_t blk_sts;
-	struct scsi_device *sdev_tmp = NULL;
+	//struct scsi_device *sdev_tmp = NULL;
 	
 	//scsi_cmd[0] = ATA_INTERNAL;
 
@@ -1527,16 +1527,16 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS\n",
 		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev);
 	if (!sdev) {
-		sdev_tmp = ata_scsi_alloc_device(dev);
+		dev->sdev_tmp = ata_scsi_alloc_device(dev);
 
-		pr_err("%s0.1 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS sdev_tmp=%pS\n",
-			__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev, sdev_tmp);
-		if (IS_ERR(sdev_tmp))
+		pr_err("%s0.1 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS dev->sdev_tmp=%pS\n",
+			__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev, dev->sdev_tmp);
+		if (IS_ERR(dev->sdev_tmp))
 			panic("%s sdev_tmp = NULL\n", __func__);
 		
 		pr_err("%s0.2 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS\n",
 			__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev);
-		sdev = sdev_tmp;
+		sdev = dev->sdev_tmp;
 	}
 
 	//sdev = scsi_host->sdev;
@@ -1569,7 +1569,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 			dma_dir == DMA_TO_DEVICE ?
 			REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
 			BLK_MQ_REQ_RESERVED);
-	pr_err("%s1.1 sdev=%pS ap=%pS req=%pS sdev_tmp=%pS\n", __func__, sdev, ap, req, sdev_tmp);
+	pr_err("%s1.1 sdev=%pS ap=%pS req=%pS\n", __func__, sdev, ap, req);
 	if (IS_ERR(req))
 		panic("no request can_queue=%d nr_reserved_cmds=%d\n", scsi_host->can_queue, scsi_host->nr_reserved_cmds);
 
@@ -1665,8 +1665,10 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		panic("sanity1 %s started req=%pS\n", __func__, req);
 	req = NULL;
 	scmd = NULL;
-	if (sdev_tmp)
-		scsi_remove_device(sdev_tmp);
+	if (dev->sdev_tmp) {
+		scsi_remove_device(dev->sdev_tmp);
+		dev->sdev_tmp = NULL;
+	}
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
