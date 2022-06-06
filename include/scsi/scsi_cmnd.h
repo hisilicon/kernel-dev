@@ -152,6 +152,11 @@ static inline void *scsi_cmd_priv(struct scsi_cmnd *cmd)
 	return cmd + 1;
 }
 
+static inline bool scsi_is_reserved_cmd(struct scsi_cmnd *cmd)
+{
+	return blk_mq_is_reserved_rq(scsi_cmd_to_rq(cmd));
+}
+
 void scsi_done(struct scsi_cmnd *cmd);
 void scsi_done_direct(struct scsi_cmnd *cmd);
 
