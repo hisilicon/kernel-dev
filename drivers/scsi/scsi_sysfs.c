@@ -1400,7 +1400,8 @@ void __scsi_remove_device(struct scsi_device *sdev)
 {
 	struct device *dev = &sdev->sdev_gendev;
 	int res;
-
+	pr_err("%s dev=%pS sdev_target = starget=%pS scsi_target(sdev)=%pS kref sdev_target=%d\n",
+	 __func__, sdev, sdev->sdev_target, scsi_target(sdev), kref_read(&sdev->sdev_target->reap_ref));
 	/*
 	 * This cleanup path is not reentrant and while it is impossible
 	 * to get a new reference with scsi_device_get() someone can still
@@ -1409,6 +1410,8 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	if (sdev->sdev_state == SDEV_DEL)
 		return;
 
+	pr_err("%s2 dev=%pS sdev_target = starget=%pS scsi_target(sdev)=%pS kref sdev_target=%d\n", 
+		__func__, sdev, sdev->sdev_target, scsi_target(sdev), kref_read(&sdev->sdev_target->reap_ref));
 	if (sdev->is_visible) {
 		/*
 		 * If scsi_internal_target_block() is running concurrently,
@@ -1439,6 +1442,8 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	} else
 		put_device(&sdev->sdev_dev);
 
+	pr_err("%s3 dev=%pS sdev_target = starget=%pS scsi_target(sdev)=%pS kref sdev_target=%d\n",
+		__func__, sdev, sdev->sdev_target, scsi_target(sdev), kref_read(&sdev->sdev_target->reap_ref));
 	/*
 	 * Stop accepting new requests and wait until all queuecommand() and
 	 * scsi_run_queue() invocations have finished before tearing down the
@@ -1460,6 +1465,9 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	 * removed sysfs visibility from the device, so make the target
 	 * invisible if this was the last device underneath it.
 	 */
+
+	pr_err("%s10 dev=%pS sdev_target = starget=%pS calling scsi_target_reap scsi_target(sdev)=%pS  kref sdev_target=%d\n",
+	 __func__, sdev, sdev->sdev_target, scsi_target(sdev), kref_read(&sdev->sdev_target->reap_ref));
 	scsi_target_reap(scsi_target(sdev));
 
 	put_device(dev);
@@ -1484,10 +1492,11 @@ static void __scsi_remove_target(struct scsi_target *starget)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	unsigned long flags;
 	struct scsi_device *sdev;
-
+	pr_err("%s target=%pS recount=%d\n", __func__, starget, kref_read(&starget->reap_ref));
 	spin_lock_irqsave(shost->host_lock, flags);
  restart:
 	list_for_each_entry(sdev, &shost->__devices, siblings) {
+		pr_err("%s2 target=%pS calling scsi_remove_device sdev=%pS\n", __func__, starget, sdev);
 		/*
 		 * We cannot call scsi_device_get() here, as
 		 * we might've been called from rmmod() causing
@@ -1502,6 +1511,7 @@ static void __scsi_remove_target(struct scsi_target *starget)
 		    !get_device(&sdev->sdev_gendev))
 			continue;
 		spin_unlock_irqrestore(shost->host_lock, flags);
+		pr_err("%s3 target=%pS calling scsi_remove_device sdev=%pS\n", __func__, starget, sdev);
 		scsi_remove_device(sdev);
 		put_device(&sdev->sdev_gendev);
 		spin_lock_irqsave(shost->host_lock, flags);
@@ -1523,15 +1533,20 @@ void scsi_remove_target(struct device *dev)
 	struct Scsi_Host *shost = dev_to_shost(dev->parent);
 	struct scsi_target *starget;
 	unsigned long flags;
-
+	dev_err(dev, "%s\n", __func__);
 restart:
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_for_each_entry(starget, &shost->__targets, siblings) {
+		dev_err(dev, "%s2 starget=%pS state=%d refcount=%d\n", __func__, starget, starget->state, kref_read(&starget->reap_ref));
 		if (starget->state == STARGET_DEL ||
 		    starget->state == STARGET_REMOVE ||
 		    starget->state == STARGET_CREATED_REMOVE)
 			continue;
+		dev_err(dev, "%s3 starget=%pS state=%d\n", __func__, starget, starget->state);
 		if (starget->dev.parent == dev || &starget->dev == dev) {
+
+			dev_err(dev,"%s4 starget=%pS refcount before get=%d starget->state=%d\n", 
+				__func__, starget, kref_read(&starget->reap_ref), starget->state);
 			kref_get(&starget->reap_ref);
 			if (starget->state == STARGET_CREATED)
 				starget->state = STARGET_CREATED_REMOVE;
@@ -1623,6 +1638,7 @@ void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 	 * the target.  Target will be held in CREATED state until something
 	 * beneath it becomes visible (in which case it moves to RUNNING)
 	 */
+	pr_err("%s starget=%pS  refcount before get=%d\n", __func__, starget, kref_read(&starget->reap_ref));
 	kref_get(&starget->reap_ref);
 }
 

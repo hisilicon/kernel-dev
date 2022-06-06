@@ -1666,7 +1666,13 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	req = NULL;
 	scmd = NULL;
 	if (dev->sdev_tmp) {
-		scsi_remove_device(dev->sdev_tmp);
+		struct scsi_target *starget = scsi_target(dev->sdev_tmp);
+		
+		//scsi_remove_device(dev->sdev_tmp);
+		extern void __scsi_remove_device(struct scsi_device *sdev);
+		pr_err("%s4.2 sdev=%pS starget=%pS calling __scsi_remove_device\n",
+		__func__, sdev, starget);
+		__scsi_remove_device(dev->sdev_tmp);
 		dev->sdev_tmp = NULL;
 	}
 

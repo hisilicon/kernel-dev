@@ -465,7 +465,7 @@ static void scsi_target_reap_ref_release(struct kref *kref)
 {
 	struct scsi_target *starget
 		= container_of(kref, struct scsi_target, reap_ref);
-
+	pr_err("%s starget=%pS\n", __func__, starget);
 	/*
 	 * if we get here and the target is still in a CREATED state that
 	 * means it was allocated but never made visible (because a scan
@@ -481,6 +481,8 @@ static void scsi_target_reap_ref_release(struct kref *kref)
 
 static void scsi_target_reap_ref_put(struct scsi_target *starget)
 {
+	struct kref *kref = &starget->reap_ref;
+	pr_err("%s starget=%pS refcount before put=%d\n", __func__, starget, kref_read(kref));
 	kref_put(&starget->reap_ref, scsi_target_reap_ref_release);
 }
 
@@ -534,7 +536,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 
 	dev_err(parent, "%s2 retry  channel=%d id=%d\n", __func__, channel, id);
 	found_target = __scsi_find_target(parent, channel, id);
-	dev_err(parent, "%s3 found_target channel=%d id=%d found_target=%pS\n", __func__, channel, id, found_target);
+	dev_err(parent, "%s3 channel=%d id=%d found_target=%pS\n", __func__, channel, id, found_target);
 	if (found_target)
 		goto found;
 
@@ -556,10 +558,11 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	}
 	get_device(dev);
 
+	dev_err(parent, "%s10 channel=%d id=%d returning starget=%pS kref=%d\n", __func__, channel, id, starget, kref_read(&starget->reap_ref));
 	return starget;
 
  found:
-	dev_err(parent, "%s3 found_target channel=%d id=%d found_target=%pS\n", __func__, channel, id, found_target);
+	dev_err(parent, "%s3 found_target channel=%d id=%d found_target=%pS kref before get=%d\n", __func__, channel, id, found_target, kref_read(&starget->reap_ref));
 	/*
 	 * release routine already fired if kref is zero, so if we can still
 	 * take the reference, the target must be alive.  If we can't, it must
@@ -570,7 +573,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	if (ref_got) {
 		put_device(dev);
-		dev_err(parent, "%s9 returning found_target channel=%d id=%d found_target=%pS\n", __func__, channel, id, found_target);
+		dev_err(parent, "%s9 returning found_target channel=%d id=%d found_target=%pS kref=%d \n", __func__, channel, id, found_target, kref_read(&starget->reap_ref));
 		return found_target;
 	}
 	/*
@@ -601,6 +604,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
  */
 void scsi_target_reap(struct scsi_target *starget)
 {
+	pr_err("%s starget=%pS\n", __func__, starget);
 	/*
 	 * serious problem if this triggers: STARGET_DEL is only set in the if
 	 * the reap_ref drops to zero, so we're trying to do another final put
