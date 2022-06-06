@@ -3965,8 +3965,8 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	struct ata_queued_cmd *qc;
 	__maybe_unused struct request *req = scsi_cmd_to_rq(scmd);
 
-//	pr_err("%s1.2.4 ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
-//		__func__, ap, req, scsi_sglist(scmd), scmd, req, req->q);
+	pr_err("%s1.2.4 ap=%pS req=%pS scsi_sglist(scmd)=%pS scmd=%pS req=%pS q=%pS\n",
+		__func__, ap, req, scsi_sglist(scmd), scmd, req, req->q);
 	/* no internal command while frozen */
 	if (ap->pflags & ATA_PFLAG_FROZEN) {
 		panic("%s frozen\n", __func__);
@@ -4007,7 +4007,7 @@ static unsigned int ata_scsi_internal(struct scsi_cmnd *scmd, struct ata_device 
 	}
 	ata_qc_issue(qc);
 
-	//pr_err("%s10 out scmd=%pS\n", __func__, scmd);
+	pr_err("%s10 out scmd=%pS\n", __func__, scmd);
 
 	return 0;
 did_err:

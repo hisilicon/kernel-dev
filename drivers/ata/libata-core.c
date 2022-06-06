@@ -1522,6 +1522,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	//scsi_cmd[0] = ATA_INTERNAL;
 
 	sdev = dev->sdev;
+	//sdev = NULL;
 
 	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS\n",
 		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev);
@@ -1568,7 +1569,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 			dma_dir == DMA_TO_DEVICE ?
 			REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
 			BLK_MQ_REQ_RESERVED);
-	pr_err("%s1.1 sdev=%pS ap=%pS req=%pS\n", __func__, sdev, ap, req);
+	pr_err("%s1.1 sdev=%pS ap=%pS req=%pS sdev_tmp=%pS\n", __func__, sdev, ap, req, sdev_tmp);
 	if (IS_ERR(req))
 		panic("no request can_queue=%d nr_reserved_cmds=%d\n", scsi_host->can_queue, scsi_host->nr_reserved_cmds);
 
@@ -1748,7 +1749,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
 		ata_internal_cmd_timed_out(dev, command);
 	
-	if (err_mask)
+	//if (err_mask)
 		pr_err("%s10out sdev=%pS cmd_result=%d scmd=%pS req=%pS err_mask=%d\n", __func__, sdev, cmd_result, scmd, req, err_mask);
 //panic("sanity2 %s\n", __func__);
 	//err_mask = 0; //hack
@@ -5977,7 +5978,7 @@ int ata_port_probe(struct ata_port *ap)
 static void async_port_probe(void *data, async_cookie_t cookie)
 {
 	struct ata_port *ap = data;
-	//pr_err("%s ap=%pS\n", __func__, ap);
+	pr_err("%s ap=%pS\n", __func__, ap);
 
 	/*
 	 * If we're not allowed to scan this host in parallel,
@@ -5991,7 +5992,7 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 		async_synchronize_cookie(cookie);
 	}
 
-	//pr_err("%s3 ap=%pS calling ata_port_probe\n", __func__, ap);
+	pr_err("%s3 ap=%pS calling ata_port_probe\n", __func__, ap);
 	(void)ata_port_probe(ap);
 
 	//pr_err("%s4 ap=%pS calling async_synchronize_cookie\n", __func__, ap);
@@ -6000,7 +6001,7 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 
 	pr_err("%s5 ap=%pS calling ata_scsi_scan_host\n", __func__, ap);
 	ata_scsi_scan_host(ap, 1);
-	//pr_err("%s10 out ap=%pS \n", __func__, ap);
+	pr_err("%s10 out ap=%pS \n", __func__, ap);
 }
 
 /**
