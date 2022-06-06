@@ -4330,7 +4330,7 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		ata_for_each_link(link, ap, EDGE) {
 			pr_err("%s1 ap=%pS link=%pS\n", __func__, ap, link);
 			ata_for_each_dev(dev, link, ALL) {
-			//	#ifdef dsdfdf
+				#ifdef dsdfdf
 				struct scsi_device *sdev_tmp;
 				pr_err("%s2 host=%pS ap=%pS link=%pS dev=%pS\n", __func__, host, ap, link, dev);
 				sdev_tmp = ata_scsi_alloc_device(dev);
@@ -4338,7 +4338,7 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 				if (!IS_ERR(sdev_tmp))
 					scsi_remove_device(sdev_tmp);
 				pr_err("%s4 host=%pS ap=%pS link=%pS dev=%pS sdev_tmp=%pS\n", __func__, host, ap, link, dev, sdev_tmp);
-			//	#endif
+				#endif
 			}
 		}
 		//ap->sdev_internal = scsi_get_host_dev(shost);
