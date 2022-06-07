@@ -312,6 +312,8 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 
 	scsi_proc_host_add(shost);
 	scsi_autopm_put_host(shost);
+	if (shost->nr_reserved_cmds)
+		shost->sdev = scsi_get_host_dev(shost); // TODO: Add error handling
 	return error;
 
 	/*
@@ -372,6 +374,9 @@ static void scsi_host_dev_release(struct device *dev)
 
 	if (shost->shost_state != SHOST_CREATED)
 		put_device(parent);
+	if (shost->sdev)
+		scsi_free_host_dev(shost->sdev);
+
 	kfree(shost);
 }
 
