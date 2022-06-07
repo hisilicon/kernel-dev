@@ -3256,6 +3256,9 @@ static struct scsi_host_template sht_v3_hw = {
 	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,
 	.host_reset             = hisi_sas_host_reset,
 	.host_tagset		= 1,
+	.reserved_queuecommand = sas_queuecommand_internal,
+	.reserved_timedout = sas_internal_timeout,
+	.nr_reserved_cmds = 2,
 };
 
 static const struct hisi_sas_hw hisi_sas_v3_hw = {
@@ -4868,6 +4871,10 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->max_lun = ~0;
 	shost->max_channel = 1;
 	shost->max_cmd_len = 16;
+	/*
+	 * Intentionally use HISI_SAS_UNRESERVED_IPTT for .can_queue until
+	 * every sas_task we're sent has a request associated.
+	 */
 	shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
 	shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;
 
