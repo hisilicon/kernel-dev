@@ -93,6 +93,11 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 	hashed[2] = r & 0xFF;
 }
 
+int sas_init_priv_cmd(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
+{
+	return 0;
+}
+
 int sas_register_ha(struct sas_ha_struct *sas_ha)
 {
 	char name[64];

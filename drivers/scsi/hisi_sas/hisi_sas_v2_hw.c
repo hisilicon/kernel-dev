@@ -3564,6 +3564,7 @@ static struct scsi_host_template sht_v2_hw = {
 	.proc_name		= DRV_NAME,
 	.module			= THIS_MODULE,
 	.queuecommand		= sas_queuecommand,
+	.reserved_queuecommand = sas_queuecommand_internal,
 	.dma_need_drain		= ata_scsi_dma_need_drain,
 	.target_alloc		= sas_target_alloc,
 	.slave_configure	= hisi_sas_slave_configure,
@@ -3586,6 +3587,8 @@ static struct scsi_host_template sht_v2_hw = {
 	.host_reset		= hisi_sas_host_reset,
 	.map_queues		= map_queues_v2_hw,
 	.host_tagset		= 1,
+	.cmd_size = sizeof(struct sas_task),
+	.init_cmd_priv = sas_init_priv_cmd,
 };
 
 static const struct hisi_sas_hw hisi_sas_v2_hw = {

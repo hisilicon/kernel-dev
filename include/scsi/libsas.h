@@ -693,6 +693,8 @@ extern void sas_resume_ha(struct sas_ha_struct *sas_ha);
 extern void sas_resume_ha_no_sync(struct sas_ha_struct *sas_ha);
 extern void sas_suspend_ha(struct sas_ha_struct *sas_ha);
 
+extern int sas_init_priv_cmd(struct Scsi_Host *shost, struct scsi_cmnd *cmd);
+
 int sas_set_phy_speed(struct sas_phy *phy, struct sas_phy_linkrates *rates);
 int sas_phy_reset(struct sas_phy *phy, int hard_reset);
 int sas_phy_enable(struct sas_phy *phy, int enable);
@@ -764,4 +766,10 @@ static inline struct sas_task *sas_rq_to_task(struct request *rq)
 	return (struct sas_task *)(scmd + 1);
 }
 
+static inline struct scsi_cmnd *sas_scmd_from_task(void *task)
+{
+	struct scsi_cmnd *scmd = task - sizeof(*scmd);
+
+	return scmd;
+}
 #endif /* _SASLIB_H_ */
