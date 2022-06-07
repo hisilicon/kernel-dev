@@ -1529,7 +1529,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	
 	//scsi_cmd[0] = ATA_INTERNAL;
 
-	sdev = dev->sdev;
+	sdev = scsi_host->sdev;
 	//sdev = NULL;
 
 	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS\n",
