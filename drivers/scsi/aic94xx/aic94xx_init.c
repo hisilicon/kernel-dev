@@ -60,6 +60,8 @@ static struct scsi_host_template aic94xx_sht = {
 	.compat_ioctl		= sas_ioctl,
 #endif
 	.track_queue_depth	= 1,
+	.reserved_queuecommand = sas_queuecommand_internal,
+	.nr_reserved_cmds = 2,
 };
 
 static int asd_map_memio(struct asd_ha_struct *asd_ha)

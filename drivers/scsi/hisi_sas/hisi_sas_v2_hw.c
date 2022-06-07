@@ -3581,6 +3581,8 @@ static struct scsi_host_template sht_v2_hw = {
 	.host_reset		= hisi_sas_host_reset,
 	.map_queues		= map_queues_v2_hw,
 	.host_tagset		= 1,
+	.reserved_queuecommand = sas_queuecommand_internal,
+	.nr_reserved_cmds = 2,
 };
 
 static const struct hisi_sas_hw hisi_sas_v2_hw = {
