@@ -102,6 +102,9 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 void sas_task_complete_internal(struct sas_task *task);
 void sas_blk_end_sync_rq(struct request *rq, blk_status_t error);
 
+struct sas_task *sas_alloc_slow_task_qid(struct sas_ha_struct *sas_ha,
+					 gfp_t flags, unsigned int qid);
+
 #ifdef CONFIG_SCSI_SAS_HOST_SMP
 extern void sas_smp_host_handler(struct bsg_job *job, struct Scsi_Host *shost);
 #else

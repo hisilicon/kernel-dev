@@ -565,7 +565,6 @@ enum sas_internal_abort {
 
 struct sas_internal_abort_task {
 	enum sas_internal_abort type;
-	unsigned int qid;
 	u16 tag;
 };
 
@@ -784,5 +783,20 @@ static inline struct sas_task *sas_scmd_to_task(struct scsi_cmnd *scmd)
 	struct request *rq = blk_mq_rq_from_pdu(scmd);
 	return sas_rq_to_task(rq);
 }
+
+static inline u32 sas_task_to_rq_unique_tag(struct sas_task *task)
+{
+	struct request *rq = sas_rq_from_task(task);
+
+	return blk_mq_unique_tag(rq);
+}
+
+static inline unsigned int sas_task_to_hwq(struct sas_task *task)
+{
+	u32 unique = sas_task_to_rq_unique_tag(task);
+
+	return blk_mq_unique_tag_to_hwq(unique);
+}
+
 
 #endif /* _SASLIB_H_ */

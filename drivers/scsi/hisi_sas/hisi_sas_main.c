@@ -554,13 +554,11 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		if (test_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags))
 			return -EIO;
 
-		hisi_hba = dev_to_hisi_hba(device);
-
 		if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags)))
 			return -EINVAL;
 
 		port = to_hisi_sas_port(sas_port);
-		dq = &hisi_hba->dq[task->abort_task.qid];
+		dq = &hisi_hba->dq[sas_task_to_hwq(task)];
 		break;
 	default:
 		dev_err(hisi_hba->dev, "task prep: unknown/unsupported proto (0x%x)\n",
