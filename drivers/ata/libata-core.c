@@ -1530,7 +1530,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	//scsi_cmd[0] = ATA_INTERNAL;
 
 	sdev = scsi_host->sdev;
-	//sdev = NULL;
+
 
 	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS\n",
 		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev);
@@ -1769,7 +1769,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
 		ata_internal_cmd_timed_out(dev, command);
 	
-	//if (err_mask)
+	if (err_mask)
 		pr_err("%s10out sdev=%pS cmd_result=%d scmd=%pS req=%pS err_mask=%d\n", __func__, sdev, cmd_result, scmd, req, err_mask);
 //panic("sanity2 %s\n", __func__);
 	//err_mask = 0; //hack

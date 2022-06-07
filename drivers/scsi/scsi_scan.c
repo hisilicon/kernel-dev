@@ -249,8 +249,9 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
 				sdev->request_queue->node, false, true);
 	if (!ret)
 		sbitmap_resize(&sdev->budget_map, depth);
+
 	//pr_err("%s sdev=%pS depth=%d scsi_device_max_queue_depth(sdev)=%d ret=%d\n",
-	//	__func__, sdev, depth, scsi_device_max_queue_depth(sdev), ret);
+	//	__func__, sdev, depth, scsi_device_max_queue_depth(sdev), ret);=
 	if (need_free) {
 		if (ret)
 			sdev->budget_map = sb_backup;

@@ -312,8 +312,7 @@ void scsi_device_unbusy(struct scsi_device *sdev, struct scsi_cmnd *cmd)
 	if (starget->can_queue > 0)
 		atomic_dec(&starget->target_busy);
 
-	if (!scsi_is_reserved_cmd(cmd))
-		sbitmap_put(&sdev->budget_map, cmd->budget_token);
+	sbitmap_put(&sdev->budget_map, cmd->budget_token);
 	cmd->budget_token = -1;
 }
 
@@ -1799,8 +1798,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		pr_err("%s cmd=NULL error\n", __func__);
 
 
-	WARN_ONCE(cmd->budget_token < 0 && !scsi_is_reserved_cmd(cmd),
-	 "%s token=%d reserved=%d\n", __func__, cmd->budget_token, scsi_is_reserved_cmd(cmd));
+	WARN_ON_ONCE(cmd->budget_token < 0);
 
 
 	internal = scsi_is_reserved_cmd(cmd);

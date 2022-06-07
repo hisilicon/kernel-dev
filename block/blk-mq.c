@@ -1850,14 +1850,12 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
 	errors = queued = 0;
 	do {
 		struct blk_mq_queue_data bd;
-		bool need_budget;
 
 		rq = list_first_entry(list, struct request, queuelist);
 
 		WARN_ONCE(hctx != rq->mq_hctx, "%s rq=%pS mq_hctx=%pS hctx=%pS\n",
 				__func__, rq, rq->mq_hctx, hctx);
-		need_budget = !nr_budgets && !blk_mq_is_reserved_rq(rq);
-		prep = blk_mq_prep_dispatch_rq(rq, need_budget);
+		prep = blk_mq_prep_dispatch_rq(rq, !nr_budgets);
 		if (prep != PREP_DISPATCH_OK)
 			break;
 
