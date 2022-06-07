@@ -620,6 +620,7 @@ struct subdev_domain_info {
 struct device_domain_info {
 	struct list_head link;	/* link to domain siblings */
 	struct list_head nested; /* link to nested domain siblings */
+	int nested_users;
 	struct list_head global; /* link to global list */
 	struct list_head table;	/* link to pasid table */
 	u32 segment;		/* PCI segment number */
