@@ -1527,7 +1527,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS\n",
 		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev);
 	if (!sdev) {
-		sdev_tmp = ata_scsi_alloc_device(dev);
+		sdev_tmp = scsi_get_host_dev(scsi_host, &dev->jdev);
 
 		//pr_err("%s0.1 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS dev->sdev_tmp=%pS\n",
 		//	__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev, dev->sdev_tmp);
@@ -1672,7 +1672,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		extern void __scsi_remove_device(struct scsi_device *sdev);
 		//pr_err("%s4.2 sdev=%pS starget=%pS calling __scsi_remove_device\n",
 		//__func__, sdev, starget);
-		__scsi_remove_device(sdev_tmp);
+		scsi_free_host_dev(sdev_tmp);
 		sdev_tmp = NULL;
 	}
 
