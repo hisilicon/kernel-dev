@@ -764,7 +764,9 @@ struct ata_link {
 
 	struct device		tdev;
 	unsigned int		active_tag;	/* active tag on this link */
+	unsigned int		preempted_tag;
 	u32			sactive;	/* active NCQ commands */
+	u32			preempted_sactive;
 
 	unsigned int		flags;		/* ATA_LFLAG_xxx */
 
@@ -857,6 +859,10 @@ struct ata_port {
 #ifdef CONFIG_ATA_ACPI
 	struct ata_acpi_gtm	__acpi_init_gtm; /* use ata_acpi_init_gtm() */
 #endif
+
+	u64 preempted_qc_active;
+	int preempted_nr_active_links;
+
 	/* owned by EH */
 	u8			sector_buf[ATA_SECT_SIZE] ____cacheline_aligned;
 };
