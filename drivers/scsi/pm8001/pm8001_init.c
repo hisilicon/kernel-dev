@@ -123,6 +123,8 @@ static struct scsi_host_template pm8001_sht = {
 	.track_queue_depth	= 1,
 	.cmd_per_lun		= 32,
 	.map_queues		= pm8001_map_queues,
+	.reserved_queuecommand = sas_queuecommand_internal,
+	.nr_reserved_cmds = 2,
 };
 
 /*
@@ -1212,7 +1214,10 @@ static int pm8001_init_ccb_tag(struct pm8001_hba_info *pm8001_ha)
 
 	max_out_io = pm8001_ha->main_cfg_tbl.pm80xx_tbl.max_out_io;
 	ccb_count = min_t(int, PM8001_MAX_CCB, max_out_io);
-
+	/*
+	 * Intentionally use ccb_count - PM8001_RESERVE_SLOT for .can_queue
+	 * until every sas_task we're sent has a request associated.
+	 */
 	shost->can_queue = ccb_count - PM8001_RESERVE_SLOT;
 
 	pm8001_ha->rsvd_tags = bitmap_zalloc(PM8001_RESERVE_SLOT, GFP_KERNEL);
