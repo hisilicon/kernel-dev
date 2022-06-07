@@ -566,6 +566,7 @@ struct Scsi_Host {
 	wait_queue_head_t       host_wait;
 	struct scsi_host_template *hostt;
 	struct scsi_transport_template *transportt;
+	struct scsi_device *sdev;
 
 	/* Area to keep a shared tag map */
 	struct blk_mq_tag_set	tag_set;
