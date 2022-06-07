@@ -3966,6 +3966,49 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 	return NULL;
 }
 
+static unsigned int ata_scsi_queue_internal(struct scsi_cmnd *scmd,
+					    struct ata_device *dev)
+{
+	struct ata_link *link = dev->link;
+	struct ata_port *ap = link->ap;
+	struct ata_queued_cmd *qc;
+
+	/* no internal command while frozen */
+	if (ap->pflags & ATA_PFLAG_FROZEN)
+		goto did_err;
+
+	/* initialize internal qc */
+	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
+	link->preempted_tag = link->active_tag;
+	link->preempted_sactive = link->sactive;
+	ap->preempted_qc_active = ap->qc_active;
+	ap->preempted_nr_active_links = ap->nr_active_links;
+	link->active_tag = ATA_TAG_POISON;
+	link->sactive = 0;
+	ap->qc_active = 0;
+	ap->nr_active_links = 0;
+
+	if (qc->dma_dir != DMA_NONE) {
+		int n_elem;
+
+		n_elem = 1;
+		qc->n_elem = n_elem;
+		qc->sg = scsi_sglist(scmd);
+		qc->nbytes = qc->sg->length;
+		ata_sg_init(qc, qc->sg, n_elem);
+	}
+
+	scmd->submitter = SUBMITTED_BY_BLOCK_LAYER;
+
+	ata_qc_issue(qc);
+
+	return 0;
+did_err:
+	scmd->result = (DID_ERROR << 16);
+	scsi_done(scmd);
+	return 0;
+}
+
 int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 {
 	u8 scsi_op = scmd->cmnd[0];
@@ -3974,7 +4017,9 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 	if (unlikely(!scmd->cmd_len))
 		goto bad_cdb_len;
 
-	if (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ZAC) {
+	if (scsi_is_reserved_cmd(scmd)) {
+		return ata_scsi_queue_internal(scmd, dev);
+	} else if (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ZAC) {
 		if (unlikely(scmd->cmd_len > dev->cdb_len))
 			goto bad_cdb_len;
 
