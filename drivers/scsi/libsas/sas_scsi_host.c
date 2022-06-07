@@ -176,8 +176,8 @@ void print_all_found_devs(struct Scsi_Host *shost)
 				struct sata_device *sata_dev = &dev->sata_dev;
 				struct ata_port *ap = sata_dev->ap;
 				struct ata_device *adev = sas_to_ata_dev(dev);
-				pr_err("%s2 SATA DEV shost=%pS i=%d dev=%pS dev_type=%d dev_is_sata=%d ap=%pS adev=%pS sdev_tmp=%pS\n",
-					__func__, shost, i, dev, dev->dev_type, dev_is_sata(dev), ap, adev, adev->sdev_tmp);
+				pr_err("%s2 SATA DEV shost=%pS i=%d dev=%pS dev_type=%d dev_is_sata=%d ap=%pS adev=%pS jdev=%pS\n",
+					__func__, shost, i, dev, dev->dev_type, dev_is_sata(dev), ap, adev, &adev->jdev);
 			}
 		}
 		spin_unlock(&port->dev_list_lock);
@@ -204,9 +204,12 @@ struct domain_device *sas_find_sata_device(struct sas_ha_struct *ha, struct scsi
 				struct sata_device *sata_dev = &dev->sata_dev;
 				struct ata_port *ap = sata_dev->ap;
 				struct ata_device *adev = sas_to_ata_dev(dev);
-				pr_err("%s2 SATA DEV ha=%pS i=%d dev=%pS dev_type=%d dev_is_sata=%d ap=%pS adev=%pS sdev_tmp=%pS\n",
-					__func__, ha, i, dev, dev->dev_type, dev_is_sata(dev), ap, adev, adev->sdev_tmp);
-				if (adev->sdev_tmp == sdev) {
+				struct device *jdev = &adev->jdev;
+				struct scsi_target *starget = scsi_target(sdev);
+				struct device *sdev = &starget->dev;
+				pr_err("%s2 SATA DEV ha=%pS i=%d dev=%pS dev_type=%d dev_is_sata=%d ap=%pS adev=%pS jdev=%pS\n",
+					__func__, ha, i, dev, dev->dev_type, dev_is_sata(dev), ap, adev, jdev);
+				if (sdev->parent == jdev) {
 					spin_unlock(&port->dev_list_lock);
 					found_adev = dev;
 					goto out;

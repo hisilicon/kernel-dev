@@ -1517,7 +1517,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	struct scsi_cmnd *scmd;
 	struct request *req;
 	__maybe_unused blk_status_t blk_sts;
-	//struct scsi_device *sdev_tmp = NULL;
+	struct scsi_device *sdev_tmp = NULL;
 	
 	//scsi_cmd[0] = ATA_INTERNAL;
 
@@ -1527,16 +1527,16 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS\n",
 		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev);
 	if (!sdev) {
-		dev->sdev_tmp = ata_scsi_alloc_device(dev);
+		sdev_tmp = ata_scsi_alloc_device(dev);
 
 		//pr_err("%s0.1 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS dev->sdev_tmp=%pS\n",
 		//	__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev, dev->sdev_tmp);
-		if (IS_ERR(dev->sdev_tmp))
+		if (IS_ERR(sdev_tmp))
 			panic("%s sdev_tmp = NULL\n", __func__);
 		
 		//pr_err("%s0.2 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS\n",
 		//	__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev);
-		sdev = dev->sdev_tmp;
+		sdev = sdev_tmp;
 	}
 
 	//sdev = scsi_host->sdev;
@@ -1665,15 +1665,15 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 		panic("sanity1 %s started req=%pS\n", __func__, req);
 	req = NULL;
 	scmd = NULL;
-	if (dev->sdev_tmp) {
-		__maybe_unused struct scsi_target *starget = scsi_target(dev->sdev_tmp);
+	if (sdev_tmp) {
+		__maybe_unused struct scsi_target *starget = scsi_target(sdev_tmp);
 		
 		//scsi_remove_device(dev->sdev_tmp);
 		extern void __scsi_remove_device(struct scsi_device *sdev);
 		//pr_err("%s4.2 sdev=%pS starget=%pS calling __scsi_remove_device\n",
 		//__func__, sdev, starget);
-		__scsi_remove_device(dev->sdev_tmp);
-		dev->sdev_tmp = NULL;
+		__scsi_remove_device(sdev_tmp);
+		sdev_tmp = NULL;
 	}
 
 	if (ap->ops->error_handler)
@@ -5486,7 +5486,7 @@ void ata_dev_init(struct ata_device *dev)
 	dev->pio_mask = UINT_MAX;
 	dev->mwdma_mask = UINT_MAX;
 	dev->udma_mask = UINT_MAX;
-	
+
 	pr_err("%s dev=%pS scsi_host=%pS\n", __func__, dev, ap->scsi_host);
 	//&dev->jdev.parent = 
 }
