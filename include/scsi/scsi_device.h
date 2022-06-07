@@ -232,7 +232,7 @@ struct scsi_device {
 	struct work_struct	requeue_work;
 
 	struct scsi_device_handler *handler;
-	void			*handler_data;
+	void			*handler_ddata;
 
 	size_t			dma_drain_len;
 	void			*dma_drain_buf;

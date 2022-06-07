@@ -242,7 +242,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	//pr_err("%s shost=%pS cmnd=%pS shost->sdev=%pS\n", __func__, shost, cmnd, shost->sdev);
 	//pr_err("%s cmnd=%pS ATA_INTERNAL=%d cmnd->cmnd[0]=%d sdev=%pS host sdev=%pS host_scribble=%pS\n",
 		//	__func__, cmnd, ATA_INTERNAL, cmnd->cmnd[0], sdev, shost->sdev, cmnd->host_scribble);
-	if (cmnd->device != shost->sdev) {
+	if (ata_is_scmd_ata_internal(cmnd)) {
 		struct domain_device *adev = cmnd->device->sdev_target->hostdata;
 
 		if (!cmnd->device->sdev_target)
@@ -250,12 +250,13 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 		if (!cmnd->device->sdev_target->hostdata) {
 			pr_err("%s shost=%pS cmnd=%pS cmd->device=%pS starget=%pS hostdata=NULL shost->sdev=%pS\n", 
 				__func__, shost, cmnd, cmnd->device, cmnd->device->sdev_target, shost->sdev);
-			adev = sas_find_sata_device(ha, cmnd->device);
+			//adev = sas_find_sata_device(ha, cmnd->device);
 			pr_err("%s2 shost=%pS cmnd=%pS cmd->device=%pS starget=%pS hostdata=NULL shost->sdev=%pS adev=%pS\n", 
 				__func__, shost, cmnd, cmnd->device, cmnd->device->sdev_target, shost->sdev, adev);
 		}
 
-		if (dev_is_sata(adev)) {
+		//if (dev_is_sata(adev)) {
+		if (1) {
 			struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
 			struct ata_port *ap = qc ? qc->ap : NULL;
 			int res;

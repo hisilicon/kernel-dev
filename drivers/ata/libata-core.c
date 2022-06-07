@@ -1464,6 +1464,14 @@ static void ata_blk_end_sync_rq(struct request *rq, blk_status_t error)
 	complete(waiting);
 }
 
+bool ata_is_scmd_ata_internal(struct scsi_cmnd *scmd)
+{
+	struct request *rq = scsi_cmd_to_rq(scmd);
+
+	return rq->end_io == ata_blk_end_sync_rq;
+}
+EXPORT_SYMBOL_GPL(ata_is_scmd_ata_internal);
+
 /**
  *	ata_exec_internal_sg - execute libata internal command
  *	@dev: Device to which the command is sent
@@ -1527,12 +1535,16 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS\n",
 		__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev);
 	if (!sdev) {
-		sdev_tmp = scsi_get_host_dev(scsi_host, &dev->jdev);
+		struct scsi_target *starget;
+
+		sdev_tmp = scsi_get_host_dev(scsi_host);
 
 		//pr_err("%s0.1 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS dev->sdev_tmp=%pS\n",
 		//	__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev, dev->sdev_tmp);
 		if (IS_ERR(sdev_tmp))
 			panic("%s sdev_tmp = NULL\n", __func__);
+		starget = scsi_target(sdev_tmp);
+		//starget->starget_data = (unsigned long)ap;
 		
 		//pr_err("%s0.2 ap=%pS protocol=0x%x cdb=%pS dma_dir=%d buf=%pS buflen=%d scsi_host=%pS dev->sdev=%pS\n",
 		//	__func__, ap, tf->protocol, cdb, dma_dir, buf, buflen, scsi_host, dev->sdev);
