@@ -6740,6 +6740,19 @@ static const char *ipr_ioa_info(struct Scsi_Host *host)
 	return buffer;
 }
 
+static int ipr_reserved_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
+{
+	struct ata_queued_cmd *qc = (struct ata_queued_cmd *)scmd->host_scribble;
+	struct ata_port *ap = qc->ap;
+	int ret;
+
+	/* We're only going to be seeing ATA internal commands */
+	spin_lock_irq(ap->lock);
+	ret = ata_sas_queuecmd(scmd, ap);
+	spin_unlock_irq(ap->lock);
+	return ret;
+}
+
 static struct scsi_host_template driver_template = {
 	.module = THIS_MODULE,
 	.name = "IPR",
@@ -6749,6 +6762,7 @@ static struct scsi_host_template driver_template = {
 	.compat_ioctl = ipr_ioctl,
 #endif
 	.queuecommand = ipr_queuecommand,
+	.reserved_queuecommand = ipr_reserved_queuecommand,
 	.dma_need_drain = ata_scsi_dma_need_drain,
 	.eh_abort_handler = ipr_eh_abort,
 	.eh_device_reset_handler = ipr_eh_dev_reset,
@@ -9991,7 +10005,8 @@ static void ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
 
 	host->unique_id = host->host_no;
 	host->max_cmd_len = IPR_MAX_CDB_LEN;
-	host->can_queue = ioa_cfg->max_cmds;
+	host->can_queue = ioa_cfg->max_cmds - 1;
+	host->nr_reserved_cmds = 1;
 	pci_set_drvdata(pdev, ioa_cfg);
 
 	for (i = 0; i < ARRAY_SIZE(ioa_cfg->hrrq); i++) {
