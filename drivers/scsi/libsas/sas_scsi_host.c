@@ -158,6 +158,16 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	return task;
 }
 
+int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
+{
+	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
+	struct request *rq = scsi_cmd_to_rq(cmnd);
+
+	return i->dft->lldd_execute_task(sas_rq_to_task(rq), GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(sas_queuecommand_internal);
+
 int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 {
 	struct sas_internal *i = to_sas_internal(host->transportt);
