@@ -123,6 +123,7 @@ static struct scsi_host_template pm8001_sht = {
 	.track_queue_depth	= 1,
 	.cmd_per_lun		= 32,
 	.map_queues		= pm8001_map_queues,
+	.reserved_queuecommand = sas_queuecommand_internal,
 };
 
 /*
