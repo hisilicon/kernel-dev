@@ -44,6 +44,7 @@ struct iommu_sva;
 struct iommu_fault_event;
 struct iommu_dma_cookie;
 struct iommu_sva_ioas;
+struct iommu_hw_info;
 
 /* iommu fault flags */
 #define IOMMU_FAULT_READ	0x0
@@ -234,6 +235,7 @@ struct iommu_iotlb_gather {
  */
 struct iommu_ops {
 	bool (*capable)(enum iommu_cap);
+	int (*hw_info)(struct device *dev, struct iommu_hw_info *info);
 
 	/* Domain allocation and freeing by the iommu driver */
 	struct iommu_domain *(*domain_alloc)(unsigned iommu_domain_type);
@@ -395,6 +397,15 @@ struct dev_iommu {
 	void				*priv;
 	unsigned int			pasid_bits;
 };
+
+struct iommu_hw_info {
+	enum iommu_hw_type type;
+	union {
+		struct iommu_vtd_data vtd_data;
+	};
+};
+
+int iommu_get_hw_info(struct device *dev, struct iommu_hw_info *info);
 
 int iommu_device_register(struct iommu_device *iommu,
 			  const struct iommu_ops *ops,
@@ -1097,6 +1108,12 @@ static inline void
 iommu_domain_cache_inv(struct iommu_domain *domain,
 		       struct iommu_cache_invalidate_info *inv_info)
 {
+}
+
+static inline int
+iommu_get_hw_info(struct device *dev, struct iommu_hw_info *info)
+{
+	return -EINVAL;
 }
 #endif /* CONFIG_IOMMU_API */
 

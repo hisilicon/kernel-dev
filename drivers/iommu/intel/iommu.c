@@ -5045,8 +5045,24 @@ static void intel_iommu_detach_device_pasid(struct iommu_domain *domain,
 	kfree(sinfo);
 }
 
+static int intel_iommu_hw_info(struct device *dev, struct iommu_hw_info *info)
+{
+	struct intel_iommu *iommu = device_to_iommu(dev, NULL, NULL);
+
+	if (!iommu)
+		return -ENODEV;
+
+	info->type = IOMMU_DRIVER_INTEL_V1;
+	info->vtd_data.flags = 0;
+	info->vtd_data.cap_reg = iommu->cap;
+	info->vtd_data.ecap_reg = iommu->ecap;
+
+	return 0;
+}
+
 const struct iommu_ops intel_iommu_ops = {
 	.capable		= intel_iommu_capable,
+	.hw_info		= intel_iommu_hw_info,
 	.domain_alloc		= intel_iommu_domain_alloc,
 	.nested_domain_alloc	= intel_nested_domain_alloc,
 	.probe_device		= intel_iommu_probe_device,
