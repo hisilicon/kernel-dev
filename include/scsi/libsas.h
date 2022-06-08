@@ -739,6 +739,7 @@ int  sas_discover_sata(struct domain_device *);
 int  sas_discover_end_dev(struct domain_device *);
 
 void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *);
+int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd);
 
 void sas_init_dev(struct domain_device *);
 
@@ -769,5 +770,12 @@ void sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 			   gfp_t gfp_flags);
 void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 			   gfp_t gfp_flags);
+
+static inline struct sas_task *sas_rq_to_task(struct request *rq)
+{
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+
+	return (struct sas_task *)(scmd + 1);
+}
 
 #endif /* _SASLIB_H_ */
