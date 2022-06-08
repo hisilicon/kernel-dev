@@ -1760,6 +1760,7 @@ static struct scsi_host_template sht_v1_hw = {
 #endif
 	.shost_groups		= host_v1_hw_groups,
 	.host_reset             = hisi_sas_host_reset,
+	.reserved_queuecommand = sas_queuecommand_internal,
 };
 
 static const struct hisi_sas_hw hisi_sas_v1_hw = {

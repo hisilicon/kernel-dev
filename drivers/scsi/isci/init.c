@@ -177,6 +177,7 @@ static struct scsi_host_template isci_sht = {
 #endif
 	.shost_groups			= isci_host_groups,
 	.track_queue_depth		= 1,
+	.reserved_queuecommand = sas_queuecommand_internal,
 };
 
 static struct sas_domain_function_template isci_transport_ops  = {
