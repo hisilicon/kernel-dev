@@ -1090,6 +1090,7 @@ static inline struct iommu_domain *
 iommu_alloc_nested_domain(struct bus_type *bus, struct iommu_domain *s2_domain,
 			  unsigned long s1_ptr, union iommu_stage1_config *cfg)
 {
+	return NULL;
 }
 
 static inline void
