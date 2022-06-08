@@ -1454,6 +1454,14 @@ static void ata_internal_end_rq(struct request *rq, blk_status_t error)
 	complete(waiting);
 }
 
+bool ata_is_scmd_ata_internal(struct scsi_cmnd *scmd)
+{
+	struct request *rq = scsi_cmd_to_rq(scmd);
+
+	return rq->end_io == ata_internal_end_rq;
+}
+EXPORT_SYMBOL_GPL(ata_is_scmd_ata_internal);
+
 /**
  *	ata_exec_internal_sg - execute libata internal command
  *	@dev: Device to which the command is sent

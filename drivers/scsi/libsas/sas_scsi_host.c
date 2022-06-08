@@ -158,6 +158,27 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	return task;
 }
 
+int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
+{
+	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
+	struct request *rq = scsi_cmd_to_rq(cmnd);
+
+	if (ata_is_scmd_ata_internal(cmnd)) {
+		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
+		struct ata_port *ap = qc->ap;
+		int res;
+
+		spin_lock_irq(ap->lock);
+		res = ata_sas_queuecmd(cmnd, ap);
+		spin_unlock_irq(ap->lock);
+		return res;
+	}
+
+	return i->dft->lldd_execute_task(sas_rq_to_task(rq), GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(sas_queuecommand_internal);
+
 int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 {
 	struct sas_internal *i = to_sas_internal(host->transportt);
