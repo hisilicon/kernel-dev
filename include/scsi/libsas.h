@@ -619,7 +619,6 @@ struct sas_task {
 	void   (*task_done)(struct sas_task *);
 
 	void   *lldd_task;	  /* for use by LLDDs */
-	void   *uldd_task;
 	struct sas_task_slow *slow_task;
 	struct sas_tmf_task *tmf;
 };
@@ -798,5 +797,12 @@ static inline unsigned int sas_task_to_hwq(struct sas_task *task)
 	return blk_mq_unique_tag_to_hwq(unique);
 }
 
+static inline unsigned int sas_task_to_unique_tag(struct sas_task *task)
+{
+	u32 unique = sas_task_to_rq_unique_tag(task);
+
+	return blk_mq_unique_tag_to_tag(unique);
+
+}
 
 #endif /* _SASLIB_H_ */
