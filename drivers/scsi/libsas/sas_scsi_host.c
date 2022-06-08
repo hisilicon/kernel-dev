@@ -836,8 +836,15 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 
 int sas_target_alloc(struct scsi_target *starget)
 {
-	struct sas_rphy *rphy = dev_to_rphy(starget->dev.parent);
-	struct domain_device *found_dev = sas_find_dev_by_rphy(rphy);
+	struct device *parent = starget->dev.parent;
+	struct sas_rphy *rphy;
+	struct domain_device *found_dev;
+
+	if (scsi_is_host_device(parent))
+		return 0;
+
+	rphy = dev_to_rphy(parent);
+	found_dev = sas_find_dev_by_rphy(rphy);
 
 	if (!found_dev)
 		return -ENODEV;
@@ -1241,6 +1248,12 @@ EXPORT_SYMBOL_GPL(sas_task_abort);
 
 int sas_slave_alloc(struct scsi_device *sdev)
 {
+	struct scsi_target *starget = sdev->sdev_target;
+	struct device *parent = starget->dev.parent;
+
+	if (scsi_is_host_device(parent))
+		return 0;
+
 	if (dev_is_sata(sdev_to_domain_dev(sdev)) && sdev->lun)
 		return -ENXIO;
 

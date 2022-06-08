@@ -743,13 +743,21 @@ static int hisi_sas_init_device(struct domain_device *device)
 
 int hisi_sas_slave_alloc(struct scsi_device *sdev)
 {
-	struct domain_device *ddev = sdev_to_domain_dev(sdev);
-	struct hisi_sas_device *sas_dev = ddev->lldd_dev;
+	struct scsi_target *starget = sdev->sdev_target;
+	struct device *parent = starget->dev.parent;
+	struct hisi_sas_device *sas_dev;
+	struct domain_device *ddev;
 	int rc;
+
+	if (scsi_is_host_device(parent))
+		return 0;
 
 	rc = sas_slave_alloc(sdev);
 	if (rc)
 		return rc;
+
+	ddev = sdev_to_domain_dev(sdev);
+	sas_dev = ddev->lldd_dev;
 
 	rc = hisi_sas_init_device(ddev);
 	if (rc)
