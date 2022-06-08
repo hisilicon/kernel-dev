@@ -3165,6 +3165,7 @@ out_unlock:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(iommu_attach_device_pasid);
 
 void iommu_detach_device_pasid(struct iommu_domain *domain,
 			       struct device *dev, ioasid_t pasid)
@@ -3178,6 +3179,7 @@ void iommu_detach_device_pasid(struct iommu_domain *domain,
 
 	iommu_group_put(group);
 }
+EXPORT_SYMBOL_GPL(iommu_detach_device_pasid);
 
 struct iommu_domain *iommu_get_domain_for_dev_pasid(struct device *dev,
 						    ioasid_t pasid)
@@ -3218,9 +3220,11 @@ iommu_alloc_nested_domain(struct bus_type *bus, struct iommu_domain *s2_domain,
 
 	return domain;
 }
+EXPORT_SYMBOL_GPL(iommu_alloc_nested_domain);
 
 void iommu_domain_cache_inv(struct iommu_domain *domain,
 			    struct iommu_cache_invalidate_info *inv_info)
 {
 	domain->ops->cache_invalidate(domain, inv_info);
 }
+EXPORT_SYMBOL_GPL(iommu_domain_cache_inv);
