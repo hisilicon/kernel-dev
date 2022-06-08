@@ -739,6 +739,7 @@ int  sas_discover_sata(struct domain_device *);
 int  sas_discover_end_dev(struct domain_device *);
 
 void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *);
+int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd);
 
 void sas_init_dev(struct domain_device *);
 
