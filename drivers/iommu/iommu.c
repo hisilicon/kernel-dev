@@ -3409,3 +3409,13 @@ struct iommu_domain *iommu_sva_domain_alloc(struct device *dev,
 
 	return domain;
 }
+
+int iommu_get_hw_info(struct device *dev, struct iommu_hw_info *info)
+{
+	const struct iommu_ops *ops = dev_iommu_ops(dev);
+
+	if (!ops->hw_info)
+		return -EINVAL;
+	return ops->hw_info(dev, info);
+}
+EXPORT_SYMBOL_GPL(iommu_get_hw_info);
