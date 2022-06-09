@@ -21,30 +21,31 @@
 
 #include "scsi_sas_internal.h"
 
-static struct kmem_cache *sas_task_cache;
 static struct kmem_cache *sas_event_cache;
 
-struct sas_task *sas_alloc_task(gfp_t flags)
+struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 {
-	struct sas_task *task = kmem_cache_zalloc(sas_task_cache, flags);
+	struct request *rq;
+	struct sas_task *task;
+	struct sas_task_slow *slow;
+	struct Scsi_Host *shost = sas_ha->core.shost;
+	struct scsi_cmnd *scmd;
+	struct scsi_device *sdev;
 
-	if (task) {
-		spin_lock_init(&task->task_state_lock);
-		task->task_state_flags = SAS_TASK_STATE_PENDING;
-	}
+	sdev = shost->sdev;
 
-	return task;
-}
-EXPORT_SYMBOL_GPL(sas_alloc_task);
+	rq = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN,
+				BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
 
-struct sas_task *sas_alloc_slow_task(gfp_t flags)
-{
-	struct sas_task *task = sas_alloc_task(flags);
-	struct sas_task_slow *slow = kmalloc(sizeof(*slow), flags);
+	if (IS_ERR(rq))
+		return NULL;
+
+	scmd = blk_mq_rq_to_pdu(rq);
+	task = sas_rq_to_task(rq);
+
+	slow = kmalloc(sizeof(*slow), flags);
 
 	if (!task || !slow) {
-		if (task)
-			kmem_cache_free(sas_task_cache, task);
 		kfree(slow);
 		return NULL;
 	}
@@ -53,17 +54,19 @@ struct sas_task *sas_alloc_slow_task(gfp_t flags)
 	slow->task = task;
 	timer_setup(&slow->timer, NULL, 0);
 	init_completion(&slow->completion);
-
+	scmd->host_scribble = NULL;
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
 
 void sas_free_task(struct sas_task *task)
 {
-	if (task) {
-		kfree(task->slow_task);
-		kmem_cache_free(sas_task_cache, task);
-	}
+	struct request *rq = sas_rq_from_task(task);
+
+	kfree(task->slow_task);
+
+	if (blk_mq_is_reserved_rq(rq))
+		blk_mq_free_request(rq);
 }
 EXPORT_SYMBOL_GPL(sas_free_task);
 
@@ -95,6 +98,13 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 
 int sas_init_priv_cmd(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
 {
+	struct sas_task *task = sas_scmd_to_task(cmd);
+
+	memset(task, 0, sizeof(*task));
+	spin_lock_init(&task->task_state_lock);
+	task->task_state_flags = SAS_TASK_STATE_PENDING;
+	cmd->submitter = SUBMITTED_BY_BLOCK_LAYER;
+
 	return 0;
 }
 
@@ -685,24 +695,18 @@ void sas_free_event(struct asd_sas_event *event)
 
 static int __init sas_class_init(void)
 {
-	sas_task_cache = KMEM_CACHE(sas_task, SLAB_HWCACHE_ALIGN);
-	if (!sas_task_cache)
-		goto out;
-
 	sas_event_cache = KMEM_CACHE(asd_sas_event, SLAB_HWCACHE_ALIGN);
 	if (!sas_event_cache)
 		goto free_task_kmem;
 
 	return 0;
 free_task_kmem:
-	kmem_cache_destroy(sas_task_cache);
-out:
+
 	return -ENOMEM;
 }
 
 static void __exit sas_class_exit(void)
 {
-	kmem_cache_destroy(sas_task_cache);
 	kmem_cache_destroy(sas_event_cache);
 }
 

@@ -72,7 +72,8 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 
 static void sas_ata_task_done(struct sas_task *task)
 {
-	struct ata_queued_cmd *qc = task->uldd_task;
+	struct scsi_cmnd *scmd = sas_scmd_from_task(task);
+	struct ata_queued_cmd *qc = TO_SAS_TASK(scmd);
 	struct domain_device *dev = task->dev;
 	struct task_status_struct *stat = &task->task_status;
 	struct ata_task_resp *resp = (struct ata_task_resp *)stat->buf;
@@ -149,7 +150,9 @@ static void sas_ata_task_done(struct sas_task *task)
 	spin_unlock_irqrestore(ap->lock, flags);
 
 qc_already_gone:
-	sas_free_task(task);
+	/* We rely on libata internal command to do this for us */
+	if (!ata_is_scmd_ata_internal(scmd))
+		sas_free_task(task);
 }
 
 static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
@@ -164,6 +167,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct sas_ha_struct *sas_ha = dev->port->ha;
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
+	struct scsi_cmnd *scmd;
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
@@ -172,9 +176,9 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (test_bit(SAS_DEV_GONE, &dev->state))
 		goto out;
 
-	task = sas_alloc_task(GFP_ATOMIC);
-	if (!task)
-		goto out;
+	scmd = qc->scsicmd;
+	task = sas_scmd_to_task(scmd);
+
 	task->dev = dev;
 	task->task_proto = SAS_PROTOCOL_STP;
 	task->task_done = sas_ata_task_done;
@@ -596,7 +600,8 @@ free_host:
 
 void sas_ata_task_abort(struct sas_task *task)
 {
-	struct ata_queued_cmd *qc = task->uldd_task;
+	struct scsi_cmnd *scmd = sas_scmd_from_task(task);
+	struct ata_queued_cmd *qc = TO_SAS_TASK(scmd);
 	struct completion *waiting;
 
 	/* Bounce SCSI-initiated commands to the SCSI EH */

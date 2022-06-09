@@ -639,8 +639,7 @@ struct sas_task_slow {
 #define SAS_TASK_STATE_ABORTED      4
 #define SAS_TASK_NEED_DEV_RESET     8
 
-extern struct sas_task *sas_alloc_task(gfp_t flags);
-extern struct sas_task *sas_alloc_slow_task(gfp_t flags);
+extern struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *, gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
 
 static inline bool sas_is_internal_abort(struct sas_task *task)
@@ -766,10 +765,24 @@ static inline struct sas_task *sas_rq_to_task(struct request *rq)
 	return (struct sas_task *)(scmd + 1);
 }
 
+static inline struct request *sas_rq_from_task(void *task)
+{
+	struct scsi_cmnd *scmd = task - sizeof(*scmd);
+
+	return blk_mq_rq_from_pdu(scmd);
+}
+
 static inline struct scsi_cmnd *sas_scmd_from_task(void *task)
 {
 	struct scsi_cmnd *scmd = task - sizeof(*scmd);
 
 	return scmd;
 }
+
+static inline struct sas_task *sas_scmd_to_task(struct scsi_cmnd *scmd)
+{
+	struct request *rq = blk_mq_rq_from_pdu(scmd);
+	return sas_rq_to_task(rq);
+}
+
 #endif /* _SASLIB_H_ */

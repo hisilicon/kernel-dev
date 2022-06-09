@@ -98,7 +98,7 @@ static void sas_end_task(struct scsi_cmnd *sc, struct sas_task *task)
 
 static void sas_scsi_task_done(struct sas_task *task)
 {
-	struct scsi_cmnd *sc = task->uldd_task;
+	struct scsi_cmnd *sc = sas_scmd_from_task(task);
 	struct domain_device *dev = task->dev;
 	struct sas_ha_struct *ha = dev->port->ha;
 	unsigned long flags;
@@ -130,13 +130,12 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 					       struct domain_device *dev,
 					       gfp_t gfp_flags)
 {
-	struct sas_task *task = sas_alloc_task(gfp_flags);
+	struct sas_task *task = sas_scmd_to_task(cmd);
 	struct scsi_lun lun;
 
 	if (!task)
 		return NULL;
 
-	task->uldd_task = cmd;
 	ASSIGN_SAS_TASK(cmd, task);
 
 	task->dev = dev;
@@ -958,7 +957,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		task = sas_alloc_slow_task(GFP_KERNEL);
+		task = sas_alloc_slow_task(ha, GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -1044,10 +1043,12 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	struct sas_task *task;
 	struct sas_internal *i =
 		to_sas_internal(device->port->ha->core.shost->transportt);
+	struct sas_ha_struct *ha = device->port->ha;
 	int res, retry;
 
+
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		task = sas_alloc_slow_task(GFP_KERNEL);
+		task = sas_alloc_slow_task(ha, GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -1204,7 +1205,7 @@ int sas_query_task(struct sas_task *task, u16 tag)
 		.tmf = TMF_QUERY_TASK,
 		.tag_of_task_to_be_managed = tag,
 	};
-	struct scsi_cmnd *cmnd = task->uldd_task;
+	struct scsi_cmnd *cmnd = sas_scmd_from_task(task);
 	struct domain_device *dev = task->dev;
 	struct scsi_lun lun;
 
@@ -1220,7 +1221,7 @@ int sas_abort_task(struct sas_task *task, u16 tag)
 		.tmf = TMF_ABORT_TASK,
 		.tag_of_task_to_be_managed = tag,
 	};
-	struct scsi_cmnd *cmnd = task->uldd_task;
+	struct scsi_cmnd *cmnd = sas_scmd_from_task(task);
 	struct domain_device *dev = task->dev;
 	struct scsi_lun lun;
 
@@ -1236,7 +1237,7 @@ EXPORT_SYMBOL_GPL(sas_abort_task);
  */
 void sas_task_abort(struct sas_task *task)
 {
-	struct scsi_cmnd *sc = task->uldd_task;
+	struct scsi_cmnd *sc = sas_scmd_from_task(task);
 
 	/* Escape for libsas internal commands */
 	if (!sc) {

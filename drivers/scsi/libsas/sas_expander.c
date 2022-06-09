@@ -39,20 +39,29 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	struct sas_internal *i =
 		to_sas_internal(dev->port->ha->core.shost->transportt);
 	struct sas_ha_struct *ha = dev->port->ha;
+	struct request *rq;
 
 	pm_runtime_get_sync(ha->dev);
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
+		struct scsi_cmnd *scmd;
+
 		if (test_bit(SAS_DEV_GONE, &dev->state)) {
 			res = -ECOMM;
 			break;
 		}
 
-		task = sas_alloc_slow_task(GFP_KERNEL);
+		task = sas_alloc_slow_task(dev->port->ha, GFP_KERNEL);
 		if (!task) {
 			res = -ENOMEM;
 			break;
 		}
+
+		rq = sas_rq_from_task(task);
+
+		scmd = blk_mq_rq_to_pdu(rq);
+		ASSIGN_SAS_TASK(scmd, task);
+
 		task->dev = dev;
 		task->task_proto = dev->tproto;
 		task->smp_task.smp_req = *req;
