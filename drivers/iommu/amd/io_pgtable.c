@@ -430,7 +430,7 @@ out:
 	}
 
 	/* Everything flushed out, free pages now */
-	put_pages_list(&freelist);
+	iommu_free_pgtbl_pages(&dom->domain, &freelist);
 
 	return ret;
 }
@@ -511,8 +511,7 @@ static void v1_free_pgtable(struct io_pgtable *iop)
 
 	/* Make changes visible to IOMMUs */
 	amd_iommu_domain_update(dom);
-
-	put_pages_list(&freelist);
+	iommu_free_pgtbl_pages(&dom->domain, &freelist);
 }
 
 static struct io_pgtable *v1_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)
