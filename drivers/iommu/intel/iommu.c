@@ -5053,9 +5053,10 @@ static int intel_iommu_hw_info(struct device *dev, struct iommu_hw_info *info)
 		return -ENODEV;
 
 	info->type = IOMMU_DRIVER_INTEL_V1;
-	info->vtd_data.flags = 0;
-	info->vtd_data.cap_reg = iommu->cap;
-	info->vtd_data.ecap_reg = iommu->ecap;
+	info->data_length = sizeof(struct iommu_vtd_data);
+	info->data.vtd.flags = 0;
+	info->data.vtd.cap_reg = iommu->cap;
+	info->data.vtd.ecap_reg = iommu->ecap;
 
 	return 0;
 }

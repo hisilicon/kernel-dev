@@ -400,9 +400,10 @@ struct dev_iommu {
 
 struct iommu_hw_info {
 	enum iommu_hw_type type;
+	unsigned int data_length;
 	union {
-		struct iommu_vtd_data vtd_data;
-	};
+		struct iommu_vtd_data vtd;
+	} data;
 };
 
 int iommu_get_hw_info(struct device *dev, struct iommu_hw_info *info);
