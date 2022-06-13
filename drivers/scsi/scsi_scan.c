@@ -1570,6 +1570,8 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 		return ERR_PTR(-ENODEV);
 
 	starget = scsi_alloc_target(parent, channel, id);
+	pr_err("%s2 shost=%pS this_id=%d channel=%d id=%d lun=%lld starget=%pS\n", 
+		__func__, shost, shost->this_id, channel, id, lun, starget);
 	if (!starget)
 		return ERR_PTR(-ENOMEM);
 	scsi_autopm_get_target(starget);
@@ -1580,6 +1582,8 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 
 	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) {
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
+		pr_err("%s3 shost=%pS this_id=%d channel=%d id=%d lun=%lld starget=%pS sdev=%pS\n", 
+			__func__, shost, shost->this_id, channel, id, lun, starget, sdev);
 		scsi_autopm_put_host(shost);
 	}
 	mutex_unlock(&shost->scan_mutex);
@@ -1995,19 +1999,27 @@ void scsi_forget_host(struct Scsi_Host *shost)
  *	drivers (including generics), which is probably not
  *	optimal.  We can add hooks later to attach.
  */
-struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
+struct scsi_device *scsi_alloc_device(struct Scsi_Host *shost, uint channel,
+				      uint id, u64 lun, void *hostdata)
 {
 	struct scsi_device *sdev = NULL;
 	struct scsi_target *starget;
-
+	pr_err("%s shost=%pS\n", __func__, shost);
 	mutex_lock(&shost->scan_mutex);
+	pr_err("%s2 shost=%pS channel=%d id=%d lun=%lld scsi_host_scan_allowed=%d\n",
+	 __func__, shost, channel, id, lun, scsi_host_scan_allowed(shost));
 	if (!scsi_host_scan_allowed(shost))
 		goto out;
+	pr_err("%s2.1 shost=%pS channel=%d id=%d lun=%lld scsi_host_scan_allowed=%d\n",
+	 __func__, shost, channel, id, lun, scsi_host_scan_allowed(shost));
 	starget = scsi_alloc_target(&shost->shost_gendev, 0, shost->this_id);
+	pr_err("%s3 starget=%pS shost=%pS channel=%d id=%d lun=%lld\n",
+	 __func__, starget, shost, channel, id, lun);
 	if (!starget)
 		goto out;
 
 	sdev = scsi_alloc_sdev(starget, 0, NULL);
+	pr_err("%s4 starget=%pS shost=%pS sdev=%pS\n", __func__, starget, shost, sdev);
 	if (sdev)
 		sdev->borken = 0;
 	else
@@ -2017,7 +2029,7 @@ struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
 	mutex_unlock(&shost->scan_mutex);
 	return sdev;
 }
-EXPORT_SYMBOL(scsi_get_host_dev);
+EXPORT_SYMBOL(scsi_alloc_device);
 
 /**
  * scsi_free_host_dev - Free a scsi_device that points to the host adapter itself

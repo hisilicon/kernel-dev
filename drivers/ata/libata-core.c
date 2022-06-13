@@ -1485,7 +1485,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned long flags;
 	unsigned int err_mask;
 	int rc;
-
+	pr_err("%s dev=%pS sdev=%pS scsi_host=%pS\n", __func__, dev, dev->sdev, ap->scsi_host);
 	spin_lock_irqsave(ap->lock, flags);
 
 	/* no internal command while frozen */
@@ -5775,7 +5775,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 			goto err_tadd;
 		}
 	}
-
+	pr_err("%s calling ata_scsi_add_hosts host=%pS\n", __func__, host);
 	rc = ata_scsi_add_hosts(host, sht);
 	if (rc)
 		goto err_tadd;
@@ -5854,7 +5854,7 @@ int ata_host_activate(struct ata_host *host, int irq,
 {
 	int i, rc;
 	char *irq_desc;
-
+	pr_err("%s calling ata_host_register host=%pS\n", __func__, host);
 	rc = ata_host_start(host);
 	if (rc)
 		return rc;

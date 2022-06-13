@@ -2597,7 +2597,7 @@ int ahci_host_activate(struct ata_host *host, struct scsi_host_template *sht)
 	struct ahci_host_priv *hpriv = host->private_data;
 	int irq = hpriv->irq;
 	int rc;
-
+	pr_err("%s host=%pS calling ata_host_activate\n", __func__, host);
 	if (hpriv->flags & AHCI_HFLAG_MULTI_MSI) {
 		if (hpriv->irq_handler &&
 		    hpriv->irq_handler != ahci_single_level_irq_intr)
@@ -2609,8 +2609,10 @@ int ahci_host_activate(struct ata_host *host, struct scsi_host_template *sht)
 			return -EIO;
 		}
 
+		pr_err("%s2 host=%pS calling ahci_host_activate_multi_irqs\n", __func__, host);
 		rc = ahci_host_activate_multi_irqs(host, sht);
 	} else {
+		pr_err("%s2 host=%pS calling ata_host_activate\n", __func__, host);
 		rc = ata_host_activate(host, irq, hpriv->irq_handler,
 				       IRQF_SHARED, sht);
 	}

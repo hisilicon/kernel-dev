@@ -1911,7 +1911,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ahci_pci_print_info(host);
 
 	pci_set_master(pdev);
-
+	pr_err("%s host=%pS calling ahci_host_activate\n", __func__, host);
 	rc = ahci_host_activate(host, &ahci_sht);
 	if (rc)
 		return rc;

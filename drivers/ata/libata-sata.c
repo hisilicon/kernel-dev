@@ -720,16 +720,18 @@ EXPORT_SYMBOL_GPL(ata_qc_complete_multiple);
 int ata_slave_link_init(struct ata_port *ap)
 {
 	struct ata_link *link;
-
+	pr_err("%s ap=%pS\n", __func__, ap);
 	WARN_ON(ap->slave_link);
 	WARN_ON(ap->flags & ATA_FLAG_PMP);
 
 	link = kzalloc(sizeof(*link), GFP_KERNEL);
+	pr_err("%s2 ap=%pS link=%pS\n", __func__, ap, link);
 	if (!link)
 		return -ENOMEM;
 
 	ata_link_init(ap, link, 1);
 	ap->slave_link = link;
+	pr_err("%s3 ap=%pS slave_link=%pS\n", __func__, ap, ap->slave_link);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ata_slave_link_init);

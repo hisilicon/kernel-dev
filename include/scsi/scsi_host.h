@@ -798,7 +798,8 @@ struct class_container;
  * from any high-level drivers.
  */
 extern void scsi_free_host_dev(struct scsi_device *);
-extern struct scsi_device *scsi_get_host_dev(struct Scsi_Host *);
+struct scsi_device *scsi_alloc_device(struct Scsi_Host *shost, uint channel,
+				      uint id, u64 lun, void *hostdata);
 
 /*
  * DIF defines the exchange of protection information between
