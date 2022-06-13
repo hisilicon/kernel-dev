@@ -1131,7 +1131,7 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct ata_device *dev = __ata_scsi_find_dev(ap, sdev);
 	int rc = 0;
-
+	pr_err("%s sdev=%pS ap=%pS dev=%pS\n", __func__, sdev, ap, dev);
 	ata_scsi_sdev_config(sdev);
 
 	if (dev)
@@ -4263,6 +4263,8 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 	struct ata_link *link;
 	struct ata_device *dev;
 
+	pr_err("%s ap=%pS\n", __func__, ap);
+	WARN_ON_ONCE(1);
  repeat:
 	ata_for_each_link(link, ap, EDGE) {
 		ata_for_each_dev(dev, link, ENABLED) {
@@ -4272,6 +4274,8 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 			if (dev->sdev)
 				continue;
 
+			pr_err("%s ap=%pS sdev=%pS ata_is_host_link=%d dev->devno=%d\n", 
+					__func__, ap, sdev, ata_is_host_link(link), dev->devno);
 			if (ata_is_host_link(link))
 				id = dev->devno;
 			else
@@ -4483,7 +4487,8 @@ void ata_scsi_hotplug(struct work_struct *work)
 	if (ap->pmp_link)
 		for (i = 0; i < SATA_PMP_MAX_PORTS; i++)
 			ata_scsi_handle_link_detach(&ap->pmp_link[i]);
-
+	
+	pr_err("%s ap=%pS calling ata_scsi_scan_host\n", __func__, ap);
 	/* scan for new ones */
 	ata_scsi_scan_host(ap, 0);
 

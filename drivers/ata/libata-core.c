@@ -1172,7 +1172,7 @@ static int ata_read_native_max_address(struct ata_device *dev, u64 *max_sectors)
 
 	tf.protocol = ATA_PROT_NODATA;
 	tf.device |= ATA_LBA;
-
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	if (err_mask) {
 		ata_dev_warn(dev,
@@ -1235,7 +1235,7 @@ static int ata_set_max_sectors(struct ata_device *dev, u64 new_sectors)
 	tf.lbal = (new_sectors >> 0) & 0xff;
 	tf.lbam = (new_sectors >> 8) & 0xff;
 	tf.lbah = (new_sectors >> 16) & 0xff;
-
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	if (err_mask) {
 		ata_dev_warn(dev,
@@ -1731,6 +1731,7 @@ static u32 ata_pio_mask_no_iordy(const struct ata_device *adev)
 unsigned int ata_do_dev_read_id(struct ata_device *dev,
 				struct ata_taskfile *tf, __le16 *id)
 {
+	pr_err("%s calling ata_exec_internal id=%pS\n", __func__, id);
 	return ata_exec_internal(dev, tf, NULL, DMA_FROM_DEVICE,
 				     id, sizeof(id[0]) * ATA_ID_WORDS, 0);
 }
@@ -1994,6 +1995,7 @@ retry:
 	tf.hob_nsect = sectors >> 8;
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_LBA48 | ATA_TFLAG_DEVICE;
 
+	pr_err("%s calling ata_exec_internal buf=%pS\n", __func__, buf);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
 				     buf, sectors * ATA_SECT_SIZE, 0);
 
@@ -4313,6 +4315,7 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
 		return 0;
 
 	/* On some disks, this command causes spin-up, so we need longer timeout */
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 15000);
 
 	return err_mask;
@@ -4352,6 +4355,7 @@ unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable, u8 feature)
 	if (enable == SETFEATURES_SPINUP)
 		timeout = ata_probe_timeout ?
 			  ata_probe_timeout * 1000 : SETFEATURES_SPINUP_TIMEOUT;
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, timeout);
 
 	return err_mask;
@@ -4390,6 +4394,7 @@ static unsigned int ata_dev_init_params(struct ata_device *dev,
 	tf.nsect = sectors;
 	tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
 
+	pr_err("%s calling ata_exec_internal buf=null\n", __func__);
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	/* A clean abort indicates an original or just out of spec drive
 	   and we should continue as we issue the setup based on the
@@ -5222,7 +5227,7 @@ void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
 	/* clear everything except for devices */
 	memset((void *)link + ATA_LINK_CLEAR_BEGIN, 0,
 	       ATA_LINK_CLEAR_END - ATA_LINK_CLEAR_BEGIN);
-
+	pr_err("%s ap=%pS link=%pS pmp=%d\n", __func__, ap, link, pmp);
 	link->ap = ap;
 	link->pmp = pmp;
 	link->active_tag = ATA_TAG_POISON;
@@ -5234,6 +5239,8 @@ void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
 
 		dev->link = link;
 		dev->devno = dev - link->device;
+		pr_err("%s2 ap=%pS link=%pS pmp=%d dev->devno=%d i=%d dev=%pS\n", 
+		__func__, ap, link, pmp, dev->devno, i, dev);
 #ifdef CONFIG_ATA_ACPI
 		dev->gtf_filter = ata_acpi_gtf_filter;
 #endif
@@ -5291,6 +5298,8 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	struct ata_port *ap;
 
 	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
+	WARN_ON_ONCE(1);
+	pr_err("%s ap=%pS host=%pS\n", __func__, ap, host);
 	if (!ap)
 		return NULL;
 
@@ -5681,7 +5690,7 @@ void __ata_port_probe(struct ata_port *ap)
 int ata_port_probe(struct ata_port *ap)
 {
 	int rc = 0;
-
+	pr_err("%s ap=%pS error_handler=%pS\n", __func__, ap, ap->ops->error_handler);
 	if (ap->ops->error_handler) {
 		__ata_port_probe(ap);
 		ata_port_wait_eh(ap);
@@ -5706,11 +5715,14 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 	if (!(ap->host->flags & ATA_HOST_PARALLEL_SCAN) && ap->port_no != 0)
 		async_synchronize_cookie(cookie);
 
+	pr_err("%s calling ata_port_probe ap=%pS\n", __func__, ap);
 	(void)ata_port_probe(ap);
 
 	/* in order to keep device order, we need to synchronize at this point */
 	async_synchronize_cookie(cookie);
 
+
+	pr_err("%s2 calling ata_scsi_scan_host ap=%pS\n", __func__, ap);
 	ata_scsi_scan_host(ap, 1);
 }
 

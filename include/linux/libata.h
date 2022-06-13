@@ -1432,6 +1432,13 @@ static inline bool sata_pmp_attached(struct ata_port *ap)
 
 static inline bool ata_is_host_link(const struct ata_link *link)
 {
+//	bool first = (link == &link->ap->link);
+//	bool second = (link == link->ap->slave_link);
+
+//	pr_err("%s link=%pS &link->ap->link=%pS (%s) link->ap->slave_link=%pS (%s)\n",
+//		__func__, link,
+//		&link->ap->link, first ? "y" : "n",
+//		link->ap->slave_link, second ? "y" : "n");
 	return link == &link->ap->link || link == link->ap->slave_link;
 }
 #else /* CONFIG_SATA_PMP */

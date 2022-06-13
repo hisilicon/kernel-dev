@@ -1565,7 +1565,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	struct scsi_device *sdev = ERR_PTR(-ENODEV);
 	struct device *parent = &shost->shost_gendev;
 	struct scsi_target *starget;
-
+	pr_err("%s shost=%pS this_id=%d channel=%d id=%d lun=%lld\n", __func__, shost, shost->this_id, channel, id, lun);
 	if (strncmp(scsi_scan_type, "none", 4) == 0)
 		return ERR_PTR(-ENODEV);
 
