@@ -868,6 +868,7 @@ static atomic64_t total_mappings_cached;
  * size is too big or the DMA limit we are given isn't satisfied by the
  * top element in the magazine.
  */
+int rate = 1000;
 static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long size,
 				     unsigned long limit_pfn)
@@ -876,8 +877,10 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 	u64 _total_mappings = atomic64_inc_return(&total_mappings);
 
 
-	if ((_total_mappings % 1000000) == 0)
-		pr_err("%s total_mappings=%lld cached=%lld\n", __func__, _total_mappings, atomic64_read(&total_mappings_cached));
+	if ((_total_mappings % 20000) == 0) {
+		pr_err("%s total_mappings=%lld cached=%lld rate=%d\n", __func__, _total_mappings, atomic64_read(&total_mappings_cached), rate);
+		rate <<= 1;
+	}
 
 	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE || !iovad->rcaches) {
 		return 0;
