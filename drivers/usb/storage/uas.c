@@ -1031,6 +1031,8 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	shost->can_queue = devinfo->qdepth - 2;
 
 	usb_set_intfdata(intf, shost);
+
+	dev_err(&intf->dev, "%s calling scsi_add_host\n", __func__);
 	result = scsi_add_host(shost, &intf->dev);
 	if (result)
 		goto free_streams;

@@ -569,7 +569,7 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 
 		return 0;
 	}
-
+	dev_err(dev, "%s iovad=%pS group=%pS\n", __func__, iovad, dev->iommu_group);
 	init_iova_domain(iovad, 1UL << order, base_pfn);
 	ret = iova_domain_init_rcaches(iovad);
 	if (ret)

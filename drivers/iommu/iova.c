@@ -861,6 +861,8 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 	return iova_pfn;
 }
 
+static atomic64_t total_mappings;
+static atomic64_t total_mappings_cached;
 /*
  * Try to satisfy IOVA allocation range from rcache.  Fail if requested
  * size is too big or the DMA limit we are given isn't satisfied by the
@@ -871,9 +873,17 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long limit_pfn)
 {
 	unsigned int log_size = order_base_2(size);
+	u64 _total_mappings = atomic64_inc_return(&total_mappings);
 
-	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE || !iovad->rcaches)
+
+	if ((_total_mappings % 1000000) == 0)
+		pr_err("%s total_mappings=%lld cached=%lld\n", __func__, _total_mappings, atomic64_read(&total_mappings_cached));
+
+	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE || !iovad->rcaches) {
 		return 0;
+	}
+
+	atomic64_inc(&total_mappings_cached);
 
 	return __iova_rcache_get(&iovad->rcaches[log_size], limit_pfn - size);
 }

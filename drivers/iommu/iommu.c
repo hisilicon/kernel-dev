@@ -914,7 +914,7 @@ rename:
 
 	trace_add_device_to_group(group->id, dev);
 
-	dev_info(dev, "Adding to iommu group %d\n", group->id);
+	dev_info(dev, "Adding to iommu group %d group=%pS\n", group->id, group);
 
 	return 0;
 
