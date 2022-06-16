@@ -63,6 +63,8 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->dma_32bit_pfn = 1UL << (32 - iova_shift(iovad));
 	iovad->max32_alloc_size = iovad->dma_32bit_pfn;
 	iovad->anchor.pfn_lo = iovad->anchor.pfn_hi = IOVA_ANCHOR;
+
+	atomic_set(&iovad->rate, 10);
 	rb_link_node(&iovad->anchor.node, NULL, &iovad->rbroot.rb_node);
 	rb_insert_color(&iovad->anchor.node, &iovad->rbroot);
 }
@@ -861,32 +863,31 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 	return iova_pfn;
 }
 
-static atomic64_t total_mappings;
-static atomic64_t total_mappings_cached;
 /*
  * Try to satisfy IOVA allocation range from rcache.  Fail if requested
  * size is too big or the DMA limit we are given isn't satisfied by the
  * top element in the magazine.
- */
-int rate = 1000;
-static unsigned long iova_rcache_get(struct iova_domain *iovad,
+ */static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long size,
 				     unsigned long limit_pfn)
 {
 	unsigned int log_size = order_base_2(size);
-	u64 _total_mappings = atomic64_inc_return(&total_mappings);
-
+	u64 _total_mappings = atomic64_inc_return(&iovad->total_mappings);
+	int rate = atomic_read(&iovad->rate);
 
 	if ((_total_mappings % 20000) == 0) {
-		pr_err("%s total_mappings=%lld cached=%lld rate=%d\n", __func__, _total_mappings, atomic64_read(&total_mappings_cached), rate);
-		rate <<= 1;
+		u64 _cached = atomic64_read(&iovad->total_mappings_cached);
+		u64 diff = _total_mappings - _cached;
+		pr_err("%s total_mappings=%lld cached=%lld diff=%lld rate=%d\n", __func__, _total_mappings, _cached, diff, rate);
+		rate *= 2;
+		atomic_set(&iovad->rate, rate);
 	}
 
 	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE || !iovad->rcaches) {
 		return 0;
 	}
 
-	atomic64_inc(&total_mappings_cached);
+	atomic64_inc(&iovad->total_mappings_cached);
 
 	return __iova_rcache_get(&iovad->rcaches[log_size], limit_pfn - size);
 }

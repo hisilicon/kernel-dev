@@ -35,6 +35,10 @@ struct iova_domain {
 	unsigned long	dma_32bit_pfn;
 	unsigned long	max32_alloc_size; /* Size of last failed allocation */
 	struct iova	anchor;		/* rbtree lookup anchor */
+	atomic64_t total_mappings;
+	atomic64_t total_mappings_cached;
+	
+	atomic_t rate;
 
 	struct iova_rcache	*rcaches;
 	struct hlist_node	cpuhp_dead;
