@@ -62,7 +62,7 @@ struct rmid_read {
 	bool			first;
 	int			err;
 	u64			val;
-	void			*arch_mon_ctx;
+	int			arch_mon_ctx;
 };
 
 extern struct list_head resctrl_schema_all;
