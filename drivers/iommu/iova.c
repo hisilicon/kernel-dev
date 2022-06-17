@@ -875,10 +875,11 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 	u64 _total_mappings = atomic64_inc_return(&iovad->total_mappings);
 	int rate = atomic_read(&iovad->rate);
 
-	if ((_total_mappings % 20000) == 0) {
+	if ((_total_mappings % rate) == 0) {
 		u64 _cached = atomic64_read(&iovad->total_mappings_cached);
 		u64 diff = _total_mappings - _cached;
-		pr_err("%s total_mappings=%lld cached=%lld diff=%lld rate=%d\n", __func__, _total_mappings, _cached, diff, rate);
+		pr_err("%s total_mappings=%lld cached=%lld diff=%lld rate=%d iovad=%pS\n",
+			__func__, _total_mappings, _cached, diff, rate, iovad);
 		rate *= 2;
 		atomic_set(&iovad->rate, rate);
 	}
