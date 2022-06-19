@@ -354,10 +354,12 @@ struct iommu_vfio_ioas {
  * enum iommu_hwpt_type - IOMMU HWPT Type
  * @IOMMU_HWPT_TYPE_DEFAULT: default
  * @IOMMU_HWPT_TYPE_VTD_S1: Intel VT-d stage-1 page table
+ * @IOMMU_HWPT_TYPE_ARM_SMMUV3: ARM SMMUv3 Translation table
  */
 enum iommu_hwpt_type {
 	IOMMU_HWPT_TYPE_DEFAULT,
 	IOMMU_HWPT_TYPE_VTD_S1,
+	IOMMU_HWPT_TYPE_ARM_SMMUV3,
 };
 
 /**
@@ -414,6 +416,32 @@ struct iommu_hwpt_intel_vtd {
 };
 
 /**
+ * struct iommu_hwpt_arm_smmuv3 - ARM SMMUv3 specific translation table data
+ *
+ * @flags: Translation table entry attributes
+ * @ste_len: Length of the user Stream Table Entry
+ * @ste_uptr: User pointer to a user Stream Table Entry
+ * @event_len: Length of the returning event
+ * @out_event_uptr: User pointer to a returning event, to report a C_BAD_STE upon
+ *                  an STE configuration failure
+ *
+ * If event_len or out_event_uptr is unset, remainning at value 0, an STE
+ * configuration failure during the hwpt allocation will not be reported.
+ *
+ * The data structure can be used to allocate a stage-2 translation table, in
+ * which case only IOMMU_SMMUV3_FLAG_S2 would matter, i.e. all other ste_* and
+ * envent_* inputs would be ignored.
+ */
+struct iommu_hwpt_arm_smmuv3 {
+#define IOMMU_SMMUV3_FLAG_S2	(1 << 0) /* if unset, stage-1 */
+	__u64 flags;
+	__u64 ste_len;
+	__aligned_u64 ste_uptr;
+	__u64 event_len;
+	__aligned_u64 out_event_uptr;
+};
+
+/**
  * struct iommu_hwpt_alloc - ioctl(IOMMU_HWPT_ALLOC)
  * @size: sizeof(struct iommu_hwpt_alloc)
  * @flags: Must be 0
@@ -448,6 +476,8 @@ struct iommu_hwpt_intel_vtd {
  * +------------------------------+-------------------------------------+-----------+
  * | IOMMU_HWPT_TYPE_VTD_S1       |      struct iommu_hwpt_intel_vtd    |    HWPT   |
  * +------------------------------+-------------------------------------+-----------+
+ * | IOMMU_HWPT_TYPE_ARM_SMMUV3   |      struct iommu_hwpt_arm_smmuv3   | IOAS/HWPT |
+ * +------------------------------+-------------------------------------------------+
  */
 struct iommu_hwpt_alloc {
 	__u32 size;
@@ -465,10 +495,12 @@ struct iommu_hwpt_alloc {
 /**
  * enum iommu_hw_info_type - IOMMU Hardware Info Types
  * @IOMMU_HW_INFO_TYPE_INTEL_VTD: Intel VT-d iommu info type
+ * @IOMMU_HW_INFO_TYPE_ARM_SMMUV3: ARM SMMUv3 iommu info type
  */
 enum iommu_hw_info_type {
 	IOMMU_HW_INFO_TYPE_NONE,
 	IOMMU_HW_INFO_TYPE_INTEL_VTD,
+	IOMMU_HW_INFO_TYPE_ARM_SMMUV3,
 };
 
 /**
@@ -604,6 +636,31 @@ struct iommu_hwpt_invalidate_intel_vtd {
 };
 
 /**
+ * struct iommu_hwpt_invalidate_arm_smmuv3 - ARM SMMUv3 cahce invalidation info
+ * @cmdq_uptr: User pointer to a user command queue
+ * @cmdq_cons_uptr: User pointer to the consumer index of a user command queue,
+ *                  allowing kernel to read and also update the consumer index
+ *                  for a successful call or a failure with a CERROR_ILL code.
+ *                  This pointer must point to a __u32 type of memory location.
+ * @cmdq_prod: Producer index of user command queues
+ * @cmdq_entry_size: Entry size of a user command queue
+ * @cmdq_log2size: Queue size as log2(entries). Refer to 6.3.25 SMMU_CMDQ_BASE
+ * @__reserved: Must be 0
+ *
+ * Both the consumer index and the producer index should be in their raw forms,
+ * i.e. the raw values out of the SMMU_CMDQ_PROD and SMMU_CMDQ_CONS registers,
+ * which include the WRAP bits also instead of simply the two index values.
+ */
+struct iommu_hwpt_invalidate_arm_smmuv3 {
+	__aligned_u64 cmdq_uptr;
+	__aligned_u64 cmdq_cons_uptr;
+	__u32 cmdq_prod;
+	__u32 cmdq_entry_size;
+	__u32 cmdq_log2size;
+	__u32 __reserved;
+};
+
+/**
  * struct iommu_hwpt_invalidate - ioctl(IOMMU_HWPT_INVALIDATE)
  * @size: sizeof(struct iommu_hwpt_invalidate)
  * @hwpt_id: HWPT ID of target hardware page table for the invalidation
@@ -619,6 +676,8 @@ struct iommu_hwpt_invalidate_intel_vtd {
  * | @hwpt_type                   |     Data structure in @data_uptr       |
  * +------------------------------+----------------------------------------+
  * | IOMMU_HWPT_TYPE_VTD_S1       | struct iommu_hwpt_invalidate_intel_vtd |
+ * +------------------------------+----------------------------------------+
+ * | IOMMU_HWPT_TYPE_ARM_SMMUV3   | struct iommu_hwpt_invalidate_arm_smmuv3|
  * +------------------------------+----------------------------------------+
  */
 struct iommu_hwpt_invalidate {
