@@ -341,6 +341,7 @@ struct iommu_vfio_ioas {
 enum iommu_device_data_type {
 	IOMMU_DEVICE_DATA_NONE = 0,
 	IOMMU_DEVICE_DATA_INTEL_VTD,
+	IOMMU_DEVICE_DATA_ARM_SMMUV3,
 };
 
 /**
@@ -405,6 +406,32 @@ struct iommu_hwpt_intel_vtd {
 	__u32 emt;
 	__u32 addr_width;
 	__u32 __reserved;
+};
+
+/**
+ * struct iommu_hwpt_arm_smmuv3 - ARM SMMUv3 specific page table data
+ *
+ * @flags: page table entry attributes
+ * @config: Stream configuration
+ * @s2vmid: Virtual machine identifier
+ * @s1ctxptr: Stage 1 context descriptor pointer
+ * @s1cdmax: Number of CDs pointed to by s1ContextPtr
+ * @s1fmt: Stage 1 Format
+ * @s1dss: Default substream
+ */
+struct iommu_hwpt_arm_smmuv3 {
+#define IOMMU_SMMUV3_FLAG_S2	(1 << 0) /* if unset, stage1 */
+#define IOMMU_SMMUV3_FLAG_VMID	(1 << 1) /* vmid override */
+	__u64 flags;
+#define IOMMU_SMMUV3_CONFIG_TRANSLATE	1
+#define IOMMU_SMMUV3_CONFIG_BYPASS	2
+#define IOMMU_SMMUV3_CONFIG_ABORT	3
+	__u32 config;
+	__u32 s2vmid;
+	__u64 s1ctxptr;
+	__u64 s1cdmax;
+	__u64 s1fmt;
+	__u64 s1dss;
 };
 
 /**
@@ -494,6 +521,25 @@ struct iommu_hwpt_invalidate_intel_vtd {
 	__u64 addr;
 	__u64 granule_size;
 	__u64 nb_granules;
+};
+
+/**
+ * struct iommu_hwpt_invalidate_arm_smmuv3 - ARM SMMUv3 cahce invalidation info
+ * @flags: boolean attributes of cache invalidation command
+ * @opcode: opcode of cache invalidation command
+ * @ssid: SubStream ID
+ * @granule_size: page/block size of the mapping in bytes
+ * @range: IOVA range to invalidate
+ */
+struct iommu_hwpt_invalidate_arm_smmuv3 {
+#define IOMMU_SMMUV3_CMDQ_TLBI_VA_LEAF	(1 << 0)
+	__u64 flags;
+	__u8 opcode;
+	__u8 padding[3];
+	__u32 asid;
+	__u32 ssid;
+	__u32 granule_size;
+	struct iommu_iova_range range;
 };
 
 /**
