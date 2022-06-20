@@ -645,7 +645,7 @@ static const struct scsi_host_template usb_stor_host_template = {
 	 * and Apple Mac OS X 10.11 limiting transfers to 256 sectors for USB2
 	 * and 2048 for USB3 devices.
 	 */
-	.max_sectors =                  SCSI_DEFAULT_MAX_SECTORS,
+	.max_sectors =                  256,
 
 	/* emulated HBA */
 	.emulated =			1,
