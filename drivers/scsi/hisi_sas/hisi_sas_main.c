@@ -1067,9 +1067,11 @@ static void hisi_sas_release_task(struct hisi_hba *hisi_hba,
 {
 	struct hisi_sas_slot *slot, *slot2;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
-
-	list_for_each_entry_safe(slot, slot2, &sas_dev->list, entry)
+	pr_err("%s device=%pS\n", __func__, device);
+	list_for_each_entry_safe(slot, slot2, &sas_dev->list, entry) {
+		pr_err("%s2 device=%pS slot->task=%pS\n", __func__, device, slot->task);
 		hisi_sas_do_release_task(hisi_hba, slot->task, slot);
+	}
 }
 
 void hisi_sas_release_tasks(struct hisi_hba *hisi_hba)
@@ -1663,7 +1665,7 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
 	int rc, reset_type;
-
+	pr_err("%s device=%pS\n", __func__, device);
 	if (!local_phy->enabled) {
 		sas_put_local_phy(local_phy);
 		return -ENODEV;
@@ -1733,6 +1735,8 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 	hisi_sas_dereg_device(hisi_hba, device);
 
 	rc = hisi_sas_debug_I_T_nexus_reset(device);
+
+	pr_err("%s1  device=%pS rc=%d\n", __func__, device, rc);
 	if (rc == TMF_RESP_FUNC_COMPLETE && dev_is_sata(device)) {
 		struct sas_phy *local_phy;
 
@@ -1759,8 +1763,10 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 		}
 	}
 
-	if ((rc == TMF_RESP_FUNC_COMPLETE) || (rc == -ENODEV))
+	if ((rc == TMF_RESP_FUNC_COMPLETE) || (rc == -ENODEV)) {
+		pr_err("%s8 device=%pS calling hisi_sas_release_task\n", __func__, device);
 		hisi_sas_release_task(hisi_hba, device);
+	}
 
 	return rc;
 }

@@ -654,7 +654,7 @@ EXPORT_SYMBOL(ata_scsi_cmd_error_handler);
 void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 {
 	unsigned long flags;
-
+	pr_err("%s host=%pS ap=%pS\n", __func__, host, ap);
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
 		struct ata_link *link;
@@ -2455,6 +2455,8 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	u32 sstatus;
 	int nr_unknown, rc;
 
+	pr_err("%s ap=%pS ap=%pS prereset=%pS softreset=%pS hardreset=%pS postreset=%pS\n",
+	 __func__, ap, ap, prereset, softreset, hardreset, postreset);
 	/*
 	 * Prepare to reset
 	 */

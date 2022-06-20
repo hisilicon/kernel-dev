@@ -206,7 +206,7 @@ static void sas_eh_finish_cmd(struct scsi_cmnd *cmd)
 	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(cmd->device->host);
 	struct domain_device *dev = cmd_to_domain_dev(cmd);
 	struct sas_task *task = TO_SAS_TASK(cmd);
-
+	pr_err("%s task=%pS\n", __func__, task);
 	/* At this point, we only get called following an actual abort
 	 * of the task, so we should be guaranteed not to be racing with
 	 * any completions from the LLD.  Task is freed after this.
@@ -232,6 +232,8 @@ static void sas_scsi_clear_queue_lu(struct list_head *error_q, struct scsi_cmnd 
 {
 	struct scsi_cmnd *cmd, *n;
 
+	pr_err("%s my_cmd=%pS\n", __func__, my_cmd);
+
 	list_for_each_entry_safe(cmd, n, error_q, eh_entry) {
 		if (cmd->device->sdev_target == my_cmd->device->sdev_target &&
 		    cmd->device->lun == my_cmd->device->lun)
@@ -243,6 +245,8 @@ static void sas_scsi_clear_queue_I_T(struct list_head *error_q,
 				     struct domain_device *dev)
 {
 	struct scsi_cmnd *cmd, *n;
+
+	pr_err("%s dev=%pS\n", __func__, dev);
 
 	list_for_each_entry_safe(cmd, n, error_q, eh_entry) {
 		struct domain_device *x = cmd_to_domain_dev(cmd);
@@ -257,6 +261,8 @@ static void sas_scsi_clear_queue_port(struct list_head *error_q,
 {
 	struct scsi_cmnd *cmd, *n;
 
+	pr_err("%s port=%pS\n", __func__, port);
+	
 	list_for_each_entry_safe(cmd, n, error_q, eh_entry) {
 		struct domain_device *dev = cmd_to_domain_dev(cmd);
 		struct asd_sas_port *x = dev->port;
@@ -282,39 +288,39 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 		to_sas_internal(task->dev->port->ha->core.shost->transportt);
 
 	for (i = 0; i < 5; i++) {
-		pr_notice("%s: aborting task 0x%p\n", __func__, task);
+		pr_notice("%s: aborting task %pS\n", __func__, task);
 		res = si->dft->lldd_abort_task(task);
 
 		spin_lock_irqsave(&task->task_state_lock, flags);
 		if (task->task_state_flags & SAS_TASK_STATE_DONE) {
 			spin_unlock_irqrestore(&task->task_state_lock, flags);
-			pr_debug("%s: task 0x%p is done\n", __func__, task);
+			pr_debug("%s: task %pS is done\n", __func__, task);
 			return TASK_IS_DONE;
 		}
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 		if (res == TMF_RESP_FUNC_COMPLETE) {
-			pr_notice("%s: task 0x%p is aborted\n",
+			pr_notice("%s: task %pS is aborted\n",
 				  __func__, task);
 			return TASK_IS_ABORTED;
 		} else if (si->dft->lldd_query_task) {
-			pr_notice("%s: querying task 0x%p\n", __func__, task);
+			pr_notice("%s: querying task %pS\n", __func__, task);
 			res = si->dft->lldd_query_task(task);
 			switch (res) {
 			case TMF_RESP_FUNC_SUCC:
-				pr_notice("%s: task 0x%p at LU\n", __func__,
+				pr_notice("%s: task %pS at LU\n", __func__,
 					  task);
 				return TASK_IS_AT_LU;
 			case TMF_RESP_FUNC_COMPLETE:
-				pr_notice("%s: task 0x%p not at LU\n",
+				pr_notice("%s: task %pS not at LU\n",
 					  __func__, task);
 				return TASK_IS_NOT_AT_LU;
 			case TMF_RESP_FUNC_FAILED:
-				pr_notice("%s: task 0x%p failed to abort\n",
+				pr_notice("%s: task %pS failed to abort\n",
 					  __func__, task);
 				return TASK_ABORT_FAILED;
 			default:
-				pr_notice("%s: task 0x%p result code %d not handled\n",
+				pr_notice("%s: task %pS result code %d not handled\n",
 					  __func__, task, res);
 			}
 		}
@@ -565,7 +571,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 	unsigned long flags;
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	LIST_HEAD(done);
-
+	pr_err("%s shost=%pS\n", __func__, shost);
 	/* clean out any commands that won the completion vs eh race */
 	list_for_each_entry_safe(cmd, n, work_q, eh_entry) {
 		struct domain_device *dev = cmd_to_domain_dev(cmd);
@@ -577,6 +583,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 		 * won the race with eh and decided to complete it
 		 */
 		task = TO_SAS_TASK(cmd);
+		pr_err("%s2 shost=%pS task=%pS\n", __func__, shost, task);
 		spin_unlock_irqrestore(&dev->done_lock, flags);
 
 		if (!task)
@@ -594,27 +601,27 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 		if (need_reset) {
-			pr_notice("%s: task 0x%p requests reset\n",
+			pr_notice("%s: task %pS requests reset\n",
 				  __func__, task);
 			goto reset;
 		}
 
-		pr_debug("trying to find task 0x%p\n", task);
+		pr_debug("trying to find task %pS\n", task);
 		res = sas_scsi_find_task(task);
 
 		switch (res) {
 		case TASK_IS_DONE:
-			pr_notice("%s: task 0x%p is done\n", __func__,
+			pr_notice("%s: task %pS is done\n", __func__,
 				    task);
 			sas_eh_finish_cmd(cmd);
 			continue;
 		case TASK_IS_ABORTED:
-			pr_notice("%s: task 0x%p is aborted\n",
+			pr_notice("%s: task %pS is aborted\n",
 				  __func__, task);
 			sas_eh_finish_cmd(cmd);
 			continue;
 		case TASK_IS_AT_LU:
-			pr_info("task 0x%p is at LU: lu recover\n", task);
+			pr_info("task %pS is at LU: lu recover\n", task);
  reset:
 			tmf_resp = sas_recover_lu(task->dev, cmd);
 			if (tmf_resp == TMF_RESP_FUNC_COMPLETE) {
@@ -628,7 +635,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 			fallthrough;
 		case TASK_IS_NOT_AT_LU:
 		case TASK_ABORT_FAILED:
-			pr_notice("task 0x%p is not at LU: I_T recover\n",
+			pr_notice("task %pS is not at LU: I_T recover\n",
 				  task);
 			tmf_resp = sas_recover_I_T(task->dev);
 			if (tmf_resp == TMF_RESP_FUNC_COMPLETE ||
@@ -737,7 +744,7 @@ retry:
 	list_splice_init(&shost->eh_cmd_q, &eh_work_q);
 	spin_unlock_irq(shost->host_lock);
 
-	pr_notice("Enter %s busy: %d failed: %d\n",
+	pr_notice("%s Enter %s busy: %d failed: %d\n", __func__,
 		  __func__, scsi_host_busy(shost), shost->host_failed);
 	/*
 	 * Deal with commands that still have SAS tasks (i.e. they didn't
@@ -1209,7 +1216,7 @@ EXPORT_SYMBOL_GPL(sas_abort_task);
 void sas_task_abort(struct sas_task *task)
 {
 	struct scsi_cmnd *sc = task->uldd_task;
-
+	pr_err("%s task=%pS\n", __func__, task);
 	/* Escape for libsas internal commands */
 	if (!sc) {
 		struct sas_task_slow *slow = task->slow_task;

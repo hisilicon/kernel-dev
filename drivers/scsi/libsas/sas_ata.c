@@ -395,7 +395,7 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 		return ret;
 
 	if (ret != TMF_RESP_FUNC_COMPLETE)
-		sas_ata_printk(KERN_DEBUG, dev, "Unable to reset ata device?\n");
+		sas_ata_printk(KERN_ERR, dev, "Unable to reset ata device?\n");
 
 	ret = sas_ata_wait_after_reset(dev, deadline);
 
@@ -599,6 +599,8 @@ void sas_ata_task_abort(struct sas_task *task)
 	struct ata_queued_cmd *qc = task->uldd_task;
 	struct completion *waiting;
 
+	pr_err("%s task=%pS qc=%pS scsicmd=%pS\n", __func__, task, qc, qc->scsicmd);
+
 	/* Bounce SCSI-initiated commands to the SCSI EH */
 	if (qc->scsicmd) {
 		blk_abort_request(scsi_cmd_to_rq(qc->scsicmd));
@@ -740,7 +742,7 @@ static void async_sas_ata_eh(void *data, async_cookie_t cookie)
 	struct ata_port *ap = dev->sata_dev.ap;
 	struct sas_ha_struct *ha = dev->port->ha;
 
-	sas_ata_printk(KERN_DEBUG, dev, "dev error handler\n");
+	sas_ata_printk(KERN_ERR, dev, "dev error handler\n");
 	ata_scsi_port_error_handler(ha->core.shost, ap);
 	sas_put_device(dev);
 }
@@ -750,7 +752,7 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
 	ASYNC_DOMAIN_EXCLUSIVE(async);
 	int i;
-
+	pr_err("%s shost=%pS\n", __func__, shost);
 	/* it's ok to defer revalidation events during ata eh, these
 	 * disks are in one of three states:
 	 * 1/ present for initial domain discovery, and these
@@ -811,7 +813,7 @@ void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q)
 		if (!list_empty(&sata_q)) {
 			struct ata_port *ap = eh_dev->sata_dev.ap;
 
-			sas_ata_printk(KERN_DEBUG, eh_dev, "cmd error handler\n");
+			sas_ata_printk(KERN_ERR, eh_dev, "cmd error handler\n");
 			ata_scsi_cmd_error_handler(shost, ap, &sata_q);
 			/*
 			 * ata's error handler may leave the cmd on the list

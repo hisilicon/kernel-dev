@@ -2384,6 +2384,17 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 		break;
 	}
 
+	if (dev_is_sata(device)) {
+		static atomic_t ata_err;
+		int _ata_err = atomic_inc_return(&ata_err);
+
+		if (_ata_err == 1000) {
+			pr_err("%s sata task=%pS device=%pS aborting\n", __func__, task, device);
+			sas_task_abort(task);
+			return;
+		}
+	}
+
 	if ((dw0 & CMPLT_HDR_ERX_MSK) && (!(dw0 & CMPLT_HDR_RSPNS_XFRD_MSK))) {
 		u32 err_phase = (dw0 & CMPLT_HDR_ERR_PHASE_MSK)
 				>> CMPLT_HDR_ERR_PHASE_OFF;
