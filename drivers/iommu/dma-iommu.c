@@ -617,6 +617,10 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iova_domain *iovad = &cookie->iovad;
 	unsigned long shift, iova_len, iova = 0;
+	static atomic_t iommu_dma_alloc_iova_count;
+
+	if ((atomic_inc_return(&iommu_dma_alloc_iova_count) % 30000) == 0)
+		dev_err(dev, "%s dev_is_pci=%d\n", __func__, dev_is_pci(dev));
 
 	if (cookie->type == IOMMU_DMA_MSI_COOKIE) {
 		cookie->msi_iova += size;
@@ -632,9 +636,12 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 		dma_limit = min(dma_limit, (u64)domain->geometry.aperture_end);
 
 	/* Try to get PCI devices a SAC address */
-	if (dma_limit > DMA_BIT_MASK(32) && !iommu_dma_forcedac && dev_is_pci(dev))
+	if (dma_limit > DMA_BIT_MASK(32) && !iommu_dma_forcedac && dev_is_pci(dev)) {
 		iova = alloc_iova_fast(iovad, iova_len,
 				       DMA_BIT_MASK(32) >> shift, false);
+		if (!iova)
+			dev_err(dev, "%s failed in 32b space\n", __func__);
+	}
 
 	if (!iova)
 		iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift,
