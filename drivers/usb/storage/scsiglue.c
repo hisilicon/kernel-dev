@@ -361,12 +361,25 @@ static int target_alloc(struct scsi_target *starget)
 	return 0;
 }
 
+static	atomic_t queue_rate = ATOMIC_INIT(10);
+
 /* queue a command */
 /* This is always called with scsi_lock(host) held */
 static int queuecommand_lck(struct scsi_cmnd *srb)
 {
 	void (*done)(struct scsi_cmnd *) = scsi_done;
+	struct Scsi_Host *shost = srb->device->host;
 	struct us_data *us = host_to_us(srb->device->host);
+
+
+	u64 _total_queued = atomic64_inc_return(&shost->total_queued);
+	int rate = atomic_read(&queue_rate);
+
+	if ((_total_queued % rate) == 0) {
+		pr_err("%s total_queued=%lld\n", __func__, _total_queued);
+		rate *= 2;
+		atomic_set(&queue_rate, rate);
+	}
 
 	/* check for state-transition errors */
 	if (us->srb != NULL) {

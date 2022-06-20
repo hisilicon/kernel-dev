@@ -545,7 +545,8 @@ struct Scsi_Host {
 
 	spinlock_t		default_lock;
 	spinlock_t		*host_lock;
-
+	atomic64_t total_queued;
+	
 	struct mutex		scan_mutex;/* serialize scanning activity */
 
 	struct list_head	eh_abort_list;
