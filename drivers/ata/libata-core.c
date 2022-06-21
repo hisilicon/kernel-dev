@@ -2017,6 +2017,7 @@ static int ata_log_supported(struct ata_device *dev, u8 log)
 	if (dev->horkage & ATA_HORKAGE_NO_LOG_DIR)
 		return 0;
 
+	pr_err("%s calling ata_read_log_page\n", __func__);
 	if (ata_read_log_page(dev, ATA_LOG_DIRECTORY, 0, ap->sector_buf, 1))
 		return 0;
 	return get_unaligned_le16(&ap->sector_buf[log * 2]);
@@ -2112,6 +2113,7 @@ static void ata_dev_config_ncq_send_recv(struct ata_device *dev)
 		ata_dev_warn(dev, "NCQ Send/Recv Log not supported\n");
 		return;
 	}
+	pr_err("%s calling ata_read_log_page\n", __func__);
 	err_mask = ata_read_log_page(dev, ATA_LOG_NCQ_SEND_RECV,
 				     0, ap->sector_buf, 1);
 	if (!err_mask) {
@@ -2138,6 +2140,7 @@ static void ata_dev_config_ncq_non_data(struct ata_device *dev)
 			     "NCQ Send/Recv Log not supported\n");
 		return;
 	}
+	pr_err("%s calling ata_read_log_page\n", __func__);
 	err_mask = ata_read_log_page(dev, ATA_LOG_NCQ_NON_DATA,
 				     0, ap->sector_buf, 1);
 	if (!err_mask) {
@@ -2155,6 +2158,7 @@ static void ata_dev_config_ncq_prio(struct ata_device *dev)
 	if (!ata_identify_page_supported(dev, ATA_LOG_SATA_SETTINGS))
 		return;
 
+	pr_err("%s calling ata_read_log_page\n", __func__);
 	err_mask = ata_read_log_page(dev,
 				     ATA_LOG_IDENTIFY_DEVICE,
 				     ATA_LOG_SATA_SETTINGS,
@@ -2307,6 +2311,7 @@ static void ata_dev_config_zac(struct ata_device *dev)
 		return;
 	}
 
+	pr_err("%s calling ata_read_log_page\n", __func__);
 	/*
 	 * Read IDENTIFY DEVICE data log, page 9 (Zoned-device information)
 	 */
@@ -2346,6 +2351,7 @@ static void ata_dev_config_trusted(struct ata_device *dev)
 		return;
 	}
 
+	pr_err("%s calling ata_read_log_page\n", __func__);
 	err = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE, ATA_LOG_SECURITY,
 			ap->sector_buf, 1);
 	if (err)
@@ -2433,6 +2439,7 @@ static void ata_dev_config_devslp(struct ata_device *dev)
 	    !ata_identify_page_supported(dev, ATA_LOG_SATA_SETTINGS))
 		return;
 
+	pr_err("%s calling ata_read_log_page\n", __func__);
 	err_mask = ata_read_log_page(dev,
 				     ATA_LOG_IDENTIFY_DEVICE,
 				     ATA_LOG_SATA_SETTINGS,
@@ -2473,6 +2480,7 @@ static void ata_dev_config_cpr(struct ata_device *dev)
 	if (!buf)
 		goto out;
 
+	pr_err("%s calling ata_read_log_page\n", __func__);
 	err_mask = ata_read_log_page(dev, ATA_LOG_CONCURRENT_POSITIONING_RANGES,
 				     0, buf, buf_len >> 9);
 	if (err_mask)

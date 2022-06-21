@@ -609,7 +609,7 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 			}
 
 			if (i < ATA_MAX_QUEUE) {
-				pr_err("%s3 ap=%pS scmd=%pS\n", __func__, ap, scmd);
+				pr_err("%s3 ap=%pS scmd=%pS ATA_QCFLAG_FAILED already set i=%d\n", __func__, ap, scmd, i);
 				/* the scmd has an associated qc */
 				if (!(qc->flags & ATA_QCFLAG_FAILED)) {
 					/* which hasn't failed yet, timeout */
@@ -636,6 +636,7 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 		 * handler doesn't diddle with those qcs.  This must
 		 * be done atomically w.r.t. setting QCFLAG_FAILED.
 		 */
+		pr_err("%s5 nr_timedout=%d (if set, calls __ata_port_freeze)\n", __func__, nr_timedout);
 		if (nr_timedout)
 			__ata_port_freeze(ap);
 

@@ -745,7 +745,7 @@ static void async_sas_ata_eh(void *data, async_cookie_t cookie)
 	struct ata_port *ap = dev->sata_dev.ap;
 	struct sas_ha_struct *ha = dev->port->ha;
 
-	sas_ata_printk(KERN_ERR, dev, "dev error handler\n");
+	sas_ata_printk(KERN_ERR, dev, "%s dev error handler\n", __func__);
 	ata_scsi_port_error_handler(ha->core.shost, ap);
 	sas_put_device(dev);
 }
@@ -782,6 +782,7 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 			 */
 			kref_get(&dev->kref);
 
+			pr_err("%s2 shost=%pS calling async_schedule_domain(async_sas_ata_eh)\n", __func__, shost);
 			async_schedule_domain(async_sas_ata_eh, dev, &async);
 		}
 		spin_unlock(&port->dev_list_lock);
