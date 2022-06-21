@@ -4694,8 +4694,11 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		struct ata_device *dev = qc->dev;
 		struct ata_eh_info *ehi = &dev->link->eh_info;
 
-		if (unlikely(qc->err_mask))
+		if (unlikely(qc->err_mask)) {
 			qc->flags |= ATA_QCFLAG_FAILED;
+			pr_err("%s1 qc=%pS scsicmd=%pS err_mask=0x%x qc->err_mask setting ATA_QCFLAG_FAILED\n",
+				__func__, qc, qc->scsicmd, qc->err_mask);
+		}
 
 		/*
 		 * Finish internal commands without any further processing
@@ -4713,6 +4716,8 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		 * summon EH.
 		 */
 		if (unlikely(qc->flags & ATA_QCFLAG_FAILED)) {
+			pr_err("%s2 qc=%pS scsicmd=%pS ATA_QCFLAG_FAILED calling ata_qc_schedule_eh\n",
+				__func__, qc, qc->scsicmd);
 			fill_result_tf(qc);
 			trace_ata_qc_complete_failed(qc);
 			ata_qc_schedule_eh(qc);

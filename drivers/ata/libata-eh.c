@@ -830,7 +830,7 @@ void ata_eh_fastdrain_timerfn(struct timer_list *t)
 	spin_lock_irqsave(ap->lock, flags);
 
 	cnt = ata_eh_nr_in_flight(ap);
-
+	pr_err("%s cnt=%d ap->fastdrain_cnt=%ld\n", __func__, cnt, ap->fastdrain_cnt);
 	/* are we done? */
 	if (!cnt)
 		goto out_unlock;
@@ -843,6 +843,7 @@ void ata_eh_fastdrain_timerfn(struct timer_list *t)
 		 * in-flight qcs as timed out and freeze the port.
 		 */
 		ata_qc_for_each(ap, qc, tag) {
+			pr_err("%s3 qc=%pS setting AC_ERR_TIMEOUT\n", __func__, qc);
 			if (qc)
 				qc->err_mask |= AC_ERR_TIMEOUT;
 		}
@@ -887,6 +888,7 @@ static void ata_eh_set_pending(struct ata_port *ap, int fastdrain)
 
 	/* do we have in-flight qcs? */
 	cnt = ata_eh_nr_in_flight(ap);
+	pr_err("%s ap=%pS fastdrain=%d cnt=%d\n", __func__, ap, fastdrain, cnt);
 	if (!cnt)
 		return;
 
@@ -913,6 +915,7 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 
 	WARN_ON(!ap->ops->error_handler);
 
+	pr_err("%s qc=%pS scsicmd=%pS\n", __func__, qc, qc->scsicmd);
 	qc->flags |= ATA_QCFLAG_FAILED;
 	ata_eh_set_pending(ap, 1);
 

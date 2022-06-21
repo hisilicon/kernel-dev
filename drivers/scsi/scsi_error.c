@@ -278,9 +278,9 @@ static void scsi_eh_inc_host_failed(struct rcu_head *head)
 	struct scsi_cmnd *scmd = container_of(head, typeof(*scmd), rcu);
 	struct Scsi_Host *shost = scmd->device->host;
 	unsigned long flags;
-
 	spin_lock_irqsave(shost->host_lock, flags);
 	shost->host_failed++;
+	pr_err("%s host_failed=%d\n", __func__, shost->host_failed);
 	scsi_eh_wakeup(shost);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 }
@@ -296,6 +296,8 @@ void scsi_eh_scmd_add(struct scsi_cmnd *scmd)
 	int ret;
 
 	WARN_ON_ONCE(!shost->ehandler);
+
+	pr_err("%s scmd=%pS\n", __func__, scmd);
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (scsi_host_set_state(shost, SHOST_RECOVERY)) {
@@ -330,7 +332,7 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
 	enum blk_eh_timer_return rtn = BLK_EH_DONE;
 	struct Scsi_Host *host = scmd->device->host;
-
+	pr_err("%s req=%pS scmd=%pS\n", __func__, req, scmd);
 	trace_scsi_dispatch_cmd_timeout(scmd);
 	scsi_log_completion(scmd, TIMEOUT_ERROR);
 
@@ -356,6 +358,7 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 		if (test_and_set_bit(SCMD_STATE_COMPLETE, &scmd->state))
 			return BLK_EH_RESET_TIMER;
 		if (scsi_abort_command(scmd) != SUCCESS) {
+			pr_err("%s2 req=%pS scmd=%pS calling scsi_eh_scmd_add\n", __func__, req, scmd);
 			set_host_byte(scmd, DID_TIME_OUT);
 			scsi_eh_scmd_add(scmd);
 		}
