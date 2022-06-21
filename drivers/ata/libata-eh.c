@@ -1933,7 +1933,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 	int tag, nr_failed = 0, nr_quiet = 0;
 	u32 serror;
 	int rc;
-
+	pr_err("%s link=%pS\n", __func__, link);
 	if (ehc->i.flags & ATA_EHI_NO_AUTOPSY)
 		return;
 
@@ -1950,6 +1950,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 	}
 
 	/* analyze NCQ failure */
+	pr_err("%s2 link=%pS calling ata_eh_analyze_ncq_error\n", __func__, link);
 	ata_eh_analyze_ncq_error(link);
 
 	/* any real error trumps AC_ERR_OTHER */
@@ -2056,8 +2057,10 @@ void ata_eh_autopsy(struct ata_port *ap)
 {
 	struct ata_link *link;
 
-	ata_for_each_link(link, ap, EDGE)
+	ata_for_each_link(link, ap, EDGE) {
+		pr_err("%s ap=%pS link=%pS calling ata_eh_link_autopsy\n", __func__, ap, link);
 		ata_eh_link_autopsy(link);
+	}
 
 	/* Handle the frigging slave link.  Autopsy is done similarly
 	 * but actions and flags are transferred over to the master
@@ -3839,10 +3842,12 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 {
 	struct ata_device *dev;
 	int rc;
-
+	pr_err("%s ap=%pS calling ata_eh_autopsy\n", __func__, ap);
 	ata_eh_autopsy(ap);
+	pr_err("%s2 ap=%pS calling ata_eh_report\n", __func__, ap);
 	ata_eh_report(ap);
 
+	pr_err("%s3 ap=%pS calling ata_eh_recover\n", __func__, ap);
 	rc = ata_eh_recover(ap, prereset, softreset, hardreset, postreset,
 			    NULL);
 	if (rc) {

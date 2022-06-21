@@ -1364,7 +1364,7 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
 	unsigned int err_mask;
 	u8 csum;
 	int i;
-
+	pr_err("%s calling ata_read_log_page\n", __func__);
 	err_mask = ata_read_log_page(dev, ATA_LOG_SATA_NCQ, 0, buf, 1);
 	if (err_mask)
 		return -EIO;
@@ -1418,7 +1418,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 	struct ata_queued_cmd *qc;
 	struct ata_taskfile tf;
 	int tag, rc;
-
+	pr_err("%s link=%pS\n", __func__, link);
 	/* if frozen, we can't do much */
 	if (ap->pflags & ATA_PFLAG_FROZEN)
 		return;
@@ -1438,6 +1438,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 
 	/* okay, this error is ours */
 	memset(&tf, 0, sizeof(tf));
+	pr_err("%s2 link=%pS calling ata_eh_read_log_10h\n", __func__, link);
 	rc = ata_eh_read_log_10h(dev, &tag, &tf);
 	if (rc) {
 		ata_link_err(link, "failed to read log page 10h (errno=%d)\n",
