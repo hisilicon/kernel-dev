@@ -775,9 +775,13 @@ retry:
 	 * scsi_unjam_host does, but we skip scsi_eh_abort_cmds because any
 	 * command we see here has no sas_task and is thus unknown to the HA.
 	 */
+	pr_err("%s2 calling sas_ata_eh\n", __func__);
 	sas_ata_eh(shost, &eh_work_q);
-	if (!scsi_eh_get_sense(&eh_work_q, &ha->eh_done_q))
+	pr_err("%s3 finished sas_ata_eh\n", __func__);
+	if (!scsi_eh_get_sense(&eh_work_q, &ha->eh_done_q)) {
+		pr_err("%s4 calling scsi_eh_ready_devs\n", __func__);
 		scsi_eh_ready_devs(shost, &eh_work_q, &ha->eh_done_q);
+	}
 
 out:
 	sas_eh_handle_resets(shost);

@@ -125,7 +125,7 @@ static void sas_ata_task_done(struct sas_task *task)
 		} else {
 			link->eh_info.err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
 			if (unlikely(link->eh_info.err_mask)) {
-				pr_warn("%s1: setting ATA_QCFLAG_FAILED task=%pS qc=%pS\n", __func__, task, qc);
+				pr_warn("%s1: setting ATA_QCFLAG_FAILED task=%pS qc=%pS link->eh_info.err_mask=0x%x\n", __func__, task, qc, link->eh_info.err_mask);
 				qc->flags |= ATA_QCFLAG_FAILED;
 			}
 		}
@@ -797,7 +797,7 @@ void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q)
 {
 	struct scsi_cmnd *cmd, *n;
 	struct domain_device *eh_dev;
-
+	pr_err("%s\n", __func__);
 	do {
 		LIST_HEAD(sata_q);
 		eh_dev = NULL;
