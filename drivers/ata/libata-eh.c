@@ -614,6 +614,7 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 				if (!(qc->flags & ATA_QCFLAG_FAILED)) {
 					/* which hasn't failed yet, timeout */
 					qc->err_mask |= AC_ERR_TIMEOUT;
+					pr_err("%s3.1 qc=%pS setting ATA_QCFLAG_FAILED\n", __func__, qc);
 					qc->flags |= ATA_QCFLAG_FAILED;
 					nr_timedout++;
 				}
@@ -915,7 +916,7 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 
 	WARN_ON(!ap->ops->error_handler);
 
-	pr_err("%s qc=%pS scsicmd=%pS\n", __func__, qc, qc->scsicmd);
+	pr_err("%s qc=%pS scsicmd=%pS setting ATA_QCFLAG_FAILED\n", __func__, qc, qc->scsicmd);
 	qc->flags |= ATA_QCFLAG_FAILED;
 	ata_eh_set_pending(ap, 1);
 
@@ -999,6 +1000,7 @@ static int ata_do_link_abort(struct ata_port *ap, struct ata_link *link)
 	/* include internal tag in iteration */
 	ata_qc_for_each_with_internal(ap, qc, tag) {
 		if (qc && (!link || qc->dev->link == link)) {
+			pr_err("%s qc=%pS setting ATA_QCFLAG_FAILED\n", __func__, qc);
 			qc->flags |= ATA_QCFLAG_FAILED;
 			ata_qc_complete(qc);
 			nr_aborted++;

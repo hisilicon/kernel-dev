@@ -124,13 +124,15 @@ static void sas_ata_task_done(struct sas_task *task)
 			qc->err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
 		} else {
 			link->eh_info.err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
-			if (unlikely(link->eh_info.err_mask))
+			if (unlikely(link->eh_info.err_mask)) {
+				pr_warn("%s1: setting ATA_QCFLAG_FAILED task=%pS qc=%pS\n", __func__, task, qc);
 				qc->flags |= ATA_QCFLAG_FAILED;
+			}
 		}
 	} else {
 		ac = sas_to_ata_err(stat);
 		if (ac) {
-			pr_warn("%s: SAS error 0x%x link->sactive=0x%x task=%pS qc=%pS\n", __func__, stat->stat, link->sactive, task, qc);
+			pr_warn("%s2: SAS error 0x%x link->sactive=0x%x task=%pS qc=%pS\n", __func__, stat->stat, link->sactive, task, qc);
 			/* We saw a SAS error. Send a vague error. */
 			if (!link->sactive) {
 				qc->err_mask = ac;
@@ -140,8 +142,8 @@ static void sas_ata_task_done(struct sas_task *task)
 				qc->flags |= ATA_QCFLAG_FAILED;
 			}
 
+			dev->sata_dev.fis[2] = ATA_ERR; /* This affects others */
 			dev->sata_dev.fis[3] = 0x04; /* status err */
-			dev->sata_dev.fis[2] = ATA_ERR;
 		}
 	}
 
