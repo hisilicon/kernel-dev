@@ -2386,25 +2386,32 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 
 	if (dev_is_sata(device)) {
 		static atomic_t ata_err;
-		int _ata_err = atomic_inc_return(&ata_err);
+		int _ata_err;
 
-		if (_ata_err == 1000) {
-			pr_err("%s sata task=%pS device=%pS aborting with sas_task_abort\n", __func__, task, device);
-			sas_task_abort(task);
-			return;
-		}
+		if (test_bit(SAS_HA_FROZEN, &ha->state))
+			_ata_err = atomic_read(&ata_err);
+		else
+			_ata_err = atomic_inc_return(&ata_err);
 
-		if (_ata_err == 10000) {
-			pr_err("%s sata task=%pS device=%pS aborting with sas_task_abort\n", __func__, task, device);
-			ts->stat = SAS_ABORTED_TASK;
-			ts->resp = SAS_TASK_COMPLETE;
+		if (!test_bit(SAS_HA_FROZEN, &ha->state)) {
+			if (_ata_err == 1000) {
+				pr_err("%s sata task=%pS device=%pS aborting with sas_task_abort\n", __func__, task, device);
+				sas_task_abort(task);
+				return;
+			}
 
-			hisi_sas_slot_task_free(hisi_hba, task, slot);
+			if (_ata_err == 100000) {
+				pr_err("%s sata task=%pS device=%pS aborting with task_done\n", __func__, task, device);
+				ts->stat = SAS_ABORTED_TASK;
+				ts->resp = SAS_TASK_COMPLETE;
 
-			if (task->task_done)
-				task->task_done(task);
+				hisi_sas_slot_task_free(hisi_hba, task, slot);
 
-			return;
+				if (task->task_done)
+					task->task_done(task);
+
+				return;
+			}
 		}
 	}
 
