@@ -112,7 +112,7 @@ static void sas_scsi_task_done(struct sas_task *task)
 
 	if (unlikely(!task)) {
 		/* task will be completed by the error handler */
-		pr_debug("task done but aborted\n");
+		pr_err("task done but aborted\n");
 		return;
 	}
 
@@ -595,7 +595,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 		 * won the race with eh and decided to complete it
 		 */
 		task = TO_SAS_TASK(cmd);
-		pr_err("%s2 shost=%pS task=%pS\n", __func__, shost, task);
+		pr_err("%s2 shost=%pS task=%pS (NULL for ATA means it's finished) working through eh_entry\n", __func__, shost, task);
 		spin_unlock_irqrestore(&dev->done_lock, flags);
 
 		if (!task)
@@ -702,7 +702,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 	return;
 
  clear_q:
-	pr_debug("--- Exit %s -- clear_q\n", __func__);
+	pr_err("--- Exit %s -- clear_q\n", __func__);
 	list_for_each_entry_safe(cmd, n, work_q, eh_entry)
 		sas_eh_finish_cmd(cmd);
 	goto out;

@@ -214,7 +214,7 @@ out:
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_del_init(&scmd->eh_entry);
 	spin_unlock_irqrestore(shost->host_lock, flags);
-
+	pr_err("%s calling scsi_eh_scmd_add scmd=%pS\n", __func__, scmd);
 	scsi_eh_scmd_add(scmd);
 }
 
@@ -297,7 +297,7 @@ void scsi_eh_scmd_add(struct scsi_cmnd *scmd)
 
 	WARN_ON_ONCE(!shost->ehandler);
 
-	pr_err("%s scmd=%pS\n", __func__, scmd);
+	pr_err("%s scmd=%pS rcu call later scsi_eh_inc_host_failed\n", __func__, scmd);
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (scsi_host_set_state(shost, SHOST_RECOVERY)) {

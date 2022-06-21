@@ -625,7 +625,7 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 				 * Successfully complete it.
 				 */
 				scmd->retries = scmd->allowed;
-				pr_err("%s3 ap=%pS scmd=%pS retries=%d\n", __func__, ap, scmd, scmd->retries);
+				pr_err("%s4 ap=%pS scmd=%pS retries=%d\n", __func__, ap, scmd, scmd->retries);
 				scsi_eh_finish_cmd(scmd, &ap->eh_done_q);
 			}
 		}

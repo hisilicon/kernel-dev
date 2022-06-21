@@ -1447,6 +1447,7 @@ static void scsi_complete(struct request *rq)
 		scsi_queue_insert(cmd, SCSI_MLQUEUE_DEVICE_BUSY);
 		break;
 	default:
+		pr_err("%s calling scsi_eh_scmd_add %pS disposition=%d\n", __func__, cmd, disposition);
 		scsi_eh_scmd_add(cmd);
 		break;
 	}
