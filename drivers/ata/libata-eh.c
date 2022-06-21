@@ -563,7 +563,7 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 {
 	int i;
 	unsigned long flags;
-
+	pr_err("%s ap=%pS eh_work_q=%pS\n", __func__, ap, eh_work_q);
 	/* make sure sff pio task is not running */
 	ata_sff_flush_pio_task(ap);
 
@@ -601,6 +601,7 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 		list_for_each_entry_safe(scmd, tmp, eh_work_q, eh_entry) {
 			struct ata_queued_cmd *qc;
 
+			pr_err("%s2 ap=%pS scmd=%pS\n", __func__, ap, scmd);
 			ata_qc_for_each_raw(ap, qc, i) {
 				if (qc->flags & ATA_QCFLAG_ACTIVE &&
 				    qc->scsicmd == scmd)
@@ -608,6 +609,7 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 			}
 
 			if (i < ATA_MAX_QUEUE) {
+				pr_err("%s3 ap=%pS scmd=%pS\n", __func__, ap, scmd);
 				/* the scmd has an associated qc */
 				if (!(qc->flags & ATA_QCFLAG_FAILED)) {
 					/* which hasn't failed yet, timeout */
@@ -616,11 +618,13 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 					nr_timedout++;
 				}
 			} else {
+
 				/* Normal completion occurred after
 				 * SCSI timeout but before this point.
 				 * Successfully complete it.
 				 */
 				scmd->retries = scmd->allowed;
+				pr_err("%s3 ap=%pS scmd=%pS retries=%d\n", __func__, ap, scmd, scmd->retries);
 				scsi_eh_finish_cmd(scmd, &ap->eh_done_q);
 			}
 		}
@@ -2455,8 +2459,8 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	u32 sstatus;
 	int nr_unknown, rc;
 
-	pr_err("%s ap=%pS ap=%pS prereset=%pS softreset=%pS hardreset=%pS postreset=%pS\n",
-	 __func__, ap, ap, prereset, softreset, hardreset, postreset);
+	pr_err("%s ap=%pS link=%pS prereset=%pS softreset=%pS hardreset=%pS postreset=%pS\n",
+	 __func__, ap, link, prereset, softreset, hardreset, postreset);
 	/*
 	 * Prepare to reset
 	 */

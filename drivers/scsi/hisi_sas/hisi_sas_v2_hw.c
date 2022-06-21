@@ -2389,8 +2389,21 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 		int _ata_err = atomic_inc_return(&ata_err);
 
 		if (_ata_err == 1000) {
-			pr_err("%s sata task=%pS device=%pS aborting\n", __func__, task, device);
+			pr_err("%s sata task=%pS device=%pS aborting with sas_task_abort\n", __func__, task, device);
 			sas_task_abort(task);
+			return;
+		}
+
+		if (_ata_err == 10000) {
+			pr_err("%s sata task=%pS device=%pS aborting with sas_task_abort\n", __func__, task, device);
+			ts->stat = SAS_ABORTED_TASK;
+			ts->resp = SAS_TASK_COMPLETE;
+
+			hisi_sas_slot_task_free(hisi_hba, task, slot);
+
+			if (task->task_done)
+				task->task_done(task);
+
 			return;
 		}
 	}

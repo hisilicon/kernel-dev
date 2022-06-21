@@ -1439,9 +1439,11 @@ static void scsi_complete(struct request *rq)
 		scsi_finish_command(cmd);
 		break;
 	case NEEDS_RETRY:
+		pr_err("%s scmd=%pS NEEDS_RETRY\n", __func__, cmd);
 		scsi_queue_insert(cmd, SCSI_MLQUEUE_EH_RETRY);
 		break;
 	case ADD_TO_MLQUEUE:
+		pr_err("%s scmd=%pS ADD_TO_MLQUEUE\n", __func__, cmd);
 		scsi_queue_insert(cmd, SCSI_MLQUEUE_DEVICE_BUSY);
 		break;
 	default:

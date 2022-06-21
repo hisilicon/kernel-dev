@@ -286,9 +286,21 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 	int i, res;
 	struct sas_internal *si =
 		to_sas_internal(task->dev->port->ha->core.shost->transportt);
+	struct scsi_cmnd *scmd = NULL;
+
+	if (task->uldd_task) {
+		struct ata_queued_cmd *qc;
+
+		if (dev_is_sata(task->dev)) {
+			qc = task->uldd_task;
+			scmd = qc->scsicmd;
+		} else {
+			scmd = task->uldd_task;
+		}
+	}
 
 	for (i = 0; i < 5; i++) {
-		pr_notice("%s: aborting task %pS\n", __func__, task);
+		pr_notice("%s: aborting task %pS scmd=%pS\n", __func__, task, scmd);
 		res = si->dft->lldd_abort_task(task);
 
 		spin_lock_irqsave(&task->task_state_lock, flags);
