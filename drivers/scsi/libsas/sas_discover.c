@@ -221,7 +221,7 @@ static void sas_probe_devices(struct asd_sas_port *port)
 	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_node) {
 		int err;
 
-		pr_err("%s2 port=%pS dev=%pS calling sas_rphy_add\n", __func__, port, dev);
+		pr_err("%s2 port=%pS dev=%pS calling sas_rphy_add sata=%d\n", __func__, port, dev, dev_is_sata(dev));
 		err = sas_rphy_add(dev->rphy);
 		if (err)
 			sas_fail_probe(dev, __func__, err);

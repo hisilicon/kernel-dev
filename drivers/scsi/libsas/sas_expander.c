@@ -975,6 +975,7 @@ static struct domain_device *sas_ex_discover_expander(
 					   edev->level);
 	sas_init_dev(child);
 	sas_fill_in_rphy(child, rphy);
+	pr_err("%s calling sas_rphy_add\n", __func__);
 	sas_rphy_add(rphy);
 
 	spin_lock_irq(&parent->port->dev_list_lock);
@@ -1634,7 +1635,7 @@ int sas_discover_root_expander(struct domain_device *dev)
 {
 	int res;
 	struct sas_expander_device *ex = rphy_to_expander_device(dev->rphy);
-
+	pr_err("%s dev=%pS calling sas_rphy_add\n", __func__, dev);
 	res = sas_rphy_add(dev->rphy);
 	if (res)
 		goto out_err;

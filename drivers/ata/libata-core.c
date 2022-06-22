@@ -5405,7 +5405,7 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 	size_t sz;
 	int i;
 	void *dr;
-
+	dev_err(dev, "%s max_ports=%d\n", __func__, max_ports);
 	/* alloc a container for our list of ATA ports (buses) */
 	sz = sizeof(struct ata_host) + (max_ports + 1) * sizeof(void *);
 	host = kzalloc(sz, GFP_KERNEL);
@@ -5432,7 +5432,9 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 	for (i = 0; i < max_ports; i++) {
 		struct ata_port *ap;
 
+		dev_err(dev, "%s2 caling ata_port_alloc i=%d\n", __func__, i);
 		ap = ata_port_alloc(host);
+		dev_err(dev, "%s3 caling ata_port_alloc i=%d ap=%pS\n", __func__, i, ap);
 		if (!ap)
 			goto err_out;
 

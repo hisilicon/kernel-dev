@@ -1104,7 +1104,7 @@ struct ata_port *ata_sas_port_alloc(struct ata_host *host,
 				    struct Scsi_Host *shost)
 {
 	struct ata_port *ap;
-
+	pr_err("%s calling ata_port_alloc()\n", __func__);
 	ap = ata_port_alloc(host);
 	if (!ap)
 		return NULL;
