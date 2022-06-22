@@ -669,6 +669,7 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 		ata_eh_acquire(ap);
  repeat:
 		/* kill fast drain timer */
+		pr_err("%s2 host=%pS ap=%pS deleting fastdrain_timer\n", __func__, host, ap);
 		del_timer_sync(&ap->fastdrain_timer);
 
 		/* process port resume request */
@@ -878,7 +879,7 @@ void ata_eh_fastdrain_timerfn(struct timer_list *t)
 static void ata_eh_set_pending(struct ata_port *ap, int fastdrain)
 {
 	int cnt;
-
+	pr_err("%s fastdrain=%d ATA_PFLAG_EH_PENDING=%d\n", __func__, fastdrain, !!(ap->pflags & ATA_PFLAG_EH_PENDING));
 	/* already scheduled? */
 	if (ap->pflags & ATA_PFLAG_EH_PENDING)
 		return;
@@ -890,7 +891,7 @@ static void ata_eh_set_pending(struct ata_port *ap, int fastdrain)
 
 	/* do we have in-flight qcs? */
 	cnt = ata_eh_nr_in_flight(ap);
-	pr_err("%s ap=%pS fastdrain=%d cnt=%d\n", __func__, ap, fastdrain, cnt);
+	pr_err("%s2 ap=%pS fastdrain=%d cnt=%d\n", __func__, ap, fastdrain, cnt);
 	if (!cnt)
 		return;
 
@@ -898,6 +899,7 @@ static void ata_eh_set_pending(struct ata_port *ap, int fastdrain)
 	ap->fastdrain_cnt = cnt;
 	ap->fastdrain_timer.expires =
 		ata_deadline(jiffies, ATA_EH_FASTDRAIN_INTERVAL);
+	pr_err("%s3 ap=%pS adding fastdrain_timer\n", __func__, ap);
 	add_timer(&ap->fastdrain_timer);
 }
 
@@ -917,7 +919,7 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 
 	WARN_ON(!ap->ops->error_handler);
 
-	pr_err("%s qc=%pS scsicmd=%pS setting ATA_QCFLAG_FAILED\n", __func__, qc, qc->scsicmd);
+	pr_err("%s qc=%pS scsicmd=%pS setting ATA_QCFLAG_FAILED calling ata_eh_set_pending\n", __func__, qc, qc->scsicmd);
 	qc->flags |= ATA_QCFLAG_FAILED;
 	ata_eh_set_pending(ap, 1);
 
