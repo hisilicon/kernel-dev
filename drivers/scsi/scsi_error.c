@@ -2155,8 +2155,8 @@ void scsi_eh_flush_done_q(struct list_head *done_q)
 			pr_err("%s3 scmd=%pS\n", __func__, scmd);
 			SCSI_LOG_ERROR_RECOVERY(3,
 				scmd_printk(KERN_INFO, scmd,
-					     "%s: flush retry cmd\n",
-					     current->comm));
+					     "%s: flush retry cmd scmd=%pS\n",
+					     current->comm, scmd));
 				scsi_queue_insert(scmd, SCSI_MLQUEUE_EH_RETRY);
 		} else {
 			/*
@@ -2169,8 +2169,8 @@ void scsi_eh_flush_done_q(struct list_head *done_q)
 				scmd->result |= (DID_TIME_OUT << 16);
 			SCSI_LOG_ERROR_RECOVERY(3,
 				scmd_printk(KERN_INFO, scmd,
-					     "%s: flush finish cmd\n",
-					     current->comm));
+					     "%s: flush finish cmd scmd=%pS\n",
+					     current->comm, scmd));
 			scsi_finish_command(scmd);
 		}
 	}

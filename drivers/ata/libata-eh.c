@@ -1933,7 +1933,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 	int tag, nr_failed = 0, nr_quiet = 0;
 	u32 serror;
 	int rc;
-	pr_err("%s link=%pS\n", __func__, link);
+	pr_err("%s link=%pS ATA_EHI_NO_AUTOPSY=%d \n", __func__, link, !!(ehc->i.flags & ATA_EHI_NO_AUTOPSY));
 	if (ehc->i.flags & ATA_EHI_NO_AUTOPSY)
 		return;
 
