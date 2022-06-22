@@ -640,6 +640,7 @@ void sas_probe_sata(struct asd_sas_port *port)
 		struct scsi_device *sdev;
 		struct sas_rphy *rphy = dev->rphy;
 		struct sas_identify *identify = &rphy->identify;
+		struct ata_device *ata_device;
 		u64 lun;
 
 		if (identify->target_port_protocols & SAS_PROTOCOL_SSP)
@@ -655,6 +656,10 @@ void sas_probe_sata(struct asd_sas_port *port)
 		pr_err("%s3 port=%pS calling ata_sas_async_probe dev->sata_dev.ap=%pS dev->rphy=%pS sdev=%pS\n", __func__, port, dev->sata_dev.ap, dev->rphy, sdev);
 		if (!dev_is_sata(dev))
 			continue;
+		ata_device = sas_to_ata_dev(dev);
+		ata_device->sdev = sdev;
+		pr_err("%s4 port=%pS calling ata_sas_async_probe ata_devce=%pS sdev=%pS\n", __func__, port, ata_device, sdev);
+
 		ata_sas_async_probe(dev->sata_dev.ap);
 	}
 	mutex_unlock(&port->ha->disco_mutex);
