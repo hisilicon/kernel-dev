@@ -1165,7 +1165,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	 * host adapter calls into here with rescan == 0.
 	 */
 	sdev = scsi_device_lookup_by_target(starget, lun);
-	pr_err("%s starget=%pS lun=%lld sdev=%pS starget->dev.parent=%pS\n", __func__, starget, lun, sdev, starget->dev.parent);
+	pr_err("%s starget=%pS lun=%lld sdev=%pS (from lookup) starget->dev.parent=%pS\n", __func__, starget, lun, sdev, starget->dev.parent);
 	if (sdev) {
 		if (rescan != SCSI_SCAN_INITIAL || !scsi_device_created(sdev)) {
 			SCSI_LOG_SCAN_BUS(3, sdev_printk(KERN_INFO, sdev,
@@ -1183,9 +1183,10 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 			return SCSI_SCAN_LUN_PRESENT;
 		}
 		scsi_device_put(sdev);
-	} else
+	} else {
 		sdev = scsi_alloc_sdev(starget, lun, hostdata);
-	pr_err("%s2 starget=%pS lun=%lld sdev=%pS\n", __func__, starget, lun, sdev);
+		pr_err("%s2 starget=%pS lun=%lld sdev=%pS (from scsi_alloc_sdev)\n", __func__, starget, lun, sdev);
+	}
 	if (!sdev)
 		goto out;
 
@@ -1571,7 +1572,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	struct scsi_device *sdev = ERR_PTR(-ENODEV);
 	struct device *parent = &shost->shost_gendev;
 	struct scsi_target *starget;
-	pr_err("%s shost=%pS this_id=%d channel=%d id=%d lun=%lld\n", __func__, shost, shost->this_id, channel, id, lun);
+	pr_err("%s shost=%pS shost->this_id=%d channel=%d id=%d lun=%lld\n", __func__, shost, shost->this_id, channel, id, lun);
 	if (strncmp(scsi_scan_type, "none", 4) == 0)
 		return ERR_PTR(-ENODEV);
 
@@ -2013,15 +2014,15 @@ struct scsi_device *scsi_alloc_device(struct device *parent, uint channel,
 	struct scsi_target *starget;
 	struct Scsi_Host *shost = dev_to_shost(parent);
 
-	pr_err("%s shost=%pS parent=%pS\n", __func__, shost, parent);
+	pr_err("%s shost=%pS parent=%pS channel=%d id=%d lun=%lld\n", __func__, shost, parent, channel, id, lun);
 	mutex_lock(&shost->scan_mutex);
 	pr_err("%s2 shost=%pS channel=%d id=%d lun=%lld scsi_host_scan_allowed=%d\n",
 	 __func__, shost, channel, id, lun, scsi_host_scan_allowed(shost));
 	if (!scsi_host_scan_allowed(shost))
 		goto out;
-	pr_err("%s2.1 shost=%pS channel=%d id=%d lun=%lld scsi_host_scan_allowed=%d\n",
-	 __func__, shost, channel, id, lun, scsi_host_scan_allowed(shost));
-	starget = scsi_alloc_target(parent, 0, shost->this_id);
+	pr_err("%s2.1 shost=%pS channel=%d id=%d lun=%lld scsi_host_scan_allowed=%d shost->this_id=%d\n",
+	 __func__, shost, channel, id, lun, scsi_host_scan_allowed(shost), shost->this_id);
+	starget = scsi_alloc_target(parent, channel, id);
 	pr_err("%s3 starget=%pS shost=%pS channel=%d id=%d lun=%lld\n",
 	 __func__, starget, shost, channel, id, lun);
 	if (!starget)

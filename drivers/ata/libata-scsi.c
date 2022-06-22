@@ -4298,7 +4298,7 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 			int channel = 0, id = 0;
 
 
-			if (dev->sdev){
+			if (dev->sdev) {
 				pr_err("%s1 already have sdev ap=%pS sdev=%pS ata_is_host_link=%d dev->devno=%d dev=%pS\n", 
 					__func__, ap, sdev, ata_is_host_link(link), dev->devno, dev);
 				//continue;
