@@ -500,6 +500,8 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	struct scsi_target *found_target;
 	int error, ref_got;
 
+	pr_err("%s parent=%pS channel=%d id=%d\n", __func__, parent, channel, id);
+
 	starget = kzalloc(size, GFP_KERNEL);
 	if (!starget) {
 		printk(KERN_ERR "%s: allocation failure\n", __func__);
@@ -546,6 +548,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	}
 	get_device(dev);
 
+	pr_err("%s10 parent=%pS channel=%d id=%d starget=%pS\n", __func__, parent, channel, id, starget);
 	return starget;
 
  found:
@@ -559,6 +562,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	if (ref_got) {
 		put_device(dev);
+		pr_err("%s11 parent=%pS channel=%d id=%d found_target=%pS\n", __func__, parent, channel, id, found_target);
 		return found_target;
 	}
 	/*
@@ -1161,7 +1165,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	 * host adapter calls into here with rescan == 0.
 	 */
 	sdev = scsi_device_lookup_by_target(starget, lun);
-	pr_err("%s starget=%pS lun=%lld sdev=%pS\n", __func__, starget, lun, sdev);
+	pr_err("%s starget=%pS lun=%lld sdev=%pS starget->dev.parent=%pS\n", __func__, starget, lun, sdev, starget->dev.parent);
 	if (sdev) {
 		if (rescan != SCSI_SCAN_INITIAL || !scsi_device_created(sdev)) {
 			SCSI_LOG_SCAN_BUS(3, sdev_printk(KERN_INFO, sdev,
@@ -2024,7 +2028,7 @@ struct scsi_device *scsi_alloc_device(struct device *parent, uint channel,
 		goto out;
 
 	sdev = scsi_alloc_sdev(starget, 0, NULL);
-	pr_err("%s4 starget=%pS shost=%pS sdev=%pS\n", __func__, starget, shost, sdev);
+	pr_err("%s4 starget=%pS shost=%pS sdev=%pS parent=%pS\n", __func__, starget, shost, sdev, parent);
 	if (sdev)
 		sdev->borken = 0;
 	else

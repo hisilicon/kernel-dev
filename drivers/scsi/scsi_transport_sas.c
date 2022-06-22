@@ -1532,7 +1532,7 @@ int sas_rphy_add_noscan(struct sas_rphy *rphy)
 void sas_scan_rphy(struct sas_rphy *rphy)
 {
 	struct sas_identify *identify = &rphy->identify;
-
+	pr_err("%s rphy=%pS\n", __func__, rphy);
 	if (identify->device_type == SAS_END_DEVICE &&
 	    rphy->scsi_target_id != -1) {
 		int lun;
@@ -1542,7 +1542,7 @@ void sas_scan_rphy(struct sas_rphy *rphy)
 		else
 			lun = 0;
 
-		pr_err("%s2 &rphy->dev=%pS calling scsi_scan_target  channel=0 id=scsi_target_id=%d lun=%d\n", __func__, &rphy->dev, rphy->scsi_target_id, lun);
+		pr_err("%s2 rphy=%pS &rphy->dev=%pS calling scsi_scan_target  channel=0 id=scsi_target_id=%d lun=%d\n", __func__, rphy, &rphy->dev, rphy->scsi_target_id, lun);
 		scsi_scan_target(&rphy->dev, 0, rphy->scsi_target_id, lun,
 				 SCSI_SCAN_INITIAL);
 	}
