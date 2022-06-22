@@ -1531,7 +1531,7 @@ int sas_rphy_add(struct sas_rphy *rphy)
 		rphy->scsi_target_id = -1;
 	mutex_unlock(&sas_host->lock);
 
-	pr_err("%s &rphy->dev=%pS scsi_target_id=%d\n", __func__, &rphy->dev, rphy->scsi_target_id);
+	pr_err("%s &rphy->dev=%pS scsi_target_id=%d (we set scsi_target_id in this function as_host->next_target_id=%d)\n", __func__, &rphy->dev, rphy->scsi_target_id, sas_host->next_target_id);
 
 	if (identify->device_type == SAS_END_DEVICE &&
 	    rphy->scsi_target_id != -1) {

@@ -52,6 +52,9 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	struct sas_rphy *rphy;
 	struct domain_device *dev;
 	int rc = -ENODEV;
+	struct device *parent_dev;
+	struct sas_port *parent_port;
+	struct sas_rphy *parent_rphy;
 
 	dev = sas_alloc_device();
 	if (!dev)
@@ -109,13 +112,25 @@ static int sas_get_port_device(struct asd_sas_port *port)
 		}
 		fallthrough;
 	case SAS_END_DEVICE:
+		parent_port = port->port;
+		parent_dev = parent_port->dev.parent;
+		parent_rphy = dev_to_rphy(parent_dev);
+		pr_err("%s SAS_END_DEVICE calling sas_end_device_alloc() port->port=%pS parent_rphy=%pS scsi_target_id=%d\n", __func__, port->port, parent_rphy, parent_rphy->scsi_target_id);
 		rphy = sas_end_device_alloc(port->port);
 		break;
 	case SAS_EDGE_EXPANDER_DEVICE:
+		parent_port = port->port;
+		parent_dev = parent_port->dev.parent;
+		parent_rphy = dev_to_rphy(parent_dev);
+		pr_err("%s SAS_EDGE_EXPANDER_DEVICE calling sas_end_device_alloc() port->port=%pS parent_rphy=%pS scsi_target_id=%d\n", __func__, port->port, parent_rphy, parent_rphy->scsi_target_id);
 		rphy = sas_expander_alloc(port->port,
 					  SAS_EDGE_EXPANDER_DEVICE);
 		break;
 	case SAS_FANOUT_EXPANDER_DEVICE:
+		parent_port = port->port;
+		parent_dev = parent_port->dev.parent;
+		parent_rphy = dev_to_rphy(parent_dev);
+		pr_err("%s SAS_FANOUT_EXPANDER_DEVICE calling sas_end_device_alloc() port->port=%pS parent_rphy=%pS scsi_target_id=%d\n", __func__, port->port, parent_rphy, parent_rphy->scsi_target_id);
 		rphy = sas_expander_alloc(port->port,
 					  SAS_FANOUT_EXPANDER_DEVICE);
 		break;
@@ -221,7 +236,7 @@ static void sas_probe_devices(struct asd_sas_port *port)
 	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_node) {
 		int err;
 
-		pr_err("%s2 port=%pS dev=%pS calling sas_rphy_add sata=%d\n", __func__, port, dev, dev_is_sata(dev));
+		pr_err("%s2 port=%pS dev=%pS calling sas_rphy_add sata=%d rphy->scsi_target_id=%d dev->rphy=%pS\n", __func__, port, dev, dev_is_sata(dev), dev->rphy->scsi_target_id, dev->rphy);
 		err = sas_rphy_add(dev->rphy);
 		if (err)
 			sas_fail_probe(dev, __func__, err);

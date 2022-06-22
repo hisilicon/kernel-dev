@@ -638,7 +638,7 @@ void sas_probe_sata(struct asd_sas_port *port)
 		if (!dev_is_sata(dev))
 			continue;
 
-		pr_err("%s2 port=%pS calling ata_sas_async_probe dev->sata_dev.ap=%pS\n", __func__, port, dev->sata_dev.ap);
+		pr_err("%s2 port=%pS calling ata_sas_async_probe dev->sata_dev.ap=%pS dev->rphy=%pS\n", __func__, port, dev->sata_dev.ap, dev->rphy);
 		ata_sas_async_probe(dev->sata_dev.ap);
 	}
 	mutex_unlock(&port->ha->disco_mutex);
