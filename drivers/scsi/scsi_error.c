@@ -2144,10 +2144,15 @@ void scsi_eh_flush_done_q(struct list_head *done_q)
 	struct scsi_cmnd *scmd, *next;
 	pr_err("%s\n", __func__);
 	list_for_each_entry_safe(scmd, next, done_q, eh_entry) {
+		pr_err("%s2 scmd=%pS online=%d noretry=%d retry_allowed=%d should_retry=%d\n",
+			__func__, scmd, scsi_device_online(scmd->device), 
+			scsi_noretry_cmd(scmd), scsi_cmd_retry_allowed(scmd),
+			scsi_eh_should_retry_cmd(scmd));
 		list_del_init(&scmd->eh_entry);
 		if (scsi_device_online(scmd->device) &&
 		    !scsi_noretry_cmd(scmd) && scsi_cmd_retry_allowed(scmd) &&
 			scsi_eh_should_retry_cmd(scmd)) {
+			pr_err("%s3 scmd=%pS\n", __func__, scmd);
 			SCSI_LOG_ERROR_RECOVERY(3,
 				scmd_printk(KERN_INFO, scmd,
 					     "%s: flush retry cmd\n",
@@ -2159,6 +2164,7 @@ void scsi_eh_flush_done_q(struct list_head *done_q)
 			 * scsi_eh_get_sense), scmd->result is already
 			 * set, do not set DID_TIME_OUT.
 			 */
+			pr_err("%s4 scmd=%pS\n", __func__, scmd);
 			if (!scmd->result)
 				scmd->result |= (DID_TIME_OUT << 16);
 			SCSI_LOG_ERROR_RECOVERY(3,
