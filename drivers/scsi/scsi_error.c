@@ -2142,7 +2142,7 @@ EXPORT_SYMBOL_GPL(scsi_eh_ready_devs);
 void scsi_eh_flush_done_q(struct list_head *done_q)
 {
 	struct scsi_cmnd *scmd, *next;
-
+	pr_err("%s\n", __func__);
 	list_for_each_entry_safe(scmd, next, done_q, eh_entry) {
 		list_del_init(&scmd->eh_entry);
 		if (scsi_device_online(scmd->device) &&
