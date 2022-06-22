@@ -204,6 +204,8 @@ extern struct sas_rphy *sas_end_device_alloc(struct sas_port *);
 extern struct sas_rphy *sas_expander_alloc(struct sas_port *, enum sas_device_type);
 void sas_rphy_free(struct sas_rphy *);
 extern int sas_rphy_add(struct sas_rphy *);
+extern int sas_rphy_add_noscan(struct sas_rphy *);
+extern void sas_scan_rphy(struct sas_rphy *);
 extern void sas_rphy_remove(struct sas_rphy *);
 extern void sas_rphy_delete(struct sas_rphy *);
 extern void sas_rphy_unlink(struct sas_rphy *);

@@ -237,7 +237,8 @@ static void sas_probe_devices(struct asd_sas_port *port)
 		int err;
 
 		pr_err("%s2 port=%pS dev=%pS calling sas_rphy_add sata=%d rphy->scsi_target_id=%d dev->rphy=%pS\n", __func__, port, dev, dev_is_sata(dev), dev->rphy->scsi_target_id, dev->rphy);
-		err = sas_rphy_add(dev->rphy);
+		err = 0;
+		sas_scan_rphy(dev->rphy);
 		if (err)
 			sas_fail_probe(dev, __func__, err);
 		else

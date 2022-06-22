@@ -1494,13 +1494,7 @@ struct sas_rphy *sas_expander_alloc(struct sas_port *parent,
 }
 EXPORT_SYMBOL(sas_expander_alloc);
 
-/**
- * sas_rphy_add  -  add a SAS remote PHY to the device hierarchy
- * @rphy:	The remote PHY to be added
- *
- * Publishes a SAS remote PHY to the rest of the system.
- */
-int sas_rphy_add(struct sas_rphy *rphy)
+int sas_rphy_add_noscan(struct sas_rphy *rphy)
 {
 	struct sas_port *parent = dev_to_sas_port(rphy->dev.parent);
 	struct Scsi_Host *shost = dev_to_shost(parent->dev.parent);
@@ -1531,7 +1525,13 @@ int sas_rphy_add(struct sas_rphy *rphy)
 		rphy->scsi_target_id = -1;
 	mutex_unlock(&sas_host->lock);
 
-	pr_err("%s &rphy->dev=%pS scsi_target_id=%d (we set scsi_target_id in this function as_host->next_target_id=%d)\n", __func__, &rphy->dev, rphy->scsi_target_id, sas_host->next_target_id);
+	pr_err("%s10 out &rphy->dev=%pS scsi_target_id=%d (we set scsi_target_id in this function as_host->next_target_id=%d)\n", __func__, &rphy->dev, rphy->scsi_target_id, sas_host->next_target_id);
+	return 0;
+}
+
+void sas_scan_rphy(struct sas_rphy *rphy)
+{
+	struct sas_identify *identify = &rphy->identify;
 
 	if (identify->device_type == SAS_END_DEVICE &&
 	    rphy->scsi_target_id != -1) {
@@ -1546,6 +1546,23 @@ int sas_rphy_add(struct sas_rphy *rphy)
 		scsi_scan_target(&rphy->dev, 0, rphy->scsi_target_id, lun,
 				 SCSI_SCAN_INITIAL);
 	}
+}
+
+/**
+ * sas_rphy_add  -  add a SAS remote PHY to the device hierarchy
+ * @rphy:	The remote PHY to be added
+ *
+ * Publishes a SAS remote PHY to the rest of the system.
+ */
+int sas_rphy_add(struct sas_rphy *rphy)
+{
+	int ret;
+
+	ret = sas_rphy_add_noscan(rphy);
+	if (ret)
+		return ret;
+
+	sas_scan_rphy(rphy);
 
 	return 0;
 }

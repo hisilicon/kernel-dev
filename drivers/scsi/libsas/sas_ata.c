@@ -635,10 +635,13 @@ void sas_probe_sata(struct asd_sas_port *port)
 	pr_err("%s port=%pS\n", __func__, port);
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->disco_list, disco_list_node) {
+		int ret;
+		ret = sas_rphy_add_noscan(dev->rphy);
+		pr_err("%s2 port=%pS calling ata_sas_async_probe dev->sata_dev.ap=%pS dev->rphy=%pS ret=%d (from sas_rphy_add_noscan)\n", __func__, port, dev->sata_dev.ap, dev->rphy, ret);
+		if (ret)
+			continue;
 		if (!dev_is_sata(dev))
 			continue;
-
-		pr_err("%s2 port=%pS calling ata_sas_async_probe dev->sata_dev.ap=%pS dev->rphy=%pS\n", __func__, port, dev->sata_dev.ap, dev->rphy);
 		ata_sas_async_probe(dev->sata_dev.ap);
 	}
 	mutex_unlock(&port->ha->disco_mutex);
