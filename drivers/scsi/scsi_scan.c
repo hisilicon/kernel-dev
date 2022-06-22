@@ -1161,6 +1161,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	 * host adapter calls into here with rescan == 0.
 	 */
 	sdev = scsi_device_lookup_by_target(starget, lun);
+	pr_err("%s starget=%pS lun=%lld sdev=%pS\n", __func__, starget, lun, sdev);
 	if (sdev) {
 		if (rescan != SCSI_SCAN_INITIAL || !scsi_device_created(sdev)) {
 			SCSI_LOG_SCAN_BUS(3, sdev_printk(KERN_INFO, sdev,
@@ -1180,6 +1181,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		scsi_device_put(sdev);
 	} else
 		sdev = scsi_alloc_sdev(starget, lun, hostdata);
+	pr_err("%s2 starget=%pS lun=%lld sdev=%pS\n", __func__, starget, lun, sdev);
 	if (!sdev)
 		goto out;
 
@@ -1649,6 +1651,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 		return;
 
 	starget = scsi_alloc_target(parent, channel, id);
+	pr_err("%s starget=%pS channel=%d id=%d lun=%lld\n", __func__, starget, channel, id, lun);
 	if (!starget)
 		return;
 	scsi_autopm_get_target(starget);

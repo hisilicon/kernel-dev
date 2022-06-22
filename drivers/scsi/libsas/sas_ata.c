@@ -630,12 +630,13 @@ static int sas_get_ata_command_set(struct domain_device *dev)
 void sas_probe_sata(struct asd_sas_port *port)
 {
 	struct domain_device *dev, *n;
-
+	pr_err("%s port=%pS\n", __func__, port);
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->disco_list, disco_list_node) {
 		if (!dev_is_sata(dev))
 			continue;
 
+		pr_err("%s2 port=%pS calling ata_sas_async_probe dev->sata_dev.ap=%pS\n", __func__, port, dev->sata_dev.ap);
 		ata_sas_async_probe(dev->sata_dev.ap);
 	}
 	mutex_unlock(&port->ha->disco_mutex);

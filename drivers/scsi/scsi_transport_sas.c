@@ -1531,6 +1531,8 @@ int sas_rphy_add(struct sas_rphy *rphy)
 		rphy->scsi_target_id = -1;
 	mutex_unlock(&sas_host->lock);
 
+	pr_err("%s &rphy->dev=%pS scsi_target_id=%d\n", __func__, &rphy->dev, rphy->scsi_target_id);
+
 	if (identify->device_type == SAS_END_DEVICE &&
 	    rphy->scsi_target_id != -1) {
 		int lun;
@@ -1540,6 +1542,7 @@ int sas_rphy_add(struct sas_rphy *rphy)
 		else
 			lun = 0;
 
+		pr_err("%s2 &rphy->dev=%pS calling scsi_scan_target  channel=0 id=scsi_target_id=%d lun=%d\n", __func__, &rphy->dev, rphy->scsi_target_id, lun);
 		scsi_scan_target(&rphy->dev, 0, rphy->scsi_target_id, lun,
 				 SCSI_SCAN_INITIAL);
 	}
