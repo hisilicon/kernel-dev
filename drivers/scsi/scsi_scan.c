@@ -2002,12 +2002,14 @@ void scsi_forget_host(struct Scsi_Host *shost)
  *	drivers (including generics), which is probably not
  *	optimal.  We can add hooks later to attach.
  */
-struct scsi_device *scsi_alloc_device(struct Scsi_Host *shost, uint channel,
+struct scsi_device *scsi_alloc_device(struct device *parent, uint channel,
 				      uint id, u64 lun, void *hostdata)
 {
 	struct scsi_device *sdev = NULL;
 	struct scsi_target *starget;
-	pr_err("%s shost=%pS\n", __func__, shost);
+	struct Scsi_Host *shost = dev_to_shost(parent);
+
+	pr_err("%s shost=%pS parent=%pS\n", __func__, shost, parent);
 	mutex_lock(&shost->scan_mutex);
 	pr_err("%s2 shost=%pS channel=%d id=%d lun=%lld scsi_host_scan_allowed=%d\n",
 	 __func__, shost, channel, id, lun, scsi_host_scan_allowed(shost));
@@ -2015,7 +2017,7 @@ struct scsi_device *scsi_alloc_device(struct Scsi_Host *shost, uint channel,
 		goto out;
 	pr_err("%s2.1 shost=%pS channel=%d id=%d lun=%lld scsi_host_scan_allowed=%d\n",
 	 __func__, shost, channel, id, lun, scsi_host_scan_allowed(shost));
-	starget = scsi_alloc_target(&shost->shost_gendev, 0, shost->this_id);
+	starget = scsi_alloc_target(parent, 0, shost->this_id);
 	pr_err("%s3 starget=%pS shost=%pS channel=%d id=%d lun=%lld\n",
 	 __func__, starget, shost, channel, id, lun);
 	if (!starget)

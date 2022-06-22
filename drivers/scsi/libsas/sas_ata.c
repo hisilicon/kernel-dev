@@ -632,14 +632,27 @@ static int sas_get_ata_command_set(struct domain_device *dev)
 void sas_probe_sata(struct asd_sas_port *port)
 {
 	struct domain_device *dev, *n;
+
 	pr_err("%s port=%pS\n", __func__, port);
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->disco_list, disco_list_node) {
 		int ret;
+		struct scsi_device *sdev;
+		struct sas_rphy *rphy = dev->rphy;
+		struct sas_identify *identify = &rphy->identify;
+		u64 lun;
+
+		if (identify->target_port_protocols & SAS_PROTOCOL_SSP)
+			lun = SCAN_WILD_CARD;
+		else
+			lun = 0;
+
 		ret = sas_rphy_add_noscan(dev->rphy);
 		pr_err("%s2 port=%pS calling ata_sas_async_probe dev->sata_dev.ap=%pS dev->rphy=%pS ret=%d (from sas_rphy_add_noscan)\n", __func__, port, dev->sata_dev.ap, dev->rphy, ret);
 		if (ret)
 			continue;
+		sdev = scsi_alloc_device(&rphy->dev, 0, rphy->scsi_target_id, lun, NULL);
+		pr_err("%s3 port=%pS calling ata_sas_async_probe dev->sata_dev.ap=%pS dev->rphy=%pS sdev=%pS\n", __func__, port, dev->sata_dev.ap, dev->rphy, sdev);
 		if (!dev_is_sata(dev))
 			continue;
 		ata_sas_async_probe(dev->sata_dev.ap);

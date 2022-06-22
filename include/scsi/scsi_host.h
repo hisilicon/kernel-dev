@@ -798,7 +798,7 @@ struct class_container;
  * from any high-level drivers.
  */
 extern void scsi_free_host_dev(struct scsi_device *);
-struct scsi_device *scsi_alloc_device(struct Scsi_Host *shost, uint channel,
+struct scsi_device *scsi_alloc_device(struct device *parent, uint channel,
 				      uint id, u64 lun, void *hostdata);
 
 /*
