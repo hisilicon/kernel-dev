@@ -1272,7 +1272,7 @@ static int hisi_sas_softreset_ata_disk(struct domain_device *device)
 	int rc = TMF_RESP_FUNC_FAILED;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = hisi_hba->dev;
-
+	pr_err("%s device=%pS\n", __func__, device);
 	ata_for_each_link(link, ap, EDGE) {
 		int pmp = sata_srst_pmp(link);
 
@@ -1609,6 +1609,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 				goto out;
 			}
 			hisi_sas_dereg_device(hisi_hba, device);
+			pr_err("%s SATA task=%pS calling hisi_sas_softreset_ata_disk\n", __func__, task);
 			rc = hisi_sas_softreset_ata_disk(device);
 		}
 	} else if (task->lldd_task && task->task_proto & SAS_PROTOCOL_SMP) {

@@ -1418,12 +1418,13 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 	struct ata_queued_cmd *qc;
 	struct ata_taskfile tf;
 	int tag, rc;
-	pr_err("%s link=%pS\n", __func__, link);
+	pr_err("%s link=%pS ATA_PFLAG_FROZEN=%d\n", __func__, link, !!(ap->pflags & ATA_PFLAG_FROZEN));
 	/* if frozen, we can't do much */
 	if (ap->pflags & ATA_PFLAG_FROZEN)
 		return;
 
 	/* is it NCQ device error? */
+	pr_err("%s1 link=%pS sactive=%d AC_ERR_DEV=%d\n", __func__, link, link->sactive, !!(ehc->i.err_mask & AC_ERR_DEV));
 	if (!link->sactive || !(ehc->i.err_mask & AC_ERR_DEV))
 		return;
 
@@ -1432,8 +1433,11 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 		if (!(qc->flags & ATA_QCFLAG_FAILED))
 			continue;
 
-		if (qc->err_mask)
+		if (qc->err_mask) {
+
+			pr_err("%s1.1 link=%pS qc=%pS err_mask=0x%x returning\n", __func__, link, qc, qc->err_mask);
 			return;
+		}
 	}
 
 	/* okay, this error is ours */
