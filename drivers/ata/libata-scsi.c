@@ -4234,7 +4234,7 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 
 				pr_err("%s4 ap=%pS scsi_host=%pS dev=%pS ata_is_host_link=%d dev->devno=%d channel=%d id=%d lun=0\n", 
 					__func__, ap, ap->scsi_host, dev, ata_is_host_link(link), dev->devno, channel, id);
-
+				WARN_ON_ONCE(1);
 				dev->sdev = scsi_alloc_device(&shost->shost_gendev, channel, id, 0, NULL);
 				
 				pr_err("%s5 ap=%pS dev=%pS sdev=%pS\n", __func__, ap, dev, dev->sdev);

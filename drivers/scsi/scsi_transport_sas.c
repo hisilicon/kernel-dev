@@ -1532,7 +1532,7 @@ int sas_rphy_add_noscan(struct sas_rphy *rphy)
 void sas_scan_rphy(struct sas_rphy *rphy)
 {
 	struct sas_identify *identify = &rphy->identify;
-	pr_err("%s rphy=%pS\n", __func__, rphy);
+	pr_err("%s rphy=%pS SAS_END_DEVICE=%d scsi_target_id=%d\n", __func__, rphy, !!(identify->device_type == SAS_END_DEVICE), rphy->scsi_target_id);
 	if (identify->device_type == SAS_END_DEVICE &&
 	    rphy->scsi_target_id != -1) {
 		int lun;
