@@ -1532,7 +1532,8 @@ int sas_rphy_add_noscan(struct sas_rphy *rphy)
 void sas_scan_rphy(struct sas_rphy *rphy)
 {
 	struct sas_identify *identify = &rphy->identify;
-	pr_err("%s rphy=%pS SAS_END_DEVICE=%d scsi_target_id=%d\n", __func__, rphy, !!(identify->device_type == SAS_END_DEVICE), rphy->scsi_target_id);
+	pr_err("%s rphy=%pS SAS_END_DEVICE=%d scsi_target_id=%d device_type=%d\n",
+		__func__, rphy, !!(identify->device_type == SAS_END_DEVICE), rphy->scsi_target_id, identify->device_type);
 	if (identify->device_type == SAS_END_DEVICE &&
 	    rphy->scsi_target_id != -1) {
 		int lun;
@@ -1545,6 +1546,13 @@ void sas_scan_rphy(struct sas_rphy *rphy)
 		pr_err("%s2 rphy=%pS &rphy->dev=%pS calling scsi_scan_target  channel=0 id=scsi_target_id=%d lun=%d\n", __func__, rphy, &rphy->dev, rphy->scsi_target_id, lun);
 		scsi_scan_target(&rphy->dev, 0, rphy->scsi_target_id, lun,
 				 SCSI_SCAN_INITIAL);
+	} else if ((identify->device_type == SAS_EDGE_EXPANDER_DEVICE) ||
+				(identify->device_type == SAS_FANOUT_EXPANDER_DEVICE)) {
+		struct scsi_device *sdev = scsi_alloc_device(&rphy->dev, rphy->scsi_target_id, 0, 0, NULL);
+//struct device *parent, uint channel,
+	//			      uint id, u64 lun, void *hostdata
+		pr_err("%s3 EXPANDER rphy=%pS &rphy->dev=%pS calling scsi_scan_target  channel=scsi_target_id=%d id=0 lun=0 sdev=%pS\n", 
+			__func__, rphy, &rphy->dev, rphy->scsi_target_id, sdev);
 	}
 }
 
@@ -1557,7 +1565,7 @@ void sas_scan_rphy(struct sas_rphy *rphy)
 int sas_rphy_add(struct sas_rphy *rphy)
 {
 	int ret;
-
+	pr_err("%s rphy=%pS\n", __func__, rphy);
 	ret = sas_rphy_add_noscan(rphy);
 	if (ret)
 		return ret;

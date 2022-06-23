@@ -122,7 +122,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 		parent_port = port->port;
 		parent_dev = parent_port->dev.parent;
 		parent_rphy = dev_to_rphy(parent_dev);
-		pr_err("%s SAS_EDGE_EXPANDER_DEVICE calling sas_end_device_alloc() port->port=%pS parent_rphy=%pS scsi_target_id=%d\n", __func__, port->port, parent_rphy, parent_rphy->scsi_target_id);
+		pr_err("%s SAS_EDGE_EXPANDER_DEVICE calling sas_expander_alloc() port->port=%pS parent_rphy=%pS scsi_target_id=%d\n", __func__, port->port, parent_rphy, parent_rphy->scsi_target_id);
 		rphy = sas_expander_alloc(port->port,
 					  SAS_EDGE_EXPANDER_DEVICE);
 		pr_err("%s SAS_EDGE_EXPANDER_DEVICE got rphy=%pS scsi_target_id=%d\n", __func__, rphy, rphy->scsi_target_id);
@@ -132,7 +132,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 		parent_port = port->port;
 		parent_dev = parent_port->dev.parent;
 		parent_rphy = dev_to_rphy(parent_dev);
-		pr_err("%s SAS_FANOUT_EXPANDER_DEVICE calling sas_end_device_alloc() port->port=%pS parent_rphy=%pS scsi_target_id=%d\n", __func__, port->port, parent_rphy, parent_rphy->scsi_target_id);
+		pr_err("%s SAS_FANOUT_EXPANDER_DEVICE calling sas_expander_alloc() port->port=%pS parent_rphy=%pS scsi_target_id=%d\n", __func__, port->port, parent_rphy, parent_rphy->scsi_target_id);
 		rphy = sas_expander_alloc(port->port,
 					  SAS_FANOUT_EXPANDER_DEVICE);
 		pr_err("%s SAS_FANOUT_EXPANDER_DEVICE got rphy=%pS scsi_target_id=%d\n", __func__, rphy, rphy->scsi_target_id);
