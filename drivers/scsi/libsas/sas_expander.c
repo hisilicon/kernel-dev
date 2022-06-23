@@ -948,10 +948,12 @@ static struct domain_device *sas_ex_discover_expander(
 	case SAS_EDGE_EXPANDER_DEVICE:
 		rphy = sas_expander_alloc(phy->port,
 					  SAS_EDGE_EXPANDER_DEVICE);
+		pr_err("%s SAS_EDGE_EXPANDER_DEVICE alloced rphy=%pS\n", __func__, rphy);
 		break;
 	case SAS_FANOUT_EXPANDER_DEVICE:
 		rphy = sas_expander_alloc(phy->port,
 					  SAS_FANOUT_EXPANDER_DEVICE);
+		pr_err("%s SAS_FANOUT_EXPANDER_DEVICE alloced rphy=%pS\n", __func__, rphy);
 		break;
 	default:
 		rphy = NULL;	/* shut gcc up */
@@ -1635,7 +1637,7 @@ int sas_discover_root_expander(struct domain_device *dev)
 {
 	int res;
 	struct sas_expander_device *ex = rphy_to_expander_device(dev->rphy);
-	pr_err("%s dev=%pS calling sas_rphy_add\n", __func__, dev);
+	pr_err("%s dev=%pS calling sas_rphy_add dev->rphy=%pS\n", __func__, dev, dev->rphy);
 	res = sas_rphy_add(dev->rphy);
 	if (res)
 		goto out_err;
