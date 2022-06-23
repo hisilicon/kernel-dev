@@ -1573,6 +1573,7 @@ static int sas_discover_expander(struct domain_device *dev)
 	res = sas_notify_lldd_dev_found(dev);
 	if (res)
 		return res;
+	sas_scan_rphy(dev->rphy);
 
 	res = sas_ex_general(dev);
 	if (res)
@@ -1638,7 +1639,7 @@ int sas_discover_root_expander(struct domain_device *dev)
 	int res;
 	struct sas_expander_device *ex = rphy_to_expander_device(dev->rphy);
 	pr_err("%s dev=%pS calling sas_rphy_add dev->rphy=%pS\n", __func__, dev, dev->rphy);
-	res = sas_rphy_add(dev->rphy);
+	res = sas_rphy_add_noscan(dev->rphy);
 	if (res)
 		goto out_err;
 
