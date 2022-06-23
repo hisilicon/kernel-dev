@@ -791,6 +791,7 @@ static int hisi_sas_dev_found(struct domain_device *device)
 		sas_dev = hisi_hba->hw->alloc_dev(device);
 	else
 		sas_dev = hisi_sas_alloc_dev(device);
+	pr_err("%s device=%pS sas_dev=%pS\n", __func__, device, sas_dev);
 	if (!sas_dev) {
 		dev_err(dev, "fail alloc dev: max support %d devices\n",
 			HISI_SAS_MAX_DEVICES);
@@ -798,6 +799,7 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	}
 
 	device->lldd_dev = sas_dev;
+	pr_err("%s2 device=%pS sas_dev=%pS\n", __func__, device, sas_dev);
 	hisi_hba->hw->setup_itct(hisi_hba, sas_dev);
 
 	if (parent_dev && dev_is_expander(parent_dev->dev_type)) {
@@ -822,8 +824,8 @@ static int hisi_sas_dev_found(struct domain_device *device)
 		}
 	}
 
-	dev_info(dev, "dev[%d:%x] found\n",
-		sas_dev->device_id, sas_dev->dev_type);
+	dev_info(dev, "dev[%d:%x] found device=%pS sas_dev=%pS\n",
+		sas_dev->device_id, sas_dev->dev_type, device, sas_dev);
 
 	return 0;
 

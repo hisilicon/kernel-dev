@@ -1569,7 +1569,7 @@ static int sas_disable_routing(struct domain_device *dev,  u8 *sas_addr)
 static int sas_discover_expander(struct domain_device *dev)
 {
 	int res;
-
+	pr_err("%s dev=%pS\n", __func__, dev);
 	res = sas_notify_lldd_dev_found(dev);
 	if (res)
 		return res;
