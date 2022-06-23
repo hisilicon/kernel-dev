@@ -828,7 +828,7 @@ int sas_target_alloc(struct scsi_target *starget)
 {
 	struct sas_rphy *rphy = dev_to_rphy(starget->dev.parent);
 	struct domain_device *found_dev = sas_find_dev_by_rphy(rphy);
-
+	pr_err("%s rphy=%pS found_dev=%pS\n", __func__, rphy, found_dev);
 	if (!found_dev)
 		return -ENODEV;
 

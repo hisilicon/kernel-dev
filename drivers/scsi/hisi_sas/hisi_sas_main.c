@@ -759,12 +759,19 @@ int hisi_sas_slave_alloc(struct scsi_device *sdev)
 	struct domain_device *ddev = sdev_to_domain_dev(sdev);
 	struct hisi_sas_device *sas_dev = ddev->lldd_dev;
 	int rc;
+	pr_err("%s sdev=%pS\n", __func__, sdev);
+	ddev = sdev_to_domain_dev(sdev);
+	pr_err("%s2 sdev=%pS ddev=%pS\n", __func__, sdev, ddev);
+	sas_dev = ddev->lldd_dev;
+	pr_err("%s3 sdev=%pS ddev=%pS sas_dev=%pS\n", __func__, sdev, ddev, sas_dev);
 
 	rc = sas_slave_alloc(sdev);
+	pr_err("%s4 sdev=%pS ddev=%pS sas_dev=%pS rc=%d\n", __func__, sdev, ddev, sas_dev, rc);
 	if (rc)
 		return rc;
 
 	rc = hisi_sas_init_device(ddev);
+	pr_err("%s5 sdev=%pS ddev=%pS sas_dev=%pS rc=%d\n", __func__, sdev, ddev, sas_dev, rc);
 	if (rc)
 		return rc;
 	sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
