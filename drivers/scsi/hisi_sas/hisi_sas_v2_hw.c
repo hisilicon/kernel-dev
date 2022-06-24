@@ -2318,6 +2318,7 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 	}
 }
 
+bool state_dont_complete_ata;
 static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 				struct hisi_sas_slot *slot)
 {
@@ -2387,6 +2388,17 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	if (dev_is_sata(device)) {
 		static atomic_t ata_err;
 		int _ata_err;
+		struct ata_queued_cmd *qc = task->uldd_task;
+		struct scsi_cmnd *scmd = NULL;
+
+		if (qc)
+			scmd = qc->scsicmd;
+
+		if (state_dont_complete_ata && scmd) {
+			pr_err("%s skipping ATA completion scmd=%pS qc=%pS task=%pS\n", __func__, scmd, qc, task);
+			return;
+		}
+
 
 		if (test_bit(SAS_HA_FROZEN, &ha->state))
 			_ata_err = atomic_read(&ata_err);
@@ -2397,6 +2409,7 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 			if (_ata_err == 1000) {
 				pr_err("%s sata task=%pS device=%pS aborting with sas_task_abort\n", __func__, task, device);
 				sas_task_abort(task);
+				state_dont_complete_ata = true;
 				return;
 			}
 
@@ -2404,6 +2417,7 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 				pr_err("%s sata task=%pS device=%pS aborting with task_done\n", __func__, task, device);
 				ts->stat = SAS_ABORTED_TASK;
 				ts->resp = SAS_TASK_COMPLETE;
+				state_dont_complete_ata = true;
 
 				hisi_sas_slot_task_free(hisi_hba, task, slot);
 
