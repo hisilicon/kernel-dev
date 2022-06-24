@@ -1424,7 +1424,8 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 //		return;
 
 	/* is it NCQ device error? */
-	pr_err("%s1 link=%pS sactive=%d AC_ERR_DEV=%d\n", __func__, link, link->sactive, !!(ehc->i.err_mask & AC_ERR_DEV));
+	pr_err("%s1 link=%pS sactive=%d AC_ERR_DEV=%d link->eh_info.err_mask =0x%x\n",
+	 __func__, link, link->sactive, !!(ehc->i.err_mask & AC_ERR_DEV), link->eh_info.err_mask);
 	if (!link->sactive || !(ehc->i.err_mask & AC_ERR_DEV))
 		return;
 

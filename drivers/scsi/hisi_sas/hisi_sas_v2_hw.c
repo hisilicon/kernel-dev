@@ -2415,7 +2415,9 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 
 			if (_ata_err == 100000) {
 				struct ata_port *ap = qc->ap;
-				pr_err("%s sata task=%pS device=%pS calling ata_std_sched_eh qc=%pS ap=%pS\n", __func__, task, device, qc, ap);
+				struct ata_link *link = &ap->link;
+				link->eh_info.err_mask |= AC_ERR_DEV;
+				pr_err("%s sata task=%pS device=%pS calling ata_std_sched_eh qc=%pS ap=%pS link=%pS\n", __func__, task, device, qc, ap, link);
 				state_dont_complete_ata = true;
 				ata_std_sched_eh(ap);
 
