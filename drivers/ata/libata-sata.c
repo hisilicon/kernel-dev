@@ -1420,8 +1420,8 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 	int tag, rc;
 	pr_err("%s link=%pS ATA_PFLAG_FROZEN=%d\n", __func__, link, !!(ap->pflags & ATA_PFLAG_FROZEN));
 	/* if frozen, we can't do much */
-	if (ap->pflags & ATA_PFLAG_FROZEN)
-		return;
+//	if (ap->pflags & ATA_PFLAG_FROZEN)
+//		return;
 
 	/* is it NCQ device error? */
 	pr_err("%s1 link=%pS sactive=%d AC_ERR_DEV=%d\n", __func__, link, link->sactive, !!(ehc->i.err_mask & AC_ERR_DEV));
@@ -1435,7 +1435,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 
 		if (qc->err_mask) {
 
-			pr_err("%s1.1 link=%pS qc=%pS err_mask=0x%x returning\n", __func__, link, qc, qc->err_mask);
+			pr_err("%s1.1 link=%pS qc=%pS returning as err_mask=0x%x\n", __func__, link, qc, qc->err_mask);
 			return;
 		}
 	}
