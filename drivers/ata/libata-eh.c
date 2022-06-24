@@ -999,14 +999,14 @@ static int ata_do_link_abort(struct ata_port *ap, struct ata_link *link)
 	int tag, nr_aborted = 0;
 
 	WARN_ON(!ap->ops->error_handler);
-
+	pr_err("%s ap=%pS link=%pS\n", __func__, ap, link);
 	/* we're gonna abort all commands, no need for fast drain */
 	ata_eh_set_pending(ap, 0);
 
 	/* include internal tag in iteration */
 	ata_qc_for_each_with_internal(ap, qc, tag) {
 		if (qc && (!link || qc->dev->link == link)) {
-			pr_err("%s qc=%pS setting ATA_QCFLAG_FAILED\n", __func__, qc);
+			pr_err("%s2 qc=%pS setting ATA_QCFLAG_FAILED\n", __func__, qc);
 			qc->flags |= ATA_QCFLAG_FAILED;
 			ata_qc_complete(qc);
 			nr_aborted++;
@@ -1033,6 +1033,7 @@ static int ata_do_link_abort(struct ata_port *ap, struct ata_link *link)
  */
 int ata_link_abort(struct ata_link *link)
 {
+	pr_err("%s calling ata_do_link_abort link=%pS ap=%pS\n", __func__, link, link->ap);
 	return ata_do_link_abort(link->ap, link);
 }
 EXPORT_SYMBOL_GPL(ata_link_abort);
@@ -1051,6 +1052,7 @@ EXPORT_SYMBOL_GPL(ata_link_abort);
  */
 int ata_port_abort(struct ata_port *ap)
 {
+	pr_err("%s calling ata_do_link_abort ap=%pS\n", __func__, ap);
 	return ata_do_link_abort(ap, NULL);
 }
 EXPORT_SYMBOL_GPL(ata_port_abort);
@@ -1107,8 +1109,9 @@ int ata_port_freeze(struct ata_port *ap)
 
 	pr_err("%s ap=%pS\n", __func__, ap);
 	__ata_port_freeze(ap);
+	pr_err("%s2 ap=%pS calling ata_port_abort\n", __func__, ap);
 	nr_aborted = ata_port_abort(ap);
-	pr_err("%s2 ap=%pS nr_aborted=%d\n", __func__, ap, nr_aborted);
+	pr_err("%s3 ap=%pS nr_aborted=%d\n", __func__, ap, nr_aborted);
 
 	return nr_aborted;
 }
@@ -1522,6 +1525,8 @@ static void ata_eh_analyze_serror(struct ata_link *link)
 	u32 serror = ehc->i.serror;
 	unsigned int err_mask = 0, action = 0;
 	u32 hotplug_mask;
+
+	pr_err("%s link=%pS\n", __func__, link);
 
 	if (serror & (SERR_PERSISTENT | SERR_DATA)) {
 		err_mask |= AC_ERR_ATA_BUS;
@@ -1946,6 +1951,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 
 	/* obtain and analyze SError */
 	rc = sata_scr_read(link, SCR_ERROR, &serror);
+	pr_err("%s2 link=%pS rc=%d\n", __func__, link, rc);
 	if (rc == 0) {
 		ehc->i.serror |= serror;
 		ata_eh_analyze_serror(link);
@@ -1957,7 +1963,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 	}
 
 	/* analyze NCQ failure */
-	pr_err("%s2 link=%pS calling ata_eh_analyze_ncq_error\n", __func__, link);
+	pr_err("%s3 link=%pS calling ata_eh_analyze_ncq_error\n", __func__, link);
 	ata_eh_analyze_ncq_error(link);
 
 	/* any real error trumps AC_ERR_OTHER */
