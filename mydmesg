@@ -2643,3 +2643,1368 @@
 [  217.546730] sd 0:0:0:0: [sda] tag#3044 CDB: opcode=0x2a 2a 00 01 82 4a 00 00 00 08 00
 [  217.546734] sd 0:0:0:0: [sda] tag#3044 Sense Key : 0x6 [current] 
 [  217.546736] sd 0:0:0:0: [sda] tag#3044 ASC=0x29 ASCQ=0x2 
+[  313.830312] loop0: detected capacity change from 0 to 8
+[  313.854990] Filesystem uses "xz" compression. This is not supported
+[  425.627787] sd 0:0:3:0: Power-on or device reset occurred
+[  425.627800] sd 0:0:3:0: [sdd] tag#1820 Done: UNKNOWN(0x2002) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=0s
+[  425.627805] sd 0:0:3:0: [sdd] tag#1820 CDB: opcode=0x28 28 00 00 00 00 00 00 00 08 00
+[  425.627808] sd 0:0:3:0: [sdd] tag#1820 Sense Key : 0x6 [current] 
+[  425.627811] sd 0:0:3:0: [sdd] tag#1820 ASC=0x29 ASCQ=0x2 
+[  425.728824] sd 0:0:2:0: Power-on or device reset occurred
+[  425.728834] sd 0:0:2:0: [sdc] tag#1832 Done: UNKNOWN(0x2002) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=0s
+[  425.728838] sd 0:0:2:0: [sdc] tag#1832 CDB: opcode=0x28 28 00 00 00 00 00 00 00 08 00
+[  425.728841] sd 0:0:2:0: [sdc] tag#1832 Sense Key : 0x6 [current] 
+[  425.728843] sd 0:0:2:0: [sdc] tag#1832 ASC=0x29 ASCQ=0x2 
+[  425.829362] sd 0:0:4:0: Power-on or device reset occurred
+[  425.829369] sd 0:0:4:0: [sde] tag#1799 Done: UNKNOWN(0x2002) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=0s
+[  425.829373] sd 0:0:4:0: [sde] tag#1799 CDB: opcode=0x28 28 00 00 00 00 00 00 00 08 00
+[  425.829375] sd 0:0:4:0: [sde] tag#1799 Sense Key : 0x6 [current] 
+[  425.829379] sd 0:0:4:0: [sde] tag#1799 ASC=0x29 ASCQ=0x2 
+[  425.924166] sd 0:0:5:0: Power-on or device reset occurred
+[  425.924174] sd 0:0:5:0: [sdf] tag#1804 Done: UNKNOWN(0x2002) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=0s
+[  425.924177] sd 0:0:5:0: [sdf] tag#1804 CDB: opcode=0x28 28 00 00 00 00 00 00 00 08 00
+[  425.924180] sd 0:0:5:0: [sdf] tag#1804 Sense Key : 0x6 [current] 
+[  425.924183] sd 0:0:5:0: [sdf] tag#1804 ASC=0x29 ASCQ=0x2 
+[  426.017641] sd 0:0:6:0: Power-on or device reset occurred
+[  426.017649] sd 0:0:6:0: [sdg] tag#1809 Done: UNKNOWN(0x2002) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=0s
+[  426.017652] sd 0:0:6:0: [sdg] tag#1809 CDB: opcode=0x28 28 00 00 00 00 00 00 00 08 00
+[  426.017655] sd 0:0:6:0: [sdg] tag#1809 Sense Key : 0x6 [current] 
+[  426.017658] sd 0:0:6:0: [sdg] tag#1809 ASC=0x29 ASCQ=0x2 
+[  426.109481] sd 0:0:7:0: Power-on or device reset occurred
+[  426.109488] sd 0:0:7:0: [sdh] tag#1844 Done: UNKNOWN(0x2002) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=0s
+[  426.109491] sd 0:0:7:0: [sdh] tag#1844 CDB: opcode=0x28 28 00 00 00 00 00 00 00 08 00
+[  426.109493] sd 0:0:7:0: [sdh] tag#1844 Sense Key : 0x6 [current] 
+[  426.109496] sd 0:0:7:0: [sdh] tag#1844 ASC=0x29 ASCQ=0x2 
+[  470.303483] hisi_sas_v2_hw HISI0162:01: erroneous completion iptt=1 task=ffff001048c55f80 dev id=0 CQ hdr: 0x1103 0x1 0x0 0x0 Error info: 0x0 0x200 0x0 0x0
+[  470.303499] sas: smp_execute_task_sg: task to dev 500e004aaaaaaa1f response: 0x0 status 0x2
+[  470.304911] sas: broadcast received: 0
+[  470.304924] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  470.305439] sas: ex 500e004aaaaaaa1f phy02 change count has changed
+[  470.305690] sas: ex 500e004aaaaaaa1f phy02 originated BROADCAST(CHANGE)
+[  470.305693] sas: ex 500e004aaaaaaa1f rediscovering phy02
+[  470.305883] sas: ex 500e004aaaaaaa1f phy02:U:1 attached: 0000000000000000 (no device)
+[  470.307997] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  470.308010] sas: broadcast received: 0
+[  470.308017] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  470.310496] sas: ex 500e004aaaaaaa1f phys DID NOT change
+[  470.310498] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  470.310507] sas: broadcast received: 0
+[  470.310514] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  470.312995] sas: ex 500e004aaaaaaa1f phys DID NOT change
+[  470.312997] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  470.313005] sas: broadcast received: 0
+[  470.313011] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  470.315494] sas: ex 500e004aaaaaaa1f phys DID NOT change
+[  470.315496] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  470.315504] sas: broadcast received: 0
+[  470.315511] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  470.317994] sas: ex 500e004aaaaaaa1f phys DID NOT change
+[  470.317996] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  470.318005] sas: broadcast received: 0
+[  470.318012] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  470.320493] sas: ex 500e004aaaaaaa1f phys DID NOT change
+[  470.320494] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  470.320502] sas: broadcast received: 0
+[  470.320508] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  470.322992] sas: ex 500e004aaaaaaa1f phys DID NOT change
+[  470.322994] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  470.323002] sas: broadcast received: 0
+[  470.323009] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  470.325491] sas: ex 500e004aaaaaaa1f phys DID NOT change
+[  470.325493] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.072871] sas: broadcast received: 0
+[  476.072881] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.073403] sas: ex 500e004aaaaaaa1f phy02 change count has changed
+[  476.073690] sas: ex 500e004aaaaaaa1f phy02 originated BROADCAST(CHANGE)
+[  476.073692] sas: ex 500e004aaaaaaa1f phy02 new device attached
+[  476.073787] sas: ex 500e004aaaaaaa1f phy02:U:A attached: 500e004aaaaaaa02 (stp pending)
+[  476.073977] hisi_sas_v2_hw HISI0162:01: dev[2:9] found
+[  476.076101] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.076105] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=0
+[  476.076107] ata_eh_set_pending2 ap=0xffff001045d98000 fastdrain=1 cnt=0
+[  476.076117] scsi host0: Waking error handler thread
+[  476.076124] scsi host0: scsi_eh_0: waking up 1/0/0
+[  476.076130] sas: sas_scsi_recover_host Enter sas_scsi_recover_host busy: 0 failed: 0
+[  476.076133] sas: sas_eh_handle_sas_errors shost=0xffff041008000000
+[  476.076136] sas: sas_ata_strategy_handler shost=0xffff041008000000
+[  476.076140] sas: sas_ata_strategy_handler2 shost=0xffff041008000000 calling async_schedule_domain(async_sas_ata_eh)
+[  476.076150] sas: ata2: end_device-0:0:2: async_sas_ata_eh dev error handler
+[  476.076154] ata_scsi_port_error_handler host=0xffff041008000000 ap=0xffff001045d98000
+[  476.076158] ata_scsi_port_error_handler2 host=0xffff041008000000 ap=0xffff001045d98000 deleting fastdrain_timer
+[  476.076163] ata_do_eh ap=0xffff001045d98000 calling ata_eh_autopsy
+[  476.076165] ata_eh_autopsy ap=0xffff001045d98000 link=0xffff001045d9a040 calling ata_eh_link_autopsy
+[  476.076169] ata_eh_link_autopsy link=0xffff001045d9a040 ATA_EHI_NO_AUTOPSY=1 
+[  476.076171] ata_do_eh2 ap=0xffff001045d98000 calling ata_eh_report
+[  476.076174] ata_do_eh3 ap=0xffff001045d98000 calling ata_eh_recover
+[  476.076178] ata_eh_reset ap=0xffff001045d98000 link=0xffff001045d9a040 prereset=sas_ata_prereset+0x0/0x60 softreset=0x0 hardreset=sas_ata_hard_reset+0x0/0xa0 postreset=0x0
+[  476.076192] ata_eh_freeze_port ap=0xffff001045d98000
+[  476.076194] __ata_port_freeze ap=0xffff001045d98000
+[  476.076667] hisi_sas_debug_I_T_nexus_reset device=0xffff001048db6800
+[  476.233496] sas: ata: ex 500e004aaaaaaa1f phy02:U:A attached: 500e004aaaaaaa02 (stp)
+[  476.233596] hisi_sas_I_T_nexus_reset1  device=0xffff001048db6800 rc=0
+[  476.233599] hisi_sas_softreset_ata_disk device=0xffff001048db6800
+[  476.239282] hisi_sas_release_task device=0xffff001048db6800
+[  476.239285] hisi_sas_I_T_nexus_reset8 device=0xffff001048db6800 calling hisi_sas_release_task
+[  476.239287] hisi_sas_release_task device=0xffff001048db6800
+[  476.397429] ata_eh_thaw_port ap=0xffff001045d98000
+[  476.399143] ata2.00: ata_dev_configure: cfg 49:2f00 82:746b 83:7d69 84:4773 85:7469 86:bc41 87:4763 88:407f
+[  476.399147] ata2.00: 49==0x2f00  53==0x0007  63==0x0007  64==0x0003  75==0x001f
+               80==0x01fc  81==0x0029  82==0x746b  83==0x7d69  84==0x4773
+               88==0x407f  93==0x0000
+[  476.399153] ata2.00: ATA-8: HGST HUS724040ALA640, MFAOA8B0, max UDMA/133
+[  476.399156] ata_log_supported calling ata_read_log_page
+[  476.399157] ata2.00: read log page - log 0x0, page 0x0
+[  476.399283] ata2.00: 7814037168 sectors, multi 0: LBA48 NCQ (depth 32)
+[  476.399289] ata2.00: set features - xfer mode
+[  476.401116] ata2.00: ata_dev_configure: cfg 49:2f00 82:746b 83:7d69 84:4773 85:7469 86:bc41 87:4763 88:407f
+[  476.401121] ata2.00: 49==0x2f00  53==0x0007  63==0x0007  64==0x0003  75==0x001f
+               80==0x01fc  81==0x0029  82==0x746b  83==0x7d69  84==0x4773
+               88==0x407f  93==0x0000
+[  476.401127] ata2.00: xfer_shift=12, xfer_mode=0x46
+[  476.401129] ata2.00: configured for UDMA/133
+[  476.401133] scsi_eh_flush_done_q
+[  476.401147] scsi_eh_flush_done_q
+[  476.401149] sas: --- Exit sas_scsi_recover_host: busy: 0 failed: 0 tries: 1
+[  476.401155] scsi host0: waking up host to restart
+[  476.401208] scsi host0: scsi_eh_0: sleeping
+[  476.411580] hisi_sas_softreset_ata_disk device=0xffff001048db6800
+[  476.417238] hisi_sas_release_task device=0xffff001048db6800
+[  476.417243] scsi 0:0:9:0: scsi scan: INQUIRY pass 1 length 36
+[  476.417269] scsi 0:0:9:0: scsi scan: INQUIRY successful with code 0x0
+[  476.417293] scsi 0:0:9:0: scsi scan: INQUIRY pass 2 length 96
+[  476.417301] scsi 0:0:9:0: scsi scan: INQUIRY successful with code 0x0
+[  476.417307] scsi 0:0:9:0: Direct-Access     ATA      HGST HUS724040AL A8B0 PQ: 0 ANSI: 5
+[  476.417632] sas: broadcast received: 0
+[  476.417642] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.417645] sd 0:0:9:0: [sdb] 7814037168 512-byte logical blocks: (4.00 TB/3.64 TiB)
+[  476.417655] sd 0:0:9:0: [sdb] Write Protect is off
+[  476.417658] sd 0:0:9:0: [sdb] Mode Sense: 00 3a 00 00
+[  476.417670] sd 0:0:9:0: [sdb] Write cache: enabled, read cache: enabled, doesn't support DPO or FUA
+[  476.417686] sd 0:0:9:0: [sdb] Preferred minimum I/O size 512 bytes
+[  476.418101] sas: ex 500e004aaaaaaa1f phy02 change count has changed
+[  476.418388] sas: ex 500e004aaaaaaa1f phy02 originated BROADCAST(CHANGE)
+[  476.418391] sas: ex 500e004aaaaaaa1f rediscovering phy02
+[  476.418581] sas: ex 500e004aaaaaaa1f phy02 broadcast flutter
+[  476.419582] sd 0:0:9:0: [sdb] tag#1907 Done: UNKNOWN(0x2002) Result: hostbyte=0x10 driverbyte=DRIVER_OK cmd_age=0s
+[  476.419587] sd 0:0:9:0: [sdb] tag#1907 CDB: opcode=0x12 12 01 b9 00 04 00
+[  476.419590] sd 0:0:9:0: [sdb] tag#1907 Sense Key : 0x5 [current] 
+[  476.419592] sd 0:0:9:0: [sdb] tag#1907 ASC=0x24 ASCQ=0x0 
+[  476.420696] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.420707] sas: broadcast received: 0
+[  476.420716] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.420792] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.420800] sas: broadcast received: 0
+[  476.420807] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.420888] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.420895] sas: broadcast received: 0
+[  476.420901] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.420984] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.420992] sas: broadcast received: 0
+[  476.420999] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.421080] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.421087] sas: broadcast received: 0
+[  476.421094] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.421176] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.421183] sas: broadcast received: 0
+[  476.421190] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.421274] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.421282] sas: broadcast received: 0
+[  476.421289] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.421369] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.421376] sas: broadcast received: 0
+[  476.421382] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.421464] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.421472] sas: broadcast received: 0
+[  476.421478] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.421561] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.421568] sas: broadcast received: 0
+[  476.421575] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.421657] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.421667] sas: broadcast received: 0
+[  476.421672] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.421753] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.421759] sas: broadcast received: 0
+[  476.421764] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.421849] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.421854] sas: broadcast received: 0
+[  476.421859] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.421945] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.421950] sas: broadcast received: 0
+[  476.421954] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.422041] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.422046] sas: broadcast received: 0
+[  476.422051] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.422137] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.422142] sas: broadcast received: 0
+[  476.422146] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.422233] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.422238] sas: broadcast received: 0
+[  476.422243] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.422329] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.422335] sas: broadcast received: 0
+[  476.422339] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.422426] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.422431] sas: broadcast received: 0
+[  476.422436] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.422523] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.422528] sas: broadcast received: 0
+[  476.422534] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.422618] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.422623] sas: broadcast received: 0
+[  476.422628] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.422714] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.422719] sas: broadcast received: 0
+[  476.422723] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.422810] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.422815] sas: broadcast received: 0
+[  476.422819] sas: REVALIDATING DOMAIN on port 0, pid:455
+[  476.422906] sas: done REVALIDATING DOMAIN on port 0, pid:455, res 0x0
+[  476.457076]  sdb: sdb1 sdb2 sdb3
+[  476.457309] sd 0:0:9:0: [sdb] Attached SCSI disk
+[  476.461276] sd 0:0:9:0: [sdb] tag#992 Done: UNKNOWN(0x2002) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=0s
+[  476.461280] sd 0:0:9:0: [sdb] tag#992 CDB: opcode=0xa1 a1 08 2e 00 01 00 00 00 00 ec 00 00
+[  476.461284] sd 0:0:9:0: [sdb] tag#992 Sense Key : 0x1 [current] [descriptor] 
+[  476.461287] sd 0:0:9:0: [sdb] tag#992 ASC=0x0 ASCQ=0x1d 
+[  476.728662] sd 0:0:9:0: [sdb] tag#3156 Done: UNKNOWN(0x2002) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=0s
+[  476.728668] sd 0:0:9:0: [sdb] tag#3156 CDB: opcode=0x85 85 06 20 00 05 00 fe 00 00 00 00 00 00 40 ef 00
+[  476.728672] sd 0:0:9:0: [sdb] tag#3156 Sense Key : 0x1 [current] [descriptor] 
+[  476.728675] sd 0:0:9:0: [sdb] tag#3156 ASC=0x0 ASCQ=0x1d 
+[  504.193798] slot_complete_v2_hw sata task=0xffff001048651980 device=0xffff001048db6800 aborting with task_done
+[  504.193811] sas: sas_ata_task_done2: SAS error 0x8c link->sactive=0xffffffff task=0xffff001048651980 qc=0xffff001045d99300
+[  504.193816] sas: sas_ata_task_done3: SAS error 0x8c setting AC_ERR_DEV task=0xffff001048651980 qc=0xffff001045d99300
+[  504.193819] ata_qc_complete2 qc=0xffff001045d99300 scsicmd=0xffff0010688bfb08 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  504.193823] ata_qc_schedule_eh qc=0xffff001045d99300 scsicmd=0xffff0010688bfb08 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  504.193827] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=0
+[  504.193830] ata_eh_set_pending2 ap=0xffff001045d98000 fastdrain=1 cnt=31
+[  504.193832] ata_eh_set_pending3 ap=0xffff001045d98000 adding fastdrain_timer
+[  504.193836] slot_complete_v2_hw skipping ATA completion scmd=0xffff0010688bfd88 qc=0xffff001045d993f0 task=0xffff001048651500
+[  504.193848] scsi_times_out req=0xffff0010688bfa00 scmd=0xffff0010688bfb08
+[  504.193856] sd 0:0:9:0: [sdb] tag#2818 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=0s
+[  504.193862] sd 0:0:9:0: [sdb] tag#2818 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3b 98 00 00 00 10 00 00
+[  504.193865] sd 0:0:9:0: [sdb] tag#2818 abort scheduled
+[  504.193883] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068860108 qc=0xffff001045d98d60 task=0xffff001048652b80
+[  504.193887] slot_complete_v2_hw skipping ATA completion scmd=0xffff0010688ba108 qc=0xffff001045d99c60 task=0xffff001048650300
+[  504.193890] slot_complete_v2_hw skipping ATA completion scmd=0xffff0010688ba388 qc=0xffff001045d998a0 task=0xffff001048651080
+[  504.193976] slot_complete_v2_hw skipping ATA completion scmd=0xffff0010688ba608 qc=0xffff001045d99e40 task=0xffff001048652580
+[  504.193979] slot_complete_v2_hw skipping ATA completion scmd=0xffff0010688ba888 qc=0xffff001045d984f0 task=0xffff001048707480
+[  504.194048] slot_complete_v2_hw skipping ATA completion scmd=0xffff0010688bad88 qc=0xffff001045d98a90 task=0xffff001048707780
+[  504.194051] slot_complete_v2_hw skipping ATA completion scmd=0xffff0010688bb008 qc=0xffff001045d99d50 task=0xffff001048707180
+[  504.194054] slot_complete_v2_hw skipping ATA completion scmd=0xffff0010688bb288 qc=0xffff001045d985e0 task=0xffff001048707000
+[  504.194144] slot_complete_v2_hw skipping ATA completion scmd=0xffff0010688bb508 qc=0xffff001045d986d0 task=0xffff001048707300
+[  504.194272] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068860388 qc=0xffff001045d98b80 task=0xffff0010487b5680
+[  504.194447] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068860608 qc=0xffff001045d995d0 task=0xffff0010487b5e00
+[  504.194623] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068860888 qc=0xffff001045d98e50 task=0xffff0010487b5080
+[  504.194825] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068860b08 qc=0xffff001045d997b0 task=0xffff0010487b5800
+[  504.194921] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068860d88 qc=0xffff001045d99990 task=0xffff00104886b180
+[  504.195039] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068861008 qc=0xffff001045d989a0 task=0xffff00104886aa00
+[  504.195169] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068861288 qc=0xffff001045d98130 task=0xffff00104886ba80
+[  504.195265] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068861508 qc=0xffff001045d99a80 task=0xffff00104886a100
+[  504.195364] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068861788 qc=0xffff001045d98f40 task=0xffff001048651200
+[  504.195488] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068861a08 qc=0xffff001045d99030 task=0xffff001048652a00
+[  504.195605] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068861c88 qc=0xffff001045d99120 task=0xffff001048652880
+[  504.195720] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068861f08 qc=0xffff001045d99210 task=0xffff001048652400
+[  504.195816] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068862188 qc=0xffff001045d994e0 task=0xffff001048651b00
+[  504.195819] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068862408 qc=0xffff001045d98220 task=0xffff001048706e80
+[  504.195913] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068862688 qc=0xffff001045d996c0 task=0xffff001048707a80
+[  504.195916] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068862908 qc=0xffff001045d99b70 task=0xffff001048706700
+[  504.196008] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068862b88 qc=0xffff001045d98310 task=0xffff001048707900
+[  504.196012] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068862e08 qc=0xffff001045d98400 task=0xffff001048706280
+[  504.196087] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068863088 qc=0xffff001045d987c0 task=0xffff0010487b5380
+[  504.196091] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068863308 qc=0xffff001045d988b0 task=0xffff0010487b5200
+[  504.196095] slot_complete_v2_hw skipping ATA completion scmd=0xffff001068863588 qc=0xffff001045d98c70 task=0xffff0010487b7180
+[  504.204971] sd 0:0:9:0: [sdb] tag#2818 aborting command
+[  504.204975] sd 0:0:9:0: [sdb] tag#2818 cmd abort failed
+[  504.204977] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff0010688bfb08
+[  504.204980] scsi_eh_scmd_add scmd=0xffff0010688bfb08 rcu call later scsi_eh_inc_host_failed
+[  504.240960] scsi_eh_inc_host_failed host_failed=1
+[  535.477095] ata_eh_fastdrain_timerfn cnt=31 ap->fastdrain_cnt=31
+[  535.477100] ata_eh_fastdrain_timerfn3 qc=0xffff001045d98130 setting AC_ERR_TIMEOUT
+[  535.477103] ata_eh_fastdrain_timerfn3 qc=0xffff001045d98220 setting AC_ERR_TIMEOUT
+[  535.477105] ata_eh_fastdrain_timerfn3 qc=0xffff001045d98310 setting AC_ERR_TIMEOUT
+[  535.477107] ata_eh_fastdrain_timerfn3 qc=0xffff001045d98400 setting AC_ERR_TIMEOUT
+[  535.477109] ata_eh_fastdrain_timerfn3 qc=0xffff001045d984f0 setting AC_ERR_TIMEOUT
+[  535.477111] ata_eh_fastdrain_timerfn3 qc=0xffff001045d985e0 setting AC_ERR_TIMEOUT
+[  535.477113] ata_eh_fastdrain_timerfn3 qc=0xffff001045d986d0 setting AC_ERR_TIMEOUT
+[  535.477115] ata_eh_fastdrain_timerfn3 qc=0xffff001045d987c0 setting AC_ERR_TIMEOUT
+[  535.477117] ata_eh_fastdrain_timerfn3 qc=0xffff001045d988b0 setting AC_ERR_TIMEOUT
+[  535.477119] ata_eh_fastdrain_timerfn3 qc=0xffff001045d989a0 setting AC_ERR_TIMEOUT
+[  535.477121] ata_eh_fastdrain_timerfn3 qc=0xffff001045d98a90 setting AC_ERR_TIMEOUT
+[  535.477123] ata_eh_fastdrain_timerfn3 qc=0xffff001045d98b80 setting AC_ERR_TIMEOUT
+[  535.477125] ata_eh_fastdrain_timerfn3 qc=0xffff001045d98c70 setting AC_ERR_TIMEOUT
+[  535.477127] ata_eh_fastdrain_timerfn3 qc=0xffff001045d98d60 setting AC_ERR_TIMEOUT
+[  535.477129] ata_eh_fastdrain_timerfn3 qc=0xffff001045d98e50 setting AC_ERR_TIMEOUT
+[  535.477131] ata_eh_fastdrain_timerfn3 qc=0xffff001045d98f40 setting AC_ERR_TIMEOUT
+[  535.477132] ata_eh_fastdrain_timerfn3 qc=0xffff001045d99030 setting AC_ERR_TIMEOUT
+[  535.477135] ata_eh_fastdrain_timerfn3 qc=0xffff001045d99120 setting AC_ERR_TIMEOUT
+[  535.477137] ata_eh_fastdrain_timerfn3 qc=0xffff001045d99210 setting AC_ERR_TIMEOUT
+[  535.477139] ata_eh_fastdrain_timerfn3 qc=0x0 setting AC_ERR_TIMEOUT
+[  535.477141] ata_eh_fastdrain_timerfn3 qc=0xffff001045d993f0 setting AC_ERR_TIMEOUT
+[  535.477143] ata_eh_fastdrain_timerfn3 qc=0xffff001045d994e0 setting AC_ERR_TIMEOUT
+[  535.477144] ata_eh_fastdrain_timerfn3 qc=0xffff001045d995d0 setting AC_ERR_TIMEOUT
+[  535.477147] ata_eh_fastdrain_timerfn3 qc=0xffff001045d996c0 setting AC_ERR_TIMEOUT
+[  535.477149] ata_eh_fastdrain_timerfn3 qc=0xffff001045d997b0 setting AC_ERR_TIMEOUT
+[  535.477151] ata_eh_fastdrain_timerfn3 qc=0xffff001045d998a0 setting AC_ERR_TIMEOUT
+[  535.477153] ata_eh_fastdrain_timerfn3 qc=0xffff001045d99990 setting AC_ERR_TIMEOUT
+[  535.477155] ata_eh_fastdrain_timerfn3 qc=0xffff001045d99a80 setting AC_ERR_TIMEOUT
+[  535.477157] ata_eh_fastdrain_timerfn3 qc=0xffff001045d99b70 setting AC_ERR_TIMEOUT
+[  535.477159] ata_eh_fastdrain_timerfn3 qc=0xffff001045d99c60 setting AC_ERR_TIMEOUT
+[  535.477161] ata_eh_fastdrain_timerfn3 qc=0xffff001045d99d50 setting AC_ERR_TIMEOUT
+[  535.477163] ata_eh_fastdrain_timerfn3 qc=0xffff001045d99e40 setting AC_ERR_TIMEOUT
+[  535.477165] ata_port_freeze ap=0xffff001045d98000
+[  535.477167] __ata_port_freeze ap=0xffff001045d98000
+[  535.477169] ata_eh_set_pending fastdrain=0 ATA_PFLAG_EH_PENDING=1
+[  535.477171] ata_do_link_abort qc=0xffff001045d98130 setting ATA_QCFLAG_FAILED
+[  535.477173] ata_qc_complete1 qc=0xffff001045d98130 scsicmd=0xffff001068861288 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477176] ata_qc_complete2 qc=0xffff001045d98130 scsicmd=0xffff001068861288 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477179] ata_qc_schedule_eh qc=0xffff001045d98130 scsicmd=0xffff001068861288 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477182] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477184] ata_do_link_abort qc=0xffff001045d98220 setting ATA_QCFLAG_FAILED
+[  535.477186] ata_qc_complete1 qc=0xffff001045d98220 scsicmd=0xffff001068862408 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477189] ata_qc_complete2 qc=0xffff001045d98220 scsicmd=0xffff001068862408 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477192] ata_qc_schedule_eh qc=0xffff001045d98220 scsicmd=0xffff001068862408 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477195] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477196] ata_do_link_abort qc=0xffff001045d98310 setting ATA_QCFLAG_FAILED
+[  535.477198] ata_qc_complete1 qc=0xffff001045d98310 scsicmd=0xffff001068862b88 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477201] ata_qc_complete2 qc=0xffff001045d98310 scsicmd=0xffff001068862b88 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477203] ata_qc_schedule_eh qc=0xffff001045d98310 scsicmd=0xffff001068862b88 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477207] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477209] ata_do_link_abort qc=0xffff001045d98400 setting ATA_QCFLAG_FAILED
+[  535.477211] ata_qc_complete1 qc=0xffff001045d98400 scsicmd=0xffff001068862e08 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477214] ata_qc_complete2 qc=0xffff001045d98400 scsicmd=0xffff001068862e08 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477216] ata_qc_schedule_eh qc=0xffff001045d98400 scsicmd=0xffff001068862e08 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477219] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477220] ata_do_link_abort qc=0xffff001045d984f0 setting ATA_QCFLAG_FAILED
+[  535.477222] ata_qc_complete1 qc=0xffff001045d984f0 scsicmd=0xffff0010688ba888 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477225] ata_qc_complete2 qc=0xffff001045d984f0 scsicmd=0xffff0010688ba888 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477228] ata_qc_schedule_eh qc=0xffff001045d984f0 scsicmd=0xffff0010688ba888 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477230] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477232] ata_do_link_abort qc=0xffff001045d985e0 setting ATA_QCFLAG_FAILED
+[  535.477234] ata_qc_complete1 qc=0xffff001045d985e0 scsicmd=0xffff0010688bb288 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477236] ata_qc_complete2 qc=0xffff001045d985e0 scsicmd=0xffff0010688bb288 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477239] ata_qc_schedule_eh qc=0xffff001045d985e0 scsicmd=0xffff0010688bb288 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477242] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477244] ata_do_link_abort qc=0xffff001045d986d0 setting ATA_QCFLAG_FAILED
+[  535.477246] ata_qc_complete1 qc=0xffff001045d986d0 scsicmd=0xffff0010688bb508 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477249] ata_qc_complete2 qc=0xffff001045d986d0 scsicmd=0xffff0010688bb508 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477251] ata_qc_schedule_eh qc=0xffff001045d986d0 scsicmd=0xffff0010688bb508 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477254] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477255] ata_do_link_abort qc=0xffff001045d987c0 setting ATA_QCFLAG_FAILED
+[  535.477258] ata_qc_complete1 qc=0xffff001045d987c0 scsicmd=0xffff001068863088 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477260] ata_qc_complete2 qc=0xffff001045d987c0 scsicmd=0xffff001068863088 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477263] ata_qc_schedule_eh qc=0xffff001045d987c0 scsicmd=0xffff001068863088 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477267] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477268] ata_do_link_abort qc=0xffff001045d988b0 setting ATA_QCFLAG_FAILED
+[  535.477270] ata_qc_complete1 qc=0xffff001045d988b0 scsicmd=0xffff001068863308 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477273] ata_qc_complete2 qc=0xffff001045d988b0 scsicmd=0xffff001068863308 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477276] ata_qc_schedule_eh qc=0xffff001045d988b0 scsicmd=0xffff001068863308 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477278] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477280] ata_do_link_abort qc=0xffff001045d989a0 setting ATA_QCFLAG_FAILED
+[  535.477283] ata_qc_complete1 qc=0xffff001045d989a0 scsicmd=0xffff001068861008 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477285] ata_qc_complete2 qc=0xffff001045d989a0 scsicmd=0xffff001068861008 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477288] ata_qc_schedule_eh qc=0xffff001045d989a0 scsicmd=0xffff001068861008 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477291] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477293] ata_do_link_abort qc=0xffff001045d98a90 setting ATA_QCFLAG_FAILED
+[  535.477294] ata_qc_complete1 qc=0xffff001045d98a90 scsicmd=0xffff0010688bad88 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477298] ata_qc_complete2 qc=0xffff001045d98a90 scsicmd=0xffff0010688bad88 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477300] ata_qc_schedule_eh qc=0xffff001045d98a90 scsicmd=0xffff0010688bad88 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477303] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477305] ata_do_link_abort qc=0xffff001045d98b80 setting ATA_QCFLAG_FAILED
+[  535.477307] ata_qc_complete1 qc=0xffff001045d98b80 scsicmd=0xffff001068860388 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477310] ata_qc_complete2 qc=0xffff001045d98b80 scsicmd=0xffff001068860388 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477312] ata_qc_schedule_eh qc=0xffff001045d98b80 scsicmd=0xffff001068860388 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477315] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477317] ata_do_link_abort qc=0xffff001045d98c70 setting ATA_QCFLAG_FAILED
+[  535.477319] ata_qc_complete1 qc=0xffff001045d98c70 scsicmd=0xffff001068863588 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477322] ata_qc_complete2 qc=0xffff001045d98c70 scsicmd=0xffff001068863588 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477325] ata_qc_schedule_eh qc=0xffff001045d98c70 scsicmd=0xffff001068863588 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477327] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477329] ata_do_link_abort qc=0xffff001045d98d60 setting ATA_QCFLAG_FAILED
+[  535.477331] ata_qc_complete1 qc=0xffff001045d98d60 scsicmd=0xffff001068860108 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477333] ata_qc_complete2 qc=0xffff001045d98d60 scsicmd=0xffff001068860108 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477336] ata_qc_schedule_eh qc=0xffff001045d98d60 scsicmd=0xffff001068860108 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477339] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477341] ata_do_link_abort qc=0xffff001045d98e50 setting ATA_QCFLAG_FAILED
+[  535.477343] ata_qc_complete1 qc=0xffff001045d98e50 scsicmd=0xffff001068860888 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477346] ata_qc_complete2 qc=0xffff001045d98e50 scsicmd=0xffff001068860888 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477350] ata_qc_schedule_eh qc=0xffff001045d98e50 scsicmd=0xffff001068860888 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477352] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477354] ata_do_link_abort qc=0xffff001045d98f40 setting ATA_QCFLAG_FAILED
+[  535.477356] ata_qc_complete1 qc=0xffff001045d98f40 scsicmd=0xffff001068861788 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477359] ata_qc_complete2 qc=0xffff001045d98f40 scsicmd=0xffff001068861788 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477362] ata_qc_schedule_eh qc=0xffff001045d98f40 scsicmd=0xffff001068861788 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477365] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477366] ata_do_link_abort qc=0xffff001045d99030 setting ATA_QCFLAG_FAILED
+[  535.477368] ata_qc_complete1 qc=0xffff001045d99030 scsicmd=0xffff001068861a08 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477371] ata_qc_complete2 qc=0xffff001045d99030 scsicmd=0xffff001068861a08 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477374] ata_qc_schedule_eh qc=0xffff001045d99030 scsicmd=0xffff001068861a08 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477376] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477378] ata_do_link_abort qc=0xffff001045d99120 setting ATA_QCFLAG_FAILED
+[  535.477380] ata_qc_complete1 qc=0xffff001045d99120 scsicmd=0xffff001068861c88 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477383] ata_qc_complete2 qc=0xffff001045d99120 scsicmd=0xffff001068861c88 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477386] ata_qc_schedule_eh qc=0xffff001045d99120 scsicmd=0xffff001068861c88 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477389] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477390] ata_do_link_abort qc=0xffff001045d99210 setting ATA_QCFLAG_FAILED
+[  535.477392] ata_qc_complete1 qc=0xffff001045d99210 scsicmd=0xffff001068861f08 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477395] ata_qc_complete2 qc=0xffff001045d99210 scsicmd=0xffff001068861f08 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477398] ata_qc_schedule_eh qc=0xffff001045d99210 scsicmd=0xffff001068861f08 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477401] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477403] ata_do_link_abort qc=0xffff001045d993f0 setting ATA_QCFLAG_FAILED
+[  535.477405] ata_qc_complete1 qc=0xffff001045d993f0 scsicmd=0xffff0010688bfd88 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477408] ata_qc_complete2 qc=0xffff001045d993f0 scsicmd=0xffff0010688bfd88 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477410] ata_qc_schedule_eh qc=0xffff001045d993f0 scsicmd=0xffff0010688bfd88 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477413] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477415] ata_do_link_abort qc=0xffff001045d994e0 setting ATA_QCFLAG_FAILED
+[  535.477417] ata_qc_complete1 qc=0xffff001045d994e0 scsicmd=0xffff001068862188 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477420] ata_qc_complete2 qc=0xffff001045d994e0 scsicmd=0xffff001068862188 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477423] ata_qc_schedule_eh qc=0xffff001045d994e0 scsicmd=0xffff001068862188 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477425] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477427] ata_do_link_abort qc=0xffff001045d995d0 setting ATA_QCFLAG_FAILED
+[  535.477429] ata_qc_complete1 qc=0xffff001045d995d0 scsicmd=0xffff001068860608 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477431] ata_qc_complete2 qc=0xffff001045d995d0 scsicmd=0xffff001068860608 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477434] ata_qc_schedule_eh qc=0xffff001045d995d0 scsicmd=0xffff001068860608 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477437] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477439] ata_do_link_abort qc=0xffff001045d996c0 setting ATA_QCFLAG_FAILED
+[  535.477441] ata_qc_complete1 qc=0xffff001045d996c0 scsicmd=0xffff001068862688 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477444] ata_qc_complete2 qc=0xffff001045d996c0 scsicmd=0xffff001068862688 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477446] ata_qc_schedule_eh qc=0xffff001045d996c0 scsicmd=0xffff001068862688 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477449] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477450] ata_do_link_abort qc=0xffff001045d997b0 setting ATA_QCFLAG_FAILED
+[  535.477451] ata_qc_complete1 qc=0xffff001045d997b0 scsicmd=0xffff001068860b08 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477454] ata_qc_complete2 qc=0xffff001045d997b0 scsicmd=0xffff001068860b08 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477457] ata_qc_schedule_eh qc=0xffff001045d997b0 scsicmd=0xffff001068860b08 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477459] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477461] ata_do_link_abort qc=0xffff001045d998a0 setting ATA_QCFLAG_FAILED
+[  535.477463] ata_qc_complete1 qc=0xffff001045d998a0 scsicmd=0xffff0010688ba388 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477466] ata_qc_complete2 qc=0xffff001045d998a0 scsicmd=0xffff0010688ba388 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477468] ata_qc_schedule_eh qc=0xffff001045d998a0 scsicmd=0xffff0010688ba388 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477471] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477473] ata_do_link_abort qc=0xffff001045d99990 setting ATA_QCFLAG_FAILED
+[  535.477476] ata_qc_complete1 qc=0xffff001045d99990 scsicmd=0xffff001068860d88 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477478] ata_qc_complete2 qc=0xffff001045d99990 scsicmd=0xffff001068860d88 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477481] ata_qc_schedule_eh qc=0xffff001045d99990 scsicmd=0xffff001068860d88 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477484] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477485] ata_do_link_abort qc=0xffff001045d99a80 setting ATA_QCFLAG_FAILED
+[  535.477487] ata_qc_complete1 qc=0xffff001045d99a80 scsicmd=0xffff001068861508 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477490] ata_qc_complete2 qc=0xffff001045d99a80 scsicmd=0xffff001068861508 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477493] ata_qc_schedule_eh qc=0xffff001045d99a80 scsicmd=0xffff001068861508 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477496] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477498] ata_do_link_abort qc=0xffff001045d99b70 setting ATA_QCFLAG_FAILED
+[  535.477500] ata_qc_complete1 qc=0xffff001045d99b70 scsicmd=0xffff001068862908 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477503] ata_qc_complete2 qc=0xffff001045d99b70 scsicmd=0xffff001068862908 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477505] ata_qc_schedule_eh qc=0xffff001045d99b70 scsicmd=0xffff001068862908 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477508] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477509] ata_do_link_abort qc=0xffff001045d99c60 setting ATA_QCFLAG_FAILED
+[  535.477512] ata_qc_complete1 qc=0xffff001045d99c60 scsicmd=0xffff0010688ba108 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477515] ata_qc_complete2 qc=0xffff001045d99c60 scsicmd=0xffff0010688ba108 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477517] ata_qc_schedule_eh qc=0xffff001045d99c60 scsicmd=0xffff0010688ba108 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477520] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477522] ata_do_link_abort qc=0xffff001045d99d50 setting ATA_QCFLAG_FAILED
+[  535.477524] ata_qc_complete1 qc=0xffff001045d99d50 scsicmd=0xffff0010688bb008 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477526] ata_qc_complete2 qc=0xffff001045d99d50 scsicmd=0xffff0010688bb008 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477529] ata_qc_schedule_eh qc=0xffff001045d99d50 scsicmd=0xffff0010688bb008 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477532] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477534] ata_do_link_abort qc=0xffff001045d99e40 setting ATA_QCFLAG_FAILED
+[  535.477536] ata_qc_complete1 qc=0xffff001045d99e40 scsicmd=0xffff0010688ba608 err_mask=0x4 qc->err_mask setting ATA_QCFLAG_FAILED
+[  535.477539] ata_qc_complete2 qc=0xffff001045d99e40 scsicmd=0xffff0010688ba608 ATA_QCFLAG_FAILED calling ata_qc_schedule_eh
+[  535.477541] ata_qc_schedule_eh qc=0xffff001045d99e40 scsicmd=0xffff0010688ba608 setting ATA_QCFLAG_FAILED calling ata_eh_set_pending
+[  535.477544] ata_eh_set_pending fastdrain=1 ATA_PFLAG_EH_PENDING=1
+[  535.477546] ata_port_freeze2 ap=0xffff001045d98000 nr_aborted=31
+[  535.477572] scsi_times_out req=0xffff0010688bac80 scmd=0xffff0010688bad88
+[  535.477578] sd 0:0:9:0: [sdb] tag#2752 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477583] sd 0:0:9:0: [sdb] tag#2752 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3b d8 00 00 00 20 00 00
+[  535.477586] sd 0:0:9:0: [sdb] tag#2752 abort scheduled
+[  535.477589] scsi_times_out req=0xffff0010688baf00 scmd=0xffff0010688bb008
+[  535.477593] sd 0:0:9:0: [sdb] tag#2753 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477596] sd 0:0:9:0: [sdb] tag#2753 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3b f8 00 00 00 08 00 00
+[  535.477599] sd 0:0:9:0: [sdb] tag#2753 abort scheduled
+[  535.477601] scsi_times_out req=0xffff0010688bb180 scmd=0xffff0010688bb288
+[  535.477605] sd 0:0:9:0: [sdb] tag#2754 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477608] sd 0:0:9:0: [sdb] tag#2754 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3c 00 00 00 00 08 00 00
+[  535.477611] sd 0:0:9:0: [sdb] tag#2754 abort scheduled
+[  535.477613] scsi_times_out req=0xffff0010688bb400 scmd=0xffff0010688bb508
+[  535.477617] sd 0:0:9:0: [sdb] tag#2755 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477620] sd 0:0:9:0: [sdb] tag#2755 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3c 08 00 00 00 48 00 00
+[  535.477622] sd 0:0:9:0: [sdb] tag#2755 abort scheduled
+[  535.477624] scsi_times_out req=0xffff001068860280 scmd=0xffff001068860388
+[  535.477628] sd 0:0:9:0: [sdb] tag#2756 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477631] sd 0:0:9:0: [sdb] tag#2756 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3c 50 00 00 00 58 00 00
+[  535.477634] sd 0:0:9:0: [sdb] tag#2756 abort scheduled
+[  535.477636] scsi_times_out req=0xffff001068860500 scmd=0xffff001068860608
+[  535.477639] sd 0:0:9:0: [sdb] tag#2757 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477642] sd 0:0:9:0: [sdb] tag#2757 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3c a8 00 00 00 48 00 00
+[  535.477644] sd 0:0:9:0: [sdb] tag#2757 abort scheduled
+[  535.477647] scsi_times_out req=0xffff001068860780 scmd=0xffff001068860888
+[  535.477650] sd 0:0:9:0: [sdb] tag#2758 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477653] sd 0:0:9:0: [sdb] tag#2758 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3c f0 00 00 00 48 00 00
+[  535.477656] sd 0:0:9:0: [sdb] tag#2758 abort scheduled
+[  535.477658] scsi_times_out req=0xffff001068860a00 scmd=0xffff001068860b08
+[  535.477661] sd 0:0:9:0: [sdb] tag#2759 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477664] sd 0:0:9:0: [sdb] tag#2759 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3d 38 00 00 00 50 00 00
+[  535.477666] sd 0:0:9:0: [sdb] tag#2759 abort scheduled
+[  535.477668] scsi_times_out req=0xffff001068861180 scmd=0xffff001068861288
+[  535.477672] sd 0:0:9:0: [sdb] tag#2760 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477675] sd 0:0:9:0: [sdb] tag#2760 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3d e0 00 00 00 38 00 00
+[  535.477677] sd 0:0:9:0: [sdb] tag#2760 abort scheduled
+[  535.477679] scsi_times_out req=0xffff001068861400 scmd=0xffff001068861508
+[  535.477682] sd 0:0:9:0: [sdb] tag#2761 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477685] sd 0:0:9:0: [sdb] tag#2761 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3e 18 00 00 00 28 00 00
+[  535.477687] sd 0:0:9:0: [sdb] tag#2761 abort scheduled
+[  535.477689] scsi_times_out req=0xffff001068862300 scmd=0xffff001068862408
+[  535.477693] sd 0:0:9:0: [sdb] tag#2762 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477696] sd 0:0:9:0: [sdb] tag#2762 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3f 00 00 00 00 10 00 00
+[  535.477698] sd 0:0:9:0: [sdb] tag#2762 abort scheduled
+[  535.477701] scsi_times_out req=0xffff001068862580 scmd=0xffff001068862688
+[  535.477704] sd 0:0:9:0: [sdb] tag#2763 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477707] sd 0:0:9:0: [sdb] tag#2763 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3f 10 00 00 00 08 00 00
+[  535.477709] sd 0:0:9:0: [sdb] tag#2763 abort scheduled
+[  535.477711] scsi_times_out req=0xffff001068862800 scmd=0xffff001068862908
+[  535.477715] sd 0:0:9:0: [sdb] tag#2764 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477718] sd 0:0:9:0: [sdb] tag#2764 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3f 18 00 00 00 10 00 00
+[  535.477721] sd 0:0:9:0: [sdb] tag#2764 abort scheduled
+[  535.477723] scsi_times_out req=0xffff001068862a80 scmd=0xffff001068862b88
+[  535.477726] sd 0:0:9:0: [sdb] tag#2765 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477729] sd 0:0:9:0: [sdb] tag#2765 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3f 28 00 00 00 28 00 00
+[  535.477732] sd 0:0:9:0: [sdb] tag#2765 abort scheduled
+[  535.477734] scsi_times_out req=0xffff001068862d00 scmd=0xffff001068862e08
+[  535.477737] sd 0:0:9:0: [sdb] tag#2766 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477741] sd 0:0:9:0: [sdb] tag#2766 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3f 50 00 00 00 08 00 00
+[  535.477743] sd 0:0:9:0: [sdb] tag#2766 abort scheduled
+[  535.477745] scsi_times_out req=0xffff001068862f80 scmd=0xffff001068863088
+[  535.477749] sd 0:0:9:0: [sdb] tag#2767 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477752] sd 0:0:9:0: [sdb] tag#2767 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3f 58 00 00 00 18 00 00
+[  535.477754] sd 0:0:9:0: [sdb] tag#2767 abort scheduled
+[  535.477756] scsi_times_out req=0xffff001068863200 scmd=0xffff001068863308
+[  535.477760] sd 0:0:9:0: [sdb] tag#2768 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477763] sd 0:0:9:0: [sdb] tag#2768 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3f 70 00 00 00 08 00 00
+[  535.477766] sd 0:0:9:0: [sdb] tag#2768 abort scheduled
+[  535.477768] scsi_times_out req=0xffff001068863480 scmd=0xffff001068863588
+[  535.477772] sd 0:0:9:0: [sdb] tag#2769 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477775] sd 0:0:9:0: [sdb] tag#2769 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3f 78 00 00 00 08 00 00
+[  535.477778] sd 0:0:9:0: [sdb] tag#2769 abort scheduled
+[  535.477780] scsi_times_out req=0xffff0010688ba780 scmd=0xffff0010688ba888
+[  535.477784] sd 0:0:9:0: [sdb] tag#2815 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477787] sd 0:0:9:0: [sdb] tag#2815 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3b d0 00 00 00 08 00 00
+[  535.477790] sd 0:0:9:0: [sdb] tag#2815 abort scheduled
+[  535.477793] scsi_times_out req=0xffff0010688bfc80 scmd=0xffff0010688bfd88
+[  535.477796] sd 0:0:9:0: [sdb] tag#2819 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477799] sd 0:0:9:0: [sdb] tag#2819 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3b a8 00 00 00 08 00 00
+[  535.477802] sd 0:0:9:0: [sdb] tag#2819 abort scheduled
+[  535.477804] scsi_times_out req=0xffff001068860000 scmd=0xffff001068860108
+[  535.477808] sd 0:0:9:0: [sdb] tag#2820 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477811] sd 0:0:9:0: [sdb] tag#2820 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3b b0 00 00 00 08 00 00
+[  535.477814] sd 0:0:9:0: [sdb] tag#2820 abort scheduled
+[  535.477816] scsi_times_out req=0xffff0010688ba000 scmd=0xffff0010688ba108
+[  535.477820] sd 0:0:9:0: [sdb] tag#2821 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477822] sd 0:0:9:0: [sdb] tag#2821 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3b b8 00 00 00 08 00 00
+[  535.477825] sd 0:0:9:0: [sdb] tag#2821 abort scheduled
+[  535.477827] scsi_times_out req=0xffff0010688ba280 scmd=0xffff0010688ba388
+[  535.477831] sd 0:0:9:0: [sdb] tag#2822 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477833] sd 0:0:9:0: [sdb] tag#2822 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3b c0 00 00 00 08 00 00
+[  535.477836] sd 0:0:9:0: [sdb] tag#2822 abort scheduled
+[  535.477838] scsi_times_out req=0xffff0010688ba500 scmd=0xffff0010688ba608
+[  535.477842] sd 0:0:9:0: [sdb] tag#2823 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477845] sd 0:0:9:0: [sdb] tag#2823 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3b c8 00 00 00 08 00 00
+[  535.477847] sd 0:0:9:0: [sdb] tag#2823 abort scheduled
+[  535.477849] scsi_times_out req=0xffff001068860c80 scmd=0xffff001068860d88
+[  535.477853] sd 0:0:9:0: [sdb] tag#2824 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477856] sd 0:0:9:0: [sdb] tag#2824 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3d 88 00 00 00 28 00 00
+[  535.477859] sd 0:0:9:0: [sdb] tag#2824 abort scheduled
+[  535.477861] scsi_times_out req=0xffff001068860f00 scmd=0xffff001068861008
+[  535.477865] sd 0:0:9:0: [sdb] tag#2825 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477867] sd 0:0:9:0: [sdb] tag#2825 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3d b0 00 00 00 30 00 00
+[  535.477870] sd 0:0:9:0: [sdb] tag#2825 abort scheduled
+[  535.477872] scsi_times_out req=0xffff001068861680 scmd=0xffff001068861788
+[  535.477876] sd 0:0:9:0: [sdb] tag#2826 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477879] sd 0:0:9:0: [sdb] tag#2826 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3e 40 00 00 00 28 00 00
+[  535.477881] sd 0:0:9:0: [sdb] tag#2826 abort scheduled
+[  535.477883] scsi_times_out req=0xffff001068861900 scmd=0xffff001068861a08
+[  535.477887] sd 0:0:9:0: [sdb] tag#2827 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477890] sd 0:0:9:0: [sdb] tag#2827 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3e 68 00 00 00 30 00 00
+[  535.477892] sd 0:0:9:0: [sdb] tag#2827 abort scheduled
+[  535.477894] scsi_times_out req=0xffff001068861b80 scmd=0xffff001068861c88
+[  535.477898] sd 0:0:9:0: [sdb] tag#2828 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477901] sd 0:0:9:0: [sdb] tag#2828 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3e 98 00 00 00 30 00 00
+[  535.477904] sd 0:0:9:0: [sdb] tag#2828 abort scheduled
+[  535.477906] scsi_times_out req=0xffff001068861e00 scmd=0xffff001068861f08
+[  535.477909] sd 0:0:9:0: [sdb] tag#2829 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477912] sd 0:0:9:0: [sdb] tag#2829 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3e c8 00 00 00 30 00 00
+[  535.477915] sd 0:0:9:0: [sdb] tag#2829 abort scheduled
+[  535.477916] scsi_times_out req=0xffff001068862080 scmd=0xffff001068862188
+[  535.477920] sd 0:0:9:0: [sdb] tag#2830 Done: UNKNOWN(0x2007) Result: hostbyte=0x00 driverbyte=DRIVER_OK cmd_age=31s
+[  535.477923] sd 0:0:9:0: [sdb] tag#2830 CDB: opcode=0x88 88 00 00 00 00 00 00 2e 3e f8 00 00 00 08 00 00
+[  535.477926] sd 0:0:9:0: [sdb] tag#2830 abort scheduled
+[  535.489100] sd 0:0:9:0: [sdb] tag#2830 aborting command
+[  535.489103] sd 0:0:9:0: [sdb] tag#2830 cmd abort failed
+[  535.489105] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068862188
+[  535.489108] scsi_eh_scmd_add scmd=0xffff001068862188 rcu call later scsi_eh_inc_host_failed
+[  535.489111] sd 0:0:9:0: [sdb] tag#2829 aborting command
+[  535.489114] sd 0:0:9:0: [sdb] tag#2829 cmd abort failed
+[  535.489116] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068861f08
+[  535.489118] scsi_eh_scmd_add scmd=0xffff001068861f08 rcu call later scsi_eh_inc_host_failed
+[  535.489121] sd 0:0:9:0: [sdb] tag#2828 aborting command
+[  535.489124] sd 0:0:9:0: [sdb] tag#2828 cmd abort failed
+[  535.489125] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068861c88
+[  535.489127] scsi_eh_scmd_add scmd=0xffff001068861c88 rcu call later scsi_eh_inc_host_failed
+[  535.489130] sd 0:0:9:0: [sdb] tag#2827 aborting command
+[  535.489132] sd 0:0:9:0: [sdb] tag#2827 cmd abort failed
+[  535.489134] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068861a08
+[  535.489136] scsi_eh_scmd_add scmd=0xffff001068861a08 rcu call later scsi_eh_inc_host_failed
+[  535.489139] sd 0:0:9:0: [sdb] tag#2826 aborting command
+[  535.489141] sd 0:0:9:0: [sdb] tag#2826 cmd abort failed
+[  535.489142] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068861788
+[  535.489144] scsi_eh_scmd_add scmd=0xffff001068861788 rcu call later scsi_eh_inc_host_failed
+[  535.489147] sd 0:0:9:0: [sdb] tag#2825 aborting command
+[  535.489149] sd 0:0:9:0: [sdb] tag#2825 cmd abort failed
+[  535.489152] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068861008
+[  535.489153] scsi_eh_scmd_add scmd=0xffff001068861008 rcu call later scsi_eh_inc_host_failed
+[  535.489156] sd 0:0:9:0: [sdb] tag#2824 aborting command
+[  535.489158] sd 0:0:9:0: [sdb] tag#2824 cmd abort failed
+[  535.489160] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068860d88
+[  535.489162] scsi_eh_scmd_add scmd=0xffff001068860d88 rcu call later scsi_eh_inc_host_failed
+[  535.489165] sd 0:0:9:0: [sdb] tag#2823 aborting command
+[  535.489167] sd 0:0:9:0: [sdb] tag#2823 cmd abort failed
+[  535.489169] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff0010688ba608
+[  535.489171] scsi_eh_scmd_add scmd=0xffff0010688ba608 rcu call later scsi_eh_inc_host_failed
+[  535.489174] sd 0:0:9:0: [sdb] tag#2822 aborting command
+[  535.489176] sd 0:0:9:0: [sdb] tag#2822 cmd abort failed
+[  535.489178] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff0010688ba388
+[  535.489179] scsi_eh_scmd_add scmd=0xffff0010688ba388 rcu call later scsi_eh_inc_host_failed
+[  535.489182] sd 0:0:9:0: [sdb] tag#2821 aborting command
+[  535.489184] sd 0:0:9:0: [sdb] tag#2821 cmd abort failed
+[  535.489186] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff0010688ba108
+[  535.489188] scsi_eh_scmd_add scmd=0xffff0010688ba108 rcu call later scsi_eh_inc_host_failed
+[  535.489191] sd 0:0:9:0: [sdb] tag#2820 aborting command
+[  535.489193] sd 0:0:9:0: [sdb] tag#2820 cmd abort failed
+[  535.489195] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068860108
+[  535.489197] scsi_eh_scmd_add scmd=0xffff001068860108 rcu call later scsi_eh_inc_host_failed
+[  535.489200] sd 0:0:9:0: [sdb] tag#2819 aborting command
+[  535.489202] sd 0:0:9:0: [sdb] tag#2819 cmd abort failed
+[  535.489204] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff0010688bfd88
+[  535.489206] scsi_eh_scmd_add scmd=0xffff0010688bfd88 rcu call later scsi_eh_inc_host_failed
+[  535.489209] sd 0:0:9:0: [sdb] tag#2815 aborting command
+[  535.489211] sd 0:0:9:0: [sdb] tag#2815 cmd abort failed
+[  535.489212] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff0010688ba888
+[  535.489214] scsi_eh_scmd_add scmd=0xffff0010688ba888 rcu call later scsi_eh_inc_host_failed
+[  535.489217] sd 0:0:9:0: [sdb] tag#2769 aborting command
+[  535.489219] sd 0:0:9:0: [sdb] tag#2769 cmd abort failed
+[  535.489222] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068863588
+[  535.489224] scsi_eh_scmd_add scmd=0xffff001068863588 rcu call later scsi_eh_inc_host_failed
+[  535.489227] sd 0:0:9:0: [sdb] tag#2768 aborting command
+[  535.489229] sd 0:0:9:0: [sdb] tag#2768 cmd abort failed
+[  535.489230] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068863308
+[  535.489232] scsi_eh_scmd_add scmd=0xffff001068863308 rcu call later scsi_eh_inc_host_failed
+[  535.489235] sd 0:0:9:0: [sdb] tag#2767 aborting command
+[  535.489237] sd 0:0:9:0: [sdb] tag#2767 cmd abort failed
+[  535.489239] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068863088
+[  535.489241] scsi_eh_scmd_add scmd=0xffff001068863088 rcu call later scsi_eh_inc_host_failed
+[  535.489244] sd 0:0:9:0: [sdb] tag#2766 aborting command
+[  535.489246] sd 0:0:9:0: [sdb] tag#2766 cmd abort failed
+[  535.489248] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068862e08
+[  535.489250] scsi_eh_scmd_add scmd=0xffff001068862e08 rcu call later scsi_eh_inc_host_failed
+[  535.489253] sd 0:0:9:0: [sdb] tag#2765 aborting command
+[  535.489254] sd 0:0:9:0: [sdb] tag#2765 cmd abort failed
+[  535.489256] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068862b88
+[  535.489258] scsi_eh_scmd_add scmd=0xffff001068862b88 rcu call later scsi_eh_inc_host_failed
+[  535.489262] sd 0:0:9:0: [sdb] tag#2764 aborting command
+[  535.489264] sd 0:0:9:0: [sdb] tag#2764 cmd abort failed
+[  535.489266] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068862908
+[  535.489268] scsi_eh_scmd_add scmd=0xffff001068862908 rcu call later scsi_eh_inc_host_failed
+[  535.489271] sd 0:0:9:0: [sdb] tag#2763 aborting command
+[  535.489273] sd 0:0:9:0: [sdb] tag#2763 cmd abort failed
+[  535.489275] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068862688
+[  535.489277] scsi_eh_scmd_add scmd=0xffff001068862688 rcu call later scsi_eh_inc_host_failed
+[  535.489280] sd 0:0:9:0: [sdb] tag#2762 aborting command
+[  535.489282] sd 0:0:9:0: [sdb] tag#2762 cmd abort failed
+[  535.489284] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068862408
+[  535.489285] scsi_eh_scmd_add scmd=0xffff001068862408 rcu call later scsi_eh_inc_host_failed
+[  535.489289] sd 0:0:9:0: [sdb] tag#2761 aborting command
+[  535.489291] sd 0:0:9:0: [sdb] tag#2761 cmd abort failed
+[  535.489293] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068861508
+[  535.489295] scsi_eh_scmd_add scmd=0xffff001068861508 rcu call later scsi_eh_inc_host_failed
+[  535.489298] sd 0:0:9:0: [sdb] tag#2760 aborting command
+[  535.489300] sd 0:0:9:0: [sdb] tag#2760 cmd abort failed
+[  535.489301] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068861288
+[  535.489303] scsi_eh_scmd_add scmd=0xffff001068861288 rcu call later scsi_eh_inc_host_failed
+[  535.489306] sd 0:0:9:0: [sdb] tag#2759 aborting command
+[  535.489308] sd 0:0:9:0: [sdb] tag#2759 cmd abort failed
+[  535.489310] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068860b08
+[  535.489312] scsi_eh_scmd_add scmd=0xffff001068860b08 rcu call later scsi_eh_inc_host_failed
+[  535.489315] sd 0:0:9:0: [sdb] tag#2758 aborting command
+[  535.489317] sd 0:0:9:0: [sdb] tag#2758 cmd abort failed
+[  535.489319] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068860888
+[  535.489321] scsi_eh_scmd_add scmd=0xffff001068860888 rcu call later scsi_eh_inc_host_failed
+[  535.489324] sd 0:0:9:0: [sdb] tag#2757 aborting command
+[  535.489325] sd 0:0:9:0: [sdb] tag#2757 cmd abort failed
+[  535.489328] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068860608
+[  535.489330] scsi_eh_scmd_add scmd=0xffff001068860608 rcu call later scsi_eh_inc_host_failed
+[  535.489333] sd 0:0:9:0: [sdb] tag#2756 aborting command
+[  535.489335] sd 0:0:9:0: [sdb] tag#2756 cmd abort failed
+[  535.489336] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff001068860388
+[  535.489338] scsi_eh_scmd_add scmd=0xffff001068860388 rcu call later scsi_eh_inc_host_failed
+[  535.489341] sd 0:0:9:0: [sdb] tag#2755 aborting command
+[  535.489344] sd 0:0:9:0: [sdb] tag#2755 cmd abort failed
+[  535.489345] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff0010688bb508
+[  535.489347] scsi_eh_scmd_add scmd=0xffff0010688bb508 rcu call later scsi_eh_inc_host_failed
+[  535.489351] sd 0:0:9:0: [sdb] tag#2754 aborting command
+[  535.489353] sd 0:0:9:0: [sdb] tag#2754 cmd abort failed
+[  535.489354] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff0010688bb288
+[  535.489356] scsi_eh_scmd_add scmd=0xffff0010688bb288 rcu call later scsi_eh_inc_host_failed
+[  535.489359] sd 0:0:9:0: [sdb] tag#2753 aborting command
+[  535.489361] sd 0:0:9:0: [sdb] tag#2753 cmd abort failed
+[  535.489363] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff0010688bb008
+[  535.489365] scsi_eh_scmd_add scmd=0xffff0010688bb008 rcu call later scsi_eh_inc_host_failed
+[  535.489368] sd 0:0:9:0: [sdb] tag#2752 aborting command
+[  535.489370] sd 0:0:9:0: [sdb] tag#2752 cmd abort failed
+[  535.489371] scmd_eh_abort_handler calling scsi_eh_scmd_add scmd=0xffff0010688bad88
+[  535.489373] scsi_eh_scmd_add scmd=0xffff0010688bad88 rcu call later scsi_eh_inc_host_failed
+[  535.509092] scsi_eh_inc_host_failed host_failed=2
+[  535.509108] scsi_eh_inc_host_failed host_failed=3
+[  535.509118] scsi_eh_inc_host_failed host_failed=4
+[  535.509127] scsi_eh_inc_host_failed host_failed=5
+[  535.509136] scsi_eh_inc_host_failed host_failed=6
+[  535.509145] scsi_eh_inc_host_failed host_failed=7
+[  535.509154] scsi_eh_inc_host_failed host_failed=8
+[  535.509163] scsi_eh_inc_host_failed host_failed=9
+[  535.509172] scsi_eh_inc_host_failed host_failed=10
+[  535.509181] scsi_eh_inc_host_failed host_failed=11
+[  535.509190] scsi_eh_inc_host_failed host_failed=12
+[  535.509199] scsi_eh_inc_host_failed host_failed=13
+[  535.509208] scsi_eh_inc_host_failed host_failed=14
+[  535.509217] scsi_eh_inc_host_failed host_failed=15
+[  535.509226] scsi_eh_inc_host_failed host_failed=16
+[  535.509235] scsi_eh_inc_host_failed host_failed=17
+[  535.509244] scsi_eh_inc_host_failed host_failed=18
+[  535.509252] scsi_eh_inc_host_failed host_failed=19
+[  535.509262] scsi_eh_inc_host_failed host_failed=20
+[  535.509271] scsi_eh_inc_host_failed host_failed=21
+[  535.509279] scsi_eh_inc_host_failed host_failed=22
+[  535.509289] scsi_eh_inc_host_failed host_failed=23
+[  535.509297] scsi_eh_inc_host_failed host_failed=24
+[  535.509306] scsi_eh_inc_host_failed host_failed=25
+[  535.509315] scsi_eh_inc_host_failed host_failed=26
+[  535.509324] scsi_eh_inc_host_failed host_failed=27
+[  535.509334] scsi_eh_inc_host_failed host_failed=28
+[  535.509343] scsi_eh_inc_host_failed host_failed=29
+[  535.509352] scsi_eh_inc_host_failed host_failed=30
+[  535.509361] scsi_eh_inc_host_failed host_failed=31
+[  535.509370] scsi_eh_inc_host_failed host_failed=32
+[  535.509382] scsi host0: Waking error handler thread
+[  535.509412] scsi host0: scsi_eh_0: waking up 0/32/32
+[  535.509429] sas: sas_scsi_recover_host Enter sas_scsi_recover_host busy: 32 failed: 32
+[  535.509432] sas: sas_eh_handle_sas_errors shost=0xffff041008000000
+[  535.509435] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0x0 (NULL for ATA means it's finished) working through eh_entry
+[  535.509438] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048651b00 (NULL for ATA means it's finished) working through eh_entry
+[  535.509441] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048652400 (NULL for ATA means it's finished) working through eh_entry
+[  535.509443] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048652880 (NULL for ATA means it's finished) working through eh_entry
+[  535.509446] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048652a00 (NULL for ATA means it's finished) working through eh_entry
+[  535.509448] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048651200 (NULL for ATA means it's finished) working through eh_entry
+[  535.509451] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff00104886aa00 (NULL for ATA means it's finished) working through eh_entry
+[  535.509455] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff00104886b180 (NULL for ATA means it's finished) working through eh_entry
+[  535.509458] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048652580 (NULL for ATA means it's finished) working through eh_entry
+[  535.509461] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048651080 (NULL for ATA means it's finished) working through eh_entry
+[  535.509463] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048650300 (NULL for ATA means it's finished) working through eh_entry
+[  535.509466] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048652b80 (NULL for ATA means it's finished) working through eh_entry
+[  535.509469] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048651500 (NULL for ATA means it's finished) working through eh_entry
+[  535.509472] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048707480 (NULL for ATA means it's finished) working through eh_entry
+[  535.509475] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff0010487b7180 (NULL for ATA means it's finished) working through eh_entry
+[  535.509478] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff0010487b5200 (NULL for ATA means it's finished) working through eh_entry
+[  535.509481] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff0010487b5380 (NULL for ATA means it's finished) working through eh_entry
+[  535.509483] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048706280 (NULL for ATA means it's finished) working through eh_entry
+[  535.509486] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048707900 (NULL for ATA means it's finished) working through eh_entry
+[  535.509489] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048706700 (NULL for ATA means it's finished) working through eh_entry
+[  535.509492] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048707a80 (NULL for ATA means it's finished) working through eh_entry
+[  535.509494] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048706e80 (NULL for ATA means it's finished) working through eh_entry
+[  535.509497] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff00104886a100 (NULL for ATA means it's finished) working through eh_entry
+[  535.509500] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff00104886ba80 (NULL for ATA means it's finished) working through eh_entry
+[  535.509503] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff0010487b5800 (NULL for ATA means it's finished) working through eh_entry
+[  535.509506] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff0010487b5080 (NULL for ATA means it's finished) working through eh_entry
+[  535.509509] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff0010487b5e00 (NULL for ATA means it's finished) working through eh_entry
+[  535.509512] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff0010487b5680 (NULL for ATA means it's finished) working through eh_entry
+[  535.509514] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048707300 (NULL for ATA means it's finished) working through eh_entry
+[  535.509517] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048707000 (NULL for ATA means it's finished) working through eh_entry
+[  535.509520] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048707180 (NULL for ATA means it's finished) working through eh_entry
+[  535.509523] sas: sas_eh_handle_sas_errors2 shost=0xffff041008000000 task=0xffff001048707780 (NULL for ATA means it's finished) working through eh_entry
+[  535.509526] sas: trying to find task 0xffff001048651b00
+[  535.509528] sas: sas_scsi_find_task: aborting task 0xffff001048651b00 scmd=0xffff001068862188
+[  535.509967] hisi_sas_abort_task SATA task=0xffff001048651b00 calling hisi_sas_softreset_ata_disk
+[  535.509970] hisi_sas_softreset_ata_disk device=0xffff001048db6800
+[  535.515739] hisi_sas_release_task device=0xffff001048db6800
+[  535.515741] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048651500
+[  535.515744] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048652b80
+[  535.515748] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048650300
+[  535.515750] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048651080
+[  535.515753] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048652580
+[  535.515756] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048707480
+[  535.515759] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048707780
+[  535.515762] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048707180
+[  535.515764] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048707000
+[  535.515767] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048707300
+[  535.515770] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff0010487b5680
+[  535.515773] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff0010487b5e00
+[  535.515776] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff0010487b5080
+[  535.515779] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff0010487b5800
+[  535.515781] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff00104886b180
+[  535.515784] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff00104886aa00
+[  535.515787] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff00104886ba80
+[  535.515790] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff00104886a100
+[  535.515793] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048651200
+[  535.515796] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048652a00
+[  535.515798] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048652880
+[  535.515801] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048652400
+[  535.515804] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048651b00
+[  535.515806] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048706e80
+[  535.515809] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048707a80
+[  535.515812] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048706700
+[  535.515815] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048707900
+[  535.515818] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff001048706280
+[  535.515821] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff0010487b5380
+[  535.515824] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff0010487b5200
+[  535.515826] hisi_sas_release_task2 device=0xffff001048db6800 slot->task=0xffff0010487b7180
+[  535.515829] sas: sas_scsi_find_task: task 0xffff001048651b00 is done
+[  535.515831] sas: sas_eh_handle_sas_errors: task 0xffff001048651b00 is done
+[  535.515833] sas: sas_eh_finish_cmd task=0xffff001048651b00
+[  535.515836] sas: trying to find task 0xffff001048652400
+[  535.515837] sas: sas_scsi_find_task: aborting task 0xffff001048652400 scmd=0xffff001068861f08
+[  535.515840] sas: sas_scsi_find_task: task 0xffff001048652400 is done
+[  535.515842] sas: sas_eh_handle_sas_errors: task 0xffff001048652400 is done
+[  535.515844] sas: sas_eh_finish_cmd task=0xffff001048652400
+[  535.515846] sas: trying to find task 0xffff001048652880
+[  535.515847] sas: sas_scsi_find_task: aborting task 0xffff001048652880 scmd=0xffff001068861c88
+[  535.515850] sas: sas_scsi_find_task: task 0xffff001048652880 is done
+[  535.515852] sas: sas_eh_handle_sas_errors: task 0xffff001048652880 is done
+[  535.515854] sas: sas_eh_finish_cmd task=0xffff001048652880
+[  535.515857] sas: trying to find task 0xffff001048652a00
+[  535.515858] sas: sas_scsi_find_task: aborting task 0xffff001048652a00 scmd=0xffff001068861a08
+[  535.515861] sas: sas_scsi_find_task: task 0xffff001048652a00 is done
+[  535.515863] sas: sas_eh_handle_sas_errors: task 0xffff001048652a00 is done
+[  535.515864] sas: sas_eh_finish_cmd task=0xffff001048652a00
+[  535.515866] sas: trying to find task 0xffff001048651200
+[  535.515869] sas: sas_scsi_find_task: aborting task 0xffff001048651200 scmd=0xffff001068861788
+[  535.515871] sas: sas_scsi_find_task: task 0xffff001048651200 is done
+[  535.515873] sas: sas_eh_handle_sas_errors: task 0xffff001048651200 is done
+[  535.515875] sas: sas_eh_finish_cmd task=0xffff001048651200
+[  535.515877] sas: trying to find task 0xffff00104886aa00
+[  535.515878] sas: sas_scsi_find_task: aborting task 0xffff00104886aa00 scmd=0xffff001068861008
+[  535.515881] sas: sas_scsi_find_task: task 0xffff00104886aa00 is done
+[  535.515882] sas: sas_eh_handle_sas_errors: task 0xffff00104886aa00 is done
+[  535.515884] sas: sas_eh_finish_cmd task=0xffff00104886aa00
+[  535.515886] sas: trying to find task 0xffff00104886b180
+[  535.515887] sas: sas_scsi_find_task: aborting task 0xffff00104886b180 scmd=0xffff001068860d88
+[  535.515890] sas: sas_scsi_find_task: task 0xffff00104886b180 is done
+[  535.515891] sas: sas_eh_handle_sas_errors: task 0xffff00104886b180 is done
+[  535.515893] sas: sas_eh_finish_cmd task=0xffff00104886b180
+[  535.515896] sas: trying to find task 0xffff001048652580
+[  535.515898] sas: sas_scsi_find_task: aborting task 0xffff001048652580 scmd=0xffff0010688ba608
+[  535.515901] sas: sas_scsi_find_task: task 0xffff001048652580 is done
+[  535.515903] sas: sas_eh_handle_sas_errors: task 0xffff001048652580 is done
+[  535.515904] sas: sas_eh_finish_cmd task=0xffff001048652580
+[  535.515906] sas: trying to find task 0xffff001048651080
+[  535.515908] sas: sas_scsi_find_task: aborting task 0xffff001048651080 scmd=0xffff0010688ba388
+[  535.515910] sas: sas_scsi_find_task: task 0xffff001048651080 is done
+[  535.515912] sas: sas_eh_handle_sas_errors: task 0xffff001048651080 is done
+[  535.515914] sas: sas_eh_finish_cmd task=0xffff001048651080
+[  535.515916] sas: trying to find task 0xffff001048650300
+[  535.515918] sas: sas_scsi_find_task: aborting task 0xffff001048650300 scmd=0xffff0010688ba108
+[  535.515921] sas: sas_scsi_find_task: task 0xffff001048650300 is done
+[  535.515923] sas: sas_eh_handle_sas_errors: task 0xffff001048650300 is done
+[  535.515925] sas: sas_eh_finish_cmd task=0xffff001048650300
+[  535.515927] sas: trying to find task 0xffff001048652b80
+[  535.515928] sas: sas_scsi_find_task: aborting task 0xffff001048652b80 scmd=0xffff001068860108
+[  535.515931] sas: sas_scsi_find_task: task 0xffff001048652b80 is done
+[  535.515933] sas: sas_eh_handle_sas_errors: task 0xffff001048652b80 is done
+[  535.515935] sas: sas_eh_finish_cmd task=0xffff001048652b80
+[  535.515937] sas: trying to find task 0xffff001048651500
+[  535.515939] sas: sas_scsi_find_task: aborting task 0xffff001048651500 scmd=0xffff0010688bfd88
+[  535.515941] sas: sas_scsi_find_task: task 0xffff001048651500 is done
+[  535.515943] sas: sas_eh_handle_sas_errors: task 0xffff001048651500 is done
+[  535.515945] sas: sas_eh_finish_cmd task=0xffff001048651500
+[  535.515947] sas: trying to find task 0xffff001048707480
+[  535.515948] sas: sas_scsi_find_task: aborting task 0xffff001048707480 scmd=0xffff0010688ba888
+[  535.515951] sas: sas_scsi_find_task: task 0xffff001048707480 is done
+[  535.515953] sas: sas_eh_handle_sas_errors: task 0xffff001048707480 is done
+[  535.515955] sas: sas_eh_finish_cmd task=0xffff001048707480
+[  535.515957] sas: trying to find task 0xffff0010487b7180
+[  535.515958] sas: sas_scsi_find_task: aborting task 0xffff0010487b7180 scmd=0xffff001068863588
+[  535.515961] sas: sas_scsi_find_task: task 0xffff0010487b7180 is done
+[  535.515963] sas: sas_eh_handle_sas_errors: task 0xffff0010487b7180 is done
+[  535.515965] sas: sas_eh_finish_cmd task=0xffff0010487b7180
+[  535.515967] sas: trying to find task 0xffff0010487b5200
+[  535.515969] sas: sas_scsi_find_task: aborting task 0xffff0010487b5200 scmd=0xffff001068863308
+[  535.515972] sas: sas_scsi_find_task: task 0xffff0010487b5200 is done
+[  535.515973] sas: sas_eh_handle_sas_errors: task 0xffff0010487b5200 is done
+[  535.515975] sas: sas_eh_finish_cmd task=0xffff0010487b5200
+[  535.515977] sas: trying to find task 0xffff0010487b5380
+[  535.515979] sas: sas_scsi_find_task: aborting task 0xffff0010487b5380 scmd=0xffff001068863088
+[  535.515982] sas: sas_scsi_find_task: task 0xffff0010487b5380 is done
+[  535.515984] sas: sas_eh_handle_sas_errors: task 0xffff0010487b5380 is done
+[  535.515985] sas: sas_eh_finish_cmd task=0xffff0010487b5380
+[  535.515987] sas: trying to find task 0xffff001048706280
+[  535.515989] sas: sas_scsi_find_task: aborting task 0xffff001048706280 scmd=0xffff001068862e08
+[  535.515991] sas: sas_scsi_find_task: task 0xffff001048706280 is done
+[  535.515993] sas: sas_eh_handle_sas_errors: task 0xffff001048706280 is done
+[  535.515995] sas: sas_eh_finish_cmd task=0xffff001048706280
+[  535.515997] sas: trying to find task 0xffff001048707900
+[  535.515999] sas: sas_scsi_find_task: aborting task 0xffff001048707900 scmd=0xffff001068862b88
+[  535.516002] sas: sas_scsi_find_task: task 0xffff001048707900 is done
+[  535.516004] sas: sas_eh_handle_sas_errors: task 0xffff001048707900 is done
+[  535.516005] sas: sas_eh_finish_cmd task=0xffff001048707900
+[  535.516007] sas: trying to find task 0xffff001048706700
+[  535.516009] sas: sas_scsi_find_task: aborting task 0xffff001048706700 scmd=0xffff001068862908
+[  535.516011] sas: sas_scsi_find_task: task 0xffff001048706700 is done
+[  535.516014] sas: sas_eh_handle_sas_errors: task 0xffff001048706700 is done
+[  535.516016] sas: sas_eh_finish_cmd task=0xffff001048706700
+[  535.516018] sas: trying to find task 0xffff001048707a80
+[  535.516020] sas: sas_scsi_find_task: aborting task 0xffff001048707a80 scmd=0xffff001068862688
+[  535.516022] sas: sas_scsi_find_task: task 0xffff001048707a80 is done
+[  535.516024] sas: sas_eh_handle_sas_errors: task 0xffff001048707a80 is done
+[  535.516026] sas: sas_eh_finish_cmd task=0xffff001048707a80
+[  535.516027] sas: trying to find task 0xffff001048706e80
+[  535.516030] sas: sas_scsi_find_task: aborting task 0xffff001048706e80 scmd=0xffff001068862408
+[  535.516033] sas: sas_scsi_find_task: task 0xffff001048706e80 is done
+[  535.516034] sas: sas_eh_handle_sas_errors: task 0xffff001048706e80 is done
+[  535.516036] sas: sas_eh_finish_cmd task=0xffff001048706e80
+[  535.516038] sas: trying to find task 0xffff00104886a100
+[  535.516040] sas: sas_scsi_find_task: aborting task 0xffff00104886a100 scmd=0xffff001068861508
+[  535.516042] sas: sas_scsi_find_task: task 0xffff00104886a100 is done
+[  535.516044] sas: sas_eh_handle_sas_errors: task 0xffff00104886a100 is done
+[  535.516046] sas: sas_eh_finish_cmd task=0xffff00104886a100
+[  535.516049] sas: trying to find task 0xffff00104886ba80
+[  535.516050] sas: sas_scsi_find_task: aborting task 0xffff00104886ba80 scmd=0xffff001068861288
+[  535.516053] sas: sas_scsi_find_task: task 0xffff00104886ba80 is done
+[  535.516055] sas: sas_eh_handle_sas_errors: task 0xffff00104886ba80 is done
+[  535.516056] sas: sas_eh_finish_cmd task=0xffff00104886ba80
+[  535.516059] sas: trying to find task 0xffff0010487b5800
+[  535.516060] sas: sas_scsi_find_task: aborting task 0xffff0010487b5800 scmd=0xffff001068860b08
+[  535.516063] sas: sas_scsi_find_task: task 0xffff0010487b5800 is done
+[  535.516065] sas: sas_eh_handle_sas_errors: task 0xffff0010487b5800 is done
+[  535.516067] sas: sas_eh_finish_cmd task=0xffff0010487b5800
+[  535.516068] sas: trying to find task 0xffff0010487b5080
+[  535.516069] sas: sas_scsi_find_task: aborting task 0xffff0010487b5080 scmd=0xffff001068860888
+[  535.516072] sas: sas_scsi_find_task: task 0xffff0010487b5080 is done
+[  535.516073] sas: sas_eh_handle_sas_errors: task 0xffff0010487b5080 is done
+[  535.516075] sas: sas_eh_finish_cmd task=0xffff0010487b5080
+[  535.516077] sas: trying to find task 0xffff0010487b5e00
+[  535.516078] sas: sas_scsi_find_task: aborting task 0xffff0010487b5e00 scmd=0xffff001068860608
+[  535.516081] sas: sas_scsi_find_task: task 0xffff0010487b5e00 is done
+[  535.516083] sas: sas_eh_handle_sas_errors: task 0xffff0010487b5e00 is done
+[  535.516085] sas: sas_eh_finish_cmd task=0xffff0010487b5e00
+[  535.516087] sas: trying to find task 0xffff0010487b5680
+[  535.516089] sas: sas_scsi_find_task: aborting task 0xffff0010487b5680 scmd=0xffff001068860388
+[  535.516092] sas: sas_scsi_find_task: task 0xffff0010487b5680 is done
+[  535.516094] sas: sas_eh_handle_sas_errors: task 0xffff0010487b5680 is done
+[  535.516095] sas: sas_eh_finish_cmd task=0xffff0010487b5680
+[  535.516098] sas: trying to find task 0xffff001048707300
+[  535.516099] sas: sas_scsi_find_task: aborting task 0xffff001048707300 scmd=0xffff0010688bb508
+[  535.516102] sas: sas_scsi_find_task: task 0xffff001048707300 is done
+[  535.516104] sas: sas_eh_handle_sas_errors: task 0xffff001048707300 is done
+[  535.516106] sas: sas_eh_finish_cmd task=0xffff001048707300
+[  535.516107] sas: trying to find task 0xffff001048707000
+[  535.516109] sas: sas_scsi_find_task: aborting task 0xffff001048707000 scmd=0xffff0010688bb288
+[  535.516112] sas: sas_scsi_find_task: task 0xffff001048707000 is done
+[  535.516114] sas: sas_eh_handle_sas_errors: task 0xffff001048707000 is done
+[  535.516115] sas: sas_eh_finish_cmd task=0xffff001048707000
+[  535.516117] sas: trying to find task 0xffff001048707180
+[  535.516119] sas: sas_scsi_find_task: aborting task 0xffff001048707180 scmd=0xffff0010688bb008
+[  535.516122] sas: sas_scsi_find_task: task 0xffff001048707180 is done
+[  535.516123] sas: sas_eh_handle_sas_errors: task 0xffff001048707180 is done
+[  535.516126] sas: sas_eh_finish_cmd task=0xffff001048707180
+[  535.516128] sas: trying to find task 0xffff001048707780
+[  535.516130] sas: sas_scsi_find_task: aborting task 0xffff001048707780 scmd=0xffff0010688bad88
+[  535.516132] sas: sas_scsi_find_task: task 0xffff001048707780 is done
+[  535.516134] sas: sas_eh_handle_sas_errors: task 0xffff001048707780 is done
+[  535.516136] sas: sas_eh_finish_cmd task=0xffff001048707780
+[  535.516138] sas: sas_scsi_recover_host2 calling sas_ata_eh
+[  535.516140] sas: sas_ata_eh
+[  535.516142] sas: ata2: end_device-0:0:2: cmd error handler calling ata_scsi_cmd_error_handler
+[  535.516145] ata_scsi_cmd_error_handler ap=0xffff001045d98000 eh_work_q=0xffff8000137f3ca8
+[  535.516148] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff0010688bad88
+[  535.516151] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff0010688bad88 ATA_QCFLAG_FAILED already set i=10
+[  535.516154] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff0010688bb008
+[  535.516157] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff0010688bb008 ATA_QCFLAG_FAILED already set i=30
+[  535.516160] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff0010688bb288
+[  535.516162] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff0010688bb288 ATA_QCFLAG_FAILED already set i=5
+[  535.516166] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff0010688bb508
+[  535.516168] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff0010688bb508 ATA_QCFLAG_FAILED already set i=6
+[  535.516171] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068860388
+[  535.516173] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068860388 ATA_QCFLAG_FAILED already set i=11
+[  535.516176] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068860608
+[  535.516178] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068860608 ATA_QCFLAG_FAILED already set i=22
+[  535.516181] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068860888
+[  535.516183] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068860888 ATA_QCFLAG_FAILED already set i=14
+[  535.516186] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068860b08
+[  535.516188] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068860b08 ATA_QCFLAG_FAILED already set i=24
+[  535.516191] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068861288
+[  535.516194] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068861288 ATA_QCFLAG_FAILED already set i=0
+[  535.516196] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068861508
+[  535.516198] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068861508 ATA_QCFLAG_FAILED already set i=27
+[  535.516201] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068862408
+[  535.516203] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068862408 ATA_QCFLAG_FAILED already set i=1
+[  535.516207] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068862688
+[  535.516210] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068862688 ATA_QCFLAG_FAILED already set i=23
+[  535.516212] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068862908
+[  535.516215] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068862908 ATA_QCFLAG_FAILED already set i=28
+[  535.516217] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068862b88
+[  535.516220] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068862b88 ATA_QCFLAG_FAILED already set i=2
+[  535.516222] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068862e08
+[  535.516225] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068862e08 ATA_QCFLAG_FAILED already set i=3
+[  535.516228] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068863088
+[  535.516230] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068863088 ATA_QCFLAG_FAILED already set i=7
+[  535.516233] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068863308
+[  535.516235] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068863308 ATA_QCFLAG_FAILED already set i=8
+[  535.516238] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068863588
+[  535.516240] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068863588 ATA_QCFLAG_FAILED already set i=12
+[  535.516243] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff0010688ba888
+[  535.516245] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff0010688ba888 ATA_QCFLAG_FAILED already set i=4
+[  535.516248] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff0010688bfd88
+[  535.516251] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff0010688bfd88 ATA_QCFLAG_FAILED already set i=20
+[  535.516253] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068860108
+[  535.516256] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068860108 ATA_QCFLAG_FAILED already set i=13
+[  535.516258] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff0010688ba108
+[  535.516261] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff0010688ba108 ATA_QCFLAG_FAILED already set i=29
+[  535.516264] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff0010688ba388
+[  535.516266] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff0010688ba388 ATA_QCFLAG_FAILED already set i=25
+[  535.516269] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff0010688ba608
+[  535.516271] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff0010688ba608 ATA_QCFLAG_FAILED already set i=31
+[  535.516274] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068860d88
+[  535.516277] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068860d88 ATA_QCFLAG_FAILED already set i=26
+[  535.516279] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068861008
+[  535.516281] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068861008 ATA_QCFLAG_FAILED already set i=9
+[  535.516284] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068861788
+[  535.516287] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068861788 ATA_QCFLAG_FAILED already set i=15
+[  535.516290] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068861a08
+[  535.516292] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068861a08 ATA_QCFLAG_FAILED already set i=16
+[  535.516295] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068861c88
+[  535.516297] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068861c88 ATA_QCFLAG_FAILED already set i=17
+[  535.516300] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068861f08
+[  535.516302] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068861f08 ATA_QCFLAG_FAILED already set i=18
+[  535.516305] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff001068862188
+[  535.516307] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff001068862188 ATA_QCFLAG_FAILED already set i=21
+[  535.516310] ata_scsi_cmd_error_handler2 ap=0xffff001045d98000 scmd=0xffff0010688bfb08
+[  535.516313] ata_scsi_cmd_error_handler3 ap=0xffff001045d98000 scmd=0xffff0010688bfb08 ATA_QCFLAG_FAILED already set i=19
+[  535.516315] ata_scsi_cmd_error_handler5 nr_timedout=0 (if set, calls __ata_port_freeze)
+[  535.516317] sas: sas_scsi_recover_host3 finished sas_ata_eh
+[  535.516320] sas: sas_ata_strategy_handler shost=0xffff041008000000
+[  535.516324] sas: sas_ata_strategy_handler2 shost=0xffff041008000000 calling async_schedule_domain(async_sas_ata_eh)
+[  535.516333] sas: ata2: end_device-0:0:2: async_sas_ata_eh dev error handler
+[  535.516336] ata_scsi_port_error_handler host=0xffff041008000000 ap=0xffff001045d98000
+[  535.516340] ata_scsi_port_error_handler2 host=0xffff041008000000 ap=0xffff001045d98000 deleting fastdrain_timer
+[  535.516344] ata_do_eh ap=0xffff001045d98000 calling ata_eh_autopsy
+[  535.516347] ata_eh_autopsy ap=0xffff001045d98000 link=0xffff001045d9a040 calling ata_eh_link_autopsy
+[  535.516350] ata_eh_link_autopsy link=0xffff001045d9a040 ATA_EHI_NO_AUTOPSY=0 
+[  535.516352] ata_eh_link_autopsy2 link=0xffff001045d9a040 calling ata_eh_analyze_ncq_error
+[  535.516354] ata_eh_analyze_ncq_error link=0xffff001045d9a040 ATA_PFLAG_FROZEN=1
+[  535.516360] ata_do_eh2 ap=0xffff001045d98000 calling ata_eh_report
+[  535.516362] ata2.00: exception Emask 0x1 SAct 0xffffffff SErr 0x0 action 0x6 frozen
+[  535.516367] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516370] ata2.00: cmd 60/38:00:e0:3d:2e/00:00:00:00:00/40 tag 0 ncq dma 28672 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516377] ata2.00: status: { ERR }
+[  535.516379] ata2.00: error: { ABRT }
+[  535.516381] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516383] ata2.00: cmd 60/10:00:00:3f:2e/00:00:00:00:00/40 tag 1 ncq dma 8192 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516389] ata2.00: status: { ERR }
+[  535.516391] ata2.00: error: { ABRT }
+[  535.516394] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516395] ata2.00: cmd 60/28:00:28:3f:2e/00:00:00:00:00/40 tag 2 ncq dma 20480 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516401] ata2.00: status: { ERR }
+[  535.516403] ata2.00: error: { ABRT }
+[  535.516405] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516407] ata2.00: cmd 60/08:00:50:3f:2e/00:00:00:00:00/40 tag 3 ncq dma 4096 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516413] ata2.00: status: { ERR }
+[  535.516414] ata2.00: error: { ABRT }
+[  535.516417] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516418] ata2.00: cmd 60/08:00:d0:3b:2e/00:00:00:00:00/40 tag 4 ncq dma 4096 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516424] ata2.00: status: { ERR }
+[  535.516426] ata2.00: error: { ABRT }
+[  535.516428] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516430] ata2.00: cmd 60/08:00:00:3c:2e/00:00:00:00:00/40 tag 5 ncq dma 4096 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516436] ata2.00: status: { ERR }
+[  535.516437] ata2.00: error: { ABRT }
+[  535.516440] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516441] ata2.00: cmd 60/48:00:08:3c:2e/00:00:00:00:00/40 tag 6 ncq dma 36864 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516447] ata2.00: status: { ERR }
+[  535.516449] ata2.00: error: { ABRT }
+[  535.516451] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516453] ata2.00: cmd 60/18:00:58:3f:2e/00:00:00:00:00/40 tag 7 ncq dma 12288 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516459] ata2.00: status: { ERR }
+[  535.516461] ata2.00: error: { ABRT }
+[  535.516463] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516465] ata2.00: cmd 60/08:00:70:3f:2e/00:00:00:00:00/40 tag 8 ncq dma 4096 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516471] ata2.00: status: { ERR }
+[  535.516472] ata2.00: error: { ABRT }
+[  535.516474] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516476] ata2.00: cmd 60/30:00:b0:3d:2e/00:00:00:00:00/40 tag 9 ncq dma 24576 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516481] ata2.00: status: { ERR }
+[  535.516483] ata2.00: error: { ABRT }
+[  535.516485] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516487] ata2.00: cmd 60/20:00:d8:3b:2e/00:00:00:00:00/40 tag 10 ncq dma 16384 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516493] ata2.00: status: { ERR }
+[  535.516495] ata2.00: error: { ABRT }
+[  535.516497] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516499] ata2.00: cmd 60/58:00:50:3c:2e/00:00:00:00:00/40 tag 11 ncq dma 45056 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516505] ata2.00: status: { ERR }
+[  535.516506] ata2.00: error: { ABRT }
+[  535.516508] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516510] ata2.00: cmd 60/08:00:78:3f:2e/00:00:00:00:00/40 tag 12 ncq dma 4096 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516516] ata2.00: status: { ERR }
+[  535.516518] ata2.00: error: { ABRT }
+[  535.516520] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516521] ata2.00: cmd 60/08:00:b0:3b:2e/00:00:00:00:00/40 tag 13 ncq dma 4096 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516527] ata2.00: status: { ERR }
+[  535.516529] ata2.00: error: { ABRT }
+[  535.516531] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516532] ata2.00: cmd 60/48:00:f0:3c:2e/00:00:00:00:00/40 tag 14 ncq dma 36864 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516538] ata2.00: status: { ERR }
+[  535.516540] ata2.00: error: { ABRT }
+[  535.516542] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516543] ata2.00: cmd 60/28:00:40:3e:2e/00:00:00:00:00/40 tag 15 ncq dma 20480 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516549] ata2.00: status: { ERR }
+[  535.516551] ata2.00: error: { ABRT }
+[  535.516553] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516555] ata2.00: cmd 60/30:00:68:3e:2e/00:00:00:00:00/40 tag 16 ncq dma 24576 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516561] ata2.00: status: { ERR }
+[  535.516563] ata2.00: error: { ABRT }
+[  535.516564] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516566] ata2.00: cmd 60/30:00:98:3e:2e/00:00:00:00:00/40 tag 17 ncq dma 24576 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516572] ata2.00: status: { ERR }
+[  535.516573] ata2.00: error: { ABRT }
+[  535.516576] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516577] ata2.00: cmd 60/30:00:c8:3e:2e/00:00:00:00:00/40 tag 18 ncq dma 24576 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516583] ata2.00: status: { ERR }
+[  535.516585] ata2.00: error: { ABRT }
+[  535.516587] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516588] ata2.00: cmd 60/10:00:98:3b:2e/00:00:00:00:00/40 tag 19 ncq dma 8192 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x3 (HSM violation)
+[  535.516594] ata2.00: status: { ERR }
+[  535.516596] ata2.00: error: { ABRT }
+[  535.516599] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516600] ata2.00: cmd 60/08:00:a8:3b:2e/00:00:00:00:00/40 tag 20 ncq dma 4096 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516606] ata2.00: status: { ERR }
+[  535.516608] ata2.00: error: { ABRT }
+[  535.516610] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516611] ata2.00: cmd 60/08:00:f8:3e:2e/00:00:00:00:00/40 tag 21 ncq dma 4096 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516618] ata2.00: status: { ERR }
+[  535.516619] ata2.00: error: { ABRT }
+[  535.516622] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516623] ata2.00: cmd 60/48:00:a8:3c:2e/00:00:00:00:00/40 tag 22 ncq dma 36864 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516630] ata2.00: status: { ERR }
+[  535.516631] ata2.00: error: { ABRT }
+[  535.516633] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516635] ata2.00: cmd 60/08:00:10:3f:2e/00:00:00:00:00/40 tag 23 ncq dma 4096 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516641] ata2.00: status: { ERR }
+[  535.516642] ata2.00: error: { ABRT }
+[  535.516645] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516646] ata2.00: cmd 60/50:00:38:3d:2e/00:00:00:00:00/40 tag 24 ncq dma 40960 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516652] ata2.00: status: { ERR }
+[  535.516654] ata2.00: error: { ABRT }
+[  535.516656] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516657] ata2.00: cmd 60/08:00:c0:3b:2e/00:00:00:00:00/40 tag 25 ncq dma 4096 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516663] ata2.00: status: { ERR }
+[  535.516665] ata2.00: error: { ABRT }
+[  535.516667] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516669] ata2.00: cmd 60/28:00:88:3d:2e/00:00:00:00:00/40 tag 26 ncq dma 20480 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516675] ata2.00: status: { ERR }
+[  535.516676] ata2.00: error: { ABRT }
+[  535.516678] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516680] ata2.00: cmd 60/28:00:18:3e:2e/00:00:00:00:00/40 tag 27 ncq dma 20480 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516686] ata2.00: status: { ERR }
+[  535.516687] ata2.00: error: { ABRT }
+[  535.516690] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516691] ata2.00: cmd 60/10:00:18:3f:2e/00:00:00:00:00/40 tag 28 ncq dma 8192 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516697] ata2.00: status: { ERR }
+[  535.516699] ata2.00: error: { ABRT }
+[  535.516701] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516702] ata2.00: cmd 60/08:00:b8:3b:2e/00:00:00:00:00/40 tag 29 ncq dma 4096 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516708] ata2.00: status: { ERR }
+[  535.516710] ata2.00: error: { ABRT }
+[  535.516712] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516714] ata2.00: cmd 60/08:00:f8:3b:2e/00:00:00:00:00/40 tag 30 ncq dma 4096 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516720] ata2.00: status: { ERR }
+[  535.516722] ata2.00: error: { ABRT }
+[  535.516724] ata2.00: failed command: READ FPDMA QUEUED
+[  535.516726] ata2.00: cmd 60/08:00:c8:3b:2e/00:00:00:00:00/40 tag 31 ncq dma 4096 in
+                        res 01/04:00:00:10:00/00:00:00:00:00/00 Emask 0x7 (timeout)
+[  535.516732] ata2.00: status: { ERR }
+[  535.516733] ata2.00: error: { ABRT }
+[  535.516735] ata_do_eh3 ap=0xffff001045d98000 calling ata_eh_recover
+[  535.516738] ata_eh_reset ap=0xffff001045d98000 link=0xffff001045d9a040 prereset=sas_ata_prereset+0x0/0x60 softreset=0x0 hardreset=sas_ata_hard_reset+0x0/0xa0 postreset=0x0
+[  535.516753] ata_eh_freeze_port ap=0xffff001045d98000
+[  535.516755] __ata_port_freeze ap=0xffff001045d98000
+[  535.516757] ata2: hard resetting link
+[  535.517042] hisi_sas_debug_I_T_nexus_reset device=0xffff001048db6800
+[  535.524052] sas: broadcast received: 0
+[  535.524061] sas: REVALIDATION DEFERRED on port 0, pid:455
+[  535.524072] sas: broadcast received: 0
+[  535.524103] sas: broadcast received: 0
+[  535.524131] sas: broadcast received: 0
+[  535.524159] sas: broadcast received: 0
+[  535.524186] sas: broadcast received: 0
+[  535.524214] sas: broadcast received: 0
+[  535.524242] sas: broadcast received: 0
+[  535.543880] sas: broadcast received: 0
+[  535.543906] sas: broadcast received: 0
+[  535.543934] sas: broadcast received: 0
+[  535.543962] sas: broadcast received: 0
+[  535.543989] sas: broadcast received: 0
+[  535.544018] sas: broadcast received: 0
+[  535.544045] sas: broadcast received: 0
+[  535.544073] sas: broadcast received: 0
+[  535.677321] hisi_sas_I_T_nexus_reset1  device=0xffff001048db6800 rc=0
+[  535.677325] hisi_sas_softreset_ata_disk device=0xffff001048db6800
+[  535.683036] hisi_sas_release_task device=0xffff001048db6800
+[  535.683038] hisi_sas_I_T_nexus_reset8 device=0xffff001048db6800 calling hisi_sas_release_task
+[  535.683040] hisi_sas_release_task device=0xffff001048db6800
+[  535.841252] ata_eh_thaw_port ap=0xffff001045d98000
+[  535.842969] ata2.00: ata_dev_configure: cfg 49:2f00 82:746b 83:7d69 84:4773 85:7469 86:bc41 87:4763 88:407f
+[  535.842973] ata2.00: 49==0x2f00  53==0x0007  63==0x0007  64==0x0003  75==0x001f
+               80==0x01fc  81==0x0029  82==0x746b  83==0x7d69  84==0x4773
+               88==0x407f  93==0x0000
+[  535.842996] ata2.00: set features - xfer mode
+[  535.844792] ata2.00: ata_dev_configure: cfg 49:2f00 82:746b 83:7d69 84:4773 85:7469 86:bc41 87:4763 88:407f
+[  535.844795] ata2.00: 49==0x2f00  53==0x0007  63==0x0007  64==0x0003  75==0x001f
+               80==0x01fc  81==0x0029  82==0x746b  83==0x7d69  84==0x4773
+               88==0x407f  93==0x0000
+[  535.844802] ata2.00: xfer_shift=12, xfer_mode=0x46
+[  535.844804] ata2.00: configured for UDMA/133
+[  535.844831] scsi_eh_flush_done_q
+[  535.844832] scsi_eh_flush_done_q2 scmd=0xffff001068861288 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.844835] scsi_eh_flush_done_q3 scmd=0xffff001068861288
+[  535.844838] sd 0:0:9:0: [sdb] tag#2760 kworker/u129:2: flush retry cmd scmd=0xffff001068861288
+[  535.844869] scsi_eh_flush_done_q2 scmd=0xffff001068862408 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.844872] scsi_eh_flush_done_q3 scmd=0xffff001068862408
+[  535.844875] sd 0:0:9:0: [sdb] tag#2762 kworker/u129:2: flush retry cmd scmd=0xffff001068862408
+[  535.844894] scsi_eh_flush_done_q2 scmd=0xffff001068862b88 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.844897] scsi_eh_flush_done_q3 scmd=0xffff001068862b88
+[  535.844901] sd 0:0:9:0: [sdb] tag#2765 kworker/u129:2: flush retry cmd scmd=0xffff001068862b88
+[  535.844918] scsi_eh_flush_done_q2 scmd=0xffff001068862e08 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.844921] scsi_eh_flush_done_q3 scmd=0xffff001068862e08
+[  535.844924] sd 0:0:9:0: [sdb] tag#2766 kworker/u129:2: flush retry cmd scmd=0xffff001068862e08
+[  535.844941] scsi_eh_flush_done_q2 scmd=0xffff0010688ba888 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.844944] scsi_eh_flush_done_q3 scmd=0xffff0010688ba888
+[  535.844947] sd 0:0:9:0: [sdb] tag#2815 kworker/u129:2: flush retry cmd scmd=0xffff0010688ba888
+[  535.844964] scsi_eh_flush_done_q2 scmd=0xffff0010688bb288 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.844967] scsi_eh_flush_done_q3 scmd=0xffff0010688bb288
+[  535.844970] sd 0:0:9:0: [sdb] tag#2754 kworker/u129:2: flush retry cmd scmd=0xffff0010688bb288
+[  535.844987] scsi_eh_flush_done_q2 scmd=0xffff0010688bb508 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.844990] scsi_eh_flush_done_q3 scmd=0xffff0010688bb508
+[  535.844993] sd 0:0:9:0: [sdb] tag#2755 kworker/u129:2: flush retry cmd scmd=0xffff0010688bb508
+[  535.845009] scsi_eh_flush_done_q2 scmd=0xffff001068863088 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845012] scsi_eh_flush_done_q3 scmd=0xffff001068863088
+[  535.845015] sd 0:0:9:0: [sdb] tag#2767 kworker/u129:2: flush retry cmd scmd=0xffff001068863088
+[  535.845032] scsi_eh_flush_done_q2 scmd=0xffff001068863308 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845034] scsi_eh_flush_done_q3 scmd=0xffff001068863308
+[  535.845037] sd 0:0:9:0: [sdb] tag#2768 kworker/u129:2: flush retry cmd scmd=0xffff001068863308
+[  535.845054] scsi_eh_flush_done_q2 scmd=0xffff001068861008 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845056] scsi_eh_flush_done_q3 scmd=0xffff001068861008
+[  535.845060] sd 0:0:9:0: [sdb] tag#2825 kworker/u129:2: flush retry cmd scmd=0xffff001068861008
+[  535.845075] scsi_eh_flush_done_q2 scmd=0xffff0010688bad88 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845078] scsi_eh_flush_done_q3 scmd=0xffff0010688bad88
+[  535.845081] sd 0:0:9:0: [sdb] tag#2752 kworker/u129:2: flush retry cmd scmd=0xffff0010688bad88
+[  535.845104] scsi_eh_flush_done_q2 scmd=0xffff001068860388 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845107] scsi_eh_flush_done_q3 scmd=0xffff001068860388
+[  535.845111] sd 0:0:9:0: [sdb] tag#2756 kworker/u129:2: flush retry cmd scmd=0xffff001068860388
+[  535.845127] scsi_eh_flush_done_q2 scmd=0xffff001068863588 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845131] scsi_eh_flush_done_q3 scmd=0xffff001068863588
+[  535.845134] sd 0:0:9:0: [sdb] tag#2769 kworker/u129:2: flush retry cmd scmd=0xffff001068863588
+[  535.845150] scsi_eh_flush_done_q2 scmd=0xffff001068860108 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845152] scsi_eh_flush_done_q3 scmd=0xffff001068860108
+[  535.845155] sd 0:0:9:0: [sdb] tag#2820 kworker/u129:2: flush retry cmd scmd=0xffff001068860108
+[  535.845171] scsi_eh_flush_done_q2 scmd=0xffff001068860888 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845174] scsi_eh_flush_done_q3 scmd=0xffff001068860888
+[  535.845177] sd 0:0:9:0: [sdb] tag#2758 kworker/u129:2: flush retry cmd scmd=0xffff001068860888
+[  535.845192] scsi_eh_flush_done_q2 scmd=0xffff001068861788 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845195] scsi_eh_flush_done_q3 scmd=0xffff001068861788
+[  535.845197] sd 0:0:9:0: [sdb] tag#2826 kworker/u129:2: flush retry cmd scmd=0xffff001068861788
+[  535.845212] scsi_eh_flush_done_q2 scmd=0xffff001068861a08 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845215] scsi_eh_flush_done_q3 scmd=0xffff001068861a08
+[  535.845217] sd 0:0:9:0: [sdb] tag#2827 kworker/u129:2: flush retry cmd scmd=0xffff001068861a08
+[  535.845233] scsi_eh_flush_done_q2 scmd=0xffff001068861c88 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845236] scsi_eh_flush_done_q3 scmd=0xffff001068861c88
+[  535.845239] sd 0:0:9:0: [sdb] tag#2828 kworker/u129:2: flush retry cmd scmd=0xffff001068861c88
+[  535.845254] scsi_eh_flush_done_q2 scmd=0xffff001068861f08 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845257] scsi_eh_flush_done_q3 scmd=0xffff001068861f08
+[  535.845260] sd 0:0:9:0: [sdb] tag#2829 kworker/u129:2: flush retry cmd scmd=0xffff001068861f08
+[  535.845275] scsi_eh_flush_done_q2 scmd=0xffff0010688bfb08 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845278] scsi_eh_flush_done_q3 scmd=0xffff0010688bfb08
+[  535.845282] sd 0:0:9:0: [sdb] tag#2818 kworker/u129:2: flush retry cmd scmd=0xffff0010688bfb08
+[  535.845296] scsi_eh_flush_done_q2 scmd=0xffff0010688bfd88 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845299] scsi_eh_flush_done_q3 scmd=0xffff0010688bfd88
+[  535.845302] sd 0:0:9:0: [sdb] tag#2819 kworker/u129:2: flush retry cmd scmd=0xffff0010688bfd88
+[  535.845317] scsi_eh_flush_done_q2 scmd=0xffff001068862188 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845319] scsi_eh_flush_done_q3 scmd=0xffff001068862188
+[  535.845322] sd 0:0:9:0: [sdb] tag#2830 kworker/u129:2: flush retry cmd scmd=0xffff001068862188
+[  535.845337] scsi_eh_flush_done_q2 scmd=0xffff001068860608 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845340] scsi_eh_flush_done_q3 scmd=0xffff001068860608
+[  535.845343] sd 0:0:9:0: [sdb] tag#2757 kworker/u129:2: flush retry cmd scmd=0xffff001068860608
+[  535.845357] scsi_eh_flush_done_q2 scmd=0xffff001068862688 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845360] scsi_eh_flush_done_q3 scmd=0xffff001068862688
+[  535.845364] sd 0:0:9:0: [sdb] tag#2763 kworker/u129:2: flush retry cmd scmd=0xffff001068862688
+[  535.845378] scsi_eh_flush_done_q2 scmd=0xffff001068860b08 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845380] scsi_eh_flush_done_q3 scmd=0xffff001068860b08
+[  535.845383] sd 0:0:9:0: [sdb] tag#2759 kworker/u129:2: flush retry cmd scmd=0xffff001068860b08
+[  535.845398] scsi_eh_flush_done_q2 scmd=0xffff0010688ba388 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845400] scsi_eh_flush_done_q3 scmd=0xffff0010688ba388
+[  535.845403] sd 0:0:9:0: [sdb] tag#2822 kworker/u129:2: flush retry cmd scmd=0xffff0010688ba388
+[  535.845417] scsi_eh_flush_done_q2 scmd=0xffff001068860d88 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845420] scsi_eh_flush_done_q3 scmd=0xffff001068860d88
+[  535.845423] sd 0:0:9:0: [sdb] tag#2824 kworker/u129:2: flush retry cmd scmd=0xffff001068860d88
+[  535.845437] scsi_eh_flush_done_q2 scmd=0xffff001068861508 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845440] scsi_eh_flush_done_q3 scmd=0xffff001068861508
+[  535.845444] sd 0:0:9:0: [sdb] tag#2761 kworker/u129:2: flush retry cmd scmd=0xffff001068861508
+[  535.845457] scsi_eh_flush_done_q2 scmd=0xffff001068862908 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845460] scsi_eh_flush_done_q3 scmd=0xffff001068862908
+[  535.845463] sd 0:0:9:0: [sdb] tag#2764 kworker/u129:2: flush retry cmd scmd=0xffff001068862908
+[  535.845477] scsi_eh_flush_done_q2 scmd=0xffff0010688ba108 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845479] scsi_eh_flush_done_q3 scmd=0xffff0010688ba108
+[  535.845482] sd 0:0:9:0: [sdb] tag#2821 kworker/u129:2: flush retry cmd scmd=0xffff0010688ba108
+[  535.845495] scsi_eh_flush_done_q2 scmd=0xffff0010688bb008 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845499] scsi_eh_flush_done_q3 scmd=0xffff0010688bb008
+[  535.845502] sd 0:0:9:0: [sdb] tag#2753 kworker/u129:2: flush retry cmd scmd=0xffff0010688bb008
+[  535.845515] scsi_eh_flush_done_q2 scmd=0xffff0010688ba608 online=1 noretry=0 retry_allowed=1 should_retry=1
+[  535.845518] scsi_eh_flush_done_q3 scmd=0xffff0010688ba608
+[  535.845521] sd 0:0:9:0: [sdb] tag#2823 kworker/u129:2: flush retry cmd scmd=0xffff0010688ba608
+[  535.845528] ata2: EH complete
+[  535.845547] scsi_eh_flush_done_q
+[  535.845549] sas: broadcast received: 0
+[  535.845555] sas: REVALIDATING DOMAIN on port 0, pid:8
+[  535.845556] sas: --- Exit sas_scsi_recover_host: busy: 0 failed: 32 tries: 1
+[  535.845563] scsi host0: waking up host to restart
+[  535.845872] scsi host0: scsi_eh_0: sleeping
+[  535.845964] sd 0:0:9:0: [sdb] tag#978 Done: UNKNOWN(0x2002) Result: hostbyte=0x10 driverbyte=DRIVER_OK cmd_age=0s
+[  535.845968] sd 0:0:9:0: [sdb] tag#978 CDB: opcode=0x12 12 01 b9 00 04 00
+[  535.845971] sd 0:0:9:0: [sdb] tag#978 Sense Key : 0x5 [current] 
+[  535.845973] sd 0:0:9:0: [sdb] tag#978 ASC=0x24 ASCQ=0x0 
+[  535.846015] sas: ex 500e004aaaaaaa1f phy02 change count has changed
+[  535.846301] sas: ex 500e004aaaaaaa1f phy02 originated BROADCAST(CHANGE)
+[  535.846305] sas: ex 500e004aaaaaaa1f rediscovering phy02
+[  535.846493] sas: ex 500e004aaaaaaa1f phy02 broadcast flutter
+[  535.848608] sas: done REVALIDATING DOMAIN on port 0, pid:8, res 0x0
