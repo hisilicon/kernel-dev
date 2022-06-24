@@ -2406,7 +2406,7 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 			_ata_err = atomic_inc_return(&ata_err);
 
 		if (!test_bit(SAS_HA_FROZEN, &ha->state)) {
-			if (_ata_err == 1000) {
+			if (_ata_err == -1) {
 				pr_err("%s sata task=%pS device=%pS aborting with sas_task_abort\n", __func__, task, device);
 				sas_task_abort(task);
 				state_dont_complete_ata = true;

@@ -831,10 +831,11 @@ void ata_eh_fastdrain_timerfn(struct timer_list *t)
 	unsigned long flags;
 	int cnt;
 
+	pr_err("%s ap=%pS\n", __func__, ap);
 	spin_lock_irqsave(ap->lock, flags);
 
 	cnt = ata_eh_nr_in_flight(ap);
-	pr_err("%s cnt=%d ap->fastdrain_cnt=%ld\n", __func__, cnt, ap->fastdrain_cnt);
+	pr_err("%s1 cnt=%d ap->fastdrain_cnt=%ld\n", __func__, cnt, ap->fastdrain_cnt);
 	/* are we done? */
 	if (!cnt)
 		goto out_unlock;
@@ -900,7 +901,7 @@ static void ata_eh_set_pending(struct ata_port *ap, int fastdrain)
 	ap->fastdrain_cnt = cnt;
 	ap->fastdrain_timer.expires =
 		ata_deadline(jiffies, ATA_EH_FASTDRAIN_INTERVAL);
-	pr_err("%s3 ap=%pS adding fastdrain_timer\n", __func__, ap);
+	pr_err("%s3 ap=%pS adding fastdrain_timer expires=%ld jiffies=%ld\n", __func__, ap, ap->fastdrain_timer.expires, jiffies);
 	add_timer(&ap->fastdrain_timer);
 }
 

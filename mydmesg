@@ -2869,6 +2869,16 @@
 [  476.728668] sd 0:0:9:0: [sdb] tag#3156 CDB: opcode=0x85 85 06 20 00 05 00 fe 00 00 00 00 00 00 40 ef 00
 [  476.728672] sd 0:0:9:0: [sdb] tag#3156 Sense Key : 0x1 [current] [descriptor] 
 [  476.728675] sd 0:0:9:0: [sdb] tag#3156 ASC=0x0 ASCQ=0x1d 
+
+
+
+
+
+
+
+
+
+
 [  504.193798] slot_complete_v2_hw sata task=0xffff001048651980 device=0xffff001048db6800 aborting with task_done
 [  504.193811] sas: sas_ata_task_done2: SAS error 0x8c link->sactive=0xffffffff task=0xffff001048651980 qc=0xffff001045d99300
 [  504.193816] sas: sas_ata_task_done3: SAS error 0x8c setting AC_ERR_DEV task=0xffff001048651980 qc=0xffff001045d99300
