@@ -2400,12 +2400,12 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 		}
 
 
-		if (test_bit(SAS_HA_FROZEN, &ha->state))
+		if (test_bit(SAS_HA_FROZEN, &ha->state) && qc)
 			_ata_err = atomic_read(&ata_err);
 		else
 			_ata_err = atomic_inc_return(&ata_err);
 
-		if (!test_bit(SAS_HA_FROZEN, &ha->state)) {
+		if (!test_bit(SAS_HA_FROZEN, &ha->state) && qc) {
 			if (_ata_err == -1) {
 				pr_err("%s sata task=%pS device=%pS aborting with sas_task_abort\n", __func__, task, device);
 				sas_task_abort(task);
@@ -2414,15 +2414,10 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 			}
 
 			if (_ata_err == 100000) {
-				pr_err("%s sata task=%pS device=%pS aborting with task_done\n", __func__, task, device);
-				ts->stat = SAS_ABORTED_TASK;
-				ts->resp = SAS_TASK_COMPLETE;
+				struct ata_port ap = qc->ap;
+				pr_err("%s sata task=%pS device=%pS calling ata_std_sched_eh qc=%pS ap=%pS\n", __func__, task, device, qc, ap);
 				state_dont_complete_ata = true;
-
-				hisi_sas_slot_task_free(hisi_hba, task, slot);
-
-				if (task->task_done)
-					task->task_done(task);
+				ata_std_sched_eh(ap);
 
 				return;
 			}

@@ -944,7 +944,7 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 void ata_std_sched_eh(struct ata_port *ap)
 {
 	WARN_ON(!ap->ops->error_handler);
-
+	pr_err("%s ap=%pS ATA_PFLAG_INITIALIZING=%d\n", __func__, ap, !!(ap->pflags & ATA_PFLAG_INITIALIZING));
 	if (ap->pflags & ATA_PFLAG_INITIALIZING)
 		return;
 
