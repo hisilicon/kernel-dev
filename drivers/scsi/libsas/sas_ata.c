@@ -527,11 +527,21 @@ static int sas_ata_prereset(struct ata_link *link, unsigned long deadline)
 
 	return res;
 }
+void sas_ata_std_error_handler(struct ata_port *ap)
+{
+	struct ata_link *link = &ap->link;
+	struct ata_eh_context *ehc = &link->eh_context;
+	pr_err("%s ap=%pS link=%pS ehc->i.err_mask=0x%x\n", __func__, ap, link, ehc->i.err_mask);
+
+
+	ata_std_error_handler(ap);
+}
+
 
 static struct ata_port_operations sas_sata_ops = {
 	.prereset		= sas_ata_prereset,
 	.hardreset		= sas_ata_hard_reset,
-	.error_handler		= ata_std_error_handler,
+	.error_handler		= sas_ata_std_error_handler,
 	.post_internal_cmd	= sas_ata_post_internal,
 	.qc_defer               = ata_std_qc_defer,
 	.qc_prep		= ata_noop_qc_prep,
