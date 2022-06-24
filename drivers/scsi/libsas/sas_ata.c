@@ -817,7 +817,15 @@ void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q)
 		}
 
 		if (!list_empty(&sata_q)) {
+			static int once_ncq;
 			struct ata_port *ap = eh_dev->sata_dev.ap;
+
+			if (!once_ncq) {
+				struct ata_link *link = &ap->link;
+				pr_err("%s calling ata_eh_analyze_ncq_error once ap=%pS link=%pS\n", __func__, ap, link);
+				ata_eh_analyze_ncq_error(link);
+				once_ncq = 1;
+			}
 
 			sas_ata_printk(KERN_ERR, eh_dev, "cmd error handler calling ata_scsi_cmd_error_handler\n");
 			ata_scsi_cmd_error_handler(shost, ap, &sata_q);
