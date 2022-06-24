@@ -531,9 +531,10 @@ void sas_ata_std_error_handler(struct ata_port *ap)
 {
 	struct ata_link *link = &ap->link;
 	struct ata_eh_context *ehc = &link->eh_context;
-	pr_err("%s ap=%pS link=%pS ehc->i.err_mask=0x%x\n", __func__, ap, link, ehc->i.err_mask);
+	pr_err("%s ap=%pS link=%pS ehc->i.err_mask=0x%x calling ata_eh_analyze_ncq_error\n", __func__, ap, link, ehc->i.err_mask);
+	ata_eh_analyze_ncq_error(link);
 
-
+	pr_err("%s2 ap=%pS link=%pS ehc->i.err_mask=0x%x calling ata_std_error_handler\n", __func__, ap, link, ehc->i.err_mask);
 	ata_std_error_handler(ap);
 }
 
