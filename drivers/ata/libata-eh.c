@@ -921,7 +921,7 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 
 	WARN_ON(!ap->ops->error_handler);
 
-	pr_err("%s qc=%pS scsicmd=%pS setting ATA_QCFLAG_FAILED calling ata_eh_set_pending\n", __func__, qc, qc->scsicmd);
+	pr_err("%s qc=%pS err_mask=0x%x scsicmd=%pS setting ATA_QCFLAG_FAILED calling ata_eh_set_pending\n", __func__, qc, qc->err_mask, qc->scsicmd);
 	qc->flags |= ATA_QCFLAG_FAILED;
 	ata_eh_set_pending(ap, 1);
 
@@ -930,6 +930,7 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 	 * Note that ATA_QCFLAG_FAILED is unconditionally set after
 	 * this function completes.
 	 */
+	pr_err("%s2 qc=%pS err_mask=0x%x scsicmd=%pS calling blk_abort_request\n", __func__, qc, qc->err_mask, qc->scsicmd);
 	blk_abort_request(scsi_cmd_to_rq(qc->scsicmd));
 }
 

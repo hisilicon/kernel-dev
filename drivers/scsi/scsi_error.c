@@ -230,7 +230,7 @@ scsi_abort_command(struct scsi_cmnd *scmd)
 	struct scsi_device *sdev = scmd->device;
 	struct Scsi_Host *shost = sdev->host;
 	unsigned long flags;
-
+	pr_err("%s scmd=%pS\n", __func__, scmd);
 	if (scmd->eh_eflags & SCSI_EH_ABORT_SCHEDULED) {
 		/*
 		 * Retry after abort failed, escalate to next level.
@@ -332,7 +332,7 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
 	enum blk_eh_timer_return rtn = BLK_EH_DONE;
 	struct Scsi_Host *host = scmd->device->host;
-	pr_err("%s req=%pS scmd=%pS\n", __func__, req, scmd);
+	pr_err("%s req=%pS scmd=%pS eh_timed_out=%pS\n", __func__, req, scmd, host->hostt->eh_timed_out);
 	trace_scsi_dispatch_cmd_timeout(scmd);
 	scsi_log_completion(scmd, TIMEOUT_ERROR);
 

@@ -4724,8 +4724,8 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		 * summon EH.
 		 */
 		if (unlikely(qc->flags & ATA_QCFLAG_FAILED)) {
-			pr_err("%s2 qc=%pS scsicmd=%pS ATA_QCFLAG_FAILED calling ata_qc_schedule_eh\n",
-				__func__, qc, qc->scsicmd);
+			pr_err("%s2 qc=%pS err_mask=0x%x scsicmd=%pS ATA_QCFLAG_FAILED calling ata_qc_schedule_eh\n",
+				__func__, qc, qc->err_mask, qc->scsicmd);
 			fill_result_tf(qc);
 			trace_ata_qc_complete_failed(qc);
 			ata_qc_schedule_eh(qc);
