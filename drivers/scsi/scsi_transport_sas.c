@@ -1548,7 +1548,7 @@ void sas_scan_rphy(struct sas_rphy *rphy)
 				 SCSI_SCAN_INITIAL);
 	} else if ((identify->device_type == SAS_EDGE_EXPANDER_DEVICE) ||
 				(identify->device_type == SAS_FANOUT_EXPANDER_DEVICE)) {
-		struct scsi_device *sdev = scsi_alloc_device(&rphy->dev, rphy->scsi_target_id, 0, 0, NULL);
+		struct scsi_device *sdev = scsi_alloc_device(&rphy->dev, rphy->scsi_target_id + 1, 0, 0, NULL);
 //struct device *parent, uint channel,
 	//			      uint id, u64 lun, void *hostdata
 		pr_err("%s3 EXPANDER rphy=%pS &rphy->dev=%pS calling scsi_scan_target  channel=scsi_target_id=%d id=0 lun=0 sdev=%pS\n", 
