@@ -508,6 +508,7 @@ static void ata_eh_unload(struct ata_port *ap)
 	/* freeze and set UNLOADED */
 	spin_lock_irqsave(ap->lock, flags);
 
+	pr_err("%s ap=%pS calling ata_port_freeze\n", __func__, ap);
 	ata_port_freeze(ap);			/* won't be thawed */
 	ap->pflags &= ~ATA_PFLAG_EH_PENDING;	/* clear pending from freeze */
 	ap->pflags |= ATA_PFLAG_UNLOADED;
@@ -1073,7 +1074,7 @@ EXPORT_SYMBOL_GPL(ata_port_abort);
 static void __ata_port_freeze(struct ata_port *ap)
 {
 	WARN_ON(!ap->ops->error_handler);
-
+	pr_err("%s ap=%pS\n", __func__, ap);
 	if (ap->ops->freeze)
 		ap->ops->freeze(ap);
 
@@ -1102,8 +1103,10 @@ int ata_port_freeze(struct ata_port *ap)
 
 	WARN_ON(!ap->ops->error_handler);
 
+	pr_err("%s ap=%pS\n", __func__, ap);
 	__ata_port_freeze(ap);
 	nr_aborted = ata_port_abort(ap);
+	pr_err("%s2 ap=%pS nr_aborted=%d\n", __func__, ap, nr_aborted);
 
 	return nr_aborted;
 }
@@ -1124,7 +1127,7 @@ void ata_eh_freeze_port(struct ata_port *ap)
 
 	if (!ap->ops->error_handler)
 		return;
-
+	pr_err("%s ap=%pS\n", __func__, ap);
 	spin_lock_irqsave(ap->lock, flags);
 	__ata_port_freeze(ap);
 	spin_unlock_irqrestore(ap->lock, flags);
@@ -1148,7 +1151,7 @@ void ata_eh_thaw_port(struct ata_port *ap)
 		return;
 
 	spin_lock_irqsave(ap->lock, flags);
-
+	pr_err("%s ap=%pS\n", __func__, ap);
 	ap->pflags &= ~ATA_PFLAG_FROZEN;
 
 	if (ap->ops->thaw)
