@@ -193,7 +193,7 @@ void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 {
 	struct sas_ha_struct *ha = phy->ha;
 	struct asd_sas_event *ev;
-
+	pr_err("%s phy%d event=%d\n", __func__, phy->id, event);
 	BUG_ON(event >= PHY_NUM_EVENTS);
 
 	ev = sas_alloc_event(phy, gfp_flags);

@@ -627,6 +627,17 @@ extern bool hisi_sas_debugfs_enable;
 extern u32 hisi_sas_debugfs_dump_count;
 extern struct dentry *hisi_sas_debugfs_dir;
 
+static inline char *hisi_sas_dev_status(struct hisi_sas_device *dev)
+{
+	if (dev->dev_status == HISI_SAS_DEV_INIT)
+		return "HISI_SAS_DEV_INIT";
+
+	if (dev->dev_status == HISI_SAS_DEV_NORMAL)
+		return "HISI_SAS_DEV_NORMAL";
+
+	return "unknown dev status";
+}
+
 extern void hisi_sas_stop_phys(struct hisi_hba *hisi_hba);
 extern int hisi_sas_alloc(struct hisi_hba *hisi_hba);
 extern void hisi_sas_free(struct hisi_hba *hisi_hba);
