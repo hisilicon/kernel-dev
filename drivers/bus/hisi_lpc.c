@@ -471,6 +471,12 @@ static int hisi_lpc_acpi_remove_subdev(struct device *dev, void *unused)
 	return 0;
 }
 
+static int hisi_lpc_acpi_clear_enumerated(struct acpi_device *adev, void *not_used)
+{
+	acpi_device_clear_enumerated(adev);
+	return 0;
+}
+
 struct hisi_lpc_acpi_cell {
 	const char *hid;
 	const char *name;
@@ -480,13 +486,11 @@ struct hisi_lpc_acpi_cell {
 
 static void hisi_lpc_acpi_remove(struct device *hostdev)
 {
-	struct acpi_device *adev = ACPI_COMPANION(hostdev);
 	struct acpi_device *child;
 
 	device_for_each_child(hostdev, NULL, hisi_lpc_acpi_remove_subdev);
-
-	list_for_each_entry(child, &adev->children, node)
-		acpi_device_clear_enumerated(child);
+	acpi_dev_for_each_child(ACPI_COMPANION(hostdev),
+				hisi_lpc_acpi_clear_enumerated, NULL);
 }
 
 /*
