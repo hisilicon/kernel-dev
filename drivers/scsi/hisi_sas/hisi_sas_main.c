@@ -1345,6 +1345,8 @@ static void hisi_sas_refresh_port_id(struct hisi_hba *hisi_hba)
 static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 {
 	struct asd_sas_port *_sas_port = NULL;
+	struct Scsi_Host *shost = hisi_hba->shost;
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	int phy_no;
 
 	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
@@ -1363,15 +1365,17 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 
 				_sas_port = sas_port;
 
-				if (dev_is_expander(dev->dev_type))
+				if (dev_is_expander(dev->dev_type)) {
 					sas_notify_port_event(sas_phy,
 							PORTE_BROADCAST_RCVD,
 							GFP_KERNEL);
+				}
 			}
 		} else {
 			hisi_sas_phy_down(hisi_hba, phy_no, 0, GFP_KERNEL);
 		}
 	}
+	drain_workqueue(sha->event_q);
 }
 
 static void hisi_sas_reset_init_all_devices(struct hisi_hba *hisi_hba)
