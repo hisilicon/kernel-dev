@@ -442,7 +442,7 @@ static void sas_discover_domain(struct work_struct *work)
 		return;
 	dev = port->port_dev;
 
-	pr_err("DOING DISCOVERY on port %d, pid:%d\n", port->id,
+	pr_debug("DOING DISCOVERY on port %d, pid:%d\n", port->id,
 		 task_pid_nr(current));
 
 	switch (dev->dev_type) {
@@ -482,7 +482,7 @@ static void sas_discover_domain(struct work_struct *work)
 
 	sas_probe_devices(port);
 
-	pr_err("DONE DISCOVERY on port %d, pid:%d, result:%d\n", port->id,
+	pr_debug("DONE DISCOVERY on port %d, pid:%d, result:%d\n", port->id,
 		 task_pid_nr(current), error);
 }
 
@@ -497,20 +497,20 @@ static void sas_revalidate_domain(struct work_struct *work)
 	/* prevent revalidation from finding sata links in recovery */
 	mutex_lock(&ha->disco_mutex);
 	if (test_bit(SAS_HA_ATA_EH_ACTIVE, &ha->state)) {
-		pr_err("REVALIDATION DEFERRED on port %d, pid:%d\n",
+		pr_debug("REVALIDATION DEFERRED on port %d, pid:%d\n",
 			 port->id, task_pid_nr(current));
 		goto out;
 	}
 
 	clear_bit(DISCE_REVALIDATE_DOMAIN, &port->disc.pending);
 
-	pr_err("REVALIDATING DOMAIN on port %d, pid:%d\n", port->id,
+	pr_debug("REVALIDATING DOMAIN on port %d, pid:%d\n", port->id,
 		 task_pid_nr(current));
 
 	if (ddev && dev_is_expander(ddev->dev_type))
 		res = sas_ex_revalidate_domain(ddev);
 
-	pr_err("done REVALIDATING DOMAIN on port %d, pid:%d, res 0x%x\n",
+	pr_debug("done REVALIDATING DOMAIN on port %d, pid:%d, res 0x%x\n",
 		 port->id, task_pid_nr(current), res);
  out:
 	mutex_unlock(&ha->disco_mutex);

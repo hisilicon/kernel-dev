@@ -760,23 +760,14 @@ int hisi_sas_slave_alloc(struct scsi_device *sdev)
 	struct hisi_sas_device *sas_dev = ddev->lldd_dev;
 	int rc;
 
-	pr_err("%s ddev=%pS sas_dev=%pS dev_status=%s\n",
-		__func__, ddev, sas_dev, hisi_sas_dev_status(sas_dev));
-
 	rc = sas_slave_alloc(sdev);
-	pr_err("%s1 ddev=%pS sas_dev=%pS dev_status=%s rc=%d after sas_slave_alloc\n",
-		__func__, ddev, sas_dev, hisi_sas_dev_status(sas_dev), rc);
 	if (rc)
 		return rc;
 
 	rc = hisi_sas_init_device(ddev);
-	pr_err("%s2 ddev=%pS sas_dev=%pS dev_status=%s rc=%d after hisi_sas_init_device\n",
-		__func__, ddev, sas_dev, hisi_sas_dev_status(sas_dev), rc);
 	if (rc)
 		return rc;
 	sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
-	pr_err("%s10 ddev=%pS sas_dev=%pS dev_status=%s exit\n",
-		__func__, ddev, sas_dev, hisi_sas_dev_status(sas_dev));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hisi_sas_slave_alloc);
@@ -1137,9 +1128,8 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	struct device *dev = hisi_hba->dev;
 	int ret = 0;
 
-	dev_info(dev, "dev[%d:%x] is gone sas_dev=%pS status=%s\n",
-		 sas_dev->device_id, sas_dev->dev_type, sas_dev, hisi_sas_dev_status(sas_dev));
-	WARN_ON(1);
+	dev_info(dev, "dev[%d:%x] is gone\n",
+		 sas_dev->device_id, sas_dev->dev_type);
 
 	down(&hisi_hba->sem);
 	if (!test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags)) {
@@ -1357,7 +1347,6 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 	struct asd_sas_port *_sas_port = NULL;
 	int phy_no;
 
-	pr_err("%s hisi_hba=%pS state=0x%x\n", __func__, hisi_hba, state);
 	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
 		struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 		struct asd_sas_phy *sas_phy = &phy->sas_phy;
@@ -1488,7 +1477,7 @@ EXPORT_SYMBOL_GPL(hisi_sas_controller_reset_prepare);
 void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba)
 {
 	struct Scsi_Host *shost = hisi_hba->shost;
-	pr_err("%s hisi_hba=%pS\n", __func__, hisi_hba);
+
 	/* Init and wait for PHYs to come up and all libsas event finished. */
 	hisi_hba->hw->phys_init(hisi_hba);
 	msleep(1000);
@@ -1674,8 +1663,7 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
 	int rc, reset_type;
-	pr_err("%s device=%pS sas_dev=%pS dev_status=%s\n",
-		__func__, device, sas_dev, hisi_sas_dev_status(sas_dev));
+
 	if (!local_phy->enabled) {
 		sas_put_local_phy(local_phy);
 		return -ENODEV;
@@ -1716,8 +1704,6 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 		return rc;
 	}
 
-	pr_err("%s2 device=%pS sas_dev=%pS dev_status=%s rc=%d after reset of phy dev_is_sata=%d\n",
-		__func__, device, sas_dev, hisi_sas_dev_status(sas_dev), rc, dev_is_sata(device));
 	if (rc)
 		return rc;
 
@@ -1729,8 +1715,6 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 		msleep(2000);
 	}
 
-	pr_err("%s10 out device=%pS sas_dev=%pS dev_status=%s rc=%d after waiting for phy to come back\n",
-		__func__, device, sas_dev, hisi_sas_dev_status(sas_dev), rc);
 	return rc;
 }
 
