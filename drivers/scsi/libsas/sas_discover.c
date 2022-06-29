@@ -373,6 +373,7 @@ void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *dev)
 
 	if (!test_and_set_bit(SAS_DEV_DESTROY, &dev->state)) {
 		sas_rphy_unlink(dev->rphy);
+		pr_err("%s dev=%pS moving to destroy_list\n", __func__, dev);
 		list_move_tail(&dev->disco_list_node, &port->destroy_list);
 	}
 }
@@ -382,8 +383,10 @@ void sas_unregister_domain_devices(struct asd_sas_port *port, int gone)
 	struct domain_device *dev, *n;
 
 	list_for_each_entry_safe_reverse(dev, n, &port->dev_list, dev_list_node) {
-		if (gone)
+		if (gone) {
+			pr_err("%s port=%pS dev=%pS\n", __func__, port, dev);
 			set_bit(SAS_DEV_GONE, &dev->state);
+		}
 		sas_unregister_dev(port, dev);
 	}
 
