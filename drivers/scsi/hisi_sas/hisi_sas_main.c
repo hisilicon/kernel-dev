@@ -1843,6 +1843,7 @@ static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 	}
 
 	async_synchronize_full_domain(&async);
+	pr_err("%s finished async_synchronize_full_domain\n", __func__);
 	hisi_sas_release_tasks(hisi_hba);
 
 	return TMF_RESP_FUNC_COMPLETE;

@@ -1998,10 +1998,12 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
 	switch (res) {
 	case SMP_RESP_NO_PHY:
 		phy->phy_state = PHY_NOT_PRESENT;
+		pr_err("%s SMP_RESP_NO_PHY phy_id=%d\n", __func__, phy_id);
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
 		return res;
 	case SMP_RESP_PHY_VACANT:
 		phy->phy_state = PHY_VACANT;
+		pr_err("%s SMP_RESP_NO_PHY phy_id=%d\n", __func__, phy_id);
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
 		return res;
 	case SMP_RESP_FUNC_ACC:
