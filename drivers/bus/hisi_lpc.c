@@ -677,7 +677,7 @@ static int hisi_lpc_remove(struct platform_device *pdev)
 	struct acpi_device *acpi_device = ACPI_COMPANION(dev);
 	struct hisi_lpc_dev *lpcdev = dev_get_drvdata(dev);
 	struct logic_pio_hwaddr *range = lpcdev->io_host;
-
+	dev_err(dev, "%s\n", __func__);
 	if (acpi_device)
 		hisi_lpc_acpi_remove(dev);
 	else
