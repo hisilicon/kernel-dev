@@ -538,6 +538,53 @@ void sas_ata_std_error_handler(struct ata_port *ap)
 	ata_std_error_handler(ap);
 }
 
+void sas_ata_handle_disk_err(struct domain_device *device)
+{
+	struct sata_device *sata_dev = &device->sata_dev;
+	struct ata_port *ap = sata_dev->ap;
+	struct ata_link *link = &ap->link;
+	struct ata_queued_cmd *qc;
+	int tag, nr_aborted = 0;
+	unsigned long flags;
+
+	WARN_ON(!ap->ops->error_handler);
+	pr_err("%s ap=%pS link=%pS\n", __func__, ap, link);
+
+	spin_lock_irqsave(ap->lock, flags);
+
+	/* we're gonna abort all commands, no need for fast drain */
+	ap->pflags |= ATA_PFLAG_EH_PENDING;
+
+	/* include internal tag in iteration */
+	ata_qc_for_each_with_internal(ap, qc, tag) {
+		struct scsi_cmnd *scmd = NULL;
+		struct sas_task *task = NULL;
+		pr_err("%s1 qc=%pS tag=%d\n", __func__, qc, tag);
+		if (qc)
+			scmd = qc->scsicmd;
+		pr_err("%s1.1 qc=%pS tag=%d scmd=%pS\n", __func__, qc, tag, scmd);
+		if (scmd)
+			task = TO_SAS_TASK(scmd);
+		pr_err("%s1.2 qc=%pS tag=%d task=%pS\n", __func__, qc, tag, task);
+
+		pr_err("%s1 qc=%pS scmd=%pS task=%pS setting ATA_QCFLAG_FAILED tag=%d\n", __func__, qc, scmd, task, tag);
+		if (qc && (!link || qc->dev->link == link)) {
+			pr_err("%s2 qc=%pS setting ATA_QCFLAG_FAILED\n", __func__, qc);
+			qc->flags |= ATA_QCFLAG_FAILED;
+			ata_qc_complete(qc);
+			nr_aborted++;
+			pr_err("%s3 qc=%pS\n", __func__, qc);
+		}
+		pr_err("%s4 qc=%pS\n", __func__, qc);
+	}
+
+	pr_err("%s5 nr_aborted=%d\n", __func__, nr_aborted);
+	if (!nr_aborted)
+		ata_port_schedule_eh(ap);
+
+	pr_err("%s10 exiting\n", __func__);
+	spin_unlock_irqrestore(ap->lock, flags);
+} 
 
 static struct ata_port_operations sas_sata_ops = {
 	.prereset		= sas_ata_prereset,

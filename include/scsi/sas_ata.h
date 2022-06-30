@@ -35,8 +35,13 @@ void sas_ata_end_eh(struct ata_port *ap);
 int sas_execute_ata_cmd(struct domain_device *device, u8 *fis,
 			int force_phy_id);
 int sas_ata_wait_after_reset(struct domain_device *dev, unsigned long deadline);
+
+void sas_ata_handle_disk_err(struct domain_device *device);
 #else
 
+static inline void sas_ata_handle_disk_err(struct domain_device *device)
+{
+}
 
 static inline int dev_is_sata(struct domain_device *dev)
 {
