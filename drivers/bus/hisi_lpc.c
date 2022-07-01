@@ -546,6 +546,7 @@ static int hisi_lpc_acpi_add_child(struct acpi_device *child, void *data)
 	}
 	pdevinfo.name = cell->name;
 	pdevinfo.num_res = num_res;
+	pdevinfo.res = res;
 	pdevinfo.data = cell->pdata;
 	pdevinfo.size_data = cell->pdata_size;
 
