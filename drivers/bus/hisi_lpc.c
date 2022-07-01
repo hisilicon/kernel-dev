@@ -495,6 +495,11 @@ static int hisi_lpc_acpi_add_child(struct acpi_device *child, void *data)
 	int num_res;
 	int ret;
 
+	struct platform_device_info pdevinfo = {
+		.parent = hostdev,
+		.id = PLATFORM_DEVID_AUTO,
+	};
+
 	ret = hisi_lpc_acpi_set_io_res(child, hostdev, &res, &num_res);
 	if (ret) {
 		dev_warn(hostdev, "set resource fail (%d)\n", ret);
@@ -539,25 +544,17 @@ static int hisi_lpc_acpi_add_child(struct acpi_device *child, void *data)
 			 hid);
 		return 0;
 	}
+	pdevinfo.name = cell->name;
+	pdevinfo.num_res = num_res;
+	pdevinfo.data = cell->pdata;
+	pdevinfo.size_data = cell->pdata_size;
 
-	pdev = platform_device_alloc(cell->name, PLATFORM_DEVID_AUTO);
+	pdev = platform_device_register_full(&pdevinfo);
 	if (!pdev)
 		return -ENOMEM;
 
 	pdev->dev.parent = hostdev;
 	ACPI_COMPANION_SET(&pdev->dev, child);
-
-	ret = platform_device_add_resources(pdev, res, num_res);
-	if (ret)
-		return ret;
-
-	ret = platform_device_add_data(pdev, cell->pdata, cell->pdata_size);
-	if (ret)
-		return ret;
-
-	ret = platform_device_add(pdev);
-	if (ret)
-		return ret;
 
 	acpi_device_set_enumerated(child);
 
