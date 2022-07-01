@@ -2341,6 +2341,20 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 
 	ts = &task->task_status;
 	device = task->dev;
+
+	if (dev_is_sata(device)) {
+		struct ata_queued_cmd *qc = task->uldd_task;
+		struct scsi_cmnd *scmd = NULL;
+
+		if (qc)
+			scmd = qc->scsicmd;
+
+		if (state_dont_complete_ata && scmd) {
+			pr_err("%s skipping ATA completion scmd=%pS qc=%pS task=%pS scmd=%pS\n", __func__, scmd, qc, task, scmd);
+			return;
+		}
+	}
+
 	ha = device->port->ha;
 	sas_dev = device->lldd_dev;
 
@@ -2391,13 +2405,6 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 		struct ata_queued_cmd *qc = task->uldd_task;
 		struct scsi_cmnd *scmd = NULL;
 
-		if (qc)
-			scmd = qc->scsicmd;
-
-		if (state_dont_complete_ata && scmd) {
-			pr_err("%s skipping ATA completion scmd=%pS qc=%pS task=%pS scmd=%pS\n", __func__, scmd, qc, task, scmd);
-			return;
-		}
 
 
 		if (test_bit(SAS_HA_FROZEN, &ha->state) && qc)
