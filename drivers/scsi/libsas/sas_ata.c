@@ -572,7 +572,7 @@ void sas_ata_handle_disk_err(struct domain_device *device)
 		pr_err("%s1 qc=%pS tag=%d\n", __func__, qc, tag);
 		if (qc)
 			scmd = qc->scsicmd;
-		pr_err("%s1.1 qc=%pS tag=%d scmd=%pS\n", __func__, qc, tag, scmd);
+		pr_err("%s1.1 qc=%pS flags=0x%lx tag=%d scmd=%pS\n", __func__, qc, qc ? qc->flags : -1UL, tag, scmd);
 		if (scmd)
 			task = TO_SAS_TASK(scmd);
 		pr_err("%s1.2 qc=%pS tag=%d task=%pS\n", __func__, qc, tag, task);
