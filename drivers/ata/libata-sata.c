@@ -1366,6 +1366,7 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
 	int i;
 	pr_err("%s calling ata_read_log_page\n", __func__);
 	err_mask = ata_read_log_page(dev, ATA_LOG_SATA_NCQ, 0, buf, 1);
+	pr_err("%s2  ata_read_log_page err_mask=0x%x error\n", __func__, err_mask);
 	if (err_mask)
 		return -EIO;
 

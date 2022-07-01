@@ -878,7 +878,7 @@ void ata_eh_fastdrain_timerfn(struct timer_list *t)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-static void ata_eh_set_pending(struct ata_port *ap, int fastdrain)
+void ata_eh_set_pending(struct ata_port *ap, int fastdrain)
 {
 	int cnt;
 	pr_err("%s fastdrain=%d ATA_PFLAG_EH_PENDING=%d\n", __func__, fastdrain, !!(ap->pflags & ATA_PFLAG_EH_PENDING));
@@ -1005,6 +1005,8 @@ static int ata_do_link_abort(struct ata_port *ap, struct ata_link *link)
 
 	/* include internal tag in iteration */
 	ata_qc_for_each_with_internal(ap, qc, tag) {
+
+		pr_err("%s1 qc=%pS\n", __func__, qc);
 		if (qc && (!link || qc->dev->link == link)) {
 			pr_err("%s2 qc=%pS setting ATA_QCFLAG_FAILED\n", __func__, qc);
 			qc->flags |= ATA_QCFLAG_FAILED;

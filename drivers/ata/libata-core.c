@@ -1973,8 +1973,11 @@ unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
 	 * Return error without actually issuing the command on controllers
 	 * which e.g. lockup on a read log page.
 	 */
-	if (ap_flags & ATA_FLAG_NO_LOG_PAGE)
+	if (ap_flags & ATA_FLAG_NO_LOG_PAGE) {
+
+		pr_err("%s2 ATA_FLAG_NO_LOG_PAGE\n", __func__);
 		return AC_ERR_DEV;
+	}
 
 retry:
 	ata_tf_init(dev, &tf);
@@ -1996,6 +1999,7 @@ retry:
 
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
 				     buf, sectors * ATA_SECT_SIZE, 0);
+	pr_err("%s3 ata_exec_internal err_mask=0x%x\n", __func__, err_mask);
 
 	if (err_mask) {
 		if (dma) {
