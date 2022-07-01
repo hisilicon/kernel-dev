@@ -591,7 +591,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		}
 	}
 
-	if (!internal_abort && hisi_hba->hw->slot_index_alloc)
+	if (!internal_abort && !task->tmf && hisi_hba->hw->slot_index_alloc)
 		rc = hisi_hba->hw->slot_index_alloc(hisi_hba, device);
 	else
 		rc = hisi_sas_slot_index_alloc(hisi_hba, scmd);
