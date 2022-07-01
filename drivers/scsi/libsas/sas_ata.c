@@ -81,6 +81,10 @@ static void sas_ata_task_done(struct sas_task *task)
 	unsigned long flags;
 	struct ata_link *link;
 	struct ata_port *ap;
+	struct scsi_cmnd *scsicmd = qc->scsicmd;
+
+	if (!scsicmd)
+		pr_err("%s qc=%pS err_mask=0x%x scsicmd=%pS task=%pS\n", __func__, qc, qc->err_mask, scsicmd, task);
 
 	spin_lock_irqsave(&dev->done_lock, flags);
 	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))
@@ -96,6 +100,8 @@ static void sas_ata_task_done(struct sas_task *task)
 	if (!qc)
 		goto qc_already_gone;
 
+	if (!scsicmd)
+		pr_err("%s2 qc=%pS err_mask=0x%x scsicmd=%pS task=%pS\n", __func__, qc, qc->err_mask, scsicmd, task);
 	ap = qc->ap;
 	link = &ap->link;
 
@@ -114,6 +120,8 @@ static void sas_ata_task_done(struct sas_task *task)
 		}
 	}
 
+	if (!scsicmd)
+		pr_err("%s3 qc=%pS scsicmd=%pS task=%pS\n", __func__, qc, scsicmd, task);
 	if (stat->stat == SAS_PROTO_RESPONSE ||
 	    stat->stat == SAS_SAM_STAT_GOOD ||
 	    (stat->stat == SAS_SAM_STAT_CHECK_CONDITION &&
@@ -174,8 +182,10 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	spin_unlock(ap->lock);
 
 	/* If the device fell off, no sense in issuing commands */
-	if (test_bit(SAS_DEV_GONE, &dev->state))
+	if (test_bit(SAS_DEV_GONE, &dev->state)){
+		pr_err("%s qc=%pS SAS_DEV_GONE\n", __func__, qc);
 		goto out;
+	}
 
 	task = sas_alloc_task(GFP_ATOMIC);
 	if (!task)
@@ -217,7 +227,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 
 	ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
 	if (ret) {
-		pr_debug("lldd_execute_task returned: %d\n", ret);
+		pr_err("lldd_execute_task returned: %d qc=%pS\n", ret, qc);
 
 		if (qc->scsicmd)
 			ASSIGN_SAS_TASK(qc->scsicmd, NULL);

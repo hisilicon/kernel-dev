@@ -4686,7 +4686,10 @@ static void ata_verify_xfer(struct ata_queued_cmd *qc)
 void ata_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
+	struct scsi_cmnd *scsicmd = qc->scsicmd;
 
+	if (!scsicmd)
+		pr_err("%s qc=%pS err_mask=0x%x scsicmd=%pS\n", __func__, qc, qc->err_mask, scsicmd);
 	/* Trigger the LED (if available) */
 	ledtrig_disk_activity(!!(qc->tf.flags & ATA_TFLAG_WRITE));
 
@@ -4875,18 +4878,24 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 
 	trace_ata_qc_prep(qc);
 	qc->err_mask |= ap->ops->qc_prep(qc);
-	if (unlikely(qc->err_mask))
+	if (unlikely(qc->err_mask)){
+		pr_err("%s qc_prep err qc=%pS err_mask=0x%x\n", __func__,  qc, qc->err_mask);
 		goto err;
+	}
 	trace_ata_qc_issue(qc);
 	qc->err_mask |= ap->ops->qc_issue(qc);
-	if (unlikely(qc->err_mask))
+	if (unlikely(qc->err_mask)){
+		pr_err("%s qc_issue err qc=%pS err_mask=0x%x\n", __func__, qc, qc->err_mask);
+
 		goto err;
+	}
 	return;
 
 sys_err:
 	pr_err("%s sys_err\n", __func__);
 	qc->err_mask |= AC_ERR_SYSTEM;
 err:
+	pr_err("%s err\n", __func__);
 	ata_qc_complete(qc);
 }
 
