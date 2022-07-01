@@ -657,7 +657,7 @@ int platform_device_add(struct platform_device *pdev)
 {
 	u32 i;
 	int ret;
-
+	pr_err("%s pdev=%pS\n", __func__, pdev);
 	if (!pdev)
 		return -EINVAL;
 
@@ -666,6 +666,7 @@ int platform_device_add(struct platform_device *pdev)
 
 	pdev->dev.bus = &platform_bus_type;
 
+	pr_err("%s2 pdev=%pS pdev->id=%d\n", __func__, pdev, pdev->id);
 	switch (pdev->id) {
 	default:
 		dev_set_name(&pdev->dev, "%s.%d", pdev->name,  pdev->id);
@@ -688,6 +689,7 @@ int platform_device_add(struct platform_device *pdev)
 		break;
 	}
 
+	pr_err("%s3 pdev=%pS num_resources=%d\n", __func__, pdev, pdev->num_resources);
 	for (i = 0; i < pdev->num_resources; i++) {
 		struct resource *p, *r = &pdev->resource[i];
 
@@ -711,6 +713,7 @@ int platform_device_add(struct platform_device *pdev)
 		}
 	}
 
+	pr_err("%s4 pdev=%pS\n", __func__, pdev);
 	pr_debug("Registering platform device '%s'. Parent at %s\n",
 		 dev_name(&pdev->dev), dev_name(pdev->dev.parent));
 
