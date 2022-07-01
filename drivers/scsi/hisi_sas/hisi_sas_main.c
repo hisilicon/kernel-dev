@@ -494,8 +494,10 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_STP_ALL:
 		if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags))) {
-			if (!gfpflags_allow_blocking(gfp_flags))
+			if (!gfpflags_allow_blocking(gfp_flags)){
+				pr_err("%s1 EINVAL\n", __func__);
 				return -EINVAL;
+			}
 
 			down(&hisi_hba->sem);
 			up(&hisi_hba->sem);
@@ -509,6 +511,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 				dev_info(dev, "task prep: device %016llx not ready\n",
 					 SAS_ADDR(device->sas_addr));
 
+			pr_err("%s2 ECOMM\n", __func__);
 			return -ECOMM;
 		}
 
@@ -518,7 +521,8 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 				 dev_is_sata(device) ? "SATA/STP" : "SAS",
 				 device->port->id);
 
-				return -ECOMM;
+			pr_err("%s3 ECOMM\n", __func__);
+			return -ECOMM;
 		}
 
 		if (task->uldd_task) {
@@ -551,13 +555,17 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		if (!hisi_hba->hw->prep_abort)
 			return TMF_RESP_FUNC_FAILED;
 
-		if (test_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags))
+		if (test_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags)){
+			pr_err("%s3.1 EIO\n", __func__);
 			return -EIO;
+		}
 
 		hisi_hba = dev_to_hisi_hba(device);
 
-		if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags)))
+		if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags))) {
+			pr_err("%s3.2 EIO\n", __func__);
 			return -EINVAL;
+		}
 
 		port = to_hisi_sas_port(sas_port);
 		dq = &hisi_hba->dq[task->abort_task.qid];
@@ -570,13 +578,17 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 
 	rc = hisi_sas_dma_map(hisi_hba, task, &n_elem,
 			      &n_elem_req);
-	if (rc < 0)
+	if (rc < 0) {
+		pr_err("%s4 hisi_sas_dma_map rc=%d\n", __func__, rc);
 		goto prep_out;
+	}
 
 	if (!sas_protocol_ata(task->task_proto)) {
 		rc = hisi_sas_dif_dma_map(hisi_hba, &n_elem_dif, task);
-		if (rc < 0)
+		if (rc < 0) {
+			pr_err("%s5 hisi_sas_dif_dma_map rc=%d\n", __func__, rc);
 			goto err_out_dma_unmap;
+		}
 	}
 
 	if (!internal_abort && hisi_hba->hw->slot_index_alloc)
@@ -584,8 +596,10 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	else
 		rc = hisi_sas_slot_index_alloc(hisi_hba, scmd);
 
-	if (rc < 0)
+	if (rc < 0) {
+		pr_err("%s6 slot_index_alloc rc=%d\n", __func__, rc);
 		goto err_out_dif_dma_unmap;
+	}
 
 	slot = &hisi_hba->slot_info[rc];
 	slot->n_elem = n_elem;
