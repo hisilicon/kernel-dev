@@ -1491,6 +1491,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	/* no internal command while frozen */
 	if (ap->pflags & ATA_PFLAG_FROZEN) {
 		spin_unlock_irqrestore(ap->lock, flags);
+		pr_err("%s frozen\n", __func__);
 		return AC_ERR_SYSTEM;
 	}
 
@@ -4851,13 +4852,18 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 * We guarantee to LLDs that they will have at least one
 	 * non-zero sg if the command is a data command.
 	 */
-	if (ata_is_data(prot) && (!qc->sg || !qc->n_elem || !qc->nbytes))
+	if (ata_is_data(prot) && (!qc->sg || !qc->n_elem || !qc->nbytes)){
+		pr_err("%s going to sys_err1\n", __func__);
 		goto sys_err;
+	}
 
 	if (ata_is_dma(prot) || (ata_is_pio(prot) &&
 				 (ap->flags & ATA_FLAG_PIO_DMA)))
-		if (ata_sg_setup(qc))
+		if (ata_sg_setup(qc)) {
+
+			pr_err("%s going to sys_err2\n", __func__);
 			goto sys_err;
+		}
 
 	/* if device is sleeping, schedule reset and abort the link */
 	if (unlikely(qc->dev->flags & ATA_DFLAG_SLEEPING)) {
@@ -4878,6 +4884,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	return;
 
 sys_err:
+	pr_err("%s sys_err\n", __func__);
 	qc->err_mask |= AC_ERR_SYSTEM;
 err:
 	ata_qc_complete(qc);
