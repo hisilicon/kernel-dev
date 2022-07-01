@@ -610,14 +610,17 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 			}
 
 			if (i < ATA_MAX_QUEUE) {
-				pr_err("%s3 ap=%pS scmd=%pS ATA_QCFLAG_FAILED already set i=%d\n", __func__, ap, scmd, i);
+				
+				pr_err("%s3.1 qc=%pS checking ATA_QCFLAG_FAILED\n", __func__, qc);
 				/* the scmd has an associated qc */
 				if (!(qc->flags & ATA_QCFLAG_FAILED)) {
 					/* which hasn't failed yet, timeout */
 					qc->err_mask |= AC_ERR_TIMEOUT;
-					pr_err("%s3.1 qc=%pS setting ATA_QCFLAG_FAILED\n", __func__, qc);
+					pr_err("%s3.1 qc=%pS scmd=%pS setting ATA_QCFLAG_FAILED i=%d\n", __func__, qc, scmd, i);
 					qc->flags |= ATA_QCFLAG_FAILED;
 					nr_timedout++;
+				} else {
+					pr_err("%s3.2 ap=%pS scmd=%pS ATA_QCFLAG_FAILED already set i=%d\n", __func__, ap, scmd, i);
 				}
 			} else {
 

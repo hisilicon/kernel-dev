@@ -2395,7 +2395,7 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 			scmd = qc->scsicmd;
 
 		if (state_dont_complete_ata && scmd) {
-			pr_err("%s skipping ATA completion scmd=%pS qc=%pS task=%pS\n", __func__, scmd, qc, task);
+			pr_err("%s skipping ATA completion scmd=%pS qc=%pS task=%pS scmd=%pS\n", __func__, scmd, qc, task, scmd);
 			return;
 		}
 
@@ -2428,8 +2428,10 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 			if (_ata_err == 100000) {
 				struct ata_port *ap = qc->ap;
 				struct ata_link *link = &ap->link;
+
 				link->eh_info.err_mask |= AC_ERR_DEV;
-				pr_err("%s sata task=%pS device=%pS calling sas_ata_handle_disk_err qc=%pS ap=%pS link=%pS\n", __func__, task, device, qc, ap, link);
+
+				pr_err("%s sata task=%pS device=%pS calling sas_ata_handle_disk_err qc=%pS ap=%pS link=%pS scmd=%pS\n", __func__, task, device, qc, ap, link, scmd);
 				sas_ata_handle_disk_err(device);
 				state_dont_complete_ata = true;
 
