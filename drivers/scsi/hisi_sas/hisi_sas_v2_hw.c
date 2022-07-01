@@ -2317,6 +2317,16 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		break;
 	}
 }
+void hisi_sas_sata_disk_err(struct work_struct *work)
+{
+	struct hisi_sas_device *sas_dev =
+		container_of(to_delayed_work(work), struct hisi_sas_device, disk_err_work);
+	struct domain_device *device = sas_dev->sas_device;
+
+	pr_err("%s sas_dev=%pS device=%pS calling sas_ata_handle_disk_err\n", __func__, sas_dev, device);
+
+	sas_ata_handle_disk_err(device);
+}
 
 bool state_dont_complete_ata;
 static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
@@ -2440,7 +2450,8 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 
 				pr_err("%s sata task=%pS device=%pS calling sas_ata_handle_disk_err qc=%pS flags=0x%lx ap=%pS link=%pS scmd=%pS\n",
 				 __func__, task, device, qc, qc->flags, ap, link, scmd);
-				sas_ata_handle_disk_err(device);
+				INIT_DELAYED_WORK(&sas_dev->disk_err_work, hisi_sas_sata_disk_err);
+				queue_delayed_work(hisi_hba->wq, &sas_dev->disk_err_work, msecs_to_jiffies(1000));
 				state_dont_complete_ata = true;
 
 
