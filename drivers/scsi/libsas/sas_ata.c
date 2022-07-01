@@ -599,7 +599,7 @@ void sas_ata_handle_disk_err(struct domain_device *device)
 static struct ata_port_operations sas_sata_ops = {
 	.prereset		= sas_ata_prereset,
 	.hardreset		= sas_ata_hard_reset,
-	.error_handler		= sas_ata_std_error_handler,
+	.error_handler		= ata_std_error_handler,
 	.post_internal_cmd	= sas_ata_post_internal,
 	.qc_defer               = ata_std_qc_defer,
 	.qc_prep		= ata_noop_qc_prep,
