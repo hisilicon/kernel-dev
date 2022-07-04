@@ -1401,6 +1401,8 @@ static void hisi_sas_reset_init_all_devices(struct hisi_hba *hisi_hba)
 
 		if ((sas_dev->dev_type == SAS_PHY_UNUSED) || !device)
 			continue;
+		if ((dev_is_sata(device)))
+			continue;
 
 		hisi_sas_init_device(device);
 	}
