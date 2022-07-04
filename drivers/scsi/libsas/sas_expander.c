@@ -1717,8 +1717,12 @@ static int sas_get_phy_attached_dev(struct domain_device *dev, int phy_id,
 		memcpy(sas_addr, disc_resp->disc.attached_sas_addr,
 		       SAS_ADDR_SIZE);
 		*type = to_dev_type(dr);
-		if (*type == 0)
+		if (*type == 0) {
+
+			pr_err("%s to_dev_type=0, clearing sas_addr dr->attached_dev_type=%d attached_sata_dev=%d linkrate=%d\n",
+			 __func__, dr->attached_dev_type, dr->attached_sata_dev, dr->linkrate);
 			memset(sas_addr, 0, SAS_ADDR_SIZE);
+		}
 	}
 	kfree(disc_resp);
 	return res;
@@ -2016,6 +2020,7 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
 
 	if ((SAS_ADDR(sas_addr) == 0) || (res == -ECOMM)) {
 		phy->phy_state = PHY_EMPTY;
+		pr_err("%s PHY_EMPTY phy_id=%d res=%d  %016llx \n", __func__, phy_id, res, SAS_ADDR(sas_addr));
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
 		/*
 		 * Even though the PHY is empty, for convenience we discover
@@ -2038,7 +2043,7 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
 	}
 
 	/* we always have to delete the old device when we went here */
-	pr_info("ex %016llx phy%02d replace %016llx\n",
+	pr_err("ex %016llx phy%02d replace %016llx\n",
 		SAS_ADDR(dev->sas_addr), phy_id,
 		SAS_ADDR(phy->attached_sas_addr));
 	sas_unregister_devs_sas_addr(dev, phy_id, last);
