@@ -1849,6 +1849,7 @@ static void sas_unregister_ex_tree(struct asd_sas_port *port, struct domain_devi
 	struct domain_device *child, *n;
 
 	list_for_each_entry_safe(child, n, &ex->children, siblings) {
+		pr_err("%s port=%pS dev=%pS child=%pS\n", __func__, port, dev, child);
 		set_bit(SAS_DEV_GONE, &child->state);
 		if (dev_is_expander(child->dev_type))
 			sas_unregister_ex_tree(port, child);
@@ -1869,6 +1870,7 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 			&ex_dev->children, siblings) {
 			if (SAS_ADDR(child->sas_addr) ==
 			    SAS_ADDR(phy->attached_sas_addr)) {
+				pr_err("%s phy_id=%d child=%pS\n", __func__, phy_id, child);
 				set_bit(SAS_DEV_GONE, &child->state);
 				if (dev_is_expander(child->dev_type))
 					sas_unregister_ex_tree(parent->port, child);
@@ -1996,10 +1998,12 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
 	switch (res) {
 	case SMP_RESP_NO_PHY:
 		phy->phy_state = PHY_NOT_PRESENT;
+		pr_err("%s SMP_RESP_NO_PHY phy_id=%d\n", __func__, phy_id);
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
 		return res;
 	case SMP_RESP_PHY_VACANT:
 		phy->phy_state = PHY_VACANT;
+		pr_err("%s SMP_RESP_NO_PHY phy_id=%d\n", __func__, phy_id);
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
 		return res;
 	case SMP_RESP_FUNC_ACC:

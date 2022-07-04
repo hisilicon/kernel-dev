@@ -1125,7 +1125,7 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = hisi_hba->dev;
 	int ret = 0;
-
+	WARN_ON_ONCE(1);
 	dev_info(dev, "dev[%d:%x] is gone\n",
 		 sas_dev->device_id, sas_dev->dev_type);
 
@@ -1724,13 +1724,17 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 		return rc;
 	}
 
-	if (rc)
+	if (rc) {
+		pr_err("%s rc=%d after reset sas_dev=%pS status=%d\n", __func__, rc, sas_dev, sas_dev->dev_status);
 		return rc;
+	}
 
 	/* Remote phy */
 	if (dev_is_sata(device)) {
 		rc = sas_ata_wait_after_reset(device,
 					HISI_SAS_WAIT_PHYUP_TIMEOUT);
+		if (rc)
+			pr_err("%s2 rc=%d after sas_ata_wait_after_reset sas_dev=%pS status=%d\n", __func__, rc, sas_dev, sas_dev->dev_status);
 	} else {
 		msleep(2000);
 	}

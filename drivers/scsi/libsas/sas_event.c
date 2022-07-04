@@ -73,10 +73,15 @@ int sas_drain_work(struct sas_ha_struct *ha)
 	int err;
 
 	err = mutex_lock_interruptible(&ha->drain_mutex);
-	if (err)
+	if (err) {
+		pr_err("%s mutex lock fail err=%d\n", __func__, err);
 		return err;
-	if (test_bit(SAS_HA_REGISTERED, &ha->state))
+	}
+	if (test_bit(SAS_HA_REGISTERED, &ha->state)) {
 		__sas_drain_work(ha);
+	} else {
+		pr_err("%s !SAS_HA_REGISTERED\n", __func__);
+	}
 	mutex_unlock(&ha->drain_mutex);
 
 	return 0;
