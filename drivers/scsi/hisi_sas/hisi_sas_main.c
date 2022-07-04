@@ -494,8 +494,10 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_STP_ALL:
 		if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags))) {
-			if (!gfpflags_allow_blocking(gfp_flags))
+			if (!gfpflags_allow_blocking(gfp_flags)) {
+				WARN_ON_ONCE(1);
 				return -EINVAL;
+			}
 
 			down(&hisi_hba->sem);
 			up(&hisi_hba->sem);
