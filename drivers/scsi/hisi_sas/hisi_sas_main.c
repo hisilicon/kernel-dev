@@ -1862,7 +1862,7 @@ static void hisi_sas_async_I_T_nexus_reset(void *data, async_cookie_t cookie)
 		dev_info(hisi_hba->dev, "I_T_nexus reset fail for dev:%016llx rc=%d\n",
 			 SAS_ADDR(device->sas_addr), rc);
 }
-
+extern void sas_queue_deferred_work(struct sas_ha_struct *ha);
 static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 {
 	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
@@ -1870,11 +1870,12 @@ static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 	ASYNC_DOMAIN_EXCLUSIVE(async);
 	int i;
 
+	clear_bit(SAS_HA_RESUMING, &sas_ha->state);
 	queue_work(hisi_hba->wq, &r.work);
 	wait_for_completion(r.completion);
 	if (!r.done)
 		return TMF_RESP_FUNC_FAILED;
-
+	set_bit(SAS_HA_RESUMING, &sas_ha->state);
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
 		struct hisi_sas_device *sas_dev = &hisi_hba->devices[i];
 		struct domain_device *device = sas_dev->sas_device;
@@ -1886,6 +1887,7 @@ static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 		async_schedule_domain(hisi_sas_async_I_T_nexus_reset,
 				      device, &async);
 	}
+	sas_queue_deferred_work(sas_ha);
 
 	async_synchronize_full_domain(&async);
 	hisi_sas_release_tasks(hisi_hba);
