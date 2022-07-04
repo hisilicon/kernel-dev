@@ -1874,7 +1874,7 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 			&ex_dev->children, siblings) {
 			if (SAS_ADDR(child->sas_addr) ==
 			    SAS_ADDR(phy->attached_sas_addr)) {
-				pr_err("%s phy_id=%d child=%pS\n", __func__, phy_id, child);
+				pr_err("%s phy_id=%d child=%pS requires nexus reset=%d\n", __func__, phy_id, child, child->requires_nexus_reset);
 				set_bit(SAS_DEV_GONE, &child->state);
 				if (dev_is_expander(child->dev_type))
 					sas_unregister_ex_tree(parent->port, child);

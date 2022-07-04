@@ -1519,6 +1519,10 @@ EXPORT_SYMBOL_GPL(hisi_sas_controller_reset_done);
 
 static int hisi_sas_controller_prereset(struct hisi_hba *hisi_hba)
 {
+	struct hisi_sas_device*sas_dev;
+	struct domain_device *device;
+	int i;
+
 	if (!hisi_hba->hw->soft_reset)
 		return -1;
 
@@ -1530,6 +1534,18 @@ static int hisi_sas_controller_prereset(struct hisi_hba *hisi_hba)
 
 	if (hisi_sas_debugfs_enable && hisi_hba->debugfs_itct[0].itct)
 		hisi_hba->hw->debugfs_snapshot_regs(hisi_hba);
+
+	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
+		sas_dev = &hisi_hba->devices[i];
+		device = sas_dev->sas_device;
+
+		if ((sas_dev->dev_type == SAS_PHY_UNUSED) || !device)
+			continue;
+		if (!dev_is_sata(device))
+			continue;
+
+		device->requires_nexus_reset = true;
+	}
 
 	return 0;
 }
@@ -1737,6 +1753,7 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 					HISI_SAS_WAIT_PHYUP_TIMEOUT);
 		if (rc)
 			pr_err("%s2 rc=%d after sas_ata_wait_after_reset sas_dev=%pS status=%d\n", __func__, rc, sas_dev, sas_dev->dev_status);
+		device->requires_nexus_reset = false;
 	} else {
 		msleep(2000);
 	}

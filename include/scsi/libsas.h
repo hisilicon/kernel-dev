@@ -166,6 +166,7 @@ enum {
 struct domain_device {
 	spinlock_t done_lock;
 	enum sas_device_type dev_type;
+	bool requires_nexus_reset;
 
 	enum sas_linkrate linkrate;
 	enum sas_linkrate min_linkrate;
