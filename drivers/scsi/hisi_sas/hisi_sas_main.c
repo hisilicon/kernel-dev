@@ -501,6 +501,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 
 			down(&hisi_hba->sem);
 			up(&hisi_hba->sem);
+			WARN_ON_ONCE(1);
 		}
 
 		if (DEV_IS_GONE(sas_dev)) {

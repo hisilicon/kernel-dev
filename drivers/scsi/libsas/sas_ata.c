@@ -304,8 +304,10 @@ static int smp_ata_check_ready(struct ata_link *link)
 	 */
 	if (res == -ECOMM)
 		return res;
-	if (res != SMP_RESP_FUNC_ACC)
+	if (res != SMP_RESP_FUNC_ACC) {
+		pr_err("%s we should check disc_resp->result for SMP_RESP_FUNC_ACC\n", __func__);
 		return 0;
+	}
 
 	switch (ex_phy->attached_dev_type) {
 	case SAS_SATA_PENDING:
