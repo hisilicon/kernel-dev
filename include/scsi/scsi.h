@@ -16,7 +16,7 @@
 struct scsi_cmnd;
 
 enum scsi_timeouts {
-	SCSI_DEFAULT_EH_TIMEOUT		= 10 * HZ,
+	SCSI_DEFAULT_EH_TIMEOUT		= 4 * HZ,
 };
 
 /*

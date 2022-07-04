@@ -917,7 +917,7 @@ void sas_task_internal_timedout(struct timer_list *t)
 		complete(&task->slow_task->completion);
 }
 
-#define TASK_TIMEOUT			(20 * HZ)
+#define TASK_TIMEOUT			(5 * HZ)
 #define TASK_RETRY			3
 
 static int sas_execute_internal_abort(struct domain_device *device,
