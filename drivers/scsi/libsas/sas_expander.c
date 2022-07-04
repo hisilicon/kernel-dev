@@ -1719,8 +1719,8 @@ static int sas_get_phy_attached_dev(struct domain_device *dev, int phy_id,
 		*type = to_dev_type(dr);
 		if (*type == 0) {
 
-			pr_err("%s to_dev_type=0, clearing sas_addr dr->attached_dev_type=%d attached_sata_dev=%d linkrate=%d\n",
-			 __func__, dr->attached_dev_type, dr->attached_sata_dev, dr->linkrate);
+			pr_err("%s to_dev_type=0, clearing sas_addr dr->attached_dev_type=%d attached_sata_dev=%d linkrate=%d phy_id=%d\n",
+			 __func__, dr->attached_dev_type, dr->attached_sata_dev, dr->linkrate, phy_id);
 			memset(sas_addr, 0, SAS_ADDR_SIZE);
 		}
 	}

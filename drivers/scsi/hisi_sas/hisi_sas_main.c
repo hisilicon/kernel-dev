@@ -1269,7 +1269,7 @@ static void hisi_sas_fill_ata_reset_cmd(struct ata_device *dev,
 
 static int hisi_sas_softreset_ata_disk(struct domain_device *device)
 {
-	u8 fis[20] = {0};
+	u8 fis[20] = {};
 	struct ata_port *ap = device->sata_dev.ap;
 	struct ata_link *link;
 	int rc = TMF_RESP_FUNC_FAILED;
@@ -1281,8 +1281,10 @@ static int hisi_sas_softreset_ata_disk(struct domain_device *device)
 
 		hisi_sas_fill_ata_reset_cmd(link->device, 1, pmp, fis);
 		rc = sas_execute_ata_cmd(device, fis, -1);
-		if (rc != TMF_RESP_FUNC_COMPLETE)
+		if (rc != TMF_RESP_FUNC_COMPLETE) {
+			pr_err("%s fails\n", __func__);
 			break;
+		}
 	}
 
 	if (rc == TMF_RESP_FUNC_COMPLETE) {
