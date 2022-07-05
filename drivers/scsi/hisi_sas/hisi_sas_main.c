@@ -1573,10 +1573,11 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 		clear_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags);
 		return rc;
 	}
+	clear_bit(HISI_SAS_FAKE_HW_FAULT_BIT, &hisi_hba->flags);
 
 	hisi_sas_controller_reset_done(hisi_hba);
 	clear_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags);
-	dev_info(dev, "controller reset complete\n");
+	dev_info(dev, "controller reset complete clearing HISI_SAS_HW_FAULT_BIT\n");
 
 	return 0;
 }
