@@ -1875,6 +1875,7 @@ static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 	wait_for_completion(r.completion);
 	if (!r.done)
 		return TMF_RESP_FUNC_FAILED;
+	pr_err("%s setting resumung\n", __func__);
 	set_bit(SAS_HA_RESUMING, &sas_ha->state);
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
 		struct hisi_sas_device *sas_dev = &hisi_hba->devices[i];
