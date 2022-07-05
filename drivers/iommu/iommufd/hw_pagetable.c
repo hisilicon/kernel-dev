@@ -87,6 +87,11 @@ iommufd_hw_pagetable_auto_get(struct iommufd_ctx *ictx,
 		goto out_abort;
 	}
 
+	/* FixMe: We need proper interface to enable nesting for SMMUv3. */
+	rc = iommu_enable_nesting(hwpt->domain);
+	if (rc)
+		goto out_abort;
+
 	xa_init_flags(&hwpt->devices, XA_FLAGS_ALLOC1);
 	mutex_init(&hwpt->devices_lock);
 	hwpt->type = IOMMUFD_HWPT_KERNEL;
