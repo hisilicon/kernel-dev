@@ -1577,7 +1577,7 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	clear_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags);
 
 	hisi_sas_controller_reset_done(hisi_hba);
-	dev_info(dev, "controller reset complete clearing HISI_SAS_HW_FAULT_BIT\n");
+	dev_info(dev, "controller reset complete cleared HISI_SAS_HW_FAULT_BIT earlier\n");
 
 	return 0;
 }
@@ -1876,7 +1876,7 @@ static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 		return TMF_RESP_FUNC_FAILED;
 	set_bit(SAS_HA_RESUMING, &sas_ha->state);
 	sas_drain_work(sas_ha);
-	//pr_err("%s setting resumung\n", __func__);
+	//pr_err("%s calling  hisi_sas_async_I_T_nexus_reset\n", __func__);
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
 		struct hisi_sas_device *sas_dev = &hisi_hba->devices[i];
 		struct domain_device *device = sas_dev->sas_device;
@@ -1888,10 +1888,12 @@ static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 		async_schedule_domain(hisi_sas_async_I_T_nexus_reset,
 				      device, &async);
 	}
-	clear_bit(SAS_HA_RESUMING, &sas_ha->state);
-	sas_queue_deferred_work(sas_ha);
+
 
 	async_synchronize_full_domain(&async);
+	//pr_err("%s finished  hisi_sas_async_I_T_nexus_reset now clearing SAS_HA_RESUMING and queuing deferred\n", __func__);
+	clear_bit(SAS_HA_RESUMING, &sas_ha->state);
+	sas_queue_deferred_work(sas_ha);
 	hisi_sas_release_tasks(hisi_hba);
 
 	return TMF_RESP_FUNC_COMPLETE;
