@@ -2074,11 +2074,222 @@ static void arm_smmu_sva_domain_free(struct iommu_domain *domain)
 	kfree(domain);
 }
 
+static void arm_smmu_install_ste_for_dev(struct arm_smmu_master *master);
+
+static int arm_smmu_attach_pasid_table(struct arm_smmu_domain *smmu_domain,
+				       struct iommu_stage1_config_smmuv3 *cfg,
+				       unsigned long s1_pgtbl)
+{
+	struct arm_smmu_master *master;
+	struct arm_smmu_device *smmu;
+	unsigned long flags;
+	unsigned int config_val = cfg->config;
+	int ret = -EINVAL;
+
+	mutex_lock(&smmu_domain->init_mutex);
+
+	smmu = smmu_domain->smmu;
+
+	if (!smmu)
+		goto out;
+
+	if (smmu_domain->stage != ARM_SMMU_DOMAIN_NESTED)
+		goto out;
+
+	if (s1_pgtbl == 0)
+		config_val = IOMMU_PASID_CONFIG_ABORT;
+
+	switch (config_val) {
+	case IOMMU_PASID_CONFIG_ABORT:
+		smmu_domain->s1_cfg.set = false;
+		smmu_domain->abort = true;
+		break;
+	case IOMMU_PASID_CONFIG_BYPASS:
+		smmu_domain->s1_cfg.set = false;
+		smmu_domain->abort = false;
+		break;
+	case IOMMU_PASID_CONFIG_TRANSLATE:
+		/* we do not support S1 <-> S1 transitions */
+		if (smmu_domain->s1_cfg.set)
+			goto out;
+
+		smmu_domain->s1_cfg.cdcfg.cdtab_dma = s1_pgtbl;
+		smmu_domain->s1_cfg.s1cdmax = cfg->pasid_bits;
+		smmu_domain->s1_cfg.s1fmt = cfg->s1fmt;
+		smmu_domain->s1_cfg.set = true;
+		smmu_domain->abort = false;
+		break;
+	default:
+		goto out;
+	}
+	spin_lock_irqsave(&smmu_domain->devices_lock, flags);
+	list_for_each_entry(master, &smmu_domain->devices, domain_head)
+		arm_smmu_install_ste_for_dev(master);
+	spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
+	ret = 0;
+out:
+	mutex_unlock(&smmu_domain->init_mutex);
+	return ret;
+}
+
+#define to_nested_domain(dom) container_of(dom, struct arm_smmu_nested_domain, domain)
+static int
+arm_smmu_cache_invalidate(struct iommu_domain *domain,
+			  struct iommu_cache_invalidate_info *inv_info)
+{
+	struct arm_smmu_cmdq_ent cmd = {.opcode = CMDQ_OP_TLBI_NSNH_ALL};
+	struct arm_smmu_nested_domain *ndomain = to_nested_domain(domain);
+	struct arm_smmu_domain *smmu_domain = ndomain->s2_domain;
+	struct arm_smmu_device *smmu = smmu_domain->smmu;
+
+	if (smmu_domain->stage != ARM_SMMU_DOMAIN_NESTED)
+		return -EINVAL;
+
+	if (!smmu)
+		return -EINVAL;
+
+	if (inv_info->version != IOMMU_CACHE_INVALIDATE_INFO_VERSION_1)
+		return -EINVAL;
+
+	if (inv_info->cache & IOMMU_CACHE_INV_TYPE_PASID) {
+		if (inv_info->granularity == IOMMU_INV_GRANU_PASID) {
+			struct iommu_inv_pasid_info *info =
+				&inv_info->granu.pasid_info;
+
+			if (!(info->flags & IOMMU_INV_PASID_FLAGS_PASID))
+				return -EINVAL;
+			arm_smmu_sync_cd(smmu_domain, info->pasid, true);
+			return 0;
+		} else {
+			return -ENOENT;
+		}
+	}
+
+	if (!(inv_info->cache & IOMMU_CACHE_INV_TYPE_IOTLB))
+		return -EINVAL;
+
+	/* IOTLB invalidation */
+
+	switch (inv_info->granularity) {
+	case IOMMU_INV_GRANU_PASID:
+	{
+		struct iommu_inv_pasid_info *info =
+			&inv_info->granu.pasid_info;
+
+		__arm_smmu_tlb_inv_context(smmu_domain, info->archid);
+		return 0;
+	}
+	case IOMMU_INV_GRANU_ADDR:
+	{
+		struct iommu_inv_addr_info *info = &inv_info->granu.addr_info;
+		u64 granule_size  = info->granule_size;
+		u64 size = info->nb_granules * info->granule_size;
+		bool leaf = info->flags & IOMMU_INV_ADDR_FLAGS_LEAF;
+
+		arm_smmu_tlb_inv_range_domain(info->addr, size,
+					      granule_size, leaf,
+					      info->archid, smmu_domain);
+		return 0;
+	}
+	case IOMMU_INV_GRANU_DOMAIN:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Global S1 invalidation */
+	cmd.tlbi.vmid   = smmu_domain->s2_cfg.vmid;
+	arm_smmu_cmdq_issue_cmd_with_sync(smmu, &cmd);
+	return 0;
+}
+
+static int arm_smmu_nested_attach_dev_pasid(struct iommu_domain *domain,
+					    struct device *dev, ioasid_t pasid)
+{
+	struct arm_smmu_nested_domain *ndomain = to_nested_domain(domain);
+	struct arm_smmu_domain *smmu_domain = ndomain->s2_domain;
+	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	struct arm_smmu_cmdq_ent cmd;
+	int ret;
+
+	/* Hack: ToDo remove this from here */
+	cmd.opcode = CMDQ_OP_CFGI_ALL;
+	arm_smmu_cmdq_issue_cmd_with_sync(smmu, &cmd);
+	/* Hack: ToDo remove this from here */
+	cmd.opcode = CMDQ_OP_TLBI_NSNH_ALL;
+	arm_smmu_cmdq_issue_cmd_with_sync(smmu, &cmd);
+	/* Hack: Issue a ABORT: ToDo remove this from here */
+	ret = arm_smmu_attach_pasid_table(smmu_domain, &ndomain->s1_cfg, 0);
+
+	ret = arm_smmu_attach_pasid_table(smmu_domain, &ndomain->s1_cfg, ndomain->s1_pgtbl);
+	return 0;
+}
+
+static void arm_smmu_nested_detach_dev_pasid(struct iommu_domain *domain,
+					     struct device *dev, ioasid_t pasid)
+{
+	printk("%s:\n", __func__);
+}
+
+static int arm_smmu_nested_attach_dev(struct iommu_domain *domain,
+				      struct device *dev)
+{
+	printk("%s:\n", __func__);
+	return 0;
+}
+
+static void arm_smmu_nested_detach_dev(struct iommu_domain *domain,
+				       struct device *dev)
+{
+	printk("%s:\n", __func__);
+}
+
+static void arm_smmu_nested_domain_free(struct iommu_domain *domain)
+{
+	/* ToDo: free up mem */
+	printk("%s:\n", __func__);
+}
+
+static int
+arm_smmu_nested_cache_invalidate(struct iommu_domain *domain,
+				 struct iommu_cache_invalidate_info *inv_info)
+{
+	return arm_smmu_cache_invalidate(domain, inv_info);
+}
+static const struct iommu_domain_ops arm_smmu_nested_domain_ops = {
+	.attach_dev             = arm_smmu_nested_attach_dev,
+	.detach_dev             = arm_smmu_nested_detach_dev,
+	.attach_dev_pasid       = arm_smmu_nested_attach_dev_pasid,
+	.detach_dev_pasid       = arm_smmu_nested_detach_dev_pasid,
+	.cache_invalidate       = arm_smmu_nested_cache_invalidate,
+	.free                   = arm_smmu_nested_domain_free,
+};
+
 static const struct iommu_domain_ops arm_smmu_sva_domain_ops = {
 	.attach_dev_pasid	= arm_smmu_sva_attach_dev_pasid,
 	.detach_dev_pasid	= arm_smmu_sva_detach_dev_pasid,
 	.free			= arm_smmu_sva_domain_free,
 };
+
+struct iommu_domain *arm_smmu_nested_domain_alloc(struct iommu_domain *s2_domain,
+						  unsigned long s1_pgtbl,
+						  union iommu_stage1_config *cfg)
+{
+	struct arm_smmu_nested_domain *ndomain;
+
+	ndomain = kzalloc(sizeof(*ndomain), GFP_KERNEL);
+	if (!ndomain)
+		return NULL;
+
+	ndomain->s2_domain = to_smmu_domain(s2_domain);
+	ndomain->s1_pgtbl = s1_pgtbl;
+	ndomain->s1_cfg = cfg->smmuv3;
+	ndomain->domain.ops = &arm_smmu_nested_domain_ops;
+	mutex_init(&ndomain->mutex);
+	INIT_LIST_HEAD(&ndomain->devices);
+
+	return &ndomain->domain;
+}
 
 static struct iommu_domain *arm_smmu_domain_alloc(unsigned type)
 {
@@ -2972,6 +3183,7 @@ static int arm_smmu_dev_disable_feature(struct device *dev,
 static struct iommu_ops arm_smmu_ops = {
 	.capable		= arm_smmu_capable,
 	.domain_alloc		= arm_smmu_domain_alloc,
+	.nested_domain_alloc	= arm_smmu_nested_domain_alloc,
 	.probe_device		= arm_smmu_probe_device,
 	.release_device		= arm_smmu_release_device,
 	.device_group		= arm_smmu_device_group,

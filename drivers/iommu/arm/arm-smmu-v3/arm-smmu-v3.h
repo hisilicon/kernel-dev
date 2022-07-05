@@ -730,6 +730,18 @@ struct arm_smmu_domain {
 	struct list_head		mmu_notifiers;
 };
 
+struct arm_smmu_nested_domain {
+	struct arm_smmu_domain *s2_domain;
+	unsigned long s1_pgtbl;
+	struct iommu_stage1_config_smmuv3 s1_cfg;
+
+	/* Protect the device list. */
+	struct mutex mutex;
+	struct list_head devices;
+
+	struct iommu_domain domain;
+};
+
 static inline struct arm_smmu_domain *to_smmu_domain(struct iommu_domain *dom)
 {
 	return container_of(dom, struct arm_smmu_domain, domain);
