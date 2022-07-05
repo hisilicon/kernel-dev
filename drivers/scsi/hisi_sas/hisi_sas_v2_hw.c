@@ -2338,6 +2338,9 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return;
 
+	if (test_bit(HISI_SAS_FAKE_HW_FAULT_BIT, &hisi_hba->flags))
+		return;
+
 	ts = &task->task_status;
 	device = task->dev;
 	ha = device->port->ha;
@@ -3532,8 +3535,23 @@ static void wait_cmds_complete_timeout_v2_hw(struct hisi_hba *hisi_hba,
 
 }
 
+
+static ssize_t hw_err_v2_hw_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+
+	set_bit(HISI_SAS_FAKE_HW_FAULT_BIT, &hisi_hba->flags);
+
+	return count;
+}
+static DEVICE_ATTR_WO(hw_err_v2_hw);
+
 static struct attribute *host_v2_hw_attrs[] = {
 	&dev_attr_phy_event_threshold.attr,
+	&dev_attr_hw_err_v2_hw.attr,
 	NULL
 };
 

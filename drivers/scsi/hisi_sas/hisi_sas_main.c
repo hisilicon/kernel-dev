@@ -1522,6 +1522,7 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	hisi_sas_controller_reset_prepare(hisi_hba);
 
 	rc = hisi_hba->hw->soft_reset(hisi_hba);
+	clear_bit(HISI_SAS_FAKE_HW_FAULT_BIT, &hisi_hba->flags);
 	if (rc) {
 		dev_warn(dev, "controller reset failed (%d)\n", rc);
 		clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
