@@ -558,6 +558,7 @@ void iommufd_device_detach(struct iommufd_device *idev, u32 hwpt_id)
 		if (hwpt->type == IOMMUFD_HWPT_KERNEL)
 			__iommufd_device_detach_kernel_hwpt(idev, hwpt);
 		iommu_detach_device_pasid(hwpt->domain, idev->dev, hdev->pasid);
+		iommu_unregister_device_fault_handler(idev->dev);
 	}
 
 	kfree(hdev);

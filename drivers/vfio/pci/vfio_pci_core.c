@@ -307,13 +307,6 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 		return ret;
 	}
 
-	ret = iommu_dev_enable_feature(&pdev->dev, IOMMU_DEV_FEAT_SVA);
-	if (ret) {
-		dev_warn(&pdev->dev, "Unable to turn on SVA feature.\n");
-	} else {
-		vdev->has_sva = true;
-	}
-
 	msix_pos = pdev->msix_cap;
 	if (msix_pos) {
 		u16 flags;

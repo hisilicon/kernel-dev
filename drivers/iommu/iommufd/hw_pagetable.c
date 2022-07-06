@@ -312,11 +312,13 @@ iommufd_hw_pagetable_iopf_handler(struct iommu_fault *fault,
 	if (WARN_ON(!header))
 		return IOMMU_PAGE_RESP_FAILURE;
 
-	dev_id = iommufd_hw_pagetable_get_dev_id(hwpt, dev, pasid);
-	if (dev_id == IOMMUFD_INVALID_ID)
-		return IOMMU_PAGE_RESP_FAILURE;
+	if (dev) {
+		dev_id = iommufd_hw_pagetable_get_dev_id(hwpt, dev, pasid);
+		if (dev_id == IOMMUFD_INVALID_ID)
+			return IOMMU_PAGE_RESP_FAILURE;
 
-	fault->dev_id = dev_id;
+		fault->dev_id = dev_id;
+	}
 	mutex_lock(&s1->fault_queue_lock);
 
 	new = (struct iommu_fault *)(s1->fault_pages + header->offset +
@@ -346,6 +348,21 @@ unlock:
 	mutex_unlock(&s1->notify_gate);
 
 	return resp;
+}
+
+static int
+iommufd_hw_pagetable_dev_fault_handler(struct iommu_fault *fault, void *data)
+{
+	enum iommu_page_response_code resp;
+
+	/* Hack: FixMe: for now we are just using the iopf fault handler */
+	resp = iommufd_hw_pagetable_iopf_handler(fault, NULL, data);
+	if (resp == IOMMU_PAGE_RESP_FAILURE) {
+		printk("%s: resp %d\n", __func__, resp);
+		return resp;
+	}
+
+	return 0;
 }
 
 #define DMA_FAULT_RING_LENGTH 512
@@ -485,8 +502,11 @@ int iommufd_alloc_s1_hwpt(struct iommufd_ucmd *ucmd)
 	if (rc)
 		goto out_destroy_dma;
 
-	hwpt->domain->iopf_handler = iommufd_hw_pagetable_iopf_handler;
-	hwpt->domain->fault_data = s1;
+	/*Hack: FixMe: This is for ARM SMMUv3 nested mode */
+	rc = iommu_register_device_fault_handler(idev->dev,
+						 iommufd_hw_pagetable_dev_fault_handler, s1);
+	if (rc)
+		goto out_destroy_dma;
 
 	mutex_lock(&stage2->kernel.mutex);
 	list_add_tail(&s1->stage1_domains_item, &stage2->kernel.stage1_domains);
