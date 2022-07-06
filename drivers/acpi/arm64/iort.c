@@ -943,19 +943,6 @@ static bool iort_rmr_has_dev(struct device *dev, u32 id_start,
 	int i;
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 
-	/*
-	 * Make sure the kernel has preserved the boot firmware PCIe
-	 * configuration. This is required to ensure that the RMR PCIe
-	 * StreamIDs are still valid (Refer: ARM DEN 0049E.d Section 3.1.1.5).
-	 */
-	if (dev_is_pci(dev)) {
-		struct pci_dev *pdev = to_pci_dev(dev);
-		struct pci_host_bridge *host = pci_find_host_bridge(pdev->bus);
-
-		if (!host->preserve_config)
-			return false;
-	}
-
 	for (i = 0; i < fwspec->num_ids; i++) {
 		if (fwspec->ids[i] >= id_start &&
 		    fwspec->ids[i] <= id_start + id_count)
