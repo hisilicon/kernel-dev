@@ -2322,10 +2322,12 @@ void hisi_sas_sata_disk_err(struct work_struct *work)
 	struct hisi_sas_device *sas_dev =
 		container_of(to_delayed_work(work), struct hisi_sas_device, disk_err_work);
 	struct domain_device *device = sas_dev->sas_device;
+	struct ata_port *ap = device->sata_dev.ap;
+	struct ata_link *link = &ap->link;
 
-	pr_err("%s sas_dev=%pS device=%pS calling sas_ata_handle_disk_err\n", __func__, sas_dev, device);
+	pr_err("%s sas_dev=%pS device=%pS calling ata_link_abort ap=%pS link=%pS\n", __func__, sas_dev, device, ap, link);
 
-	sas_ata_handle_disk_err(device);
+	ata_link_abort(link);
 }
 
 bool state_dont_complete_ata;
