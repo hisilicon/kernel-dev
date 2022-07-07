@@ -1295,6 +1295,8 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_master *master, u32 sid,
 		switch (smmu_domain->stage) {
 		case ARM_SMMU_DOMAIN_S1:
 			s1_cfg = &smmu_domain->s1_cfg;
+			if (smmu_domain->s2)
+				s2_cfg = &smmu_domain->s2->s2_cfg;
 			break;
 		case ARM_SMMU_DOMAIN_S2:
 			s2_cfg = &smmu_domain->s2_cfg;
