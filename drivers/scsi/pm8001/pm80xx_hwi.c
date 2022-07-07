@@ -2318,16 +2318,18 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 		int _count_ata = atomic_inc_return(&count_ata);
 		int _count_ata_divisor = atomic_read(&count_ata_divisor);
 		
-		if ((_count_ata % _count_ata_divisor) == 0) {
-			pr_err("%s _count_ata=%d count_ata_divisor=%d\n", __func__, _count_ata, _count_ata_divisor);
-			atomic_set(&count_ata_divisor, _count_ata_divisor * 2);
-		}
 
 		if (test_bit(SAS_HA_FROZEN, &ha->state) && qc)
 			_ata_err = atomic_read(&ata_err);
 		else
 			_ata_err = atomic_inc_return(&ata_err);
 
+		if ((_count_ata % _count_ata_divisor) == 0) {
+			pr_err("%s _count_ata=%d count_ata_divisor=%d _ata_err=%d\n", 
+			__func__, _count_ata, _count_ata_divisor, _ata_err);
+			atomic_set(&count_ata_divisor, _count_ata_divisor * 2);
+		}
+		
 		if (!test_bit(SAS_HA_FROZEN, &ha->state) && qc) {
 			#ifdef dsfdf
 			if (_ata_err == -1) {
@@ -2350,7 +2352,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 			}
 			#endif
 
-			if (_ata_err == 100000) {
+			if (_ata_err == 3000) {
 				struct ata_port *ap = qc->ap;
 				struct ata_link *link = &ap->link;
 
