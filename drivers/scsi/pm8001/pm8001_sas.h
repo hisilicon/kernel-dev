@@ -266,7 +266,9 @@ struct pm8001_device {
 	struct completion	*sata_abort_all_completion;
 	u32			device_id;
 	atomic_t		running_req;
+	struct delayed_work disk_err_work;
 	bool printed;
+	struct pm8001_hba_info *pm8001_ha;
 };
 
 struct pm8001_prd_imt {

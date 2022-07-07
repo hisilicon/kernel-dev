@@ -1726,7 +1726,7 @@ void pm8001_work_fn(struct work_struct *work)
 	{
 		struct ata_port *ap;
 		struct ata_link *link;
-
+		pr_err("%s IO_XFER_ERROR_ABORTED_NCQ_MODE pm8001_dev=%pS\n", __func__, pm8001_dev);
 		pm8001_dev->id |= NCQ_ERR_FLAG;
 		dev = pm8001_dev->sas_device;
 

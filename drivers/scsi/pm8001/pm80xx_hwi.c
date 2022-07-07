@@ -2250,6 +2250,21 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 }
 
 /*See the comments for mpi_ssp_completion */
+
+bool state_dont_complete_ata;
+
+void pm8001_sas_sata_disk_err(struct work_struct *work)
+{
+	struct pm8001_device *pm8001_dev =
+		container_of(to_delayed_work(work), struct pm8001_device, disk_err_work);
+	struct pm8001_hba_info *pm8001_ha = pm8001_dev->pm8001_ha;
+	
+	pr_err("%s pm8001_dev=%pS\n", __func__, pm8001_dev);
+	
+	pm8001_handle_event(pm8001_ha, pm8001_dev, IO_XFER_ERROR_ABORTED_NCQ_MODE);
+}
+
+
 static void
 mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 		struct outbound_queue_table *circularQ, void *piomb)
@@ -2278,6 +2293,72 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 	ccb = &pm8001_ha->ccb_info[tag];
 	t = ccb->task;
 	pm8001_dev = ccb->device;
+
+	if (t) {
+		struct ata_queued_cmd *qc = t->uldd_task;
+		struct scsi_cmnd *scmd = NULL;
+
+		if (qc)
+			scmd = qc->scsicmd;
+
+		if (state_dont_complete_ata && scmd) {
+			pr_err("%s skipping ATA completipm8001_dev = on scmd=%pS qc=%pS flags=0x%lx task=%pS scmd=%pS\n", __func__, scmd, qc, qc->flags, t, scmd);
+			return;
+		}
+	}
+
+	if (t) {
+		static atomic_t ata_err;
+		int _ata_err;
+		struct ata_queued_cmd *qc = t->uldd_task;
+		struct scsi_cmnd *scmd = NULL;
+		struct sas_ha_struct *ha = pm8001_ha->sas;
+
+		if (test_bit(SAS_HA_FROZEN, &ha->state) && qc)
+			_ata_err = atomic_read(&ata_err);
+		else
+			_ata_err = atomic_inc_return(&ata_err);
+
+		if (!test_bit(SAS_HA_FROZEN, &ha->state) && qc) {
+			#ifdef dsfdf
+			if (_ata_err == -1) {
+				pr_err("%s sata task=%pS device=%pS aborting with sas_task_abort\n", __func__, t, device);
+				sas_task_abort(task);
+				state_dont_complete_ata = true;
+				return;
+			}
+
+			if (_ata_err == -1) {
+				struct ata_port *ap = qc->ap;
+				struct ata_link *link = &ap->link;
+				link->eh_info.err_mask |= AC_ERR_DEV;
+				pr_err("%s sata task=%pS device=%pS calling ata_std_sched_eh qc=%pS ap=%pS link=%pS\n", __func__, t, device, qc, ap, link);
+				state_dont_complete_ata = true;
+				ata_eh_analyze_ncq_error(link);
+				ata_std_sched_eh(ap);
+
+				return;
+			}
+			#endif
+
+			if (_ata_err == 100000) {
+				struct ata_port *ap = qc->ap;
+				struct ata_link *link = &ap->link;
+
+				link->eh_info.err_mask |= AC_ERR_DEV;
+
+				pr_err("%s sata task=%pS device=%pS calling sas_ata_handle_disk_err qc=%pS flags=0x%lx ap=%pS link=%pS scmd=%pS\n",
+				 __func__, t, pm8001_dev, qc, qc->flags, ap, link, scmd);
+				INIT_DELAYED_WORK(&pm8001_dev->disk_err_work, pm8001_sas_sata_disk_err);
+				pm8001_dev->pm8001_ha = pm8001_ha;
+				queue_delayed_work(pm8001_wq, &pm8001_dev->disk_err_work, msecs_to_jiffies(1000));
+				state_dont_complete_ata = true;
+
+				return;
+			}
+		}
+	}
+
 
 	if (t) {
 		if (t->dev && (t->dev->lldd_dev))
