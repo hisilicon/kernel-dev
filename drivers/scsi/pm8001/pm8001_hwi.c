@@ -1774,6 +1774,8 @@ void pm8001_send_abort_all(struct pm8001_hba_info *pm8001_ha,
 	if (!ccb)
 		return;
 
+	pr_err("%s1 pm8001_dev=%pS ccb=%pS\n", __func__, pm8001_dev, ccb);
+
 	memset(&task_abort, 0, sizeof(task_abort));
 	task_abort.abort_all = cpu_to_le32(1);
 	task_abort.device_id = cpu_to_le32(pm8001_dev->device_id);
@@ -3594,7 +3596,10 @@ int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	mb();
 
 	if (pm8001_dev->id & NCQ_ERR_FLAG) {
-		complete(pm8001_dev->sata_abort_all_completion);
+		pr_err("%s pm8001_dev=%pS sata_abort_all_completion=%pS ccb=%pS\n",
+				__func__, pm8001_dev, pm8001_dev->sata_abort_all_completion, ccb);
+		if (pm8001_dev->sata_abort_all_completion)
+			complete(pm8001_dev->sata_abort_all_completion);
 	} else {
 		t->task_done(t);
 	}
