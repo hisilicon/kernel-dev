@@ -263,6 +263,7 @@ struct pm8001_device {
 	u32			id;
 	struct completion	*dcompletion;
 	struct completion	*setds_completion;
+	struct completion	*sata_abort_all_completion;
 	u32			device_id;
 	atomic_t		running_req;
 	bool printed;

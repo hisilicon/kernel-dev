@@ -1759,42 +1759,48 @@ int pm8001_handle_event(struct pm8001_hba_info *pm8001_ha, void *data,
 }
 
 void pm8001_send_abort_all(struct pm8001_hba_info *pm8001_ha,
-		struct pm8001_device *pm8001_ha_dev)
+		struct pm8001_device *pm8001_dev)
 {
+	DECLARE_COMPLETION_ONSTACK(completion);
 	struct pm8001_ccb_info *ccb;
-	struct sas_task *task;
 	struct task_abort_req task_abort;
 	u32 opc = OPC_INB_SATA_ABORT;
+	struct domain_device *dev = pm8001_dev->sas_device;
 	int ret;
 
-//	pm8001_ha_dev->id |= NCQ_ABORT_ALL_FLAG;
-//	pm8001_ha_dev->id &= ~NCQ_READ_LOG_FLAG;
-
-	task = sas_alloc_slow_task(GFP_ATOMIC);
-	if (!task) {
-		pm8001_dbg(pm8001_ha, FAIL, "cannot allocate task\n");
+	ccb = pm8001_ccb_alloc(pm8001_ha, pm8001_dev, NULL);
+	if (!ccb)
 		return;
-	}
-
-	task->task_done = pm8001_task_done;
-
-	ccb = pm8001_ccb_alloc(pm8001_ha, pm8001_ha_dev, task);
-	if (!ccb) {
-		sas_free_task(task);
-		return;
-	}
 
 	memset(&task_abort, 0, sizeof(task_abort));
 	task_abort.abort_all = cpu_to_le32(1);
-	task_abort.device_id = cpu_to_le32(pm8001_ha_dev->device_id);
+	task_abort.device_id = cpu_to_le32(pm8001_dev->device_id);
 	task_abort.tag = cpu_to_le32(ccb->ccb_tag);
+	
+	pm8001_dev->sata_abort_all_completion = &completion;
 
 	ret = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &task_abort,
 				   sizeof(task_abort), 0);
 	if (ret) {
-		sas_free_task(task);
+		pm8001_dev->sata_abort_all_completion = NULL;
 		pm8001_ccb_free(pm8001_ha, ccb);
 	}
+	
+	/*
+	 * It's always wise to use a timeout when dealing with HW.
+	 * The value is abritary, same as PM8001_TASK_TIMEOUT at time of
+	 * writing.
+	 */
+	ret = wait_for_completion_timeout(&completion, 20 * HZ);
+	if (ret) {
+	
+	} else {
+		pm8001_dbg(pm8001_ha, FAIL, "Failed to send SATA ABORT ALL:%016llx\n",
+			   SAS_ADDR(dev->sas_addr));
+	}
+	pm8001_dev->sata_abort_all_completion = NULL;
+	/* Clear the flag regardless - not much else which we can do */
+	pm8001_dev->id	&= ~NCQ_ERR_FLAG;
 }
 
 /**
@@ -3583,7 +3589,11 @@ int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	pm8001_ccb_task_free(pm8001_ha, ccb);
 	mb();
 
-	t->task_done(t);
+	if (pm8001_dev->id & NCQ_ERR_FLAG) {
+		complete(pm8001_dev->sata_abort_all_completion);
+	} else {
+		t->task_done(t);
+	}
 
 	return 0;
 }
