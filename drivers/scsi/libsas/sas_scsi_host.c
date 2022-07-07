@@ -722,7 +722,7 @@ static void sas_eh_handle_resets(struct Scsi_Host *shost)
 	spin_unlock_irq(&ha->lock);
 }
 
-
+extern bool state_dont_complete_ata;
 void sas_scsi_recover_host(struct Scsi_Host *shost)
 {
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
@@ -778,7 +778,7 @@ out:
 
 	if (retry)
 		goto retry;
-
+	state_dont_complete_ata = false;
 	pr_notice("--- Exit %s: busy: %d failed: %d tries: %d\n",
 		  __func__, scsi_host_busy(shost),
 		  shost->host_failed, tries);
