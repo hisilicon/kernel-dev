@@ -640,7 +640,6 @@ struct sas_task_slow {
 #define SAS_TASK_NEED_DEV_RESET     8
 
 extern struct sas_task *sas_alloc_task(gfp_t flags);
-extern struct sas_task *sas_alloc_slow_task(gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
 
 static inline bool sas_is_internal_abort(struct sas_task *task)
