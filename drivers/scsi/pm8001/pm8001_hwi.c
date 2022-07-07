@@ -1768,6 +1768,8 @@ void pm8001_send_abort_all(struct pm8001_hba_info *pm8001_ha,
 	struct domain_device *dev = pm8001_dev->sas_device;
 	int ret;
 
+	pr_err("%s pm8001_dev=%pS\n", __func__, pm8001_dev);
+	
 	ccb = pm8001_ccb_alloc(pm8001_ha, pm8001_dev, NULL);
 	if (!ccb)
 		return;
@@ -1792,6 +1794,8 @@ void pm8001_send_abort_all(struct pm8001_hba_info *pm8001_ha,
 	 * writing.
 	 */
 	ret = wait_for_completion_timeout(&completion, 20 * HZ);
+
+	pr_err("%s2 pm8001_dev=%pS ret=%d\n", __func__, pm8001_dev, ret);
 	if (ret) {
 	
 	} else {

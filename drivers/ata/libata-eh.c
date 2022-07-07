@@ -563,7 +563,7 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 {
 	int i;
 	unsigned long flags;
-
+	pr_err("%s ap=%pS eh_work_q=%pS\n", __func__, ap, eh_work_q);
 	/* make sure sff pio task is not running */
 	ata_sff_flush_pio_task(ap);
 
@@ -601,6 +601,7 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 		list_for_each_entry_safe(scmd, tmp, eh_work_q, eh_entry) {
 			struct ata_queued_cmd *qc;
 
+			pr_err("%s2 ap=%pS scmd=%pS\n", __func__, ap, scmd);
 			ata_qc_for_each_raw(ap, qc, i) {
 				if (qc->flags & ATA_QCFLAG_ACTIVE &&
 				    qc->scsicmd == scmd)
@@ -608,19 +609,26 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 			}
 
 			if (i < ATA_MAX_QUEUE) {
+				
+				pr_err("%s3.1 qc=%pS checking ATA_QCFLAG_FAILED\n", __func__, qc);
 				/* the scmd has an associated qc */
 				if (!(qc->flags & ATA_QCFLAG_FAILED)) {
 					/* which hasn't failed yet, timeout */
 					qc->err_mask |= AC_ERR_TIMEOUT;
+					pr_err("%s3.2 qc=%pS scmd=%pS setting ATA_QCFLAG_FAILED i=%d\n", __func__, qc, scmd, i);
 					qc->flags |= ATA_QCFLAG_FAILED;
 					nr_timedout++;
+				} else {
+					pr_err("%s3.3 qc=%pS scmd=%pS ATA_QCFLAG_FAILED already set i=%d\n", __func__, qc, scmd, i);
 				}
 			} else {
+
 				/* Normal completion occurred after
 				 * SCSI timeout but before this point.
 				 * Successfully complete it.
 				 */
 				scmd->retries = scmd->allowed;
+				pr_err("%s4 ap=%pS scmd=%pS retries=%d\n", __func__, ap, scmd, scmd->retries);
 				scsi_eh_finish_cmd(scmd, &ap->eh_done_q);
 			}
 		}
@@ -631,6 +639,7 @@ void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap,
 		 * handler doesn't diddle with those qcs.  This must
 		 * be done atomically w.r.t. setting QCFLAG_FAILED.
 		 */
+		pr_err("%s5 nr_timedout=%d (if set, calls __ata_port_freeze)\n", __func__, nr_timedout);
 		if (nr_timedout)
 			__ata_port_freeze(ap);
 
@@ -1506,6 +1515,8 @@ static void ata_eh_analyze_serror(struct ata_link *link)
 	unsigned int err_mask = 0, action = 0;
 	u32 hotplug_mask;
 
+	pr_err("%s link=%pS\n", __func__, link);
+
 	if (serror & (SERR_PERSISTENT | SERR_DATA)) {
 		err_mask |= AC_ERR_ATA_BUS;
 		action |= ATA_EH_RESET;
@@ -1923,12 +1934,13 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 	int tag, nr_failed = 0, nr_quiet = 0;
 	u32 serror;
 	int rc;
-
+	pr_err("%s link=%pS ATA_EHI_NO_AUTOPSY=%d \n", __func__, link, !!(ehc->i.flags & ATA_EHI_NO_AUTOPSY));
 	if (ehc->i.flags & ATA_EHI_NO_AUTOPSY)
 		return;
 
 	/* obtain and analyze SError */
 	rc = sata_scr_read(link, SCR_ERROR, &serror);
+	pr_err("%s2 link=%pS rc=%d\n", __func__, link, rc);
 	if (rc == 0) {
 		ehc->i.serror |= serror;
 		ata_eh_analyze_serror(link);
@@ -1940,6 +1952,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 	}
 
 	/* analyze NCQ failure */
+	pr_err("%s3 link=%pS calling ata_eh_analyze_ncq_error\n", __func__, link);
 	ata_eh_analyze_ncq_error(link);
 
 	/* any real error trumps AC_ERR_OTHER */
@@ -2455,6 +2468,8 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	u32 sstatus;
 	int nr_unknown, rc;
 
+	pr_err("%s ap=%pS link=%pS prereset=%pS softreset=%pS hardreset=%pS postreset=%pS\n",
+	 __func__, ap, link, prereset, softreset, hardreset, postreset);
 	/*
 	 * Prepare to reset
 	 */
@@ -3827,10 +3842,12 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 {
 	struct ata_device *dev;
 	int rc;
-
+	pr_err("%s ap=%pS calling ata_eh_autopsy\n", __func__, ap);
 	ata_eh_autopsy(ap);
+	pr_err("%s2 ap=%pS calling ata_eh_report\n", __func__, ap);
 	ata_eh_report(ap);
 
+	pr_err("%s3 ap=%pS calling ata_eh_recover\n", __func__, ap);
 	rc = ata_eh_recover(ap, prereset, softreset, hardreset, postreset,
 			    NULL);
 	if (rc) {
