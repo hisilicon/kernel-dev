@@ -268,6 +268,8 @@ struct iommu_ops {
 						  struct iommu_domain *parent,
 						  const void *user_data);
 
+	struct iommu_domain *(*get_msi_domain)(struct device *dev);
+
 	struct iommu_device *(*probe_device)(struct device *dev);
 	void (*release_device)(struct device *dev);
 	void (*probe_finalize)(struct device *dev);
@@ -474,6 +476,7 @@ extern int iommu_sva_unbind_gpasid(struct iommu_domain *domain,
 				   struct device *dev, ioasid_t pasid);
 extern struct iommu_domain *iommu_get_domain_for_dev(struct device *dev);
 extern struct iommu_domain *iommu_get_dma_domain(struct device *dev);
+extern struct iommu_domain *iommu_get_msi_domain(struct device *dev);
 extern int iommu_map(struct iommu_domain *domain, unsigned long iova,
 		     phys_addr_t paddr, size_t size, int prot);
 extern int iommu_map_atomic(struct iommu_domain *domain, unsigned long iova,
@@ -776,6 +779,11 @@ static inline void iommu_detach_device(struct iommu_domain *domain,
 }
 
 static inline struct iommu_domain *iommu_get_domain_for_dev(struct device *dev)
+{
+	return NULL;
+}
+
+static inline struct iommu_domain *iommu_get_msi_domain(struct device *dev)
 {
 	return NULL;
 }
