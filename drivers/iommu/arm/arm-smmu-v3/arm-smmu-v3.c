@@ -2152,6 +2152,17 @@ arm_smmu_domain_alloc_user(struct device *dev, struct iommu_domain *s2_domain,
 	return domain;
 }
 
+static struct iommu_domain *arm_smmu_get_msi_domain(struct device *dev)
+{
+	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
+	struct arm_smmu_domain *smmu_domain = master->domain;
+
+	if (smmu_domain->s2)
+		return &smmu_domain->s2->domain;
+
+	return &smmu_domain->domain;
+}
+
 static int arm_smmu_bitmap_alloc(unsigned long *map, int span)
 {
 	int idx, size = 1 << span;
@@ -2987,6 +2998,7 @@ static struct iommu_ops arm_smmu_ops = {
 	.capable		= arm_smmu_capable,
 	.domain_alloc		= arm_smmu_domain_alloc,
 	.domain_alloc_user	= arm_smmu_domain_alloc_user,
+	.get_msi_domain		= arm_smmu_get_msi_domain,
 	.probe_device		= arm_smmu_probe_device,
 	.release_device		= arm_smmu_release_device,
 	.device_group		= arm_smmu_device_group,
