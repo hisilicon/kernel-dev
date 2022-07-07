@@ -3008,9 +3008,19 @@ static void arm_smmu_domain_nested_free(struct iommu_domain *domain)
 	kfree(container_of(domain, struct arm_smmu_nested_domain, domain));
 }
 
+static struct iommu_domain *
+arm_smmu_get_msi_mapping_domain(struct iommu_domain *domain)
+{
+	struct arm_smmu_nested_domain *nested_domain =
+		container_of(domain, struct arm_smmu_nested_domain, domain);
+
+	return &nested_domain->s2_parent->domain;
+}
+
 static const struct iommu_domain_ops arm_smmu_nested_ops = {
 	.attach_dev = arm_smmu_attach_dev_nested,
 	.free = arm_smmu_domain_nested_free,
+	.get_msi_mapping_domain	= arm_smmu_get_msi_mapping_domain,
 };
 
 static struct iommu_domain *
