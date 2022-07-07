@@ -428,6 +428,14 @@ int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	u32 n_elem = 0;
 	int rc = 0;
 
+	if (!pm8001_dev->printed) {
+
+		pr_err("%s task=%pS pm8001_dev id=%d device_id=%d\n",
+				__func__, task, pm8001_dev->id, pm8001_dev->device_id);
+
+		pm8001_dev->printed = true;
+	}
+
 	if (!internal_abort && !dev->port) {
 		ts->resp = SAS_TASK_UNDELIVERED;
 		ts->stat = SAS_PHY_DOWN;

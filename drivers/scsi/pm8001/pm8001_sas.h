@@ -265,6 +265,7 @@ struct pm8001_device {
 	struct completion	*setds_completion;
 	u32			device_id;
 	atomic_t		running_req;
+	bool printed;
 };
 
 struct pm8001_prd_imt {
