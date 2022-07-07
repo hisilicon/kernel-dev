@@ -2265,6 +2265,7 @@ void pm8001_sas_sata_disk_err(struct work_struct *work)
 }
 
 
+static atomic_t count_ata_divisor = ATOMIC_INIT(50);
 static void
 mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 		struct outbound_queue_table *circularQ, void *piomb)
@@ -2313,6 +2314,14 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 		struct ata_queued_cmd *qc = t->uldd_task;
 		struct scsi_cmnd *scmd = NULL;
 		struct sas_ha_struct *ha = pm8001_ha->sas;
+		static atomic_t count_ata;
+		int _count_ata = atomic_inc_return(&count_ata);
+		int _count_ata_divisor = atomic_read(&count_ata_divisor);
+		
+		if ((_count_ata % _count_ata_divisor) == 0) {
+			pr_err("%s _count_ata=%d count_ata_divisor=%d\n", __func__, _count_ata, _count_ata_divisor);
+			atomic_set(&count_ata_divisor, _count_ata_divisor * 2);
+		}
 
 		if (test_bit(SAS_HA_FROZEN, &ha->state) && qc)
 			_ata_err = atomic_read(&ata_err);
