@@ -3570,6 +3570,14 @@ int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	t = ccb->task;
 	pm8001_dev = ccb->device; /* retrieve device */
 
+	if (pm8001_dev->id & NCQ_ERR_ABORT_ALL_FLAG) {
+		pr_err("%s pm8001_dev=%pS sata_abort_all_completion=%pS ccb=%pS NCQ_ERR_ABORT_ALL_FLAG set\n",
+				__func__, pm8001_dev, pm8001_dev->sata_abort_all_completion, ccb);
+		if (pm8001_dev->sata_abort_all_completion)
+			complete(pm8001_dev->sata_abort_all_completion);
+		return 0;
+	}
+
 	if (!t)	{
 		pm8001_dbg(pm8001_ha, FAIL, " TASK NULL. RETURNING !!!\n");
 		return -1;
@@ -3596,14 +3604,8 @@ int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	pm8001_ccb_task_free(pm8001_ha, ccb);
 	mb();
 
-	if (pm8001_dev->id & NCQ_ERR_ABORT_ALL_FLAG) {
-		pr_err("%s pm8001_dev=%pS sata_abort_all_completion=%pS ccb=%pS NCQ_ERR_ABORT_ALL_FLAG set\n",
-				__func__, pm8001_dev, pm8001_dev->sata_abort_all_completion, ccb);
-		if (pm8001_dev->sata_abort_all_completion)
-			complete(pm8001_dev->sata_abort_all_completion);
-	} else {
-		t->task_done(t);
-	}
+	t->task_done(t);
+
 
 	return 0;
 }
