@@ -2086,6 +2086,17 @@ static void arm_smmu_domain_free(struct iommu_domain *domain)
 	kfree(smmu_domain);
 }
 
+static struct iommu_domain *
+arm_smmu_get_msi_mapping_domain(struct iommu_domain *domain)
+{
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+
+	if (smmu_domain->s2)
+		return &smmu_domain->s2->domain;
+
+	return domain;
+}
+
 static int arm_smmu_domain_finalise_s1(struct arm_smmu_domain *smmu_domain,
 				       struct arm_smmu_master *master,
 				       struct io_pgtable_cfg *pgtbl_cfg)
@@ -2860,6 +2871,7 @@ static void arm_smmu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
 static const struct iommu_domain_ops arm_smmu_nested_domain_ops = {
 	.attach_dev		= arm_smmu_attach_dev,
 	.free			= arm_smmu_domain_free,
+	.get_msi_mapping_domain	= arm_smmu_get_msi_mapping_domain,
 };
 
 static struct iommu_domain *
