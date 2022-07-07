@@ -823,6 +823,12 @@ int pm8001_I_T_nexus_reset(struct domain_device *dev)
 	if (!dev || !dev->lldd_dev)
 		return -ENODEV;
 
+	/* If the device is in NCQ ABORT MODE then we need to issue */
+	if (pm8001_dev->id & NCQ_ERR_FLAG) {
+		
+	}
+
+
 	pm8001_dev = dev->lldd_dev;
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
 	phy = sas_get_local_phy(dev);
