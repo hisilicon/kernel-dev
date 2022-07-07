@@ -827,8 +827,10 @@ int pm8001_I_T_nexus_reset(struct domain_device *dev)
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
 	
 	/* If in NCQ ABORT MODE then we need to issue a SATA_ABORT */
-	if (pm8001_dev->id & NCQ_ERR_FLAG)
+	if (pm8001_dev->id & NCQ_ERR_FLAG) {
+		
 		pm8001_send_abort_all(pm8001_ha, pm8001_dev);
+	}
 
 	phy = sas_get_local_phy(dev);
 
@@ -1036,6 +1038,7 @@ int pm8001_abort_task(struct sas_task *task)
 		sas_execute_internal_abort_single(dev, tag, 0, NULL);
 	} else if (task->task_proto & SAS_PROTOCOL_SATA ||
 		task->task_proto & SAS_PROTOCOL_STP) {
+		pr_err("%s task=%pS SAS_PROTOCOL_STP chip_id=%d chip_8006=%d\n", __func__, task, pm8001_ha->chip_id, chip_8006);
 		if (pm8001_ha->chip_id == chip_8006) {
 			DECLARE_COMPLETION_ONSTACK(completion_reset);
 			DECLARE_COMPLETION_ONSTACK(completion);

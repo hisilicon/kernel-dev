@@ -581,6 +581,7 @@ struct pm8001_fw_image_header {
 #define FLASH_UPDATE_DISABLED			0x11
 
 #define	NCQ_ERR_FLAG			0x20000000
+#define	NCQ_ERR_ABORT_ALL_FLAG	0x40000000
 
 /* Device states */
 #define DS_OPERATIONAL				0x01

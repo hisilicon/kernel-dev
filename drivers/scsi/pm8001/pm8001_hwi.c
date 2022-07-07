@@ -1782,7 +1782,7 @@ void pm8001_send_abort_all(struct pm8001_hba_info *pm8001_ha,
 	task_abort.tag = cpu_to_le32(ccb->ccb_tag);
 	
 	pm8001_dev->sata_abort_all_completion = &completion;
-
+	pm8001_dev->id |= NCQ_ERR_ABORT_ALL_FLAG;
 	ret = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &task_abort,
 				   sizeof(task_abort), 0);
 	if (ret) {
@@ -1807,6 +1807,7 @@ void pm8001_send_abort_all(struct pm8001_hba_info *pm8001_ha,
 	pm8001_dev->sata_abort_all_completion = NULL;
 	/* Clear the flag regardless - not much else which we can do */
 	pm8001_dev->id	&= ~NCQ_ERR_FLAG;
+	pm8001_dev->id	&= ~NCQ_ERR_ABORT_ALL_FLAG;
 }
 
 /**
@@ -3595,8 +3596,8 @@ int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	pm8001_ccb_task_free(pm8001_ha, ccb);
 	mb();
 
-	if (pm8001_dev->id & NCQ_ERR_FLAG) {
-		pr_err("%s pm8001_dev=%pS sata_abort_all_completion=%pS ccb=%pS\n",
+	if (pm8001_dev->id & NCQ_ERR_ABORT_ALL_FLAG) {
+		pr_err("%s pm8001_dev=%pS sata_abort_all_completion=%pS ccb=%pS NCQ_ERR_ABORT_ALL_FLAG set\n",
 				__func__, pm8001_dev, pm8001_dev->sata_abort_all_completion, ccb);
 		if (pm8001_dev->sata_abort_all_completion)
 			complete(pm8001_dev->sata_abort_all_completion);
