@@ -219,6 +219,7 @@ struct arm_smmu_ste {
 #define STRTAB_STE_0_CFG_BYPASS		4
 #define STRTAB_STE_0_CFG_S1_TRANS	5
 #define STRTAB_STE_0_CFG_S2_TRANS	6
+#define STRTAB_STE_0_CFG_NESTED		7
 
 #define STRTAB_STE_0_S1FMT		GENMASK_ULL(5, 4)
 #define STRTAB_STE_0_S1FMT_LINEAR	0
@@ -268,6 +269,15 @@ struct arm_smmu_ste {
 #define STRTAB_STE_2_S2R		(1UL << 58)
 
 #define STRTAB_STE_3_S2TTB_MASK		GENMASK_ULL(51, 4)
+
+/* These bits can be controlled by userspace for STRTAB_STE_0_CFG_NESTED */
+#define STRTAB_STE_0_NESTING_ALLOWED                      \
+	cpu_to_le64(STRTAB_STE_0_V | STRTAB_STE_0_S1FMT | \
+		    STRTAB_STE_0_S1CTXPTR_MASK | STRTAB_STE_0_S1CDMAX)
+#define STRTAB_STE_1_NESTING_ALLOWED                          \
+	cpu_to_le64(STRTAB_STE_1_S1DSS | STRTAB_STE_1_S1CIR | \
+		    STRTAB_STE_1_S1COR | STRTAB_STE_1_S1CSH | \
+		    STRTAB_STE_1_S1STALLD | STRTAB_STE_1_STRW)
 
 /*
  * Context descriptors.
@@ -741,6 +751,13 @@ struct arm_smmu_domain {
 
 	struct mmu_notifier		mmu_notifier;
 	bool				btm_invalidation;
+};
+
+struct arm_smmu_nested_domain {
+	struct iommu_domain domain;
+	struct arm_smmu_domain *s2_parent;
+
+	__le64 ste[2];
 };
 
 struct arm_smmu_master_domain {
