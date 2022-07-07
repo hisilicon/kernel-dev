@@ -2118,6 +2118,22 @@ struct iommu_domain *iommu_get_dma_domain(struct device *dev)
 	return dev->iommu_group->default_domain;
 }
 
+struct iommu_domain *iommu_get_msi_domain(struct device *dev)
+{
+	const struct iommu_ops *ops;
+
+	if (!dev->iommu || !dev->iommu->iommu_dev)
+		goto attached_domain;
+
+	ops = dev_iommu_ops(dev);
+	if (ops->get_msi_domain)
+		return ops->get_msi_domain(dev);
+
+attached_domain:
+	return iommu_get_domain_for_dev(dev);
+}
+EXPORT_SYMBOL_GPL(iommu_get_msi_domain);
+
 /*
  * IOMMU groups are really the natural working unit of the IOMMU, but
  * the IOMMU API works on domains and devices.  Bridge that gap by
