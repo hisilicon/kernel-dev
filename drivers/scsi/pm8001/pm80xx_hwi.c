@@ -47,6 +47,7 @@
 #define SMP_DIRECT 1
 #define SMP_INDIRECT 2
 
+extern bool special_task_ata_internal;
 
 int pm80xx_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shift_value)
 {
@@ -3861,6 +3862,9 @@ static void process_one_iomb(struct pm8001_hba_info *pm8001_ha,
 	__le32 pHeader = *(__le32 *)piomb;
 	u32 opc = (u32)((le32_to_cpu(pHeader)) & 0xFFF);
 
+	if (special_task_ata_internal)
+		pr_err("%s opc=%d\n", __func__, opc);
+
 	switch (opc) {
 	case OPC_OUB_ECHO:
 		pm8001_dbg(pm8001_ha, MSG, "OPC_OUB_ECHO\n");
@@ -4064,7 +4068,6 @@ static void print_scratchpad_registers(struct pm8001_hba_info *pm8001_ha)
 	pm8001_dbg(pm8001_ha, FAIL, "MSGU_RSVD_SCRATCH_PAD_1: 0x%x\n",
 		   pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_RSVD_1));
 }
-
 static int process_oq(struct pm8001_hba_info *pm8001_ha, u8 vec)
 {
 	struct outbound_queue_table *circularQ;
@@ -4072,6 +4075,9 @@ static int process_oq(struct pm8001_hba_info *pm8001_ha, u8 vec)
 	u8 bc;
 	u32 ret = MPI_IO_STATUS_FAIL;
 	u32 regval;
+
+	if (special_task_ata_internal)
+		pr_err("%s\n", __func__);
 
 	/*
 	 * Fatal errors are programmed to be signalled in irq vector

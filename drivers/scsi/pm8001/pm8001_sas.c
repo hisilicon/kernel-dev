@@ -408,6 +408,7 @@ static int pm8001_deliver_command(struct pm8001_hba_info *pm8001_ha,
 	return -EINVAL;
 }
 
+bool special_task_ata_internal = false;
 /**
   * pm8001_queue_command - register for upper layer used, all IO commands sent
   * to HBA are from this interface.
@@ -428,7 +429,6 @@ int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	u32 n_elem = 0;
 	int rc = 0;
 	struct scsi_cmnd *scmd = NULL;
-	bool special_task_ata_internal = false;
 	struct ata_queued_cmd *qc = NULL;
 
 	if (!pm8001_dev->printed) {

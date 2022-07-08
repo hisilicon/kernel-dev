@@ -69,7 +69,7 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 		return 0;
 	}
 }
-
+extern bool special_task_ata_internal;
 static void sas_ata_task_done(struct sas_task *task)
 {
 	struct ata_queued_cmd *qc = task->uldd_task;
@@ -82,8 +82,10 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct ata_link *link;
 	struct ata_port *ap;
 
-	if (qc && !qc->scsicmd)
+	if (qc && !qc->scsicmd) {
 		pr_err("%s qc=%pS scsicmd=NULL\n", __func__, qc);
+		special_task_ata_internal = false;
+	}
 
 	spin_lock_irqsave(&dev->done_lock, flags);
 	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))
