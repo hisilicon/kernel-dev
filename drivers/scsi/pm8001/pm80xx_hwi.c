@@ -2352,7 +2352,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 			}
 			#endif
 
-			if (_ata_err == 3000) {
+			if (_ata_err == -1) {
 				struct ata_port *ap = qc->ap;
 				struct ata_link *link = &ap->link;
 
