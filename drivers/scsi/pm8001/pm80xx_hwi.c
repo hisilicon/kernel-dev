@@ -2649,7 +2649,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 			atomic_dec(&pm8001_dev->running_req);
 		break;
 	case IO_XFER_ERROR_REJECTED_NCQ_MODE:
-		pm8001_dbg(pm8001_ha, IO, "IO_XFER_ERROR_REJECTED_NCQ_MODE\n");
+		pr_err("%s IO_XFER_ERROR_REJECTED_NCQ_MODE task=%pS\n", __func__, t);
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_DATA_UNDERRUN;
 		if (pm8001_dev)
