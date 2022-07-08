@@ -1049,6 +1049,7 @@ EXPORT_SYMBOL_GPL(ata_link_abort);
  */
 int ata_port_abort(struct ata_port *ap)
 {
+	pr_err("%s ap=%pS calling ata_do_link_abort\n", __func__, ap);
 	return ata_do_link_abort(ap, NULL);
 }
 EXPORT_SYMBOL_GPL(ata_port_abort);
@@ -1100,11 +1101,13 @@ static void __ata_port_freeze(struct ata_port *ap)
 int ata_port_freeze(struct ata_port *ap)
 {
 	int nr_aborted;
-
+	pr_err("%s ap=%pS calling __ata_port_freeze\n", __func__, ap);
 	WARN_ON(!ap->ops->error_handler);
 
 	__ata_port_freeze(ap);
+	pr_err("%s2 ap=%pS calling ata_port_abort\n", __func__, ap);
 	nr_aborted = ata_port_abort(ap);
+	pr_err("%s3 ap=%pS nr_aborted=%d\n", __func__, ap, nr_aborted);
 
 	return nr_aborted;
 }
@@ -1122,7 +1125,7 @@ EXPORT_SYMBOL_GPL(ata_port_freeze);
 void ata_eh_freeze_port(struct ata_port *ap)
 {
 	unsigned long flags;
-
+	pr_err("%s ap=%pS\n", __func__, ap);
 	if (!ap->ops->error_handler)
 		return;
 

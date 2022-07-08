@@ -862,6 +862,7 @@ int pm8001_I_T_nexus_reset(struct domain_device *dev)
 		   pm8001_dev->device_id, rc);
  out:
 	sas_put_local_phy(phy);
+	pr_err("%s10 out rc=%d\n", __func__, rc);
 	return rc;
 }
 
