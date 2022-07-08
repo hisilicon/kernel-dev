@@ -2293,8 +2293,14 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 	tag = le32_to_cpu(psataPayload->tag);
 
 	ccb = &pm8001_ha->ccb_info[tag];
+	if (special_task_ata_internal)
+		pr_err("%s ccb=%pS\n", __func__, ccb);
 	t = ccb->task;
+	if (special_task_ata_internal)
+		pr_err("%s2 ccb=%pS t=%pS\n", __func__, ccb, t);
 	pm8001_dev = ccb->device;
+	if (special_task_ata_internal)
+		pr_err("%s3 ccb=%pS t=%pS pm8001_dev=%pS\n", __func__, ccb, t, pm8001_dev);
 
 	if (t) {
 		struct ata_queued_cmd *qc = t->uldd_task;
@@ -2308,11 +2314,12 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 
 		if (state_dont_complete_ata && scmd) {
 			pr_err("%s skipping ATA completipm8001_dev = on scmd=%pS qc=%pS flags=0x%lx task=%pS scmd=%pS\n", __func__, scmd, qc, qc->flags, t, scmd);
-			return;
+		//	return;
+			panic("mpi_sata_completion should not get here\n");
 		}
 	}
 
-	if (t) {
+	if (0) {
 		static atomic_t ata_err;
 		int _ata_err;
 		struct ata_queued_cmd *qc = t->uldd_task;
