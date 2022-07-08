@@ -663,7 +663,7 @@ EXPORT_SYMBOL(ata_scsi_cmd_error_handler);
 void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 {
 	unsigned long flags;
-
+	pr_err("%s host=%pS ap=%pS\n", __func__, host, ap);
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
 		struct ata_link *link;
@@ -672,6 +672,7 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 		ata_eh_acquire(ap);
  repeat:
 		/* kill fast drain timer */
+		pr_err("%s2 host=%pS ap=%pS deleting fastdrain_timer\n", __func__, host, ap);
 		del_timer_sync(&ap->fastdrain_timer);
 
 		/* process port resume request */
@@ -994,13 +995,15 @@ static int ata_do_link_abort(struct ata_port *ap, struct ata_link *link)
 	int tag, nr_aborted = 0;
 
 	WARN_ON(!ap->ops->error_handler);
-
+	pr_err("%s ap=%pS link=%pS\n", __func__, ap, link);
 	/* we're gonna abort all commands, no need for fast drain */
 	ata_eh_set_pending(ap, 0);
 
 	/* include internal tag in iteration */
 	ata_qc_for_each_with_internal(ap, qc, tag) {
+		pr_err("%s1 qc=%pS tag=%d\n", __func__, qc, tag);
 		if (qc && (!link || qc->dev->link == link)) {
+			pr_err("%s2 qc=%pS setting ATA_QCFLAG_FAILED tag=%d\n", __func__, qc, tag);
 			qc->flags |= ATA_QCFLAG_FAILED;
 			ata_qc_complete(qc);
 			nr_aborted++;
@@ -1027,6 +1030,7 @@ static int ata_do_link_abort(struct ata_port *ap, struct ata_link *link)
  */
 int ata_link_abort(struct ata_link *link)
 {
+	pr_err("%s link=%pS\n", __func__, link);
 	return ata_do_link_abort(link->ap, link);
 }
 EXPORT_SYMBOL_GPL(ata_link_abort);
