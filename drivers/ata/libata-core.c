@@ -1485,11 +1485,12 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned long flags;
 	unsigned int err_mask;
 	int rc;
-
+	pr_err("%s dev=%pS\n", __func__, dev);
 	spin_lock_irqsave(ap->lock, flags);
 
 	/* no internal command while frozen */
 	if (ap->pflags & ATA_PFLAG_FROZEN) {
+		pr_err("%s2 ATA_PFLAG_FROZEN\n", __func__);
 		spin_unlock_irqrestore(ap->lock, flags);
 		return AC_ERR_SYSTEM;
 	}
@@ -1578,7 +1579,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 			else
 				ata_qc_complete(qc);
 
-			ata_dev_warn(dev, "qc timeout (cmd 0x%x)\n",
+			ata_dev_warn(dev, "%s3 qc timeout (cmd 0x%x)\n", __func__,
 				     command);
 		}
 
@@ -1591,14 +1592,22 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	/* perform minimal error analysis */
 	if (qc->flags & ATA_QCFLAG_FAILED) {
-		if (qc->result_tf.status & (ATA_ERR | ATA_DF))
+
+		pr_err("%s4 dev=%pS ATA_QCFLAG_FAILED was set qc=%pS qc->result_tf.status=0x%x\n", __func__, dev, qc, qc->result_tf.status);
+		if (qc->result_tf.status & (ATA_ERR | ATA_DF)){
+			pr_err("%s5 dev=%pS ATA_QCFLAG_FAILED was set qc=%pS\n", __func__, dev, qc);
 			qc->err_mask |= AC_ERR_DEV;
+		}
 
-		if (!qc->err_mask)
+		if (!qc->err_mask) {
+			pr_err("%s6 dev=%pS ATA_QCFLAG_FAILED was set qc=%pS\n", __func__, dev, qc);
 			qc->err_mask |= AC_ERR_OTHER;
+		}
 
-		if (qc->err_mask & ~AC_ERR_OTHER)
+		if (qc->err_mask & ~AC_ERR_OTHER) {
+			pr_err("%s7 dev=%pS ATA_QCFLAG_FAILED was set qc=%pS\n", __func__, dev, qc);
 			qc->err_mask &= ~AC_ERR_OTHER;
+		}
 	} else if (qc->tf.command == ATA_CMD_REQ_SENSE_DATA) {
 		qc->result_tf.status |= ATA_SENSE;
 	}
@@ -1967,16 +1976,19 @@ unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
 	unsigned int err_mask;
 	bool dma = false;
 
-	ata_dev_dbg(dev, "read log page - log 0x%x, page 0x%x\n", log, page);
+	ata_dev_err(dev, "read log page - log 0x%x, page 0x%x\n", log, page);
 
 	/*
 	 * Return error without actually issuing the command on controllers
 	 * which e.g. lockup on a read log page.
 	 */
-	if (ap_flags & ATA_FLAG_NO_LOG_PAGE)
+	if (ap_flags & ATA_FLAG_NO_LOG_PAGE) {
+		pr_err("%s ATA_FLAG_NO_LOG_PAGE set\n", __func__);
 		return AC_ERR_DEV;
+	}
 
 retry:
+	pr_err("%s1 retry\n", __func__);
 	ata_tf_init(dev, &tf);
 	if (ata_dma_enabled(dev) && ata_id_has_read_log_dma_ext(dev->id) &&
 	    !(dev->horkage & ATA_HORKAGE_NO_DMA_LOG)) {
@@ -1998,6 +2010,7 @@ retry:
 				     buf, sectors * ATA_SECT_SIZE, 0);
 
 	if (err_mask) {
+		pr_err("%s2 err_mask=0x%x\n", __func__, err_mask);
 		if (dma) {
 			dev->horkage |= ATA_HORKAGE_NO_DMA_LOG;
 			goto retry;

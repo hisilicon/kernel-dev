@@ -427,6 +427,9 @@ int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	unsigned long flags;
 	u32 n_elem = 0;
 	int rc = 0;
+	struct scsi_cmnd *scmd = NULL;
+	bool special_task_ata_internal = false;
+	struct ata_queued_cmd *qc = NULL;
 
 	if (!pm8001_dev->printed) {
 
@@ -434,6 +437,21 @@ int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 				__func__, task, pm8001_dev->id, pm8001_dev->device_id);
 
 		pm8001_dev->printed = true;
+	}
+
+if (task->uldd_task) {
+			
+
+			if (dev_is_sata(dev)) {
+				qc = task->uldd_task;
+				scmd = qc->scsicmd;
+				if (!scmd) {
+					pr_err("%s task=%pS qc=%pS task_done=%pS\n", __func__, task, qc, task->task_done);
+					special_task_ata_internal = true;
+				}
+			} else {
+				scmd = task->uldd_task;
+			}
 	}
 
 	if (!internal_abort && !dev->port) {
@@ -496,8 +514,11 @@ int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	ccb->n_elem = n_elem;
 
 	atomic_inc(&pm8001_dev->running_req);
-
+	if (special_task_ata_internal)
+		pr_err("%s2 task=%pS qc=%pS task_done=%pS\n", __func__, task, qc, task->task_done);
 	rc = pm8001_deliver_command(pm8001_ha, ccb);
+	if (special_task_ata_internal)
+		pr_err("%s3 task=%pS qc=%pS task_done=%pS rc=%d\n", __func__, task, qc, task->task_done, rc);
 	if (rc) {
 		atomic_dec(&pm8001_dev->running_req);
 		if (!sas_protocol_ata(task_proto) && n_elem)

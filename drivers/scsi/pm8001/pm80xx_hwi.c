@@ -2302,6 +2302,9 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 		if (qc)
 			scmd = qc->scsicmd;
 
+		if (!scmd)
+			pr_err("%s task=%pS scmd=NULL qc=%pS\n", __func__, t, qc);
+
 		if (state_dont_complete_ata && scmd) {
 			pr_err("%s skipping ATA completipm8001_dev = on scmd=%pS qc=%pS flags=0x%lx task=%pS scmd=%pS\n", __func__, scmd, qc, qc->flags, t, scmd);
 			return;
