@@ -1732,6 +1732,7 @@ void pm8001_work_fn(struct work_struct *work)
 
 		ap = dev->sata_dev.ap;
 		link = &ap->link;
+		link->eh_info.err_mask |= AC_ERR_DEV;
 		ata_link_abort(link);
 	}
 	break;
