@@ -82,6 +82,9 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct ata_link *link;
 	struct ata_port *ap;
 
+	if (qc && !qc->scsicmd)
+		pr_err("%s qc=%pS scsicmd=NULL\n", __func__, qc);
+
 	spin_lock_irqsave(&dev->done_lock, flags);
 	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))
 		task = NULL;
@@ -90,11 +93,15 @@ static void sas_ata_task_done(struct sas_task *task)
 	spin_unlock_irqrestore(&dev->done_lock, flags);
 
 	/* check if libsas-eh got to the task before us */
-	if (unlikely(!task))
+	if (unlikely(!task)){
+		pr_err("%s2 task = NULL\n", __func__);
 		return;
+	}
 
-	if (!qc)
+	if (!qc){
+		pr_err("%s3 qc_already_gone\n", __func__);
 		goto qc_already_gone;
+	}
 
 	ap = qc->ap;
 	link = &ap->link;
@@ -110,6 +117,7 @@ static void sas_ata_task_done(struct sas_task *task)
 			 * ata internal abort process has taken responsibility
 			 * for this sas_task
 			 */
+			pr_err("%s5 qc=%pS task=%pS\n", __func__, qc, task);
 			return;
 		}
 	}
