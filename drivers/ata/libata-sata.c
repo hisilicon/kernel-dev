@@ -1357,6 +1357,7 @@ EXPORT_SYMBOL_GPL(sata_async_notification);
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
+extern bool special_task_ata_internal;
 static int ata_eh_read_log_10h(struct ata_device *dev,
 			       int *tag, struct ata_taskfile *tf)
 {
@@ -1365,7 +1366,9 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
 	u8 csum;
 	int i;
 	pr_err("%s dev=%pS\n", __func__, dev);
+	special_task_ata_internal = true;
 	err_mask = ata_read_log_page(dev, ATA_LOG_SATA_NCQ, 0, buf, 1);
+	special_task_ata_internal = false;
 	pr_err("%s dev=%pS err_mask=0x%x\n", __func__, dev, err_mask);
 	if (err_mask)
 		return -EIO;

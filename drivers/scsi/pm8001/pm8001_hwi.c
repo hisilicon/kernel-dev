@@ -2220,6 +2220,7 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	}
 }
 
+extern bool special_task_ata_internal;
 /*See the comments for mpi_ssp_completion */
 static void
 mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
@@ -2241,6 +2242,8 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	struct pm8001_device *pm8001_dev;
 	unsigned long flags;
 
+	if (special_task_ata_internal)
+		pr_err("%s 00\n", __func__);
 	psataPayload = (struct sata_completion_resp *)(piomb + 4);
 	status = le32_to_cpu(psataPayload->status);
 	param = le32_to_cpu(psataPayload->param);

@@ -447,7 +447,6 @@ if (task->uldd_task) {
 				scmd = qc->scsicmd;
 				if (!scmd) {
 					pr_err("%s task=%pS qc=%pS task_done=%pS\n", __func__, task, qc, task->task_done);
-					special_task_ata_internal = true;
 				}
 			} else {
 				scmd = task->uldd_task;

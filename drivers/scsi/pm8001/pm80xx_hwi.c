@@ -2287,7 +2287,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 	struct pm8001_device *pm8001_dev;
 	unsigned long flags;
 	if (special_task_ata_internal)
-		pr_err("%s\n", __func__);
+		pr_err("%s XXX\n", __func__);
 	psataPayload = (struct sata_completion_resp *)(piomb + 4);
 	status = le32_to_cpu(psataPayload->status);
 	param = le32_to_cpu(psataPayload->param);
