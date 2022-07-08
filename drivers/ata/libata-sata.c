@@ -1421,12 +1421,17 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 	int tag, rc;
 
 	/* if frozen, we can't do much */
-	if (ap->pflags & ATA_PFLAG_FROZEN)
+	if (ap->pflags & ATA_PFLAG_FROZEN) {
+		pr_err("%s frozen, not doing read_log_ext\n", __func__);
 		return;
+	}
 
 	/* is it NCQ device error? */
-	if (!link->sactive || !(ehc->i.err_mask & AC_ERR_DEV))
+	if (!link->sactive || !(ehc->i.err_mask & AC_ERR_DEV)) {
+		pr_err("%s link->sactive=%d or !!(ehc->i.err_mask & AC_ERR_DEV)=%d, not doing read_log_ext\n", 
+			__func__, link->sactive, !!(ehc->i.err_mask & AC_ERR_DEV));
 		return;
+	}
 
 	/* has LLDD analyzed already? */
 	ata_qc_for_each_raw(ap, qc, tag) {

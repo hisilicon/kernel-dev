@@ -2436,7 +2436,7 @@ static int ata_do_reset(struct ata_link *link, ata_reset_fn_t reset,
 			bool clear_classes)
 {
 	struct ata_device *dev;
-
+	pr_err("%s reset=%pS\n", __func__, reset);
 	if (clear_classes)
 		ata_for_each_dev(dev, link, ALL)
 			classes[dev->devno] = ATA_DEV_UNKNOWN;
