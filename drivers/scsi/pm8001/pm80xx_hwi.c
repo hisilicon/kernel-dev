@@ -2286,21 +2286,24 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 	u32 *sata_resp;
 	struct pm8001_device *pm8001_dev;
 	unsigned long flags;
-
+	if (special_task_ata_internal)
+		pr_err("%s\n", __func__);
 	psataPayload = (struct sata_completion_resp *)(piomb + 4);
 	status = le32_to_cpu(psataPayload->status);
 	param = le32_to_cpu(psataPayload->param);
 	tag = le32_to_cpu(psataPayload->tag);
 
+	if (special_task_ata_internal)
+		pr_err("%s1 tag=%d\n", __func__, tag);
 	ccb = &pm8001_ha->ccb_info[tag];
 	if (special_task_ata_internal)
-		pr_err("%s ccb=%pS\n", __func__, ccb);
+		pr_err("%s2 ccb=%pS\n", __func__, ccb);
 	t = ccb->task;
 	if (special_task_ata_internal)
-		pr_err("%s2 ccb=%pS t=%pS\n", __func__, ccb, t);
+		pr_err("%s3 ccb=%pS t=%pS\n", __func__, ccb, t);
 	pm8001_dev = ccb->device;
 	if (special_task_ata_internal)
-		pr_err("%s3 ccb=%pS t=%pS pm8001_dev=%pS\n", __func__, ccb, t, pm8001_dev);
+		pr_err("%s4 ccb=%pS t=%pS pm8001_dev=%pS\n", __func__, ccb, t, pm8001_dev);
 
 	if (t) {
 		struct ata_queued_cmd *qc = t->uldd_task;
