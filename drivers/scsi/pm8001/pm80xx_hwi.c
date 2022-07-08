@@ -1804,7 +1804,7 @@ static void pm80xx_send_abort_all(struct pm8001_hba_info *pm8001_ha,
 
 	ret = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &task_abort,
 				   sizeof(task_abort), 0);
-	pm8001_dbg(pm8001_ha, FAIL, "Executing abort task end\n");
+	pr_err("%s Executing abort task end ret=%d\n", __func__, ret);
 	if (ret) {
 		sas_free_task(task);
 		pm8001_ccb_free(pm8001_ha, ccb);
@@ -1871,7 +1871,7 @@ static void pm80xx_send_read_log(struct pm8001_hba_info *pm8001_ha,
 
 	res = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &sata_cmd,
 				   sizeof(sata_cmd), 0);
-	pm8001_dbg(pm8001_ha, FAIL, "Executing read log end\n");
+	pr_err("%s Executing read log end res=%d\n", __func__, res);
 	if (res) {
 		sas_free_task(task);
 		pm8001_ccb_free(pm8001_ha, ccb);
@@ -2458,6 +2458,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 			/* check if response is for SEND READ LOG */
 			if (pm8001_dev &&
 			    (pm8001_dev->id & NCQ_READ_LOG_FLAG)) {
+				pr_err("%s NCQ_READ_LOG_FLAG now sending pm80xx_send_abort_all\n", __func__);
 				pm80xx_send_abort_all(pm8001_ha, pm8001_dev);
 				/* Free the tag */
 				pm8001_tag_free(pm8001_ha, tag);
