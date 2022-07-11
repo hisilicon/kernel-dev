@@ -1527,14 +1527,17 @@ static void ata_eh_analyze_serror(struct ata_link *link)
 	if (serror & (SERR_PERSISTENT | SERR_DATA)) {
 		err_mask |= AC_ERR_ATA_BUS;
 		action |= ATA_EH_RESET;
+		pr_err("%s1 link=%pS setting ATA_EH_RESET\n", __func__, link);
 	}
 	if (serror & SERR_PROTOCOL) {
 		err_mask |= AC_ERR_HSM;
 		action |= ATA_EH_RESET;
+		pr_err("%s2 link=%pS setting ATA_EH_RESET\n", __func__, link);
 	}
 	if (serror & SERR_INTERNAL) {
 		err_mask |= AC_ERR_SYSTEM;
 		action |= ATA_EH_RESET;
+		pr_err("%s3 link=%pS setting ATA_EH_RESET\n", __func__, link);
 	}
 
 	/* Determine whether a hotplug event has occurred.  Both
