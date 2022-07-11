@@ -848,6 +848,7 @@ int pm8001_I_T_nexus_reset(struct domain_device *dev)
 	
 	/* If in NCQ ABORT MODE then we need to issue a SATA_ABORT */
 	if (pm8001_dev->id & NCQ_ERR_FLAG) {
+		WARN_ON_ONCE(1);
 		pr_err("%s NCQ_ERR_FLAG set, calling pm8001_send_abort_all dev=%pS\n", __func__, dev);
 		pm8001_send_abort_all(pm8001_ha, pm8001_dev);
 	}
