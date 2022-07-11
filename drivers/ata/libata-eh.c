@@ -1582,6 +1582,7 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 
 	if ((stat & (ATA_BUSY | ATA_DRQ | ATA_DRDY)) != ATA_DRDY) {
 		qc->err_mask |= AC_ERR_HSM;
+		pr_err("%s  stat=0x%x returning ATA_EH_RESET\n", __func__, stat);
 		return ATA_EH_RESET;
 	}
 
@@ -1641,8 +1642,10 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 			qc->err_mask |= AC_ERR_HSM;
 		}
 	}
-	if (qc->err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT | AC_ERR_ATA_BUS))
+	if (qc->err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT | AC_ERR_ATA_BUS)) {
+		pr_err("%s  err_mask=0x%x returning ATA_EH_RESET\n", __func__, qc->err_mask);
 		action |= ATA_EH_RESET;
+	}
 
 	return action;
 }
@@ -1842,6 +1845,7 @@ static unsigned int ata_eh_speed_down(struct ata_device *dev,
 	if (verdict & ATA_EH_SPDN_SPEED_DOWN) {
 		/* speed down SATA link speed if possible */
 		if (sata_down_spd_limit(link, 0) == 0) {
+			pr_err("%s ATA_EH_SPDN_SPEED_DOWN returning ATA_EH_RESET\n", __func__);
 			action |= ATA_EH_RESET;
 			goto done;
 		}
@@ -1862,6 +1866,7 @@ static unsigned int ata_eh_speed_down(struct ata_device *dev,
 			dev->spdn_cnt++;
 
 			if (ata_down_xfermask_limit(dev, sel) == 0) {
+				pr_err("%s ata_down_xfermask_limit returning ATA_EH_RESET\n", __func__);
 				action |= ATA_EH_RESET;
 				goto done;
 			}
@@ -1877,6 +1882,7 @@ static unsigned int ata_eh_speed_down(struct ata_device *dev,
 		if (ata_down_xfermask_limit(dev, ATA_DNXFER_FORCE_PIO) == 0) {
 			dev->spdn_cnt = 0;
 			action |= ATA_EH_RESET;
+			pr_err("%s ata_down_xfermask_limit ATA_DNXFER_FORCE_PIO returning ATA_EH_RESET\n", __func__);
 			goto done;
 		}
 	}
@@ -1959,6 +1965,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 		ehc->i.probe_mask |= ATA_ALL_DEVICES;
 		ehc->i.action |= ATA_EH_RESET;
 		ehc->i.err_mask |= AC_ERR_OTHER;
+		pr_err("%s sata_scr_read EOPNOTSUPP setting ATA_EH_RESET\n", __func__);
 	}
 
 	/* analyze NCQ failure */
@@ -2022,9 +2029,10 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 
 	/* enforce default EH actions */
 	if (ap->pflags & ATA_PFLAG_FROZEN ||
-	    all_err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT))
+	    all_err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT)) {
 		ehc->i.action |= ATA_EH_RESET;
-	else if (((eflags & ATA_EFLAG_IS_IO) && all_err_mask) ||
+		pr_err("%s enforce default EH actions setting all_err_mask=0x%x ATA_PFLAG_FROZEN=%d\n", __func__, all_err_mask, !!(ap->pflags & ATA_PFLAG_FROZEN));
+	} else if (((eflags & ATA_EFLAG_IS_IO) && all_err_mask) ||
 		 (!(eflags & ATA_EFLAG_IS_IO) && (all_err_mask & ~AC_ERR_DEV)))
 		ehc->i.action |= ATA_EH_REVALIDATE;
 
