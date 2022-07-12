@@ -227,6 +227,7 @@ struct hisi_sas_device {
 	int device_id;
 	int sata_idx;
 	spinlock_t lock; /* For protecting slots */
+	struct delayed_work disk_err_work;
 };
 
 struct hisi_sas_slot {
