@@ -1620,7 +1620,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 				goto out;
 			}
 			hisi_sas_dereg_device(hisi_hba, device);
-			rc = hisi_sas_softreset_ata_disk(device);
+			rc = TMF_RESP_FUNC_COMPLETE;
 		}
 	} else if (task->lldd_task && task->task_proto & SAS_PROTOCOL_SMP) {
 		/* SMP */
