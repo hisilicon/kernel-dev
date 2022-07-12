@@ -3641,6 +3641,8 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	/* reset */
 	ata_for_each_link(link, ap, EDGE) {
 		struct ata_eh_context *ehc = &link->eh_context;
+        pr_err("%s link=%pS ATA_EH_RESET=%d (will call ata_eh_reset if set)\n", 
+               __func__, link, !!(ehc->i.action & ATA_EH_RESET));
 
 		if (!(ehc->i.action & ATA_EH_RESET))
 			continue;
