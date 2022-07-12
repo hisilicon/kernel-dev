@@ -154,6 +154,7 @@ void ata_tf_to_fis(const struct ata_taskfile *tf, u8 pmp, int is_cmd, u8 *fis)
 		fis[1] |= (1 << 7);	/* bit 7 indicates Command FIS */
 
 	fis[2] = tf->command;
+	pr_err("%s writing fis[2] fis=%pS tf=%pS\n", __func__, fis, tf);
 	fis[3] = tf->feature;
 
 	fis[4] = tf->lbal;
@@ -192,6 +193,7 @@ EXPORT_SYMBOL_GPL(ata_tf_to_fis);
 void ata_tf_from_fis(const u8 *fis, struct ata_taskfile *tf)
 {
 	tf->status	= fis[2];
+	pr_err("%s reading fis[2] fis=%pS\n", __func__, fis);
 	tf->error	= fis[3];
 
 	tf->lbal	= fis[4];

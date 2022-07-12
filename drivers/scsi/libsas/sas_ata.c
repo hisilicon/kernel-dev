@@ -242,7 +242,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 static bool sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	struct domain_device *dev = qc->ap->private_data;
-
+	pr_err("%s calling ata_tf_from_fis = %pS\n", __func__, &dev->sata_dev.fis);
 	ata_tf_from_fis(dev->sata_dev.fis, &qc->result_tf);
 	return true;
 }
@@ -635,6 +635,7 @@ static int sas_get_ata_command_set(struct domain_device *dev)
 	if (dev->dev_type == SAS_SATA_PENDING)
 		return ATA_DEV_UNKNOWN;
 
+	pr_err("%s calling ata_tf_from_fis = %pS\n", __func__, &dev->sata_dev.fis);
 	ata_tf_from_fis((const u8 *)fis, &tf);
 
 	return ata_dev_classify(&tf);
