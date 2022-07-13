@@ -2334,6 +2334,7 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	unsigned long flags;
 	bool is_internal = slot->is_internal;
 	u32 dw0;
+	static atomic_t ata_completions;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return;
@@ -2342,6 +2343,25 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	device = task->dev;
 	ha = device->port->ha;
 	sas_dev = device->lldd_dev;
+
+	switch (task->task_proto) {
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
+	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
+	{
+		int _ata_completions = atomic_inc_return(&ata_completions);
+		if ((_ata_completions % 100000) == 0) {
+			pr_err("%s task=%pS slot=%pS generating ata error\n", __func__, task, slot);
+			sas_task_abort(task);
+			return;
+		}
+
+	};
+	default:
+	;
+	}
+
+
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
