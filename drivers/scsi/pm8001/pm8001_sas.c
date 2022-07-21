@@ -821,6 +821,11 @@ int pm8001_I_T_nexus_reset(struct domain_device *dev)
 
 	pm8001_dev = dev->lldd_dev;
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
+
+	/* If in NCQ ABORT MODE then we need to issue a SATA_ABORT */
+	if (pm8001_dev->id & NCQ_ERR_FLAG)
+		pm8001_send_abort_all(pm8001_ha, pm8001_dev);
+
 	phy = sas_get_local_phy(dev);
 
 	if (dev_is_sata(dev)) {
