@@ -3547,9 +3547,24 @@ static ssize_t hw_err_v2_hw_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(hw_err_v2_hw);
 
+static ssize_t iost_err_v2_hw_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+
+	hisi_sas_write32(hisi_hba, IOST_BASE_ADDR_LO, 0);
+	hisi_sas_write32(hisi_hba, IOST_BASE_ADDR_HI, 0xf0);
+
+	return count;
+}
+static DEVICE_ATTR_WO(iost_err_v2_hw);
+
 static struct attribute *host_v2_hw_attrs[] = {
 	&dev_attr_phy_event_threshold.attr,
 	&dev_attr_hw_err_v2_hw.attr,
+	&dev_attr_iost_err_v2_hw.attr,
 	NULL
 };
 
