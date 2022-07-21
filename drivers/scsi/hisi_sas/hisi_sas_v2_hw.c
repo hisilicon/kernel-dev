@@ -3558,9 +3558,15 @@ static ssize_t iost_err_v2_hw_store(struct device *dev,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct hisi_hba *hisi_hba = shost_priv(shost);
 
-	hisi_sas_write32(hisi_hba, IOST_BASE_ADDR_LO, 0);
-	hisi_sas_write32(hisi_hba, IOST_BASE_ADDR_HI, 0xf0);
+	pr_err("%s BEFORE IOST_BASE_ADDR_LO=0x%x IOST_BASE_ADDR_HI=0x%x\n",
+		__func__, hisi_sas_read32(hisi_hba, IOST_BASE_ADDR_LO),
+		hisi_sas_read32(hisi_hba, IOST_BASE_ADDR_HI));
+	hisi_sas_write32(hisi_hba, IOST_BASE_ADDR_LO, 1);
+	hisi_sas_write32(hisi_hba, IOST_BASE_ADDR_HI, 0xffff00);
 
+	pr_err("%s2 AFTER IOST_BASE_ADDR_LO=0x%x IOST_BASE_ADDR_HI=0x%x\n",
+		__func__, hisi_sas_read32(hisi_hba, IOST_BASE_ADDR_LO),
+		hisi_sas_read32(hisi_hba, IOST_BASE_ADDR_HI));
 	return count;
 }
 static DEVICE_ATTR_WO(iost_err_v2_hw);
