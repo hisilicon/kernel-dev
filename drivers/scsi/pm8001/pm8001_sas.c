@@ -69,6 +69,7 @@ void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag)
 	unsigned long flags;
 
 	spin_lock_irqsave(&pm8001_ha->bitmap_lock, flags);
+	BUG_ON(!test_bit(tag, bitmap));
 	__clear_bit(tag, bitmap);
 	spin_unlock_irqrestore(&pm8001_ha->bitmap_lock, flags);
 }
