@@ -494,10 +494,13 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_STP_ALL:
 		if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags))) {
-			if (!gfpflags_allow_blocking(gfp_flags))
+			if (!gfpflags_allow_blocking(gfp_flags)) {
+				pr_err("%s no blocking -EINVAL task->task_proto=%d task=%pS\n", __func__, task->task_proto, task);
 				return -EINVAL;
+			}
 
 			down(&hisi_hba->sem);
+			pr_err("%s2 got down task->task_proto=%d task=%pS\n", __func__, task->task_proto, task);
 			up(&hisi_hba->sem);
 		}
 
@@ -1489,6 +1492,7 @@ void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba)
 	hisi_hba->hw->phys_init(hisi_hba);
 	msleep(1000);
 	hisi_sas_refresh_port_id(hisi_hba);
+	pr_err("%s clearing HISI_SAS_REJECT_CMD_BIT\n", __func__);
 	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 
 	if (hisi_hba->reject_stp_links_msk)
@@ -2003,11 +2007,15 @@ void hisi_sas_phy_bcast(struct hisi_sas_phy *phy)
 	struct hisi_hba	*hisi_hba = phy->hisi_hba;
 	struct sas_ha_struct *sha = &hisi_hba->sha;
 
-	if (test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags))
+	if (test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags)) {
+		pr_err("%s phy%d filtered due to HISI_SAS_RESETTING_BIT\n", __func__, sas_phy->id);
 		return;
+	}
 
-	if (test_bit(SAS_HA_FROZEN, &sha->state))
+	if (test_bit(SAS_HA_FROZEN, &sha->state)) {
+		pr_err("%s phy%d filtered due to SAS_HA_FROZEN\n", __func__, sas_phy->id);
 		return;
+	}
 
 	sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD, GFP_ATOMIC);
 }
