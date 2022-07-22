@@ -165,7 +165,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	}
 	sas_port_add_phy(port->port, phy->phy);
 
-	pr_debug("%s added to %s, phy_mask:0x%x (%016llx)\n",
+	pr_err("%s added to %s, phy_mask:0x%x (%016llx)\n",
 		 dev_name(&phy->phy->dev), dev_name(&port->port->dev),
 		 port->phy_mask,
 		 SAS_ADDR(port->attached_sas_addr));
@@ -280,7 +280,7 @@ void sas_porte_broadcast_rcvd(struct work_struct *work)
 	prim = phy->sas_prim;
 	spin_unlock_irqrestore(&phy->sas_prim_lock, flags);
 
-	pr_debug("broadcast received: %d\n", prim);
+	pr_err("broadcast received: %d\n", prim);
 	sas_discover_event(phy->port, DISCE_REVALIDATE_DOMAIN);
 
 	if (phy->port)

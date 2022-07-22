@@ -501,10 +501,14 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	dev = hisi_hba->dev;
 
 	if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags))) {
-		if (!gfpflags_allow_blocking(gfp_flags))
+		if (!gfpflags_allow_blocking(gfp_flags)) {
+			pr_err("%s no blocking -EINVAL task->task_proto=%d task=%pS\n", __func__, task->task_proto, task);
 			return -EINVAL;
+		}
 
+			pr_err("%s1 getting down task->task_proto=%d task=%pS\n", __func__, task->task_proto, task);
 		down(&hisi_hba->sem);
+		pr_err("%s2 got down task->task_proto=%d task=%pS\n", __func__, task->task_proto, task);
 		up(&hisi_hba->sem);
 	}
 
@@ -1598,7 +1602,7 @@ void hisi_sas_controller_reset_prepare(struct hisi_hba *hisi_hba)
 	hisi_hba->hw->wait_cmds_complete_timeout(hisi_hba, 100, 5000);
 
 	del_timer_sync(&hisi_hba->timer);
-
+	pr_err("%s setting REJECT_CMD_BIT\n", __func__);
 	set_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_controller_reset_prepare);
@@ -1611,6 +1615,7 @@ void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba)
 	hisi_hba->hw->phys_init(hisi_hba);
 	msleep(1000);
 	hisi_sas_refresh_port_id(hisi_hba);
+	pr_err("%s clearing HISI_SAS_REJECT_CMD_BIT\n", __func__);
 	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 
 	if (hisi_hba->reject_stp_links_msk)

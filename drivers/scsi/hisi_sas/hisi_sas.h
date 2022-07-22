@@ -114,7 +114,7 @@ enum {
 	HISI_SAS_INT_ABT_DEV = 1,
 };
 
-enum hisi_sas_dev_type {
+enum {
 	HISI_SAS_DEV_TYPE_STP = 0,
 	HISI_SAS_DEV_TYPE_SSP,
 	HISI_SAS_DEV_TYPE_SATA,
