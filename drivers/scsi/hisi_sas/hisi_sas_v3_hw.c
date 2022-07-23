@@ -1033,6 +1033,9 @@ static void phys_init_v3_hw(struct hisi_hba *hisi_hba)
 		if (!sas_phy->phy->enabled)
 			continue;
 
+		if (i >= 2)
+			continue;
+
 		hisi_sas_phy_enable(hisi_hba, i, 1);
 	}
 }
