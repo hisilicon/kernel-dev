@@ -801,9 +801,11 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 		can_insert = true;
 	} else if (!iova_magazine_full(cpu_rcache->prev_size)) {
 		swap(cpu_rcache->prev, cpu_rcache->loaded);
-		BUG_ON(cpu_rcache->loaded_size != IOVA_MAG_SIZE);
-		BUG_ON(cpu_rcache->prev_size != 0);
-		swap(cpu_rcache->prev_size, cpu_rcache->loaded_size);
+	//	BUG_ON(cpu_rcache->loaded_size != IOVA_MAG_SIZE);
+	//	BUG_ON(cpu_rcache->prev_size != 0);
+	//	swap(cpu_rcache->prev_size, cpu_rcache->loaded_size);
+		cpu_rcache->prev_size = IOVA_MAG_SIZE;
+		cpu_rcache->loaded_size = 0;
 		can_insert = true;
 	} else {
 		struct iova_magazine *new_mag = iova_magazine_alloc(GFP_ATOMIC);
@@ -868,9 +870,11 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 		has_pfn = true;
 	} else if (!iova_magazine_empty(cpu_rcache->prev_size)) {
 		swap(cpu_rcache->prev, cpu_rcache->loaded);
-		BUG_ON(cpu_rcache->loaded_size != 0);
-		BUG_ON(cpu_rcache->prev_size != IOVA_MAG_SIZE);
-		swap(cpu_rcache->prev_size, cpu_rcache->loaded_size);
+	//	BUG_ON(cpu_rcache->loaded_size != 0);
+	//	BUG_ON(cpu_rcache->prev_size != IOVA_MAG_SIZE);
+	//	swap(cpu_rcache->prev_size, cpu_rcache->loaded_size);
+		cpu_rcache->prev_size = 0;
+		cpu_rcache->loaded_size = IOVA_MAG_SIZE;
 		has_pfn = true;
 	} else {
 		spin_lock(&rcache->lock);
