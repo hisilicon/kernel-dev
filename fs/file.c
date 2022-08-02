@@ -1307,3 +1307,18 @@ int iterate_fd(struct files_struct *files, unsigned n,
 	return res;
 }
 EXPORT_SYMBOL(iterate_fd);
+
+#ifdef CONFIG_HAS_DMA
+void *file_dma_map(struct file *file, struct bio_vec *bvec, int nr_vecs)
+{
+	if (file->f_op->dma_map)
+		return file->f_op->dma_map(file, bvec, nr_vecs);
+	return ERR_PTR(-EINVAL);
+}
+
+void file_dma_unmap(struct file *file, void *dma_tag)
+{
+	if (file->f_op->dma_unmap)
+		return file->f_op->dma_unmap(file, dma_tag);
+}
+#endif

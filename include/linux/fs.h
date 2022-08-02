@@ -2092,6 +2092,10 @@ struct dir_context {
 struct iov_iter;
 struct io_uring_cmd;
 
+#ifdef CONFIG_HAS_DMA
+struct bio_vec;
+#endif
+
 struct file_operations {
 	struct module *owner;
 	loff_t (*llseek) (struct file *, loff_t, int);
@@ -2134,6 +2138,10 @@ struct file_operations {
 				   loff_t len, unsigned int remap_flags);
 	int (*fadvise)(struct file *, loff_t, loff_t, int);
 	int (*uring_cmd)(struct io_uring_cmd *ioucmd, unsigned int issue_flags);
+#ifdef CONFIG_HAS_DMA
+	void *(*dma_map)(struct file *, struct bio_vec *, int);
+	void (*dma_unmap)(struct file *, void *);
+#endif
 } __randomize_layout;
 
 struct inode_operations {
@@ -3594,5 +3602,17 @@ extern int vfs_fadvise(struct file *file, loff_t offset, loff_t len,
 		       int advice);
 extern int generic_fadvise(struct file *file, loff_t offset, loff_t len,
 			   int advice);
+
+#ifdef CONFIG_HAS_DMA
+void *file_dma_map(struct file *file, struct bio_vec *bvec, int nr_vecs);
+void file_dma_unmap(struct file *file, void *dma_tag);
+#else
+static inline void *file_dma_map(struct file *file, struct bio_vec *bvec,
+				 int nr_vecs)
+{
+	return ERR_PTR(-ENOTSUPP);
+}
+static inline void file_dma_unmap(struct file *file, void *dma_tag) {}
+#endif
 
 #endif /* _LINUX_FS_H */

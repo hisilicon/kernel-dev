@@ -670,6 +670,22 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 	return error;
 }
 
+#ifdef CONFIG_HAS_DMA
+void *blkdev_dma_map(struct file *filp, struct bio_vec *bvec, int nr_vecs)
+{
+	struct block_device *bdev = filp->private_data;
+
+	return block_dma_map(bdev, bvec, nr_vecs);
+}
+
+void blkdev_dma_unmap(struct file *filp, void *dma_tag)
+{
+	struct block_device *bdev = filp->private_data;
+
+	return block_dma_unmap(bdev, dma_tag);
+}
+#endif
+
 const struct file_operations def_blk_fops = {
 	.open		= blkdev_open,
 	.release	= blkdev_close,
@@ -686,6 +702,10 @@ const struct file_operations def_blk_fops = {
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.fallocate	= blkdev_fallocate,
+#ifdef CONFIG_HAS_DMA
+	.dma_map	= blkdev_dma_map,
+	.dma_unmap	= blkdev_dma_unmap,
+#endif
 };
 
 static __init int blkdev_init(void)
