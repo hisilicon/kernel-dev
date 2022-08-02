@@ -299,7 +299,10 @@ struct bio {
 
 	atomic_t		__bi_cnt;	/* pin count */
 
-	struct bio_vec		*bi_io_vec;	/* the actual vec list */
+	union {
+		struct bio_vec		*bi_io_vec;	/* the actual vec list */
+		void			*bi_dma_tag;    /* driver specific tag */
+	};
 
 	struct bio_set		*bi_pool;
 
@@ -334,6 +337,7 @@ enum {
 	BIO_QOS_MERGED,		/* but went through rq_qos merge path */
 	BIO_REMAPPED,
 	BIO_ZONE_WRITE_LOCKED,	/* Owns a zoned device zone write lock */
+	BIO_DMA_TAGGED,		/* Using premmaped dma buffers */
 	BIO_FLAG_LAST
 };
 

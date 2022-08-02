@@ -1141,6 +1141,17 @@ static inline int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 }
 void blk_dump_rq_flags(struct request *, char *);
 
+static inline void *blk_rq_dma_tag(struct request *rq)
+{
+	return rq->bio && bio_flagged(rq->bio, BIO_DMA_TAGGED) ?
+		rq->bio->bi_dma_tag : 0;
+}
+
+static inline size_t blk_rq_dma_offset(struct request *rq)
+{
+	return rq->bio->bi_iter.bi_bvec_done;
+}
+
 #ifdef CONFIG_BLK_DEV_ZONED
 static inline unsigned int blk_rq_zone_no(struct request *rq)
 {

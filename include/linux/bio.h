@@ -61,11 +61,17 @@ static inline bool bio_has_data(struct bio *bio)
 	return false;
 }
 
+static inline bool bio_flagged(const struct bio *bio, unsigned int bit)
+{
+	return (bio->bi_flags & (1U << bit)) != 0;
+}
+
 static inline bool bio_no_advance_iter(const struct bio *bio)
 {
 	return bio_op(bio) == REQ_OP_DISCARD ||
 	       bio_op(bio) == REQ_OP_SECURE_ERASE ||
-	       bio_op(bio) == REQ_OP_WRITE_ZEROES;
+	       bio_op(bio) == REQ_OP_WRITE_ZEROES ||
+	       bio_flagged(bio, BIO_DMA_TAGGED);
 }
 
 static inline void *bio_data(struct bio *bio)
@@ -98,9 +104,11 @@ static inline void bio_advance_iter(const struct bio *bio,
 {
 	iter->bi_sector += bytes >> 9;
 
-	if (bio_no_advance_iter(bio))
+	if (bio_no_advance_iter(bio)) {
 		iter->bi_size -= bytes;
-	else
+		if (bio_flagged(bio, BIO_DMA_TAGGED))
+			iter->bi_bvec_done += bytes;
+	} else
 		bvec_iter_advance(bio->bi_io_vec, iter, bytes);
 		/* TODO: It is reasonable to complete bio with error here. */
 }
@@ -223,11 +231,6 @@ static inline void bio_cnt_set(struct bio *bio, unsigned int count)
 		smp_mb();
 	}
 	atomic_set(&bio->__bi_cnt, count);
-}
-
-static inline bool bio_flagged(struct bio *bio, unsigned int bit)
-{
-	return (bio->bi_flags & (1U << bit)) != 0;
 }
 
 static inline void bio_set_flag(struct bio *bio, unsigned int bit)
@@ -447,7 +450,7 @@ static inline void bio_wouldblock_error(struct bio *bio)
  */
 static inline int bio_iov_vecs_to_alloc(struct iov_iter *iter, int max_segs)
 {
-	if (iov_iter_is_bvec(iter))
+	if (iov_iter_is_bvec(iter) || iov_iter_is_dma_tag(iter))
 		return 0;
 	return iov_iter_npages(iter, max_segs);
 }

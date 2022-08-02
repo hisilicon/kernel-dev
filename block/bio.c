@@ -229,7 +229,8 @@ static void bio_free(struct bio *bio)
 	WARN_ON_ONCE(!bs);
 
 	bio_uninit(bio);
-	bvec_free(&bs->bvec_pool, bio->bi_io_vec, bio->bi_max_vecs);
+	if (!bio_flagged(bio, BIO_DMA_TAGGED))
+		bvec_free(&bs->bvec_pool, bio->bi_io_vec, bio->bi_max_vecs);
 	mempool_free(p - bs->front_pad, &bs->bio_pool);
 }
 
@@ -762,6 +763,8 @@ static int __bio_clone(struct bio *bio, struct bio *bio_src, gfp_t gfp)
 	bio_set_flag(bio, BIO_CLONED);
 	if (bio_flagged(bio_src, BIO_THROTTLED))
 		bio_set_flag(bio, BIO_THROTTLED);
+	if (bio_flagged(bio_src, BIO_DMA_TAGGED))
+		bio_set_flag(bio, BIO_DMA_TAGGED);
 	bio->bi_ioprio = bio_src->bi_ioprio;
 	bio->bi_iter = bio_src->bi_iter;
 
@@ -1151,6 +1154,21 @@ void bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
 	bio_set_flag(bio, BIO_CLONED);
 }
 
+static void bio_iov_dma_tag_set(struct bio *bio, struct iov_iter *iter)
+{
+	size_t size = iov_iter_count(iter);
+
+	bio->bi_vcnt = iter->nr_segs;
+	bio->bi_dma_tag = iter->dma_tag;
+	bio->bi_iter.bi_bvec_done = iter->iov_offset;
+	bio->bi_iter.bi_size = size;
+	bio->bi_opf |= REQ_NOMERGE;
+	bio_set_flag(bio, BIO_NO_PAGE_REF);
+	bio_set_flag(bio, BIO_DMA_TAGGED);
+
+	iov_iter_advance(iter, bio->bi_iter.bi_size);
+}
+
 static int bio_iov_add_page(struct bio *bio, struct page *page,
 		unsigned int len, unsigned int offset)
 {
@@ -1284,6 +1302,11 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	if (iov_iter_is_bvec(iter)) {
 		bio_iov_bvec_set(bio, iter);
 		iov_iter_advance(iter, bio->bi_iter.bi_size);
+		return 0;
+	}
+
+	if (iov_iter_is_dma_tag(iter)) {
+		bio_iov_dma_tag_set(bio, iter);
 		return 0;
 	}
 
