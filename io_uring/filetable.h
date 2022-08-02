@@ -58,12 +58,17 @@ io_fixed_file_slot(struct io_file_table *table, unsigned i)
 	return &table->files[i];
 }
 
+static inline struct file *io_file_from_fixed(struct io_fixed_file *f)
+{
+	return (struct file *) (f->file_ptr & FFS_MASK);
+}
+
 static inline struct file *io_file_from_index(struct io_file_table *table,
 					      int index)
 {
 	struct io_fixed_file *slot = io_fixed_file_slot(table, index);
 
-	return (struct file *) (slot->file_ptr & FFS_MASK);
+	return io_file_from_fixed(slot);
 }
 
 static inline void io_fixed_file_set(struct io_fixed_file *file_slot,

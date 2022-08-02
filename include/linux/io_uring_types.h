@@ -23,6 +23,8 @@ struct io_wq_work {
 	int cancel_seq;
 };
 
+struct io_mapped_ubuf;
+
 struct io_fixed_file {
 	/* file * with additional FFS_* flags */
 	unsigned long file_ptr;

@@ -3681,6 +3681,131 @@ err:
 	return ret;
 }
 
+static int get_map_range(struct io_ring_ctx *ctx,
+			 struct io_uring_map_buffers *map, void __user *arg)
+{
+	int ret;
+
+	if (copy_from_user(map, arg, sizeof(*map)))
+		return -EFAULT;
+	if (map->flags || map->rsvd[0] || map->rsvd[1])
+		return -EINVAL;
+	if (map->fd >= ctx->nr_user_files)
+		return -EINVAL;
+	if (map->buf_start < 0)
+		return -EINVAL;
+	if (map->buf_start >= ctx->nr_user_bufs)
+		return -EINVAL;
+	if (map->buf_end > ctx->nr_user_bufs)
+		map->buf_end = ctx->nr_user_bufs;
+
+	ret = map->buf_end - map->buf_start;
+	if (ret <= 0)
+		return -EINVAL;
+
+	return ret;
+}
+
+void io_dma_unmap(struct io_mapped_ubuf *imu)
+{
+	struct file *file;
+
+	if (!imu->dma_tag)
+		return;
+
+	file = io_file_from_fixed(imu->dma_file);
+	file_dma_unmap(file, imu->dma_tag);
+	imu->dma_file = NULL;
+	imu->dma_tag = NULL;
+}
+
+void io_dma_unmap_file(struct io_ring_ctx *ctx, struct io_fixed_file *file_slot)
+{
+	int i;
+
+	for (i = 0; i < ctx->nr_user_bufs; i++) {
+		struct io_mapped_ubuf *imu = ctx->user_bufs[i];
+
+		if (!imu->dma_tag)
+			continue;
+
+		if (imu->dma_file == file_slot)
+			io_dma_unmap(imu);
+	}
+}
+
+static int io_register_unmap_buffers(struct io_ring_ctx *ctx, void __user *arg)
+{
+	struct io_uring_map_buffers map;
+	int i, ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	ret = get_map_range(ctx, &map, arg);
+	if (ret < 0)
+		return ret;
+
+	for (i = map.buf_start; i < map.buf_end; i++) {
+		struct io_mapped_ubuf *imu = ctx->user_bufs[i];
+
+		io_dma_unmap(imu);
+	}
+
+	return 0;
+}
+
+static int io_register_map_buffers(struct io_ring_ctx *ctx, void __user *arg)
+{
+	struct io_uring_map_buffers map;
+	struct io_fixed_file *file_slot;
+	struct file *file;
+	int ret, i;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	ret = get_map_range(ctx, &map, arg);
+	if (ret < 0)
+		return ret;
+
+	file_slot = io_fixed_file_slot(&ctx->file_table,
+			array_index_nospec(map.fd, ctx->nr_user_files));
+	if (!file_slot || !file_slot->file_ptr)
+		return -EBADF;
+
+	file = io_file_from_fixed(file_slot);
+	if (!(file->f_flags & O_DIRECT))
+		return -EOPNOTSUPP;
+
+	for (i = map.buf_start; i < map.buf_end; i++) {
+		struct io_mapped_ubuf *imu = ctx->user_bufs[i];
+		void *tag;
+
+		if (imu->dma_tag) {
+			ret = -EBUSY;
+			goto err;
+		}
+
+		tag = file_dma_map(file, imu->bvec, imu->nr_bvecs);
+		if (IS_ERR(tag)) {
+			ret = PTR_ERR(tag);
+			goto err;
+		}
+
+		imu->dma_tag = tag;
+		imu->dma_file = file_slot;
+	}
+
+	return 0;
+err:
+	while (--i >= map.buf_start) {
+		struct io_mapped_ubuf *imu = ctx->user_bufs[i];
+
+		io_dma_unmap(imu);
+	}
+	return ret;
+}
+
 static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			       void __user *arg, unsigned nr_args)
 	__releases(ctx->uring_lock)
@@ -3846,6 +3971,18 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		if (arg || nr_args)
 			break;
 		ret = io_notif_unregister(ctx);
+		break;
+	case IORING_REGISTER_MAP_BUFFERS:
+		ret = -EINVAL;
+		if (!arg || nr_args != 1)
+			break;
+		ret = io_register_map_buffers(ctx, arg);
+		break;
+	case IORING_REGISTER_UNMAP_BUFFERS:
+		ret = -EINVAL;
+		if (!arg || nr_args != 1)
+			break;
+		ret = io_register_unmap_buffers(ctx, arg);
 		break;
 	default:
 		ret = -EINVAL;

@@ -359,7 +359,7 @@ static struct iovec *__io_import_iovec(int ddir, struct io_kiocb *req,
 	ssize_t ret;
 
 	if (opcode == IORING_OP_READ_FIXED || opcode == IORING_OP_WRITE_FIXED) {
-		ret = io_import_fixed(ddir, iter, req->imu, rw->addr, rw->len);
+		ret = io_import_fixed(ddir, iter, req->imu, rw->addr, rw->len, req->file);
 		if (ret)
 			return ERR_PTR(ret);
 		return NULL;

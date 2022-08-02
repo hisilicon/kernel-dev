@@ -189,9 +189,10 @@ int io_file_slot_queue_removal(struct io_ring_ctx *ctx,
 	struct file *file;
 	int ret;
 
-	file = (struct file *)(file_slot->file_ptr & FFS_MASK);
-	ret = io_queue_rsrc_removal(ctx->file_data, slot_index,
-				    ctx->rsrc_node, file);
+	file = io_file_from_fixed(file_slot);
+	io_dma_unmap_file(ctx, file_slot);
+	ret = io_queue_rsrc_removal(ctx->file_data, slot_index, ctx->rsrc_node,
+				    file);
 	if (ret)
 		return ret;
 

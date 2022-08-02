@@ -148,6 +148,7 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 			unpin_user_page(imu->bvec[i].bv_page);
 		if (imu->acct_pages)
 			io_unaccount_mem(ctx, imu->acct_pages);
+		io_dma_unmap(imu);
 		kvfree(imu);
 	}
 	*slot = NULL;
@@ -809,12 +810,16 @@ void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	int i;
 
 	for (i = 0; i < ctx->nr_user_files; i++) {
-		struct file *file = io_file_from_index(&ctx->file_table, i);
+		struct io_fixed_file *f = io_fixed_file_slot(&ctx->file_table, i);
+		struct file *file;
 
-		if (!file)
+		if (!f)
 			continue;
-		if (io_fixed_file_slot(&ctx->file_table, i)->file_ptr & FFS_SCM)
+		if (f->file_ptr & FFS_SCM)
 			continue;
+
+		io_dma_unmap_file(ctx, f);
+		file = io_file_from_fixed(f);
 		io_file_bitmap_clear(&ctx->file_table, i);
 		fput(file);
 	}
@@ -1282,6 +1287,7 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 	imu->ubuf = (unsigned long) iov->iov_base;
 	imu->ubuf_end = imu->ubuf + iov->iov_len;
 	imu->nr_bvecs = nr_pages;
+	imu->dma_tag = NULL;
 	*pimu = imu;
 	ret = 0;
 done:
@@ -1356,9 +1362,8 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 	return ret;
 }
 
-int io_import_fixed(int ddir, struct iov_iter *iter,
-			   struct io_mapped_ubuf *imu,
-			   u64 buf_addr, size_t len)
+int io_import_fixed(int ddir, struct iov_iter *iter, struct io_mapped_ubuf *imu,
+		    u64 buf_addr, size_t len, struct file *file)
 {
 	u64 buf_end;
 	size_t offset;
@@ -1376,6 +1381,10 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 	 * and advance us to the beginning.
 	 */
 	offset = buf_addr - imu->ubuf;
+	if (imu->dma_tag && file == io_file_from_fixed(imu->dma_file)) {
+		iov_iter_dma_tag(iter, ddir, imu->dma_tag, offset, len);
+		return 0;
+	}
 	iov_iter_bvec(iter, ddir, imu->bvec, imu->nr_bvecs, offset + len);
 
 	if (offset) {
