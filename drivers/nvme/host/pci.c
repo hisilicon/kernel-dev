@@ -110,6 +110,14 @@ struct nvme_queue;
 static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown);
 static bool __nvme_disable_io_queues(struct nvme_dev *dev, u8 opcode);
 
+struct nvme_dma_mapping {
+	int nr_pages;
+	u16 offset;
+	u8  rsvd[2];
+	dma_addr_t prp_dma_addr;
+	__le64 *prps;
+};
+
 /*
  * Represents an NVM Express device.  Each nvme_dev is a PCI function.
  */
@@ -544,6 +552,34 @@ static inline bool nvme_pci_use_sgls(struct nvme_dev *dev, struct request *req)
 	return true;
 }
 
+static void nvme_sync_dma(struct nvme_dev *dev, struct request *req,
+			  struct nvme_dma_mapping *mapping)
+{
+	int offset, i, j, length, nprps;
+	bool needs_sync;
+
+	offset = blk_rq_dma_offset(req) + mapping->offset;
+	i = offset >> NVME_CTRL_PAGE_SHIFT;
+	needs_sync = rq_data_dir(req) == READ &&
+		 dma_need_sync(dev->dev, le64_to_cpu(mapping->prps[i]));
+
+	if (!needs_sync)
+		return;
+
+	offset = offset & (NVME_CTRL_PAGE_SIZE - 1);
+	length = blk_rq_payload_bytes(req) - (NVME_CTRL_PAGE_SIZE - offset);
+	nprps = DIV_ROUND_UP(length, NVME_CTRL_PAGE_SIZE);
+
+	dma_sync_single_for_cpu(dev->dev,
+		le64_to_cpu(mapping->prps[i++]),
+		NVME_CTRL_PAGE_SIZE - offset, DMA_FROM_DEVICE);
+	for (j = 1; j < nprps; j++) {
+		dma_sync_single_for_cpu(dev->dev,
+			le64_to_cpu(mapping->prps[i++]),
+			NVME_CTRL_PAGE_SIZE, DMA_FROM_DEVICE);
+	}
+}
+
 static void nvme_free_prps(struct nvme_dev *dev, struct request *req)
 {
 	const int last_prp = NVME_CTRL_PAGE_SIZE / sizeof(__le64) - 1;
@@ -576,10 +612,24 @@ static void nvme_free_sgls(struct nvme_dev *dev, struct request *req)
 	}
 }
 
+static void nvme_free_prp_chain(struct nvme_dev *dev, struct request *req,
+				struct nvme_iod *iod)
+{
+	if (iod->npages == 0)
+		dma_pool_free(dev->prp_small_pool, nvme_pci_iod_list(req)[0],
+			      iod->first_dma);
+	else if (iod->use_sgl)
+		nvme_free_sgls(dev, req);
+	else
+		nvme_free_prps(dev, req);
+	mempool_free(iod->sg, dev->iod_mempool);
+}
+
 static void nvme_unmap_sg(struct nvme_dev *dev, struct request *req)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 
+	WARN_ON_ONCE(!iod->nents);
 	if (is_pci_p2pdma_page(sg_page(iod->sg)))
 		pci_p2pdma_unmap_sg(dev->dev, iod->sg, iod->nents,
 				    rq_dma_dir(req));
@@ -589,7 +639,15 @@ static void nvme_unmap_sg(struct nvme_dev *dev, struct request *req)
 
 static void nvme_unmap_data(struct nvme_dev *dev, struct request *req)
 {
+	struct nvme_dma_mapping *mapping = blk_rq_dma_tag(req);
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
+
+	if (mapping) {
+		nvme_sync_dma(dev, req, mapping);
+		if (iod->npages >= 0)
+			nvme_free_prp_chain(dev, req, iod);
+		return;
+	}
 
 	if (iod->dma_len) {
 		dma_unmap_page(dev->dev, iod->first_dma, iod->dma_len,
@@ -597,17 +655,8 @@ static void nvme_unmap_data(struct nvme_dev *dev, struct request *req)
 		return;
 	}
 
-	WARN_ON_ONCE(!iod->nents);
-
 	nvme_unmap_sg(dev, req);
-	if (iod->npages == 0)
-		dma_pool_free(dev->prp_small_pool, nvme_pci_iod_list(req)[0],
-			      iod->first_dma);
-	else if (iod->use_sgl)
-		nvme_free_sgls(dev, req);
-	else
-		nvme_free_prps(dev, req);
-	mempool_free(iod->sg, dev->iod_mempool);
+	nvme_free_prp_chain(dev, req, iod);
 }
 
 static void nvme_print_sgl(struct scatterlist *sgl, int nents)
@@ -835,12 +884,135 @@ static blk_status_t nvme_setup_sgl_simple(struct nvme_dev *dev,
 	return BLK_STS_OK;
 }
 
+static blk_status_t nvme_premapped(struct nvme_dev *dev, struct request *req,
+				   struct nvme_rw_command *cmnd,
+				   struct nvme_iod *iod,
+				   struct nvme_dma_mapping *mapping)
+{
+	static const int last_prp = NVME_CTRL_PAGE_SIZE / sizeof(__le64) - 1;
+	dma_addr_t prp_list_start, prp_list_end, prp_dma;
+	int i, offset, j, length, nprps, nprps_left;
+	struct dma_pool *pool;
+	__le64 *prp_list;
+	bool needs_sync;
+	void **list;
+
+	offset = blk_rq_dma_offset(req) + mapping->offset;
+	i = offset >> NVME_CTRL_PAGE_SHIFT;
+	offset = offset & (NVME_CTRL_PAGE_SIZE - 1);
+	needs_sync = rq_data_dir(req) == WRITE &&
+		 dma_need_sync(dev->dev, le64_to_cpu(mapping->prps[i]));
+
+	if (needs_sync) {
+		dma_sync_single_for_device(dev->dev,
+			le64_to_cpu(mapping->prps[i]),
+			NVME_CTRL_PAGE_SIZE - offset, DMA_TO_DEVICE);
+	}
+
+	length = blk_rq_payload_bytes(req) - (NVME_CTRL_PAGE_SIZE - offset);
+	cmnd->dptr.prp1 = cpu_to_le64(le64_to_cpu(mapping->prps[i++]) + offset);
+
+	if (length <= 0)
+		return BLK_STS_OK;
+
+	if (length <= NVME_CTRL_PAGE_SIZE) {
+		if (needs_sync)
+			dma_sync_single_for_device(dev->dev,
+				le64_to_cpu(mapping->prps[i]),
+				NVME_CTRL_PAGE_SIZE, DMA_TO_DEVICE);
+		cmnd->dptr.prp2 = mapping->prps[i];
+		return BLK_STS_OK;
+	}
+
+	nprps = DIV_ROUND_UP(length, NVME_CTRL_PAGE_SIZE);
+	prp_list_start = mapping->prp_dma_addr + 8 * i;
+	prp_list_end = prp_list_start + 8 * nprps;
+
+	/* Optimization when remaining list fits in one nvme page */
+	if ((prp_list_start >> NVME_CTRL_PAGE_SHIFT) ==
+	    (prp_list_end >> NVME_CTRL_PAGE_SHIFT)) {
+		cmnd->dptr.prp2 = cpu_to_le64(prp_list_start);
+		goto sync;
+	}
+
+	iod->sg = mempool_alloc(dev->iod_mempool, GFP_ATOMIC);
+	if (!iod->sg)
+		return BLK_STS_RESOURCE;
+
+	if (nprps <= (256 / 8)) {
+		pool = dev->prp_small_pool;
+		iod->npages = 0;
+	} else {
+		pool = dev->prp_page_pool;
+		iod->npages = 1;
+	}
+
+	prp_list = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma);
+	if (!prp_list) {
+		iod->npages = -1;
+		goto out_free_sg;
+	}
+
+	list = nvme_pci_iod_list(req);
+	list[0] = prp_list;
+	iod->first_dma = prp_dma;
+
+	for (;;) {
+		dma_addr_t next_prp_dma;
+		__le64 *next_prp_list;
+
+		if (nprps_left <= last_prp + 1) {
+			memcpy(prp_list, &mapping->prps[i], nprps_left * 8);
+			break;
+		}
+
+		memcpy(prp_list, &mapping->prps[i],
+		       NVME_CTRL_PAGE_SIZE - 8);
+		nprps_left -= last_prp;
+		i += last_prp;
+
+		next_prp_list = dma_pool_alloc(pool, GFP_ATOMIC, &next_prp_dma);
+		if (!next_prp_list)
+			goto free_prps;
+
+		prp_list[last_prp] = cpu_to_le64(next_prp_dma);
+		prp_list = next_prp_list;
+		prp_dma = next_prp_dma;
+		list[iod->npages++] = prp_list;
+	}
+	cmnd->dptr.prp2 = cpu_to_le64(iod->first_dma);
+
+sync:
+	if (!needs_sync)
+		return BLK_STS_OK;
+
+	i = offset >> NVME_CTRL_PAGE_SHIFT;
+	for (j = 0; j < nprps; j++)
+		dma_sync_single_for_device(dev->dev,
+			le64_to_cpu(mapping->prps[i++]),
+			NVME_CTRL_PAGE_SIZE, DMA_TO_DEVICE);
+	return BLK_STS_OK;
+
+free_prps:
+	nvme_free_prps(dev, req);
+out_free_sg:
+	mempool_free(iod->sg, dev->iod_mempool);
+	return BLK_STS_RESOURCE;
+}
+
 static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
 		struct nvme_command *cmnd)
 {
+	struct nvme_dma_mapping *mapping = blk_rq_dma_tag(req);
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 	blk_status_t ret = BLK_STS_RESOURCE;
 	int nr_mapped;
+
+	if (mapping) {
+		iod->dma_len = 0;
+		iod->use_sgl = false;
+		return nvme_premapped(dev, req, &cmnd->rw, iod, mapping);
+	}
 
 	if (blk_rq_nr_phys_segments(req) == 1) {
 		struct bio_vec bv = req_bvec(req);
@@ -1732,6 +1904,112 @@ release_cq:
 	return result;
 }
 
+#ifdef CONFIG_HAS_DMA
+/*
+ * Important: bvec must be describing a virtually contiguous buffer.
+ */
+static void *nvme_pci_dma_map(struct request_queue *q,
+			       struct bio_vec *bvec, int nr_vecs)
+{
+	const int nvme_pages = 1 << (PAGE_SIZE - NVME_CTRL_PAGE_SIZE);
+	struct nvme_ns *ns = q->queuedata;
+	struct nvme_dev *dev = to_nvme_dev(ns->ctrl);
+	struct nvme_dma_mapping *mapping;
+	int i, j, k, size, ppv, ret = -ENOMEM;
+
+	if (!nr_vecs)
+		return ERR_PTR(-EINVAL);
+
+	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
+	if (!mapping)
+		return ERR_PTR(-ENOMEM);
+
+	mapping->nr_pages = nr_vecs * nvme_pages;
+	size = sizeof(*mapping->prps) * mapping->nr_pages;
+	mapping->prps = dma_alloc_coherent(dev->dev, size,
+				&mapping->prp_dma_addr, GFP_KERNEL);
+	if (!mapping->prps)
+		goto free_mapping;
+
+	for (i = 0, k = 0; i < nr_vecs; i++) {
+		struct bio_vec *bv = bvec + i;
+		dma_addr_t dma_addr;
+
+		ppv = nvme_pages;
+		if (i == 0) {
+			mapping->offset = bv->bv_offset;
+			ppv -= mapping->offset >> NVME_CTRL_PAGE_SHIFT;
+		} else if (bv->bv_offset) {
+			ret = -EINVAL;
+			goto err;
+		}
+
+		if (bv->bv_offset + bv->bv_len != PAGE_SIZE &&
+		    i < nr_vecs - 1) {
+			ret = -EINVAL;
+			goto err;
+		}
+
+		dma_addr = dma_map_bvec(dev->dev, bv, 0, 0);
+		if (dma_mapping_error(dev->dev, dma_addr)) {
+			ret = -EIO;
+			goto err;
+		}
+
+		if (i == 0)
+			dma_addr -= mapping->offset;
+
+		for (j = 0; j < ppv; j++)
+			mapping->prps[k++] = cpu_to_le64(dma_addr +
+						j * NVME_CTRL_PAGE_SIZE);
+	}
+
+	get_device(dev->dev);
+	return mapping;
+
+err:
+	for (i = 0; i < k; i += ppv) {
+		__u64 dma_addr = le64_to_cpu(mapping->prps[i]);
+		ppv = nvme_pages;
+
+		if (i == 0)
+			ppv -= mapping->offset >> NVME_CTRL_PAGE_SHIFT;
+		dma_unmap_page(dev->dev, dma_addr,
+			       PAGE_SIZE - offset_in_page(dma_addr), 0);
+	}
+
+	dma_free_coherent(dev->dev, size, (void *)mapping->prps,
+			  mapping->prp_dma_addr);
+free_mapping:
+	kfree(mapping);
+	return ERR_PTR(ret);
+}
+
+static void nvme_pci_dma_unmap(struct request_queue *q, void *dma_tag)
+{
+	const int nvme_pages = 1 << (PAGE_SIZE - NVME_CTRL_PAGE_SIZE);
+	struct nvme_ns *ns = q->queuedata;
+	struct nvme_dev *dev = to_nvme_dev(ns->ctrl);
+	struct nvme_dma_mapping *mapping = dma_tag;
+	int i, ppv;
+
+	for (i = 0; i < mapping->nr_pages; i += nvme_pages) {
+		__u64 dma_addr = le64_to_cpu(mapping->prps[i]);
+		ppv = nvme_pages;
+
+		if (i == 0)
+			ppv -= mapping->offset >> NVME_CTRL_PAGE_SHIFT;
+		dma_unmap_page(dev->dev, dma_addr,
+			       PAGE_SIZE - offset_in_page(dma_addr), 0);
+	}
+
+	dma_free_coherent(dev->dev, mapping->nr_pages * sizeof(*mapping->prps),
+			  (void *)mapping->prps, mapping->prp_dma_addr);
+	kfree(mapping);
+	put_device(dev->dev);
+}
+#endif
+
 static const struct blk_mq_ops nvme_mq_admin_ops = {
 	.queue_rq	= nvme_queue_rq,
 	.complete	= nvme_pci_complete_rq,
@@ -1750,6 +2028,10 @@ static const struct blk_mq_ops nvme_mq_ops = {
 	.map_queues	= nvme_pci_map_queues,
 	.timeout	= nvme_timeout,
 	.poll		= nvme_poll,
+#ifdef CONFIG_HAS_DMA
+	.dma_map	= nvme_pci_dma_map,
+	.dma_unmap	= nvme_pci_dma_unmap,
+#endif
 };
 
 static void nvme_dev_remove_admin(struct nvme_dev *dev)
