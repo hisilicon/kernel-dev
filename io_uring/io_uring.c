@@ -3685,21 +3685,26 @@ static int get_map_range(struct io_ring_ctx *ctx,
 			 struct io_uring_map_buffers *map, void __user *arg)
 {
 	int ret;
-
+	pr_err("%s\n", __func__);
 	if (copy_from_user(map, arg, sizeof(*map)))
 		return -EFAULT;
+	pr_err("%s2 map->flags=%d %lld %lld\n", __func__, map->flags, map->rsvd[0], map->rsvd[1]);
 	if (map->flags || map->rsvd[0] || map->rsvd[1])
 		return -EINVAL;
+	pr_err("%s3 map->fd=%d ctx->nr_user_files=%d\n", __func__, map->fd, ctx->nr_user_files);
 	if (map->fd >= ctx->nr_user_files)
 		return -EINVAL;
+	pr_err("%s4 map->buf_start=%d\n", __func__, map->buf_start);
 	if (map->buf_start < 0)
 		return -EINVAL;
+	pr_err("%s5 map->buf_start=%d ctx->nr_user_bufs=%d\n", __func__, map->buf_start, ctx->nr_user_bufs);
 	if (map->buf_start >= ctx->nr_user_bufs)
 		return -EINVAL;
 	if (map->buf_end > ctx->nr_user_bufs)
 		map->buf_end = ctx->nr_user_bufs;
 
 	ret = map->buf_end - map->buf_start;
+	pr_err("%s6 ret=%d\n", __func__, ret);
 	if (ret <= 0)
 		return -EINVAL;
 
