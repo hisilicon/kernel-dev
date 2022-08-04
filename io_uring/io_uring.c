@@ -3815,22 +3815,31 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 	__acquires(ctx->uring_lock)
 {
 	int ret;
-
+	pr_err("%s ctx=%pS opcode=%d\n", __func__, ctx, opcode);
 	/*
 	 * We don't quiesce the refs for register anymore and so it can't be
 	 * dying as we're holding a file ref here.
 	 */
-	if (WARN_ON_ONCE(percpu_ref_is_dying(&ctx->refs)))
+	if (WARN_ON_ONCE(percpu_ref_is_dying(&ctx->refs))) {
+		pr_err("%s1 ctx=%pS opcode=%d\n", __func__, ctx, opcode);
 		return -ENXIO;
-
-	if (ctx->restricted) {
-		if (opcode >= IORING_REGISTER_LAST)
-			return -EINVAL;
-		opcode = array_index_nospec(opcode, IORING_REGISTER_LAST);
-		if (!test_bit(opcode, ctx->restrictions.register_op))
-			return -EACCES;
 	}
 
+	if (ctx->restricted) {
+		if (opcode >= IORING_REGISTER_LAST) {
+
+			pr_err("%s2 ctx=%pS opcode=%d\n", __func__, ctx, opcode);
+			return -EINVAL;
+		}
+		opcode = array_index_nospec(opcode, IORING_REGISTER_LAST);
+		if (!test_bit(opcode, ctx->restrictions.register_op)) {
+
+			pr_err("%s3 ctx=%pS opcode=%d\n", __func__, ctx, opcode);
+			return -EACCES;
+		}
+	}
+
+	pr_err("%s4 ctx=%pS opcode=%d\n", __func__, ctx, opcode);
 	switch (opcode) {
 	case IORING_REGISTER_BUFFERS:
 		ret = -EFAULT;
