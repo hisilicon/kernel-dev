@@ -3763,21 +3763,29 @@ static int io_register_map_buffers(struct io_ring_ctx *ctx, void __user *arg)
 
 	pr_err("%s ctx=%pS arg=%pS\n", __func__, ctx, arg);
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN)) {
+		pr_err("%s1 capable(CAP_SYS_ADMIN) ctx=%pS arg=%pS\n", __func__, ctx, arg);
 		return -EPERM;
+	}
 
 	ret = get_map_range(ctx, &map, arg);
-	if (ret < 0)
+	if (ret < 0) {
+		pr_err("%s2 get_map_range ctx=%pS arg=%pS ret=%d\n", __func__, ctx, arg, ret);
 		return ret;
+	}
 
 	file_slot = io_fixed_file_slot(&ctx->file_table,
 			array_index_nospec(map.fd, ctx->nr_user_files));
-	if (!file_slot || !file_slot->file_ptr)
+	if (!file_slot || !file_slot->file_ptr) {
+		pr_err("%s3 file_slot=%pS ctx=%pS arg=%pS\n", __func__, file_slot, ctx, arg);
 		return -EBADF;
+	}
 
 	file = io_file_from_fixed(file_slot);
-	if (!(file->f_flags & O_DIRECT))
+	if (!(file->f_flags & O_DIRECT)) {
+		pr_err("%s4 O_DIRECT ctx=%pS arg=%pS\n", __func__, ctx, arg);
 		return -EOPNOTSUPP;
+	}
 
 	for (i = map.buf_start; i < map.buf_end; i++) {
 		struct io_mapped_ubuf *imu = ctx->user_bufs[i];
@@ -3785,12 +3793,13 @@ static int io_register_map_buffers(struct io_ring_ctx *ctx, void __user *arg)
 
 		if (imu->dma_tag) {
 			ret = -EBUSY;
+			pr_err("%s5 EBUSY ctx=%pS arg=%pS\n", __func__, ctx, arg);
 			goto err;
 		}
 
 		tag = file_dma_map(file, imu->bvec, imu->nr_bvecs);
-		pr_err("%s2 ctx=%pS arg=%pS i=%d tag=%pS\n", __func__, ctx, arg, i, tag);
 		if (IS_ERR(tag)) {
+			pr_err("%s6 ctx=%pS arg=%pS i=%d tag=%pS\n", __func__, ctx, arg, i, tag);
 			ret = PTR_ERR(tag);
 			goto err;
 		}
@@ -3953,9 +3962,12 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		break;
 	case IORING_REGISTER_PBUF_RING:
 		ret = -EINVAL;
-		if (!arg || nr_args != 1)
+		if (!arg || nr_args != 1) {
+			pr_err("%s IORING_REGISTER_PBUF_RING arg=%pS nr_args=%d\n", __func__, arg, nr_args);
 			break;
+		}
 		ret = io_register_pbuf_ring(ctx, arg);
+		pr_err("%s IORING_REGISTER_PBUF_RING2 arg=%pS nr_args=%d ret=%d\n", __func__, arg, nr_args, ret);
 		break;
 	case IORING_UNREGISTER_PBUF_RING:
 		ret = -EINVAL;
@@ -3985,7 +3997,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		ret = io_notif_unregister(ctx);
 		break;
 	case IORING_REGISTER_MAP_BUFFERS:
-		pr_err("%s IORING_REGISTER_MAP_BUFFERS\n", __func__);
+		pr_err("%s IORING_REGISTER_MAP_BUFFERS arg=%pS nr_args=%d\n", __func__, arg, nr_args);
 		ret = -EINVAL;
 		if (!arg || nr_args != 1)
 			break;
