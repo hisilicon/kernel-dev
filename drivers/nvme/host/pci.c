@@ -643,6 +643,7 @@ static void nvme_unmap_data(struct nvme_dev *dev, struct request *req)
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 
 	if (mapping) {
+		pr_err("%s mapping\n", __func__);
 		nvme_sync_dma(dev, req, mapping);
 		if (iod->npages >= 0)
 			nvme_free_prp_chain(dev, req, iod);
@@ -1916,7 +1917,12 @@ static void *nvme_pci_dma_map(struct request_queue *q,
 	struct nvme_dev *dev = to_nvme_dev(ns->ctrl);
 	struct nvme_dma_mapping *mapping;
 	int i, j, k, size, ppv, ret = -ENOMEM;
-
+	static atomic_t count;
+	unsigned long _count = atomic_inc_return(&count);
+	if (_count < 40)
+		pr_err("%s count=%lu\n", __func__, _count);
+	if ((_count % 100000) == 0)
+		pr_err("%s count=%lu\n", __func__, _count);
 	if (!nr_vecs)
 		return ERR_PTR(-EINVAL);
 
@@ -1992,6 +1998,12 @@ static void nvme_pci_dma_unmap(struct request_queue *q, void *dma_tag)
 	struct nvme_dev *dev = to_nvme_dev(ns->ctrl);
 	struct nvme_dma_mapping *mapping = dma_tag;
 	int i, ppv;
+	static atomic_t count;
+	unsigned long _count = atomic_inc_return(&count);
+	if (_count < 40)
+		pr_err("%s count=%lu\n", __func__, _count);
+	if ((_count % 100000) == 0)
+		pr_err("%s count=%lu\n", __func__, _count);
 
 	for (i = 0; i < mapping->nr_pages; i += nvme_pages) {
 		__u64 dma_addr = le64_to_cpu(mapping->prps[i]);
