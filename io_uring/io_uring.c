@@ -3722,7 +3722,7 @@ void io_dma_unmap(struct io_mapped_ubuf *imu)
 void io_dma_unmap_file(struct io_ring_ctx *ctx, struct io_fixed_file *file_slot)
 {
 	int i;
-
+	pr_err_once("%s ctx=%pS\n", __func__, ctx);
 	for (i = 0; i < ctx->nr_user_bufs; i++) {
 		struct io_mapped_ubuf *imu = ctx->user_bufs[i];
 
@@ -3761,6 +3761,8 @@ static int io_register_map_buffers(struct io_ring_ctx *ctx, void __user *arg)
 	struct file *file;
 	int ret, i;
 
+	pr_err("%s ctx=%pS arg=%pS\n", __func__, ctx, arg);
+
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
@@ -3787,6 +3789,7 @@ static int io_register_map_buffers(struct io_ring_ctx *ctx, void __user *arg)
 		}
 
 		tag = file_dma_map(file, imu->bvec, imu->nr_bvecs);
+		pr_err("%s2 ctx=%pS arg=%pS i=%d tag=%pS\n", __func__, ctx, arg, i, tag);
 		if (IS_ERR(tag)) {
 			ret = PTR_ERR(tag);
 			goto err;
@@ -3973,6 +3976,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		ret = io_notif_unregister(ctx);
 		break;
 	case IORING_REGISTER_MAP_BUFFERS:
+		pr_err("%s IORING_REGISTER_MAP_BUFFERS\n", __func__);
 		ret = -EINVAL;
 		if (!arg || nr_args != 1)
 			break;

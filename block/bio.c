@@ -1304,8 +1304,9 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 		iov_iter_advance(iter, bio->bi_iter.bi_size);
 		return 0;
 	}
-
+	pr_err_once("%s bio=%pS iter=%pS\n", __func__, bio, iter);
 	if (iov_iter_is_dma_tag(iter)) {
+		pr_err_once("%s2 bio=%pS iter=%pS\n", __func__, bio, iter);
 		bio_iov_dma_tag_set(bio, iter);
 		return 0;
 	}

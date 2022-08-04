@@ -1075,9 +1075,11 @@ void *block_dma_map(struct block_device *bdev, struct bio_vec *bvec,
 		    int nr_vecs)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
-
-	if (q->mq_ops && q->mq_ops->dma_map)
+	pr_err_once("%s\n", __func__);
+	if (q->mq_ops && q->mq_ops->dma_map) {
+		pr_err_once("%s2\n", __func__);
 		return q->mq_ops->dma_map(q, bvec, nr_vecs);
+	}
 	return ERR_PTR(-EINVAL);
 }
 

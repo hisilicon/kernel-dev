@@ -812,7 +812,7 @@ void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	for (i = 0; i < ctx->nr_user_files; i++) {
 		struct io_fixed_file *f = io_fixed_file_slot(&ctx->file_table, i);
 		struct file *file;
-
+		pr_err("%s ctx=%pS\n", __func__, ctx);
 		if (!f)
 			continue;
 		if (f->file_ptr & FFS_SCM)
