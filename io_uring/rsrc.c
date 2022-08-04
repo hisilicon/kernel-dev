@@ -996,7 +996,7 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	struct file *file;
 	int fd, ret;
 	unsigned i;
-
+	pr_err("%s ctx=%pS\n", __func__, ctx);
 	if (ctx->file_data)
 		return -EBUSY;
 	if (!nr_args)
@@ -1018,6 +1018,8 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		ctx->file_data = NULL;
 		return -ENOMEM;
 	}
+
+	pr_err("%s2 ctx=%pS nr_user_files=%d\n", __func__, ctx, ctx->nr_user_files);
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_files++) {
 		struct io_fixed_file *file_slot;
@@ -1060,6 +1062,7 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		io_file_bitmap_set(&ctx->file_table, i);
 	}
 
+	pr_err("%s3 ctx=%pS nr_user_files=%d\n", __func__, ctx, ctx->nr_user_files);
 	/* default it to the whole table */
 	io_file_table_set_alloc_range(ctx, 0, ctx->nr_user_files);
 	io_rsrc_node_switch(ctx, NULL);
