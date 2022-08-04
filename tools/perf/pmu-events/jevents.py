@@ -334,6 +334,11 @@ def process_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
 def print_mapping_table(archs: Sequence[str]) -> None:
   """Read the mapfile and generate the struct from cpuid string to event table."""
   _args.output_file.write("""
+/* Struct used to make the PMU event table implementation opaque to callers. */
+struct pmu_events_table {
+        const struct pmu_event *entries;
+};
+
 /*
  * Map a CPU to its table of PMU events. The CPU is identified by the
  * cpuid field, which is an arch-specific identifier for the CPU.
@@ -345,7 +350,7 @@ def print_mapping_table(archs: Sequence[str]) -> None:
 struct pmu_events_map {
         const char *arch;
         const char *cpuid;
-        const struct pmu_event *table;
+        struct pmu_events_table table;
 };
 
 /*
@@ -359,7 +364,7 @@ const struct pmu_events_map pmu_events_map[] = {
       _args.output_file.write("""{
 \t.arch = "testarch",
 \t.cpuid = "testcpu",
-\t.table = pme_test_soc_cpu,
+\t.table = { pme_test_soc_cpu },
 },
 """)
     else:
@@ -374,7 +379,7 @@ const struct pmu_events_map pmu_events_map[] = {
             _args.output_file.write(f"""{{
 \t.arch = "{arch}",
 \t.cpuid = "{cpuid}",
-\t.table = {tblname}
+\t.table = {{ {tblname} }}
 }},
 """)
           first = False
@@ -382,7 +387,7 @@ const struct pmu_events_map pmu_events_map[] = {
   _args.output_file.write("""{
 \t.arch = 0,
 \t.cpuid = 0,
-\t.table = 0,
+\t.table = { 0 },
 }
 };
 """)
@@ -393,26 +398,26 @@ def print_system_mapping_table() -> None:
   _args.output_file.write("""
 struct pmu_sys_events {
 \tconst char *name;
-\tconst struct pmu_event *table;
+\tstruct pmu_events_table table;
 };
 
 static const struct pmu_sys_events pmu_sys_event_tables[] = {
 """)
   for tblname in _sys_event_tables:
     _args.output_file.write(f"""\t{{
-\t\t.table = {tblname},
+\t\t.table = {{ {tblname} }},
 \t\t.name = \"{tblname}\",
 \t}},
 """)
   _args.output_file.write("""\t{
-\t\t.table = 0
+\t\t.table = { 0 }
 \t},
 };
 
-int pmu_events_table_for_each_event(const struct pmu_event *table, pmu_event_iter_fn fn,
+int pmu_events_table_for_each_event(const struct pmu_events_table *table, pmu_event_iter_fn fn,
                                     void *data)
 {
-        for (const struct pmu_event *pe = &table[0];
+        for (const struct pmu_event *pe = &table->entries[0];
              pe->name || pe->metric_group || pe->metric_name;
              pe++) {
                 int ret = fn(pe, table, data);
@@ -423,9 +428,9 @@ int pmu_events_table_for_each_event(const struct pmu_event *table, pmu_event_ite
         return 0;
 }
 
-const struct pmu_event *perf_pmu__find_table(struct perf_pmu *pmu)
+const struct pmu_events_table *perf_pmu__find_table(struct perf_pmu *pmu)
 {
-        const struct pmu_event *table = NULL;
+        const struct pmu_events_table *table = NULL;
         char *cpuid = perf_pmu__getcpuid(pmu);
         int i;
 
@@ -438,11 +443,11 @@ const struct pmu_event *perf_pmu__find_table(struct perf_pmu *pmu)
         i = 0;
         for (;;) {
                 const struct pmu_events_map *map = &pmu_events_map[i++];
-                if (!map->table)
+                if (!map->arch)
                         break;
 
                 if (!strcmp_cpuid_str(map->cpuid, cpuid)) {
-                        table = map->table;
+                        table = &map->table;
                         break;
                 }
         }
@@ -450,13 +455,13 @@ const struct pmu_event *perf_pmu__find_table(struct perf_pmu *pmu)
         return table;
 }
 
-const struct pmu_event *find_core_events_table(const char *arch, const char *cpuid)
+const struct pmu_events_table *find_core_events_table(const char *arch, const char *cpuid)
 {
         for (const struct pmu_events_map *tables = &pmu_events_map[0];
-             tables->table;
+             tables->arch;
              tables++) {
                 if (!strcmp(tables->arch, arch) && !strcmp_cpuid_str(tables->cpuid, cpuid))
-                        return tables->table;
+                        return &tables->table;
         }
         return NULL;
 }
@@ -464,9 +469,9 @@ const struct pmu_event *find_core_events_table(const char *arch, const char *cpu
 int pmu_for_each_core_event(pmu_event_iter_fn fn, void *data)
 {
         for (const struct pmu_events_map *tables = &pmu_events_map[0];
-             tables->table;
+             tables->arch;
              tables++) {
-                int ret = pmu_events_table_for_each_event(tables->table, fn, data);
+                int ret = pmu_events_table_for_each_event(&tables->table, fn, data);
 
                 if (ret)
                         return ret;
@@ -474,13 +479,13 @@ int pmu_for_each_core_event(pmu_event_iter_fn fn, void *data)
         return 0;
 }
 
-const struct pmu_event *find_sys_events_table(const char *name)
+const struct pmu_events_table *find_sys_events_table(const char *name)
 {
         for (const struct pmu_sys_events *tables = &pmu_sys_event_tables[0];
              tables->name;
              tables++) {
                 if (!strcmp(tables->name, name))
-                        return tables->table;
+                        return &tables->table;
         }
         return NULL;
 }
@@ -490,7 +495,7 @@ int pmu_for_each_sys_event(pmu_event_iter_fn fn, void *data)
         for (const struct pmu_sys_events *tables = &pmu_sys_event_tables[0];
              tables->name;
              tables++) {
-                int ret = pmu_events_table_for_each_event(tables->table, fn, data);
+                int ret = pmu_events_table_for_each_event(&tables->table, fn, data);
 
                 if (ret)
                         return ret;
