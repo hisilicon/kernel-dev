@@ -272,10 +272,15 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	if (!dev->active)
 		pnp_init_resources(dev);
 
-	error = pnp_add_device(dev);
-	if (error) {
-		put_device(&dev->dev);
-		return error;
+
+	if (device->flags.enumeration_by_parent) {
+		device->driver_data = dev;
+	} else {
+		error = pnp_add_device(dev);
+		if (error) {
+			put_device(&dev->dev);
+			return error;
+		}
 	}
 
 	num++;
