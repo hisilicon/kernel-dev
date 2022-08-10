@@ -390,70 +390,49 @@ static void hisi_lpc_acpi_fixup_child_resource(struct device *hostdev,
  * host-relative address resource.  This function will return the translated
  * logical PIO addresses for each child devices resources.
  */
-static int hisi_lpc_acpi_set_io_res(struct acpi_device *adev,
-				    struct device *hostdev,
-				    const struct resource **res, int *num_res)
+struct hisi_lpc_acpi_cell_data;
+
+struct hisi_lpc_acpi_cell {
+	const char *hid;
+	const char *name;
+	struct hisi_lpc_acpi_cell_data *data;
+	size_t data_size;
+};
+
+struct hisi_lpc_acpi_cell_data {
+	const struct hisi_lpc_acpi_cell *owner;
+	union {
+		struct plat_serial8250_port serial[2];
+	};
+};
+
+int hisi_lpc_acpi_xlat_res(struct acpi_device *adev, struct resource *res,
+			   void *data, size_t data_len)
 {
 	struct acpi_device *host = to_acpi_device(adev->dev.parent);
-	struct resource_entry *rentry;
-	LIST_HEAD(resource_list);
-	struct resource *resources;
-	int count;
-	int i;
+	struct device *dev = &adev->dev;
+	struct device *hostdev = dev->parent;
+	int ret;
 
-	if (!adev->status.present) {
-		dev_dbg(&adev->dev, "device is not present\n");
-		return -EIO;
-	}
+	hisi_lpc_acpi_fixup_child_resource(hostdev, res);
 
-	if (acpi_device_enumerated(adev)) {
-		dev_dbg(&adev->dev, "has been enumerated\n");
-		return -EIO;
-	}
+	if (!(res->flags & IORESOURCE_IO))
+		return 0;
 
-	/*
-	 * The following code segment to retrieve the resources is common to
-	 * acpi_create_platform_device(), so consider a common helper function
-	 * in future.
-	 */
-	count = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
-	if (count <= 0) {
-		dev_dbg(&adev->dev, "failed to get resources\n");
-		return count ? count : -EIO;
-	}
+	ret = hisi_lpc_acpi_xlat_io_res(adev, host, res);
+	if (data_len) {
+		struct hisi_lpc_acpi_cell_data *cell_data = container_of(data,
+				struct hisi_lpc_acpi_cell_data,  serial);
+		const struct hisi_lpc_acpi_cell *cell;
 
-	resources = devm_kcalloc(hostdev, count, sizeof(*resources),
-				 GFP_KERNEL);
-	if (!resources) {
-		dev_warn(hostdev, "could not allocate memory for %d resources\n",
-			 count);
-		acpi_dev_free_resource_list(&resource_list);
-		return -ENOMEM;
-	}
-	count = 0;
-	list_for_each_entry(rentry, &resource_list, node) {
-		resources[count] = *rentry->res;
-		hisi_lpc_acpi_fixup_child_resource(hostdev, &resources[count]);
-		count++;
-	}
+		cell = cell_data->owner;
 
-	acpi_dev_free_resource_list(&resource_list);
+		if (!strcmp(cell->hid, "HISI1031")) {
+			struct plat_serial8250_port *serial = data;
 
-	/* translate the I/O resources */
-	for (i = 0; i < count; i++) {
-		int ret;
-
-		if (!(resources[i].flags & IORESOURCE_IO))
-			continue;
-		ret = hisi_lpc_acpi_xlat_io_res(adev, host, &resources[i]);
-		if (ret) {
-			dev_err(&adev->dev, "translate IO range %pR failed (%d)\n",
-				&resources[i], ret);
-			return ret;
+			serial->iobase = res->start;
 		}
 	}
-	*res = resources;
-	*num_res = count;
 
 	return 0;
 }
@@ -470,13 +449,6 @@ static int hisi_lpc_acpi_clear_enumerated(struct acpi_device *adev, void *not_us
 	return 0;
 }
 
-struct hisi_lpc_acpi_cell {
-	const char *hid;
-	const char *name;
-	void *pdata;
-	size_t pdata_size;
-};
-
 static void hisi_lpc_acpi_remove(struct device *hostdev)
 {
 	device_for_each_child(hostdev, NULL, hisi_lpc_acpi_remove_subdev);
@@ -490,15 +462,16 @@ static int hisi_lpc_acpi_add_child(struct acpi_device *child, void *data)
 	struct device *hostdev = data;
 	const struct hisi_lpc_acpi_cell *cell;
 	struct platform_device *pdev;
-	const struct resource *res;
 	bool found = false;
-	int num_res;
-	int ret;
 
-	ret = hisi_lpc_acpi_set_io_res(child, hostdev, &res, &num_res);
-	if (ret) {
-		dev_warn(hostdev, "set resource fail (%d)\n", ret);
-		return ret;
+	if (!child->status.present) {
+		dev_err(&child->dev, "device is not present\n");
+		return -EIO;
+	}
+
+	if (acpi_device_enumerated(child)) {
+		dev_err(&child->dev, "has been enumerated\n");
+		return -EIO;
 	}
 
 	cell = (struct hisi_lpc_acpi_cell []){
@@ -511,16 +484,21 @@ static int hisi_lpc_acpi_add_child(struct acpi_device *child, void *data)
 		{
 			.hid = "HISI1031",
 			.name = "serial8250",
-			.pdata = (struct plat_serial8250_port []) {
+			.data = (struct hisi_lpc_acpi_cell_data []) {
 				{
-					.iobase = res->start,
-					.uartclk = 1843200,
-					.iotype = UPIO_PORT,
-					.flags = UPF_BOOT_AUTOCONF,
+					.serial = {
+						{
+						//	.iobase to be set after xlat'ing resources
+							.uartclk = 1843200,
+							.iotype = UPIO_PORT,
+							.flags = UPF_BOOT_AUTOCONF,
+						},
+						{}
+					},
 				},
 				{}
 			},
-			.pdata_size = 2 *
+			.data_size = 2 *
 				sizeof(struct plat_serial8250_port),
 		},
 		{}
@@ -540,31 +518,26 @@ static int hisi_lpc_acpi_add_child(struct acpi_device *child, void *data)
 		return 0;
 	}
 
-	pdev = platform_device_alloc(cell->name, PLATFORM_DEVID_AUTO);
-	if (!pdev)
+	if (cell->data) {
+		struct hisi_lpc_acpi_cell_data *cell_data = cell->data;
+		struct plat_serial8250_port *data = cell_data->serial;
+
+		cell_data->owner = cell;
+		pdev = acpi_create_platform_device_ops(child, cell->name, NULL,
+						       data, cell->data_size,
+						       hisi_lpc_acpi_xlat_res,
+						       PLATFORM_DEVID_AUTO);
+	} else {
+		pdev = acpi_create_platform_device_ops(child, cell->name, NULL,
+						       NULL, 0,
+						       hisi_lpc_acpi_xlat_res,
+						       PLATFORM_DEVID_AUTO);
+	}
+
+	if (IS_ERR_OR_NULL(pdev))
 		return -ENOMEM;
 
-	pdev->dev.parent = hostdev;
-	ACPI_COMPANION_SET(&pdev->dev, child);
-
-	ret = platform_device_add_resources(pdev, res, num_res);
-	if (ret)
-		goto fail;
-
-	ret = platform_device_add_data(pdev, cell->pdata, cell->pdata_size);
-	if (ret)
-		goto fail;
-
-	ret = platform_device_add(pdev);
-	if (ret)
-		goto fail;
-
-	acpi_device_set_enumerated(child);
 	return 0;
-
-fail:
-	platform_device_put(pdev);
-	return ret;
 }
 
 /*
