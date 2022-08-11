@@ -472,9 +472,7 @@ static int hisi_lpc_acpi_clear_enumerated(struct acpi_device *adev, void *not_us
 
 struct hisi_lpc_acpi_cell {
 	const char *hid;
-	const char *name;
-	void *pdata;
-	size_t pdata_size;
+	const struct platform_device_info *pdevinfo;
 };
 
 static void hisi_lpc_acpi_remove(struct device *hostdev)
@@ -501,16 +499,74 @@ static int hisi_lpc_acpi_add_child(struct acpi_device *child, void *data)
 		return ret;
 	}
 
+/*
+struct platform_device_info {
+		struct device *parent;
+		struct fwnode_handle *fwnode;
+		bool of_node_reused;
+
+		const char *name;
+		int id;
+
+		const struct resource *res;
+		unsigned int num_res;
+
+		const void *data;
+		size_t size_data;
+		u64 dma_mask;
+
+		const struct property_entry *properties;
+};
+
+*/
+
 	cell = (struct hisi_lpc_acpi_cell []){
 		/* ipmi */
 		{
 			.hid = "IPI0001",
-			.name = "hisi-lpc-ipmi",
+			.pdevinfo = (struct platform_device_info []) {
+				{
+					.parent = hostdev,
+					.fwnode = acpi_fwnode_handle(child),
+
+					.name = "hisi-lpc-ipmi",
+					.id = PLATFORM_DEVID_AUTO,
+
+					.res = res,
+					.num_res = num_res,
+				},
+
+			},
 		},
 		/* 8250-compatible uart */
 		{
 			.hid = "HISI1031",
-			.name = "serial8250",
+			
+			.pdevinfo = (struct platform_device_info []) {
+				{
+					.parent = hostdev,
+					.fwnode = acpi_fwnode_handle(child),
+
+					.name = "serial8250",
+					.id = PLATFORM_DEVID_AUTO,
+
+					.res = res,
+					.num_res = num_res,
+
+					.data = (struct plat_serial8250_port []) {
+						{
+							.iobase = res->start,
+							.uartclk = 1843200,
+							.iotype = UPIO_PORT,
+							.flags = UPF_BOOT_AUTOCONF,
+						},
+						{}
+					},
+					.size_data =  2 *
+						sizeof(struct plat_serial8250_port),
+				},
+			},
+			/*
 			.pdata = (struct plat_serial8250_port []) {
 				{
 					.iobase = res->start,
@@ -522,11 +578,12 @@ static int hisi_lpc_acpi_add_child(struct acpi_device *child, void *data)
 			},
 			.pdata_size = 2 *
 				sizeof(struct plat_serial8250_port),
+			*/
 		},
 		{}
 	};
 
-	for (; cell && cell->name; cell++) {
+	for (; cell && cell->hid; cell++) {
 		if (!strcmp(cell->hid, hid)) {
 			found = true;
 			break;
@@ -540,31 +597,12 @@ static int hisi_lpc_acpi_add_child(struct acpi_device *child, void *data)
 		return 0;
 	}
 
-	pdev = platform_device_alloc(cell->name, PLATFORM_DEVID_AUTO);
+	pdev = platform_device_register_full(cell->pdevinfo);
 	if (!pdev)
 		return -ENOMEM;
 
-	pdev->dev.parent = hostdev;
-	ACPI_COMPANION_SET(&pdev->dev, child);
-
-	ret = platform_device_add_resources(pdev, res, num_res);
-	if (ret)
-		goto fail;
-
-	ret = platform_device_add_data(pdev, cell->pdata, cell->pdata_size);
-	if (ret)
-		goto fail;
-
-	ret = platform_device_add(pdev);
-	if (ret)
-		goto fail;
-
 	acpi_device_set_enumerated(child);
 	return 0;
-
-fail:
-	platform_device_put(pdev);
-	return ret;
 }
 
 /*
