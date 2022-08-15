@@ -28,6 +28,7 @@
 #include <linux/dynamic_debug.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/platform_device.h>
 
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
@@ -721,8 +722,20 @@ extern bool acpi_driver_match_device(struct device *dev,
 int acpi_device_uevent_modalias(struct device *, struct kobj_uevent_env *);
 int acpi_device_modalias(struct device *, char *, int);
 
-struct platform_device *acpi_create_platform_device(struct acpi_device *,
-						    const struct property_entry *);
+struct platform_device *acpi_create_platform_device_ops(
+				struct acpi_device *adev,
+				const char *name,
+				const struct property_entry *properties,
+				void *data, size_t size_data,
+				int (*xlat)(struct acpi_device *adev,
+					    struct resource *res,
+					    void *data, size_t size_data),
+				int id);
+
+#define acpi_create_platform_device(adev, properties) \
+	acpi_create_platform_device_ops(adev, NULL, properties, NULL, 0, \
+					NULL, PLATFORM_DEVID_NONE)
+
 #define ACPI_PTR(_ptr)	(_ptr)
 
 static inline void acpi_device_set_enumerated(struct acpi_device *adev)

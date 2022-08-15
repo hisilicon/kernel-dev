@@ -84,9 +84,14 @@ static void acpi_platform_fill_resource(struct acpi_device *adev,
 }
 
 /**
- * acpi_create_platform_device - Create platform device for ACPI device node
+ * acpi_create_platform_device_ops - Create platform device for ACPI device node
  * @adev: ACPI device node to create a platform device for.
+ * @name: Name for platform device, may be unset
  * @properties: Optional collection of build-in properties.
+ * @data: platform data pointer
+ * @size_data: platform data size
+ * @xlat: callback translate function for resources
+ * @id: platform device id
  *
  * Check if the given @adev can be represented as a platform device and, if
  * that's the case, create and register a platform device, populate its common
@@ -94,8 +99,15 @@ static void acpi_platform_fill_resource(struct acpi_device *adev,
  *
  * Name of the platform device will be the same as @adev's.
  */
-struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
-						    const struct property_entry *properties)
+struct platform_device *acpi_create_platform_device_ops(
+					struct acpi_device *adev,
+					const char *name,
+					const struct property_entry *properties,
+					void *data, size_t size_data,
+					int (*xlat)(struct acpi_device *adev,
+						    struct resource *res,
+						    void *data, size_t size_data),
+					int id)
 {
 	struct platform_device *pdev = NULL;
 	struct platform_device_info pdevinfo;
@@ -124,9 +136,13 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 			return ERR_PTR(-ENOMEM);
 		}
 		count = 0;
-		list_for_each_entry(rentry, &resource_list, node)
+		list_for_each_entry(rentry, &resource_list, node) {
 			acpi_platform_fill_resource(adev, rentry->res,
-						    &resources[count++]);
+						    &resources[count]);
+			if (xlat)
+				xlat(adev, &resources[count], data, size_data);
+			count++;
+		}
 
 		acpi_dev_free_resource_list(&resource_list);
 	}
@@ -139,12 +155,17 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 	 */
 	pdevinfo.parent = adev->parent ?
 		acpi_get_first_physical_node(adev->parent) : NULL;
-	pdevinfo.name = dev_name(&adev->dev);
-	pdevinfo.id = -1;
+	if (name)
+		pdevinfo.name = name;
+	else
+		pdevinfo.name = dev_name(&adev->dev);
+	pdevinfo.id = id;
 	pdevinfo.res = resources;
 	pdevinfo.num_res = count;
 	pdevinfo.fwnode = acpi_fwnode_handle(adev);
 	pdevinfo.properties = properties;
+	pdevinfo.data = data;
+	pdevinfo.size_data = size_data;
 
 	if (acpi_dma_supported(adev))
 		pdevinfo.dma_mask = DMA_BIT_MASK(32);
@@ -165,7 +186,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 
 	return pdev;
 }
-EXPORT_SYMBOL_GPL(acpi_create_platform_device);
+EXPORT_SYMBOL_GPL(acpi_create_platform_device_ops);
 
 void __init acpi_platform_init(void)
 {
