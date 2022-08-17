@@ -1,0 +1,168 @@
+:#! jobs/stress-ng-class-filesystem.yaml:
+suite: stress-ng
+testcase: stress-ng
+category: benchmark
+nr_threads: 10%
+disk: 1HDD
+testtime: 60s
+fs: f2fs
+stress-ng:
+  class: filesystem
+  test: copy-file
+job_origin: stress-ng-class-filesystem.yaml
+:#! queue options:
+queue_cmdline_keys:
+- branch
+- commit
+- kbuild_queue_analysis
+queue: bisect
+testbox: lkp-icl-2sp1
+tbox_group: lkp-icl-2sp1
+submit_id: 62e7f58f5b08c89a58ad9fc2
+job_file: "/lkp/jobs/scheduled/lkp-icl-2sp1/stress-ng-filesystem-performance-1HDD-f2fs-10%-copy-file-60s-ucode=0xb000280-debian-11.1-x86_64-20220510.cgz-0568e6122574dcc1ade-20220802-39512-vas7gy-0.yaml"
+id: b7cd238fcb5d03aa7e9e7da1af301a6661f9d229
+queuer_version: "/zday/lkp"
+:#! hosts/lkp-icl-2sp1:
+model: Ice Lake
+nr_node: 2
+nr_cpu: 96
+memory: 256G
+nr_hdd_partitions: 1
+hdd_partitions: "/dev/disk/by-id/ata-ST9500530NS_9SP1KLAR-part1"
+ssd_partitions: "/dev/nvme0n1p1"
+swap_partitions:
+kernel_cmdline_hw: acpi_rsdp=0x667fd014
+rootfs_partition: "/dev/disk/by-id/ata-INTEL_SSDSC2BB800G4_PHWL4204005K800RGN-part3"
+:#! include/category/benchmark:
+kmsg:
+boot-time:
+uptime:
+iostat:
+heartbeat:
+vmstat:
+numa-numastat:
+numa-vmstat:
+numa-meminfo:
+proc-vmstat:
+proc-stat:
+meminfo:
+slabinfo:
+interrupts:
+lock_stat:
+perf-sched:
+  lite_mode: 1
+softirqs:
+bdi_dev_mapping:
+diskstats:
+nfsstat:
+cpuidle:
+cpufreq-stats:
+turbostat:
+sched_debug:
+perf-stat:
+mpstat:
+perf-profile:
+  debug_mode: 0
+:#! include/category/ALL:
+cpufreq_governor: performance
+:#! include/disk/nr_hdd:
+need_kconfig:
+- BLK_DEV_SD
+- SCSI
+- BLOCK: y
+- SATA_AHCI
+- SATA_AHCI_PLATFORM
+- ATA
+- PCI: y
+- F2FS_FS
+:#! include/stress-ng:
+:#! include/queue/cyclic:
+commit: '0568e6122574dcc1aded2979cd0245038efe22b6'
+:#! include/testbox/lkp-icl-2sp1:
+ucode: '0xb000280'
+need_kconfig_hw:
+- PTP_1588_CLOCK: y
+- IGB: y
+- IXGBE: y
+- SATA_AHCI
+pmeter:
+  pmeter_server: lkp-nhm-dp2
+  pmeter_device: yokogawa-wt310
+bisect_dmesg: true
+:#! include/fs/OTHERS:
+kconfig: x86_64-rhel-8.3
+enqueue_time: 2022-08-01 23:47:27.369308649 +08:00
+_id: 62e7f58f5b08c89a58ad9fc2
+_rt: "/result/stress-ng/filesystem-performance-1HDD-f2fs-10%-copy-file-60s-ucode=0xb000280/lkp-icl-2sp1/debian-11.1-x86_64-20220510.cgz/x86_64-rhel-8.3/gcc-11/0568e6122574dcc1aded2979cd0245038efe22b6"
+:#! schedule options:
+user: lkp
+compiler: gcc-11
+LKP_SERVER: internal-lkp-server
+head_commit: 77f360fd80f0e89df214c2231e2ffce4c54e0f60
+base_commit: e0dccc3b76fb35bb257b4118367a883073d7390e
+branch: hch-dma-mapping/for-next
+rootfs: debian-11.1-x86_64-20220510.cgz
+result_root: "/result/stress-ng/filesystem-performance-1HDD-f2fs-10%-copy-file-60s-ucode=0xb000280/lkp-icl-2sp1/debian-11.1-x86_64-20220510.cgz/x86_64-rhel-8.3/gcc-11/0568e6122574dcc1aded2979cd0245038efe22b6/0"
+scheduler_version: "/lkp/lkp/.src-20220728-201011"
+arch: x86_64
+max_uptime: 2100
+initrd: "/osimage/debian/debian-11.1-x86_64-20220510.cgz"
+bootloader_append:
+- root=/dev/ram0
+- RESULT_ROOT=/result/stress-ng/filesystem-performance-1HDD-f2fs-10%-copy-file-60s-ucode=0xb000280/lkp-icl-2sp1/debian-11.1-x86_64-20220510.cgz/x86_64-rhel-8.3/gcc-11/0568e6122574dcc1aded2979cd0245038efe22b6/0
+- BOOT_IMAGE=/pkg/linux/x86_64-rhel-8.3/gcc-11/0568e6122574dcc1aded2979cd0245038efe22b6/vmlinuz-5.19.0-rc3-00027-g0568e6122574
+- branch=hch-dma-mapping/for-next
+- job=/lkp/jobs/scheduled/lkp-icl-2sp1/stress-ng-filesystem-performance-1HDD-f2fs-10%-copy-file-60s-ucode=0xb000280-debian-11.1-x86_64-20220510.cgz-0568e6122574dcc1ade-20220802-39512-vas7gy-0.yaml
+- user=lkp
+- ARCH=x86_64
+- kconfig=x86_64-rhel-8.3
+- commit=0568e6122574dcc1aded2979cd0245038efe22b6
+- acpi_rsdp=0x667fd014
+- max_uptime=2100
+- LKP_SERVER=internal-lkp-server
+- nokaslr
+- selinux=0
+- debug
+- apic=debug
+- sysrq_always_enabled
+- rcupdate.rcu_cpu_stall_timeout=100
+- net.ifnames=0
+- printk.devkmsg=on
+- panic=-1
+- softlockup_panic=1
+- nmi_watchdog=panic
+- oops=panic
+- load_ramdisk=2
+- prompt_ramdisk=0
+- drbd.minor_count=8
+- systemd.log_level=err
+- ignore_loglevel
+- console=tty0
+- earlyprintk=ttyS0,115200
+- console=ttyS0,115200
+- vga=normal
+- rw
+modules_initrd: "/pkg/linux/x86_64-rhel-8.3/gcc-11/0568e6122574dcc1aded2979cd0245038efe22b6/modules.cgz"
+bm_initrd: "/osimage/deps/debian-11.1-x86_64-20220510.cgz/run-ipconfig_20220515.cgz,/osimage/deps/debian-11.1-x86_64-20220510.cgz/lkp_20220513.cgz,/osimage/deps/debian-11.1-x86_64-20220510.cgz/rsync-rootfs_20220515.cgz,/osimage/deps/debian-11.1-x86_64-20220510.cgz/fs_20220526.cgz,/osimage/deps/debian-11.1-x86_64-20220510.cgz/stress-ng_20220801.cgz,/osimage/pkg/debian-11.1-x86_64-20220510.cgz/stress-ng-x86_64-0.11-06_20220801.cgz,/osimage/deps/debian-11.1-x86_64-20220510.cgz/mpstat_20220516.cgz,/osimage/deps/debian-11.1-x86_64-20220510.cgz/turbostat_20220514.cgz,/osimage/pkg/debian-11.1-x86_64-20220510.cgz/turbostat-x86_64-210e04ff7681-1_20220518.cgz,/osimage/deps/debian-11.1-x86_64-20220510.cgz/perf_20220731.cgz,/osimage/pkg/debian-11.1-x86_64-20220510.cgz/perf-x86_64-6a010258447d-1_20220731.cgz,/osimage/pkg/debian-11.1-x86_64-20220510.cgz/sar-x86_64-c5bb321-1_20220518.cgz,/osimage/deps/debian-11.1-x86_64-20220510.cgz/hw_20220526.cgz"
+ucode_initrd: "/osimage/ucode/intel-ucode-20220216.cgz"
+lkp_initrd: "/osimage/user/lkp/lkp-x86_64.cgz"
+site: inn
+:#! /cephfs/db/releases/20220729135123/lkp-src/include/site/inn:
+LKP_CGI_PORT: 80
+LKP_CIFS_PORT: 139
+oom-killer:
+watchdog:
+:#! runtime status:
+last_kernel: 5.19.0-rc3-00026-g4cbfca5f7750
+repeat_to: 3
+kbuild_queue_analysis: 1
+schedule_notify_address:
+:#! user overrides:
+kernel: "/pkg/linux/x86_64-rhel-8.3/gcc-11/0568e6122574dcc1aded2979cd0245038efe22b6/vmlinuz-5.19.0-rc3-00027-g0568e6122574"
+dequeue_time: 2022-08-02 01:27:40.465581428 +08:00
+:#! /cephfs/db/releases/20220801181151/lkp-src/include/site/inn:
+job_state: finished
+loadavg: 6.39 2.11 0.75 1/888 8153
+start_time: '1659374977'
+end_time: '1659375039'
+version: "/lkp/lkp/.src-20220728-201058:af335ace6:13a1a8cb9"
