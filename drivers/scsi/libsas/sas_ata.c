@@ -503,6 +503,8 @@ void sas_ata_end_eh(struct ata_port *ap)
 	struct sas_ha_struct *ha = dev->port->ha;
 	unsigned long flags;
 
+	pr_err("%s dev=%pS ap=%pS\n", __func__, dev, ap);
+
 	spin_lock_irqsave(&ha->lock, flags);
 	if (test_and_clear_bit(SAS_DEV_EH_PENDING, &dev->state))
 		ha->eh_active--;
@@ -515,6 +517,8 @@ static int sas_ata_prereset(struct ata_link *link, unsigned long deadline)
 	struct domain_device *dev = ap->private_data;
 	struct sas_phy *local_phy = sas_get_local_phy(dev);
 	int res = 0;
+
+	pr_err("%s dev=%pS link=%pS\n", __func__, dev, link);
 
 	if (!local_phy->enabled || test_bit(SAS_DEV_GONE, &dev->state))
 		res = -ENOENT;

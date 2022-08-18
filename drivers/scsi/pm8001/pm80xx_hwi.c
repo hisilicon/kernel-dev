@@ -2289,8 +2289,8 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 		if (t->dev && (t->dev->lldd_dev))
 			pm8001_dev = t->dev->lldd_dev;
 	} else {
-		pm8001_dbg(pm8001_ha, FAIL, "task null, freeing CCB tag %d\n",
-			   ccb->ccb_tag);
+		pm8001_dbg(pm8001_ha, FAIL, "task null, freeing CCB tag %d ccb=%pS\n",
+			   ccb->ccb_tag, ccb);
 		pm8001_ccb_free(pm8001_ha, ccb);
 		return;
 	}
