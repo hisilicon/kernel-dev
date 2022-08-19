@@ -695,8 +695,10 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 		spin_unlock_irqrestore(ap->lock, flags);
 
 		/* invoke EH, skip if unloading or suspended */
-		if (!(ap->pflags & (ATA_PFLAG_UNLOADING | ATA_PFLAG_SUSPENDED)))
+		if (!(ap->pflags & (ATA_PFLAG_UNLOADING | ATA_PFLAG_SUSPENDED))) {
+			pr_err("%s calling error_handler ap=%pS\n", __func__, ap);
 			ap->ops->error_handler(ap);
+		}
 		else {
 			/* if unloading, commence suicide */
 			if ((ap->pflags & ATA_PFLAG_UNLOADING) &&
@@ -2512,7 +2514,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 
 	/* prefer hardreset */
 	reset = NULL;
-	pr_err("%s1 reset=%pS ehc=%pS ATA_EH_SOFTRESET=%d ATA_EH_SOFTRESET=%d\n", 
+	pr_err("%s1 reset=%pS ehc=%pS ATA_EH_SOFTRESET=%d ATA_EH_HARDRESET=%d\n", 
 		__func__, reset, ehc, !!(ehc->i.action & ATA_EH_SOFTRESET), !!(ehc->i.action & ATA_EH_HARDRESET));
 	ehc->i.action &= ~ATA_EH_RESET;
 	if (hardreset) {
@@ -2523,7 +2525,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		ehc->i.action |= ATA_EH_SOFTRESET;
 	}
 
-	pr_err("%s2 reset=%pS ehc=%pS ATA_EH_SOFTRESET=%d ATA_EH_SOFTRESET=%d\n", 
+	pr_err("%s2 reset=%pS ehc=%pS ATA_EH_SOFTRESET=%d ATA_EH_HARDRESET=%d\n", 
 		__func__, reset, ehc, !!(ehc->i.action & ATA_EH_SOFTRESET), !!(ehc->i.action & ATA_EH_HARDRESET));
 	if (prereset) {
 		unsigned long deadline = ata_deadline(jiffies,
@@ -2569,7 +2571,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		/* prereset() might have cleared ATA_EH_RESET.  If so,
 		 * bang classes, thaw and return.
 		 */
-		pr_err("%s3 reset=%pS ehc=%pS ATA_EH_SOFTRESET=%d ATA_EH_SOFTRESET=%d\n", 
+		pr_err("%s3 reset=%pS ehc=%pS ATA_EH_SOFTRESET=%d ATA_EH_HARDRESET=%d\n", 
 			__func__, reset, ehc, !!(ehc->i.action & ATA_EH_SOFTRESET), !!(ehc->i.action & ATA_EH_HARDRESET));
 		if (reset && !(ehc->i.action & ATA_EH_RESET)) {
 			ata_for_each_dev(dev, link, ALL)
