@@ -2512,7 +2512,8 @@ int ata_eh_reset(struct ata_link *link, int classify,
 
 	/* prefer hardreset */
 	reset = NULL;
-	pr_err("%s1 reset=%pS ehc=%pS ATA_EH_RESET=%d\n", __func__, reset, ehc, !!(ehc->i.action & ATA_EH_RESET));
+	pr_err("%s1 reset=%pS ehc=%pS ATA_EH_SOFTRESET=%d ATA_EH_SOFTRESET=%d\n", 
+		__func__, reset, ehc, !!(ehc->i.action & ATA_EH_SOFTRESET), !!(ehc->i.action & ATA_EH_HARDRESET));
 	ehc->i.action &= ~ATA_EH_RESET;
 	if (hardreset) {
 		reset = hardreset;
@@ -2522,7 +2523,8 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		ehc->i.action |= ATA_EH_SOFTRESET;
 	}
 
-	pr_err("%s2 reset=%pS ehc=%pS ATA_EH_RESET=%d\n", __func__, reset, ehc, !!(ehc->i.action & ATA_EH_RESET));
+	pr_err("%s2 reset=%pS ehc=%pS ATA_EH_SOFTRESET=%d ATA_EH_SOFTRESET=%d\n", 
+		__func__, reset, ehc, !!(ehc->i.action & ATA_EH_SOFTRESET), !!(ehc->i.action & ATA_EH_HARDRESET));
 	if (prereset) {
 		unsigned long deadline = ata_deadline(jiffies,
 						      ATA_EH_PRERESET_TIMEOUT);
@@ -2567,7 +2569,8 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		/* prereset() might have cleared ATA_EH_RESET.  If so,
 		 * bang classes, thaw and return.
 		 */
-		pr_err("%s3reset=%pS ehc=%pS ATA_EH_RESET=%d\n", __func__, reset, ehc, !!(ehc->i.action & ATA_EH_RESET));
+		pr_err("%s3 reset=%pS ehc=%pS ATA_EH_SOFTRESET=%d ATA_EH_SOFTRESET=%d\n", 
+			__func__, reset, ehc, !!(ehc->i.action & ATA_EH_SOFTRESET), !!(ehc->i.action & ATA_EH_HARDRESET));
 		if (reset && !(ehc->i.action & ATA_EH_RESET)) {
 			ata_for_each_dev(dev, link, ALL)
 				classes[dev->devno] = ATA_DEV_NONE;

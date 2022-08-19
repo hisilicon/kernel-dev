@@ -871,7 +871,7 @@ void sas_ata_device_link_abort(struct domain_device *device)
 	struct ata_link *link = &ap->link;
 
 	link->eh_info.err_mask |= AC_ERR_DEV;
-	link->eh_info.action |= ATA_EH_RESET;
+	link->eh_info.action |= ATA_EH_SOFTRESET;
 	ata_link_abort(link);
 }
 EXPORT_SYMBOL_GPL(sas_ata_device_link_abort);
