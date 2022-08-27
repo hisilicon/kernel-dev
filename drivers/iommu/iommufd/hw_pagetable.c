@@ -186,3 +186,41 @@ out_put_dev:
 	iommufd_put_object(&idev->obj);
 	return rc;
 }
+
+int iommufd_hwpt_invalidate(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_hwpt_invalidate *cmd = ucmd->cmd;
+	struct iommufd_hw_pagetable *hwpt;
+	struct iommufd_object *obj;
+	void *data;
+	int rc = 0;
+
+	if (cmd->data_type == IOMMU_DEVICE_DATA_NONE)
+		return -EOPNOTSUPP;
+
+	obj = iommufd_get_object(ucmd->ictx, cmd->hwpt_id,
+				 IOMMUFD_OBJ_HW_PAGETABLE);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	hwpt = container_of(obj, struct iommufd_hw_pagetable, obj);
+
+	data = kzalloc(cmd->data_len, GFP_KERNEL);
+	if (!data) {
+		rc = -ENOMEM;
+		goto out_put_hwpt;
+	}
+
+	rc = copy_struct_from_user(data, cmd->data_len,
+				   (void __user *)cmd->data_uptr,
+				   cmd->data_len);
+	if (rc)
+		goto out_free_data;
+
+	iommu_iotlb_sync_user(hwpt->domain, data, cmd->data_len);
+out_free_data:
+	kfree(data);
+out_put_hwpt:
+	iommufd_put_object(obj);
+	return rc;
+}
