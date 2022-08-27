@@ -48,6 +48,7 @@ enum {
 	IOMMUFD_CMD_OPTION,
 	IOMMUFD_CMD_VFIO_IOAS,
 	IOMMUFD_CMD_DEVICE_GET_INFO,
+	IOMMUFD_CMD_HWPT_ALLOC,
 };
 
 /**
@@ -360,4 +361,31 @@ struct iommu_device_info {
 	__aligned_u64 out_data_ptr;
 };
 #define IOMMU_DEVICE_GET_INFO _IO(IOMMUFD_TYPE, IOMMUFD_CMD_DEVICE_GET_INFO)
+
+/**
+ * struct iommu_hwpt_alloc - ioctl(IOMMU_HWPT_ALLOC)
+ * @size: sizeof(struct iommu_hwpt_alloc)
+ * @flags: Must be 0
+ * @dev_id: the device to allocate this HWPT for
+ * @pt_id: the parent of this HWPT (IOAS or HWPT).
+ * @data_type: type of the user data, i.e. enum iommu_device_data_type
+ * @data_len: length of the type specific data
+ * @data_uptr: user pointer to the type specific data
+ * @out_hwpt_id: output HWPT ID for the allocated object
+ * @__reserved: Must be 0
+ *
+ * Allocate a hardware page table for userspace
+ */
+struct iommu_hwpt_alloc {
+	__u32 size;
+	__u32 flags;
+	__u32 dev_id;
+	__u32 pt_id;
+	__u32 data_type;
+	__u32 data_len;
+	__aligned_u64 data_uptr;
+	__u32 out_hwpt_id;
+	__u32 __reserved;
+};
+#define IOMMU_HWPT_ALLOC _IO(IOMMUFD_TYPE, IOMMUFD_CMD_HWPT_ALLOC)
 #endif
