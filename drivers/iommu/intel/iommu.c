@@ -4753,8 +4753,28 @@ static void intel_iommu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
 	intel_pasid_tear_down_entry(iommu, dev, pasid, false);
 }
 
+static int intel_iommu_hw_info(struct device *dev, struct iommu_hw_info *info)
+{
+	struct intel_iommu *iommu = device_to_iommu(dev, NULL, NULL);
+	struct iommu_device_info_vtd *vtd = info->data;
+
+	if (!iommu)
+		return -ENODEV;
+
+	if (!vtd || info->data_len != sizeof(struct iommu_device_info_vtd))
+		return -EINVAL;
+
+	info->device_type = IOMMU_DEVICE_DATA_INTEL_VTD;
+	vtd->flags = 0;
+	vtd->cap_reg = iommu->cap;
+	vtd->ecap_reg = iommu->ecap;
+
+	return 0;
+}
+
 const struct iommu_ops intel_iommu_ops = {
 	.capable		= intel_iommu_capable,
+	.hw_info		= intel_iommu_hw_info,
 	.domain_alloc		= intel_iommu_domain_alloc,
 	.probe_device		= intel_iommu_probe_device,
 	.probe_finalize		= intel_iommu_probe_finalize,
