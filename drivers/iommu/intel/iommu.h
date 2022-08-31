@@ -23,6 +23,7 @@
 #include <linux/bitfield.h>
 #include <linux/xarray.h>
 #include <linux/perf_event.h>
+#include <uapi/linux/iommufd.h>
 
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
