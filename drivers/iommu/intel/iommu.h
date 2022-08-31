@@ -22,6 +22,7 @@
 #include <linux/ioasid.h>
 #include <linux/bitfield.h>
 #include <linux/xarray.h>
+#include <uapi/linux/iommufd.h>
 
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
