@@ -1127,7 +1127,10 @@ int pm8001_abort_task(struct sas_task *task)
 			 * may race with libsas freeing it when return here.
 			 */
 			ccb->task = NULL;
-			ret = sas_execute_internal_abort_single(dev, tag, 0, NULL);
+			if (pm8001_dev->id & NCQ_ERR_FLAG)
+				pr_err("%s task=%pS skipping abort\n", __func__, task);
+			else
+				ret = sas_execute_internal_abort_single(dev, tag, 0, NULL);
 		}
 		rc = TMF_RESP_FUNC_COMPLETE;
 	} else if (task->task_proto & SAS_PROTOCOL_SMP) {
