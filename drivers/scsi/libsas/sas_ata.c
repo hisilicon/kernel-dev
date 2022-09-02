@@ -764,7 +764,7 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
 	ASYNC_DOMAIN_EXCLUSIVE(async);
 	int i;
-
+	pr_err("%s shost=%pS\n", __func__, shost);
 	/* it's ok to defer revalidation events during ata eh, these
 	 * disks are in one of three states:
 	 * 1/ present for initial domain discovery, and these
