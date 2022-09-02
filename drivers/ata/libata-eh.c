@@ -655,6 +655,7 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 {
 	unsigned long flags;
 
+	pr_err("%s host=%pS ap=%pS\n", __func__, host, ap);
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
 		struct ata_link *link;
@@ -956,7 +957,7 @@ EXPORT_SYMBOL_GPL(ata_std_sched_eh);
 void ata_std_end_eh(struct ata_port *ap)
 {
 	struct Scsi_Host *host = ap->scsi_host;
-
+	pr_err("%s ap=%pS\n", __func__, ap);
 	host->host_eh_scheduled = 0;
 }
 EXPORT_SYMBOL(ata_std_end_eh);
@@ -1559,8 +1560,12 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 	unsigned int tmp, action = 0;
 	u8 stat = tf->status, err = tf->error;
 
+	pr_err("%s qc=%pS tag=%d stat=0x%x err=0x%x\n", __func__, qc, qc->tag, stat, err);
+
 	if ((stat & (ATA_BUSY | ATA_DRQ | ATA_DRDY)) != ATA_DRDY) {
 		qc->err_mask |= AC_ERR_HSM;
+		pr_err("%s2 qc=%pS tag=%d stat=0x%x err=0x%x AC_ERR_HSM and returning ATA_EH_RESET\n", __func__, qc, qc->tag, stat, err);
+
 		return ATA_EH_RESET;
 	}
 
@@ -1924,6 +1929,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 	u32 serror;
 	int rc;
 
+	pr_err("%s ap=%pS\n", __func__, ap);
 	if (ehc->i.flags & ATA_EHI_NO_AUTOPSY)
 		return;
 
@@ -2046,6 +2052,7 @@ void ata_eh_autopsy(struct ata_port *ap)
 {
 	struct ata_link *link;
 
+	pr_err("%s ap=%pS\n", __func__, ap);
 	ata_for_each_link(link, ap, EDGE)
 		ata_eh_link_autopsy(link);
 
@@ -2407,6 +2414,7 @@ void ata_eh_report(struct ata_port *ap)
 {
 	struct ata_link *link;
 
+	pr_err("%s ap=%pS\n", __func__, ap);
 	ata_for_each_link(link, ap, HOST_FIRST)
 		ata_eh_link_report(link);
 }
@@ -2455,6 +2463,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	u32 sstatus;
 	int nr_unknown, rc;
 
+	pr_err("%s ap=%pS\n", __func__, ap);
 	/*
 	 * Prepare to reset
 	 */
@@ -3552,6 +3561,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	int rc, nr_fails;
 	unsigned long flags, deadline;
 
+	pr_err("%s ap=%pS\n", __func__, ap);
 	/* prep for recovery */
 	ata_for_each_link(link, ap, EDGE) {
 		struct ata_eh_context *ehc = &link->eh_context;
@@ -3828,6 +3838,7 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	struct ata_device *dev;
 	int rc;
 
+	pr_err("%s ap=%pS\n", __func__, ap);
 	ata_eh_autopsy(ap);
 	ata_eh_report(ap);
 
