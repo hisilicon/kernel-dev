@@ -2686,14 +2686,7 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha,
 
 	/* Check if this is NCQ error */
 	if (event == IO_XFER_ERROR_ABORTED_NCQ_MODE) {
-		if (tag < 0xffff) {
-			ccb = &pm8001_ha->ccb_info[tag];
-			t = ccb->task;
-			pr_err("%s event=IO_XFER_ERROR_ABORTED_NCQ_MODE tag=%d t=%pS\n", __func__, tag, t);
-		}
-			
-		else
-			pr_err("%s event=IO_XFER_ERROR_ABORTED_NCQ_MODE tag=%d\n", __func__, tag);
+		pr_err("%s event=IO_XFER_ERROR_ABORTED_NCQ_MODE\n", __func__);
 		/* find device using device id */
 		pm8001_dev = pm8001_find_dev(pm8001_ha, dev_id);
 		/* send read log extension by aborting the link - libata does what we want */
