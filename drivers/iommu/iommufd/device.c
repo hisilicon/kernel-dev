@@ -201,6 +201,8 @@ static int iommufd_device_do_attach(struct iommufd_device *idev,
 	phys_addr_t sw_msi_start = 0;
 	int rc;
 
+	lockdep_assert_held(&hwpt->ioas->mutex);
+
 	mutex_lock(&hwpt->devices_lock);
 
 	/*
@@ -244,6 +246,7 @@ static int iommufd_device_do_attach(struct iommufd_device *idev,
 						   hwpt->domain);
 			if (rc)
 				goto out_detach;
+			list_add_tail(&hwpt->hwpt_item, &hwpt->ioas->hwpt_list);
 		}
 	}
 
@@ -279,7 +282,6 @@ static int iommufd_device_auto_get_domain(struct iommufd_device *idev,
 	 * that is willing to attach to the device is interchangeable with any
 	 * other.
 	 */
-	mutex_lock(&ioas->mutex);
 	list_for_each_entry(hwpt, &ioas->hwpt_list, hwpt_item) {
 		if (!hwpt->auto_domain)
 			continue;
@@ -293,29 +295,23 @@ static int iommufd_device_auto_get_domain(struct iommufd_device *idev,
 		 */
 		if (rc == -EINVAL)
 			continue;
-		goto out_unlock;
+		return rc;
 	}
 
 	hwpt = iommufd_hw_pagetable_alloc(idev->ictx, ioas, idev->dev);
-	if (IS_ERR(hwpt)) {
-		rc = PTR_ERR(hwpt);
-		goto out_unlock;
-	}
+	if (IS_ERR(hwpt))
+		return PTR_ERR(hwpt);
 	hwpt->auto_domain = true;
 
 	rc = iommufd_device_do_attach(idev, hwpt, flags);
 	if (rc)
 		goto out_abort;
-	list_add_tail(&hwpt->hwpt_item, &ioas->hwpt_list);
 
-	mutex_unlock(&ioas->mutex);
 	iommufd_object_finalize(idev->ictx, &hwpt->obj);
 	return 0;
 
 out_abort:
 	iommufd_object_abort_and_destroy(idev->ictx, &hwpt->obj);
-out_unlock:
-	mutex_unlock(&ioas->mutex);
 	return rc;
 }
 
@@ -347,20 +343,20 @@ int iommufd_device_attach(struct iommufd_device *idev, u32 *pt_id,
 		struct iommufd_hw_pagetable *hwpt =
 			container_of(pt_obj, struct iommufd_hw_pagetable, obj);
 
+		mutex_lock(&hwpt->ioas->mutex);
 		rc = iommufd_device_do_attach(idev, hwpt, flags);
+		mutex_unlock(&hwpt->ioas->mutex);
 		if (rc)
 			goto out_put_pt_obj;
-
-		mutex_lock(&hwpt->ioas->mutex);
-		list_add_tail(&hwpt->hwpt_item, &hwpt->ioas->hwpt_list);
-		mutex_unlock(&hwpt->ioas->mutex);
 		break;
 	}
 	case IOMMUFD_OBJ_IOAS: {
 		struct iommufd_ioas *ioas =
 			container_of(pt_obj, struct iommufd_ioas, obj);
 
+		mutex_lock(&ioas->mutex);
 		rc = iommufd_device_auto_get_domain(idev, ioas, flags);
+		mutex_unlock(&ioas->mutex);
 		if (rc)
 			goto out_put_pt_obj;
 		break;
