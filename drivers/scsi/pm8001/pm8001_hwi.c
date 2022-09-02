@@ -1357,10 +1357,13 @@ int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
 		| ((responseQueue & 0x3F) << 16)
 		| ((category & 0xF) << 12) | (opCode & 0xFFF));
 
+	udelay(1000);
 	pm8001_write_32((pMessage - 4), 0, cpu_to_le32(Header));
+	udelay(1000);
 	/*Update the PI to the firmware*/
 	pm8001_cw32(pm8001_ha, circularQ->pi_pci_bar,
 		circularQ->pi_offset, circularQ->producer_idx);
+	udelay(1000);
 	pm8001_dbg(pm8001_ha, DEVIO,
 		   "INB Q %x OPCODE:%x , UPDATED PI=%d CI=%d\n",
 		   responseQueue, opCode, circularQ->producer_idx,
