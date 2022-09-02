@@ -1730,6 +1730,7 @@ void pm8001_work_fn(struct work_struct *work)
 	{
 		pm8001_dev->id |= NCQ_ERR_FLAG;
 		dev = pm8001_dev->sas_device;
+		pr_err("%s IO_XFER_ERROR_ABORTED_NCQ_MODE sending sas_ata_device_link_abort\n", __func__);
 		sas_ata_device_link_abort(dev);
 	}
 	break;
@@ -1766,6 +1767,7 @@ void pm8001_send_abort_all(struct pm8001_hba_info *pm8001_ha,
 	struct domain_device *dev = pm8001_dev->sas_device;
 	int ret;
 
+	pr_err("%s pm8001_dev=%pS\n", __func__, pm8001_dev);
 	ccb = pm8001_ccb_alloc(pm8001_ha, pm8001_dev, NULL);
 	if (!ccb)
 		return;
