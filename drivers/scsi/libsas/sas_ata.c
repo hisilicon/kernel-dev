@@ -83,7 +83,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct ata_port *ap;
 
 	if (qc && !qc->scsicmd) {
-		pr_err("%s qc=%pS scsicmd=NULL\n", __func__, qc);
+		pr_err("%s qc=%pS scsicmd=NULL task=%pS\n", __func__, qc, task);
 	}
 
 	spin_lock_irqsave(&dev->done_lock, flags);
@@ -100,7 +100,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	}
 
 	if (!qc){
-		pr_err("%s3 qc_already_gone\n", __func__);
+		pr_err("%s3 qc_already_gone task=%pS\n", __func__, task);
 		goto qc_already_gone;
 	}
 
@@ -142,7 +142,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	} else {
 		ac = sas_to_ata_err(stat);
 		if (ac) {
-			pr_warn("%s: SAS error 0x%x\n", __func__, stat->stat);
+			pr_warn("%s: SAS error 0x%x task=%pS\n", __func__, stat->stat, task);
 			/* We saw a SAS error. Send a vague error. */
 			if (!link->sactive) {
 				qc->err_mask = ac;

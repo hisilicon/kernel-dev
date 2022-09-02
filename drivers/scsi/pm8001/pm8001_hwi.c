@@ -2664,6 +2664,7 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 
 	/* Check if this is NCQ error */
 	if (event == IO_XFER_ERROR_ABORTED_NCQ_MODE) {
+		pr_err("%s event=IO_XFER_ERROR_ABORTED_NCQ_MODE tag=%d\n", __func__, tag);
 		/* find device using device id */
 		pm8001_dev = pm8001_find_dev(pm8001_ha, dev_id);
 		/* send read log extension */
@@ -4257,7 +4258,7 @@ static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 
 			pm8001_ha_dev->id &= 0xDFFFFFFF;
 			ts = &task->task_status;
-
+			pr_err("%s NCQ_2ND_RLE_FLAG task=%pS\n", __func__, task);
 			spin_lock_irqsave(&task->task_state_lock, flags);
 			ts->resp = SAS_TASK_COMPLETE;
 			ts->stat = SAS_SAM_STAT_GOOD;
