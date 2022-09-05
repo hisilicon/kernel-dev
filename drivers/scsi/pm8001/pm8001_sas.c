@@ -810,6 +810,24 @@ void pm8001_open_reject_retry(
  * Standard mandates link reset for ATA (type 0) and hard reset for
  * SSP (type 1), only for RECOVERY
  */
+bool hack_tf_results(struct ata_queued_cmd *qc)
+{
+	struct scsi_cmnd *scmd = qc->scsicmd;
+	struct domain_device *ddev;
+	struct pm8001_device *pm8001_dev;
+
+	if (!scmd)
+		return false;
+
+	ddev = cmd_to_domain_dev(scmd);
+	pm8001_dev = ddev->lldd_dev;
+	if (pm8001_dev->id & NCQ_READ_LOG_FLAG)
+		return true;
+	
+	if (pm8001_dev->id & NCQ_ABORT_ALL_FLAG)
+		return true;
+	return false;
+}
 int pm8001_I_T_nexus_reset(struct domain_device *dev)
 {
 	int rc = TMF_RESP_FUNC_FAILED;

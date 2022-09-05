@@ -1554,13 +1554,16 @@ static void ata_eh_analyze_serror(struct ata_link *link)
  *	RETURNS:
  *	Determined recovery action
  */
+extern bool hack_tf_results(struct ata_queued_cmd *qc);
 static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 				      const struct ata_taskfile *tf)
 {
 	unsigned int tmp, action = 0;
 	u8 stat = tf->status, err = tf->error;
+	bool hack = hack_tf_results(qc);
 
-	pr_err("%s qc=%pS tag=%d stat=0x%x err=0x%x\n", __func__, qc, qc->tag, stat, err);
+	pr_err("%s qc=%pS tag=%d stat=0x%x err=0x%x hack=%d\n", __func__, qc, qc->tag, stat, err, hack);
+
 
 	if ((stat & (ATA_BUSY | ATA_DRQ | ATA_DRDY)) != ATA_DRDY) {
 		qc->err_mask |= AC_ERR_HSM;

@@ -3640,6 +3640,7 @@ int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	if (pm8001_dev->id & NCQ_ABORT_ALL_FLAG) {
 		sas_free_task(t);
 		pm8001_dev->id &= ~NCQ_ABORT_ALL_FLAG;
+		pr_err("%s unset NCQ_ABORT_ALL_FLAG\n", __func__);
 	} else {
 		t->task_done(t);
 	}
