@@ -1561,8 +1561,12 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 	u8 stat = tf->status, err = tf->error;
 	bool hack = hack_tf_results(qc);
 
-	pr_err("%s qc=%pS tag=%d stat=0x%x err=0x%x hack=%d\n", __func__, qc, qc->tag, stat, err, hack);
-
+	pr_err("%s qc=%pS tag=%d stat=0x%x err=0x%x hackable=%d\n", __func__, qc, qc->tag, stat, err, hack);
+	if (hack) {
+		stat = 0x1;
+		err = 0x4;
+		pr_err("%s1 qc=%pS tag=%d stat=0x%x err=0x%x hacked\n", __func__, qc, qc->tag, stat, err);
+	}
 
 	if ((stat & (ATA_BUSY | ATA_DRQ | ATA_DRDY)) != ATA_DRDY) {
 		qc->err_mask |= AC_ERR_HSM;
