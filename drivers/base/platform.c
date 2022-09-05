@@ -666,6 +666,11 @@ int platform_device_add(struct platform_device *pdev)
 
 	pdev->dev.bus = &platform_bus_type;
 
+	if (strstr("ipmi", pdev->name))
+		return -EINVAL;
+	if (strstr(pdev->name, "ipmi"))
+		return -EINVAL;
+
 	switch (pdev->id) {
 	default:
 		dev_set_name(&pdev->dev, "%s.%d", pdev->name,  pdev->id);
