@@ -48,11 +48,12 @@ static int smp_execute_task_sg(struct domain_device *dev,
 			break;
 		}
 
-		task = sas_alloc_slow_task(GFP_KERNEL);
+		task = sas_alloc_slow_task(dev->port->ha, GFP_KERNEL);
 		if (!task) {
 			res = -ENOMEM;
 			break;
 		}
+
 		task->dev = dev;
 		task->task_proto = dev->tproto;
 		task->smp_task.smp_req = *req;

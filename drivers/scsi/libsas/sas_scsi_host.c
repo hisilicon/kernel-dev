@@ -162,9 +162,8 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 {
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
-	struct request *rq = scsi_cmd_to_rq(cmnd);
 
-	return i->dft->lldd_execute_task(sas_rq_to_task(rq), GFP_KERNEL);
+	return i->dft->lldd_execute_task(TO_SAS_TASK(cmnd), GFP_KERNEL);
 }
 EXPORT_SYMBOL_GPL(sas_queuecommand_internal);
 
@@ -947,7 +946,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		task = sas_alloc_slow_task(GFP_KERNEL);
+		task = sas_alloc_slow_task(ha, GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -1033,10 +1032,12 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	struct sas_task *task;
 	struct sas_internal *i =
 		to_sas_internal(device->port->ha->core.shost->transportt);
+	struct sas_ha_struct *ha = device->port->ha;
 	int res, retry;
 
+
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		task = sas_alloc_slow_task(GFP_KERNEL);
+		task = sas_alloc_slow_task(ha, GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 

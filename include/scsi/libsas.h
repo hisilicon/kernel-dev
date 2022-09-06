@@ -639,6 +639,9 @@ struct sas_task_slow {
 #define SAS_TASK_STATE_ABORTED      4
 #define SAS_TASK_NEED_DEV_RESET     8
 
+extern struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *, gfp_t flags);
+extern void sas_free_task(struct sas_task *task);
+
 static inline bool sas_is_internal_abort(struct sas_task *task)
 {
 	return task->task_proto == SAS_PROTOCOL_INTERNAL_ABORT;
@@ -770,12 +773,5 @@ void sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 			   gfp_t gfp_flags);
 void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 			   gfp_t gfp_flags);
-
-static inline struct sas_task *sas_rq_to_task(struct request *rq)
-{
-	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
-
-	return (struct sas_task *)(scmd + 1);
-}
 
 #endif /* _SASLIB_H_ */
