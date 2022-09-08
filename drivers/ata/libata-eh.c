@@ -2938,8 +2938,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 		if (ehc->i.flags & ATA_EHI_DID_RESET)
 			readid_flags |= ATA_READID_POSTRESET;
 
-		pr_err("%s2 ap=%pS link=%pS dev=%pS ata_dev_enabled=%d dev->class=%d ATA_DEV_UNKNOWN=%d ehc->tries[dev->devno]=%d ata_class_enabled=%d ehc->classes[dev->devno]=%d dev->devno=%d\n",
-		 __func__, ap, link, dev, ata_dev_enabled(dev), dev->class, ATA_DEV_UNKNOWN, ehc->tries[dev->devno], ata_class_enabled(ehc->classes[dev->devno]), ehc->classes[dev->devno], dev->devno);
+		pr_err("%s2 ap=%pS link=%pS dev=%pS ata_dev_enabled=%d dev->class=%d ATA_DEV_UNKNOWN=%d ehc->tries[dev->devno]=%d ata_class_enabled=%d ehc->classes[dev->devno]=%d dev->devno=%d ATA_DEV_NONE=%d\n",
+		 __func__, ap, link, dev, ata_dev_enabled(dev), dev->class, ATA_DEV_UNKNOWN, ehc->tries[dev->devno], ata_class_enabled(ehc->classes[dev->devno]), ehc->classes[dev->devno], dev->devno, ATA_DEV_NONE);
 		if ((action & ATA_EH_REVALIDATE) && ata_dev_enabled(dev)) {
 			WARN_ON(dev->class == ATA_DEV_PMP);
 

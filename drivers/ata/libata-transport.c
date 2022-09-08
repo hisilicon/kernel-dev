@@ -338,10 +338,12 @@ unsigned int ata_port_classify(struct ata_port *ap,
 	int i;
 	unsigned int class = ata_dev_classify(tf);
 
+	pr_err("%s ap=%pS class=%d %s\n", __func__, ap, class, class == ATA_DEV_ATAPI ? "ATA_DEV_ATAPI" : "");
+
 	/* Start with index '1' to skip the 'unknown' entry */
 	for (i = 1; i < ARRAY_SIZE(ata_class_names); i++) {
 		if (ata_class_names[i].value == class) {
-			ata_port_dbg(ap, "found %s device by sig\n",
+			ata_port_err(ap, "found %s device by sig\n",
 				     ata_class_names[i].name);
 			return class;
 		}

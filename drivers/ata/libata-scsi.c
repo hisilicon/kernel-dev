@@ -4287,6 +4287,7 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 			if (!IS_ERR(sdev)) {
 				dev->sdev = sdev;
 				pr_err("%s1 ap=%pS sdev=%pS dev=%pS\n", __func__, ap, sdev, dev);
+				sdev_printk(KERN_ERR, sdev, "%s1 ap=%pS sdev=%pS dev=%pS\n", __func__, ap, sdev, dev);
 				ata_scsi_assign_ofnode(dev, ap);
 				scsi_device_put(sdev);
 			} else {

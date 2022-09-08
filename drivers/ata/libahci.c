@@ -1293,7 +1293,7 @@ unsigned int ahci_dev_classify(struct ata_port *ap)
 	void __iomem *port_mmio = ahci_port_base(ap);
 	struct ata_taskfile tf;
 	u32 tmp;
-
+	pr_err("%s ap=%pS calling ata_port_classify\n", __func__, ap);
 	tmp = readl(port_mmio + PORT_SIG);
 	tf.lbah		= (tmp >> 24)	& 0xff;
 	tf.lbam		= (tmp >> 16)	& 0xff;
@@ -1467,8 +1467,10 @@ int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 		/* link occupied, -ENODEV too is an error */
 		reason = "device not ready";
 		goto fail;
-	} else
+	} else {
+		pr_err("%s ap=%pS calling ahci_dev_classify\n", __func__, ap);
 		*class = ahci_dev_classify(ap);
+	}
 
 	/* re-enable FBS if disabled before */
 	if (fbs_disabled)
@@ -1569,8 +1571,10 @@ int ahci_do_hardreset(struct ata_link *link, unsigned int *class,
 
 	hpriv->start_engine(ap);
 
-	if (*online)
+	pr_err("%s ap=%pS host=%pS calling ahci_dev_classify if *online=%d set\n", __func__, ap, ap->host, *online);
+	if (*online) {
 		*class = ahci_dev_classify(ap);
+	}
 
 	return rc;
 }

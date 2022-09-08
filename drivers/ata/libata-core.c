@@ -1017,8 +1017,10 @@ unsigned int ata_dev_classify(const struct ata_taskfile *tf)
 	if (tf->lbam == 0 && tf->lbah == 0)
 		return ATA_DEV_ATA;
 
-	if (tf->lbam == 0x14 && tf->lbah == 0xeb)
+	if (tf->lbam == 0x14 && tf->lbah == 0xeb) {
+		pr_err("%s found ATA_DEV_ATAPI\n", __func__);
 		return ATA_DEV_ATAPI;
+	}
 
 	if (tf->lbam == 0x69 && tf->lbah == 0x96) {
 		pr_err("%s dev pmp\n", __func__);
@@ -5452,6 +5454,7 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 	}
 
 	devres_remove_group(dev, NULL);
+	dev_err(dev, "%s returning %pS\n", __func__, host);
 	return host;
 
  err_out:
