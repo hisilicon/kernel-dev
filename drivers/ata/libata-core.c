@@ -1490,7 +1490,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned int err_mask;
 	int rc;
 
-	WARN_ON_ONCE(!dev->sdev);
+	pr_err("%s dev=%pS ap=%pS link=%pS\n", __func__, dev, ap, link);
 
 	spin_lock_irqsave(ap->lock, flags);
 
