@@ -1020,8 +1020,10 @@ unsigned int ata_dev_classify(const struct ata_taskfile *tf)
 	if (tf->lbam == 0x14 && tf->lbah == 0xeb)
 		return ATA_DEV_ATAPI;
 
-	if (tf->lbam == 0x69 && tf->lbah == 0x96)
+	if (tf->lbam == 0x69 && tf->lbah == 0x96) {
+		pr_err("%s dev pmp\n", __func__);
 		return ATA_DEV_PMP;
+	}
 
 	if (tf->lbam == 0x3c && tf->lbah == 0xc3)
 		return ATA_DEV_SEMB;
@@ -5230,6 +5232,8 @@ void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
 
 	link->ap = ap;
 	link->pmp = pmp;
+	if (pmp)
+		pr_err("%s pmp=1\n", __func__);
 	link->active_tag = ATA_TAG_POISON;
 	link->hw_sata_spd_limit = UINT_MAX;
 

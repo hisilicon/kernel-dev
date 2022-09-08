@@ -1067,6 +1067,7 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	transport_configure_device(&sdev->sdev_gendev);
 
 	if (sdev->host->hostt->slave_configure) {
+		pr_err("%s dev=%pS calling slave_configure=%pS\n", __func__, sdev, sdev->host->hostt->slave_configure);
 		ret = sdev->host->hostt->slave_configure(sdev);
 		if (ret) {
 			/*
@@ -1086,7 +1087,8 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		 * the map depends on actual queue depth.
 		 */
 		scsi_realloc_sdev_budget_map(sdev, sdev->queue_depth);
-	}
+	} else
+		pr_err("%s2 dev=%pS calling slave_configure=%pS\n", __func__, sdev, sdev->host->hostt->slave_configure);
 
 	if (sdev->scsi_level >= SCSI_3)
 		scsi_attach_vpd(sdev);

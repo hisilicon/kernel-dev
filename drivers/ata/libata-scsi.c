@@ -1055,6 +1055,7 @@ EXPORT_SYMBOL_GPL(ata_scsi_dma_need_drain);
 int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 {
 	struct request_queue *q = sdev->request_queue;
+	//WARN_ON_ONCE(1);
 
 	if (!ata_id_has_unload(dev->id))
 		dev->flags |= ATA_DFLAG_NO_UNLOAD;
@@ -1110,7 +1111,7 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 
 	if (dev->flags & ATA_DFLAG_TRUSTED)
 		sdev->security_supported = 1;
-
+	pr_err("%s dev->sdev=%pS sdev=%pS\n", __func__, dev->sdev, sdev);
 	dev->sdev = sdev;
 	return 0;
 }
@@ -1132,11 +1133,12 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct ata_device *dev = __ata_scsi_find_dev(ap, sdev);
 	int rc = 0;
-
 	ata_scsi_sdev_config(sdev);
 
-	if (dev)
+	if (dev) {
+		pr_err("%s sdev=%pS calling ata_scsi_dev_config\n", __func__, sdev);
 		rc = ata_scsi_dev_config(sdev, dev);
+	}
 
 	return rc;
 }
@@ -4280,8 +4282,10 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 
 			sdev = __scsi_add_device(ap->scsi_host, channel, id, 0,
 						 NULL);
+			pr_err("%s ap=%pS dev->sdev=%pS dev=%pS sdev=%pS\n", __func__, ap, dev->sdev, dev, sdev);
 			if (!IS_ERR(sdev)) {
 				dev->sdev = sdev;
+				pr_err("%s1 ap=%pS sdev=%pS dev=%pS\n", __func__, ap, sdev, dev);
 				ata_scsi_assign_ofnode(dev, ap);
 				scsi_device_put(sdev);
 			} else {
