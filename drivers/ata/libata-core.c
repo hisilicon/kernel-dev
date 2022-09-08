@@ -3383,11 +3383,14 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 	struct ata_device *dev;
 	int rc = 0, used_dma = 0, found = 0;
 
+	pr_err("%s link=%pS\n", __func__, link);
+
 	/* step 1: calculate xfer_mask */
 	ata_for_each_dev(dev, link, ENABLED) {
 		unsigned int pio_mask, dma_mask;
 		unsigned int mode_mask;
 
+		pr_err("%s2 link=%pS dev=%pS\n", __func__, link, dev);
 		mode_mask = ATA_DMA_MASK_ATA;
 		if (dev->class == ATA_DEV_ATAPI)
 			mode_mask = ATA_DMA_MASK_ATAPI;

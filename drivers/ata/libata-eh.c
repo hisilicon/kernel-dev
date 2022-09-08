@@ -2926,6 +2926,7 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 	unsigned long flags;
 	int rc = 0;
 
+	pr_err("%s ap=%pS link=%pS\n", __func__, ap, link);
 	/* For PATA drive side cable detection to work, IDENTIFY must
 	 * be done backwards such that PDIAG- is released by the slave
 	 * device before the master device is identified.
@@ -2937,9 +2938,12 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 		if (ehc->i.flags & ATA_EHI_DID_RESET)
 			readid_flags |= ATA_READID_POSTRESET;
 
+		pr_err("%s2 ap=%pS link=%pS dev=%pS ata_dev_enabled=%d dev->class=%d ATA_DEV_UNKNOWN=%d ehc->tries[dev->devno]=%d ata_class_enabled=%d ehc->classes[dev->devno]=%d dev->devno=%d\n",
+		 __func__, ap, link, dev, ata_dev_enabled(dev), dev->class, ATA_DEV_UNKNOWN, ehc->tries[dev->devno], ata_class_enabled(ehc->classes[dev->devno]), ehc->classes[dev->devno], dev->devno);
 		if ((action & ATA_EH_REVALIDATE) && ata_dev_enabled(dev)) {
 			WARN_ON(dev->class == ATA_DEV_PMP);
 
+			pr_err("%s3 ap=%pS link=%pS dev=%pS ata_phys_link_offline=%d\n", __func__, ap, link, dev, ata_phys_link_offline(ata_dev_phys_link(dev)));
 			if (ata_phys_link_offline(ata_dev_phys_link(dev))) {
 				rc = -EIO;
 				goto err;
@@ -2977,6 +2981,7 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 				rc = ata_dev_read_id(dev, &dev->class,
 						     readid_flags, dev->id);
 
+			pr_err("%s4 ap=%pS link=%pS dev=%pS id=%d rc=%d\n", __func__, ap, link, dev, *dev->id, rc);
 			/* read_id might have changed class, store and reset */
 			ehc->classes[dev->devno] = dev->class;
 			dev->class = ATA_DEV_UNKNOWN;
@@ -3019,6 +3024,7 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 		if (dev->class == ATA_DEV_PMP)
 			continue;
 
+		pr_err("%s4 ap=%pS link=%pS dev=%pS id=%d calling ata_dev_configure\n", __func__, ap, link, dev, *dev->id);
 		ehc->i.flags |= ATA_EHI_PRINTINFO;
 		rc = ata_dev_configure(dev);
 		ehc->i.flags &= ~ATA_EHI_PRINTINFO;
@@ -3062,7 +3068,7 @@ int ata_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 	struct ata_port *ap = link->ap;
 	struct ata_device *dev;
 	int rc;
-
+	pr_err("%s link=%pS ap=%pS\n", __func__, link, ap);
 	/* if data transfer is verified, clear DUBIOUS_XFER on ering top */
 	ata_for_each_dev(dev, link, ENABLED) {
 		if (!(dev->flags & ATA_DFLAG_DUBIOUS_XFER)) {
@@ -3553,6 +3559,8 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	int rc, nr_fails;
 	unsigned long flags, deadline;
 
+	pr_err("%s ap=%pS\n", __func__, ap);
+
 	/* prep for recovery */
 	ata_for_each_link(link, ap, EDGE) {
 		struct ata_eh_context *ehc = &link->eh_context;
@@ -3572,6 +3580,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 			else
 				ehc->tries[dev->devno] = ATA_EH_DEV_TRIES;
 
+			pr_err("%s2 ap=%pS link=%pS dev=%pS ata_dev_enabled=%d\n", __func__, ap, link, dev, ata_dev_enabled(dev));
 			/* collect port action mask recorded in dev actions */
 			ehc->i.action |= ehc->i.dev_action[dev->devno] &
 					 ~ATA_EH_PERDEV_MASK;
@@ -3636,6 +3645,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 				struct ata_eh_context *ehc = &link->eh_context;
 				unsigned long tmp;
 
+				pr_err("%s3 ap=%pS link=%pS dev=%pS\n", __func__, ap, link, dev);
 				if (dev->class != ATA_DEV_ATA &&
 				    dev->class != ATA_DEV_ZAC)
 					continue;
@@ -3679,6 +3689,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	ata_for_each_link(link, ap, PMP_FIRST) {
 		struct ata_eh_context *ehc = &link->eh_context;
 
+		pr_err("%s4 ap=%pS link=%pS dev=%pS\n", __func__, ap, link, dev);
 		if (sata_pmp_attached(ap) && ata_is_host_link(link))
 			goto config_lpm;
 

@@ -2068,7 +2068,7 @@ static void ahci_thaw(struct ata_port *ap)
 void ahci_error_handler(struct ata_port *ap)
 {
 	struct ahci_host_priv *hpriv = ap->host->private_data;
-
+	pr_err("%s ap=%pS\n", __func__, ap);
 	if (!(ap->pflags & ATA_PFLAG_FROZEN)) {
 		/* restart engine */
 		hpriv->stop_engine(ap);
