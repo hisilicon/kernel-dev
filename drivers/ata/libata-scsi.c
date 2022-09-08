@@ -4206,6 +4206,7 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		shost->max_lun = 1;
 		shost->max_channel = 1;
 		shost->max_cmd_len = 32;
+		pr_err("%s host=%pS i=%d ap=%p shost=%pS\n", __func__, host, i, ap, shost);
 
 		/* Schedule policy is determined by ->qc_defer()
 		 * callback and it needs to see every deferred qc.

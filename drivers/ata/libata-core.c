@@ -3734,8 +3734,12 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 int ata_dev_reread_id(struct ata_device *dev, unsigned int readid_flags)
 {
 	unsigned int class = dev->class;
+	struct ata_link *link = dev->link;
+	struct ata_port *ap = link->ap;
 	u16 *id = (void *)dev->link->ap->sector_buf;
 	int rc;
+
+	pr_err("%s dev=%pS ap=%pS enabled=%d\n", __func__, dev, ap, ata_dev_enabled(dev));
 
 	/* read ID data */
 	rc = ata_dev_read_id(dev, &class, readid_flags, id);
@@ -3770,8 +3774,10 @@ int ata_dev_revalidate(struct ata_device *dev, unsigned int new_class,
 {
 	u64 n_sectors = dev->n_sectors;
 	u64 n_native_sectors = dev->n_native_sectors;
+	struct ata_link *link = dev->link;
+	struct ata_port *ap = link->ap;
 	int rc;
-
+	pr_err("%s dev=%pS ap=%pS enabled=%d\n", __func__, dev, ap, ata_dev_enabled(dev));
 	if (!ata_dev_enabled(dev))
 		return -ENODEV;
 
@@ -5692,7 +5698,7 @@ void __ata_port_probe(struct ata_port *ap)
 int ata_port_probe(struct ata_port *ap)
 {
 	int rc = 0;
-
+	pr_err("%s ap=%pS error_handler=%pS\n", __func__, ap, ap->ops->error_handler);
 	if (ap->ops->error_handler) {
 		__ata_port_probe(ap);
 		ata_port_wait_eh(ap);
