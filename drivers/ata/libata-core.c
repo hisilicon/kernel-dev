@@ -1488,6 +1488,8 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned int err_mask;
 	int rc;
 
+	WARN_ON_ONCE(!dev->sdev);
+
 	spin_lock_irqsave(ap->lock, flags);
 
 	/* no internal command while frozen */
@@ -5405,7 +5407,7 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 	size_t sz;
 	int i;
 	void *dr;
-
+	dev_err(dev, "%s max_ports=%d\n", __func__, max_ports);
 	/* alloc a container for our list of ATA ports (buses) */
 	sz = sizeof(struct ata_host) + (max_ports + 1) * sizeof(void *);
 	host = kzalloc(sz, GFP_KERNEL);

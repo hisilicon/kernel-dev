@@ -438,6 +438,7 @@ static void scsi_device_cls_release(struct device *class_dev)
 	struct scsi_device *sdev;
 
 	sdev = class_to_sdev(class_dev);
+	//pr_err("%s sdev=%pS\n", __func__, sdev);
 	put_device(&sdev->sdev_gendev);
 }
 
@@ -1421,7 +1422,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 {
 	struct device *dev = &sdev->sdev_gendev;
 	int res;
-
+	//pr_err("%s sdev=%pS\n", __func__, sdev);
 	/*
 	 * This cleanup path is not reentrant and while it is impossible
 	 * to get a new reference with scsi_device_get() someone can still

@@ -1067,7 +1067,7 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	transport_configure_device(&sdev->sdev_gendev);
 
 	if (sdev->host->hostt->slave_configure) {
-		pr_err("%s dev=%pS calling slave_configure=%pS\n", __func__, sdev, sdev->host->hostt->slave_configure);
+		pr_err("%s sdev=%pS calling slave_configure=%pS\n", __func__, sdev, sdev->host->hostt->slave_configure);
 		ret = sdev->host->hostt->slave_configure(sdev);
 		if (ret) {
 			/*
@@ -1087,8 +1087,10 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		 * the map depends on actual queue depth.
 		 */
 		scsi_realloc_sdev_budget_map(sdev, sdev->queue_depth);
-	} else
-		pr_err("%s2 dev=%pS calling slave_configure=%pS\n", __func__, sdev, sdev->host->hostt->slave_configure);
+	} else {
+		pr_err("%s2 sdev=%pS not calling slave_configure=%pS\n", __func__, sdev, sdev->host->hostt->slave_configure);
+		WARN_ON_ONCE(1);
+	}
 
 	if (sdev->scsi_level >= SCSI_3)
 		scsi_attach_vpd(sdev);
@@ -1102,8 +1104,10 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	 * register it and tell the rest of the kernel
 	 * about it.
 	 */
-	if (!async && scsi_sysfs_add_sdev(sdev) != 0)
+	if (!async && scsi_sysfs_add_sdev(sdev) != 0) {
+		pr_err("%s3 sdev=%pS SCSI_SCAN_NO_RESPONSE\n", __func__, sdev);
 		return SCSI_SCAN_NO_RESPONSE;
+	}
 
 	return SCSI_SCAN_LUN_PRESENT;
 }
