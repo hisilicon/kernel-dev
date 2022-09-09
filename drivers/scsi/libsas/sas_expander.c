@@ -823,6 +823,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 		if (res)
 			goto out_free;
 		rphy = sas_end_device_alloc(phy->port);
+		pr_err("%s sata rphy=%pS domain device child=%pS\n", __func__, rphy, child);
 		if (!rphy)
 			goto out_free;
 		rphy->identify.phy_identifier = phy_id;

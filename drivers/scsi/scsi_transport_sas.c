@@ -1545,7 +1545,7 @@ int sas_rphy_add(struct sas_rphy *rphy)
 			lun = SCAN_WILD_CARD;
 		else
 			lun = 0;
-
+		pr_err("%s dev=%pS channel=0 rphy->scsi_target_id=%d lun=%d rphy=%pS\n", __func__, &rphy->dev, rphy->scsi_target_id, lun, rphy);
 		scsi_scan_target(&rphy->dev, 0, rphy->scsi_target_id, lun,
 				 SCSI_SCAN_INITIAL);
 	}

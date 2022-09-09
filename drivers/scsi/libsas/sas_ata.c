@@ -553,6 +553,7 @@ int sas_ata_init(struct domain_device *found_dev)
 	struct sas_ha_struct *ha = found_dev->port->ha;
 	struct Scsi_Host *shost = ha->core.shost;
 	struct ata_host *ata_host;
+	struct ata_device *dev;
 	struct ata_port *ap;
 	int rc;
 
@@ -582,8 +583,13 @@ int sas_ata_init(struct domain_device *found_dev)
 	if (rc)
 		goto destroy_port;
 
+
 	found_dev->sata_dev.ata_host = ata_host;
 	found_dev->sata_dev.ap = ap;
+
+	dev = sas_to_ata_dev(found_dev);
+	dev->sdev = scsi_get_dev(shost, 0, dev->devno, 0);
+	pr_err("%s dev=%pS found_dev=%pS sdev=%pS\n", __func__, dev, found_dev, dev->sdev);
 
 	return 0;
 
