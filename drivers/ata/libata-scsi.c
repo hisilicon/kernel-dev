@@ -4232,6 +4232,21 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 			goto err_alloc;
 	}
 
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+		struct Scsi_Host *shost = ap->scsi_host;
+		struct ata_link *link;
+		struct ata_device *dev;
+
+		ata_for_each_link(link, ap, HOST_FIRST) {
+			ata_for_each_dev(dev, link, ALL) {
+				pr_err("%s0 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS\n", __func__, host, i, ap, shost, link, dev);
+
+			}
+		}
+
+	}
+
 	return 0;
 
  err_alloc:
@@ -4285,9 +4300,9 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 			struct scsi_device *sdev;
 			int channel = 0, id = 0;
 
-			pr_err("%s0 ap=%pS dev->sdev=%pS dev=%pS\n", __func__, ap, dev->sdev, dev);
-			if (dev->sdev)
-				continue;
+			pr_err("%s0 ap=%pS dev->sdev=%pS dev=%pS link=%pS ata_is_host_link=%d\n", __func__, ap, dev->sdev, dev, link, ata_is_host_link(link));
+			//if (dev->sdev)
+			//	continue;
 
 			if (ata_is_host_link(link))
 				id = dev->devno;

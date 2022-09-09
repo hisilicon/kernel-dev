@@ -5188,7 +5188,8 @@ const struct device_type ata_port_type = {
 	.pm = &ata_port_pm_ops,
 #endif
 };
-
+#include <scsi/scsi.h>
+#include <scsi/scsi_host.h>
 /**
  *	ata_dev_init - Initialize an ata_device structure
  *	@dev: Device structure to initialize
@@ -5203,6 +5204,12 @@ void ata_dev_init(struct ata_device *dev)
 	struct ata_link *link = ata_dev_phys_link(dev);
 	struct ata_port *ap = link->ap;
 	unsigned long flags;
+
+	int channel = 0, id = 0;
+
+	pr_err("%s0 ap=%pS dev->sdev=%pS dev=%pS link=%pS\n", __func__, ap, dev->sdev, dev, link);
+
+
 
 	/* SATA spd limit is bound to the attached device, reset together */
 	link->sata_spd_limit = link->hw_sata_spd_limit;
@@ -5222,6 +5229,13 @@ void ata_dev_init(struct ata_device *dev)
 	dev->pio_mask = UINT_MAX;
 	dev->mwdma_mask = UINT_MAX;
 	dev->udma_mask = UINT_MAX;
+
+	if (ata_is_host_link(link))
+		id = dev->devno;
+	else
+		channel = link->pmp;
+
+	pr_err("%s10 out link=%pS ata_is_host_link=%d dev=%pS sdev=%pS\n", __func__, link, ata_is_host_link(link), dev, dev->sdev);
 }
 
 /**
@@ -5256,7 +5270,7 @@ void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
 
 		dev->link = link;
 		dev->devno = dev - link->device;
-		pr_err("%s2 dev=%pS setting devno=%d\n", __func__, dev, dev->devno);
+		pr_err("%s2 dev=%pS setting devno=%d calling ata_dev_init\n", __func__, dev, dev->devno);
 #ifdef CONFIG_ATA_ACPI
 		dev->gtf_filter = ata_acpi_gtf_filter;
 #endif
@@ -5760,7 +5774,7 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 {
 	int i, rc;
-
+	pr_err("%s host=%pS sht=%pS\n", __func__, host, sht);
 	host->n_tags = clamp(sht->can_queue, 1, ATA_MAX_QUEUE);
 
 	/* host must have been started */

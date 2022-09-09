@@ -2001,15 +2001,18 @@ struct scsi_device *scsi_get_dev(struct Scsi_Host *shost, int channel, uint id, 
 {
 	struct scsi_device *sdev = NULL;
 	struct scsi_target *starget;
+	pr_err("%s shost=%pS channel=%d id=%d lun=%lld\n", __func__, shost, channel, id, lun);
 
 	mutex_lock(&shost->scan_mutex);
 	if (!scsi_host_scan_allowed(shost))
 		goto out;
 	starget = scsi_alloc_target(&shost->shost_gendev, 0, shost->this_id);
+	pr_err("%s1 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
 	if (!starget)
 		goto out;
 
 	sdev = scsi_alloc_sdev(starget, 0, NULL);
+	pr_err("%s2 shost=%pS channel=%d id=%d lun=%lld sdev=%pS\n", __func__, shost, channel, id, lun, sdev);
 	if (sdev)
 		sdev->borken = 0;
 	else
