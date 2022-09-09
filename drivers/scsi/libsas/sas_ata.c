@@ -732,8 +732,8 @@ int sas_discover_sata(struct domain_device *dev)
 	struct Scsi_Host *shost = dev_to_shost(rphy->dev.parent);
 	struct device *parent = rphy->dev.parent;
 
-	pr_err("%s1 rphy=%pS domain device=%pS shost=%pS\n", __func__, dev->rphy, dev, shost);
-	dev_err(rphy->dev.parent, "%s1 rphy=%pS domain device=%pS shost=%pS\n", __func__, dev->rphy, dev, shost);
+	pr_err("%s1.0 rphy=%pS domain device=%pS shost=%pS\n", __func__, dev->rphy, dev, shost);
+	dev_err(rphy->dev.parent, "%s1.1 rphy=%pS domain device=%pS shost=%pS\n", __func__, dev->rphy, dev, shost);
 	if (dev->dev_type == SAS_SATA_PM)
 		return -ENODEV;
 

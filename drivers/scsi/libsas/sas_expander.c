@@ -945,10 +945,12 @@ static struct domain_device *sas_ex_discover_expander(
 	case SAS_EDGE_EXPANDER_DEVICE:
 		rphy = sas_expander_alloc(phy->port,
 					  SAS_EDGE_EXPANDER_DEVICE);
+		pr_err("%s rphy=%pS SAS_EDGE_EXPANDER_DEVICE\n", __func__, rphy);
 		break;
 	case SAS_FANOUT_EXPANDER_DEVICE:
 		rphy = sas_expander_alloc(phy->port,
 					  SAS_FANOUT_EXPANDER_DEVICE);
+		pr_err("%s1 rphy=%pS SAS_FANOUT_EXPANDER_DEVICE\n", __func__, rphy);
 		break;
 	default:
 		rphy = NULL;	/* shut gcc up */
