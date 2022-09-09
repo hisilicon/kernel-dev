@@ -797,19 +797,24 @@ EXPORT_SYMBOL_GPL(sas_ioctl);
 
 struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 {
-	struct Scsi_Host *shost = dev_to_shost(rphy->dev.parent);
-	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	struct Scsi_Host *shost;
+	struct sas_ha_struct *ha;
 	struct domain_device *found_dev = NULL;
 	int i;
 	unsigned long flags;
-	pr_err("%s rphy=%pS shost=%pS\n", __func__, rphy, shost);
+	pr_err("%s rphy=%pS\n", __func__, rphy);
+	pr_err("%s0 rphy=%pS rphy->dev.parent=%pS\n", __func__, rphy, rphy->dev.parent);
+	shost = dev_to_shost(rphy->dev.parent);
+	pr_err("%s1 rphy=%pS shost=%pS\n", __func__, rphy, shost);
+	ha = SHOST_TO_SAS_HA(shost);
+	pr_err("%s2 rphy=%pS shost=%pS ha=%pS\n", __func__, rphy, shost, ha);
 
 	spin_lock_irqsave(&ha->phy_port_lock, flags);
 	for (i = 0; i < ha->num_phys; i++) {
 		struct asd_sas_port *port = ha->sas_port[i];
 		struct domain_device *dev;
 
-		pr_err("%s2 rphy=%pS i=%d port=%pS shost=%pS\n", __func__, rphy, i, port, shost);
+		pr_err("%s3 rphy=%pS i=%d port=%pS shost=%pS\n", __func__, rphy, i, port, shost);
 		spin_lock(&port->dev_list_lock);
 		list_for_each_entry(dev, &port->dev_list, dev_list_node) {
 			if (rphy == dev->rphy) {

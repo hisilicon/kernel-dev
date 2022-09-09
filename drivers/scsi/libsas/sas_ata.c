@@ -553,7 +553,6 @@ int sas_ata_init(struct domain_device *found_dev)
 	struct sas_ha_struct *ha = found_dev->port->ha;
 	struct Scsi_Host *shost = ha->core.shost;
 	struct ata_host *ata_host;
-	struct ata_device *dev;
 	struct ata_port *ap;
 	int rc;
 
@@ -587,10 +586,6 @@ int sas_ata_init(struct domain_device *found_dev)
 
 	found_dev->sata_dev.ata_host = ata_host;
 	found_dev->sata_dev.ap = ap;
-
-	dev = sas_to_ata_dev(found_dev);
-	dev->sdev = scsi_get_dev(shost, 0, dev->devno, 0);
-	pr_err("%s10 out dev=%pS found_dev=%pS sdev=%pS\n", __func__, dev, found_dev, dev->sdev);
 
 	return 0;
 
@@ -732,11 +727,20 @@ void sas_resume_sata(struct asd_sas_port *port)
  */
 int sas_discover_sata(struct domain_device *dev)
 {
+	struct ata_device *ata_dev;
+	struct sas_rphy *rphy = dev->rphy;
+	struct Scsi_Host *shost = dev_to_shost(rphy->dev.parent);
+
+	pr_err("%s1 rphy=%pS domain device=%pS shost=%pS\n", __func__, dev->rphy, dev, shost);
 	if (dev->dev_type == SAS_SATA_PM)
 		return -ENODEV;
 
 	dev->sata_dev.class = sas_get_ata_command_set(dev);
 	sas_fill_in_rphy(dev, dev->rphy);
+
+	ata_dev = sas_to_ata_dev(dev);
+	ata_dev->sdev = scsi_get_dev(shost, 0, ata_dev->devno, 0);
+	pr_err("%s2 rphy=%pS domain device=%pS ata_dev=%pS sdev=%pS shost=%pS\n", __func__, dev->rphy, dev, ata_dev, ata_dev->sdev, shost);
 
 	return sas_notify_lldd_dev_found(dev);
 }
