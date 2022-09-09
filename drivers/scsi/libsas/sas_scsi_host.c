@@ -833,10 +833,16 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 
 int sas_target_alloc(struct scsi_target *starget)
 {
-	struct sas_rphy *rphy = dev_to_rphy(starget->dev.parent);
+	struct sas_rphy *rphy;
 	struct domain_device *found_dev;
+	struct device *dev  =&starget->dev; 
 
-	pr_err("%s starget=%pS rphy=%pS\n", __func__, starget, rphy);
+	pr_err("%s starget=%pS starget->dev.parent=%pS\n", __func__, starget, starget->dev.parent);
+	dev_err(dev, "%s starget=%pS starget->dev.parent=%pS\n", __func__, starget, starget->dev.parent);
+	dev_err(dev->parent, "%s starget=%pS starget->dev.parent=%pS\n", __func__, starget, starget->dev.parent);
+
+	rphy = dev_to_rphy(starget->dev.parent);
+	pr_err("%s1 starget=%pS rphy=%pS\n", __func__, starget, rphy);
 	found_dev = sas_find_dev_by_rphy(rphy);
 	pr_err("%s2 starget=%pS rphy=%pS found_dev=%pS\n", __func__, starget, rphy, found_dev);
 
