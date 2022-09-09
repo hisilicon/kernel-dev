@@ -802,12 +802,14 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 	struct domain_device *found_dev = NULL;
 	int i;
 	unsigned long flags;
+	pr_err("%s rphy=%pS shost=%pS\n", __func__, rphy, shost);
 
 	spin_lock_irqsave(&ha->phy_port_lock, flags);
 	for (i = 0; i < ha->num_phys; i++) {
 		struct asd_sas_port *port = ha->sas_port[i];
 		struct domain_device *dev;
 
+		pr_err("%s2 rphy=%pS i=%d port=%pS shost=%pS\n", __func__, rphy, i, port, shost);
 		spin_lock(&port->dev_list_lock);
 		list_for_each_entry(dev, &port->dev_list, dev_list_node) {
 			if (rphy == dev->rphy) {
@@ -827,7 +829,11 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 int sas_target_alloc(struct scsi_target *starget)
 {
 	struct sas_rphy *rphy = dev_to_rphy(starget->dev.parent);
-	struct domain_device *found_dev = sas_find_dev_by_rphy(rphy);
+	struct domain_device *found_dev;
+
+	pr_err("%s starget=%pS rphy=%pS\n", __func__, starget, rphy);
+	found_dev = sas_find_dev_by_rphy(rphy);
+	pr_err("%s2 starget=%pS rphy=%pS found_dev=%pS\n", __func__, starget, rphy, found_dev);
 
 	if (!found_dev)
 		return -ENODEV;

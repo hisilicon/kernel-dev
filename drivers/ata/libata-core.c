@@ -5706,7 +5706,7 @@ void __ata_port_probe(struct ata_port *ap)
 {
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	unsigned long flags;
-
+	pr_err("%s ap=%pS\n", __func__, ap);
 	/* kick EH for boot probing */
 	spin_lock_irqsave(ap->lock, flags);
 
