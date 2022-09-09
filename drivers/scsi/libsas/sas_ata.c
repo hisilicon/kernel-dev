@@ -730,17 +730,26 @@ int sas_discover_sata(struct domain_device *dev)
 	struct ata_device *ata_dev;
 	struct sas_rphy *rphy = dev->rphy;
 	struct Scsi_Host *shost = dev_to_shost(rphy->dev.parent);
+	struct device *parent = rphy->dev.parent;
 
 	pr_err("%s1 rphy=%pS domain device=%pS shost=%pS\n", __func__, dev->rphy, dev, shost);
+	dev_err(rphy->dev.parent, "%s1 rphy=%pS domain device=%pS shost=%pS\n", __func__, dev->rphy, dev, shost);
 	if (dev->dev_type == SAS_SATA_PM)
 		return -ENODEV;
+
+	while (true) {
+		dev_err(parent, "%s2 parent=%pS parent->parent=%pS\n", __func__, parent, parent->parent);
+		parent = parent->parent;
+		if (!parent)
+			break;
+	}
 
 	dev->sata_dev.class = sas_get_ata_command_set(dev);
 	sas_fill_in_rphy(dev, dev->rphy);
 
 	ata_dev = sas_to_ata_dev(dev);
 	ata_dev->sdev = scsi_get_dev(shost, 0, ata_dev->devno, 0);
-	pr_err("%s2 rphy=%pS domain device=%pS ata_dev=%pS sdev=%pS shost=%pS\n", __func__, dev->rphy, dev, ata_dev, ata_dev->sdev, shost);
+	pr_err("%s3 rphy=%pS domain device=%pS ata_dev=%pS sdev=%pS shost=%pS\n", __func__, dev->rphy, dev, ata_dev, ata_dev->sdev, shost);
 
 	return sas_notify_lldd_dev_found(dev);
 }
