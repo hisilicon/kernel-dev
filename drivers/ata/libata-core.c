@@ -1490,7 +1490,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned int err_mask;
 	int rc;
 
-	pr_err("%s dev=%pS ap=%pS link=%pS\n", __func__, dev, ap, link);
+	pr_err("%s dev=%pS ap=%pS link=%pS sdev=%pS\n", __func__, dev, ap, link, dev->sdev);
 
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -1774,7 +1774,7 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	bool is_semb = class == ATA_DEV_SEMB;
 	int may_fallback = 1, tried_spinup = 0;
 	int rc;
-
+	pr_err("%s ap=%pS dev=%pS\n", __func__, ap, dev);
 retry:
 	ata_tf_init(dev, &tf);
 
@@ -5256,6 +5256,7 @@ void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
 
 		dev->link = link;
 		dev->devno = dev - link->device;
+		pr_err("%s2 dev=%pS setting devno=%d\n", __func__, dev, dev->devno);
 #ifdef CONFIG_ATA_ACPI
 		dev->gtf_filter = ata_acpi_gtf_filter;
 #endif
@@ -5704,7 +5705,7 @@ void __ata_port_probe(struct ata_port *ap)
 int ata_port_probe(struct ata_port *ap)
 {
 	int rc = 0;
-	pr_err("%s ap=%pS error_handler=%pS\n", __func__, ap, ap->ops->error_handler);
+	pr_err("%s ap=%pS scsi_host=%pS error_handler=%pS\n", __func__, ap, ap->scsi_host, ap->ops->error_handler);
 	if (ap->ops->error_handler) {
 		__ata_port_probe(ap);
 		ata_port_wait_eh(ap);
@@ -5718,6 +5719,7 @@ int ata_port_probe(struct ata_port *ap)
 static void async_port_probe(void *data, async_cookie_t cookie)
 {
 	struct ata_port *ap = data;
+	pr_err("%s ap=%pS\n", __func__, ap);
 
 	/*
 	 * If we're not allowed to scan this host in parallel,
@@ -5729,11 +5731,13 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 	if (!(ap->host->flags & ATA_HOST_PARALLEL_SCAN) && ap->port_no != 0)
 		async_synchronize_cookie(cookie);
 
+	pr_err("%s1 ap=%pS calling ata_port_probe\n", __func__, ap);
 	(void)ata_port_probe(ap);
 
 	/* in order to keep device order, we need to synchronize at this point */
 	async_synchronize_cookie(cookie);
 
+	pr_err("%s2 ap=%pS calling ata_scsi_scan_host\n", __func__, ap);
 	ata_scsi_scan_host(ap, 1);
 }
 

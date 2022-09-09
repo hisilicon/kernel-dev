@@ -576,8 +576,12 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
 		goto out;
 
 	/* Link is online.  From this point, -ENODEV too is an error. */
-	if (online)
+	if (online) {
+		pr_err("%s link=%pS ap=%pS online\n", __func__, link, link->ap);
 		*online = true;
+	} else {
+		pr_err("%s2 link=%pS ap=%pS offline\n", __func__, link, link->ap);
+	}
 
 	if (sata_pmp_supported(link->ap) && ata_is_host_link(link)) {
 		/* If PMP is supported, we have to do follow-up SRST.

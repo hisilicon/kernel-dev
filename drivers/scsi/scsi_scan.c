@@ -1271,7 +1271,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		res = SCSI_SCAN_TARGET_PRESENT;
 		goto out_free_result;
 	}
-
+	pr_err("%s sdev=%pS calling scsi_add_lun\n", __func__, sdev);
 	res = scsi_add_lun(sdev, result, &bflags, shost->async_scan);
 	if (res == SCSI_SCAN_LUN_PRESENT) {
 		if (bflags & BLIST_KEY) {
@@ -1378,6 +1378,7 @@ static void scsi_sequential_lun_scan(struct scsi_target *starget,
 	 * sparse_lun.
 	 */
 	for (lun = 1; lun < max_dev_lun; ++lun)
+		pr_err("%s calling scsi_probe_and_add_lun starget=%pS\n", __func__, starget);
 		if ((scsi_probe_and_add_lun(starget, lun, NULL, NULL, rescan,
 					    NULL) != SCSI_SCAN_LUN_PRESENT) &&
 		    !sparse_lun)
@@ -1546,7 +1547,7 @@ retry:
 				    " allowed by the host adapter\n", lun);
 		} else {
 			int res;
-
+			pr_err("%s calling scsi_probe_and_add_lun starget=%pS\n", __func__, starget);
 			res = scsi_probe_and_add_lun(starget,
 				lun, NULL, NULL, rescan, NULL);
 			if (res == SCSI_SCAN_NO_RESPONSE) {
@@ -1594,6 +1595,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 		scsi_complete_async_scans();
 
 	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) {
+		pr_err("%s calling scsi_probe_and_add_lun starget=%pS\n", __func__, starget);
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
 		scsi_autopm_put_host(shost);
 	}
@@ -1993,24 +1995,8 @@ void scsi_forget_host(struct Scsi_Host *shost)
 	spin_unlock_irqrestore(shost->host_lock, flags);
 }
 
-/**
- * scsi_get_host_dev - Create a scsi_device that points to the host adapter itself
- * @shost: Host that needs a scsi_device
- *
- * Lock status: None assumed.
- *
- * Returns:     The scsi_device or NULL
- *
- * Notes:
- *	Attach a single scsi_device to the Scsi_Host - this should
- *	be made to look like a "pseudo-device" that points to the
- *	HA itself.
- *
- *	Note - this device is not accessible from any high-level
- *	drivers (including generics), which is probably not
- *	optimal.  We can add hooks later to attach.
- */
-struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
+
+struct scsi_device *scsi_get_dev(struct Scsi_Host *shost, int channel, uint id, u64 lun)
 {
 	struct scsi_device *sdev = NULL;
 	struct scsi_target *starget;
@@ -2031,6 +2017,29 @@ struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
  out:
 	mutex_unlock(&shost->scan_mutex);
 	return sdev;
+}
+EXPORT_SYMBOL(scsi_get_dev);
+
+/**
+ * scsi_get_host_dev - Create a scsi_device that points to the host adapter itself
+ * @shost: Host that needs a scsi_device
+ *
+ * Lock status: None assumed.
+ *
+ * Returns:     The scsi_device or NULL
+ *
+ * Notes:
+ *	Attach a single scsi_device to the Scsi_Host - this should
+ *	be made to look like a "pseudo-device" that points to the
+ *	HA itself.
+ *
+ *	Note - this device is not accessible from any high-level
+ *	drivers (including generics), which is probably not
+ *	optimal.  We can add hooks later to attach.
+ */
+struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
+{
+	return scsi_get_dev(shost, 0, shost->this_id, 0);
 }
 EXPORT_SYMBOL(scsi_get_host_dev);
 

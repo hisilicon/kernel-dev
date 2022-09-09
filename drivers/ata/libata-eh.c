@@ -3024,7 +3024,7 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 		if (dev->class == ATA_DEV_PMP)
 			continue;
 
-		pr_err("%s4 ap=%pS link=%pS dev=%pS id=%d calling ata_dev_configure\n", __func__, ap, link, dev, *dev->id);
+		pr_err("%s5 ap=%pS link=%pS dev=%pS id=%d calling ata_dev_configure\n", __func__, ap, link, dev, *dev->id);
 		ehc->i.flags |= ATA_EHI_PRINTINFO;
 		rc = ata_dev_configure(dev);
 		ehc->i.flags &= ~ATA_EHI_PRINTINFO;

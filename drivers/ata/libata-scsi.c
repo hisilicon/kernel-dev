@@ -4206,7 +4206,7 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		shost->max_lun = 1;
 		shost->max_channel = 1;
 		shost->max_cmd_len = 32;
-		pr_err("%s host=%pS i=%d ap=%p shost=%pS\n", __func__, host, i, ap, shost);
+		pr_err("%s host=%pS i=%d ap=%pS shost=%pS\n", __func__, host, i, ap, shost);
 
 		/* Schedule policy is determined by ->qc_defer()
 		 * callback and it needs to see every deferred qc.
@@ -4281,12 +4281,13 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 			else
 				channel = link->pmp;
 
+			pr_err("%s0 ap=%pS dev->sdev=%pS dev=%pS calling __scsi_add_device\n", __func__, ap, dev->sdev, dev);
 			sdev = __scsi_add_device(ap->scsi_host, channel, id, 0,
 						 NULL);
-			pr_err("%s ap=%pS dev->sdev=%pS dev=%pS sdev=%pS\n", __func__, ap, dev->sdev, dev, sdev);
+			pr_err("%s1 ap=%pS dev->sdev=%pS dev=%pS sdev=%pS\n", __func__, ap, dev->sdev, dev, sdev);
 			if (!IS_ERR(sdev)) {
 				dev->sdev = sdev;
-				pr_err("%s1 ap=%pS sdev=%pS dev=%pS\n", __func__, ap, sdev, dev);
+				pr_err("%s2 ap=%pS sdev=%pS dev=%pS\n", __func__, ap, sdev, dev);
 				sdev_printk(KERN_ERR, sdev, "%s1 ap=%pS sdev=%pS dev=%pS\n", __func__, ap, sdev, dev);
 				ata_scsi_assign_ofnode(dev, ap);
 				scsi_device_put(sdev);
