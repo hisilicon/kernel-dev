@@ -1998,22 +1998,25 @@ void scsi_forget_host(struct Scsi_Host *shost)
 }
 
 
-struct scsi_device *scsi_get_dev(struct Scsi_Host *shost, int channel, uint id, u64 lun)
+struct scsi_device *scsi_get_dev(struct device *parent, int channel, uint id, u64 lun)
 {
 	struct scsi_device *sdev = NULL;
 	struct scsi_target *starget;
-	pr_err("%s shost=%pS channel=%d id=%d lun=%lld\n", __func__, shost, channel, id, lun);
+	struct Scsi_Host *shost;
+	pr_err("%s parent=%pS channel=%d id=%d lun=%lld\n", __func__, parent, channel, id, lun);
+	shost = dev_to_shost(parent);
+	pr_err("%s0 parent=%pS channel=%d id=%d lun=%lld\n", __func__, parent, channel, id, lun);
 
 	mutex_lock(&shost->scan_mutex);
 	if (!scsi_host_scan_allowed(shost))
 		goto out;
-	starget = scsi_alloc_target(&shost->shost_gendev, 0, shost->this_id);
-	pr_err("%s1 shost=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, shost, channel, id, lun, starget);
+	starget = scsi_alloc_target(parent, 0, shost->this_id);
+	pr_err("%s1 parent=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, parent, channel, id, lun, starget);
 	if (!starget)
 		goto out;
 
 	sdev = scsi_alloc_sdev(starget, 0, NULL);
-	pr_err("%s2 shost=%pS channel=%d id=%d lun=%lld sdev=%pS\n", __func__, shost, channel, id, lun, sdev);
+	pr_err("%s2 parent=%pS channel=%d id=%d lun=%lld sdev=%pS\n", __func__, parent, channel, id, lun, sdev);
 	if (sdev)
 		sdev->borken = 0;
 	else
@@ -2021,7 +2024,7 @@ struct scsi_device *scsi_get_dev(struct Scsi_Host *shost, int channel, uint id, 
 	put_device(&starget->dev);
  out:
 	mutex_unlock(&shost->scan_mutex);
-	pr_err("%s10 out shost=%pS channel=%d id=%d lun=%lld sdev=%pS\n", __func__, shost, channel, id, lun, sdev);
+	pr_err("%s10 out parent=%pS channel=%d id=%d lun=%lld sdev=%pS\n", __func__, parent, channel, id, lun, sdev);
 	return sdev;
 }
 EXPORT_SYMBOL(scsi_get_dev);
@@ -2045,7 +2048,7 @@ EXPORT_SYMBOL(scsi_get_dev);
  */
 struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
 {
-	return scsi_get_dev(shost, 0, shost->this_id, 0);
+	return scsi_get_dev(&shost->shost_gendev, 0, shost->this_id, 0);
 }
 EXPORT_SYMBOL(scsi_get_host_dev);
 

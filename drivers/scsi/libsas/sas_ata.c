@@ -729,18 +729,27 @@ int sas_discover_sata(struct domain_device *dev)
 {
 	struct ata_device *ata_dev;
 	struct sas_rphy *rphy = dev->rphy;
-	struct Scsi_Host *shost = dev_to_shost(rphy->dev.parent);
-	struct device *parent = rphy->dev.parent;
+	struct device * const parent = &rphy->dev;
+	struct device *parent_parent = parent->parent;
+	const char *parent_parent_name = parent_parent ? dev_name(parent_parent) : "";
+	struct Scsi_Host *shost;
+	struct device *parentd = parent;
 
-	pr_err("%s1.0 rphy=%pS domain device=%pS shost=%pS\n", __func__, dev->rphy, dev, shost);
+
+	pr_err("%s1.0 rphy=%pS domain device=%pS parent=%pS parent->parent=%pS %s\n",
+		__func__, rphy, dev, parent, parent_parent, parent_parent_name);
+	shost = dev_to_shost(rphy->dev.parent);
 	dev_err(rphy->dev.parent, "%s1.1 rphy=%pS domain device=%pS shost=%pS\n", __func__, dev->rphy, dev, shost);
 	if (dev->dev_type == SAS_SATA_PM)
 		return -ENODEV;
 
 	while (true) {
-		dev_err(parent, "%s2 parent=%pS parent->parent=%pS\n", __func__, parent, parent->parent);
-		parent = parent->parent;
-		if (!parent)
+		if (parentd)
+			dev_err(parent, "%s2 parent=%pS parent->parent=%pS\n", __func__, parentd, parentd->parent);
+		else
+			pr_err("%s2.1 parent=%pS\n", __func__, parentd);
+		parentd = parentd->parent;
+		if (!parentd)
 			break;
 	}
 
@@ -748,7 +757,7 @@ int sas_discover_sata(struct domain_device *dev)
 	sas_fill_in_rphy(dev, dev->rphy);
 
 	ata_dev = sas_to_ata_dev(dev);
-	ata_dev->sdev = scsi_get_dev(shost, 0, ata_dev->devno, 0);
+	ata_dev->sdev = scsi_get_dev(parent, 0, ata_dev->devno, 0);
 	pr_err("%s3 rphy=%pS domain device=%pS ata_dev=%pS sdev=%pS shost=%pS\n", __func__, dev->rphy, dev, ata_dev, ata_dev->sdev, shost);
 
 	return sas_notify_lldd_dev_found(dev);

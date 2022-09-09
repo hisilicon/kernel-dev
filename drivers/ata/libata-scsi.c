@@ -4249,9 +4249,9 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 				else
 					channel = link->pmp;
 
-				pr_err("%s0 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS channel=%d id=%d lun=0\n",
+				pr_err("%s0 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS channel=%d id=%d lun=0 fixme\n",
 					__func__, host, i, ap, shost, link, dev, channel, id);
-				dev->sdev = scsi_get_dev(shost, channel, id, lun);
+				dev->sdev = scsi_get_dev(NULL/*fixme*/, channel, id, lun);
 				pr_err("%s1 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS sdev=%pS\n",
 					__func__, host, i, ap, shost, link, dev, dev->sdev);
 			}
