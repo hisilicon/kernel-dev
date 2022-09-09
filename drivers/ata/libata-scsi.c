@@ -4240,8 +4240,20 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 
 		ata_for_each_link(link, ap, HOST_FIRST) {
 			ata_for_each_dev(dev, link, ALL) {
-				pr_err("%s0 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS\n", __func__, host, i, ap, shost, link, dev);
+				u64 lun = 0;
+				int channel = 0;
+				uint id = 0;
 
+				if (ata_is_host_link(link))
+					id = dev->devno;
+				else
+					channel = link->pmp;
+
+				pr_err("%s0 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS channel=%d id=%d lun=0\n",
+					__func__, host, i, ap, shost, link, dev, channel, id);
+				dev->sdev = scsi_get_dev(shost, channel, id, lun);
+				pr_err("%s1 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS sdev=%pS\n",
+					__func__, host, i, ap, shost, link, dev, dev->sdev);
 			}
 		}
 

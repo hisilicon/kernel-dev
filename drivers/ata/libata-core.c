@@ -1489,8 +1489,13 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned long flags;
 	unsigned int err_mask;
 	int rc;
+	struct scsi_device *sdev = dev->sdev;
+	struct request_queue *q;
 
-	pr_err("%s dev=%pS ap=%pS link=%pS sdev=%pS\n", __func__, dev, ap, link, dev->sdev);
+	if (sdev)
+		q = sdev->request_queue;
+
+	pr_err("%s dev=%pS ap=%pS link=%pS sdev=%pS q=%pS\n", __func__, dev, ap, link, dev->sdev, q);
 
 	spin_lock_irqsave(ap->lock, flags);
 

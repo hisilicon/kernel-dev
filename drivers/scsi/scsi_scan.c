@@ -2020,6 +2020,7 @@ struct scsi_device *scsi_get_dev(struct Scsi_Host *shost, int channel, uint id, 
 	put_device(&starget->dev);
  out:
 	mutex_unlock(&shost->scan_mutex);
+	pr_err("%s10 out shost=%pS channel=%d id=%d lun=%lld sdev=%pS\n", __func__, shost, channel, id, lun, sdev);
 	return sdev;
 }
 EXPORT_SYMBOL(scsi_get_dev);
