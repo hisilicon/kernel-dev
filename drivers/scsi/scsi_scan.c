@@ -1170,7 +1170,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	blist_flags_t bflags;
 	int res = SCSI_SCAN_NO_RESPONSE, result_len = 256;
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-
+	pr_err("%s starget=%pS\n", __func__, starget);
 	/*
 	 * The rescan flag is used as an optimization, the first scan of a
 	 * host adapter calls into here with rescan == 0.
@@ -1586,6 +1586,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 		return ERR_PTR(-ENODEV);
 
 	starget = scsi_alloc_target(parent, channel, id);
+	pr_err("%s1 starget=%pS\n", __func__, starget);
 	if (!starget)
 		return ERR_PTR(-ENOMEM);
 	scsi_autopm_get_target(starget);
@@ -1595,7 +1596,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 		scsi_complete_async_scans();
 
 	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) {
-		pr_err("%s calling scsi_probe_and_add_lun starget=%pS\n", __func__, starget);
+		pr_err("%s2 calling scsi_probe_and_add_lun starget=%pS\n", __func__, starget);
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
 		scsi_autopm_put_host(shost);
 	}
