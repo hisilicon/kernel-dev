@@ -465,7 +465,7 @@ static void scsi_target_reap_ref_release(struct kref *kref)
 {
 	struct scsi_target *starget
 		= container_of(kref, struct scsi_target, reap_ref);
-
+	pr_err("%s starget=%pS\n", __func__, starget);
 	/*
 	 * if we get here and the target is still in a CREATED state that
 	 * means it was allocated but never made visible (because a scan
@@ -481,6 +481,7 @@ static void scsi_target_reap_ref_release(struct kref *kref)
 
 static void scsi_target_reap_ref_put(struct scsi_target *starget)
 {
+	pr_err("%s starget=%pS\n", __func__, starget);
 	kref_put(&starget->reap_ref, scsi_target_reap_ref_release);
 }
 
@@ -1175,13 +1176,13 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	blist_flags_t bflags;
 	int res = SCSI_SCAN_NO_RESPONSE, result_len = 256;
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	pr_err("%s starget=%pS bflagsp=%pS\n", __func__, starget, bflagsp);
+	pr_err("%s starget=%pS reap_ref=%d bflagsp=%pS\n", __func__, starget, kref_read(&starget->reap_ref), bflagsp);
 	/*
 	 * The rescan flag is used as an optimization, the first scan of a
 	 * host adapter calls into here with rescan == 0.
 	 */
 	sdev = scsi_device_lookup_by_target(starget, lun);
-	pr_err("%s sdev=%pS starget=%pS\n", __func__, sdev, starget);
+	pr_err("%s sdev=%pS starget=%pS reap_ref=%d\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
 	if (sdev) {
 		if (rescan != SCSI_SCAN_INITIAL || !scsi_device_created(sdev)) {
 			SCSI_LOG_SCAN_BUS(3, sdev_printk(KERN_INFO, sdev,
@@ -1203,6 +1204,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		sdev = scsi_alloc_sdev(starget, lun, hostdata);
 	if (!sdev)
 		goto out;
+	pr_err("%s2 sdev=%pS starget=%pS reap_ref=%d\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
 
 	result = kmalloc(result_len, GFP_KERNEL);
 	if (!result)
@@ -1211,6 +1213,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	if (scsi_probe_lun(sdev, result, result_len, &bflags))
 		goto out_free_result;
 
+	pr_err("%s3 sdev=%pS starget=%pS reap_ref=%d\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
 	if (bflagsp)
 		*bflagsp = bflags;
 	/*
@@ -1277,7 +1280,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		res = SCSI_SCAN_TARGET_PRESENT;
 		goto out_free_result;
 	}
-	pr_err("%s sdev=%pS calling scsi_add_lun\n", __func__, sdev);
+	pr_err("%s4 sdev=%pS calling scsi_add_lun\n", __func__, sdev);
 	res = scsi_add_lun(sdev, result, &bflags, shost->async_scan);
 	if (res == SCSI_SCAN_LUN_PRESENT) {
 		if (bflags & BLIST_KEY) {
@@ -1285,6 +1288,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 			scsi_unlock_floptical(sdev, result);
 		}
 	}
+	pr_err("%s5 sdev=%pS starget=%pS reap_ref=%d\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
 
  out_free_result:
 	kfree(result);
@@ -1602,7 +1606,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 		scsi_complete_async_scans();
 
 	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) {
-		pr_err("%s2 calling scsi_probe_and_add_lun starget=%pS\n", __func__, starget);
+		pr_err("%s2 calling scsi_probe_and_add_lun starget=%pS reap_ref=%d\n", __func__, starget, kref_read(&starget->reap_ref));
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
 		scsi_autopm_put_host(shost);
 	}
@@ -1615,6 +1619,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	scsi_target_reap(starget);
 	put_device(&starget->dev);
 
+	pr_err("%s10 out sdev=%pS starget=%pS reap_ref=%d\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
 	return sdev;
 }
 EXPORT_SYMBOL(__scsi_add_device);
@@ -1671,6 +1676,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 	starget = scsi_alloc_target(parent, channel, id);
 	if (!starget)
 		return;
+	pr_err("%s starget=%pS reap_ref=%d\n", __func__, starget, kref_read(&starget->reap_ref));
 	scsi_autopm_get_target(starget);
 
 	if (lun != SCAN_WILD_CARD) {
@@ -1705,6 +1711,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 	scsi_target_reap(starget);
 
 	put_device(&starget->dev);
+	pr_err("%s10 out starget=%pS reap_ref=%d\n", __func__, starget, kref_read(&starget->reap_ref));
 }
 
 /**
@@ -2029,7 +2036,7 @@ struct scsi_device *scsi_get_dev(struct device *parent, int channel, uint id, u6
 	put_device(&starget->dev);
  out:
 	mutex_unlock(&shost->scan_mutex);
-	pr_err("%s10 out parent=%pS channel=%d id=%d lun=%lld sdev=%pS starget reap_ref=%d\n", __func__, parent, channel, id, lun, sdev, starget ? kref_read(&starget->reap_ref) : -1);
+	pr_err("%s10 out parent=%pS channel=%d id=%d lun=%lld sdev=%pS starget reap_ref=%d starget=%pS\n", __func__, parent, channel, id, lun, sdev, starget ? kref_read(&starget->reap_ref) : -1, starget);
 	return sdev;
 }
 EXPORT_SYMBOL(scsi_get_dev);
