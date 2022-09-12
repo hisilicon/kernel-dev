@@ -368,6 +368,7 @@ void sas_destruct_devices(struct asd_sas_port *port)
 			struct scsi_device *sdev = ata_dev->sdev;
 
 			pr_err("%s dev=%pS sdev=%pS ata_dev=%pS starget=%pS\n", __func__, dev, sdev, ata_dev, sdev->sdev_target);
+			scsi_target_reap(sdev->sdev_target);
 		}
 		sas_rphy_delete(dev->rphy);
 		sas_unregister_common_dev(port, dev);
