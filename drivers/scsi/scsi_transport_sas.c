@@ -1514,6 +1514,7 @@ int sas_rphy_add(struct sas_rphy *rphy)
 	struct sas_identify *identify = &rphy->identify;
 	int error;
 
+	pr_err("%s rphy=%pS\n", __func__, rphy);
 	if (parent->rphy)
 		return -ENXIO;
 	parent->rphy = rphy;

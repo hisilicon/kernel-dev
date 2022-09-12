@@ -1170,7 +1170,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	blist_flags_t bflags;
 	int res = SCSI_SCAN_NO_RESPONSE, result_len = 256;
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	pr_err("%s starget=%pS\n", __func__, starget);
+	pr_err("%s starget=%pS bflagsp=%pS\n", __func__, starget, bflagsp);
 	/*
 	 * The rescan flag is used as an optimization, the first scan of a
 	 * host adapter calls into here with rescan == 0.

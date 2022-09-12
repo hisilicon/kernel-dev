@@ -633,6 +633,7 @@ void sas_probe_sata(struct asd_sas_port *port)
 {
 	struct domain_device *dev, *n;
 
+	pr_err("%s port=%pS\n", __func__, port);
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->disco_list, disco_list_node) {
 		struct ata_device *ata_dev;
