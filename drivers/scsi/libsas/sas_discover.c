@@ -340,7 +340,7 @@ static void sas_unregister_common_dev(struct asd_sas_port *port, struct domain_d
 	list_del_init(&dev->dev_list_node);
 	if (dev_is_sata(dev)) {
 		sas_ata_end_eh(dev->sata_dev.ap);
-		
+
 	}
 	spin_unlock_irq(&port->dev_list_lock);
 
@@ -363,6 +363,12 @@ void sas_destruct_devices(struct asd_sas_port *port)
 		list_del_init(&dev->disco_list_node);
 
 		sas_remove_children(&dev->rphy->dev);
+		if (dev_is_sata(dev)) {
+			struct ata_device *ata_dev = sas_to_ata_dev(dev);
+			struct scsi_device *sdev = ata_dev->sdev;
+
+			pr_err("%s dev=%pS sdev=%pS ata_dev=%pS starget=%pS\n", __func__, dev, sdev, ata_dev, sdev->sdev_target);
+		}
 		sas_rphy_delete(dev->rphy);
 		sas_unregister_common_dev(port, dev);
 	}
