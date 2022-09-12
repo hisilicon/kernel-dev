@@ -817,6 +817,16 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 		pr_err("%s3 rphy=%pS i=%d port=%pS shost=%pS\n", __func__, rphy, i, port, shost);
 		spin_lock(&port->dev_list_lock);
 		list_for_each_entry(dev, &port->dev_list, dev_list_node) {
+			pr_err("%s4 rphy=%pS i=%d port=%pS shost=%pS dev=%pS dev->rphy=%pS\n", __func__, rphy, i, port, shost, dev, dev->rphy);
+			if (rphy == dev->rphy) {
+				found_dev = dev;
+				spin_unlock(&port->dev_list_lock);
+				goto found;
+			}
+		}
+
+		list_for_each_entry(dev, &port->disco_list, disco_list_node) {
+			pr_err("%s5 rphy=%pS i=%d port=%pS shost=%pS dev=%pS dev->rphy=%pS\n", __func__, rphy, i, port, shost, dev, dev->rphy);
 			if (rphy == dev->rphy) {
 				found_dev = dev;
 				spin_unlock(&port->dev_list_lock);

@@ -635,9 +635,17 @@ void sas_probe_sata(struct asd_sas_port *port)
 
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->disco_list, disco_list_node) {
+		struct ata_device *ata_dev;
+		struct sas_rphy *rphy = dev->rphy;
+		struct device * const parent = &rphy->dev;
 		if (!dev_is_sata(dev))
 			continue;
-		pr_err("%s port=%pS dev=%pS ap=%pS\n", __func__, port, dev, dev->sata_dev.ap);
+		ata_dev = sas_to_ata_dev(dev);
+		pr_err("%s1 port=%pS dev=%pS ap=%pS ata_dev=%pS rphy=%pS parent=%pS %s\n", 
+			__func__, port, dev, dev->sata_dev.ap, ata_dev, rphy, parent, parent ? dev_name(parent) : "");
+		ata_dev->sdev = scsi_get_dev(parent, 0, ata_dev->devno, 0);
+		pr_err("%s2 port=%pS dev=%pS ap=%pS ata_dev=%pS rphy=%pS parent=%pS %s sdev=%pS\n", 
+			__func__, port, dev, dev->sata_dev.ap, ata_dev, rphy, parent, parent ? dev_name(parent) : "", ata_dev->sdev);
 		ata_sas_async_probe(dev->sata_dev.ap);
 	}
 	mutex_unlock(&port->ha->disco_mutex);
@@ -757,7 +765,7 @@ int sas_discover_sata(struct domain_device *dev)
 	sas_fill_in_rphy(dev, dev->rphy);
 
 	ata_dev = sas_to_ata_dev(dev);
-	ata_dev->sdev = scsi_get_dev(parent, 0, ata_dev->devno, 0);
+	//ata_dev->sdev = scsi_get_dev(parent, 0, ata_dev->devno, 0);
 	pr_err("%s3 rphy=%pS domain device=%pS ata_dev=%pS sdev=%pS shost=%pS\n", __func__, dev->rphy, dev, ata_dev, ata_dev->sdev, shost);
 
 	return sas_notify_lldd_dev_found(dev);
