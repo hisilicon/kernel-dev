@@ -2011,7 +2011,7 @@ struct scsi_device *scsi_get_dev(struct device *parent, int channel, uint id, u6
 	mutex_lock(&shost->scan_mutex);
 	if (!scsi_host_scan_allowed(shost))
 		goto out;
-	starget = scsi_alloc_target(parent, 0, shost->this_id);
+	starget = scsi_alloc_target(parent, 0, id);
 	pr_err("%s1 parent=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, parent, channel, id, lun, starget);
 	if (!starget)
 		goto out;
