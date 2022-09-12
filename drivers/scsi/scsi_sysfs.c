@@ -1422,7 +1422,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 {
 	struct device *dev = &sdev->sdev_gendev;
 	int res;
-	//pr_err("%s sdev=%pS\n", __func__, sdev);
+	pr_err("%s sdev=%pS sdev_state=%d SDEV_DEL=%d\n", __func__, sdev, sdev->sdev_state, SDEV_DEL);
 	/*
 	 * This cleanup path is not reentrant and while it is impossible
 	 * to get a new reference with scsi_device_get() someone can still
@@ -1494,6 +1494,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 void scsi_remove_device(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = sdev->host;
+	pr_err("%s dev=%pS\n", __func__, sdev);
 
 	mutex_lock(&shost->scan_mutex);
 	__scsi_remove_device(sdev);
@@ -1506,6 +1507,8 @@ static void __scsi_remove_target(struct scsi_target *starget)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	unsigned long flags;
 	struct scsi_device *sdev;
+	pr_err("%s starget=%pS\n", __func__, starget);
+
 
 	spin_lock_irqsave(shost->host_lock, flags);
  restart:
@@ -1524,6 +1527,8 @@ static void __scsi_remove_target(struct scsi_target *starget)
 		    !get_device(&sdev->sdev_gendev))
 			continue;
 		spin_unlock_irqrestore(shost->host_lock, flags);
+
+		pr_err("%s2 starget=%pS sdev=%pS\n", __func__, starget, sdev);
 		scsi_remove_device(sdev);
 		put_device(&sdev->sdev_gendev);
 		spin_lock_irqsave(shost->host_lock, flags);

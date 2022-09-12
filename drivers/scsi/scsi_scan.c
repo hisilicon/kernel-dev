@@ -392,6 +392,8 @@ static void scsi_target_destroy(struct scsi_target *starget)
 	struct Scsi_Host *shost = dev_to_shost(dev->parent);
 	unsigned long flags;
 
+	pr_err("%s starget=%pS\n", __func__, starget);
+
 	BUG_ON(starget->state == STARGET_DEL);
 	starget->state = STARGET_DEL;
 	transport_destroy_device(dev);
@@ -409,6 +411,7 @@ static void scsi_target_dev_release(struct device *dev)
 	struct Scsi_Host *shost = dev_to_shost(parent);
 	struct scsi_target *starget = to_scsi_target(dev);
 
+	pr_err("%s starget=%pS\n", __func__, starget);
 	kfree(starget);
 
 	if (atomic_dec_return(&shost->target_count) == 0)
@@ -605,6 +608,7 @@ void scsi_target_reap(struct scsi_target *starget)
 	 * on an already released kref
 	 */
 	BUG_ON(starget->state == STARGET_DEL);
+	pr_err("%s starget=%pS reap_ref=%d\n", __func__, starget, kref_read(&starget->reap_ref));
 	scsi_target_reap_ref_put(starget);
 }
 
@@ -2012,7 +2016,7 @@ struct scsi_device *scsi_get_dev(struct device *parent, int channel, uint id, u6
 	if (!scsi_host_scan_allowed(shost))
 		goto out;
 	starget = scsi_alloc_target(parent, 0, id);
-	pr_err("%s1 parent=%pS channel=%d id=%d lun=%lld starget=%pS\n", __func__, parent, channel, id, lun, starget);
+	pr_err("%s1 parent=%pS channel=%d id=%d lun=%lld starget=%pS reap_ref=%d\n", __func__, parent, channel, id, lun, starget, starget ? kref_read(&starget->reap_ref) : -1);
 	if (!starget)
 		goto out;
 
@@ -2025,7 +2029,7 @@ struct scsi_device *scsi_get_dev(struct device *parent, int channel, uint id, u6
 	put_device(&starget->dev);
  out:
 	mutex_unlock(&shost->scan_mutex);
-	pr_err("%s10 out parent=%pS channel=%d id=%d lun=%lld sdev=%pS\n", __func__, parent, channel, id, lun, sdev);
+	pr_err("%s10 out parent=%pS channel=%d id=%d lun=%lld sdev=%pS starget reap_ref=%d\n", __func__, parent, channel, id, lun, sdev, starget ? kref_read(&starget->reap_ref) : -1);
 	return sdev;
 }
 EXPORT_SYMBOL(scsi_get_dev);

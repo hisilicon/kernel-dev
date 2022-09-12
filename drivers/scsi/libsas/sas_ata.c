@@ -646,8 +646,8 @@ void sas_probe_sata(struct asd_sas_port *port)
 			__func__, port, dev, dev->sata_dev.ap, ata_dev, rphy, parent, parent ? dev_name(parent) : "",
 			rphy->scsi_target_id);
 		ata_dev->sdev = scsi_get_dev(parent, 0, rphy->scsi_target_id, 0);
-		pr_err("%s2 port=%pS dev=%pS ap=%pS ata_dev=%pS rphy=%pS parent=%pS %s sdev=%pS devno=%d\n", 
-			__func__, port, dev, dev->sata_dev.ap, ata_dev, rphy, parent, parent ? dev_name(parent) : "", ata_dev->sdev, ata_dev->devno);
+		pr_err("%s2 port=%pS dev=%pS ap=%pS ata_dev=%pS rphy=%pS parent=%pS %s sdev=%pS devno=%d sdev=%pS\n", 
+			__func__, port, dev, dev->sata_dev.ap, ata_dev, rphy, parent, parent ? dev_name(parent) : "", ata_dev->sdev, ata_dev->devno, ata_dev->sdev);
 		ata_sas_async_probe(dev->sata_dev.ap);
 	}
 	mutex_unlock(&port->ha->disco_mutex);
