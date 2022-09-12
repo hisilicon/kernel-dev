@@ -1430,9 +1430,11 @@ static void sas_rphy_initialize(struct sas_rphy *rphy)
  * Returns:
  *	SAS PHY allocated or %NULL if the allocation failed.
  */
-struct sas_rphy *sas_end_device_alloc(struct sas_port *parent)
+struct sas_rphy *sas_end_device_alloc(struct sas_port *parent,
+				    enum sas_protocol target_port_protocols)
 {
 	struct Scsi_Host *shost = dev_to_shost(&parent->dev);
+	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
 	struct sas_end_device *rdev;
 
 	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
@@ -1452,8 +1454,17 @@ struct sas_rphy *sas_end_device_alloc(struct sas_port *parent)
 		dev_set_name(&rdev->rphy.dev, "end_device-%d:%d",
 			     shost->host_no, parent->port_identifier);
 	rdev->rphy.identify.device_type = SAS_END_DEVICE;
+	rdev->rphy.identify.target_port_protocols = target_port_protocols;
 	sas_rphy_initialize(&rdev->rphy);
 	transport_setup_device(&rdev->rphy.dev);
+
+	mutex_lock(&sas_host->lock);
+	if (target_port_protocols &
+	     (SAS_PROTOCOL_SSP | SAS_PROTOCOL_STP | SAS_PROTOCOL_SATA))
+		rdev->rphy.scsi_target_id = sas_host->next_target_id++;
+	else
+		rdev->rphy.scsi_target_id = -1;
+	mutex_unlock(&sas_host->lock);
 
 	return &rdev->rphy;
 }
@@ -1530,12 +1541,6 @@ int sas_rphy_add(struct sas_rphy *rphy)
 
 	mutex_lock(&sas_host->lock);
 	list_add_tail(&rphy->list, &sas_host->rphy_list);
-	if (identify->device_type == SAS_END_DEVICE &&
-	    (identify->target_port_protocols &
-	     (SAS_PROTOCOL_SSP | SAS_PROTOCOL_STP | SAS_PROTOCOL_SATA)))
-		rphy->scsi_target_id = sas_host->next_target_id++;
-	else if (identify->device_type == SAS_END_DEVICE)
-		rphy->scsi_target_id = -1;
 	mutex_unlock(&sas_host->lock);
 
 	if (identify->device_type == SAS_END_DEVICE &&

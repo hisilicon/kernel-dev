@@ -125,7 +125,6 @@ static inline void sas_fill_in_rphy(struct domain_device *dev,
 {
 	rphy->identify.sas_address = SAS_ADDR(dev->sas_addr);
 	rphy->identify.initiator_port_protocols = dev->iproto;
-	rphy->identify.target_port_protocols = dev->tproto;
 	switch (dev->dev_type) {
 	case SAS_SATA_DEV:
 		/* FIXME: need sata device type */

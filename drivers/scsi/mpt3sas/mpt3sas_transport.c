@@ -806,7 +806,7 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 
 	mpt3sas_port->port = port;
 	if (mpt3sas_port->remote_identify.device_type == SAS_END_DEVICE) {
-		rphy = sas_end_device_alloc(port);
+		rphy = sas_end_device_alloc(port, 0);
 		sas_device->rphy = rphy;
 		if (sas_node->handle <= ioc->sas_hba.num_phys) {
 			if (!vphy)

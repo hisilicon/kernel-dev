@@ -110,7 +110,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 		}
 		fallthrough;
 	case SAS_END_DEVICE:
-		rphy = sas_end_device_alloc(port->port);
+		rphy = sas_end_device_alloc(port->port, dev->tproto);
 		break;
 	case SAS_EDGE_EXPANDER_DEVICE:
 		rphy = sas_expander_alloc(port->port,

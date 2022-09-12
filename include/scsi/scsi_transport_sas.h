@@ -200,7 +200,7 @@ unsigned int sas_is_tlr_enabled(struct scsi_device *);
 void sas_disable_tlr(struct scsi_device *);
 void sas_enable_tlr(struct scsi_device *);
 
-extern struct sas_rphy *sas_end_device_alloc(struct sas_port *);
+extern struct sas_rphy *sas_end_device_alloc(struct sas_port *, enum sas_protocol target_port_protocols);
 extern struct sas_rphy *sas_expander_alloc(struct sas_port *, enum sas_device_type);
 void sas_rphy_free(struct sas_rphy *);
 extern int sas_rphy_add(struct sas_rphy *);
