@@ -845,7 +845,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 #endif
 	  if (phy->attached_tproto & SAS_PROTOCOL_SSP) {
 		child->dev_type = SAS_END_DEVICE;
-		rphy = sas_end_device_alloc(phy->port, child->tproto);
+		rphy = sas_end_device_alloc(phy->port, phy->attached_tproto);
 		/* FIXME: error handling */
 		if (unlikely(!rphy))
 			goto out_free;
