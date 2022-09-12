@@ -338,8 +338,10 @@ static void sas_unregister_common_dev(struct asd_sas_port *port, struct domain_d
 
 	spin_lock_irq(&port->dev_list_lock);
 	list_del_init(&dev->dev_list_node);
-	if (dev_is_sata(dev))
+	if (dev_is_sata(dev)) {
 		sas_ata_end_eh(dev->sata_dev.ap);
+		
+	}
 	spin_unlock_irq(&port->dev_list_lock);
 
 	spin_lock_irq(&ha->lock);

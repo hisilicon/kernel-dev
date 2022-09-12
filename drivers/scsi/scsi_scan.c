@@ -2041,6 +2041,13 @@ struct scsi_device *scsi_get_dev(struct device *parent, int channel, uint id, u6
 }
 EXPORT_SYMBOL(scsi_get_dev);
 
+void scsi_delete_dev(struct scsi_device *sdev)
+{
+	pr_err("%s sdev=%pS\n", __func__, sdev);
+}
+EXPORT_SYMBOL(scsi_delete_dev);
+
+
 /**
  * scsi_get_host_dev - Create a scsi_device that points to the host adapter itself
  * @shost: Host that needs a scsi_device
@@ -2075,7 +2082,7 @@ EXPORT_SYMBOL(scsi_get_host_dev);
 void scsi_free_host_dev(struct scsi_device *sdev)
 {
 	BUG_ON(sdev->id != sdev->host->this_id);
-
+	pr_err("%s sdev=%pS\n", __func__, sdev);
 	__scsi_remove_device(sdev);
 }
 EXPORT_SYMBOL(scsi_free_host_dev);

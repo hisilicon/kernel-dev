@@ -804,6 +804,7 @@ struct class_container;
 extern void scsi_free_host_dev(struct scsi_device *);
 extern struct scsi_device *scsi_get_host_dev(struct Scsi_Host *);
 extern struct scsi_device *scsi_get_dev(struct device *parent, int channel, uint id, u64 lun);
+extern void scsi_delete_dev(struct scsi_device *sdev);
 
 /*
  * DIF defines the exchange of protection information between

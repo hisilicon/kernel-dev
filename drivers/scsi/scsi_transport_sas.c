@@ -1627,6 +1627,9 @@ sas_rphy_remove(struct sas_rphy *rphy)
 {
 	struct device *dev = &rphy->dev;
 
+	pr_err("%s rphy=%pS\n", __func__, rphy);
+
+
 	switch (rphy->identify.device_type) {
 	case SAS_END_DEVICE:
 		scsi_remove_target(dev);
