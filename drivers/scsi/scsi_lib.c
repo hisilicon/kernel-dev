@@ -2299,6 +2299,11 @@ scsi_device_set_state(struct scsi_device *sdev, enum scsi_device_state state)
 {
 	enum scsi_device_state oldstate = sdev->sdev_state;
 
+	if (state == SDEV_OFFLINE)
+		WARN_ON_ONCE(1);
+
+	pr_err("%s sdev=%pS state=%d %s oldstate=%d %s\n", __func__, sdev, state, scsi_device_state_name(state), oldstate, scsi_device_state_name(oldstate));
+
 	if (state == oldstate)
 		return 0;
 

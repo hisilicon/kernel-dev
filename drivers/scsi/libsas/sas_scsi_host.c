@@ -875,7 +875,7 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 
 	BUG_ON(dev->rphy->identify.device_type != SAS_END_DEVICE);
 
-	pr_err("%s scsi_dev=%pS dev=%pS dev_is_sata=%d\n", __func__, scsi_dev, dev, dev_is_sata(dev));
+	pr_err("%s scsi_dev=%pS dev=%pS dev_is_sata=%d dev_type=%d\n", __func__, scsi_dev, dev, dev_is_sata(dev), dev->dev_type);
 
 	if (dev_is_sata(dev)) {
  		struct scsi_target *starget = scsi_dev->sdev_target;
@@ -1275,8 +1275,10 @@ int sas_slave_alloc(struct scsi_device *sdev)
 {
 	struct domain_device *dev = sdev_to_domain_dev(sdev);
 
-	if (dev_is_sata(dev) && sdev->lun)
+	if (dev_is_sata(dev) && sdev->lun) {
+		pr_err("%s sdev=%pS dev=%pS returning ENXIO lun=%lld\n", __func__, sdev, dev, sdev->lun);
 		return -ENXIO;
+	}
 
 
 	return 0;

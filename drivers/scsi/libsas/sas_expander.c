@@ -212,6 +212,7 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 
 	/* check if anything important changed to squelch debug */
 	dev_type = phy->attached_dev_type;
+	pr_err("%s dev=%pS dev_type=%d\n", __func__, dev, dev_type);
 	linkrate  = phy->linkrate;
 	memcpy(sas_addr, phy->attached_sas_addr, SAS_ADDR_SIZE);
 

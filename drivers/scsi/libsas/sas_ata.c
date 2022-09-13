@@ -248,12 +248,14 @@ int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy)
 	if (phy->attached_sata_dev)
 		dev->tproto |= SAS_SATA_DEV;
 
-	if (phy->attached_dev_type == SAS_SATA_PENDING)
+	if (phy->attached_dev_type == SAS_SATA_PENDING) {
 		dev->dev_type = SAS_SATA_PENDING;
-	else {
+		pr_err("%s1 dev=%pS setting dev_type SAS_SATA_PENDING\n", __func__, dev);
+	} else {
 		int res;
 
 		dev->dev_type = SAS_SATA_DEV;
+		pr_err("%s2 dev=%pS setting dev_type SAS_SATA_DEV\n", __func__, dev);
 		res = sas_get_report_phy_sata(dev->parent, phy->phy_id,
 					      &dev->sata_dev.rps_resp);
 		if (res) {

@@ -894,6 +894,7 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	 * nonetheless.  It doesn't matter if the device sent < 36 bytes
 	 * total, since scsi_probe_lun() initializes inq_result with 0s.
 	 */
+	pr_err("%s sdev=%pS\n", __func__, sdev);
 	sdev->inquiry = kmemdup(inq_result,
 				max_t(size_t, sdev->inquiry_len, 36),
 				GFP_KERNEL);
@@ -1072,8 +1073,10 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 
 	transport_configure_device(&sdev->sdev_gendev);
 
+
+	pr_err("%s1 sdev=%pS slave_configure=%pS\n", __func__, sdev, sdev->host->hostt->slave_configure);
 	if (sdev->host->hostt->slave_configure) {
-		pr_err("%s sdev=%pS calling slave_configure=%pS\n", __func__, sdev, sdev->host->hostt->slave_configure);
+		pr_err("%s2 sdev=%pS calling slave_configure=%pS\n", __func__, sdev, sdev->host->hostt->slave_configure);
 		ret = sdev->host->hostt->slave_configure(sdev);
 		if (ret) {
 			/*
@@ -1182,8 +1185,10 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	 * host adapter calls into here with rescan == 0.
 	 */
 	sdev = scsi_device_lookup_by_target(starget, lun);
-	pr_err("%s sdev=%pS starget=%pS reap_ref=%d\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
+	pr_err("%s1 sdev=%pS starget=%pS reap_ref=%d\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
 	if (sdev) {
+		pr_err("%s1.1 sdev=%pS starget=%pS rescan=%d SCSI_SCAN_INITIAL=%d scsi_device_created=%d sdev_state=%d \n",
+			__func__, sdev, starget, rescan, SCSI_SCAN_INITIAL, scsi_device_created(sdev), sdev->sdev_state);
 		if (rescan != SCSI_SCAN_INITIAL || !scsi_device_created(sdev)) {
 			SCSI_LOG_SCAN_BUS(3, sdev_printk(KERN_INFO, sdev,
 				"scsi scan: device exists on %s\n",
@@ -1197,6 +1202,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 				*bflagsp = scsi_get_device_flags(sdev,
 								 sdev->vendor,
 								 sdev->model);
+			pr_err("%s2 sdev=%pS starget=%pS reap_ref=%d returning SCSI_SCAN_LUN_PRESENT\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
 			return SCSI_SCAN_LUN_PRESENT;
 		}
 		scsi_device_put(sdev);
@@ -1204,7 +1210,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		sdev = scsi_alloc_sdev(starget, lun, hostdata);
 	if (!sdev)
 		goto out;
-	pr_err("%s2 sdev=%pS starget=%pS reap_ref=%d\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
+	pr_err("%s3 sdev=%pS starget=%pS reap_ref=%d\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
 
 	result = kmalloc(result_len, GFP_KERNEL);
 	if (!result)
@@ -1213,7 +1219,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	if (scsi_probe_lun(sdev, result, result_len, &bflags))
 		goto out_free_result;
 
-	pr_err("%s3 sdev=%pS starget=%pS reap_ref=%d\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
+	pr_err("%s4 sdev=%pS starget=%pS reap_ref=%d\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
 	if (bflagsp)
 		*bflagsp = bflags;
 	/*
@@ -1280,7 +1286,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		res = SCSI_SCAN_TARGET_PRESENT;
 		goto out_free_result;
 	}
-	pr_err("%s4 sdev=%pS calling scsi_add_lun\n", __func__, sdev);
+	pr_err("%s5 sdev=%pS calling scsi_add_lun\n", __func__, sdev);
 	res = scsi_add_lun(sdev, result, &bflags, shost->async_scan);
 	if (res == SCSI_SCAN_LUN_PRESENT) {
 		if (bflags & BLIST_KEY) {
@@ -1288,7 +1294,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 			scsi_unlock_floptical(sdev, result);
 		}
 	}
-	pr_err("%s5 sdev=%pS starget=%pS reap_ref=%d\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
+	pr_err("%s6 sdev=%pS starget=%pS reap_ref=%d\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
 
  out_free_result:
 	kfree(result);
