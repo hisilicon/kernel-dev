@@ -875,8 +875,21 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 
 	BUG_ON(dev->rphy->identify.device_type != SAS_END_DEVICE);
 
+	pr_err("%s scsi_dev=%pS dev=%pS dev_is_sata=%d\n", __func__, scsi_dev, dev, dev_is_sata(dev));
+
 	if (dev_is_sata(dev)) {
+ 		struct scsi_target *starget = scsi_dev->sdev_target;
+ 		struct ata_device *ata_dev = sas_to_ata_dev(dev);
+
 		ata_sas_slave_configure(scsi_dev, dev->sata_dev.ap);
+
+ 		if (starget) {
+ 			pr_err("%s1 dev=%pS scsi_dev=%pS ata_dev=%pS starget=%pS calling scsi_target_reap reap_ref=%d\n", __func__, dev, scsi_dev, ata_dev, starget, kref_read(&starget->reap_ref));
+			scsi_target_reap(starget);
+ 		} else {
+ 			pr_err("%s2 dev=%pS scsi_dev=%pS ata_dev=%pS starget=%pS\n", __func__, dev, scsi_dev, ata_dev, starget);
+ 		}
+
 		return 0;
 	}
 
@@ -1260,8 +1273,11 @@ EXPORT_SYMBOL_GPL(sas_task_abort);
 
 int sas_slave_alloc(struct scsi_device *sdev)
 {
-	if (dev_is_sata(sdev_to_domain_dev(sdev)) && sdev->lun)
+	struct domain_device *dev = sdev_to_domain_dev(sdev);
+
+	if (dev_is_sata(dev) && sdev->lun)
 		return -ENXIO;
+
 
 	return 0;
 }
