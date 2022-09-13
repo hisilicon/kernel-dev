@@ -1241,7 +1241,7 @@ void ata_eh_detach_dev(struct ata_device *dev)
 	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &link->eh_context;
 	unsigned long flags;
-
+	pr_err("%s dev=%pS\n", __func__, dev);
 	ata_dev_disable(dev);
 
 	spin_lock_irqsave(ap->lock, flags);
@@ -2974,6 +2974,7 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 			 * separate loops.
 			 */
 			dev->class = ehc->classes[dev->devno];
+			dev->sdev = ata_scsi_get_sdev(dev);
 
 			if (dev->class == ATA_DEV_PMP)
 				rc = sata_pmp_attach(dev);
@@ -2981,7 +2982,7 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 				rc = ata_dev_read_id(dev, &dev->class,
 						     readid_flags, dev->id);
 
-			pr_err("%s4 ap=%pS link=%pS dev=%pS id=%d rc=%d\n", __func__, ap, link, dev, *dev->id, rc);
+			pr_err("%s4 ap=%pS link=%pS dev=%pS id=%d rc=%d dev->sdev=%pS\n", __func__, ap, link, dev, *dev->id, rc, dev->sdev);
 			/* read_id might have changed class, store and reset */
 			ehc->classes[dev->devno] = dev->class;
 			dev->class = ATA_DEV_UNKNOWN;
@@ -3580,7 +3581,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 			else
 				ehc->tries[dev->devno] = ATA_EH_DEV_TRIES;
 
-			pr_err("%s2 ap=%pS link=%pS dev=%pS ata_dev_enabled=%d\n", __func__, ap, link, dev, ata_dev_enabled(dev));
+			pr_err("%s2 ap=%pS link=%pS dev=%pS ata_dev_enabled=%d ATA_DFLAG_DETACH set=%d\n", __func__, ap, link, dev, ata_dev_enabled(dev), !!(dev->flags & ATA_DFLAG_DETACH));
 			/* collect port action mask recorded in dev actions */
 			ehc->i.action |= ehc->i.dev_action[dev->devno] &
 					 ~ATA_EH_PERDEV_MASK;
@@ -3591,8 +3592,10 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 				ata_eh_detach_dev(dev);
 
 			/* schedule probe if necessary */
-			if (!ata_dev_enabled(dev))
+			if (!ata_dev_enabled(dev)) {
+				pr_err("%s3 dev=%pS calling ata_eh_schedule_probe\n", __func__, dev);
 				ata_eh_schedule_probe(dev);
+			}
 		}
 	}
 

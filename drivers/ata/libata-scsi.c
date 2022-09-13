@@ -4195,6 +4195,26 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 	scsi_done(cmd);
 }
 
+struct scsi_device *ata_scsi_get_sdev(struct ata_device *dev)
+{
+	u64 lun = 0;
+	int channel = 0;
+	uint id = 0;
+	struct ata_link *link = dev->link;
+	struct ata_port *ap = link->ap;
+	struct Scsi_Host *shost = ap->scsi_host;
+	struct device *parent = &shost->shost_gendev;
+
+	if (ata_is_host_link(link))
+		id = dev->devno;
+	else
+		channel = link->pmp;
+
+	dev_err(parent, "%s ap=%pS shost=%pS link=%pS dev=%pS channel=%d id=%d lun=0 parent=%pS\n",
+					__func__, ap, shost, link, dev, channel, id, parent);
+	return scsi_get_dev(parent, channel, id, lun);
+}
+
 int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 {
 	int i, rc;
@@ -4240,20 +4260,9 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 
 		ata_for_each_link(link, ap, HOST_FIRST) {
 			ata_for_each_dev(dev, link, ALL) {
-				u64 lun = 0;
-				int channel = 0;
-				uint id = 0;
-				struct device *parent = &shost->shost_gendev;
+				
 
-				if (ata_is_host_link(link))
-					id = dev->devno;
-				else
-					channel = link->pmp;
-
-				dev_err(parent, "%s0 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS channel=%d id=%d lun=0 parent=%pS\n",
-					__func__, host, i, ap, shost, link, dev, channel, id, parent);
-				dev->sdev = scsi_get_dev(parent, channel, id, lun);
-				dev_err(parent, "%s1 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS sdev=%pS\n",
+				pr_err("%s1 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS sdev=%pS\n",
 					__func__, host, i, ap, shost, link, dev, dev->sdev);
 			}
 		}
@@ -4310,8 +4319,9 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
  repeat:
 	ata_for_each_link(link, ap, EDGE) {
 		ata_for_each_dev(dev, link, ENABLED) {
-			struct scsi_device *sdev;
+			struct scsi_device *sdev = dev->sdev;
 			int channel = 0, id = 0;
+			struct Scsi_Host *shost = ap->scsi_host;
 
 			pr_err("%s0 ap=%pS dev->sdev=%pS dev=%pS link=%pS ata_is_host_link=%d\n", __func__, ap, dev->sdev, dev, link, ata_is_host_link(link));
 			//if (dev->sdev)
@@ -4323,8 +4333,9 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 				channel = link->pmp;
 
 			pr_err("%s1 ap=%pS dev->sdev=%pS dev=%pS calling __scsi_add_device id=%d channel=%d lun=0\n", __func__, ap, dev->sdev, dev, id, channel);
-			sdev = __scsi_add_device(ap->scsi_host, channel, id, 0,
-						 NULL);
+			//sdev = __scsi_add_device(ap->scsi_host, channel, id, 0,
+			//			 NULL);
+			scsi_scan_target(&shost->shost_gendev, channel, id, 0, SCSI_SCAN_INITIAL);
 			pr_err("%s2 ap=%pS dev->sdev=%pS dev=%pS sdev=%pS\n", __func__, ap, dev->sdev, dev, sdev);
 			if (!IS_ERR(sdev)) {
 				dev->sdev = sdev;
@@ -4396,6 +4407,7 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
  */
 int ata_scsi_offline_dev(struct ata_device *dev)
 {
+	pr_err("%s dev=%pS dev->sdev=%pS\n", __func__, dev, dev->sdev);
 	if (dev->sdev) {
 		scsi_device_set_state(dev->sdev, SDEV_OFFLINE);
 		return 1;

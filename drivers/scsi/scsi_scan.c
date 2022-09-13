@@ -1187,8 +1187,8 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	sdev = scsi_device_lookup_by_target(starget, lun);
 	pr_err("%s1 sdev=%pS starget=%pS reap_ref=%d\n", __func__, sdev, starget, kref_read(&starget->reap_ref));
 	if (sdev) {
-		pr_err("%s1.1 sdev=%pS starget=%pS rescan=%d SCSI_SCAN_INITIAL=%d scsi_device_created=%d sdev_state=%d \n",
-			__func__, sdev, starget, rescan, SCSI_SCAN_INITIAL, scsi_device_created(sdev), sdev->sdev_state);
+		pr_err("%s1.1 sdev=%pS starget=%pS rescan=%d SCSI_SCAN_INITIAL=%d scsi_device_created=%d sdev_state=%d %s\n",
+			__func__, sdev, starget, rescan, SCSI_SCAN_INITIAL, scsi_device_created(sdev), sdev->sdev_state, scsi_device_state_name(sdev->sdev_state));
 		if (rescan != SCSI_SCAN_INITIAL || !scsi_device_created(sdev)) {
 			SCSI_LOG_SCAN_BUS(3, sdev_printk(KERN_INFO, sdev,
 				"scsi scan: device exists on %s\n",
@@ -1743,6 +1743,8 @@ void scsi_scan_target(struct device *parent, unsigned int channel,
 {
 	struct Scsi_Host *shost = dev_to_shost(parent);
 
+		pr_err("%s parent=%pS channel=%d id=%d lun=%lld rescan=%d\n",
+			__func__, parent, channel, id, lun, rescan);
 	if (strncmp(scsi_scan_type, "none", 4) == 0)
 		return;
 
@@ -1755,6 +1757,8 @@ void scsi_scan_target(struct device *parent, unsigned int channel,
 		scsi_complete_async_scans();
 
 	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) {
+		pr_err("%s1 calling __scsi_scan_target parent=%pS channel=%d id=%d lun=%lld rescan=%d\n",
+			__func__, parent, channel, id, lun, rescan);
 		__scsi_scan_target(parent, channel, id, lun, rescan);
 		scsi_autopm_put_host(shost);
 	}
@@ -1786,12 +1790,18 @@ static void scsi_scan_channel(struct Scsi_Host *shost, unsigned int channel,
 				order_id = shost->max_id - id - 1;
 			else
 				order_id = id;
+
+		pr_err("%s1 calling __scsi_scan_target parent=%pS channel=%d id=%d lun=%lld rescan=%d\n",
+			__func__, &shost->shost_gendev, channel, order_id, lun, rescan);
 			__scsi_scan_target(&shost->shost_gendev, channel,
 					order_id, lun, rescan);
 		}
-	else
+	else {
+		pr_err("%s2 calling __scsi_scan_target parent=%pS channel=%d id=%d lun=%lld rescan=%d\n",
+			__func__, &shost->shost_gendev, channel, id, lun, rescan);
 		__scsi_scan_target(&shost->shost_gendev, channel,
 				id, lun, rescan);
+	}
 }
 
 int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
