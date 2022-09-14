@@ -4263,6 +4263,7 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 				
 
 				pr_err("%s1 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS sdev=%pS\n",
+				dev->sdev = ata_scsi_get_sdev(dev);
 					__func__, host, i, ap, shost, link, dev, dev->sdev);
 			}
 		}
