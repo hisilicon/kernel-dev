@@ -2974,7 +2974,7 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 			 * separate loops.
 			 */
 			dev->class = ehc->classes[dev->devno];
-			dev->sdev = ata_scsi_get_sdev(dev);
+			pr_err("%s4 ap=%pS link=%pS dev=%pS id=%d rc=%d dev->sdev=%pS\n", __func__, ap, link, dev, *dev->id, rc, dev->sdev);
 		
 			BUG_ON(!dev->sdev);
 		//	dev->sdev = ata_scsi_get_sdev(dev);
@@ -2984,8 +2984,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 			else
 				rc = ata_dev_read_id(dev, &dev->class,
 						     readid_flags, dev->id);
+			pr_err("%s4.1 ap=%pS link=%pS dev=%pS id=%d rc=%d dev->sdev=%pS\n", __func__, ap, link, dev, *dev->id, rc, dev->sdev);
 
-			pr_err("%s4 ap=%pS link=%pS dev=%pS id=%d rc=%d dev->sdev=%pS\n", __func__, ap, link, dev, *dev->id, rc, dev->sdev);
 			/* read_id might have changed class, store and reset */
 			ehc->classes[dev->devno] = dev->class;
 			dev->class = ATA_DEV_UNKNOWN;

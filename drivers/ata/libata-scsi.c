@@ -4261,9 +4261,11 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		ata_for_each_link(link, ap, HOST_FIRST) {
 			ata_for_each_dev(dev, link, ALL) {
 				
-
-				pr_err("%s1 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS sdev=%pS\n",
+				pr_err("%s1 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS dev->sdev=%pS\n",
+					__func__, host, i, ap, shost, link, dev, dev->sdev);
 				dev->sdev = ata_scsi_get_sdev(dev);
+	
+				pr_err("%s2 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS dev->sdev=%pS\n",
 					__func__, host, i, ap, shost, link, dev, dev->sdev);
 			}
 		}
@@ -4309,6 +4311,9 @@ static void ata_scsi_assign_ofnode(struct ata_device *dev, struct ata_port *ap)
 {
 }
 #endif
+//		scsi_scan_target(&rphy->dev, 0, rphy->scsi_target_id, lun,
+//				 SCSI_SCAN_INITIAL);
+//
 
 void ata_scsi_scan_host(struct ata_port *ap, int sync)
 {
