@@ -1526,7 +1526,7 @@ int sas_rphy_add(struct sas_rphy *rphy)
 	struct sas_identify *identify = &rphy->identify;
 	int error;
 
-	pr_err("%s rphy=%pS scsi_target_id=%d\n", __func__, rphy, rphy->scsi_target_id);
+	pr_err("%s rphy=%pS scsi_target_id=%d SATA=%d\n", __func__, rphy, rphy->scsi_target_id, !!(identify->target_port_protocols & SAS_PROTOCOL_STP_ALL));
 	if (parent->rphy)
 		return -ENXIO;
 	parent->rphy = rphy;
@@ -1552,7 +1552,8 @@ int sas_rphy_add(struct sas_rphy *rphy)
 			lun = SCAN_WILD_CARD;
 		else
 			lun = 0;
-		pr_err("%s2 dev=%pS channel=0 rphy->scsi_target_id=%d lun=%d rphy=%pS\n", __func__, &rphy->dev, rphy->scsi_target_id, lun, rphy);
+		pr_err("%s2 dev=%pS channel=0 rphy->scsi_target_id=%d lun=%d rphy=%pS SATA=%d\n",
+			__func__, &rphy->dev, rphy->scsi_target_id, lun, rphy, !!(identify->target_port_protocols & SAS_PROTOCOL_STP_ALL));
 		scsi_scan_target(&rphy->dev, 0, rphy->scsi_target_id, lun,
 				 SCSI_SCAN_INITIAL);
 	}

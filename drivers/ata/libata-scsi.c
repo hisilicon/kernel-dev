@@ -1114,7 +1114,8 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 	if (dev->flags & ATA_DFLAG_TRUSTED)
 		sdev->security_supported = 1;
 	pr_err("%s dev->sdev=%pS sdev=%pS\n", __func__, dev->sdev, sdev);
-	dev->sdev = sdev;
+	BUG_ON(!dev->sdev);
+//	dev->sdev = sdev;
 	return 0;
 }
 
@@ -4262,11 +4263,7 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 			ata_for_each_dev(dev, link, ALL) {
 				
 				pr_err("%s1 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS dev->sdev=%pS\n",
-					__func__, host, i, ap, shost, link, dev, dev->sdev);
-				dev->sdev = ata_scsi_get_sdev(dev);
-	
-				pr_err("%s2 host=%pS i=%d ap=%pS shost=%pS link=%pS dev=%pS dev->sdev=%pS\n",
-					__func__, host, i, ap, shost, link, dev, dev->sdev);
+					__func__, host, i, ap, shost, link, dev, dev->sdev);	
 			}
 		}
 
