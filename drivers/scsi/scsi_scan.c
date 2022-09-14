@@ -1613,7 +1613,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 
 	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) {
 		pr_err("%s2 calling scsi_probe_and_add_lun starget=%pS reap_ref=%d\n", __func__, starget, kref_read(&starget->reap_ref));
-		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
+		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, SCSI_SCAN_RESCAN, hostdata);
 		scsi_autopm_put_host(shost);
 	}
 	mutex_unlock(&shost->scan_mutex);
