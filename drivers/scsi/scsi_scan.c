@@ -411,7 +411,7 @@ static void scsi_target_dev_release(struct device *dev)
 	struct Scsi_Host *shost = dev_to_shost(parent);
 	struct scsi_target *starget = to_scsi_target(dev);
 
-	pr_err("%s starget=%pS\n", __func__, starget);
+	pr_err("%s kfree starget=%pS\n", __func__, starget);
 	kfree(starget);
 
 	if (atomic_dec_return(&shost->target_count) == 0)
@@ -538,7 +538,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	spin_lock_irqsave(shost->host_lock, flags);
 
 	found_target = __scsi_find_target(parent, channel, id);
-	pr_err("%s parent=%pS channel=%d id=%d found_target=%pS\n", __func__, parent, channel, id, found_target);
+	pr_err("%s parent=%pS channel=%d id=%d found_target=%pS alloc'ed starget=%pS\n", __func__, parent, channel, id, found_target, starget);
 	if (found_target)
 		goto found;
 
@@ -1682,7 +1682,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 	starget = scsi_alloc_target(parent, channel, id);
 	if (!starget)
 		return;
-	pr_err("%s starget=%pS reap_ref=%d\n", __func__, starget, kref_read(&starget->reap_ref));
+	pr_err("%s starget=%pS reap_ref=%d channel=%d id=%d\n", __func__, starget, kref_read(&starget->reap_ref), channel, id);
 	scsi_autopm_get_target(starget);
 
 	if (lun != SCAN_WILD_CARD) {

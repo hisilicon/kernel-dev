@@ -512,6 +512,7 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 	if (vpd_pgb2)
 		kfree_rcu(vpd_pgb2, rcu);
 	kfree(sdev->inquiry);
+	pr_err("%s kfree sdev=%pS\n", __func__, sdev);
 	kfree(sdev);
 
 	if (starget && atomic_dec_return(&starget->sdev_count) == 0)
