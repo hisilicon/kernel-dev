@@ -525,6 +525,29 @@ static int sas_ata_prereset(struct ata_link *link, unsigned long deadline)
 	return res;
 }
 
+static int sas_ata_setup_device(struct ata_device *dev)
+{
+	u64 lun = 0;
+	int channel = 0;
+	struct ata_link *link = dev->link;
+	struct ata_port *ap = link->ap;
+	struct Scsi_Host *shost = ap->scsi_host;
+	struct device *parent = &shost->shost_gendev;
+	struct scsi_device *sdev;
+	struct domain_device *ddev = ap->private_data;
+	struct sas_rphy *rphy = ddev->rphy;
+	uint id = rphy->scsi_target_id;
+	dev_err(parent, "%s dev=%pS ap=%pS dev->sdev=%pS channel=%d id=%d lun=0 ddev=%pS\n", __func__, dev, ap, dev->sdev, channel, id, ddev);
+
+	sdev = scsi_get_dev(parent, channel, id, lun);
+	dev_err(parent, "%s3 ap=%pS shost=%pS link=%pS dev=%pS channel=%d id=%d lun=0 parent=%pS sdev=%pS ddev=%pS\n",
+					__func__, ap, shost, link, dev, channel, id, parent, sdev, ddev);
+	if (!sdev)
+		return -ENODEV;
+	dev->sdev = sdev;
+	return 0;
+}
+
 static struct ata_port_operations sas_sata_ops = {
 	.prereset		= sas_ata_prereset,
 	.hardreset		= sas_ata_hard_reset,
@@ -539,6 +562,7 @@ static struct ata_port_operations sas_sata_ops = {
 	.set_dmamode		= sas_ata_set_dmamode,
 	.sched_eh		= sas_ata_sched_eh,
 	.end_eh			= sas_ata_end_eh,
+	.setup_scsi_device				= sas_ata_setup_device,
 };
 
 static struct ata_port_info sata_port_info = {

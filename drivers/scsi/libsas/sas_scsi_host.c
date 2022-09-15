@@ -805,9 +805,11 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 	pr_err("%s rphy=%pS\n", __func__, rphy);
 //	pr_err("%s0 rphy=%pS rphy->dev.parent=%pS\n", __func__, rphy, rphy->dev.parent);
 	shost = dev_to_shost(rphy->dev.parent);
-//	pr_err("%s1 rphy=%pS shost=%pS\n", __func__, rphy, shost);
+	if (!shost)
+		pr_err("%s1 rphy=%pS shost=%pS\n", __func__, rphy, shost);
 	ha = SHOST_TO_SAS_HA(shost);
-//	pr_err("%s2 rphy=%pS shost=%pS ha=%pS\n", __func__, rphy, shost, ha);
+	if (!ha)
+		pr_err("%s2 rphy=%pS shost=%pS ha=%pS\n", __func__, rphy, shost, ha);
 
 	spin_lock_irqsave(&ha->phy_port_lock, flags);
 	for (i = 0; i < ha->num_phys; i++) {
