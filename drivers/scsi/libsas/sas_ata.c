@@ -532,10 +532,10 @@ static int sas_ata_setup_device(struct ata_device *dev)
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
 	struct Scsi_Host *shost = ap->scsi_host;
-	struct device *parent = &shost->shost_gendev;
 	struct scsi_device *sdev;
 	struct domain_device *ddev = ap->private_data;
 	struct sas_rphy *rphy = ddev->rphy;
+	struct device *parent = &rphy->dev;
 	uint id = rphy->scsi_target_id;
 	dev_err(parent, "%s dev=%pS ap=%pS dev->sdev=%pS channel=%d id=%d lun=0 ddev=%pS\n", __func__, dev, ap, dev->sdev, channel, id, ddev);
 

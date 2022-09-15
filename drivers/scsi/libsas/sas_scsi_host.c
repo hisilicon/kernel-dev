@@ -803,7 +803,7 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 	int i;
 	unsigned long flags;
 	pr_err("%s rphy=%pS\n", __func__, rphy);
-//	pr_err("%s0 rphy=%pS rphy->dev.parent=%pS\n", __func__, rphy, rphy->dev.parent);
+	pr_err("%s0 rphy=%pS rphy->dev.parent=%pS %s\n", __func__, rphy, rphy->dev.parent, rphy->dev.parent ? dev_name(rphy->dev.parent) : "?");
 	shost = dev_to_shost(rphy->dev.parent);
 	if (!shost)
 		pr_err("%s1 rphy=%pS shost=%pS\n", __func__, rphy, shost);
