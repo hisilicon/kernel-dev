@@ -1430,8 +1430,7 @@ static void sas_rphy_initialize(struct sas_rphy *rphy)
  * Returns:
  *	SAS PHY allocated or %NULL if the allocation failed.
  */
-struct sas_rphy *sas_end_device_alloc(struct sas_port *parent,
-				    enum sas_protocol target_port_protocols)
+struct sas_rphy *sas_end_device_alloc(struct sas_port *parent)
 {
 	struct Scsi_Host *shost = dev_to_shost(&parent->dev);
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
@@ -1454,19 +1453,14 @@ struct sas_rphy *sas_end_device_alloc(struct sas_port *parent,
 		dev_set_name(&rdev->rphy.dev, "end_device-%d:%d",
 			     shost->host_no, parent->port_identifier);
 	rdev->rphy.identify.device_type = SAS_END_DEVICE;
-	rdev->rphy.identify.target_port_protocols = target_port_protocols;
 	sas_rphy_initialize(&rdev->rphy);
 	transport_setup_device(&rdev->rphy.dev);
 
 	mutex_lock(&sas_host->lock);
-	if (target_port_protocols &
-	     (SAS_PROTOCOL_SSP | SAS_PROTOCOL_STP | SAS_PROTOCOL_SATA))
-		rdev->rphy.scsi_target_id = sas_host->next_target_id++;
-	else
-		rdev->rphy.scsi_target_id = -1;
+	rdev->rphy.scsi_target_id = sas_host->next_target_id++;
 	mutex_unlock(&sas_host->lock);
-	pr_err("%s rphy=%pS scsi_target_id=%d SATA=%d target_port_protocols=0x%x\n", 
-		__func__, &rdev->rphy, rdev->rphy.scsi_target_id, !!(target_port_protocols & (SAS_PROTOCOL_STP | SAS_PROTOCOL_SATA)), target_port_protocols);
+	pr_err("%s rphy=%pS scsi_target_id=%d\n", 
+		__func__, &rdev->rphy, rdev->rphy.scsi_target_id);
 	return &rdev->rphy;
 }
 EXPORT_SYMBOL(sas_end_device_alloc);
@@ -1512,6 +1506,15 @@ struct sas_rphy *sas_expander_alloc(struct sas_port *parent,
 }
 EXPORT_SYMBOL(sas_expander_alloc);
 
+static bool sas_rphy_end_device_valid_proto(struct sas_rphy *rphy)
+{
+	struct sas_identify *identify = &rphy->identify;
+
+	if (identify->target_port_protocols & (SAS_PROTOCOL_SSP | SAS_PROTOCOL_STP | SAS_PROTOCOL_SATA))
+		return true;
+	return false;
+}
+
 /**
  * sas_rphy_add  -  add a SAS remote PHY to the device hierarchy
  * @rphy:	The remote PHY to be added
@@ -1545,7 +1548,7 @@ int sas_rphy_add(struct sas_rphy *rphy)
 	mutex_unlock(&sas_host->lock);
 
 	if (identify->device_type == SAS_END_DEVICE &&
-	    rphy->scsi_target_id != -1) {
+	    sas_rphy_end_device_valid_proto(rphy)) {
 		int lun;
 
 		if (identify->target_port_protocols & SAS_PROTOCOL_SSP)
@@ -1678,7 +1681,7 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
 	mutex_lock(&sas_host->lock);
 	list_for_each_entry(rphy, &sas_host->rphy_list, list) {
 		if (rphy->identify.device_type != SAS_END_DEVICE ||
-		    rphy->scsi_target_id == -1)
+		    !sas_rphy_end_device_valid_proto(rphy))
 			continue;
 
 		if ((channel == SCAN_WILD_CARD || channel == 0) &&

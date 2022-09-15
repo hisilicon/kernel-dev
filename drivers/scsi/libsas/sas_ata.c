@@ -795,7 +795,7 @@ int sas_discover_sata(struct domain_device *dev)
 	}
 
 	dev->sata_dev.class = sas_get_ata_command_set(dev);
-	sas_fill_in_rphy(dev, dev->rphy);
+	sas_fill_in_rphy(dev, dev->rphy); // mainline sets rphy->identify.target_port_protocols
 
 	ata_dev = sas_to_ata_dev(dev);
 	//ata_dev->sdev = scsi_get_dev(parent, 0, ata_dev->devno, 0);

@@ -823,7 +823,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 		res = sas_ata_init(child);
 		if (res)
 			goto out_free;
-		rphy = sas_end_device_alloc(phy->port, child->tproto);
+		rphy = sas_end_device_alloc(phy->port);
 		pr_err("%s sata rphy=%pS domain device child=%pS\n", __func__, rphy, child);
 		if (!rphy)
 			goto out_free;
@@ -846,7 +846,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 #endif
 	  if (phy->attached_tproto & SAS_PROTOCOL_SSP) {
 		child->dev_type = SAS_END_DEVICE;
-		rphy = sas_end_device_alloc(phy->port, phy->attached_tproto);
+		rphy = sas_end_device_alloc(phy->port);
 		/* FIXME: error handling */
 		if (unlikely(!rphy))
 			goto out_free;
@@ -856,7 +856,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 		child->rphy = rphy;
 		get_device(&rphy->dev);
 		rphy->identify.phy_identifier = phy_id;
-		sas_fill_in_rphy(child, rphy);
+		sas_fill_in_rphy(child, rphy); // mainline sets rphy->identify.target_port_protocols
 
 		list_add_tail(&child->disco_list_node, &parent->port->disco_list);
 
