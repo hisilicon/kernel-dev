@@ -1433,6 +1433,7 @@ static void sas_rphy_initialize(struct sas_rphy *rphy)
 struct sas_rphy *sas_end_device_alloc(struct sas_port *parent)
 {
 	struct Scsi_Host *shost = dev_to_shost(&parent->dev);
+	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
 	struct sas_end_device *rdev;
 
 	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
@@ -1454,6 +1455,10 @@ struct sas_rphy *sas_end_device_alloc(struct sas_port *parent)
 	rdev->rphy.identify.device_type = SAS_END_DEVICE;
 	sas_rphy_initialize(&rdev->rphy);
 	transport_setup_device(&rdev->rphy.dev);
+
+	mutex_lock(&sas_host->lock);
+	rdev->rphy.scsi_target_id = sas_host->next_target_id++;
+	mutex_unlock(&sas_host->lock);
 
 	return &rdev->rphy;
 }
@@ -1500,6 +1505,17 @@ struct sas_rphy *sas_expander_alloc(struct sas_port *parent,
 }
 EXPORT_SYMBOL(sas_expander_alloc);
 
+static bool sas_rphy_valid_tproto_end_device(struct sas_rphy *rphy)
+{
+	struct sas_identify *identify = &rphy->identify;
+
+	if (identify->device_type != SAS_END_DEVICE)
+		return false;
+
+	return (identify->target_port_protocols &
+	    (SAS_PROTOCOL_SSP | SAS_PROTOCOL_STP | SAS_PROTOCOL_SATA));
+}
+
 /**
  * sas_rphy_add  -  add a SAS remote PHY to the device hierarchy
  * @rphy:	The remote PHY to be added
@@ -1529,16 +1545,9 @@ int sas_rphy_add(struct sas_rphy *rphy)
 
 	mutex_lock(&sas_host->lock);
 	list_add_tail(&rphy->list, &sas_host->rphy_list);
-	if (identify->device_type == SAS_END_DEVICE &&
-	    (identify->target_port_protocols &
-	     (SAS_PROTOCOL_SSP | SAS_PROTOCOL_STP | SAS_PROTOCOL_SATA)))
-		rphy->scsi_target_id = sas_host->next_target_id++;
-	else if (identify->device_type == SAS_END_DEVICE)
-		rphy->scsi_target_id = -1;
 	mutex_unlock(&sas_host->lock);
 
-	if (identify->device_type == SAS_END_DEVICE &&
-	    rphy->scsi_target_id != -1) {
+	if (sas_rphy_valid_tproto_end_device(rphy)) {
 		int lun;
 
 		if (identify->target_port_protocols & SAS_PROTOCOL_SSP)
@@ -1672,8 +1681,7 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
 
 	mutex_lock(&sas_host->lock);
 	list_for_each_entry(rphy, &sas_host->rphy_list, list) {
-		if (rphy->identify.device_type != SAS_END_DEVICE ||
-		    rphy->scsi_target_id == -1)
+		if (!sas_rphy_valid_tproto_end_device(rphy))
 			continue;
 
 		if ((channel == SCAN_WILD_CARD || channel == 0) &&
