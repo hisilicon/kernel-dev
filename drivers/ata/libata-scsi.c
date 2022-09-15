@@ -4196,7 +4196,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 	scsi_done(cmd);
 }
 
-struct scsi_device *ata_scsi_get_sdev(struct ata_device *dev)
+int ata_scsi_setup_sdev(struct ata_device *dev)
 {
 	u64 lun = 0;
 	int channel = 0;
@@ -4205,15 +4205,25 @@ struct scsi_device *ata_scsi_get_sdev(struct ata_device *dev)
 	struct ata_port *ap = link->ap;
 	struct Scsi_Host *shost = ap->scsi_host;
 	struct device *parent = &shost->shost_gendev;
+	struct scsi_device *sdev;
+	pr_err("%s dev=%pS setup_scsi_device=%pS ap=%pS dev->sdev=%pS\n", __func__, dev, ap->ops->setup_scsi_device, ap, dev->sdev);
+	if (ap->ops->setup_scsi_device)
+		return ap->ops->setup_scsi_device(dev);
 
 	if (ata_is_host_link(link))
 		id = dev->devno;
 	else
 		channel = link->pmp;
 
-	dev_err(parent, "%s ap=%pS shost=%pS link=%pS dev=%pS channel=%d id=%d lun=0 parent=%pS\n",
+	dev_err(parent, "%s2 ap=%pS shost=%pS link=%pS dev=%pS channel=%d id=%d lun=0 parent=%pS\n",
 					__func__, ap, shost, link, dev, channel, id, parent);
-	return scsi_get_dev(parent, channel, id, lun);
+	sdev = scsi_get_dev(parent, channel, id, lun);
+	dev_err(parent, "%s3 ap=%pS shost=%pS link=%pS dev=%pS channel=%d id=%d lun=0 parent=%pS sdev=%pS\n",
+					__func__, ap, shost, link, dev, channel, id, parent, sdev);
+	if (!sdev)
+		return -ENODEV;
+	dev->sdev = sdev;
+	return 0;
 }
 
 int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)

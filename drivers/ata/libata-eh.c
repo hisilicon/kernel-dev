@@ -2979,7 +2979,9 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 		
 			BUG_ON(dev->sdev);
 
-			dev->sdev = ata_scsi_get_sdev(dev);
+			rc = ata_scsi_setup_sdev(dev);
+			if (rc)
+				goto err;
 
 			if (dev->class == ATA_DEV_PMP)
 				rc = sata_pmp_attach(dev);

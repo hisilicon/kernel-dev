@@ -651,7 +651,7 @@ struct ata_device {
 	unsigned int		horkage;	/* List of broken features */
 	unsigned long		flags;		/* ATA_DFLAG_xxx */
 	struct scsi_device	*sdev;		/* attached SCSI device */
-	void			*private_data;
+	void			*privsate_data;
 #ifdef CONFIG_ATA_ACPI
 	union acpi_object	*gtf_cache;
 	unsigned int		gtf_filter;
@@ -967,6 +967,8 @@ struct ata_port_operations {
 	 */
 	void (*phy_reset)(struct ata_port *ap);
 	void (*eng_timeout)(struct ata_port *ap);
+
+	int (*setup_scsi_device)(struct ata_device *dev);
 
 	/*
 	 * ->inherits must be the last field and all the preceding
