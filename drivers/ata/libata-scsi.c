@@ -4253,6 +4253,32 @@ static void ata_scsi_assign_ofnode(struct ata_device *dev, struct ata_port *ap)
 }
 #endif
 
+int ata_scsi_setup_sdev(struct ata_device *dev)
+{
+	u64 lun = 0;
+	int channel = 0;
+	uint id = 0;
+	struct ata_link *link = dev->link;
+	struct ata_port *ap = link->ap;
+	struct Scsi_Host *shost = ap->scsi_host;
+	struct device *parent = &shost->shost_gendev;
+	struct scsi_device *sdev;
+
+	if (ap->ops->setup_scsi_device)
+		return ap->ops->setup_scsi_device(dev);
+
+	if (ata_is_host_link(link))
+		id = dev->devno;
+	else
+		channel = link->pmp;
+	sdev = scsi_get_dev(parent, channel, id, lun);
+	if (!sdev)
+		return -ENODEV;
+	dev->sdev = sdev;
+	ata_scsi_assign_ofnode(dev, ap);
+	return 0;
+}
+
 void ata_scsi_scan_host(struct ata_port *ap, int sync)
 {
 	int tries = 5;
