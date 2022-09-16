@@ -968,6 +968,8 @@ struct ata_port_operations {
 	void (*phy_reset)(struct ata_port *ap);
 	void (*eng_timeout)(struct ata_port *ap);
 
+	int (*setup_scsi_device)(struct ata_device *dev);
+
 	/*
 	 * ->inherits must be the last field and all the preceding
 	 * fields must be pointers.
