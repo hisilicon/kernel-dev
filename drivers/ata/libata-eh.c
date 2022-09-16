@@ -3446,6 +3446,7 @@ static int ata_eh_schedule_probe(struct ata_device *dev)
 
 	ata_eh_detach_dev(dev);
 	ata_dev_init(dev);
+	ata_scsi_setup_sdev(dev);
 	ehc->did_probe_mask |= (1 << dev->devno);
 	ehc->i.action |= ATA_EH_RESET;
 	ehc->saved_xfer_mode[dev->devno] = 0;

@@ -1109,7 +1109,12 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 	if (dev->flags & ATA_DFLAG_TRUSTED)
 		sdev->security_supported = 1;
 
-	dev->sdev = sdev;
+	/*
+	 * Put extra reference which we get when allocating the starget
+	 * initially
+	 */
+	scsi_target_reap(scsi_target(sdev));
+
 	return 0;
 }
 
@@ -4289,26 +4294,16 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
  repeat:
 	ata_for_each_link(link, ap, EDGE) {
 		ata_for_each_dev(dev, link, ENABLED) {
-			struct scsi_device *sdev;
+			struct Scsi_Host *shost = ap->scsi_host;
 			int channel = 0, id = 0;
-
-			if (dev->sdev)
-				continue;
 
 			if (ata_is_host_link(link))
 				id = dev->devno;
 			else
 				channel = link->pmp;
 
-			sdev = __scsi_add_device(ap->scsi_host, channel, id, 0,
-						 NULL);
-			if (!IS_ERR(sdev)) {
-				dev->sdev = sdev;
-				ata_scsi_assign_ofnode(dev, ap);
-				scsi_device_put(sdev);
-			} else {
-				dev->sdev = NULL;
-			}
+			scsi_scan_target(&shost->shost_gendev, channel, id,
+					 0, SCSI_SCAN_INITIAL);
 		}
 	}
 

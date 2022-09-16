@@ -598,6 +598,7 @@ void scsi_target_reap(struct scsi_target *starget)
 	BUG_ON(starget->state == STARGET_DEL);
 	scsi_target_reap_ref_put(starget);
 }
+EXPORT_SYMBOL_GPL(scsi_target_reap);
 
 /**
  * scsi_sanitize_inquiry_string - remove non-graphical chars from an
