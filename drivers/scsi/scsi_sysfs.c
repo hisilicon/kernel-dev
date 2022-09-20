@@ -135,6 +135,7 @@ static int scsi_scan(struct Scsi_Host *shost, const char *str)
 	char s1[15], s2[15], s3[17], junk;
 	unsigned long long channel, id, lun;
 	int res;
+	pr_err("%s str=%s shost->transportt->user_scan=%pS\n", __func__, str, shost->transportt->user_scan);
 
 	res = sscanf(str, "%10s %10s %16s %c", s1, s2, s3, &junk);
 	if (res != 3)
@@ -187,7 +188,7 @@ store_scan(struct device *dev, struct device_attribute *attr,
 {
 	struct Scsi_Host *shost = class_to_shost(dev);
 	int res;
-
+	dev_err(dev, "%s\n", __func__);
 	res = scsi_scan(shost, buf);
 	if (res == 0)
 		res = count;
@@ -438,6 +439,7 @@ static void scsi_device_cls_release(struct device *class_dev)
 	struct scsi_device *sdev;
 
 	sdev = class_to_sdev(class_dev);
+	pr_err("%s sdev=%pS\n", __func__, sdev);
 	put_device(&sdev->sdev_gendev);
 }
 
@@ -511,6 +513,7 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 	if (vpd_pgb2)
 		kfree_rcu(vpd_pgb2, rcu);
 	kfree(sdev->inquiry);
+	pr_err("%s kfree sdev=%pS\n", __func__, sdev);
 	kfree(sdev);
 
 	if (starget && atomic_dec_return(&starget->sdev_count) == 0)
@@ -523,6 +526,7 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 static void scsi_device_dev_release(struct device *dev)
 {
 	struct scsi_device *sdp = to_scsi_device(dev);
+	pr_err("%s sdp=%pS\n", __func__, sdp);
 	execute_in_process_context(scsi_device_dev_release_usercontext,
 				   &sdp->ew);
 }
@@ -1421,7 +1425,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 {
 	struct device *dev = &sdev->sdev_gendev;
 	int res;
-
+	pr_err("%s sdev=%pS sdev_state=%d SDEV_DEL=%d\n", __func__, sdev, sdev->sdev_state, SDEV_DEL);
 	/*
 	 * This cleanup path is not reentrant and while it is impossible
 	 * to get a new reference with scsi_device_get() someone can still
@@ -1493,6 +1497,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 void scsi_remove_device(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = sdev->host;
+	pr_err("%s dev=%pS\n", __func__, sdev);
 
 	mutex_lock(&shost->scan_mutex);
 	__scsi_remove_device(sdev);
@@ -1505,6 +1510,8 @@ static void __scsi_remove_target(struct scsi_target *starget)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	unsigned long flags;
 	struct scsi_device *sdev;
+	pr_err("%s starget=%pS\n", __func__, starget);
+
 
 	spin_lock_irqsave(shost->host_lock, flags);
  restart:
@@ -1523,6 +1530,8 @@ static void __scsi_remove_target(struct scsi_target *starget)
 		    !get_device(&sdev->sdev_gendev))
 			continue;
 		spin_unlock_irqrestore(shost->host_lock, flags);
+
+		pr_err("%s2 starget=%pS sdev=%pS\n", __func__, starget, sdev);
 		scsi_remove_device(sdev);
 		put_device(&sdev->sdev_gendev);
 		spin_lock_irqsave(shost->host_lock, flags);
@@ -1552,6 +1561,7 @@ void scsi_remove_target(struct device *dev)
 	struct Scsi_Host *shost = dev_to_shost(dev->parent);
 	struct scsi_target *starget;
 	unsigned long flags;
+	dev_err(dev, "%s\n", __func__);
 
 restart:
 	spin_lock_irqsave(shost->host_lock, flags);

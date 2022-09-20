@@ -300,6 +300,7 @@ void sas_free_device(struct kref *kref)
 		kfree(dev->ex_dev.ex_phy);
 
 	if (dev_is_sata(dev) && dev->sata_dev.ap) {
+		pr_err("%s dev=%pS calling ata_sas_tport_delete, ata_sas_port_destroy, and ata_host_put\n", __func__, dev);
 		ata_sas_tport_delete(dev->sata_dev.ap);
 		ata_sas_port_destroy(dev->sata_dev.ap);
 		ata_host_put(dev->sata_dev.ata_host);

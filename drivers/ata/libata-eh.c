@@ -2970,7 +2970,7 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 			 * separate loops.
 			 */
 			dev->class = ehc->classes[dev->devno];
-
+			pr_err("%s calling ata_scsi_setup_sdev dev=%pS\n", __func__, dev);
 			rc = ata_scsi_setup_sdev(dev);
 			if (rc)
 				goto err;

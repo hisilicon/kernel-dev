@@ -1221,6 +1221,7 @@ EXPORT_SYMBOL_GPL(ata_sas_tport_delete);
 
 void ata_sas_port_destroy(struct ata_port *ap)
 {
+	pr_err("%s ap=%pS\n", __func__, ap);
 	if (ap->ops->port_stop)
 		ap->ops->port_stop(ap);
 	kfree(ap);

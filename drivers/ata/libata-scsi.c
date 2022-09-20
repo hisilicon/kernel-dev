@@ -1110,6 +1110,9 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 
 	if (dev->flags & ATA_DFLAG_TRUSTED)
 		sdev->security_supported = 1;
+	pr_err("%s sdev=%pS calling scsi_target_reap scsi_target=%pS sdev_target=%pS\n", __func__, sdev, scsi_target(sdev), sdev->sdev_target);
+	/* Put reference which we get when allocating the starget initially */
+	scsi_target_reap(scsi_target(sdev));
 
 	/* Put extra reference which we get when allocating the starget initially */
 	scsi_target_reap(scsi_target(sdev));
@@ -1169,7 +1172,9 @@ void ata_scsi_slave_destroy(struct scsi_device *sdev)
 
 	spin_lock_irqsave(ap->lock, flags);
 	dev = __ata_scsi_find_dev(ap, sdev);
+	pr_err("%s sdev=%pS ap=%pS dev=%pS\n", __func__, sdev, ap, dev);
 	if (dev && dev->sdev) {
+		pr_err("%s2 sdev=%pS ap=%pS dev=%pS dev->sdev=%pS is getting NULLified\n", __func__, sdev, ap, dev, dev->sdev);
 		/* SCSI device already in CANCEL state, no need to offline it */
 		dev->sdev = NULL;
 		dev->flags |= ATA_DFLAG_DETACH;
@@ -4269,7 +4274,8 @@ int ata_scsi_setup_sdev(struct ata_device *dev)
 	struct Scsi_Host *shost = ap->scsi_host;
 	struct device *parent = &shost->shost_gendev;
 	struct scsi_device *sdev;
-
+	BUG_ON(dev->sdev);
+	pr_err("%s dev=%pS\n", __func__, dev);
 	if (ap->ops->setup_scsi_device)
 		return ap->ops->setup_scsi_device(dev);
 
@@ -4281,6 +4287,7 @@ int ata_scsi_setup_sdev(struct ata_device *dev)
 	if (!sdev)
 		return -ENODEV;
 	dev->sdev = sdev;
+	pr_err("%s2 dev=%pS dev->sdev=%pS\n", __func__, dev, dev->sdev);
 	ata_scsi_assign_ofnode(dev, ap);
 	return 0;
 }
@@ -4399,6 +4406,7 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 
 	/* clearing dev->sdev is protected by host lock */
 	sdev = dev->sdev;
+	pr_err("%s dev=%pS sdev=%pS dev->sdev is getting NULLified\n", __func__, dev, sdev);
 	dev->sdev = NULL;
 
 	if (sdev) {
@@ -4531,19 +4539,27 @@ int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 	unsigned long flags;
 	int devno, rc = 0;
 
-	if (!ap->ops->error_handler)
+	if (!ap->ops->error_handler) {
+		pr_err("%s -EOPNOTSUPP\n", __func__);
 		return -EOPNOTSUPP;
+	}
 
-	if (lun != SCAN_WILD_CARD && lun)
+	if (lun != SCAN_WILD_CARD && lun) {
+		pr_err("%s2 -EINVAL lun=%lld\n", __func__, lun);
 		return -EINVAL;
+	}
 
 	if (!sata_pmp_attached(ap)) {
-		if (channel != SCAN_WILD_CARD && channel)
+		if (channel != SCAN_WILD_CARD && channel) {
+			pr_err("%s3 -EINVA channel=%d lun=%lld\n", __func__, channel, lun);
 			return -EINVAL;
+		}
 		devno = id;
 	} else {
-		if (id != SCAN_WILD_CARD && id)
+		if (id != SCAN_WILD_CARD && id) {
+			pr_err("%s4 -EINVA id=%d\n", __func__, id);
 			return -EINVAL;
+		}
 		devno = channel;
 	}
 

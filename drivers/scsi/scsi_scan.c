@@ -392,6 +392,8 @@ static void scsi_target_destroy(struct scsi_target *starget)
 	struct Scsi_Host *shost = dev_to_shost(dev->parent);
 	unsigned long flags;
 
+	pr_err("%s starget=%pS\n", __func__, starget);
+
 	BUG_ON(starget->state == STARGET_DEL);
 	starget->state = STARGET_DEL;
 	transport_destroy_device(dev);
@@ -409,6 +411,7 @@ static void scsi_target_dev_release(struct device *dev)
 	struct Scsi_Host *shost = dev_to_shost(parent);
 	struct scsi_target *starget = to_scsi_target(dev);
 
+	pr_err("%s kfree starget=%pS\n", __func__, starget);
 	kfree(starget);
 
 	if (atomic_dec_return(&shost->target_count) == 0)
@@ -462,7 +465,7 @@ static void scsi_target_reap_ref_release(struct kref *kref)
 {
 	struct scsi_target *starget
 		= container_of(kref, struct scsi_target, reap_ref);
-
+	pr_err("%s starget=%pS\n", __func__, starget);
 	/*
 	 * if we get here and the target is still in a CREATED state that
 	 * means it was allocated but never made visible (because a scan
@@ -478,6 +481,7 @@ static void scsi_target_reap_ref_release(struct kref *kref)
 
 static void scsi_target_reap_ref_put(struct scsi_target *starget)
 {
+	pr_err("%s starget=%pS\n", __func__, starget);
 	kref_put(&starget->reap_ref, scsi_target_reap_ref_release);
 }
 
@@ -534,6 +538,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	spin_lock_irqsave(shost->host_lock, flags);
 
 	found_target = __scsi_find_target(parent, channel, id);
+	pr_err("%s parent=%pS channel=%d id=%d found_target=%pS alloc'ed starget=%pS\n", __func__, parent, channel, id, found_target, starget);
 	if (found_target)
 		goto found;
 
@@ -604,6 +609,7 @@ void scsi_target_reap(struct scsi_target *starget)
 	 * on an already released kref
 	 */
 	BUG_ON(starget->state == STARGET_DEL);
+	pr_err("%s starget=%pS reap_ref=%d\n", __func__, starget, kref_read(&starget->reap_ref));
 	scsi_target_reap_ref_put(starget);
 }
 
@@ -1621,19 +1627,23 @@ EXPORT_SYMBOL(scsi_add_device);
 void scsi_rescan_device(struct device *dev)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
-
+	dev_err(dev, "%s sdev=%pS\n", __func__, sdev);
 	device_lock(dev);
 
 	scsi_attach_vpd(sdev);
 
-	if (sdev->handler && sdev->handler->rescan)
+	if (sdev->handler && sdev->handler->rescan) {
+		dev_err(dev, "%s2 sdev=%pS sdev->handler->rescan=%pS\n", __func__, sdev, sdev->handler->rescan);
 		sdev->handler->rescan(sdev);
+	}
 
 	if (dev->driver && try_module_get(dev->driver->owner)) {
 		struct scsi_driver *drv = to_scsi_driver(dev->driver);
 
-		if (drv->rescan)
+		if (drv->rescan) {
+			dev_err(dev, "%s3 sdev=%pS drv->rescan=%pS\n", __func__, sdev, drv->rescan);
 			drv->rescan(dev);
+		}
 		module_put(dev->driver->owner);
 	}
 	device_unlock(dev);
@@ -1657,6 +1667,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 	starget = scsi_alloc_target(parent, channel, id);
 	if (!starget)
 		return;
+	pr_err("%s starget=%pS reap_ref=%d channel=%d id=%d\n", __func__, starget, kref_read(&starget->reap_ref), channel, id);
 	scsi_autopm_get_target(starget);
 
 	if (lun != SCAN_WILD_CARD) {
@@ -1716,6 +1727,8 @@ void scsi_scan_target(struct device *parent, unsigned int channel,
 {
 	struct Scsi_Host *shost = dev_to_shost(parent);
 
+		pr_err("%s parent=%pS channel=%d id=%d lun=%lld rescan=%d\n",
+			__func__, parent, channel, id, lun, rescan);
 	if (strncmp(scsi_scan_type, "none", 4) == 0)
 		return;
 
@@ -1728,6 +1741,8 @@ void scsi_scan_target(struct device *parent, unsigned int channel,
 		scsi_complete_async_scans();
 
 	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) {
+		pr_err("%s1 calling __scsi_scan_target parent=%pS channel=%d id=%d lun=%lld rescan=%d\n",
+			__func__, parent, channel, id, lun, rescan);
 		__scsi_scan_target(parent, channel, id, lun, rescan);
 		scsi_autopm_put_host(shost);
 	}
