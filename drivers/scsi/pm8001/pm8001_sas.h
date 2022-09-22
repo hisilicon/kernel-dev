@@ -579,10 +579,6 @@ struct pm8001_fw_image_header {
 #define FLASH_UPDATE_DNLD_NOT_SUPPORTED		0x10
 #define FLASH_UPDATE_DISABLED			0x11
 
-#define	NCQ_READ_LOG_FLAG			0x80000000
-#define	NCQ_ABORT_ALL_FLAG			0x40000000
-#define	NCQ_2ND_RLE_FLAG			0x20000000
-
 /* Device states */
 #define DS_OPERATIONAL				0x01
 #define DS_PORT_IN_RESET			0x02
