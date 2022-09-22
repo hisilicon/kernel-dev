@@ -360,6 +360,20 @@ struct iommu_device_info_vtd {
 };
 
 /**
+ * struct iommu_device_info_smmuv3 - ARM SMMUv3 device info
+ *
+ * @flags: Must be set to 0
+ * @__reserved: Must be 0
+ * @idr_regs: Information
+ * @idr5: Extended capability register value
+ */
+struct iommu_device_info_smmuv3 {
+	__u32 flags;
+	__u32 __reserved;
+	__u32 idr[6];
+};
+
+/**
  * struct iommu_device_info - ioctl(IOMMU_DEVICE_GET_INFO)
  * @size: sizeof(struct iommu_device_info)
  * @flags: Must be 0
