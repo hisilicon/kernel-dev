@@ -737,9 +737,13 @@ pm8001_ccb_alloc(struct pm8001_hba_info *pm8001_ha,
 		 struct pm8001_device *dev, struct sas_task *task)
 {
 	struct pm8001_ccb_info *ccb;
+	struct request *rq = NULL;
 	u32 tag;
 
-	if (pm8001_tag_alloc(pm8001_ha, &tag)) {
+	rq = sas_task_find_rq(task);
+	if (rq) {
+		tag = rq->tag;
+	} else if (pm8001_tag_alloc(pm8001_ha, &tag)) {
 		pm8001_dbg(pm8001_ha, FAIL, "Failed to allocate a tag\n");
 		return NULL;
 	}
