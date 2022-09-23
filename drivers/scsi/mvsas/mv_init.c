@@ -284,7 +284,7 @@ static int mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
 			printk(KERN_DEBUG "failed to create dma pool %s.\n", pool_name);
 			goto err_out;
 	}
-	mvi->tags_num = slot_nr;
+	mvi->tags_num = MVS_RSVD_SLOTS;
 
 	return 0;
 err_out:
@@ -367,7 +367,7 @@ static struct mvs_info *mvs_pci_alloc(struct pci_dev *pdev,
 	mvi->sas = sha;
 	mvi->shost = shost;
 
-	mvi->tags = kzalloc(MVS_CHIP_SLOT_SZ>>3, GFP_KERNEL);
+	mvi->tags = kzalloc(MVS_RSVD_SLOTS, GFP_KERNEL);
 	if (!mvi->tags)
 		goto err_out;
 
