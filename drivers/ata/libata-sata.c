@@ -1036,7 +1036,9 @@ int __ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
 	if (queue_depth < 1 || queue_depth == sdev->queue_depth)
 		return sdev->queue_depth;
 
+	pr_err("%s ap=%pS sdev=%pS queue_depth=%d\n", __func__, ap, sdev, queue_depth);
 	dev = ata_scsi_find_dev(ap, sdev);
+	pr_err("%s2 ap=%pS sdev=%pS queue_depth=%d dev=%pS\n", __func__, ap, sdev, queue_depth, dev);
 	if (!dev || !ata_dev_enabled(dev))
 		return sdev->queue_depth;
 
