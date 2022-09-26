@@ -2706,6 +2706,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 static struct ata_device *ata_find_dev(struct ata_port *ap, int devno)
 {
 	if (!sata_pmp_attached(ap)) {
+		pr_err("%s devno=%d ap=%pS\n", __func__, devno, ap);
 		if (likely(devno >= 0 &&
 			   devno < ata_link_max_devices(&ap->link)))
 			return &ap->link.device[devno];
@@ -2715,6 +2716,7 @@ static struct ata_device *ata_find_dev(struct ata_port *ap, int devno)
 			return &ap->pmp_link[devno].device[0];
 	}
 
+	pr_err("%s10 out devno=%d ap=%pS returning NULL\n", __func__, devno, ap);
 	return NULL;
 }
 
@@ -2725,9 +2727,11 @@ static struct ata_device *__ata_scsi_find_dev(struct ata_port *ap,
 
 	/* skip commands not addressed to targets we simulate */
 	if (!sata_pmp_attached(ap)) {
+		pr_err("%s ap=%pS scsidev=%pS\n", __func__, ap, scsidev);
 		if (unlikely(scsidev->channel || scsidev->lun))
 			return NULL;
 		devno = scsidev->id;
+		pr_err("%s1 ap=%pS scsidev=%pS devno=%d\n", __func__, ap, scsidev, devno);
 	} else {
 		if (unlikely(scsidev->id || scsidev->lun))
 			return NULL;
