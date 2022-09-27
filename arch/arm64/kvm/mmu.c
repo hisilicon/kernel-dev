@@ -905,10 +905,14 @@ static void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
 		gfn_t gfn_offset, unsigned long mask)
 {
 	phys_addr_t base_gfn = slot->base_gfn + gfn_offset;
-	phys_addr_t start = (base_gfn +  __ffs(mask)) << PAGE_SHIFT;
-	phys_addr_t end = (base_gfn + __fls(mask) + 1) << PAGE_SHIFT;
+	phys_addr_t start, end;
+	int rs, re;
 
-	stage2_wp_range(&kvm->arch.mmu, start, end);
+	for_each_set_bitrange(rs, re, &mask, BITS_PER_LONG) {
+		start = (base_gfn + rs) << PAGE_SHIFT;
+		end = (base_gfn + re) << PAGE_SHIFT;
+		stage2_wp_range(&kvm->arch.mmu, start, end);
+	}
 }
 
 /*
