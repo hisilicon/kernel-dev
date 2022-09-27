@@ -2764,6 +2764,24 @@ ata_scsi_find_dev(struct ata_port *ap, const struct scsi_device *scsidev)
 	return dev;
 }
 
+struct ata_device *
+ata_scsi_find_devx(struct ata_port *ap, const struct scsi_device *scsidev)
+{
+	struct ata_link *link;
+	struct ata_device *dev;
+
+	pr_err("%s scsidev=%pS ap=%pS\n", __func__, scsidev, ap);
+	ata_for_each_link(link, ap, EDGE) {
+		ata_for_each_dev(dev, link, ENABLED) {
+			pr_err("%s2 link=%pS dev=%pS ap=%pS dev->sdev=%pS scsidev=%pS\n", __func__, link, dev, ap, dev->sdev, scsidev);
+			if (scsidev == dev->sdev)
+				return dev;
+		}
+	}
+
+	return NULL;
+}
+
 /*
  *	ata_scsi_map_proto - Map pass-thru protocol value to taskfile value.
  *	@byte1: Byte 1 from pass-thru CDB.

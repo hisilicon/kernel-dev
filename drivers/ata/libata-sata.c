@@ -1030,13 +1030,16 @@ EXPORT_SYMBOL_GPL(dev_attr_sw_activity);
 int __ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
 			     int queue_depth)
 {
-	struct ata_device *dev;
+	struct ata_device *dev, *dev2;
 	unsigned long flags;
 
+	pr_err("%s sdev=%pS ap=%pS queue_depth=%d sdev->queue_depth=%d\n", __func__, sdev, ap, queue_depth, sdev->queue_depth);
 	if (queue_depth < 1 || queue_depth == sdev->queue_depth)
 		return sdev->queue_depth;
-
+	pr_err("%s1 sdev=%pS ap=%pS\n", __func__, sdev, ap);
 	dev = ata_scsi_find_dev(ap, sdev);
+	dev2 = ata_scsi_find_devx(ap, sdev);
+	pr_err("%s2 sdev=%pS ap=%pS dev=%pS dev2=%pS\n", __func__, sdev, ap, dev, dev2);
 	if (!dev || !ata_dev_enabled(dev))
 		return sdev->queue_depth;
 
