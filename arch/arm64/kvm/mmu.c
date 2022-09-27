@@ -1124,10 +1124,17 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 	phys_addr_t base_gfn = slot->base_gfn + gfn_offset;
 	phys_addr_t start = (base_gfn +  __ffs(mask)) << PAGE_SHIFT;
 	phys_addr_t end = (base_gfn + __fls(mask) + 1) << PAGE_SHIFT;
+	int rs, re;
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
 
-	stage2_wp_range(&kvm->arch.mmu, start, end);
+	for_each_set_bitrange(rs, re, &mask, BITS_PER_LONG) {
+		phys_addr_t addr_s, addr_e;
+
+		addr_s = (base_gfn + rs) << PAGE_SHIFT;
+		addr_e = (base_gfn + re) << PAGE_SHIFT;
+		stage2_wp_range(&kvm->arch.mmu, addr_s, addr_e);
+	}
 
 	/*
 	 * Eager-splitting is done when manual-protect is set.  We
