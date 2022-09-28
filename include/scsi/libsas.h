@@ -648,7 +648,7 @@ static inline struct request *sas_task_find_rq(struct sas_task *task)
 {
 	struct scsi_cmnd *scmd;
 
-	if (!task || !task->uldd_task)
+	if (!task->uldd_task)
 		return NULL;
 
 	if (task->task_proto & SAS_PROTOCOL_STP_ALL) {
