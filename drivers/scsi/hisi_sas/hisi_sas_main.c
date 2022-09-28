@@ -1474,26 +1474,31 @@ EXPORT_SYMBOL_GPL(hisi_sas_controller_reset_prepare);
 void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba)
 {
 	struct Scsi_Host *shost = hisi_hba->shost;
+	pr_err("%s\n", __func__);
 
 	/* Init and wait for PHYs to come up and all libsas event finished. */
 	hisi_hba->hw->phys_init(hisi_hba);
 	msleep(1000);
 	hisi_sas_refresh_port_id(hisi_hba);
+	pr_err("%s2 clearing HISI_SAS_REJECT_CMD_BIT\n", __func__);
 	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 
 	if (hisi_hba->reject_stp_links_msk)
 		hisi_sas_terminate_stp_reject(hisi_hba);
 	hisi_sas_reset_init_all_devices(hisi_hba);
 	scsi_unblock_requests(shost);
+	pr_err("%s5 clearing HISI_SAS_RESETTING_BIT\n", __func__);
 	clear_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags);
 	up(&hisi_hba->sem);
 
+	pr_err("%s6 calling hisi_sas_rescan_topology\n", __func__);
 	hisi_sas_rescan_topology(hisi_hba, hisi_hba->phy_state);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_controller_reset_done);
 
 static int hisi_sas_controller_prereset(struct hisi_hba *hisi_hba)
 {
+	pr_err("%s hisi_hba->hw->soft_reset=%pS\n", __func__, hisi_hba->hw->soft_reset);
 	if (!hisi_hba->hw->soft_reset)
 		return -1;
 
@@ -1519,6 +1524,7 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	hisi_sas_controller_reset_prepare(hisi_hba);
 
 	rc = hisi_hba->hw->soft_reset(hisi_hba);
+	pr_err("%s2 clearing HISI_SAS_FAKE_HW_FAULT_BIT\n", __func__);
 	clear_bit(HISI_SAS_FAKE_HW_FAULT_BIT, &hisi_hba->flags);
 	if (rc) {
 		dev_warn(dev, "controller reset failed (%d)\n", rc);
@@ -1528,6 +1534,7 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 		clear_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags);
 		return rc;
 	}
+	pr_err("%s7 clearing HISI_SAS_HW_FAULT_BIT\n", __func__);
 	clear_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags);
 
 	hisi_sas_controller_reset_done(hisi_hba);
@@ -1662,6 +1669,7 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
 	int rc, reset_type;
 
+	pr_err("%s device=%pS\n", __func__, device);
 	if (!local_phy->enabled) {
 		sas_put_local_phy(local_phy);
 		return -ENODEV;
@@ -1707,8 +1715,10 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 
 	/* Remote phy */
 	if (dev_is_sata(device)) {
+		pr_err("%s4 device=%pS calling sas_ata_wait_after_reset\n", __func__, device);
 		rc = sas_ata_wait_after_reset(device,
 					HISI_SAS_WAIT_PHYUP_TIMEOUT);
+		pr_err("%s5 device=%pS finished sas_ata_wait_after_reset rc=%d\n", __func__, device, rc);
 	} else {
 		msleep(2000);
 	}
@@ -1722,7 +1732,7 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = hisi_hba->dev;
 	int rc;
-
+	pr_err("%s device=%pS\n", __func__, device);
 	rc = hisi_sas_internal_task_abort_dev(sas_dev, false);
 	if (rc < 0) {
 		dev_err(dev, "I_T nexus reset: internal abort (%d)\n", rc);
@@ -1819,8 +1829,12 @@ static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 	ASYNC_DOMAIN_EXCLUSIVE(async);
 	int i;
 
+	pr_err("%s\n", __func__);
+
 	queue_work(hisi_hba->wq, &r.work);
+	pr_err("%s2 waiting for completion\n", __func__);
 	wait_for_completion(r.completion);
+	pr_err("%s3 got completion r.done=%d\n", __func__, r.done);
 	if (!r.done)
 		return TMF_RESP_FUNC_FAILED;
 
@@ -1832,11 +1846,13 @@ static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 		    dev_is_expander(device->dev_type))
 			continue;
 
+		pr_err("%s4 calling hisi_sas_async_I_T_nexus_reset for device=%pS\n", __func__, device);
 		async_schedule_domain(hisi_sas_async_I_T_nexus_reset,
 				      device, &async);
 	}
 
 	async_synchronize_full_domain(&async);
+	pr_err("%s5 finished async\n", __func__);
 	hisi_sas_release_tasks(hisi_hba);
 
 	return TMF_RESP_FUNC_COMPLETE;

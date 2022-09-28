@@ -203,9 +203,11 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 		phy->phy_state = PHY_VACANT;
 		break;
 	default:
+		pr_err("%s phy%d PHY_NOT_PRESENT\n", __func__, phy_id);
 		phy->phy_state = PHY_NOT_PRESENT;
 		break;
 	case SMP_RESP_FUNC_ACC:
+		pr_err("%s2 phy%d PHY_EMPTY\n", __func__, phy_id);
 		phy->phy_state = PHY_EMPTY; /* do not know yet */
 		break;
 	}
