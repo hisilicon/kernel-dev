@@ -1988,16 +1988,19 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
 	res = sas_get_phy_attached_dev(dev, phy_id, sas_addr, &type);
 	switch (res) {
 	case SMP_RESP_NO_PHY:
+		pr_err("%s phy%d dev=%pS SMP_RESP_NO_PHY\n", __func__, phy_id, dev);
 		phy->phy_state = PHY_NOT_PRESENT;
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
 		return res;
 	case SMP_RESP_PHY_VACANT:
+		pr_err("%s2 phy%d dev=%pS SMP_RESP_PHY_VACANT\n", __func__, phy_id, dev);
 		phy->phy_state = PHY_VACANT;
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
 		return res;
 	case SMP_RESP_FUNC_ACC:
 		break;
 	case -ECOMM:
+		pr_err("%s3 phy%d dev=%pS ECOMM\n", __func__, phy_id, dev);
 		break;
 	default:
 		return res;
@@ -2005,6 +2008,7 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
 
 	if ((SAS_ADDR(sas_addr) == 0) || (res == -ECOMM)) {
 		phy->phy_state = PHY_EMPTY;
+		pr_err("%s4 phy%d dev=%pS ECOMM or sas_addr==0\n", __func__, phy_id, dev);
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
 		/*
 		 * Even though the PHY is empty, for convenience we discover

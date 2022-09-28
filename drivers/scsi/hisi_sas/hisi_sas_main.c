@@ -798,8 +798,10 @@ static int hisi_sas_dev_found(struct domain_device *device)
 		for (phy_no = 0; phy_no < phy_num; phy_no++) {
 			phy = &parent_dev->ex_dev.ex_phy[phy_no];
 			if (SAS_ADDR(phy->attached_sas_addr) ==
-				SAS_ADDR(device->sas_addr))
+				SAS_ADDR(device->sas_addr)) {
+				pr_err("%s device=%pS phy%d\n", __func__, device, phy_no);
 				break;
+			}
 		}
 
 		if (phy_no == phy_num) {
