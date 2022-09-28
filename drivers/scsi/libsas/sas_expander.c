@@ -1981,8 +1981,8 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
 	if (!last)
 		sprintf(msg, ", part of a wide port with phy%02d", sibling);
 
-	pr_err("ex %016llx rediscovering phy%02d%s\n",
-		 SAS_ADDR(dev->sas_addr), phy_id, msg);
+	pr_err("ex %016llx rediscovering phy%02d%s dev=%pS\n",
+		 SAS_ADDR(dev->sas_addr), phy_id, msg, dev);
 
 	memset(sas_addr, 0, SAS_ADDR_SIZE);
 	res = sas_get_phy_attached_dev(dev, phy_id, sas_addr, &type);
@@ -1998,9 +1998,10 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
 		return res;
 	case SMP_RESP_FUNC_ACC:
+		pr_err("%s3 phy%d dev=%pS SMP_RESP_FUNC_ACC\n", __func__, phy_id, dev);
 		break;
 	case -ECOMM:
-		pr_err("%s3 phy%d dev=%pS ECOMM\n", __func__, phy_id, dev);
+		pr_err("%s4 phy%d dev=%pS ECOMM\n", __func__, phy_id, dev);
 		break;
 	default:
 		return res;
@@ -2008,7 +2009,7 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
 
 	if ((SAS_ADDR(sas_addr) == 0) || (res == -ECOMM)) {
 		phy->phy_state = PHY_EMPTY;
-		pr_err("%s4 phy%d dev=%pS ECOMM or sas_addr==0\n", __func__, phy_id, dev);
+		pr_err("%s5 phy%d dev=%pS res=%d ECOMM=%d or sas_addr=%016llx\n", __func__, phy_id, dev, res, -ECOMM, SAS_ADDR(sas_addr));
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
 		/*
 		 * Even though the PHY is empty, for convenience we discover
