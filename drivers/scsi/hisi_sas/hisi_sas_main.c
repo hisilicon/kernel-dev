@@ -814,8 +814,8 @@ static int hisi_sas_dev_found(struct domain_device *device)
 		}
 	}
 
-	dev_info(dev, "dev[%d:%x] found\n",
-		sas_dev->device_id, sas_dev->dev_type);
+	dev_info(dev, "dev[%d:%x] found sata=%d\n",
+		sas_dev->device_id, sas_dev->dev_type, dev_is_sata(device));
 
 	return 0;
 
@@ -1127,8 +1127,8 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	struct device *dev = hisi_hba->dev;
 	int ret = 0;
 
-	dev_info(dev, "dev[%d:%x] is gone\n",
-		 sas_dev->device_id, sas_dev->dev_type);
+	dev_info(dev, "dev[%d:%x] is gone is sata=%d\n",
+		 sas_dev->device_id, sas_dev->dev_type, dev_is_sata(device));
 
 	down(&hisi_hba->sem);
 	if (!test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags)) {
