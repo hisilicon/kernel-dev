@@ -1054,9 +1054,9 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	struct sas_task *task;
 	struct sas_internal *i =
 		to_sas_internal(device->port->ha->core.shost->transportt);
-	struct sas_ha_struct *ha = device->port->ha;
 	int res, retry;
-
+	struct request *rq;
+	struct sas_ha_struct *ha = device->port->ha;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		task = sas_alloc_slow_task(ha, GFP_KERNEL, device->tproto);
@@ -1065,6 +1065,8 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 
 		task->dev = device;
 		task->task_proto = device->tproto;
+
+		rq = scsi_cmd_to_rq(task->uldd_task);
 
 		if (dev_is_sata(device)) {
 			task->ata_task.device_control_reg_update = 1;
@@ -1077,20 +1079,15 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 			memcpy(&task->ssp_task, parameter, para_len);
 		}
 
-		task->task_done = sas_task_internal_done;
+		task->task_done = sas_task_complete_internal;
 		task->tmf = tmf;
 
 		task->slow_task->timer.function = sas_task_internal_timedout;
 		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
 		add_timer(&task->slow_task->timer);
 
-		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-		if (res) {
-			del_timer_sync(&task->slow_task->timer);
-			pr_err("executing TMF task failed %016llx (%d)\n",
-			       SAS_ADDR(device->sas_addr), res);
-			break;
-		}
+		rq->end_io = sas_blk_end_sync_rq;
+		blk_execute_rq_nowait(rq, true);
 
 		wait_for_completion(&task->slow_task->completion);
 
