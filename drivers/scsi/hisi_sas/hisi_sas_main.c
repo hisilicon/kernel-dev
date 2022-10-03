@@ -525,6 +525,9 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 			unsigned int dq_index;
 			u32 blk_tag;
 
+			if (blk_mq_is_reserved_rq(rq))
+				pr_err("%s rq=%pS\n", __func__, rq);
+
 			blk_tag = blk_mq_unique_tag(rq);
 			dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
 			dq = &hisi_hba->dq[dq_index];
