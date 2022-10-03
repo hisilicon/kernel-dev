@@ -72,6 +72,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 
 	task->uldd_task = scmd;
 	ASSIGN_SAS_TASK(scmd, task);
+	pr_err("%s scmd=%pS task=%pS rq=%pS\n", __func__, scmd, task, rq);
 
 	return task;
 }
@@ -86,8 +87,10 @@ void sas_free_task(struct sas_task *task)
 		if (scmd) {
 			struct request *rq = scsi_cmd_to_rq(scmd);
 
-			if (blk_mq_is_reserved_rq(rq))
+			if (blk_mq_is_reserved_rq(rq)) {
+				pr_err("%s scmd=%pS task=%pS rq=%pS\n", __func__, scmd, task, rq);
 				blk_mq_free_request(rq);
+			}
 		}
 	}
 }
