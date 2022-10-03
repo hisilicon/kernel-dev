@@ -954,6 +954,7 @@ void sas_blk_end_sync_rq(struct request *rq, blk_status_t error)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	struct sas_task *task = TO_SAS_TASK(scmd);
+	pr_err("%s rq=%pS task=%pS scmd=%pS\n", __func__, rq, task, scmd);
 	complete(&task->slow_task->completion);
 }
 
