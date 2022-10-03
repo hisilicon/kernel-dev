@@ -87,7 +87,7 @@ void sas_free_task(struct sas_task *task)
 			struct scsi_cmnd *scmd = task->uldd_task;
 			struct request *rq = scsi_cmd_to_rq(scmd);
 
-			pr_err("%s scmd=%pS task=%pS rq=%pS\n", __func__, scmd, task, rq);
+			pr_err("%s slow_task scmd=%pS task=%pS rq=%pS\n", __func__, scmd, task, rq);
 			BUG_ON(!blk_mq_is_reserved_rq(rq));
 			blk_mq_free_request(rq);
 		}

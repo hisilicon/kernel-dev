@@ -1425,7 +1425,7 @@ static void scsi_complete(struct request *rq)
 
 	if (scsi_is_reserved_cmd(cmd)) {
 		struct scsi_device *sdev = cmd->device;
-
+		pr_err("%s rq=%pS scmd=%pS\n", __func__, rq, cmd);
 		scsi_mq_uninit_cmd(cmd);
 		scsi_device_unbusy(sdev, cmd);
 		__blk_mq_end_request(rq, 0);

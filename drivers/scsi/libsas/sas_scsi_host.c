@@ -911,6 +911,9 @@ EXPORT_SYMBOL_GPL(sas_bios_param);
 
 void sas_task_internal_done(struct sas_task *task)
 {
+	struct scsi_cmnd *scmd = task->uldd_task;
+	struct request *rq = scsi_cmd_to_rq(scmd);
+	pr_err("%s rq=%pS task=%pS scmd=%pS\n", __func__, rq, task, scmd);
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 }
@@ -918,6 +921,8 @@ void sas_task_internal_done(struct sas_task *task)
 void sas_task_complete_internal(struct sas_task *task)
 {
 	struct scsi_cmnd *scmd = task->uldd_task;
+	struct request *rq = scsi_cmd_to_rq(scmd);
+	pr_err("%s rq=%pS task=%pS scmd=%pS\n", __func__, rq, task, scmd);
 
 	del_timer(&task->slow_task->timer);
 
