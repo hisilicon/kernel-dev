@@ -12,6 +12,7 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_sas.h>
+#include <scsi/sas.h>
 #include <scsi/libsas.h>
 #include <scsi/sas_ata.h>
 #include <linux/pm_runtime.h>
@@ -53,7 +54,7 @@ struct asd_sas_event *sas_alloc_event(struct asd_sas_phy *phy, gfp_t gfp_flags);
 void sas_free_event(struct asd_sas_event *event);
 
 struct sas_task *sas_alloc_task(gfp_t flags);
-struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags);
+struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags, enum sas_protocol tproto);
 void sas_free_task(struct sas_task *task);
 
 int  sas_register_ports(struct sas_ha_struct *sas_ha);

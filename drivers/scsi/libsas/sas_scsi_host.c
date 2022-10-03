@@ -946,7 +946,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		task = sas_alloc_slow_task(ha, GFP_KERNEL);
+		task = sas_alloc_slow_task(ha, GFP_KERNEL, SAS_PROTOCOL_INTERNAL_ABORT);
 		if (!task)
 			return -ENOMEM;
 
@@ -1037,7 +1037,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		task = sas_alloc_slow_task(ha, GFP_KERNEL);
+		task = sas_alloc_slow_task(ha, GFP_KERNEL, device->tproto);
 		if (!task)
 			return -ENOMEM;
 
