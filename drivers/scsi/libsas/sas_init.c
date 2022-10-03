@@ -80,17 +80,14 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 void sas_free_task(struct sas_task *task)
 {
 	if (task) {
-		struct scsi_cmnd *scmd = task->uldd_task;
+		struct request *rq = sas_task_find_rq(task);
 		kfree(task->slow_task);
 		kmem_cache_free(sas_task_cache, task);
 
-		if (scmd) {
-			struct request *rq = scsi_cmd_to_rq(scmd);
-
-			if (blk_mq_is_reserved_rq(rq)) {
-				pr_err("%s scmd=%pS task=%pS rq=%pS\n", __func__, scmd, task, rq);
-				blk_mq_free_request(rq);
-			}
+		if (rq && blk_mq_is_reserved_rq(rq)) {
+			struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+			pr_err("%s scmd=%pS task=%pS rq=%pS\n", __func__, scmd, task, rq);
+			blk_mq_free_request(rq);
 		}
 	}
 }
