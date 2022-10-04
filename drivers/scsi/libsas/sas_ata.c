@@ -82,6 +82,10 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct ata_link *link;
 	struct ata_port *ap;
 
+	if (qc && !qc->scsicmd) {
+		pr_err("%s qc=%pS scsicmd=NULL\n", __func__, qc);
+	}
+
 	spin_lock_irqsave(&dev->done_lock, flags);
 	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))
 		task = NULL;
@@ -90,11 +94,15 @@ static void sas_ata_task_done(struct sas_task *task)
 	spin_unlock_irqrestore(&dev->done_lock, flags);
 
 	/* check if libsas-eh got to the task before us */
-	if (unlikely(!task))
+	if (unlikely(!task)){
+		pr_err("%s2 task = NULL\n", __func__);
 		return;
+	}
 
-	if (!qc)
+	if (!qc){
+		pr_err("%s3 qc_already_gone\n", __func__);
 		goto qc_already_gone;
+	}
 
 	ap = qc->ap;
 	link = &ap->link;
@@ -110,6 +118,7 @@ static void sas_ata_task_done(struct sas_task *task)
 			 * ata internal abort process has taken responsibility
 			 * for this sas_task
 			 */
+			pr_err("%s5 qc=%pS task=%pS\n", __func__, qc, task);
 			return;
 		}
 	}
@@ -124,8 +133,11 @@ static void sas_ata_task_done(struct sas_task *task)
 			qc->err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
 		} else {
 			link->eh_info.err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
-			if (unlikely(link->eh_info.err_mask))
+			if (unlikely(link->eh_info.err_mask)) {
+				pr_err("%s qc=%pS task=%pS setting ATA_QCFLAG_FAILED stat->stat=0x%x link->sactive=%d link->eh_info.err_mask=0x%x\n", 
+					__func__, qc, task, stat->stat, link->sactive, link->eh_info.err_mask);
 				qc->flags |= ATA_QCFLAG_FAILED;
+			}
 		}
 	} else {
 		ac = sas_to_ata_err(stat);
@@ -137,6 +149,7 @@ static void sas_ata_task_done(struct sas_task *task)
 			} else {
 				link->eh_info.err_mask |= AC_ERR_DEV;
 				qc->flags |= ATA_QCFLAG_FAILED;
+				pr_err("%s2 qc=%pS task=%pS setting ATA_QCFLAG_FAILED stat->stat=0x%x link->sactive=%d\n", __func__, qc, task, stat->stat, link->sactive);
 			}
 
 			dev->sata_dev.fis[3] = 0x04; /* status err */
@@ -229,7 +242,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 static bool sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	struct domain_device *dev = qc->ap->private_data;
-
+	pr_err("%s calling ata_tf_from_fis = %pS\n", __func__, &dev->sata_dev.fis);
 	ata_tf_from_fis(dev->sata_dev.fis, &qc->result_tf);
 	return true;
 }
@@ -598,7 +611,7 @@ void sas_ata_task_abort(struct sas_task *task)
 {
 	struct ata_queued_cmd *qc = task->uldd_task;
 	struct completion *waiting;
-
+	pr_err("%s task=%pS\n", __func__, task);
 	/* Bounce SCSI-initiated commands to the SCSI EH */
 	if (qc->scsicmd) {
 		blk_abort_request(scsi_cmd_to_rq(qc->scsicmd));
@@ -622,6 +635,7 @@ static int sas_get_ata_command_set(struct domain_device *dev)
 	if (dev->dev_type == SAS_SATA_PENDING)
 		return ATA_DEV_UNKNOWN;
 
+	pr_err("%s calling ata_tf_from_fis = %pS\n", __func__, &dev->sata_dev.fis);
 	ata_tf_from_fis((const u8 *)fis, &tf);
 
 	return ata_dev_classify(&tf);
