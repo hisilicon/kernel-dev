@@ -165,11 +165,13 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct request *rq = scsi_cmd_to_rq(cmnd);
 	struct domain_device *dev = cmd_to_domain_dev(cmnd);
 
+	pr_err("%s dev=%pS cmnd=%pS cmnd->device=%pS\n", __func__, dev, cmnd, cmnd->device);
+
 	if (dev_is_sata(dev)) {
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
 		struct ata_port *ap = qc->ap;
 		int res;
-		pr_err("%s qc=%pS ap=%pS cmnd=%pS\n", __func__, qc, ap, cmnd);
+		pr_err("%s2 qc=%pS ap=%pS cmnd=%pS\n", __func__, qc, ap, cmnd);
 		spin_lock_irq(ap->lock);
 		res = ata_sas_queuecmd(cmnd, ap);
 		spin_unlock_irq(ap->lock);
