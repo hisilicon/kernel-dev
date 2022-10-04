@@ -2557,6 +2557,7 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 
 	/* Check if this is NCQ error */
 	if (event == IO_XFER_ERROR_ABORTED_NCQ_MODE) {
+		pr_err("%s event=IO_XFER_ERROR_ABORTED_NCQ_MODE tag=%d\n", __func__, tag);
 		/* find device using device id */
 		pm8001_dev = pm8001_find_dev(pm8001_ha, dev_id);
 		if (pm8001_dev)

@@ -282,7 +282,7 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 		to_sas_internal(task->dev->port->ha->core.shost->transportt);
 
 	for (i = 0; i < 5; i++) {
-		pr_notice("%s: aborting task 0x%p\n", __func__, task);
+		pr_notice("%s: aborting task %pS\n", __func__, task);
 		res = si->dft->lldd_abort_task(task);
 
 		spin_lock_irqsave(&task->task_state_lock, flags);
@@ -599,22 +599,22 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 			goto reset;
 		}
 
-		pr_err("trying to find task 0x%p\n", task);
+		pr_err("trying to find task %pS\n", task);
 		res = sas_scsi_find_task(task);
 
 		switch (res) {
 		case TASK_IS_DONE:
-			pr_notice("%s: task 0x%p is done\n", __func__,
+			pr_notice("%s: task %pS is done\n", __func__,
 				    task);
 			sas_eh_finish_cmd(cmd);
 			continue;
 		case TASK_IS_ABORTED:
-			pr_notice("%s: task 0x%p is aborted\n",
+			pr_notice("%s: task %pS is aborted\n",
 				  __func__, task);
 			sas_eh_finish_cmd(cmd);
 			continue;
 		case TASK_IS_AT_LU:
-			pr_info("task 0x%p is at LU: lu recover\n", task);
+			pr_info("task %pS is at LU: lu recover\n", task);
  reset:
 			tmf_resp = sas_recover_lu(task->dev, cmd);
 			if (tmf_resp == TMF_RESP_FUNC_COMPLETE) {
@@ -628,7 +628,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 			fallthrough;
 		case TASK_IS_NOT_AT_LU:
 		case TASK_ABORT_FAILED:
-			pr_notice("task 0x%p is not at LU: I_T recover\n",
+			pr_notice("task %pS is not at LU: I_T recover\n",
 				  task);
 			tmf_resp = sas_recover_I_T(task->dev);
 			if (tmf_resp == TMF_RESP_FUNC_COMPLETE ||
