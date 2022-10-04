@@ -1419,26 +1419,36 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 	struct ata_taskfile tf;
 	int tag, rc;
 
+	pr_err("%s link=%pS\n", __func__, link);
+
 	/* if frozen, we can't do much */
 	if (ap->pflags & ATA_PFLAG_FROZEN)
 		return;
 
+	pr_err("%s2 link=%pS\n", __func__, link);
 	/* is it NCQ device error? */
 	if (!link->sactive || !(ehc->i.err_mask & AC_ERR_DEV))
 		return;
 
+	pr_err("%s3 link=%pS\n", __func__, link);
 	/* has LLDD analyzed already? */
 	ata_qc_for_each_raw(ap, qc, tag) {
-		if (!(qc->flags & ATA_QCFLAG_FAILED))
+		if (!(qc->flags & ATA_QCFLAG_FAILED)) {
+			pr_err("%s3.1 link=%pS !ATA_QCFLAG_FAILED qc=%pS flags=0x%lx ATA_QCFLAG_FAILED=%d\n", __func__, link, qc, qc->flags, !!(qc->flags & ATA_QCFLAG_FAILED));
 			continue;
+		}
 
-		if (qc->err_mask)
+		if (qc->err_mask) {
+			pr_err("%s3.3 link=%pS qc=%pS err_mask=x0%x\n", __func__, link, qc, qc->err_mask);
 			return;
+		}
 	}
 
 	/* okay, this error is ours */
 	memset(&tf, 0, sizeof(tf));
+	pr_err("%s4.0 link=%pS\n", __func__, link);
 	rc = ata_eh_read_log_10h(dev, &tag, &tf);
+	pr_err("%s4.1 link=%pS tag=%d\n", __func__, link, tag);
 	if (rc) {
 		ata_link_err(link, "failed to read log page 10h (errno=%d)\n",
 			     rc);
@@ -1451,6 +1461,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 		return;
 	}
 
+	pr_err("%s5 link=%pS\n", __func__, link);
 	/* we've got the perpetrator, condemn it */
 	qc = __ata_qc_from_tag(ap, tag);
 	memcpy(&qc->result_tf, &tf, sizeof(tf));
