@@ -1525,6 +1525,19 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	req->rq_flags |= RQF_QUIET;
 	scmd->device = sdev;
 	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
+	pr_err("%s qc=%pS ap=%pS req=%pS scmd=%pS\n", __func__, qc, ap, req, scmd);
+
+	/* Do this until we can hold ata_queued_cmd in the SCMD priv data */
+	scmd->host_scribble = (unsigned char *)qc;
+
+	if (buflen) {
+		int ret = blk_rq_map_kern(sdev->request_queue, req,
+					  buf, buflen, GFP_NOIO);
+		if (ret) {
+			blk_mq_free_request(req);
+			return AC_ERR_OTHER;
+		}
+	}
 
 	/* Do this until we can hold ata_queued_cmd in the SCMD priv data */
 	scmd->host_scribble = (unsigned char *)qc;
