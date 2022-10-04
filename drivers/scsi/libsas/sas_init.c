@@ -36,7 +36,7 @@ struct sas_task *sas_alloc_task(gfp_t flags)
 	return task;
 }
 
-struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags, enum   sas_protocol task_proto)
+struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags, unsigned int qid, enum sas_protocol task_proto)
 {
 	struct Scsi_Host *shost = sas_ha->core.shost;
 	struct request *rq;
@@ -47,9 +47,14 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags, 
 
 	sdev = shost->sdev;
 
-	rq = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN,
-				BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
-
+	if (qid == -1U) {
+		rq = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN,
+					BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
+	} else {
+		rq = scsi_alloc_request_hwq(sdev->request_queue, REQ_OP_DRV_IN,
+					BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT,
+					qid);
+	}
 	if (IS_ERR(rq))
 		return NULL;
 
