@@ -4693,15 +4693,17 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 	if (ap->ops->error_handler) {
 		struct ata_device *dev = qc->dev;
 		struct ata_eh_info *ehi = &dev->link->eh_info;
-
-		if (unlikely(qc->err_mask))
+		if (unlikely(qc->err_mask)) {
+			pr_err("%s qc=%pS err_mask=0x%x setting ATA_QCFLAG_FAILED (was %d)\n", __func__, qc, qc->err_mask, !!(qc->err_mask & ATA_QCFLAG_FAILED));
 			qc->flags |= ATA_QCFLAG_FAILED;
+		}
 
 		/*
 		 * Finish internal commands without any further processing
 		 * and always with the result TF filled.
 		 */
 		if (unlikely(ata_tag_internal(qc->tag))) {
+			pr_err("%s2 qc=%pS calling fill_result_tf\n", __func__, qc);
 			fill_result_tf(qc);
 			trace_ata_qc_complete_internal(qc);
 			__ata_qc_complete(qc);

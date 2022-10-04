@@ -1566,11 +1566,11 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 	unsigned int tmp, action = 0;
 	u8 stat = tf->status, err = tf->error;
 
-	pr_err("%s qc=%pS tag=%d stat=0x%x err=0x%x\n", __func__, qc, qc->tag, stat, err);
+	pr_err("%s qc=%pS tag=%d stat=0x%x err=0x%x tf=%pS\n", __func__, qc, qc->tag, stat, err, tf);
 
 	if ((stat & (ATA_BUSY | ATA_DRQ | ATA_DRDY)) != ATA_DRDY) {
 		qc->err_mask |= AC_ERR_HSM;
-		pr_err("%s2 qc=%pS tag=%d stat=0x%x err=0x%x AC_ERR_HSM and returning ATA_EH_RESET\n", __func__, qc, qc->tag, stat, err);
+		pr_err("%s2 qc=%pS tag=%d stat=0x%x err=0x%x setting AC_ERR_HSM and returning ATA_EH_RESET\n", __func__, qc, qc->tag, stat, err);
 
 		return ATA_EH_RESET;
 	}

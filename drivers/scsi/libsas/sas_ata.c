@@ -242,7 +242,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 static bool sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	struct domain_device *dev = qc->ap->private_data;
-	pr_err("%s calling ata_tf_from_fis = %pS\n", __func__, &dev->sata_dev.fis);
+	pr_err("%s calling ata_tf_from_fis = %pS [2]=0x%x [3]=0x%x &qc->result_tf=%pS\n", 
+		__func__, &dev->sata_dev.fis, dev->sata_dev.fis[2], dev->sata_dev.fis[3], &qc->result_tf);
 	ata_tf_from_fis(dev->sata_dev.fis, &qc->result_tf);
 	return true;
 }
