@@ -164,8 +164,13 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
 	struct request *rq = scsi_cmd_to_rq(cmnd);
 	struct domain_device *dev = cmd_to_domain_dev(cmnd);
+	struct scsi_device *sdev = cmnd->device;
+	struct scsi_target *starget = NULL;
 
-	pr_err("%s dev=%pS cmnd=%pS cmnd->device=%pS\n", __func__, dev, cmnd, cmnd->device);
+	if (sdev)
+		starget = sdev->sdev_target;
+
+	pr_err("%s dev=%pS cmnd=%pS sdev=%pS starget=%pS\n", __func__, dev, cmnd, sdev, starget);
 
 	if (dev_is_sata(dev)) {
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;

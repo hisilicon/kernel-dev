@@ -46,6 +46,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags, 
 	struct scsi_device *sdev;
 
 	sdev = shost->sdev;
+	pr_err("%s shost=%pS sdev=%pS\n", __func__, shost, shost->sdev);
 
 	if (qid == -1U) {
 		rq = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN,
