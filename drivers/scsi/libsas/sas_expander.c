@@ -40,7 +40,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		to_sas_internal(dev->port->ha->core.shost->transportt);
 	struct sas_ha_struct *ha = dev->port->ha;
 
-	pr_err("%s\n", __func__);
+	//pr_err("%s\n", __func__);
 	pm_runtime_get_sync(ha->dev);
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
@@ -63,7 +63,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		task->smp_task.smp_req = *req;
 		task->smp_task.smp_resp = *resp;
 		task->task_done = sas_task_complete_internal;
-		pr_err("%s1 rq=%pS task=%pS retry=%d\n", __func__, rq, task, retry);
+		//pr_err("%s1 rq=%pS task=%pS retry=%d\n", __func__, rq, task, retry);
 
 		task->slow_task->timer.function = sas_task_internal_timedout;
 		task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
@@ -71,10 +71,10 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 		rq->end_io = sas_blk_end_sync_rq;
 		blk_execute_rq_nowait(rq, true);
-		pr_err("%s2 rq=%pS task=%pS sent rq, waiting for completion retry=%d\n", __func__, rq, task, retry);
+		//pr_err("%s2 rq=%pS task=%pS sent rq, waiting for completion retry=%d\n", __func__, rq, task, retry);
 
 		wait_for_completion(&task->slow_task->completion);
-		pr_err("%s3 rq=%pS task=%pS got completion retry=%d\n", __func__, rq, task, retry);
+		//pr_err("%s3 rq=%pS task=%pS got completion retry=%d\n", __func__, rq, task, retry);
 		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			pr_notice("smp task timed out or aborted\n");

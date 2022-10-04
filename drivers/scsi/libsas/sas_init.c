@@ -77,7 +77,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags, 
 
 	task->uldd_task = scmd;
 	ASSIGN_SAS_TASK(scmd, task);
-	pr_err("%s scmd=%pS task=%pS rq=%pS task_proto=0x%x\n", __func__, scmd, task, rq, task_proto);
+	//pr_err("%s scmd=%pS task=%pS rq=%pS task_proto=0x%x\n", __func__, scmd, task, rq, task_proto);
 
 	return task;
 }
