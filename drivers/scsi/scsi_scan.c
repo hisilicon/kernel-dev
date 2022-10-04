@@ -1988,6 +1988,32 @@ void scsi_forget_host(struct Scsi_Host *shost)
 	spin_unlock_irqrestore(shost->host_lock, flags);
 }
 
+struct scsi_device *scsi_get_dev(struct device *parent, int channel, uint id, u64 lun)
+{
+       struct Scsi_Host *shost = dev_to_shost(parent);
+       struct scsi_device *sdev = NULL;
+       struct scsi_target *starget;
+
+       mutex_lock(&shost->scan_mutex);
+       if (!scsi_host_scan_allowed(shost))
+               goto out;
+
+       starget = scsi_alloc_target(parent, 0, id);
+       if (!starget)
+               goto out;
+
+       sdev = scsi_alloc_sdev(starget, 0, NULL);
+       if (sdev)
+               sdev->borken = 0;
+       else
+               scsi_target_reap(starget);
+       put_device(&starget->dev);
+ out:
+       mutex_unlock(&shost->scan_mutex);
+       return sdev;
+}
+EXPORT_SYMBOL(scsi_get_dev);
+
 /**
  * scsi_get_host_dev - Create a scsi_device that points to the host adapter itself
  * @shost: Host that needs a scsi_device
@@ -2007,25 +2033,7 @@ void scsi_forget_host(struct Scsi_Host *shost)
  */
 struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
 {
-	struct scsi_device *sdev = NULL;
-	struct scsi_target *starget;
-
-	mutex_lock(&shost->scan_mutex);
-	if (!scsi_host_scan_allowed(shost))
-		goto out;
-	starget = scsi_alloc_target(&shost->shost_gendev, 0, shost->this_id);
-	if (!starget)
-		goto out;
-
-	sdev = scsi_alloc_sdev(starget, 0, NULL);
-	if (sdev)
-		sdev->borken = 0;
-	else
-		scsi_target_reap(starget);
-	put_device(&starget->dev);
- out:
-	mutex_unlock(&shost->scan_mutex);
-	return sdev;
+	return scsi_get_dev(&shost->shost_gendev, 0, shost->this_id, 0);
 }
 EXPORT_SYMBOL(scsi_get_host_dev);
 

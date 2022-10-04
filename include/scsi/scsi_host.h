@@ -823,6 +823,9 @@ struct class_container;
  * thing.  This physical pseudo-device isn't real and won't be available
  * from any high-level drivers.
  */
+
+extern struct scsi_device *scsi_get_dev(struct device *parent, int channel, uint id, u64 lun);
+
 extern void scsi_free_host_dev(struct scsi_device *);
 extern struct scsi_device *scsi_get_host_dev(struct Scsi_Host *);
 
