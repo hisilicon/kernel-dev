@@ -881,6 +881,10 @@ void sas_ata_device_link_abort(struct domain_device *device, bool force_reset)
 	struct ata_port *ap = device->sata_dev.ap;
 	struct ata_link *link = &ap->link;
 	pr_err("%s device=%pS ap=%pS link=%pS\n", __func__, device, ap, link);
+
+	device->sata_dev.fis[3] = 0x04; /* status err */
+	device->sata_dev.fis[2] = ATA_ERR;
+
 	link->eh_info.err_mask |= AC_ERR_DEV;
 	if (force_reset)
 		link->eh_info.action |= ATA_EH_RESET;
