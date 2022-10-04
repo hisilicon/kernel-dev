@@ -987,17 +987,22 @@ static int ata_do_link_abort(struct ata_port *ap, struct ata_link *link)
 
 	WARN_ON(!ap->ops->error_handler);
 
+	pr_err("%s ap=%pS link=%pS\n", __func__, ap, link);
+
 	/* we're gonna abort all commands, no need for fast drain */
 	ata_eh_set_pending(ap, 0);
 
 	/* include internal tag in iteration */
 	ata_qc_for_each_with_internal(ap, qc, tag) {
 		if (qc && (!link || qc->dev->link == link)) {
+			pr_err("%s1 ap=%pS link=%pS qc=%pS qc->flags=0x%lx ATA_QCFLAG_FAILED=%d\n", __func__, ap, link, qc, qc->flags, !!(qc->flags & ATA_QCFLAG_FAILED));
 			qc->flags |= ATA_QCFLAG_FAILED;
 			ata_qc_complete(qc);
 			nr_aborted++;
 		}
 	}
+
+	pr_err("%s8 ap=%pS link=%pS nr_aborted=%d, if unset the call ata_port_schedule_eh\n", __func__, ap, link, nr_aborted);
 
 	if (!nr_aborted)
 		ata_port_schedule_eh(ap);
@@ -1513,6 +1518,7 @@ static void ata_eh_analyze_serror(struct ata_link *link)
 	}
 	if (serror & SERR_PROTOCOL) {
 		err_mask |= AC_ERR_HSM;
+		pr_err("%s link=%pS setting AC_ERR_HSM\n", __func__, link);
 		action |= ATA_EH_RESET;
 	}
 	if (serror & SERR_INTERNAL) {
@@ -1622,6 +1628,7 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 			qc->flags |= ATA_QCFLAG_RETRY;
 			qc->err_mask |= AC_ERR_OTHER;
 		} else if (ret != SUCCESS) {
+			pr_err("%s4 setting AC_ERR_HSM qc=%pS\n", __func__, qc);
 			qc->err_mask |= AC_ERR_HSM;
 		}
 	}

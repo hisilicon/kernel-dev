@@ -2303,8 +2303,8 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 
 	if (status != IO_SUCCESS) {
 		pm8001_dbg(pm8001_ha, FAIL,
-			"IO failed device_id %u status 0x%x tag %d t=%pS\n",
-			pm8001_dev->device_id, status, tag, t);
+			"IO failed device_id %u status 0x%x tag %d\n",
+			pm8001_dev->device_id, status, tag);
 	}
 
 	/* Print sas address of IO failed device */
@@ -2391,7 +2391,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 			atomic_dec(&pm8001_dev->running_req);
 		break;
 	case IO_ABORTED:
-		pr_err("%s %d IO_ABORTED IOMB Tag=%d t=%pS\n", __func__, __LINE__, tag, t);
+		pr_err("%s IO_ABORTED IOMB Tag SAS_ABORTED_TASK t=%pS ccb=%pS\n", __func__, t, ccb);
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_ABORTED_TASK;
 		if (pm8001_dev)
@@ -2564,7 +2564,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 			atomic_dec(&pm8001_dev->running_req);
 		break;
 	case IO_XFER_ERROR_REJECTED_NCQ_MODE:
-		pr_err("%s IO_XFER_ERROR_REJECTED_NCQ_MODE t=%pS tag=%d\n", __func__, t, tag);
+		pr_err("%s IO_XFER_ERROR_REJECTED_NCQ_MODE t=%pS ccb=%pS SAS_DATA_UNDERRUN\n", __func__, t, ccb);
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_DATA_UNDERRUN;
 		if (pm8001_dev)
@@ -2690,9 +2690,7 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha,
 			ccb = &pm8001_ha->ccb_info[tag];
 			t = ccb->task;
 			pr_err("%s event=IO_XFER_ERROR_ABORTED_NCQ_MODE tag=%d t=%pS\n", __func__, tag, t);
-		}
-			
-		else
+		} else
 			pr_err("%s event=IO_XFER_ERROR_ABORTED_NCQ_MODE tag=%d\n", __func__, tag);
 		/* find device using device id */
 		pm8001_dev = pm8001_find_dev(pm8001_ha, dev_id);
@@ -2934,7 +2932,7 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		}
 		break;
 	case IO_ABORTED:
-		pr_err("%s IO_ABORTED IOMB t=%pS\n", __func__, t);
+		pm8001_dbg(pm8001_ha, IO, "IO_ABORTED IOMB\n");
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_ABORTED_TASK;
 		if (pm8001_dev)
