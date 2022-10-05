@@ -1494,7 +1494,6 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	struct request *req;
 	int rc;
 	WARN_ON_ONCE(!sdev);
-	spin_lock_irqsave(ap->lock, flags);
 
 	/*
 	 * We only support a single reserved command, so this guarantees
