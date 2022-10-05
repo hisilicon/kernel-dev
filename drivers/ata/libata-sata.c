@@ -1258,9 +1258,10 @@ int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap)
 {
 	int rc = 0;
 
-	if (likely(ata_dev_enabled(ap->link.device)))
+	if (likely(ata_dev_enabled(ap->link.device)) ||
+		scsi_is_reserved_cmd(cmd)) {
 		rc = __ata_scsi_queuecmd(cmd, ap->link.device);
-	else {
+	} else {
 		cmd->result = (DID_BAD_TARGET << 16);
 		scsi_done(cmd);
 	}
