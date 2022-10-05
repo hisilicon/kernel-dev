@@ -170,7 +170,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	if (sdev)
 		starget = sdev->sdev_target;
 
-	pr_err("%s dev=%pS cmnd=%pS sdev=%pS starget=%pS\n", __func__, dev, cmnd, sdev, starget);
+	pr_err("%s ddev=%pS cmnd=%pS sdev=%pS starget=%pS host_scribble=%pS\n", __func__, dev, cmnd, sdev, starget, cmnd->host_scribble);
 
 	if (dev_is_sata(dev)) {
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;

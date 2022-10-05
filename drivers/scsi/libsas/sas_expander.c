@@ -63,7 +63,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		task->smp_task.smp_req = *req;
 		task->smp_task.smp_resp = *resp;
 		task->task_done = sas_task_complete_internal;
-		//pr_err("%s1 rq=%pS task=%pS retry=%d\n", __func__, rq, task, retry);
+		pr_err("%s1 rq=%pS task=%pS retry=%d scmd=%pS\n", __func__, rq, task, retry, task->uldd_task);
 
 		task->slow_task->timer.function = sas_task_internal_timedout;
 		task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;

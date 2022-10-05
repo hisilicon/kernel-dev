@@ -424,14 +424,19 @@ int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	struct task_status_struct *ts = &task->task_status;
 	enum sas_protocol task_proto = task->task_proto;
 	struct domain_device *dev = task->dev;
-	struct pm8001_device *pm8001_dev = dev->lldd_dev;
 	bool internal_abort = sas_is_internal_abort(task);
+	struct pm8001_device *pm8001_dev;
 	struct pm8001_hba_info *pm8001_ha;
 	struct pm8001_port *port = NULL;
 	struct pm8001_ccb_info *ccb;
 	unsigned long flags;
 	u32 n_elem = 0;
 	int rc = 0;
+
+
+	if (!dev)
+		pr_err("%s task=%pS dev=NULL task->task_proto=0x%x\n", __func__, task, task->task_proto);
+	pm8001_dev = dev->lldd_dev;
 
 	if (!internal_abort && !dev->port) {
 		ts->resp = SAS_TASK_UNDELIVERED;
