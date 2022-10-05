@@ -3784,8 +3784,10 @@ void ata_eh_finish(struct ata_port *ap)
 
 	/* retry or finish qcs */
 	ata_qc_for_each_raw(ap, qc, tag) {
-		if (!qc)
+		if (!qc) {
+			pr_err_once("%s qc=NULL\n", __func__);
 			continue;
+		}
 		if (!(qc->flags & ATA_QCFLAG_FAILED))
 			continue;
 
