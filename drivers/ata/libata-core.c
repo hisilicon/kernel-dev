@@ -1485,7 +1485,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned long flags;
 	unsigned int err_mask;
 	int rc;
-
+	WARN_ON_ONCE(!dev->sdev);
 	spin_lock_irqsave(ap->lock, flags);
 
 	/* no internal command while frozen */
