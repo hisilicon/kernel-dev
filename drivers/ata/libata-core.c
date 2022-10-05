@@ -1503,8 +1503,10 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 			dma_dir == DMA_TO_DEVICE ?
 			REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
 			BLK_MQ_REQ_RESERVED);
-	if (IS_ERR(req))
+	if (IS_ERR(req)) {
+		pr_err("%s err1\n", __func__);
 		return AC_ERR_OTHER;
+	}
 
 
 	if (!timeout) {
@@ -1562,12 +1564,15 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	req->end_io_data = &wait;
 	req->end_io = ata_internal_end_rq;
 
+	pr_err("%s2 calling blk_execute_rq_nowait\n", __func__);
 	blk_execute_rq_nowait(req, true);
 
 	if (ap->ops->error_handler)
 		ata_eh_release(ap);
 
+	pr_err("%s3 calling wait_for_completion_timeout\n", __func__);
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
+	pr_err("%s4 got completion\n", __func__);
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
