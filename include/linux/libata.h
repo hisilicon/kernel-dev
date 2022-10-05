@@ -1771,7 +1771,7 @@ static bool blk_mq_check_inflight(struct request *rq, void *priv)
 
 	if (qc->tag == data->tag) {
 		*(data->qc) = qc;
-		pr_err("%s found tag=%d qc=%pS\n", __func__, data->tag, qc);
+		pr_err("%s found tag=%d qc=%pS scmd=%pS\n", __func__, data->tag, qc, scmd);
 		return false;
 	}
 	
@@ -1790,16 +1790,12 @@ static inline struct ata_queued_cmd *__ata_qc_from_tag(struct ata_port *ap,
 
 		ata_for_each_dev(dev, link, ALL) {
 			struct scsi_device *sdev = dev->sdev;
-			struct request_queue *q;
 			struct ata_queued_cmd *qc = NULL;
 			struct ata_special_data data = {
 				.tag = tag,
 				.qc = &qc,
 			};
 			pr_err("%s3 ap=%pS link=%pS dev=%pS sdev=%pS\n", __func__, ap, link, dev, sdev);
-			if (!sdev)
-				continue;
-			q = sdev->request_queue;
 			blk_mq_tagset_busy_iter(&shost->tag_set, blk_mq_check_inflight, &data);
 			pr_err("%s4 ap=%pS link=%pS dev=%pS sdev=%pS qc=%pS\n", __func__, ap, link, dev, sdev, qc);
 			if (qc)
@@ -1816,9 +1812,9 @@ static inline struct ata_queued_cmd *ata_qc_from_tag(struct ata_port *ap,
 						     unsigned int tag)
 {
 	struct ata_queued_cmd *qc;
-	pr_err("%s ap=%pS tag=%d fixme\n", __func__, ap, tag);
+	pr_err("%s ap=%pS tag=%d\n", __func__, ap, tag);
 	qc = __ata_qc_from_tag(ap, tag);
-	pr_err("%s2 ap=%pS tag=%d qc=%pS fixme\n", __func__, ap, tag, qc);
+	pr_err("%s2 ap=%pS tag=%d qc=%pS\n", __func__, ap, tag, qc);
 
 	if (unlikely(!qc) || !ap->ops->error_handler)
 		return qc;
