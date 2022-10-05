@@ -1557,6 +1557,18 @@ int sas_rphy_add(struct sas_rphy *rphy)
 
 		scsi_scan_target(&rphy->dev, 0, rphy->scsi_target_id, lun,
 				 SCSI_SCAN_INITIAL);
+	} else if (identify->device_type == SAS_EDGE_EXPANDER_DEVICE ||
+			identify->device_type == SAS_FANOUT_EXPANDER_DEVICE) {
+		struct scsi_device *sdev;
+		struct scsi_target *starget = NULL;
+
+		pr_err("%s1 expander rphy=%pS scsi_target_id=%d\n", __func__, rphy, rphy->scsi_target_id);
+		sdev = scsi_get_dev(&rphy->dev, 0, rphy->scsi_target_id, 0);
+
+		if (sdev)
+			starget = sdev->sdev_target;
+
+		pr_err("%s2 expander rphy=%pS sdev=%pS sdev_target=%pS scsi_target_id=%d\n", __func__, rphy, sdev, starget, rphy->scsi_target_id);
 	}
 
 	return 0;
