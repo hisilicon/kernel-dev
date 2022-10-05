@@ -859,12 +859,15 @@ int sas_target_alloc(struct scsi_target *starget)
 	struct sas_rphy *rphy;
 	struct domain_device *found_dev;
 
-	if (scsi_is_host_device(parent))
+	if (scsi_is_host_device(parent)) {
+		dev_err(parent, "%s scsi_is_host_device=1 starget=%pS\n", __func__, starget);
 		return 0;
+	}
 
 	rphy = dev_to_rphy(parent);
 	found_dev = sas_find_dev_by_rphy(rphy);
 
+	dev_err(parent, "%s2 found_dev=%p rphy=%pS starget=%pS\n", __func__, found_dev, rphy, starget);
 	if (!found_dev)
 		return -ENODEV;
 

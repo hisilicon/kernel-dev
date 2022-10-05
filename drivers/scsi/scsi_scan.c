@@ -1435,6 +1435,7 @@ static int scsi_report_lun_scan(struct scsi_target *starget, blist_flags_t bflag
 
 	if (!(sdev = scsi_device_lookup_by_target(starget, 0))) {
 		sdev = scsi_alloc_sdev(starget, 0, NULL);
+		pr_err("%s sdev=%pS starget=%pS\n", __func__, sdev, starget);
 		if (!sdev)
 			return 0;
 		if (scsi_device_get(sdev)) {
@@ -1995,15 +1996,19 @@ struct scsi_device *scsi_get_dev(struct device *parent, int channel, uint id, u6
        struct scsi_device *sdev = NULL;
        struct scsi_target *starget;
 
+       dev_err(parent, "%s channel=%d id=%d lun=%lld\n", __func__, channel, id, lun);
+
        mutex_lock(&shost->scan_mutex);
        if (!scsi_host_scan_allowed(shost))
                goto out;
 
        starget = scsi_alloc_target(parent, 0, id);
+       dev_err(parent, "%s2 channel=%d id=%d lun=%lld starget=%pS\n", __func__, channel, id, lun, starget);
        if (!starget)
                goto out;
 
        sdev = scsi_alloc_sdev(starget, 0, NULL);
+       dev_err(parent, "%s3 channel=%d id=%d lun=%lld starget=%pS sdev=%pS\n", __func__, channel, id, lun, starget, sdev);
        if (sdev)
                sdev->borken = 0;
        else
@@ -2034,7 +2039,11 @@ EXPORT_SYMBOL(scsi_get_dev);
  */
 struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
 {
-	return scsi_get_dev(&shost->shost_gendev, 0, shost->this_id, 0);
+	struct scsi_device *sdev;
+	dev_err(&shost->shost_gendev, "%s\n", __func__);
+	sdev = scsi_get_dev(&shost->shost_gendev, 0, shost->this_id, 0);
+	dev_err(&shost->shost_gendev, "%s2 sdev=%pS sdev_target=%pS\n", __func__, sdev, sdev ? sdev->sdev_target : NULL);
+	return sdev;
 }
 EXPORT_SYMBOL(scsi_get_host_dev);
 

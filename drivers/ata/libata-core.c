@@ -1576,12 +1576,15 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	req->end_io_data = &wait;
 	req->end_io = ata_internal_end_rq;
 
+	pr_err("%s5 qc=%pS ap=%pS req=%pS scmd=%pS calling blk_execute_rq_nowait\n", __func__, qc, ap, req, scmd);
 	blk_execute_rq_nowait(req, true);
 
 	if (ap->ops->error_handler)
 		ata_eh_release(ap);
 
+	pr_err("%s6 qc=%pS ap=%pS req=%pS scmd=%pS calling wait_for_completion_timeout\n", __func__, qc, ap, req, scmd);
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
+	pr_err("%s7 qc=%pS ap=%pS req=%pS scmd=%pS got completion\n", __func__, qc, ap, req, scmd);
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
