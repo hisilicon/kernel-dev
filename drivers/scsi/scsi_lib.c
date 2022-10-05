@@ -1575,8 +1575,10 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 	 * Only clear the driver-private command data if the LLD does not supply
 	 * a function to initialize that data.
 	 */
-	if (!shost->hostt->init_cmd_priv)
+	if (!shost->hostt->init_cmd_priv) {
+		pr_err("%s memset zero payload for req=%pS cmd=%pS\n", __func__, req, cmd);
 		memset(cmd + 1, 0, shost->hostt->cmd_size);
+	}
 
 	cmd->prot_op = SCSI_PROT_NORMAL;
 	if (blk_rq_bytes(req))
@@ -1994,7 +1996,7 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 	if (scsi_host_get_prot(shost))
 		cmd_size += sizeof(struct scsi_data_buffer) +
 			sizeof(struct scatterlist) * SCSI_INLINE_PROT_SG_CNT;
-
+	dev_err(&shost->shost_gendev, "%s  shost->hostt->cmd_size=%d\n", __func__,  shost->hostt->cmd_size);
 	memset(tag_set, 0, sizeof(*tag_set));
 	if (shost->hostt->commit_rqs)
 		tag_set->ops = &scsi_mq_ops;
