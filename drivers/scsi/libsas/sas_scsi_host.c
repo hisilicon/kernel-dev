@@ -176,7 +176,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	 __func__, dev, cmnd, sdev, starget, cmnd->host_scribble, task, task ? task->dev : NULL, rq);
 
 	BUG_ON(!dev);
-	
+
 	if (dev_is_sata(dev)) {
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
 		struct ata_port *ap = qc->ap;
@@ -999,7 +999,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 		struct scsi_cmnd *scmd;
 		struct request *rq;
 		
-		task = sas_alloc_slow_task(ha, GFP_KERNEL, qid, SAS_PROTOCOL_INTERNAL_ABORT);
+		task = sas_alloc_slow_task(device, GFP_KERNEL, qid, SAS_PROTOCOL_INTERNAL_ABORT);
 		if (!task)
 			return -ENOMEM;
 
@@ -1086,10 +1086,9 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		to_sas_internal(device->port->ha->core.shost->transportt);
 	int res, retry;
 	struct request *rq;
-	struct sas_ha_struct *ha = device->port->ha;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		task = sas_alloc_slow_task(ha, GFP_KERNEL, -1U, device->tproto);
+		task = sas_alloc_slow_task(device, GFP_KERNEL, -1U, device->tproto);
 		if (!task)
 			return -ENOMEM;
 

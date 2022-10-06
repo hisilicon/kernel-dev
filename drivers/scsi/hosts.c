@@ -312,8 +312,8 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 
 	scsi_proc_host_add(shost);
 	scsi_autopm_put_host(shost);
-	if (shost->nr_reserved_cmds)
-		shost->sdev = scsi_get_host_dev(shost); // TODO: Add error handling
+	//if (shost->nr_reserved_cmds)
+//		shost->sdev = scsi_get_host_dev(shost); // TODO: Add error handling
 	return error;
 
 	/*

@@ -36,23 +36,37 @@ struct sas_task *sas_alloc_task(gfp_t flags)
 	return task;
 }
 
-struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags, unsigned int qid, enum sas_protocol task_proto)
+struct sas_task *sas_alloc_slow_task(struct domain_device *device, gfp_t flags, unsigned int qid, enum sas_protocol task_proto)
 {
+	struct sas_ha_struct *sas_ha = device->port->ha;
 	struct Scsi_Host *shost = sas_ha->core.shost;
 	struct request *rq;
 	struct sas_task *task;
 	struct sas_task_slow *slow;
 	struct scsi_cmnd *scmd;
-	struct scsi_device *sdev;
+	struct scsi_device *sdev, *found_sdev = NULL;
 
-	sdev = shost->sdev;
-	pr_err("%s shost=%pS sdev=%pS\n", __func__, shost, shost->sdev);
+
+	shost_for_each_device(sdev, shost) {
+		struct scsi_target *starget = sdev->sdev_target;
+
+		if (starget->hostdata == device) {
+			found_sdev = sdev;
+			break;
+		}
+	}
+
+	pr_err("%s shost=%pS device=%pS found_sdev=%pS task_proto=0x%x\n", __func__, shost, device, found_sdev, task_proto);
+	BUG_ON(!found_sdev);
+	if (!found_sdev)
+		return NULL;
+	//sdev = shost->sdev;
 
 	if (qid == -1U) {
-		rq = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN,
+		rq = scsi_alloc_request(found_sdev->request_queue, REQ_OP_DRV_IN,
 					BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
 	} else {
-		rq = scsi_alloc_request_hwq(sdev->request_queue, REQ_OP_DRV_IN,
+		rq = scsi_alloc_request_hwq(found_sdev->request_queue, REQ_OP_DRV_IN,
 					BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT,
 					qid);
 	}
@@ -78,7 +92,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags, 
 
 	task->uldd_task = scmd;
 	ASSIGN_SAS_TASK(scmd, task);
-	//pr_err("%s scmd=%pS task=%pS rq=%pS task_proto=0x%x\n", __func__, scmd, task, rq, task_proto);
+//	pr_err("%s10 scmd=%pS task=%pS rq=%pS task_proto=0x%x found_sdev=%pS\n", __func__, scmd, task, rq, task_proto, found_sdev);
 
 	return task;
 }
