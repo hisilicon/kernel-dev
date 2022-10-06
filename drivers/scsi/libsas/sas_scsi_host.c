@@ -166,11 +166,13 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct domain_device *dev = cmd_to_domain_dev(cmnd);
 	struct scsi_device *sdev = cmnd->device;
 	struct scsi_target *starget = NULL;
+	struct sas_task *task = TO_SAS_TASK(cmnd);
 
 	if (sdev)
 		starget = sdev->sdev_target;
 
-	pr_err("%s ddev=%pS cmnd=%pS sdev=%pS starget=%pS host_scribble=%pS\n", __func__, dev, cmnd, sdev, starget, cmnd->host_scribble);
+	pr_err("%s ddev=%pS cmnd=%pS sdev=%pS starget=%pS host_scribble=%pS task=%pS dev=%pS rq=%pS\n",
+	 __func__, dev, cmnd, sdev, starget, cmnd->host_scribble, task, task ? task->dev : NULL, rq);
 
 	if (dev_is_sata(dev)) {
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
@@ -183,7 +185,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 		return res;
 	}
 
-	return i->dft->lldd_execute_task(sas_rq_to_task(rq), GFP_KERNEL);
+	return i->dft->lldd_execute_task(task, GFP_KERNEL);
 }
 EXPORT_SYMBOL_GPL(sas_queuecommand_internal);
 
@@ -867,7 +869,7 @@ int sas_target_alloc(struct scsi_target *starget)
 	rphy = dev_to_rphy(parent);
 	found_dev = sas_find_dev_by_rphy(rphy);
 
-	dev_err(parent, "%s2 found_dev=%p rphy=%pS starget=%pS\n", __func__, found_dev, rphy, starget);
+	dev_err(parent, "%s2 found_dev=%pS rphy=%pS starget=%pS\n", __func__, found_dev, rphy, starget);
 	if (!found_dev)
 		return -ENODEV;
 
