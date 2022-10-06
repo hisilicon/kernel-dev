@@ -614,8 +614,8 @@ static void __blk_mq_free_request(struct request *rq)
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 	const int sched_tag = rq->internal_tag;
 
-	if (blk_mq_is_reserved_rq(rq))
-		pr_err("%s rq=%pS\n", __func__, rq);
+	//if (blk_mq_is_reserved_rq(rq))
+	//	pr_err("%s rq=%pS\n", __func__, rq);
 
 	blk_crypto_free_request(rq);
 	blk_pm_mark_last_busy(rq);
@@ -646,11 +646,11 @@ void blk_mq_free_request(struct request *rq)
 	rq_qos_done(q, rq);
 
 	WRITE_ONCE(rq->state, MQ_RQ_IDLE);
-	if (blk_mq_is_reserved_rq(rq))
-		pr_err("%s rq=%pS\n", __func__, rq);
+	//if (blk_mq_is_reserved_rq(rq))
+	//	pr_err("%s rq=%pS\n", __func__, rq);
 	if (req_ref_put_and_test(rq)) {
-		if (blk_mq_is_reserved_rq(rq))
-			pr_err("%s2 rq=%pS calling __blk_mq_free_request\n", __func__, rq);
+	//	if (blk_mq_is_reserved_rq(rq))
+	//		pr_err("%s2 rq=%pS calling __blk_mq_free_request\n", __func__, rq);
 		__blk_mq_free_request(rq);
 	}
 }
@@ -945,8 +945,8 @@ inline void __blk_mq_end_request(struct request *rq, blk_status_t error)
 	if (blk_mq_need_time_stamp(rq))
 		__blk_mq_end_request_acct(rq, ktime_get_ns());
 
-	if (blk_mq_is_reserved_rq(rq))
-		pr_err("%s rq=%pS resv rq->end_io=%pS\n", __func__, rq, rq->end_io);
+//	if (blk_mq_is_reserved_rq(rq))
+//		pr_err("%s rq=%pS resv rq->end_io=%pS\n", __func__, rq, rq->end_io);
 
 	if (rq->end_io) {
 		rq_qos_done(rq->q, rq);

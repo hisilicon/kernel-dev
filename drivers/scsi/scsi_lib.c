@@ -1739,7 +1739,8 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (scsi_is_reserved_cmd(cmd)) {
 		unsigned char *host_scribble = cmd->host_scribble;
 
-		pr_err("%s req=%pS cmd=%pS host_scribble=%pS\n", __func__, req, cmd, host_scribble);
+		if (host_scribble)
+			pr_err("%s req=%pS cmd=%pS host_scribble=%pS\n", __func__, req, cmd, host_scribble);
 
 		if (!(req->rq_flags & RQF_DONTPREP)) {
 			ret = scsi_prepare_cmd(req);
@@ -1757,7 +1758,8 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 		blk_mq_start_request(req);
 
-		pr_err("%s3 req=%pS cmd=%pS host_scribble=%pS calling reserved_queuecommand=%pS\n", __func__, req, cmd, host_scribble, shost->hostt->reserved_queuecommand);
+		if (host_scribble)
+			pr_err("%s3 req=%pS cmd=%pS host_scribble=%pS calling reserved_queuecommand=%pS\n", __func__, req, cmd, host_scribble, shost->hostt->reserved_queuecommand);
 		return shost->hostt->reserved_queuecommand(shost, cmd);
 	}
 
