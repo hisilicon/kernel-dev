@@ -655,6 +655,7 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 {
 	unsigned long flags;
 
+	pr_err("%s ap=%pS\n", __func__, ap);
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
 		struct ata_link *link;
@@ -2924,6 +2925,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 	unsigned int new_mask = 0;
 	unsigned long flags;
 	int rc = 0;
+
+	pr_err("%s link=%pS ap=%pS\n", __func__, link, ap);
 
 	/* For PATA drive side cable detection to work, IDENTIFY must
 	 * be done backwards such that PDIAG- is released by the slave
