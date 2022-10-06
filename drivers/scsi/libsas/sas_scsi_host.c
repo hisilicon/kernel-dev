@@ -171,9 +171,12 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	if (sdev)
 		starget = sdev->sdev_target;
 
+
 	pr_err("%s ddev=%pS cmnd=%pS sdev=%pS starget=%pS host_scribble=%pS task=%pS dev=%pS rq=%pS\n",
 	 __func__, dev, cmnd, sdev, starget, cmnd->host_scribble, task, task ? task->dev : NULL, rq);
 
+	BUG_ON(!dev);
+	
 	if (dev_is_sata(dev)) {
 		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
 		struct ata_port *ap = qc->ap;
@@ -938,7 +941,7 @@ void sas_task_internal_done(struct sas_task *task)
 {
 	struct scsi_cmnd *scmd = task->uldd_task;
 	struct request *rq = scsi_cmd_to_rq(scmd);
-	//pr_err("%s rq=%pS task=%pS scmd=%pS\n", __func__, rq, task, scmd);
+	pr_err_once("%s rq=%pS task=%pS scmd=%pS\n", __func__, rq, task, scmd);
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 }
@@ -947,7 +950,7 @@ void sas_task_complete_internal(struct sas_task *task)
 {
 	struct scsi_cmnd *scmd = task->uldd_task;
 	struct request *rq = scsi_cmd_to_rq(scmd);
-	//pr_err("%s rq=%pS task=%pS scmd=%pS\n", __func__, rq, task, scmd);
+	pr_err_once("%s rq=%pS task=%pS scmd=%pS\n", __func__, rq, task, scmd);
 
 	del_timer(&task->slow_task->timer);
 
@@ -979,7 +982,7 @@ void sas_blk_end_sync_rq(struct request *rq, blk_status_t error)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	struct sas_task *task = TO_SAS_TASK(scmd);
-	pr_err("%s rq=%pS task=%pS scmd=%pS\n", __func__, rq, task, scmd);
+	pr_err_once("%s rq=%pS task=%pS scmd=%pS\n", __func__, rq, task, scmd);
 	complete(&task->slow_task->completion);
 }
 
