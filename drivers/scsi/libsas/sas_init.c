@@ -100,9 +100,6 @@ struct sas_task *sas_alloc_slow_task(struct domain_device *device, gfp_t flags, 
 void sas_free_task(struct sas_task *task)
 {
 	if (task) {
-		kfree(task->slow_task);
-		kmem_cache_free(sas_task_cache, task);
-
 		if (task->slow_task) {
 			struct scsi_cmnd *scmd = task->uldd_task;
 			struct request *rq = scsi_cmd_to_rq(scmd);
@@ -111,6 +108,8 @@ void sas_free_task(struct sas_task *task)
 			BUG_ON(!blk_mq_is_reserved_rq(rq));
 			blk_mq_free_request(rq);
 		}
+		kfree(task->slow_task);
+		kmem_cache_free(sas_task_cache, task);
 	}
 }
 
