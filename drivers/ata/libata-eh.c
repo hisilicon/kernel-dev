@@ -2457,6 +2457,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	u32 sstatus;
 	int nr_unknown, rc;
 
+	pr_err("%s ap=%pS prereset=%pS hardreset=%pS postreset=%pS\n", __func__, ap, prereset, hardreset, postreset);
 	/*
 	 * Prepare to reset
 	 */
@@ -3622,6 +3623,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		if (!(ehc->i.action & ATA_EH_RESET))
 			continue;
 
+		pr_err("%s4 ap=%pS prereset=%pS hardreset=%pS postreset=%pS\n", __func__, ap, prereset, hardreset, postreset);
 		rc = ata_eh_reset(link, ata_link_nr_vacant(link),
 				  prereset, softreset, hardreset, postreset);
 		if (rc) {
@@ -3838,6 +3840,7 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	struct ata_device *dev;
 	int rc;
 
+	pr_err("%s ap=%pS\n", __func__, ap);
 	ata_eh_autopsy(ap);
 	ata_eh_report(ap);
 
@@ -3864,7 +3867,7 @@ void ata_std_error_handler(struct ata_port *ap)
 {
 	struct ata_port_operations *ops = ap->ops;
 	ata_reset_fn_t hardreset = ops->hardreset;
-
+	pr_err("%s ap=%pS\n", __func__, ap);
 	/* ignore built-in hardreset if SCR access is not available */
 	if (hardreset == sata_std_hardreset && !sata_scr_valid(&ap->link))
 		hardreset = NULL;

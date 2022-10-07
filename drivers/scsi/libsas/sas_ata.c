@@ -389,7 +389,7 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 	struct domain_device *dev = ap->private_data;
 	struct sas_internal *i = dev_to_sas_internal(dev);
 	int ret;
-
+	pr_err("%s ap=%pS link=%pS lldd_I_T_nexus_reset=%pS\n", __func__, ap, link, i->dft->lldd_I_T_nexus_reset);
 	ret = i->dft->lldd_I_T_nexus_reset(dev);
 	if (ret == -ENODEV)
 		return ret;
@@ -515,6 +515,8 @@ static int sas_ata_prereset(struct ata_link *link, unsigned long deadline)
 	struct domain_device *dev = ap->private_data;
 	struct sas_phy *local_phy = sas_get_local_phy(dev);
 	int res = 0;
+
+	pr_err("%s ap=%pS link=%pS\n", __func__, ap, link);
 
 	if (!local_phy->enabled || test_bit(SAS_DEV_GONE, &dev->state))
 		res = -ENOENT;
