@@ -19,6 +19,7 @@
 #include <linux/ata.h>
 #include <linux/workqueue.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_cmnd.h>
 #include <linux/acpi.h>
 #include <linux/cdrom.h>
 #include <linux/sched.h>
@@ -818,7 +819,9 @@ struct ata_port {
 	unsigned int		udma_mask;
 	unsigned int		cbl;	/* cable type; ATA_CBL_xxx */
 
+	#ifdef dddsd
 	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE + 1];
+	#endif
 	u64			qc_active;
 	int			nr_active_links; /* #links with active qcs */
 
@@ -1143,6 +1146,7 @@ extern void ata_scsi_unlock_native_capacity(struct scsi_device *sdev);
 extern int ata_scsi_slave_config(struct scsi_device *sdev);
 extern int ata_internal_queuecommand(struct Scsi_Host *shost,
 				struct scsi_cmnd *scmd);
+extern int ata_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd);
 extern void ata_scsi_slave_destroy(struct scsi_device *sdev);
 extern int ata_scsi_change_queue_depth(struct scsi_device *sdev,
 				       int queue_depth);
@@ -1394,7 +1398,9 @@ extern const struct attribute_group *ata_common_sdev_groups[];
 	.bios_param		= ata_std_bios_param,		\
 	.unlock_native_capacity	= ata_scsi_unlock_native_capacity,\
 	.nr_reserved_cmds = 1,\
-	.reserved_queuecommand = ata_internal_queuecommand
+	.reserved_queuecommand = ata_internal_queuecommand,\
+	.cmd_size = sizeof(struct ata_queued_cmd),\
+	.init_cmd_priv = ata_init_cmd_priv
 
 #define ATA_SUBBASE_SHT(drv_name)				\
 	__ATA_BASE_SHT(drv_name),				\
@@ -1555,6 +1561,7 @@ extern void ata_port_pbar_desc(struct ata_port *ap, int bar, ssize_t offset,
 
 static inline bool ata_tag_internal(unsigned int tag)
 {
+	pr_err_once("%s tag=%d\n", __func__, tag);
 	return tag == ATA_TAG_INTERNAL;
 }
 
@@ -1745,18 +1752,73 @@ static inline void ata_qc_set_polling(struct ata_queued_cmd *qc)
 	qc->tf.ctl |= ATA_NIEN;
 }
 
+static inline struct ata_queued_cmd *ata_scmd_to_qc(struct scsi_cmnd *scmd)
+{
+	return (struct ata_queued_cmd *)(scmd + 1);
+}
+
+struct ata_special_data {
+	unsigned int tag;
+	struct ata_queued_cmd **qc;
+};
+
+
+static bool blk_mq_check_inflight(struct request *rq, void *priv)
+{
+	struct ata_special_data *data = priv;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	struct ata_queued_cmd *qc =  ata_scmd_to_qc(scmd);
+
+	if (qc->tag == data->tag) {
+		*(data->qc) = qc;
+		pr_err("%s found tag=%d qc=%pS\n", __func__, data->tag, qc);
+		return false;
+	}
+	
+	return true;
+}
+
 static inline struct ata_queued_cmd *__ata_qc_from_tag(struct ata_port *ap,
 						       unsigned int tag)
 {
-	if (ata_tag_valid(tag))
-		return &ap->qcmd[tag];
+	struct ata_link *link;
+	struct Scsi_Host *shost = ap->scsi_host;
+
+	pr_err("%s ap=%pS tag=%d\n", __func__, ap, tag);
+	ata_for_each_link(link, ap, EDGE) {
+		struct ata_device *dev;
+
+		ata_for_each_dev(dev, link, ALL) {
+			struct scsi_device *sdev = dev->sdev;
+			struct request_queue *q;
+			struct ata_queued_cmd *qc = NULL;
+			struct ata_special_data data = {
+				.tag = tag,
+				.qc = &qc,
+			};
+			pr_err("%s3 ap=%pS link=%pS dev=%pS sdev=%pS\n", __func__, ap, link, dev, sdev);
+			if (!sdev)
+				continue;
+			q = sdev->request_queue;
+			blk_mq_tagset_busy_iter(&shost->tag_set, blk_mq_check_inflight, &data);
+			pr_err("%s4 ap=%pS link=%pS dev=%pS sdev=%pS qc=%pS\n", __func__, ap, link, dev, sdev, qc);
+			if (qc)
+				return qc;
+		}
+	}
+
+//	if (ata_tag_valid(tag))
+//		return &ap->qcmd[tag];
 	return NULL;
 }
 
 static inline struct ata_queued_cmd *ata_qc_from_tag(struct ata_port *ap,
 						     unsigned int tag)
 {
-	struct ata_queued_cmd *qc = __ata_qc_from_tag(ap, tag);
+	struct ata_queued_cmd *qc;
+	pr_err("%s ap=%pS tag=%d fixme\n", __func__, ap, tag);
+	qc = __ata_qc_from_tag(ap, tag);
+	pr_err("%s2 ap=%pS tag=%d qc=%pS fixme\n", __func__, ap, tag, qc);
 
 	if (unlikely(!qc) || !ap->ops->error_handler)
 		return qc;

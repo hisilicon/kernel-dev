@@ -657,7 +657,8 @@ static struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
 		tag = scsi_cmd_to_rq(cmd)->tag;
 	}
 
-	qc = __ata_qc_from_tag(ap, tag);
+	qc = ata_scmd_to_qc(cmd);
+	pr_err("%s qc=%pS tag=%d cmd=%pS\n", __func__, qc, tag, cmd);
 	qc->tag = qc->hw_tag = tag;
 	qc->ap = ap;
 	qc->dev = dev;
@@ -1114,6 +1115,12 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 	/* Put extra reference which we get when allocating the starget initially */
 	scsi_target_reap(scsi_target(sdev));
 
+	return 0;
+}
+
+int ata_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
+{
+	pr_err_once("%s cmd=%pS\n", __func__, cmd);
 	return 0;
 }
 
@@ -3992,7 +3999,8 @@ static unsigned int ata_scsi_queue_internal(struct scsi_cmnd *scmd,
 		goto did_err;
 
 	/* initialize internal qc */
-	qc = __ata_qc_from_tag(ap, ATA_TAG_INTERNAL);
+	qc = ata_scmd_to_qc(scmd);
+	pr_err("%s scmd=%pS qc=%pS\n", __func__, scmd, qc);
 	link->preempted_tag = link->active_tag;
 	link->preempted_sactive = link->sactive;
 	ap->preempted_qc_active = ap->qc_active;
