@@ -4424,6 +4424,7 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
  */
 int ata_scsi_offline_dev(struct ata_device *dev)
 {
+	pr_err("%s dev=%pS sdev=%pS\n", __func__, dev, dev->sdev);
 	if (dev->sdev) {
 		scsi_device_set_state(dev->sdev, SDEV_OFFLINE);
 		return 1;
@@ -4458,6 +4459,7 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 
 	/* clearing dev->sdev is protected by host lock */
 	sdev = dev->sdev;
+	pr_err("%s dev=%pS sdev=%pS\n", __func__, dev, sdev);
 	dev->sdev = NULL;
 
 	if (sdev) {
@@ -4471,6 +4473,7 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 			 * regardless it wins or loses the race
 			 * against this function.
 			 */
+			pr_err("%s5 set SDEV_OFFLINE dev=%pS sdev=%pS\n", __func__, dev, sdev);
 			scsi_device_set_state(sdev, SDEV_OFFLINE);
 		} else {
 			WARN_ON(1);

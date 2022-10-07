@@ -57,7 +57,7 @@ struct sas_task *sas_alloc_slow_task(struct domain_device *device, gfp_t flags, 
 	}
 
 	pr_err("%s shost=%pS device=%pS found_sdev=%pS task_proto=0x%x\n", __func__, shost, device, found_sdev, task_proto);
-	//BUG_ON(!found_sdev);
+	WARN_ON_ONCE(!found_sdev);
 	if (!found_sdev)
 		return NULL;
 	//sdev = shost->sdev;

@@ -1250,6 +1250,7 @@ void ata_eh_detach_dev(struct ata_device *dev)
 
 	dev->flags &= ~ATA_DFLAG_DETACH;
 
+	pr_err("%s dev=%pS calling ata_scsi_offline_dev\n", __func__, dev);
 	if (ata_scsi_offline_dev(dev)) {
 		dev->flags |= ATA_DFLAG_DETACHED;
 		ap->pflags |= ATA_PFLAG_SCSI_HOTPLUG;
@@ -2582,6 +2583,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	deadline = ata_deadline(jiffies, ata_eh_reset_timeouts[try++]);
 
 	if (reset) {
+		struct ata_device *jdev;
 		if (verbose)
 			ata_link_info(link, "%s resetting link\n",
 				      reset == softreset ? "soft" : "hard");
@@ -2596,6 +2598,9 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			trace_ata_link_softreset_begin(link, classes, deadline);
 		}
 
+		ata_for_each_dev(jdev, link, ALL) {
+			WARN_ON_ONCE(!jdev->sdev);
+		}
 		rc = ata_do_reset(link, reset, classes, deadline, true);
 		if (reset == hardreset)
 			trace_ata_link_hardreset_end(link, classes, rc);
@@ -3438,8 +3443,12 @@ static int ata_eh_schedule_probe(struct ata_device *dev)
 	    (ehc->did_probe_mask & (1 << dev->devno)))
 		return 0;
 
+
+	pr_err("%s dev=%pS calling ata_eh_detach_dev\n", __func__, dev);
 	ata_eh_detach_dev(dev);
 	ata_dev_init(dev);
+	pr_err("%s2 dev=%pS calling ata_scsi_setup_sdev\n", __func__, dev);
+	ata_scsi_setup_sdev(dev);
 	ehc->did_probe_mask |= (1 << dev->devno);
 	ehc->i.action |= ATA_EH_RESET;
 	ehc->saved_xfer_mode[dev->devno] = 0;
@@ -3512,10 +3521,13 @@ static int ata_eh_handle_dev_fail(struct ata_device *dev, int err)
 		ata_dev_disable(dev);
 
 		/* detach if offline */
-		if (ata_phys_link_offline(ata_dev_phys_link(dev)))
+		if (ata_phys_link_offline(ata_dev_phys_link(dev))) {
+			pr_err("%s2 dev=%pS calling ata_eh_detach_dev\n", __func__, dev);
 			ata_eh_detach_dev(dev);
+		}
 
 		/* schedule probe if necessary */
+		pr_err("%s3 calling ata_eh_schedule_probe dev=%pS\n", __func__, dev);
 		if (ata_eh_schedule_probe(dev)) {
 			ehc->tries[dev->devno] = ATA_EH_DEV_TRIES;
 			memset(ehc->cmd_timeout_idx[dev->devno], 0,
@@ -3588,12 +3600,16 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 			ehc->i.dev_action[dev->devno] &= ATA_EH_PERDEV_MASK;
 
 			/* process hotplug request */
-			if (dev->flags & ATA_DFLAG_DETACH)
+			if (dev->flags & ATA_DFLAG_DETACH) {
+				pr_err("%s2 dev=%pS calling ata_eh_detach_dev ATA_DFLAG_DETACH set\n", __func__, dev);
 				ata_eh_detach_dev(dev);
+			}
 
 			/* schedule probe if necessary */
-			if (!ata_dev_enabled(dev))
+			if (!ata_dev_enabled(dev)) {
+				pr_err("%s3 dev=%pS calling ata_eh_schedule_probe\n", __func__, dev);
 				ata_eh_schedule_probe(dev);
+			}
 		}
 	}
 
