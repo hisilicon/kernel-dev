@@ -696,9 +696,10 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 		spin_unlock_irqrestore(ap->lock, flags);
 
 		/* invoke EH, skip if unloading or suspended */
-		if (!(ap->pflags & (ATA_PFLAG_UNLOADING | ATA_PFLAG_SUSPENDED)))
+		if (!(ap->pflags & (ATA_PFLAG_UNLOADING | ATA_PFLAG_SUSPENDED))) {
+			pr_err("%s4 ap=%pS calling error_handler=%pS\n", __func__, ap, ap->ops->error_handler);
 			ap->ops->error_handler(ap);
-		else {
+		} else {
 			/* if unloading, commence suicide */
 			if ((ap->pflags & ATA_PFLAG_UNLOADING) &&
 			    !(ap->pflags & ATA_PFLAG_UNLOADED))
@@ -3558,6 +3559,8 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	struct ata_device *dev;
 	int rc, nr_fails;
 	unsigned long flags, deadline;
+
+	pr_err("%s ap=%pS prereset=%pS hardreset=%pS postreset=%pS\n", __func__, ap, prereset, hardreset, postreset);
 
 	/* prep for recovery */
 	ata_for_each_link(link, ap, EDGE) {
