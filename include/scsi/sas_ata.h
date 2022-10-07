@@ -17,9 +17,6 @@
 
 static inline int dev_is_sata(struct domain_device *dev)
 {
-	if (!dev)
-		return false;
-
 	return dev->dev_type == SAS_SATA_DEV || dev->dev_type == SAS_SATA_PM ||
 	       dev->dev_type == SAS_SATA_PM_PORT || dev->dev_type == SAS_SATA_PENDING;
 }
