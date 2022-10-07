@@ -538,6 +538,7 @@ static int sas_ata_setup_device(struct ata_device *dev)
 	uint id = rphy->scsi_target_id;
 
 	sdev = scsi_get_dev(parent, channel, id, lun);
+	pr_err("%s sdev=%pS\n", __func__, sdev);
 	if (!sdev)
 		return -ENODEV;
 	dev->sdev = sdev;
