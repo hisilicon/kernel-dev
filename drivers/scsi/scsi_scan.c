@@ -1171,6 +1171,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	 * host adapter calls into here with rescan == 0.
 	 */
 	sdev = scsi_device_lookup_by_target(starget, lun);
+	pr_err("%s starget=%pS sdev=%pS\n", __func__, starget, sdev);
 	if (sdev) {
 		if (rescan != SCSI_SCAN_INITIAL || !scsi_device_created(sdev)) {
 			SCSI_LOG_SCAN_BUS(3, sdev_printk(KERN_INFO, sdev,
@@ -1650,6 +1651,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 	int res;
 	struct scsi_target *starget;
 
+	dev_err(parent, "%s channel=%d id=%d lun=%lld\n", __func__, channel, id, lun);
 	if (shost->this_id == id)
 		/*
 		 * Don't scan the host adapter
@@ -1657,6 +1659,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 		return;
 
 	starget = scsi_alloc_target(parent, channel, id);
+	dev_err(parent, "%s2 channel=%d id=%d lun=%lld starget=%pS\n", __func__, channel, id, lun, starget);
 	if (!starget)
 		return;
 	scsi_autopm_get_target(starget);
@@ -1725,6 +1728,7 @@ void scsi_scan_target(struct device *parent, unsigned int channel,
 	    strncmp(scsi_scan_type, "manual", 6) == 0)
 		return;
 
+	dev_err(parent, "%s channel=%d id=%d lun=%lld\n", __func__, channel, id, lun);
 	mutex_lock(&shost->scan_mutex);
 	if (!shost->async_scan)
 		scsi_complete_async_scans();

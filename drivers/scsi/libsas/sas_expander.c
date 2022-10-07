@@ -789,7 +789,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 	sas_ex_get_linkrate(parent, child, phy);
 	sas_device_set_phy(child, phy->port);
 
-#ifdef CONFIG_SCSI_SAS_ATA
+#ifdef CONFIG_SsCSI_SAS_ATA
 	if ((phy->attached_tproto & SAS_PROTOCOL_STP) || phy->attached_sata_dev) {
 		if (child->linkrate > parent->min_linkrate) {
 			struct sas_phy *cphy = child->phy;
