@@ -1563,7 +1563,7 @@ int sas_rphy_add(struct sas_rphy *rphy)
 		struct scsi_target *starget = NULL;
 
 		pr_err("%s1 expander rphy=%pS scsi_target_id=%d calling scsi_get_dev\n", __func__, rphy, rphy->scsi_target_id);
-		sdev = scsi_get_dev(&rphy->dev, 0, rphy->scsi_target_id, 0);
+		sdev = scsi_get_dev(&rphy->dev, 1, rphy->scsi_target_id, 0);
 
 		if (sdev)
 			starget = sdev->sdev_target;

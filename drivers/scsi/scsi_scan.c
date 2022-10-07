@@ -534,7 +534,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	spin_lock_irqsave(shost->host_lock, flags);
 
 	found_target = __scsi_find_target(parent, channel, id);
-	dev_err(parent, "%s starget=%pS found_target=%pS\n", __func__, starget, found_target);
+	dev_err(parent, "%s starget=%pS found_target=%pS channel=%d id=%d\n", __func__, starget, found_target, channel, id);
 	if (found_target)
 		goto found;
 
@@ -2006,7 +2006,7 @@ struct scsi_device *scsi_get_dev(struct device *parent, int channel, uint id, u6
        if (!scsi_host_scan_allowed(shost))
                goto out;
 
-       starget = scsi_alloc_target(parent, 0, id);
+       starget = scsi_alloc_target(parent, channel, id);
        dev_err(parent, "%s2 channel=%d id=%d lun=%lld starget=%pS\n", __func__, channel, id, lun, starget);
        if (!starget)
                goto out;
