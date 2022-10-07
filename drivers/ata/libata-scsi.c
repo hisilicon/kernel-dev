@@ -1123,6 +1123,7 @@ int ata_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
 	pr_err_once("%s cmd=%pS\n", __func__, cmd);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ata_init_cmd_priv);
 
 int ata_internal_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 {

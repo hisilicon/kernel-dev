@@ -171,14 +171,13 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	if (sdev)
 		starget = sdev->sdev_target;
 
-
-	pr_err("%s ddev=%pS cmnd=%pS sdev=%pS starget=%pS host_scribble=%pS task=%pS dev=%pS rq=%pS\n",
-	 __func__, dev, cmnd, sdev, starget, cmnd->host_scribble, task, task ? task->dev : NULL, rq);
+	pr_err("%s ddev=%pS cmnd=%pS sdev=%pS starget=%pS host_scribble=%pS task=%pS task->dev=%pS rq=%pS task_proto=%d\n",
+	 __func__, dev, cmnd, sdev, starget, cmnd->host_scribble, task, task ? task->dev : NULL, rq, task->task_proto);
 
 	BUG_ON(!dev);
 
-	if (dev_is_sata(dev)) {
-		struct ata_queued_cmd *qc = (struct ata_queued_cmd *)cmnd->host_scribble;
+	if (dev_is_sata(dev) && task->task_proto != SAS_PROTOCOL_INTERNAL_ABORT) {
+		struct ata_queued_cmd *qc = ata_scmd_to_qc(cmnd);
 		struct ata_port *ap = qc->ap;
 		int res;
 		pr_err("%s2 qc=%pS ap=%pS cmnd=%pS\n", __func__, qc, ap, cmnd);
