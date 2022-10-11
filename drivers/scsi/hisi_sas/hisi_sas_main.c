@@ -465,7 +465,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	struct hisi_sas_port *port;
 	struct hisi_hba *hisi_hba;
 	struct hisi_sas_slot *slot;
-	struct request *rq = NULL;
+	struct request *rq;
 	struct device *dev;
 	int rc;
 
@@ -485,6 +485,21 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 
 	hisi_hba = dev_to_hisi_hba(device);
 	dev = hisi_hba->dev;
+	rq = sas_task_find_rq(task);
+	if (rq) {
+		unsigned int dq_index;
+		u32 blk_tag;
+
+		blk_tag = blk_mq_unique_tag(rq);
+		dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
+		dq = &hisi_hba->dq[dq_index];
+	} else {
+		struct Scsi_Host *shost = hisi_hba->shost;
+		struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
+		int queue = qmap->mq_map[raw_smp_processor_id()];
+
+		dq = &hisi_hba->dq[queue];
+	}
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SSP:
@@ -519,22 +534,6 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 
 				return -ECOMM;
 		}
-
-		rq = sas_task_find_rq(task);
-		if (rq) {
-			unsigned int dq_index;
-			u32 blk_tag;
-
-			blk_tag = blk_mq_unique_tag(rq);
-			dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
-			dq = &hisi_hba->dq[dq_index];
-		} else {
-			struct Scsi_Host *shost = hisi_hba->shost;
-			struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
-			int queue = qmap->mq_map[raw_smp_processor_id()];
-
-			dq = &hisi_hba->dq[queue];
-		}
 		break;
 	case SAS_PROTOCOL_INTERNAL_ABORT:
 		if (!hisi_hba->hw->prep_abort)
@@ -543,13 +542,10 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		if (test_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags))
 			return -EIO;
 
-		hisi_hba = dev_to_hisi_hba(device);
-
 		if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags)))
 			return -EINVAL;
 
 		port = to_hisi_sas_port(sas_port);
-		dq = &hisi_hba->dq[task->abort_task.qid];
 		break;
 	default:
 		dev_err(hisi_hba->dev, "task prep: unknown/unsupported proto (0x%x)\n",

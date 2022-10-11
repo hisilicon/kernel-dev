@@ -36,7 +36,7 @@ struct sas_task *sas_alloc_task(gfp_t flags)
 	return task;
 }
 
-struct sas_task *sas_alloc_slow_task(struct domain_device *device, gfp_t flags)
+struct sas_task *sas_alloc_slow_task(struct domain_device *device, gfp_t flags, unsigned int qid)
 {
 	struct sas_ha_struct *sas_ha = device->port->ha;
 	struct Scsi_Host *shost = sas_ha->core.shost;
@@ -58,9 +58,14 @@ struct sas_task *sas_alloc_slow_task(struct domain_device *device, gfp_t flags)
 	if (WARN_ON_ONCE(!found_sdev))
 		return NULL;
 
-	rq = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN,
-				BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
-
+	if (qid == -1U) {
+		rq = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN,
+					BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
+	} else {
+		rq = scsi_alloc_request_hwq(sdev->request_queue, REQ_OP_DRV_IN,
+					BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT,
+					qid);
+	}
 	if (IS_ERR(rq))
 		return NULL;
 
