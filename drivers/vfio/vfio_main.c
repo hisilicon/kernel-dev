@@ -875,9 +875,6 @@ static struct file *vfio_device_open(struct vfio_device *device)
 	 */
 	filep->f_mode |= (FMODE_PREAD | FMODE_PWRITE);
 
-	if (device->group->type == VFIO_NO_IOMMU)
-		dev_warn(device->dev, "vfio-noiommu device opened by user "
-			 "(%s:%d)\n", current->comm, task_pid_nr(current));
 	/*
 	 * On success the ref of device is moved to the file and
 	 * put in vfio_device_fops_release()
@@ -923,6 +920,10 @@ static int vfio_group_ioctl_get_device_fd(struct vfio_group *group,
 		ret = PTR_ERR(filep);
 		goto err_put_fdno;
 	}
+
+	if (group->type == VFIO_NO_IOMMU)
+		dev_warn(device->dev, "vfio-noiommu device opened by user "
+			 "(%s:%d)\n", current->comm, task_pid_nr(current));
 
 	fd_install(fdno, filep);
 	return fdno;
