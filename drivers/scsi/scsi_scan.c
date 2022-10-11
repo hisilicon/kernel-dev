@@ -1979,3 +1979,28 @@ void scsi_forget_host(struct Scsi_Host *shost)
 	spin_unlock_irqrestore(shost->host_lock, flags);
 }
 
+struct scsi_device *scsi_get_dev(struct device *parent, int channel, uint id, u64 lun)
+{
+	struct Scsi_Host *shost = dev_to_shost(parent);
+	struct scsi_device *sdev = NULL;
+	struct scsi_target *starget;
+
+	mutex_lock(&shost->scan_mutex);
+	if (!scsi_host_scan_allowed(shost))
+		goto out;
+
+	starget = scsi_alloc_target(parent, channel, id);
+	if (!starget)
+		goto out;
+
+	sdev = scsi_alloc_sdev(starget, lun, NULL);
+	if (sdev)
+		sdev->borken = 0;
+	else
+		scsi_target_reap(starget);
+	put_device(&starget->dev);
+ out:
+	mutex_unlock(&shost->scan_mutex);
+	return sdev;
+}
+EXPORT_SYMBOL(scsi_get_dev);

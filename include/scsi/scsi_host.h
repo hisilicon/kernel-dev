@@ -787,6 +787,10 @@ void scsi_host_busy_iter(struct Scsi_Host *,
 
 struct class_container;
 
+
+extern struct scsi_device *scsi_get_dev(struct device *parent, int channel,
+					uint id, u64 lun);
+
 /*
  * DIF defines the exchange of protection information between
  * initiator and SBC block device.
