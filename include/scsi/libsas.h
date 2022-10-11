@@ -648,7 +648,7 @@ static inline struct request *sas_task_find_rq(struct sas_task *task)
 {
 	struct scsi_cmnd *scmd;
 
-	if (task->task_proto & SAS_PROTOCOL_STP_ALL) {
+	if (!task->slow_task && task->task_proto & SAS_PROTOCOL_STP_ALL) {
 		struct ata_queued_cmd *qc = task->uldd_task;
 
 		scmd = qc ? qc->scsicmd : NULL;

@@ -56,9 +56,60 @@ struct sas_task *sas_alloc_slow_task(gfp_t flags)
 	return task;
 }
 
+struct sas_task *sas_alloc_slow_task_rq(struct domain_device *device, gfp_t flags)
+{
+	struct sas_ha_struct *sas_ha = device->port->ha;
+	struct Scsi_Host *shost = sas_ha->core.shost;
+	struct scsi_device *sdev, *found_sdev = NULL;
+	struct scsi_cmnd *scmd;
+	struct sas_task *task;
+	struct request *rq;
+
+	shost_for_each_device(sdev, shost) {
+		struct scsi_target *starget = sdev->sdev_target;
+
+		if (starget->hostdata == device) {
+			found_sdev = sdev;
+			break;
+		}
+	}
+
+	if (!found_sdev)
+		return NULL;
+
+	scsi_device_put(found_sdev);
+
+	task = sas_alloc_slow_task(flags);
+	if (!task)
+		return NULL;
+
+	task->dev = device;
+
+	rq = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN,
+				BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
+	if (IS_ERR(rq)) {
+		sas_free_task(task);
+		return NULL;
+	}
+
+	scmd = blk_mq_rq_to_pdu(rq);
+
+	task->uldd_task = scmd;
+	rq->end_io_data = task;
+
+	return task;
+}
+
 void sas_free_task(struct sas_task *task)
 {
 	if (task) {
+		if (task->slow_task && task->uldd_task) {
+			struct scsi_cmnd *scmd = task->uldd_task;
+			struct request *rq = scsi_cmd_to_rq(scmd);
+
+			BUG_ON(!blk_mq_is_reserved_rq(rq));
+			blk_mq_free_request(rq);
+		}
 		kfree(task->slow_task);
 		kmem_cache_free(sas_task_cache, task);
 	}
