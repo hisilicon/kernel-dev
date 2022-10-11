@@ -1548,6 +1548,11 @@ int sas_rphy_add(struct sas_rphy *rphy)
 
 		scsi_scan_target(&rphy->dev, 0, rphy->scsi_target_id, lun,
 				 SCSI_SCAN_INITIAL);
+	} else if (identify->device_type == SAS_EDGE_EXPANDER_DEVICE ||
+		   identify->device_type == SAS_FANOUT_EXPANDER_DEVICE) {
+
+		if (!scsi_get_dev(&rphy->dev, 1, rphy->scsi_target_id, 0))
+			return -ENODEV;
 	}
 
 	return 0;
@@ -1627,6 +1632,7 @@ sas_rphy_remove(struct sas_rphy *rphy)
 	case SAS_EDGE_EXPANDER_DEVICE:
 	case SAS_FANOUT_EXPANDER_DEVICE:
 		sas_remove_children(dev);
+		scsi_remove_target(dev);
 		break;
 	default:
 		break;
