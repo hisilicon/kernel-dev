@@ -750,6 +750,7 @@ int hisi_sas_slave_alloc(struct scsi_device *sdev)
 	rc = hisi_sas_init_device(ddev);
 	if (rc)
 		return rc;
+	pr_err("%s ddev=%pS sdev=%pS sas_dev=%pS\n", __func__, ddev, sdev, sas_dev);
 	sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
 	return 0;
 }
@@ -774,6 +775,7 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	}
 
 	device->lldd_dev = sas_dev;
+	pr_err("%s ddev=%pS sas_dev=%pS dev_type=%d\n", __func__, device, sas_dev, sas_dev->dev_type);
 	hisi_hba->hw->setup_itct(hisi_hba, sas_dev);
 
 	if (parent_dev && dev_is_expander(parent_dev->dev_type)) {
