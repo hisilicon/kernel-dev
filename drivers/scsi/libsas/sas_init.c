@@ -58,6 +58,8 @@ struct sas_task *sas_alloc_slow_task(struct domain_device *device, gfp_t flags, 
 	if (WARN_ON(!found_sdev))
 		return NULL;
 
+	scsi_device_put(found_sdev);
+
 	if (qid == -1U) {
 		rq = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN,
 					BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
