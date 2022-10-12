@@ -167,6 +167,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 
 	ASSIGN_SAS_TASK(cmnd, task);
 
+	pr_err("%s task=%pS rq=%pS scmd=%pS\n", __func__, task, rq, task->uldd_task);
 	return i->dft->lldd_execute_task(task, GFP_KERNEL);
 }
 EXPORT_SYMBOL_GPL(sas_queuecommand_internal);
@@ -1056,6 +1057,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		task->task_proto = device->tproto;
 
 		rq = scsi_cmd_to_rq(task->uldd_task);
+		pr_err("%s task=%pS rq=%pS scmd=%pS\n", __func__, task, rq, task->uldd_task);
 
 		if (dev_is_sata(device)) {
 			task->ata_task.device_control_reg_update = 1;
