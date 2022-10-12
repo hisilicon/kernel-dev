@@ -55,7 +55,7 @@ struct sas_task *sas_alloc_slow_task(struct domain_device *device, gfp_t flags, 
 		}
 	}
 
-	if (WARN_ON_ONCE(!found_sdev))
+	if (WARN_ON(!found_sdev))
 		return NULL;
 
 	if (qid == -1U) {
