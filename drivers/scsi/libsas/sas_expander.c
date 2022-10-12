@@ -68,7 +68,6 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
 
-		rq->end_io = sas_blk_end_sync_rq;
 		blk_execute_rq_nowait(rq, true);
 
 		wait_for_completion(&task->slow_task->completion);

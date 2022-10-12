@@ -162,7 +162,10 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 {
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
-	struct sas_task *task = TO_SAS_TASK(cmnd);
+	struct request *rq = blk_mq_rq_from_pdu(cmnd);
+	struct sas_task *task = rq->end_io_data;
+
+	ASSIGN_SAS_TASK(cmnd, task);
 
 	return i->dft->lldd_execute_task(task, GFP_KERNEL);
 }
@@ -975,7 +978,6 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 		rq = scsi_cmd_to_rq(task->uldd_task);
 
-		rq->end_io = sas_blk_end_sync_rq;
 		blk_execute_rq_nowait(rq, true);
 
 		wait_for_completion(&task->slow_task->completion);
@@ -1073,7 +1075,6 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
 		add_timer(&task->slow_task->timer);
 
-		rq->end_io = sas_blk_end_sync_rq;
 		blk_execute_rq_nowait(rq, true);
 
 		wait_for_completion(&task->slow_task->completion);

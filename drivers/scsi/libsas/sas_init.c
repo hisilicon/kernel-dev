@@ -87,7 +87,9 @@ struct sas_task *sas_alloc_slow_task(struct domain_device *device, gfp_t flags, 
 	init_completion(&slow->completion);
 
 	task->uldd_task = scmd;
-	ASSIGN_SAS_TASK(scmd, task);
+
+	rq->end_io = sas_blk_end_sync_rq;
+	rq->end_io_data = task;
 
 	return task;
 }

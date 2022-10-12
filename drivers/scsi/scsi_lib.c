@@ -1736,8 +1736,6 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	WARN_ON_ONCE(cmd->budget_token < 0);
 
 	if (scsi_is_reserved_cmd(cmd)) {
-		unsigned char *host_scribble = cmd->host_scribble;
-
 		if (!(req->rq_flags & RQF_DONTPREP)) {
 			ret = scsi_prepare_cmd(req);
 			if (ret != BLK_STS_OK) {
@@ -1749,8 +1747,6 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		} else {
 			clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
 		}
-
-		cmd->host_scribble = host_scribble;
 
 		blk_mq_start_request(req);
 
