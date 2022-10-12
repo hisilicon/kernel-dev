@@ -173,10 +173,12 @@ int sas_notify_lldd_dev_found(struct domain_device *dev)
 	struct Scsi_Host *shost = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(shost->transportt);
 
+	pr_err("%s dev=%pS\n", __func__, dev);
 	if (!i->dft->lldd_dev_found)
 		return 0;
 
 	res = i->dft->lldd_dev_found(dev);
+	pr_err("%s2 dev=%pS res=%d\n", __func__, dev, res);
 	if (res) {
 		pr_warn("driver on host %s cannot handle device %016llx, error:%d\n",
 			dev_name(sas_ha->dev),
