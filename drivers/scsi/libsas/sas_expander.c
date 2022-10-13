@@ -921,7 +921,10 @@ static struct domain_device *sas_ex_discover_expander(
 	struct sas_rphy *rphy;
 	struct sas_expander_device *edev;
 	struct asd_sas_port *port;
-
+pr_err("ex snake %016llx:%02d:D <--> ex %016llx:0x%x\n",
+			SAS_ADDR(parent->sas_addr), phy_id,
+			SAS_ADDR(phy->attached_sas_addr),
+			phy->attached_phy_id);
 	if (phy->routing_attr == DIRECT_ROUTING) {
 		pr_warn("ex %016llx:%02d:D <--> ex %016llx:0x%x is not allowed\n",
 			SAS_ADDR(parent->sas_addr), phy_id,
