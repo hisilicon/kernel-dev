@@ -409,6 +409,7 @@ static void scsi_target_dev_release(struct device *dev)
 	struct device *parent = dev->parent;
 	struct scsi_target *starget = to_scsi_target(dev);
 
+	dev_err(dev, "%s starget=%pS parent=%pS\n", __func__, starget, dev);
 	kfree(starget);
 	put_device(parent);
 }
@@ -2001,6 +2002,7 @@ struct scsi_device *scsi_get_dev(struct device *parent, int channel, uint id, u6
        put_device(&starget->dev);
  out:
        mutex_unlock(&shost->scan_mutex);
+       dev_err(parent, "%s sdev=%pS starget=%pS\n", __func__, sdev, starget);
        return sdev;
 }
 EXPORT_SYMBOL(scsi_get_dev);

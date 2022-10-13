@@ -514,6 +514,7 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 	if (vpd_pgb2)
 		kfree_rcu(vpd_pgb2, rcu);
 	kfree(sdev->inquiry);
+	dev_err(dev, "%s sdev=%pS\n", __func__, sdev);
 	kfree(sdev);
 
 	if (parent)
@@ -1552,6 +1553,7 @@ void scsi_remove_target(struct device *dev)
 	struct scsi_target *starget;
 	unsigned long flags;
 
+	dev_err(dev, "%s dev=%pS\n", __func__, dev);
 restart:
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_for_each_entry(starget, &shost->__targets, siblings) {
@@ -1566,6 +1568,7 @@ restart:
 			else
 				starget->state = STARGET_REMOVE;
 			spin_unlock_irqrestore(shost->host_lock, flags);
+			dev_err(dev, "%s2 dev=%pS starget=%pS\n", __func__, dev, starget);
 			__scsi_remove_target(starget);
 			scsi_target_reap(starget);
 			goto restart;

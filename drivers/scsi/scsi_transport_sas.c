@@ -1553,6 +1553,7 @@ int sas_rphy_add(struct sas_rphy *rphy)
 		struct scsi_device *sdev;
 
 		sdev = scsi_get_dev(&rphy->dev, 1, rphy->scsi_target_id, 0);
+		pr_err("%s expander sdev=%pS rphy=%pS\n", __func__, sdev, rphy);
 		if (!sdev)
 			return -ENODEV;
 	}
@@ -1635,6 +1636,7 @@ sas_rphy_remove(struct sas_rphy *rphy)
 	case SAS_FANOUT_EXPANDER_DEVICE:
 		sas_remove_children(dev);
 		WARN_ONCE(1, "check me dev=%pS\n", dev);
+		dev_err(dev, "%s expander rphy=%pS calling scsi_remove_target\n", __func__, rphy);
 		scsi_remove_target(dev);
 		break;
 	default:
