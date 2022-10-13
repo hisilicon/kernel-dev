@@ -3579,6 +3579,7 @@ static struct scsi_host_template sht_v2_hw = {
 	.map_queues		= map_queues_v2_hw,
 	.host_tagset		= 1,
 	.reserved_queuecommand = sas_queuecommand_internal,
+	.reserved_timedout = sas_internal_timeout,
 };
 
 static const struct hisi_sas_hw hisi_sas_v2_hw = {

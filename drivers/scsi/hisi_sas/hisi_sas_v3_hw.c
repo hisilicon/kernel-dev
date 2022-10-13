@@ -3246,6 +3246,7 @@ static struct scsi_host_template sht_v3_hw = {
 	.host_reset             = hisi_sas_host_reset,
 	.host_tagset		= 1,
 	.reserved_queuecommand = sas_queuecommand_internal,
+	.reserved_timedout = sas_internal_timeout,
 };
 
 static const struct hisi_sas_hw hisi_sas_v3_hw = {
