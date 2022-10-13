@@ -93,6 +93,8 @@ struct sas_task *sas_alloc_slow_task_rq(struct domain_device *device, gfp_t flag
 	scmd = blk_mq_rq_to_pdu(rq);
 
 	task->uldd_task = scmd;
+
+	rq->end_io = sas_blk_end_sync_rq;
 	rq->end_io_data = task;
 
 	return task;
