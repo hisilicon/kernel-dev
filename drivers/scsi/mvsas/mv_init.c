@@ -55,6 +55,7 @@ static struct scsi_host_template mvs_sht = {
 	.shost_groups		= mvst_host_groups,
 	.track_queue_depth	= 1,
 	.reserved_queuecommand = sas_queuecommand_internal,
+	.reserved_timedout = sas_internal_timeout,
 };
 
 static struct sas_domain_function_template mvs_transport_ops = {

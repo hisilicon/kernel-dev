@@ -930,6 +930,24 @@ void sas_task_internal_timedout(struct timer_list *t)
 	if (!is_completed)
 		complete(&task->slow_task->completion);
 }
+enum blk_eh_timer_return sas_internal_timeout(struct scsi_cmnd *scmd)
+{
+	struct sas_task *task = TO_SAS_TASK(scmd);
+	bool is_completed = true;
+	unsigned long flags;
+
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+		is_completed = false;
+	}
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	if (!is_completed)
+		complete(&task->slow_task->completion);
+	return BLK_EH_DONE;
+}
+EXPORT_SYMBOL_GPL(sas_internal_timeout);
 
 #define TASK_TIMEOUT			(20 * HZ)
 #define TASK_RETRY			3

@@ -61,6 +61,7 @@ static struct scsi_host_template aic94xx_sht = {
 #endif
 	.track_queue_depth	= 1,
 	.reserved_queuecommand = sas_queuecommand_internal,
+	.reserved_timedout = sas_internal_timeout,
 };
 
 static int asd_map_memio(struct asd_ha_struct *asd_ha)
