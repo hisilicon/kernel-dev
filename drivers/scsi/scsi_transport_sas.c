@@ -1551,9 +1551,10 @@ int sas_rphy_add(struct sas_rphy *rphy)
 	} else if (identify->device_type == SAS_EDGE_EXPANDER_DEVICE ||
 		   identify->device_type == SAS_FANOUT_EXPANDER_DEVICE) {
 		struct scsi_device *sdev;
+		struct sas_expander_device *exp = rphy_to_expander_device(rphy);
 
 		sdev = scsi_get_dev(&rphy->dev, 1, rphy->scsi_target_id, 0);
-		pr_err("%s expander sdev=%pS rphy=%pS\n", __func__, sdev, rphy);
+		pr_err("%s expander sdev=%pS rphy=%pS exp=%pS\n", __func__, sdev, rphy, exp);
 		if (!sdev)
 			return -ENODEV;
 	}
