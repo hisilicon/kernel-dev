@@ -909,7 +909,6 @@ EXPORT_SYMBOL_GPL(sas_bios_param);
 
 void sas_task_internal_done(struct sas_task *task)
 {
-	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 }
 
@@ -1230,14 +1229,16 @@ void sas_task_abort(struct sas_task *task)
 	struct scsi_cmnd *sc = task->uldd_task;
 
 	/* Escape for libsas internal commands */
+	WARN_ON_ONCE(!sc);
 	if (!sc) {
-		struct sas_task_slow *slow = task->slow_task;
+		//fixme
+		//struct sas_task_slow *slow = task->slow_task;
 
-		if (!slow)
-			return;
-		if (!del_timer(&slow->timer))
-			return;
-		slow->timer.function(&slow->timer);
+		//if (!slow)
+		//	return;
+		//if (!del_timer(&slow->timer))
+		//	return;
+		//slow->timer.function(&slow->timer);
 		return;
 	}
 

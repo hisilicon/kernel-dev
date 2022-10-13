@@ -9,8 +9,6 @@
 #ifndef _LIBSAS_H_
 #define _LIBSAS_H_
 
-
-#include <linux/timer.h>
 #include <linux/pci.h>
 #include <scsi/sas.h>
 #include <linux/libata.h>
@@ -628,7 +626,6 @@ struct sas_task_slow {
 	/* standard/extra infrastructure for slow path commands (SMP and
 	 * internal lldd commands
 	 */
-	struct timer_list     timer;
 	struct completion     completion;
 	struct sas_task       *task;
 };
