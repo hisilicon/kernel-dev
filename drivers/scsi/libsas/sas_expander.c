@@ -976,9 +976,12 @@ static struct domain_device *sas_ex_discover_expander(
 					   edev->level);
 	sas_init_dev(child);
 
+	if (!sas_notify_lldd_dev_found(child))
+		goto err_rphy_free;
+
 	sas_fill_in_rphy(child, rphy);
 	if (!sas_rphy_add(rphy))
-		goto err_rphy_free;
+		goto err_dev_gone;
 
 	spin_lock_irq(&parent->port->dev_list_lock);
 	list_add_tail(&child->dev_list_node, &parent->port->dev_list);
@@ -995,6 +998,8 @@ err_rphy_remove:
 	list_del(&child->dev_list_node);
 	spin_unlock_irq(&parent->port->dev_list_lock);
 	sas_rphy_remove(rphy);
+err_dev_gone:
+	sas_notify_lldd_dev_gone(child);
 err_rphy_free:
 	sas_rphy_free(rphy);
 err_free_port:
@@ -1575,32 +1580,22 @@ static int sas_discover_expander(struct domain_device *dev)
 {
 	int res;
 
-	res = sas_notify_lldd_dev_found(dev);
-	if (res)
-		return res;
-
 	res = sas_ex_general(dev);
 	if (res)
-		goto out_err;
+		return res;
 	res = sas_ex_manuf_info(dev);
 	if (res)
-		goto out_err;
+		return res;
 
 	res = sas_expander_discover(dev);
 	if (res) {
 		pr_warn("expander %016llx discovery failed(0x%x)\n",
 			SAS_ADDR(dev->sas_addr), res);
-		goto out_err;
+		return res;
 	}
 
 	sas_check_ex_subtractive_boundary(dev);
-	res = sas_check_parent_topology(dev);
-	if (res)
-		goto out_err;
-	return 0;
-out_err:
-	sas_notify_lldd_dev_gone(dev);
-	return res;
+	return sas_check_parent_topology(dev);
 }
 
 static int sas_ex_level_discovery(struct asd_sas_port *port, const int level)
@@ -1643,6 +1638,10 @@ int sas_discover_root_expander(struct domain_device *dev)
 	int res;
 	struct sas_expander_device *ex = rphy_to_expander_device(dev->rphy);
 
+	res = sas_notify_lldd_dev_found(dev);
+	if (res)
+		return res;
+
 	res = sas_rphy_add(dev->rphy);
 	if (res)
 		goto out_err;
@@ -1659,6 +1658,7 @@ int sas_discover_root_expander(struct domain_device *dev)
 out_err2:
 	sas_rphy_remove(dev->rphy);
 out_err:
+	sas_notify_lldd_dev_gone(dev);
 	return res;
 }
 
