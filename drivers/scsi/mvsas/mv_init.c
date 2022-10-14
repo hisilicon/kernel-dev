@@ -56,6 +56,7 @@ static struct scsi_host_template mvs_sht = {
 	.track_queue_depth	= 1,
 	.reserved_queuecommand = sas_queuecommand_internal,
 	.reserved_timedout = sas_internal_timeout,
+	.nr_reserved_cmds = 2,
 };
 
 static struct sas_domain_function_template mvs_transport_ops = {
@@ -470,6 +471,10 @@ static void  mvs_post_sas_ha_init(struct Scsi_Host *shost,
 	else
 		can_queue = MVS_CHIP_SLOT_SZ;
 
+	/*
+	 * Carve out MVS_RSVD_SLOTS slots internally until every sas_task we're sent
+	 * has a request associated.
+	 */
 	can_queue -= MVS_RSVD_SLOTS;
 
 	shost->sg_tablesize = min_t(u16, SG_ALL, MVS_MAX_SG);

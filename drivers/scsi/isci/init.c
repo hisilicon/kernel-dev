@@ -179,6 +179,7 @@ static struct scsi_host_template isci_sht = {
 	.track_queue_depth		= 1,
 	.reserved_queuecommand = sas_queuecommand_internal,
 	.reserved_timedout = sas_internal_timeout,
+	.nr_reserved_cmds	= 2,
 };
 
 static struct sas_domain_function_template isci_transport_ops  = {
