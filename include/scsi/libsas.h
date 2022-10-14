@@ -652,6 +652,8 @@ static inline struct request *sas_task_find_rq(struct sas_task *task)
 		scmd = qc ? qc->scsicmd : NULL;
 	}
 
+	WARN_ON_ONCE(!scmd);
+
 	if (!scmd)
 		return NULL;
 
