@@ -147,7 +147,6 @@ static void mvs_free(struct mvs_info *mvi)
 		scsi_host_put(mvi->shost);
 	list_for_each_entry(mwq, &mvi->wq_list, entry)
 		cancel_delayed_work(&mwq->work_q);
-	kfree(mvi->rsvd_tags);
 	kfree(mvi);
 }
 
@@ -371,10 +370,6 @@ static struct mvs_info *mvs_pci_alloc(struct pci_dev *pdev,
 	mvi->sas = sha;
 	mvi->shost = shost;
 
-	mvi->rsvd_tags = bitmap_zalloc(MVS_RSVD_SLOTS, GFP_KERNEL);
-	if (!mvi->rsvd_tags)
-		goto err_out;
-
 	if (MVS_CHIP_DISP->chip_ioremap(mvi))
 		goto err_out;
 	if (!mvs_alloc(mvi, shost))
@@ -472,12 +467,6 @@ static void  mvs_post_sas_ha_init(struct Scsi_Host *shost,
 		can_queue = MVS_SOC_CAN_QUEUE;
 	else
 		can_queue = MVS_CHIP_SLOT_SZ;
-
-	/*
-	 * Carve out MVS_RSVD_SLOTS slots internally until every sas_task we're sent
-	 * has a request associated.
-	 */
-	can_queue -= MVS_RSVD_SLOTS;
 
 	shost->sg_tablesize = min_t(u16, SG_ALL, MVS_MAX_SG);
 	shost->can_queue = can_queue;
