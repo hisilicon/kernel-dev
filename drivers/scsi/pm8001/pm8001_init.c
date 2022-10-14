@@ -126,6 +126,8 @@ static struct scsi_host_template pm8001_sht = {
 	.reserved_queuecommand = sas_queuecommand_internal,
 	.reserved_timedout = sas_internal_timeout,
 	.nr_reserved_cmds = 2,
+	.init_cmd_priv = ata_init_cmd_priv,
+	.cmd_size = sizeof(struct ata_queued_cmd),
 };
 
 /*
