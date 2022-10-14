@@ -2442,6 +2442,10 @@ int hisi_sas_probe(struct platform_device *pdev,
 		shost->can_queue = HISI_SAS_MAX_COMMANDS;
 		shost->cmd_per_lun = HISI_SAS_MAX_COMMANDS;
 	} else {
+		/*
+		 * Intentionally use HISI_SAS_UNRESERVED_IPTT for .can_queue until
+		 * every sas_task we're sent has a request associated.
+		 */
 		shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
 		shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;
 	}
