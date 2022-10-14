@@ -50,7 +50,6 @@ struct sas_task *sas_alloc_slow_task(gfp_t flags)
 
 	task->slow_task = slow;
 	slow->task = task;
-	timer_setup(&slow->timer, NULL, 0);
 	init_completion(&slow->completion);
 
 	return task;
