@@ -644,15 +644,15 @@ static inline struct request *sas_task_find_rq(struct sas_task *task)
 {
 	struct scsi_cmnd *scmd;
 
-	if (!task->slow_task && task->task_proto & SAS_PROTOCOL_STP_ALL) {
+	if (task->slow_task || !(task->task_proto & SAS_PROTOCOL_STP_ALL)) {
+		scmd = task->uldd_task;
+	} else {
 		struct ata_queued_cmd *qc = task->uldd_task;
 
 		scmd = qc ? qc->scsicmd : NULL;
-	} else {
-		scmd = task->uldd_task;
 	}
 
-	if (!scmd)
+	if (WARN_ON_ONCE(!scmd))
 		return NULL;
 
 	return scsi_cmd_to_rq(scmd);

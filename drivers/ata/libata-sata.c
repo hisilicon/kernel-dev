@@ -1432,7 +1432,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 
 	/* has LLDD analyzed already? */
 	ata_qc_for_each_raw(ap, qc, tag) {
-		if (!(qc->flags & ATA_QCFLAG_FAILED))
+		if (!qc || !(qc->flags & ATA_QCFLAG_FAILED))
 			continue;
 
 		if (qc->err_mask)

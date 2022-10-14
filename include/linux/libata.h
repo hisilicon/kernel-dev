@@ -19,6 +19,7 @@
 #include <linux/ata.h>
 #include <linux/workqueue.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_cmnd.h>
 #include <linux/acpi.h>
 #include <linux/cdrom.h>
 #include <linux/sched.h>
@@ -818,7 +819,6 @@ struct ata_port {
 	unsigned int		udma_mask;
 	unsigned int		cbl;	/* cable type; ATA_CBL_xxx */
 
-	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE + 1];
 	u64			qc_active;
 	int			nr_active_links; /* #links with active qcs */
 
@@ -1398,6 +1398,7 @@ extern const struct attribute_group *ata_common_sdev_groups[];
 	.max_sectors		= ATA_MAX_SECTORS_LBA48,\
 	.reserved_queuecommand = ata_internal_queuecommand,\
 	.cmd_size = sizeof(struct ata_queued_cmd),\
+	.nr_reserved_cmds = 1,\
 	.reserved_timedout = ata_internal_timeout,\
 	.init_cmd_priv = ata_init_cmd_priv
 
@@ -1750,11 +1751,52 @@ static inline void ata_qc_set_polling(struct ata_queued_cmd *qc)
 	qc->tf.ctl |= ATA_NIEN;
 }
 
+static inline struct ata_queued_cmd *ata_scmd_to_qc(struct scsi_cmnd *scmd)
+{
+	return (struct ata_queued_cmd *)(scmd + 1);
+}
+
+struct ata_iter_data {
+	unsigned int tag;
+	struct ata_queued_cmd **qc;
+};
+
+static inline bool ata_check_qc_inflight(struct request *rq, void *priv)
+{
+	struct ata_iter_data *data = priv;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	struct ata_queued_cmd *qc =  ata_scmd_to_qc(scmd);
+
+	if (qc->tag == data->tag) {
+		*(data->qc) = qc;
+		return false;
+	}
+
+	return true;
+}
+
 static inline struct ata_queued_cmd *__ata_qc_from_tag(struct ata_port *ap,
 						       unsigned int tag)
 {
-	if (ata_tag_valid(tag))
-		return &ap->qcmd[tag];
+	struct ata_link *link;
+	struct Scsi_Host *shost = ap->scsi_host;
+
+	ata_for_each_link(link, ap, EDGE) {
+		struct ata_device *dev;
+
+		ata_for_each_dev(dev, link, ALL) {
+			struct ata_queued_cmd *qc = NULL;
+			struct ata_iter_data data = {
+				.tag = tag,
+				.qc = &qc,
+			};
+			blk_mq_tagset_busy_iter(&shost->tag_set,
+						 ata_check_qc_inflight, &data);
+			if (qc)
+				return qc;
+		}
+	}
+
 	return NULL;
 }
 

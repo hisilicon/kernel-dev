@@ -163,8 +163,21 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
 	struct request *rq = blk_mq_rq_from_pdu(cmnd);
-	struct sas_task *task = rq->end_io_data;
+	struct sas_task *task;
 
+	/* uh, I can't see a better check for now */
+	if (rq->end_io != sas_blk_end_sync_rq) {
+		struct ata_queued_cmd *qc = ata_scmd_to_qc(cmnd);
+		struct ata_port *ap = qc->ap;
+		int res;
+
+		spin_lock_irq(ap->lock);
+		res = ata_sas_queuecmd(cmnd, ap);
+		spin_unlock_irq(ap->lock);
+		return res;
+	}
+
+	task = rq->end_io_data;
 	ASSIGN_SAS_TASK(cmnd, task);
 
 	return i->dft->lldd_execute_task(task, GFP_KERNEL);
