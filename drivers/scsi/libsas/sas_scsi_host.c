@@ -921,9 +921,14 @@ void sas_task_complete_internal(struct sas_task *task)
 
 enum blk_eh_timer_return sas_internal_timeout(struct scsi_cmnd *scmd)
 {
+	struct domain_device *dev = cmd_to_domain_dev(scmd);
 	struct sas_task *task = TO_SAS_TASK(scmd);
 	bool is_completed = true;
 	unsigned long flags;
+
+	/* Handle libata internal command */
+	if (dev_is_sata(dev) && !task->slow_task)
+		return ata_internal_timeout(scmd);
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {

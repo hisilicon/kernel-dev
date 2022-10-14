@@ -1138,6 +1138,16 @@ int ata_internal_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 }
 EXPORT_SYMBOL_GPL(ata_internal_queuecommand);
 
+enum blk_eh_timer_return ata_internal_timeout(struct scsi_cmnd *scmd)
+{
+	struct request *rq = blk_mq_rq_from_pdu(scmd);
+	struct completion *wait = rq->end_io_data;
+
+	complete(wait);
+	return BLK_EH_DONE;
+}
+EXPORT_SYMBOL_GPL(ata_internal_timeout);
+
 /**
  *	ata_scsi_slave_config - Set SCSI device attributes
  *	@sdev: SCSI device to examine
