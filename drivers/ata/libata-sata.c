@@ -1258,9 +1258,10 @@ int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap)
 {
 	int rc = 0;
 
-	if (likely(ata_dev_enabled(ap->link.device)))
+	if (likely(ata_dev_enabled(ap->link.device)) ||
+		blk_mq_is_reserved_rq(scsi_cmd_to_rq(cmd))) {
 		rc = __ata_scsi_queuecmd(cmd, ap->link.device);
-	else {
+	} else {
 		cmd->result = (DID_BAD_TARGET << 16);
 		scsi_done(cmd);
 	}
@@ -1429,7 +1430,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 
 	/* has LLDD analyzed already? */
 	ata_qc_for_each_raw(ap, qc, tag) {
-		if (!(qc->flags & ATA_QCFLAG_FAILED))
+		if (!qc || !(qc->flags & ATA_QCFLAG_FAILED))
 			continue;
 
 		if (qc->err_mask)
