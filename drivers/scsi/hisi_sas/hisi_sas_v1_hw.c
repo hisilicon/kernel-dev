@@ -1763,6 +1763,8 @@ static struct scsi_host_template sht_v1_hw = {
 	.reserved_queuecommand = sas_queuecommand_internal,
 	.reserved_timedout = sas_internal_timeout,
 	.nr_reserved_cmds = 2,
+	.init_cmd_priv = ata_init_cmd_priv,
+	.cmd_size = sizeof(struct ata_queued_cmd),
 };
 
 static const struct hisi_sas_hw hisi_sas_v1_hw = {

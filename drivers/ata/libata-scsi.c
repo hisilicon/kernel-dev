@@ -1118,6 +1118,12 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 	return 0;
 }
 
+int ata_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ata_init_cmd_priv);
+
 int ata_internal_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 {
 	struct ata_port *ap;
