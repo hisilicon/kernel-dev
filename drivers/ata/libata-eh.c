@@ -1065,6 +1065,7 @@ static void __ata_port_freeze(struct ata_port *ap)
 {
 	WARN_ON(!ap->ops->error_handler);
 
+	pr_err("%s ap=%pS setting ATA_PFLAG_FROZEN\n", __func__, ap);
 	if (ap->ops->freeze)
 		ap->ops->freeze(ap);
 
@@ -1093,6 +1094,7 @@ int ata_port_freeze(struct ata_port *ap)
 
 	WARN_ON(!ap->ops->error_handler);
 
+	pr_err("%s ap=%pS calling __ata_port_freeze\n", __func__, ap);
 	__ata_port_freeze(ap);
 	nr_aborted = ata_port_abort(ap);
 
@@ -1112,7 +1114,7 @@ EXPORT_SYMBOL_GPL(ata_port_freeze);
 void ata_eh_freeze_port(struct ata_port *ap)
 {
 	unsigned long flags;
-
+	pr_err("%s ap=%pS calling __ata_port_freeze\n", __func__, ap);
 	if (!ap->ops->error_handler)
 		return;
 
@@ -2460,7 +2462,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	unsigned long flags;
 	u32 sstatus;
 	int nr_unknown, rc;
-
+	pr_err("%s link=%pS ap=%pS\n", __func__, link, ap);
 	/*
 	 * Prepare to reset
 	 */
@@ -2568,8 +2570,10 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			ata_for_each_dev(dev, link, ALL)
 				classes[dev->devno] = ATA_DEV_NONE;
 			if ((ap->pflags & ATA_PFLAG_FROZEN) &&
-			    ata_is_host_link(link))
+			    ata_is_host_link(link)) {
+				pr_err("%s8 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
 				ata_eh_thaw_port(ap);
+			}
 			rc = 0;
 			goto out;
 		}
@@ -2579,8 +2583,10 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	/*
 	 * Perform reset
 	 */
-	if (ata_is_host_link(link))
+	if (ata_is_host_link(link)) {
+		pr_err("%s calling ata_eh_freeze_port link=%pS ap=%pS\n", __func__, link, ap);
 		ata_eh_freeze_port(ap);
+	}
 
 	deadline = ata_deadline(jiffies, ata_eh_reset_timeouts[try++]);
 
@@ -2694,8 +2700,10 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		slave->sata_spd = (sstatus >> 4) & 0xf;
 
 	/* thaw the port */
-	if (ata_is_host_link(link))
+	if (ata_is_host_link(link)) {
+		pr_err("%s3 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
 		ata_eh_thaw_port(ap);
+	}
 
 	/* postreset() should clear hardware SError.  Although SError
 	 * is cleared during link resume, clearing SError here is
@@ -2727,8 +2735,10 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	ap->pflags &= ~ATA_PFLAG_EH_PENDING;
 	spin_unlock_irqrestore(link->ap->lock, flags);
 
-	if (ap->pflags & ATA_PFLAG_FROZEN)
+	if (ap->pflags & ATA_PFLAG_FROZEN) {
+		pr_err("%s4 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
 		ata_eh_thaw_port(ap);
+	}
 
 	/*
 	 * Make sure onlineness and classification result correspond.
@@ -2792,6 +2802,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	ap->pflags &= ~ATA_PFLAG_RESETTING;
 	spin_unlock_irqrestore(ap->lock, flags);
 
+	pr_err("%s X link=%pS ap=%pS return rc=%d\n", __func__, link, ap, rc);
 	return rc;
 
  fail:
@@ -2807,8 +2818,10 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		 * repeated EH runs but seems to be a better tradeoff than
 		 * shutting down a port after a botched hotplug attempt.
 		 */
-		if (ata_is_host_link(link))
+		if (ata_is_host_link(link)) {
+			pr_err("%s5 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
 			ata_eh_thaw_port(ap);
+		}
 		goto out;
 	}
 
@@ -2831,8 +2844,10 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	 * They need to be reset - as well as the PMP - before retrying.
 	 */
 	if (rc == -ERESTART) {
-		if (ata_is_host_link(link))
+		if (ata_is_host_link(link)) {
+			pr_err("%s6 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
 			ata_eh_thaw_port(ap);
+		}
 		goto out;
 	}
 
@@ -2998,6 +3013,7 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 				 * device.  No need to reset.  Just
 				 * thaw and ignore the device.
 				 */
+				pr_err("%s7 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
 				ata_eh_thaw_port(ap);
 				break;
 			default:
@@ -3041,10 +3057,12 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 		ehc->i.flags |= ATA_EHI_SETMODE;
 	}
 
+	pr_err("%s Y link=%pS ap=%pS return rc=%d\n", __func__, link, ap, rc);
 	return 0;
 
  err:
 	*r_failed_dev = dev;
+	pr_err("%s Z link=%pS ap=%pS returning rc=%d\n", __func__, link, ap, rc);
 	return rc;
 }
 
@@ -3911,6 +3929,7 @@ static void ata_eh_handle_port_suspend(struct ata_port *ap)
 	}
 
 	/* suspend */
+	pr_err("%s calling ata_eh_freeze_port for ap=%pS\n", __func__, ap);
 	ata_eh_freeze_port(ap);
 
 	if (ap->ops->port_suspend)
