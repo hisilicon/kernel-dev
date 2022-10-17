@@ -100,6 +100,8 @@ struct kvm_s2_mmu {
 };
 
 struct kvm_arch_memory_slot {
+	#define HWDBM_GRANULE_SHIFT 6  /* 64 pages per bit */
+	unsigned long *hwdbm_bitmap;
 };
 
 /**
@@ -709,6 +711,10 @@ struct kvm_vcpu_stat {
 	u64 signal_exits;
 	u64 exits;
 };
+
+int kvm_arm_init_hwdbm_bitmap(struct kvm_memory_slot *memslot);
+void kvm_arm_destroy_hwdbm_bitmap(struct kvm_memory_slot *memslot);
+void kvm_arm_enable_nearby_hwdbm(struct kvm *kvm, gfn_t gfn);
 
 void kvm_vcpu_preferred_target(struct kvm_vcpu_init *init);
 unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu);

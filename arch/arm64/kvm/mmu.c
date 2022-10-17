@@ -1352,6 +1352,10 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	 */
 	if (fault_status == FSC_PERM && vma_pagesize == fault_granule) {
 		ret = kvm_pgtable_stage2_relax_perms(pgt, fault_ipa, prot);
+
+		/* Put here with high probability that nearby PTEs are valid */
+		if (!ret && vma_pagesize == PAGE_SIZE && writable)
+			kvm_arm_enable_nearby_hwdbm(kvm, gfn);
 	} else {
 		WARN_ONCE(use_read_lock, "Attempted stage-2 map outside of write lock\n");
 
@@ -1788,11 +1792,12 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 	} while (hva < reg_end);
 
 	mmap_read_unlock(current->mm);
-	return ret;
+	return ret ? : kvm_arm_init_hwdbm_bitmap(new);
 }
 
 void kvm_arch_free_memslot(struct kvm *kvm, struct kvm_memory_slot *slot)
 {
+	kvm_arm_destroy_hwdbm_bitmap(slot);
 }
 
 void kvm_arch_memslots_updated(struct kvm *kvm, u64 gen)

@@ -1404,9 +1404,134 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	return r;
 }
 
+static unsigned long kvm_hwdbm_bitmap_bytes(struct kvm_memory_slot *memslot)
+{
+	unsigned long nbits = DIV_ROUND_UP(memslot->npages, 1 << HWDBM_GRANULE_SHIFT);
+
+	return ALIGN(nbits, BITS_PER_LONG) / 8;
+}
+
+static unsigned long *kvm_second_hwdbm_bitmap(struct kvm_memory_slot *memslot)
+{
+	unsigned long len = kvm_hwdbm_bitmap_bytes(memslot);
+
+	return (void *)memslot->arch.hwdbm_bitmap + len;
+}
+
+/*
+ * Allocate twice space. Refer kvm_arch_sync_dirty_log() to see why the
+ * second space is needed.
+ */
+int kvm_arm_init_hwdbm_bitmap(struct kvm_memory_slot *memslot)
+{
+	unsigned long bytes = 2 * kvm_hwdbm_bitmap_bytes(memslot);
+
+	if (!system_supports_hw_dbm())
+		return 0;
+
+	if (memslot->arch.hwdbm_bitmap) {
+		/* Inherited from old memslot */
+		bitmap_clear(memslot->arch.hwdbm_bitmap, 0, bytes * 8);
+	} else {
+		memslot->arch.hwdbm_bitmap = kvzalloc(bytes, GFP_KERNEL_ACCOUNT);
+		if (!memslot->arch.hwdbm_bitmap)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void kvm_arm_destroy_hwdbm_bitmap(struct kvm_memory_slot *memslot)
+{
+	if (!memslot->arch.hwdbm_bitmap)
+		return;
+
+	kvfree(memslot->arch.hwdbm_bitmap);
+	memslot->arch.hwdbm_bitmap = NULL;
+}
+
+/* Add DBM for nearby pagetables but do not across memslot */
+void kvm_arm_enable_nearby_hwdbm(struct kvm *kvm, gfn_t gfn)
+{
+	struct kvm_memory_slot *memslot;
+
+	memslot = gfn_to_memslot(kvm, gfn);
+	if (memslot && kvm_slot_dirty_track_enabled(memslot) &&
+	    memslot->arch.hwdbm_bitmap) {
+		unsigned long rel_gfn = gfn - memslot->base_gfn;
+		unsigned long dbm_idx = rel_gfn >> HWDBM_GRANULE_SHIFT;
+		unsigned long start_page, npages;
+
+		if (!test_and_set_bit(dbm_idx, memslot->arch.hwdbm_bitmap)) {
+			start_page = dbm_idx << HWDBM_GRANULE_SHIFT;
+			npages = 1 << HWDBM_GRANULE_SHIFT;
+			npages = min(memslot->npages - start_page, npages);
+			kvm_stage2_set_dbm(kvm, memslot, start_page, npages);
+		}
+	}
+}
+
+/*
+ * We have to find a place to clear hwdbm_bitmap, and clear hwdbm_bitmap means
+ * to clear DBM bit of all related pgtables. Note that between we clear DBM bit
+ * and flush TLB, HW dirty log may occur, so we must scan all related pgtables
+ * after flush TLB. Giving above, it's best choice to clear hwdbm_bitmap before
+ * sync HW dirty log.
+ */
 void kvm_arch_sync_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot)
 {
+	unsigned long *second_bitmap = kvm_second_hwdbm_bitmap(memslot);
+	unsigned long start_page, npages;
+	unsigned int end, rs, re;
+	bool has_hwdbm = false;
 
+	if (!memslot->arch.hwdbm_bitmap)
+		return;
+
+	end = kvm_hwdbm_bitmap_bytes(memslot) * 8;
+	bitmap_clear(second_bitmap, 0, end);
+
+	read_lock(&kvm->mmu_lock);
+	for_each_set_bitrange(rs, re, memslot->arch.hwdbm_bitmap, end) {
+		has_hwdbm = true;
+
+		/*
+		 * Must clear bitmap before clear DBM bit. During we clear DBM
+		 * (it releases the mmu spinlock periodly), SW dirty tracking
+		 * has chance to add DBM which overlaps what we are clearing. So
+		 * if we clear bitmap after clear DBM, we will face a situation
+		 * that bitmap is cleared but DBM are lefted, then we may have
+		 * no chance to scan these lefted pgtables anymore.
+		 */
+		bitmap_clear(memslot->arch.hwdbm_bitmap, rs, re - rs);
+
+		/* Record the bitmap cleared */
+		bitmap_set(second_bitmap, rs, re - rs);
+
+		start_page = rs << HWDBM_GRANULE_SHIFT;
+		npages = (re - rs) << HWDBM_GRANULE_SHIFT;
+		npages = min(memslot->npages - start_page, npages);
+		kvm_stage2_clear_dbm(kvm, memslot, start_page, npages);
+	}
+	read_unlock(&kvm->mmu_lock);
+
+	if (!has_hwdbm)
+		return;
+
+	/*
+	 * Ensure vcpu write-actions that occur after we clear hwdbm_bitmap can
+	 * be catched by guest memory abort handler.
+	 */
+	kvm_flush_remote_tlbs(kvm);
+
+	read_lock(&kvm->mmu_lock);
+	for_each_set_bitrange(rs, re, second_bitmap, end) {
+		start_page = rs << HWDBM_GRANULE_SHIFT;
+		npages = (re - rs) << HWDBM_GRANULE_SHIFT;
+		npages = min(memslot->npages - start_page, npages);
+		kvm_stage2_sync_dirty(kvm, memslot, start_page, npages);
+	}
+	read_unlock(&kvm->mmu_lock);
 }
 
 void kvm_arch_flush_remote_tlbs_memslot(struct kvm *kvm,

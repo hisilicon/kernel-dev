@@ -623,11 +623,11 @@ u64 kvm_get_vtcr(u64 mmfr0, u64 mmfr1, u32 phys_shift)
 	vtcr |= VTCR_EL2_LVLS_TO_SL0(lvls);
 
 	/*
-	 * Enable the Hardware Access Flag management, unconditionally
-	 * on all CPUs. The features is RES0 on CPUs without the support
-	 * and must be ignored by the CPUs.
+	 * Enable the Hardware Access Flag and Dirty State management
+	 * unconditionally on all CPUs. The features are RES0 on CPUs
+	 * without the support and must be ignored by the CPUs.
 	 */
-	vtcr |= VTCR_EL2_HA;
+	vtcr |= VTCR_EL2_HA | VTCR_EL2_HD;
 
 	/* Set the vmid bits */
 	vtcr |= (get_vmid_bits(mmfr1) == 16) ?
