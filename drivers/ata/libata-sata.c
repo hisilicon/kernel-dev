@@ -1260,6 +1260,7 @@ int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap)
 
 	if (likely(ata_dev_enabled(ap->link.device)) ||
 		blk_mq_is_reserved_rq(scsi_cmd_to_rq(cmd))) {
+		pr_err("%s cmd=%pS rq=%pS\n", __func__, cmd, scsi_cmd_to_rq(cmd));
 		rc = __ata_scsi_queuecmd(cmd, ap->link.device);
 	} else {
 		cmd->result = (DID_BAD_TARGET << 16);

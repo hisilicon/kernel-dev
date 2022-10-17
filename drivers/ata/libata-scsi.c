@@ -4001,6 +4001,7 @@ static unsigned int ata_scsi_queue_internal(struct scsi_cmnd *scmd,
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
 	struct ata_queued_cmd *qc;
+	pr_err("%s scmd=%pS rq=%pS\n", __func__, scmd, scsi_cmd_to_rq(scmd));
 
 	/* no internal command while frozen */
 	if (ap->pflags & ATA_PFLAG_FROZEN)
@@ -4031,12 +4032,15 @@ static unsigned int ata_scsi_queue_internal(struct scsi_cmnd *scmd,
 
 	scmd->submitter = SUBMITTED_BY_BLOCK_LAYER;
 
+	pr_err("%s2 scmd=%pS rq=%pS\n", __func__, scmd, scsi_cmd_to_rq(scmd));
 	ata_qc_issue(qc);
 
+	pr_err("%s10 scmd=%pS rq=%pS\n", __func__, scmd, scsi_cmd_to_rq(scmd));
 	return 0;
 did_err:
 	scmd->result = (DID_ERROR << 16);
 	scsi_done(scmd);
+	pr_err("%s11 did_err scmd=%pS rq=%pS\n", __func__, scmd, scsi_cmd_to_rq(scmd));
 	return 0;
 }
 

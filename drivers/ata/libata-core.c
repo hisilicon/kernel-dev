@@ -4414,20 +4414,63 @@ unsigned int ata_dev_softreset(struct ata_device *dev, bool reset)
 			  ata_probe_timeout * 1000 : SETFEATURES_SPINUP_TIMEOUT;
 	#endif
 
-	unsigned int err_mask;
-	struct ata_taskfile tf;
+	struct ata_taskfile *tf;
 	unsigned int timeout = 1000;
 
-	ata_tf_init(dev, &tf);
+	struct ata_link *link = dev->link;
+	struct ata_port *ap = link->ap;
+	struct scsi_device *sdev = dev->sdev;
+	int auto_timeout = 0;
+	struct ata_queued_cmd *qc;
+	struct scsi_cmnd *scmd;
+	struct request *rq;
+	int res;
+	WARN_ON_ONCE(!sdev);
+
+	/*
+	 * We only support a single reserved command, so this guarantees
+	 * serialization. However the code already assumed that (we are
+	 * serialized here per-port).
+	 */
+	rq = scsi_alloc_request(sdev->request_queue,
+			REQ_OP_DRV_OUT,// : REQ_OP_DRV_IN,
+			BLK_MQ_REQ_RESERVED);
+	if (IS_ERR(rq))
+		return AC_ERR_OTHER;
+
+	if (!timeout) {
+		if (ata_probe_timeout)
+			timeout = ata_probe_timeout * 1000;
+		else {
+			timeout = 100;//ata_internal_cmd_timeout(dev, command);
+			auto_timeout = 1;
+		}
+	}
+
+	scmd = blk_mq_rq_to_pdu(rq);
+	scmd->allowed = 0;
+	rq->timeout = msecs_to_jiffies(timeout);
+	rq->rq_flags |= RQF_QUIET;
+	scmd->device = sdev;
+
+	qc = ata_scmd_to_qc(scmd);
+	pr_err("%s qc=%pS scmd=%pS rq=%pS sdev=%pS ap=%pS dev=%pS\n", __func__, qc, scmd, rq, sdev, ap, dev);
+
+
+	tf = &qc->tf;
+	ata_tf_init(dev, tf);
 	if (reset)
-		tf.ctl |= ATA_SRST;
+		tf->ctl |= ATA_SRST;
 	else
-		tf.ctl &= ~ATA_SRST;
-	tf.command = ATA_CMD_DEV_RESET;
+		tf->ctl &= ~ATA_SRST;
+	tf->command = ATA_CMD_DEV_RESET;
 
-	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, timeout);
+	spin_lock_irq(ap->lock);
+	res = ata_sas_queuecmd(scmd, ap);
+	spin_unlock_irq(ap->lock);
 
-	return err_mask;
+	pr_err("%s10 qc=%pS scmd=%pS rq=%pS sdev=%pS ap=%pS dev=%pS res=%d\n", __func__, qc, scmd, rq, sdev, ap, dev, res);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(ata_dev_softreset);
 
