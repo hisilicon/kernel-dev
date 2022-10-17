@@ -4393,7 +4393,7 @@ unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable, u8 feature)
 }
 EXPORT_SYMBOL_GPL(ata_dev_set_feature);
 
-unsigned int ata_dev_softreset(struct ata_device *dev, bool reset)
+unsigned int ata_dev_softreset(struct ata_device *dev, bool reset, struct scsi_device *sdev)
 {
 	#ifdef ceap
 	struct ata_taskfile tf;
@@ -4419,13 +4419,11 @@ unsigned int ata_dev_softreset(struct ata_device *dev, bool reset)
 
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
-	struct scsi_device *sdev = dev->sdev;
 	int auto_timeout = 0;
 	struct ata_queued_cmd *qc;
 	struct scsi_cmnd *scmd;
 	struct request *rq;
 	int res;
-	WARN_ON_ONCE(!sdev);
 
 	/*
 	 * We only support a single reserved command, so this guarantees

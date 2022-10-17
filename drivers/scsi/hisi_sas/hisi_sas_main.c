@@ -697,7 +697,7 @@ int hisi_sas_slave_alloc(struct scsi_device *sdev)
 	struct domain_device *ddev = sdev_to_domain_dev(sdev);
 	struct hisi_sas_device *sas_dev = ddev->lldd_dev;
 	int rc;
-
+	pr_err("%s sdev=%pS sas_dev=%pS ddev=%pS\n", __func__, sdev, sas_dev, ddev);
 	rc = sas_slave_alloc(sdev);
 	if (rc)
 		return rc;
@@ -1192,13 +1192,30 @@ static int hisi_sas_softreset_ata_disk(struct domain_device *device)
 	struct ata_link *link;
 	int rc = TMF_RESP_FUNC_FAILED;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
+	struct Scsi_Host *shost = hisi_hba->shost;
 	struct device *dev = hisi_hba->dev;
+
+	struct scsi_device *sdev, *found_sdev = NULL;
+
+
+	shost_for_each_device(sdev, shost) {
+		struct scsi_target *starget = sdev->sdev_target;
+
+		if (starget->hostdata == device) {
+			found_sdev = sdev;
+			break;
+		}
+	}
+
+	pr_err("%s device=%pS found_sdev=%pS\n", __func__, device, found_sdev);
+	if (WARN_ON_ONCE(!found_sdev))
+		return -1;
 
 	ata_for_each_link(link, ap, EDGE) {
 		unsigned long rc;
 
-		rc = ata_dev_softreset(link->device, 1);
-		pr_err("%s rc=%ld ata_dev=%pS device=%pS\n", __func__, rc, link->device, device);
+		rc = ata_dev_softreset(link->device, 1, sdev);
+		pr_err("%s1 rc=%ld ata_dev=%pS device=%pS\n", __func__, rc, link->device, device);
 		if (rc)
 			break;
 	}
@@ -1207,7 +1224,7 @@ static int hisi_sas_softreset_ata_disk(struct domain_device *device)
 		ata_for_each_link(link, ap, EDGE) {
 			unsigned long rc;
 
-			rc = ata_dev_softreset(link->device, 0);
+			rc = ata_dev_softreset(link->device, 0, sdev);
 			pr_err("%s2 rc=%ld ata_dev=%pS device=%pS\n", __func__, rc, link->device, device);
 			if (rc)
 				dev_err(dev, "ata disk %016llx de-reset failed\n",
@@ -1321,8 +1338,24 @@ static void hisi_sas_send_ata_reset_each_phy(struct hisi_hba *hisi_hba,
 	struct ata_port *ap = device->sata_dev.ap;
 	struct device *dev = hisi_hba->dev;
 	int rc = TMF_RESP_FUNC_FAILED;
+	struct Scsi_Host *shost = hisi_hba->shost;
 	struct ata_link *link;
 	int i;
+
+	struct scsi_device *sdev, *found_sdev = NULL;
+
+
+	shost_for_each_device(sdev, shost) {
+		struct scsi_target *starget = sdev->sdev_target;
+
+		if (starget->hostdata == device) {
+			found_sdev = sdev;
+			break;
+		}
+	}
+
+	if (WARN_ON_ONCE(!found_sdev))
+		return;
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		if (!(sas_port->phy_mask & BIT(i)))
@@ -1331,7 +1364,7 @@ static void hisi_sas_send_ata_reset_each_phy(struct hisi_hba *hisi_hba,
 		ata_for_each_link(link, ap, EDGE) {
 			unsigned long err_mask;
 			
-			err_mask = ata_dev_softreset(link->device, 1);
+			err_mask = ata_dev_softreset(link->device, 1, found_sdev);
 			if (err_mask) {
 				dev_err(dev, "phy%d ata reset failed rc=%d\n",
 					i, rc);

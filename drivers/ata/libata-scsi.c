@@ -4001,7 +4001,7 @@ static unsigned int ata_scsi_queue_internal(struct scsi_cmnd *scmd,
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
 	struct ata_queued_cmd *qc;
-	pr_err("%s scmd=%pS rq=%pS\n", __func__, scmd, scsi_cmd_to_rq(scmd));
+	pr_err("%s scmd=%pS rq=%pS ATA_PFLAG_FROZEN=%d\n", __func__, scmd, scsi_cmd_to_rq(scmd), !!(ap->pflags & ATA_PFLAG_FROZEN));
 
 	/* no internal command while frozen */
 	if (ap->pflags & ATA_PFLAG_FROZEN)

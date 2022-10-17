@@ -858,6 +858,7 @@ int sas_target_alloc(struct scsi_target *starget)
 	if (!found_dev)
 		return -ENODEV;
 
+	pr_err("%s starget=%pS found_dev=%pS\n", __func__, starget, found_dev);
 	kref_get(&found_dev->kref);
 	starget->hostdata = found_dev;
 	return 0;
