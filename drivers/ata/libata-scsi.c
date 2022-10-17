@@ -635,7 +635,7 @@ EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
  *	RETURNS:
  *	Command allocated, or %NULL if none available.
  */
-static struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
+struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
 					      struct scsi_cmnd *cmd)
 {
 	struct ata_port *ap = dev->link->ap;

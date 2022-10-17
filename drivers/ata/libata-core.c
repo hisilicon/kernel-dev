@@ -4456,7 +4456,8 @@ unsigned int ata_dev_softreset(struct ata_device *dev, bool reset, struct scsi_d
 	rq->rq_flags |= RQF_QUIET;
 	scmd->device = sdev;
 
-	qc = ata_scmd_to_qc(scmd);
+	//qc = ata_scmd_to_qc(scmd);
+	qc = ata_scsi_qc_new(dev, scmd);
 	pr_err("%s qc=%pS scmd=%pS rq=%pS sdev=%pS ap=%pS dev=%pS\n", __func__, qc, scmd, rq, sdev, ap, dev);
 
 

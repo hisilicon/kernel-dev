@@ -1757,7 +1757,8 @@ static inline struct ata_queued_cmd *ata_scmd_to_qc(struct scsi_cmnd *scmd)
 {
 	return (struct ata_queued_cmd *)(scmd + 1);
 }
-
+extern struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
+					      struct scsi_cmnd *cmd);
 struct ata_iter_data {
 	unsigned int tag;
 	struct ata_queued_cmd **qc;
