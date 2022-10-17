@@ -1263,6 +1263,7 @@ int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap)
 		pr_err("%s cmd=%pS rq=%pS\n", __func__, cmd, scsi_cmd_to_rq(cmd));
 		rc = __ata_scsi_queuecmd(cmd, ap->link.device);
 	} else {
+		pr_err("%s2  cmd=%pS rq=%pS err\n", __func__, cmd, scsi_cmd_to_rq(cmd));
 		cmd->result = (DID_BAD_TARGET << 16);
 		scsi_done(cmd);
 	}

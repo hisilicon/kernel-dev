@@ -4049,14 +4049,18 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 	u8 scsi_op = scmd->cmnd[0];
 	ata_xlat_func_t xlat_func;
 
-	if (unlikely(!scmd->cmd_len))
+	if (unlikely(!scmd->cmd_len)) {
+ 		pr_err("%s1 scmd=%pS bad_cdb_len\n", __func__, scmd);
 		goto bad_cdb_len;
+	}
 
 	if (blk_mq_is_reserved_rq(scsi_cmd_to_rq(scmd))) {
 		return ata_scsi_queue_internal(scmd, dev);
 	} else if (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ZAC) {
-		if (unlikely(scmd->cmd_len > dev->cdb_len))
+		if (unlikely(scmd->cmd_len > dev->cdb_len)) {
+ 			pr_err("%s2 scmd=%pS bad_cdb_len\n", __func__, scmd);
 			goto bad_cdb_len;
+		}
 
 		xlat_func = ata_get_xlat_func(dev, scsi_op);
 	} else if (likely((scsi_op != ATA_16) || !atapi_passthru16)) {
@@ -4065,14 +4069,18 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 
 		if (unlikely(len > scmd->cmd_len ||
 			     len > dev->cdb_len ||
-			     scmd->cmd_len > ATAPI_CDB_LEN))
+			     scmd->cmd_len > ATAPI_CDB_LEN)) {
+ 			pr_err("%s3 scmd=%pS bad_cdb_len\n", __func__, scmd);
 			goto bad_cdb_len;
+		}
 
 		xlat_func = atapi_xlat;
 	} else {
 		/* ATA_16 passthru, treat as an ATA command */
-		if (unlikely(scmd->cmd_len > 16))
+		if (unlikely(scmd->cmd_len > 16)) {
+ 			pr_err("%s4 scmd=%pS bad_cdb_len\n", __func__, scmd);
 			goto bad_cdb_len;
+		}
 
 		xlat_func = ata_get_xlat_func(dev, scsi_op);
 	}
@@ -4085,6 +4093,7 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
 	return 0;
 
  bad_cdb_len:
+ 	pr_err("%s scmd=%pS bad_cdb_len\n", __func__, scmd);
 	scmd->result = DID_ERROR << 16;
 	scsi_done(scmd);
 	return 0;

@@ -4393,6 +4393,11 @@ unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable, u8 feature)
 }
 EXPORT_SYMBOL_GPL(ata_dev_set_feature);
 
+static void ata_dev_softreset_complete(struct ata_queued_cmd *qc)
+{	
+	pr_err("%s qc=%pS\n", __func__, qc);
+}
+
 unsigned int ata_dev_softreset(struct ata_device *dev, bool reset, struct scsi_device *sdev)
 {
 	#ifdef ceap
@@ -4432,7 +4437,7 @@ unsigned int ata_dev_softreset(struct ata_device *dev, bool reset, struct scsi_d
 	 */
 	rq = scsi_alloc_request(sdev->request_queue,
 			REQ_OP_DRV_OUT,// : REQ_OP_DRV_IN,
-			BLK_MQ_REQ_RESERVED);
+			0);
 	if (IS_ERR(rq))
 		return AC_ERR_OTHER;
 
@@ -4463,8 +4468,10 @@ unsigned int ata_dev_softreset(struct ata_device *dev, bool reset, struct scsi_d
 		tf->ctl &= ~ATA_SRST;
 	tf->command = ATA_CMD_DEV_RESET;
 
+	qc->complete_fn = ata_dev_softreset_complete;
 	spin_lock_irq(ap->lock);
-	res = ata_sas_queuecmd(scmd, ap);
+	//res = ata_sas_queuecmd(scmd, ap);
+	ata_qc_issue(qc);
 	spin_unlock_irq(ap->lock);
 
 	pr_err("%s10 qc=%pS scmd=%pS rq=%pS sdev=%pS ap=%pS dev=%pS res=%d\n", __func__, qc, scmd, rq, sdev, ap, dev, res);
@@ -4915,8 +4922,21 @@ EXPORT_SYMBOL_GPL(ata_qc_get_active);
 void ata_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	struct ata_link *link = qc->dev->link;
+	struct ata_link *link;
 	u8 prot = qc->tf.protocol;
+
+	if (!ap)
+		pr_err("%s ap=NULL qc=%pS\n", __func__, qc);
+	if (!qc->dev)
+		pr_err("%s2 qc->dev=NULL qc=%pS\n", __func__, qc);
+	if (!qc->dev->link)
+		pr_err("%s2 qc->dev->link=NULL qc=%pS\n", __func__, qc);
+	if (!ap->ops)
+		pr_err("%s3 ap->ops=NULL qc=%pS\n", __func__, qc);
+
+	link = qc->dev->link;
+	if (!link)
+		pr_err("%s4 ap->ops=NULL qc=%pS\n", __func__, qc);
 
 	/* Make sure only one non-NCQ command is outstanding.  The
 	 * check is skipped for old EH because it reuses active qc to
