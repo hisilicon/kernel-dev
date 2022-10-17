@@ -625,11 +625,11 @@ u64 kvm_get_vtcr(u64 mmfr0, u64 mmfr1, u32 phys_shift)
 
 #ifdef CONFIG_ARM64_HW_AFDBM
 	/*
-	 * Enable the Hardware Access Flag management, unconditionally
-	 * on all CPUs. The features is RES0 on CPUs without the support
-	 * and must be ignored by the CPUs.
+	 * Enable the Hardware Access Flag management,and Dirty State management
+	 * unconditionally on all CPUs. The features is RES0 on CPUs without the
+	 * support and must be ignored by the CPUs.
 	 */
-	vtcr |= VTCR_EL2_HA;
+	vtcr |= VTCR_EL2_HA | VTCR_EL2_HD;
 #endif /* CONFIG_ARM64_HW_AFDBM */
 
 	/* Set the vmid bits */
@@ -722,8 +722,16 @@ static bool stage2_pte_writable(kvm_pte_t pte)
 	return pte & KVM_PTE_LEAF_ATTR_LO_S2_S2AP_W;
 }
 
+static bool stage2_pte_dbm_set_invalid(kvm_pte_t pte, kvm_pte_t new)
+{
+	return ((new & KVM_PTE_LEAF_ATTR_HI_S2_DBM) && !stage2_pte_writable(pte));
+}
+
 static bool stage2_try_set_pte(const struct kvm_pgtable_visit_ctx *ctx, kvm_pte_t new)
 {
+	if (stage2_pte_dbm_set_invalid(READ_ONCE(*ctx->ptep), new))
+		return true;
+
 	if (!kvm_pgtable_walk_shared(ctx)) {
 		kvm_update_pte(ctx->ptep, new);
 		return true;
