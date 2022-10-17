@@ -5302,6 +5302,7 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 		return NULL;
 
 	ap->pflags |= ATA_PFLAG_INITIALIZING | ATA_PFLAG_FROZEN;
+	pr_err("%s ap=%pS setting ATA_PFLAG_FROZEN\n", __func__, ap);
 	ap->lock = &host->lock;
 	ap->print_id = -1;
 	ap->local_port_no = -1;
@@ -5627,6 +5628,7 @@ int ata_host_start(struct ata_host *host)
 				goto err_out;
 			}
 		}
+		pr_err("%s calling ata_eh_freeze_port for ap=%pS\n", __func__, ap);
 		ata_eh_freeze_port(ap);
 	}
 
