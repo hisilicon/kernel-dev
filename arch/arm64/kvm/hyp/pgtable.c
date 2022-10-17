@@ -137,9 +137,34 @@ static kvm_pte_t *kvm_pte_follow(kvm_pte_t pte, struct kvm_pgtable_mm_ops *mm_op
 	return mm_ops->phys_to_virt(kvm_pte_to_phys(pte));
 }
 
+/*
+ * We may race with the MMU trying to set the access flag or dirty state,
+ * use atomic oparations to avoid reverting these bits.
+ *
+ * Return original PTE.
+ */
+static kvm_pte_t kvm_update_pte(kvm_pte_t *ptep, kvm_pte_t bit_set,
+				kvm_pte_t bit_clr)
+{
+	kvm_pte_t old_pte, pte = *ptep;
+
+	do {
+		old_pte = pte;
+		pte &= ~bit_clr;
+		pte |= bit_set;
+
+		if (old_pte == pte)
+			break;
+
+		pte = cmpxchg_relaxed(ptep, old_pte, pte);
+	} while (pte != old_pte);
+
+	return old_pte;
+}
+
 static void kvm_clear_pte(kvm_pte_t *ptep)
 {
-	WRITE_ONCE(*ptep, 0);
+	kvm_update_pte(ptep, 0, ~0UL);
 }
 
 static void kvm_set_table_pte(kvm_pte_t *ptep, kvm_pte_t *childp,
@@ -1028,11 +1053,6 @@ static int stage2_attr_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 	pte &= ~data->attr_clr;
 	pte |= data->attr_set;
 
-	/*
-	 * We may race with the CPU trying to set the access flag here,
-	 * but worst-case the access flag update gets lost and will be
-	 * set on the next access instead.
-	 */
 	if (data->pte != pte) {
 		/*
 		 * Invalidate instruction cache before updating the guest
@@ -1042,7 +1062,8 @@ static int stage2_attr_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 		    stage2_pte_executable(pte) && !stage2_pte_executable(*ptep))
 			mm_ops->icache_inval_pou(kvm_pte_follow(pte, mm_ops),
 						  kvm_granule_size(level));
-		WRITE_ONCE(*ptep, pte);
+
+		data->pte = kvm_update_pte(ptep, data->attr_set, data->attr_clr);
 	}
 
 	return 0;
