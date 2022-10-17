@@ -9,6 +9,7 @@
 
 #include <linux/bitfield.h>
 #include <asm/kvm_pgtable.h>
+#include <asm/kvm_mmu.h>
 #include <asm/stage2_pgtable.h>
 
 
@@ -40,6 +41,7 @@
 
 #define KVM_PTE_LEAF_ATTR_HI_S1_XN	BIT(54)
 
+#define KVM_PTE_LEAF_ATTR_HI_S2_DBM	BIT(51)
 #define KVM_PTE_LEAF_ATTR_HI_S2_XN	BIT(54)
 
 #define KVM_PTE_LEAF_ATTR_S2_PERMS	(KVM_PTE_LEAF_ATTR_LO_S2_S2AP_R | \
@@ -672,6 +674,11 @@ static int stage2_set_prot_attr(struct kvm_pgtable *pgt, enum kvm_pgtable_prot p
 	return 0;
 }
 
+static bool stage2_pte_writable(kvm_pte_t pte)
+{
+	return pte & KVM_PTE_LEAF_ATTR_LO_S2_S2AP_W;
+}
+
 enum kvm_pgtable_prot kvm_pgtable_stage2_pte_prot(kvm_pte_t pte)
 {
 	enum kvm_pgtable_prot prot = pte & KVM_PTE_LEAF_ATTR_HI_SW;
@@ -780,6 +787,10 @@ static int stage2_map_walker_try_leaf(u64 addr, u64 end, u32 level,
 	if (mm_ops->icache_inval_pou && stage2_pte_executable(new))
 		mm_ops->icache_inval_pou(kvm_pte_follow(new, mm_ops), granule);
 
+	/* Save the possible hardware dirty info */
+	if ((level == KVM_PGTABLE_MAX_LEVELS - 1) && stage2_pte_writable(*ptep))
+		mark_page_dirty(kvm_s2_mmu_to_kvm(data->mmu), addr >> PAGE_SHIFT);
+
 	smp_store_release(ptep, new);
 	if (stage2_pte_is_counted(new))
 		mm_ops->get_page(ptep);
@@ -822,6 +833,10 @@ static int stage2_map_walk_leaf(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 		if (stage2_pte_is_counted(pte))
 			mm_ops->put_page(ptep);
 
+		/*
+		 * HW DBM is not working during page merging, so we don't
+		 * need to save possible hardware dirty info here.
+		 */
 		return 0;
 	}
 
@@ -1008,6 +1023,10 @@ static int stage2_unmap_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 	 */
 	stage2_put_pte(ptep, mmu, addr, level, mm_ops);
 
+	/* Save the possible hardware dirty info */
+	if ((level == KVM_PGTABLE_MAX_LEVELS - 1) && stage2_pte_writable(*ptep))
+		mark_page_dirty(kvm_s2_mmu_to_kvm(mmu), addr >> PAGE_SHIFT);
+
 	if (need_flush && mm_ops->dcache_clean_inval_poc)
 		mm_ops->dcache_clean_inval_poc(kvm_pte_follow(pte, mm_ops),
 					       kvm_granule_size(level));
@@ -1104,6 +1123,30 @@ static int stage2_update_leaf_attrs(struct kvm_pgtable *pgt, u64 addr,
 	return 0;
 }
 
+int kvm_pgtable_stage2_set_dbm(struct kvm_pgtable *pgt, u64 addr, u64 size)
+{
+	int ret;
+	u64 offset;
+
+	ret = stage2_update_leaf_attrs(pgt, addr, size,
+				       KVM_PTE_LEAF_ATTR_HI_S2_DBM, 0,
+				       NULL, NULL, BIT(3));
+	if (!ret)
+		return ret;
+
+	for (offset = 0; offset < size; offset += PAGE_SIZE)
+		kvm_call_hyp(__kvm_tlb_flush_vmid_ipa, pgt->mmu, addr + offset, 3);
+
+	return 0;
+}
+
+int kvm_pgtable_stage2_clear_dbm(struct kvm_pgtable *pgt, u64 addr, u64 size)
+{
+	return stage2_update_leaf_attrs(pgt, addr, size,
+					0, KVM_PTE_LEAF_ATTR_HI_S2_DBM,
+					NULL, NULL, BIT(3));
+}
+
 int kvm_pgtable_stage2_wrprotect(struct kvm_pgtable *pgt, u64 addr, u64 size)
 {
 	return stage2_update_leaf_attrs(pgt, addr, size, 0,
@@ -1164,6 +1207,33 @@ int kvm_pgtable_stage2_relax_perms(struct kvm_pgtable *pgt, u64 addr,
 	if (!ret)
 		kvm_call_hyp(__kvm_tlb_flush_vmid_ipa, pgt->mmu, addr, level);
 	return ret;
+}
+
+static int stage2_sync_dirty_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
+				    enum kvm_pgtable_walk_flags flag,
+				    void * const arg)
+{
+	kvm_pte_t pte = *ptep;
+	struct kvm *kvm = arg;
+
+	if (!kvm_pte_valid(pte))
+		return 0;
+
+	if ((level == KVM_PGTABLE_MAX_LEVELS - 1) && stage2_pte_writable(pte))
+		mark_page_dirty(kvm, addr >> PAGE_SHIFT);
+
+	return 0;
+}
+
+int kvm_pgtable_stage2_sync_dirty(struct kvm_pgtable *pgt, u64 addr, u64 size)
+{
+	struct kvm_pgtable_walker walker = {
+		.cb	= stage2_sync_dirty_walker,
+		.flags	= KVM_PGTABLE_WALK_LEAF,
+		.arg	= kvm_s2_mmu_to_kvm(pgt->mmu),
+	};
+
+	return kvm_pgtable_walk(pgt, addr, size, &walker);
 }
 
 static int stage2_flush_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,

@@ -81,6 +81,7 @@ KVM_NVHE_ALIAS(kvm_arm_vmid_bits);
 KVM_NVHE_ALIAS(vgic_v2_cpuif_trap);
 KVM_NVHE_ALIAS(vgic_v3_cpuif_trap);
 
+KVM_NVHE_ALIAS(mark_page_dirty);
 /* Static key checked in pmr_sync(). */
 #ifdef CONFIG_ARM64_PSEUDO_NMI
 KVM_NVHE_ALIAS(gic_pmr_sync);
