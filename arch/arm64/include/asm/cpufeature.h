@@ -740,6 +740,18 @@ static inline bool system_supports_mixed_endian(void)
 	return val == 0x1;
 }
 
+static inline bool system_supports_hw_dbm(void)
+{
+	u64 mmfr1;
+	u32 val;
+
+	mmfr1 = read_sanitised_ftr_reg(SYS_ID_AA64MMFR1_EL1);
+	val = cpuid_feature_extract_unsigned_field(mmfr1,
+						ID_AA64MMFR1_EL1_HAFDBS_SHIFT);
+
+	return val == 0x2;
+}
+
 static __always_inline bool system_supports_fpsimd(void)
 {
 	return !cpus_have_const_cap(ARM64_HAS_NO_FPSIMD);
