@@ -1496,8 +1496,10 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	WARN_ON_ONCE(!sdev);
 
 	/* no internal command while frozen */
-	if (ap->pflags & ATA_PFLAG_FROZEN)
+	if (ap->pflags & ATA_PFLAG_FROZEN) {
+		WARN_ON_ONCE(1);
 		return AC_ERR_SYSTEM;
+	}
 
 	/*
 	 * We only support a single reserved command, so this guarantees
@@ -1510,7 +1512,6 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 			BLK_MQ_REQ_RESERVED);
 	if (IS_ERR(rq))
 		return AC_ERR_OTHER;
-
 
 	if (!timeout) {
 		if (ata_probe_timeout)
@@ -4392,6 +4393,45 @@ unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable, u8 feature)
 }
 EXPORT_SYMBOL_GPL(ata_dev_set_feature);
 
+unsigned int ata_dev_softreset(struct ata_device *dev, bool reset)
+{
+	#ifdef ceap
+	struct ata_taskfile tf;
+	unsigned int timeout = 0;
+
+	/* set up set-features taskfile */
+	ata_dev_dbg(dev, "set features - SATA features\n");
+
+	ata_tf_init(dev, &tf);
+	tf.command = ATA_CMD_SET_FEATURES;
+	tf.feature = enable;
+	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	tf.protocol = ATA_PROT_NODATA;
+	tf.nsect = feature;
+
+	if (enable == SETFEATURES_SPINUP)
+		timeout = ata_probe_timeout ?
+			  ata_probe_timeout * 1000 : SETFEATURES_SPINUP_TIMEOUT;
+	#endif
+
+	unsigned int err_mask;
+	struct ata_taskfile tf;
+	unsigned int timeout = 1000;
+
+	ata_tf_init(dev, &tf);
+	if (reset)
+		tf.ctl |= ATA_SRST;
+	else
+		tf.ctl &= ~ATA_SRST;
+	tf.command = ATA_CMD_DEV_RESET;
+
+	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, timeout);
+
+	return err_mask;
+}
+EXPORT_SYMBOL_GPL(ata_dev_softreset);
+
+
 /**
  *	ata_dev_init_params - Issue INIT DEV PARAMS command
  *	@dev: Device to which command will be sent
@@ -4863,13 +4903,19 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 * We guarantee to LLDs that they will have at least one
 	 * non-zero sg if the command is a data command.
 	 */
-	if (ata_is_data(prot) && (!qc->sg || !qc->n_elem || !qc->nbytes))
+	if (ata_is_data(prot) && (!qc->sg || !qc->n_elem || !qc->nbytes)) {
+		pr_err("%s3 goto sys_err ata_is_data=%d prot=%d\n", __func__, ata_is_data(prot), prot);
 		goto sys_err;
+	}
 
 	if (ata_is_dma(prot) || (ata_is_pio(prot) &&
-				 (ap->flags & ATA_FLAG_PIO_DMA)))
-		if (ata_sg_setup(qc))
+				 (ap->flags & ATA_FLAG_PIO_DMA))) {
+		int rcx = ata_sg_setup( qc);
+		if (rcx) {
+			pr_err("%s4 goto sys_err ata_is_dma=%d rc=%d prot=%d\n", __func__, ata_is_dma(prot), rcx, prot);
 			goto sys_err;
+		}
+	}
 
 	/* if device is sleeping, schedule reset and abort the link */
 	if (unlikely(qc->dev->flags & ATA_DFLAG_SLEEPING)) {
@@ -4891,6 +4937,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 
 sys_err:
 	qc->err_mask |= AC_ERR_SYSTEM;
+	pr_err("%s9 setting AC_ERR_SYSTEM\n", __func__);
 err:
 	ata_qc_complete(qc);
 }
@@ -6508,6 +6555,7 @@ EXPORT_SYMBOL_GPL(ata_wait_register);
  */
 static unsigned int ata_dummy_qc_issue(struct ata_queued_cmd *qc)
 {
+	pr_err("%s returning AC_ERR_SYSTEM\n", __func__);
 	return AC_ERR_SYSTEM;
 }
 

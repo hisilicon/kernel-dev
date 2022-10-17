@@ -2430,10 +2430,12 @@ static int ata_do_reset(struct ata_link *link, ata_reset_fn_t reset,
 
 static int ata_eh_followup_srst_needed(struct ata_link *link, int rc)
 {
+	pr_err("%s ATA_LFLAG_NO_SRST=%d ata_link_offline=%d rc=%d\n", __func__, !!(link->flags & ATA_LFLAG_NO_SRST), ata_link_offline(link), rc);
 	if ((link->flags & ATA_LFLAG_NO_SRST) || ata_link_offline(link))
 		return 0;
 	if (rc == -EAGAIN)
 		return 1;
+	pr_err("%s2 sata_pmp_supported=%d ata_is_host_link=%d\n", __func__, sata_pmp_supported(link->ap), ata_is_host_link(link));
 	if (sata_pmp_supported(link->ap) && ata_is_host_link(link))
 		return 1;
 	return 0;
@@ -2634,6 +2636,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		}
 
 		/* perform follow-up SRST if necessary */
+		pr_err("%s snake1 reset=%pS hardreset=%pS ata_eh_followup_srst_needed=%d rc=%d\n", __func__, reset, hardreset, ata_eh_followup_srst_needed(link, rc), rc);
 		if (reset == hardreset &&
 		    ata_eh_followup_srst_needed(link, rc)) {
 			reset = softreset;
