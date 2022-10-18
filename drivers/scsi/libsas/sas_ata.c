@@ -389,6 +389,9 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 	struct domain_device *dev = ap->private_data;
 	struct sas_internal *i = dev_to_sas_internal(dev);
 	int ret;
+	bool frozen = !!(ap->pflags & ATA_PFLAG_FROZEN);
+
+	WARN_ON(frozen);
 
 	ret = i->dft->lldd_I_T_nexus_reset(dev);
 	if (ret == -ENODEV)
