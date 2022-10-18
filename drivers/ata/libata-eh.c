@@ -657,6 +657,7 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 {
 	unsigned long flags;
 
+	pr_err("%s ap=%pS\n", __func__, ap);
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
 		struct ata_link *link;
@@ -2454,7 +2455,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	unsigned long flags;
 	u32 sstatus;
 	int nr_unknown, rc;
-	pr_err("%s link=%pS ap=%pS\n", __func__, link, ap);
+	pr_err("%s link=%pS ap=%pS frozen=%d\n", __func__, link, ap, !!(ap->pflags & ATA_PFLAG_FROZEN));
 	/*
 	 * Prepare to reset
 	 */
@@ -2576,7 +2577,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	 * Perform reset
 	 */
 	if (ata_is_host_link(link)) {
-		pr_err("%s calling ata_eh_freeze_port link=%pS ap=%pS\n", __func__, link, ap);
+		pr_err("%s8.1 calling ata_eh_freeze_port link=%pS ap=%pS\n", __func__, link, ap);
 		ata_eh_freeze_port(ap);
 	}
 
@@ -2597,6 +2598,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			trace_ata_link_softreset_begin(link, classes, deadline);
 		}
 
+		pr_err("%s8.2 calling ata_do_reset link=%pS ap=%pS\n", __func__, link, ap);
 		rc = ata_do_reset(link, reset, classes, deadline, true);
 		if (reset == hardreset)
 			trace_ata_link_hardreset_end(link, classes, rc);
@@ -2692,7 +2694,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 
 	/* thaw the port */
 	if (ata_is_host_link(link)) {
-		pr_err("%s3 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
+		pr_err("%s8.4 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
 		ata_eh_thaw_port(ap);
 	}
 
@@ -2727,7 +2729,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	spin_unlock_irqrestore(link->ap->lock, flags);
 
 	if (ap->pflags & ATA_PFLAG_FROZEN) {
-		pr_err("%s4 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
+		pr_err("%s8.5 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
 		ata_eh_thaw_port(ap);
 	}
 
@@ -2793,7 +2795,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	ap->pflags &= ~ATA_PFLAG_RESETTING;
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	pr_err("%s X link=%pS ap=%pS return rc=%d\n", __func__, link, ap, rc);
+	pr_err("%s8.6 link=%pS ap=%pS return rc=%d\n", __func__, link, ap, rc);
 	return rc;
 
  fail:
@@ -2810,7 +2812,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		 * shutting down a port after a botched hotplug attempt.
 		 */
 		if (ata_is_host_link(link)) {
-			pr_err("%s5 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
+			pr_err("%s8.7 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
 			ata_eh_thaw_port(ap);
 		}
 		goto out;
@@ -2836,7 +2838,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	 */
 	if (rc == -ERESTART) {
 		if (ata_is_host_link(link)) {
-			pr_err("%s6 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
+			pr_err("%s8.8 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
 			ata_eh_thaw_port(ap);
 		}
 		goto out;
@@ -3021,7 +3023,7 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 				 * device.  No need to reset.  Just
 				 * thaw and ignore the device.
 				 */
-				pr_err("%s7 calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
+				pr_err("%s calling ata_eh_thaw_port link=%pS ap=%pS\n", __func__, link, ap);
 				ata_eh_thaw_port(ap);
 				break;
 			default:
@@ -3585,6 +3587,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	int rc, nr_fails;
 	unsigned long flags, deadline;
 
+	pr_err("%s ap=%pS frozen=%d\n", __func__, ap, !!(ap->pflags & ATA_PFLAG_FROZEN));
 	/* prep for recovery */
 	ata_for_each_link(link, ap, EDGE) {
 		struct ata_eh_context *ehc = &link->eh_context;
@@ -3645,6 +3648,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		if (!(ehc->i.action & ATA_EH_RESET))
 			continue;
 
+		pr_err("%s3 ap=%pS calling ata_eh_reset frozen=%d\n", __func__, ap, !!(ap->pflags & ATA_PFLAG_FROZEN));
 		rc = ata_eh_reset(link, ata_link_nr_vacant(link),
 				  prereset, softreset, hardreset, postreset);
 		if (rc) {
@@ -3860,10 +3864,12 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 {
 	struct ata_device *dev;
 	int rc;
-
+	pr_err("%s ap=%pS calling ata_eh_autopsy frozen=%d\n", __func__, ap, !!(ap->pflags & ATA_PFLAG_FROZEN));
 	ata_eh_autopsy(ap);
+	pr_err("%s2 ap=%pS calling ata_eh_report frozen=%d\n", __func__, ap, !!(ap->pflags & ATA_PFLAG_FROZEN));
 	ata_eh_report(ap);
 
+	pr_err("%s3 ap=%pS calling ata_eh_recover frozen=%d\n", __func__, ap, !!(ap->pflags & ATA_PFLAG_FROZEN));
 	rc = ata_eh_recover(ap, prereset, softreset, hardreset, postreset,
 			    NULL);
 	if (rc) {
@@ -3891,7 +3897,7 @@ void ata_std_error_handler(struct ata_port *ap)
 	/* ignore built-in hardreset if SCR access is not available */
 	if (hardreset == sata_std_hardreset && !sata_scr_valid(&ap->link))
 		hardreset = NULL;
-
+	pr_err("%s ap=%pS calling ata_do_eh frozen=%d\n", __func__, ap, !!(ap->pflags & ATA_PFLAG_FROZEN));
 	ata_do_eh(ap, ops->prereset, ops->softreset, hardreset, ops->postreset);
 }
 EXPORT_SYMBOL_GPL(ata_std_error_handler);
