@@ -20,40 +20,6 @@ static int mvs_find_tag(struct mvs_info *mvi, struct sas_task *task, u32 *tag)
 	return 0;
 }
 
-static void mvs_tag_clear(struct mvs_info *mvi, u32 tag)
-{
-	void *bitmap = mvi->rsvd_tags;
-	clear_bit(tag, bitmap);
-}
-
-static void mvs_tag_free(struct mvs_info *mvi, u32 tag)
-{
-	if (tag >= MVS_RSVD_SLOTS)
-		return;
-
-	mvs_tag_clear(mvi, tag);
-}
-
-static void mvs_tag_set(struct mvs_info *mvi, unsigned int tag)
-{
-	void *bitmap = mvi->rsvd_tags;
-	set_bit(tag, bitmap);
-}
-
-static int mvs_tag_alloc(struct mvs_info *mvi, u32 *tag_out)
-{
-	unsigned int index, tag;
-	void *bitmap = mvi->rsvd_tags;
-
-	index = find_first_zero_bit(bitmap, MVS_RSVD_SLOTS);
-	tag = index;
-	if (tag >= MVS_RSVD_SLOTS)
-		return -SAS_QUEUE_FULL;
-	mvs_tag_set(mvi, tag);
-	*tag_out = tag;
-	return 0;
-}
-
 static struct mvs_info *mvs_find_dev_mvi(struct domain_device *dev)
 {
 	unsigned long i = 0, j = 0, hi = 0;
@@ -765,13 +731,7 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 	}
 
 	rq = sas_task_find_rq(task);
-	if (rq) {
-		tag = rq->tag + MVS_RSVD_SLOTS;
-	} else {
-		rc = mvs_tag_alloc(mvi, &tag);
-		if (rc)
-			goto err_out;
-	}
+	tag = rq->tag;
 
 	slot = &mvi->slot_info[tag];
 
@@ -782,7 +742,7 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 	slot->buf = dma_pool_zalloc(mvi->dma_pool, GFP_ATOMIC, &slot->buf_dma);
 	if (!slot->buf) {
 		rc = -ENOMEM;
-		goto err_out_tag;
+		goto err_out;
 	}
 
 	tei.task = task;
@@ -826,8 +786,6 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 
 err_out_slot_buf:
 	dma_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
-err_out_tag:
-	mvs_tag_free(mvi, tag);
 err_out:
 
 	dev_printk(KERN_ERR, mvi->dev, "mvsas prep failed[%d]!\n", rc);
@@ -861,12 +819,6 @@ int mvs_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	spin_unlock_irqrestore(&mvi->lock, flags);
 
 	return rc;
-}
-
-static void mvs_slot_free(struct mvs_info *mvi, u32 rx_desc)
-{
-	u32 slot_idx = rx_desc & RXQ_SLOT_MASK;
-	mvs_tag_free(mvi, slot_idx);
 }
 
 static void mvs_slot_task_free(struct mvs_info *mvi, struct sas_task *task,
@@ -906,7 +858,6 @@ static void mvs_slot_task_free(struct mvs_info *mvi, struct sas_task *task,
 	slot->task = NULL;
 	slot->port = NULL;
 	slot->slot_tag = 0xFFFFFFFF;
-	mvs_slot_free(mvi, slot_idx);
 }
 
 static void mvs_update_wideport(struct mvs_info *mvi, int phy_no)
@@ -1913,8 +1864,6 @@ int mvs_int_rx(struct mvs_info *mvi, bool self_clear)
 		} else if (rx_desc & RXQ_ERR) {
 			if (!(rx_desc & RXQ_DONE))
 				mvs_slot_complete(mvi, rx_desc, 0);
-		} else if (rx_desc & RXQ_SLOT_RESET) {
-			mvs_slot_free(mvi, rx_desc);
 		}
 	}
 
