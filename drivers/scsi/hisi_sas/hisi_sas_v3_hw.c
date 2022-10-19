@@ -4862,12 +4862,9 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->max_lun = ~0;
 	shost->max_channel = 1;
 	shost->max_cmd_len = 16;
-	/*
-	 * Intentionally use HISI_SAS_UNRESERVED_IPTT for .can_queue until
-	 * every sas_task we're sent has a request associated.
-	 */
-	shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
-	shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;
+
+	shost->can_queue = HISI_SAS_MAX_COMMANDS;
+	shost->cmd_per_lun = HISI_SAS_MAX_COMMANDS;
 
 	sha->sas_ha_name = DRV_NAME;
 	sha->dev = dev;

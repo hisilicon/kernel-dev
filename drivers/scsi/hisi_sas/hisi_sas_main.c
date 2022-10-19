@@ -161,47 +161,11 @@ static void hisi_sas_slot_index_clear(struct hisi_hba *hisi_hba, int slot_idx)
 
 static void hisi_sas_slot_index_free(struct hisi_hba *hisi_hba, int slot_idx)
 {
-	if (hisi_hba->hw->slot_index_alloc ||
-	    slot_idx >= HISI_SAS_UNRESERVED_IPTT) {
+	if (hisi_hba->hw->slot_index_alloc) {
 		spin_lock(&hisi_hba->lock);
 		hisi_sas_slot_index_clear(hisi_hba, slot_idx);
 		spin_unlock(&hisi_hba->lock);
 	}
-}
-
-static void hisi_sas_slot_index_set(struct hisi_hba *hisi_hba, int slot_idx)
-{
-	void *bitmap = hisi_hba->slot_index_tags;
-
-	__set_bit(slot_idx, bitmap);
-}
-
-static int hisi_sas_slot_index_alloc(struct hisi_hba *hisi_hba,
-				     struct request *rq)
-{
-	int index;
-	void *bitmap = hisi_hba->slot_index_tags;
-
-	if (rq)
-		return rq->tag + HISI_SAS_RESERVED_IPTT;
-
-	spin_lock(&hisi_hba->lock);
-	index = find_next_zero_bit(bitmap, HISI_SAS_RESERVED_IPTT,
-				   hisi_hba->last_slot_index + 1);
-	if (index >= HISI_SAS_RESERVED_IPTT) {
-		index = find_next_zero_bit(bitmap,
-				HISI_SAS_RESERVED_IPTT,
-				0);
-		if (index >= HISI_SAS_RESERVED_IPTT) {
-			spin_unlock(&hisi_hba->lock);
-			return -SAS_QUEUE_FULL;
-		}
-	}
-	hisi_sas_slot_index_set(hisi_hba, index);
-	hisi_hba->last_slot_index = index;
-	spin_unlock(&hisi_hba->lock);
-
-	return index;
 }
 
 void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
@@ -465,8 +429,10 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	struct hisi_sas_port *port;
 	struct hisi_hba *hisi_hba;
 	struct hisi_sas_slot *slot;
+	unsigned int dq_index;
 	struct request *rq;
 	struct device *dev;
+	u32 blk_tag;
 	int rc;
 
 	if (!sas_port) {
@@ -486,20 +452,9 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	hisi_hba = dev_to_hisi_hba(device);
 	dev = hisi_hba->dev;
 	rq = sas_task_find_rq(task);
-	if (rq) {
-		unsigned int dq_index;
-		u32 blk_tag;
-
-		blk_tag = blk_mq_unique_tag(rq);
-		dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
-		dq = &hisi_hba->dq[dq_index];
-	} else {
-		struct Scsi_Host *shost = hisi_hba->shost;
-		struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
-		int queue = qmap->mq_map[raw_smp_processor_id()];
-
-		dq = &hisi_hba->dq[queue];
-	}
+	blk_tag = blk_mq_unique_tag(rq);
+	dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
+	dq = &hisi_hba->dq[dq_index];
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SSP:
@@ -563,13 +518,13 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 			goto err_out_dma_unmap;
 	}
 
-	if (!internal_abort && hisi_hba->hw->slot_index_alloc)
+	if (hisi_hba->hw->slot_index_alloc) {
 		rc = hisi_hba->hw->slot_index_alloc(hisi_hba, device);
-	else
-		rc = hisi_sas_slot_index_alloc(hisi_hba, rq);
-
-	if (rc < 0)
-		goto err_out_dif_dma_unmap;
+		if (rc < 0)
+			goto err_out_dif_dma_unmap;
+	} else {
+		rc = rq->tag;
+	}
 
 	slot = &hisi_hba->slot_info[rc];
 	slot->n_elem = n_elem;
@@ -2434,17 +2389,8 @@ int hisi_sas_probe(struct platform_device *pdev,
 	shost->max_lun = ~0;
 	shost->max_channel = 1;
 	shost->max_cmd_len = 16;
-	if (hisi_hba->hw->slot_index_alloc) {
-		shost->can_queue = HISI_SAS_MAX_COMMANDS;
-		shost->cmd_per_lun = HISI_SAS_MAX_COMMANDS;
-	} else {
-		/*
-		 * Intentionally use HISI_SAS_UNRESERVED_IPTT for .can_queue until
-		 * every sas_task we're sent has a request associated.
-		 */
-		shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
-		shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;
-	}
+	shost->can_queue = HISI_SAS_MAX_COMMANDS;
+	shost->cmd_per_lun = HISI_SAS_MAX_COMMANDS;
 
 	sha->sas_ha_name = DRV_NAME;
 	sha->dev = hisi_hba->dev;
