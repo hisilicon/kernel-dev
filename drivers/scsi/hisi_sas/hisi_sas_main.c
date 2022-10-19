@@ -1247,7 +1247,6 @@ static void hisi_sas_fill_ata_reset_cmd(struct ata_device *dev,
 		tf.ctl |= ATA_SRST;
 	else
 		tf.ctl &= ~ATA_SRST;
-	tf.command = ATA_CMD_DEV_RESET;
 	ata_tf_to_fis(&tf, pmp, 0, fis);
 }
 
