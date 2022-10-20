@@ -298,6 +298,7 @@ void scsi_device_unbusy(struct scsi_device *sdev, struct scsi_cmnd *cmd)
 	if (starget->can_queue > 0)
 		atomic_dec(&starget->target_busy);
 
+	WARN_ONCE(!sbitmap_test_bit(&sdev->budget_map, cmd->budget_token), "token=%d\n", cmd->budget_token);
 	sbitmap_put(&sdev->budget_map, cmd->budget_token);
 	cmd->budget_token = -1;
 }
