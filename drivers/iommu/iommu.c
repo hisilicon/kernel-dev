@@ -1935,6 +1935,42 @@ struct iommu_domain *iommu_domain_alloc(struct bus_type *bus)
 }
 EXPORT_SYMBOL_GPL(iommu_domain_alloc);
 
+struct iommu_domain *iommu_domain_alloc_user(struct device *dev,
+					     struct iommu_domain *parent,
+					     void *user_data, size_t data_len)
+{
+	const struct iommu_ops *ops;
+	struct iommu_domain *domain;
+
+	if (dev->iommu && dev->iommu->iommu_dev)
+		ops = dev_iommu_ops(dev);
+	else if (dev->bus && dev->bus->iommu_ops)
+		ops = dev->bus->iommu_ops;
+	else
+		return NULL;
+
+	if (!ops->domain_alloc_user) {
+		if (parent || user_data || data_len)
+			return NULL;
+		return __iommu_domain_alloc(dev->bus, IOMMU_DOMAIN_UNMANAGED);
+	}
+
+	domain = ops->domain_alloc_user(dev, parent, user_data, data_len);
+	if (!domain)
+		return NULL;
+
+	if (parent)
+		domain->type = IOMMU_DOMAIN_NESTED;
+	else
+		domain->type = IOMMU_DOMAIN_UNMANAGED;
+
+	if (!domain->ops)
+		domain->ops = ops->default_domain_ops;
+
+	return domain;
+}
+EXPORT_SYMBOL_GPL(iommu_domain_alloc_user);
+
 void iommu_domain_free(struct iommu_domain *domain)
 {
 	if (domain->type == IOMMU_DOMAIN_SVA)
