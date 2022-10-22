@@ -595,6 +595,11 @@ struct request *blk_mq_alloc_request(struct request_queue *q, blk_opf_t opf,
 		if (!rq)
 			goto out_queue_exit;
 	}
+	WARN_ON_ONCE(rq->bio);
+	WARN_ON_ONCE(rq->biotail);
+	WARN_ON_ONCE(rq->__data_len);
+	WARN_ON_ONCE(rq->__sector !=(sector_t) -1);
+
 	return rq;
 out_queue_exit:
 	blk_queue_exit(q);
@@ -615,6 +620,7 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 	unsigned int cpu;
 	unsigned int tag;
 	int ret;
+	struct request *rq;
 
 	/* alloc_time includes depth and tag waits */
 	if (blk_queue_rq_alloc_time(q))
@@ -661,9 +667,14 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 	tag = blk_mq_get_tag(&data);
 	if (tag == BLK_MQ_NO_TAG)
 		goto out_queue_exit;
-	return blk_mq_rq_ctx_init(&data, blk_mq_tags_from_data(&data), tag,
+	rq =  blk_mq_rq_ctx_init(&data, blk_mq_tags_from_data(&data), tag,
 					alloc_time_ns);
 
+	WARN_ON_ONCE(rq->bio);
+	WARN_ON_ONCE(rq->biotail);
+	WARN_ON_ONCE(rq->__data_len);
+	WARN_ON_ONCE(rq->__sector !=(sector_t) -1);
+	return rq;
 out_queue_exit:
 	blk_queue_exit(q);
 	return ERR_PTR(ret);
