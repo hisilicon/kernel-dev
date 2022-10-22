@@ -402,6 +402,10 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 		}
 	}
 
+	rq->__data_len = 0;
+	rq->__sector = (sector_t) -1;
+	rq->bio = rq->biotail = NULL;
+
 	return rq;
 }
 
@@ -591,9 +595,6 @@ struct request *blk_mq_alloc_request(struct request_queue *q, blk_opf_t opf,
 		if (!rq)
 			goto out_queue_exit;
 	}
-	rq->__data_len = 0;
-	rq->__sector = (sector_t) -1;
-	rq->bio = rq->biotail = NULL;
 	return rq;
 out_queue_exit:
 	blk_queue_exit(q);
