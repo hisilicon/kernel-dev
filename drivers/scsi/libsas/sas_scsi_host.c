@@ -920,23 +920,6 @@ void sas_task_complete_internal(struct sas_task *task)
 	scsi_done(scmd);
 }
 
-void sas_task_internal_timedout(struct timer_list *t)
-{
-	struct sas_task_slow *slow = from_timer(slow, t, timer);
-	struct sas_task *task = slow->task;
-	bool is_completed = true;
-	unsigned long flags;
-
-	spin_lock_irqsave(&task->task_state_lock, flags);
-	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
-		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
-		is_completed = false;
-	}
-	spin_unlock_irqrestore(&task->task_state_lock, flags);
-
-	if (!is_completed)
-		complete(&task->slow_task->completion);
-}
 enum blk_eh_timer_return sas_internal_timeout(struct scsi_cmnd *scmd)
 {
 	struct sas_task *task = TO_SAS_TASK(scmd);
@@ -978,28 +961,23 @@ static int sas_execute_internal_abort(struct domain_device *device,
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		task = sas_alloc_slow_task(GFP_KERNEL);
+		struct request *rq;
+
+		task = sas_alloc_slow_task_rq(device, GFP_KERNEL, qid);
 		if (!task)
 			return -ENOMEM;
 
 		task->dev = device;
 		task->task_proto = SAS_PROTOCOL_INTERNAL_ABORT;
-		task->task_done = sas_task_internal_done;
-		task->slow_task->timer.function = sas_task_internal_timedout;
-		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
-		add_timer(&task->slow_task->timer);
+		task->task_done = sas_task_complete_internal;
 
 		task->abort_task.tag = tag;
 		task->abort_task.type = type;
-		task->abort_task.qid = qid;
 
-		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-		if (res) {
-			del_timer_sync(&task->slow_task->timer);
-			pr_err("Executing internal abort failed %016llx (%d)\n",
-			       SAS_ADDR(device->sas_addr), res);
-			break;
-		}
+		rq = scsi_cmd_to_rq(task->uldd_task);
+		rq->timeout = TASK_TIMEOUT;
+
+		blk_execute_rq_nowait(rq, true);
 
 		wait_for_completion(&task->slow_task->completion);
 		res = TMF_RESP_FUNC_FAILED;
@@ -1069,7 +1047,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct request *rq;
 
-		task = sas_alloc_slow_task_rq(device, GFP_KERNEL);
+		task = sas_alloc_slow_task_rq(device, GFP_KERNEL, -1U);
 		if (!task)
 			return -ENOMEM;
 
@@ -1251,17 +1229,7 @@ void sas_task_abort(struct sas_task *task)
 {
 	struct scsi_cmnd *sc = task->uldd_task;
 
-	/* Escape for libsas internal commands */
-	if (!sc) {
-		struct sas_task_slow *slow = task->slow_task;
-
-		if (!slow)
-			return;
-		if (!del_timer(&slow->timer))
-			return;
-		slow->timer.function(&slow->timer);
-		return;
-	}
+	WARN_ON_ONCE(!sc);
 
 	if (dev_is_sata(task->dev) && !task->slow_task)
 		sas_ata_task_abort(task);

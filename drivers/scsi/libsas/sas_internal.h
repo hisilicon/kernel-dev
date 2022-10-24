@@ -54,7 +54,8 @@ void sas_free_event(struct asd_sas_event *event);
 
 struct sas_task *sas_alloc_task(gfp_t flags);
 struct sas_task *sas_alloc_slow_task(gfp_t flags);
-struct sas_task *sas_alloc_slow_task_rq(struct domain_device *device, gfp_t flags);
+struct sas_task *sas_alloc_slow_task_rq(struct domain_device *device, gfp_t flags,
+				      unsigned int qid);
 void sas_free_task(struct sas_task *task);
 
 int  sas_register_ports(struct sas_ha_struct *sas_ha);

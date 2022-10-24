@@ -50,7 +50,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 			break;
 		}
 
-		task = sas_alloc_slow_task_rq(dev, GFP_KERNEL);
+		task = sas_alloc_slow_task_rq(dev, GFP_KERNEL, -1U);
 		if (!task) {
 			res = -ENOMEM;
 			break;
