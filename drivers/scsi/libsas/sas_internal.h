@@ -104,6 +104,9 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		    int para_len, int force_phy_id,
 		    struct sas_tmf_task *tmf);
 
+void sas_task_complete_internal(struct sas_task *task);
+enum rq_end_io_ret sas_blk_end_sync_rq(struct request *rq, blk_status_t error);
+
 #ifdef CONFIG_SCSI_SAS_HOST_SMP
 extern void sas_smp_host_handler(struct bsg_job *job, struct Scsi_Host *shost);
 #else

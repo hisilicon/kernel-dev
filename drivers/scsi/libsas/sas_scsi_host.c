@@ -913,6 +913,13 @@ void sas_task_internal_done(struct sas_task *task)
 	complete(&task->slow_task->completion);
 }
 
+void sas_task_complete_internal(struct sas_task *task)
+{
+	struct scsi_cmnd *scmd = task->uldd_task;
+
+	scsi_done(scmd);
+}
+
 void sas_task_internal_timedout(struct timer_list *t)
 {
 	struct sas_task_slow *slow = from_timer(slow, t, timer);
@@ -951,6 +958,15 @@ EXPORT_SYMBOL_GPL(sas_internal_timeout);
 
 #define TASK_TIMEOUT			(20 * HZ)
 #define TASK_RETRY			3
+
+enum rq_end_io_ret sas_blk_end_sync_rq(struct request *rq, blk_status_t error)
+{
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	struct sas_task *task = TO_SAS_TASK(scmd);
+	complete(&task->slow_task->completion);
+
+	return RQ_END_IO_NONE;
+}
 
 static int sas_execute_internal_abort(struct domain_device *device,
 				      enum sas_internal_abort type, u16 tag,
