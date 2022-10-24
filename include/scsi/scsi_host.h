@@ -74,6 +74,7 @@ struct scsi_host_template {
 	 */
 	int (* queuecommand)(struct Scsi_Host *, struct scsi_cmnd *);
 	int (*reserved_queuecommand)(struct Scsi_Host *, struct scsi_cmnd *);
+	enum blk_eh_timer_return (*reserved_timedout)(struct scsi_cmnd *);
 
 	/*
 	 * The commit_rqs function is used to trigger a hardware

@@ -230,10 +230,17 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 		goto fail;
 	}
 
-	if (shost->nr_reserved_cmds && !sht->reserved_queuecommand) {
-		shost_printk(KERN_ERR, shost,
-			"nr_reserved_cmds set but no method to queue\n");
-		goto fail;
+	if (shost->nr_reserved_cmds) {
+		if (!sht->reserved_queuecommand) {
+			shost_printk(KERN_ERR, shost,
+				"nr_reserved_cmds set but no method to queue\n");
+			goto fail;
+		}
+		if (!sht->reserved_timedout) {
+			shost_printk(KERN_ERR, shost,
+				"nr_reserved_cmds set but no method to handle timeouts\n");
+			goto fail;
+		}
 	}
 
 	/* Use min_t(int, ...) in case shost->can_queue exceeds SHRT_MAX */

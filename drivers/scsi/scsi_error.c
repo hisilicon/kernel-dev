@@ -338,6 +338,9 @@ enum blk_eh_timer_return scsi_timeout(struct request *req)
 	if (host->eh_deadline != -1 && !host->last_reset)
 		host->last_reset = jiffies;
 
+	if (blk_mq_is_reserved_rq(req))
+		return host->hostt->reserved_timedout(scmd);
+
 	if (host->hostt->eh_timed_out)
 		rtn = host->hostt->eh_timed_out(scmd);
 
