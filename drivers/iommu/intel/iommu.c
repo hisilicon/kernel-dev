@@ -1401,44 +1401,80 @@ static void domain_update_iotlb(struct dmar_domain *domain)
 static void iommu_enable_pci_caps(struct device_domain_info *info)
 {
 	struct pci_dev *pdev;
+	int ret;
 
 	if (!info || !dev_is_pci(info->dev))
 		return;
 
 	pdev = to_pci_dev(info->dev);
-	/* For IOMMU that supports device IOTLB throttling (DIT), we assign
-	 * PFSID to the invalidation desc of a VF such that IOMMU HW can gauge
-	 * queue depth at PF level. If DIT is not set, PFSID will be treated as
-	 * reserved, which should be set to 0.
+	/*
+	 * The PCIe spec, in its wisdom, declares that the behaviour of
+	 * the device if you enable PASID support after ATS support is
+	 * undefined. So always enable PASID support on devices which
+	 * have it, even if we can't yet know if we're ever going to
+	 * use it.
 	 */
-	if (!ecap_dit(info->iommu->ecap))
-		info->pfsid = 0;
-	else {
-		struct pci_dev *pf_pdev;
-
-		/* pdev will be returned if device is not a vf */
-		pf_pdev = pci_physfn(pdev);
-		info->pfsid = pci_dev_id(pf_pdev);
+	if (info->pasid_supported && !info->pasid_enabled) {
+		ret = pci_enable_pasid(pdev, info->pasid_supported & ~1);
+		if (ret)
+			pci_info(pdev, "Failed to enable PASID: %d\n", ret);
+		else
+			info->pasid_enabled = 1;
 	}
 
-	/* The PCIe spec, in its wisdom, declares that the behaviour of
-	   the device if you enable PASID support after ATS support is
-	   undefined. So always enable PASID support on devices which
-	   have it, even if we can't yet know if we're ever going to
-	   use it. */
-	if (info->pasid_supported && !pci_enable_pasid(pdev, info->pasid_supported & ~1))
-		info->pasid_enabled = 1;
+	if (info->ats_supported && !info->ats_enabled) {
+		if (!pci_ats_page_aligned(pdev)) {
+			pci_info(pdev, "Untranslated Addresses not aligned\n");
+			return;
+		}
 
-	if (info->pri_supported &&
-	    (info->pasid_enabled ? pci_prg_resp_pasid_required(pdev) : 1)  &&
-	    !pci_reset_pri(pdev) && !pci_enable_pri(pdev, PRQ_DEPTH))
-		info->pri_enabled = 1;
+		ret = pci_enable_ats(pdev, VTD_PAGE_SHIFT);
+		if (ret) {
+			pci_info(pdev, "Failed to enable ATS: %d\n", ret);
+			return;
+		}
 
-	if (info->ats_supported && pci_ats_page_aligned(pdev) &&
-	    !pci_enable_ats(pdev, VTD_PAGE_SHIFT)) {
 		info->ats_enabled = 1;
 		domain_update_iotlb(info->domain);
 		info->ats_qdep = pci_ats_queue_depth(pdev);
+
+		/*
+		 * For IOMMU that supports device IOTLB throttling (DIT),
+		 * we assign PFSID to the invalidation desc of a VF such
+		 * that IOMMU HW can gauge queue depth at PF level. If DIT
+		 * is not set, PFSID will be treated as reserved, which
+		 * should be set to 0.
+		 */
+		if (ecap_dit(info->iommu->ecap)) {
+			struct pci_dev *pf_pdev;
+
+			/* pdev will be returned if device is not a vf */
+			pf_pdev = pci_physfn(pdev);
+			info->pfsid = pci_dev_id(pf_pdev);
+		} else {
+			info->pfsid = 0;
+		}
+	}
+
+	if (info->pri_supported && !info->pri_enabled && info->ats_enabled) {
+		if (info->pasid_enabled && !pci_prg_resp_pasid_required(pdev)) {
+			pci_info(pdev, "PRG Response PASID Required\n");
+			return;
+		}
+
+		ret = pci_reset_pri(pdev);
+		if (ret) {
+			pci_info(pdev, "Failed to reset PRI: %d\n", ret);
+			return;
+		}
+
+		ret = pci_enable_pri(pdev, PRQ_DEPTH);
+		if (ret) {
+			pci_info(pdev, "Failed to enable PRI: %d\n", ret);
+			return;
+		}
+
+		info->pri_enabled = 1;
 	}
 }
 
