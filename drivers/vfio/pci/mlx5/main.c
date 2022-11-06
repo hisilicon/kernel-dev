@@ -569,12 +569,45 @@ out_free:
 	return ERR_PTR(ret);
 }
 
+static void mlx5vf_recv_sw_header(struct mlx5_vf_migration_file *migf,
+				  loff_t *pos, const char __user **buf,
+				  size_t *len, ssize_t *done)
+{
+	ssize_t header_size = sizeof(migf->header);
+	void *header_buf = &migf->header;
+	size_t size_to_recv;
+
+	size_to_recv = header_size - (migf->sw_headers_bytes_sent % header_size);
+	size_to_recv = min_t(size_t, size_to_recv, *len);
+	header_buf += header_size - size_to_recv;
+	if (copy_from_user(header_buf, *buf, size_to_recv)) {
+		*done = -EFAULT;
+		return;
+	}
+
+	*pos += size_to_recv;
+	*len -= size_to_recv;
+	*done += size_to_recv;
+	*buf += size_to_recv;
+	migf->sw_headers_bytes_sent += size_to_recv;
+	migf->header_read = !(migf->sw_headers_bytes_sent % header_size);
+
+	if (migf->sw_headers_bytes_sent % header_size)
+		return;
+	migf->expected_length = migf->header.image_size;
+}
+
+#define EXPECTED_TABLE_END_POSITION(migf) \
+	(migf->table_start_pos + migf->expected_length + \
+	 migf->sw_headers_bytes_sent)
+
 static ssize_t mlx5vf_resume_write(struct file *filp, const char __user *buf,
 				   size_t len, loff_t *pos)
 {
 	struct mlx5_vf_migration_file *migf = filp->private_data;
 	loff_t requested_length;
 	ssize_t done = 0;
+	int ret = 0;
 
 	if (pos)
 		return -ESPIPE;
@@ -584,33 +617,47 @@ static ssize_t mlx5vf_resume_write(struct file *filp, const char __user *buf,
 	    check_add_overflow((loff_t)len, *pos, &requested_length))
 		return -EINVAL;
 
-	if (requested_length > MAX_MIGRATION_SIZE)
-		return -ENOMEM;
-
+	mutex_lock(&migf->mvdev->state_mutex);
 	mutex_lock(&migf->lock);
-	if (migf->disabled) {
-		done = -ENODEV;
+	requested_length -= migf->table_start_pos;
+	if (requested_length > MAX_MIGRATION_SIZE) {
+		ret = -ENOMEM;
 		goto out_unlock;
 	}
 
+	if (migf->disabled) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+start_over:
 	if (migf->allocated_length < requested_length) {
-		done = mlx5vf_add_migration_pages(
+		ret = mlx5vf_add_migration_pages(
 			migf,
 			DIV_ROUND_UP(requested_length - migf->allocated_length,
 				     PAGE_SIZE), &migf->table);
-		if (done)
+		if (ret)
+			goto out_unlock;
+	}
+
+	if (VFIO_PRE_COPY_SUPP(migf->mvdev)) {
+		if (!migf->header_read)
+			mlx5vf_recv_sw_header(migf, pos, &buf, &len, &done);
+		if (done < 0)
 			goto out_unlock;
 	}
 
 	while (len) {
+		unsigned long offset;
 		size_t page_offset;
 		struct page *page;
 		size_t page_len;
 		u8 *to_buff;
-		int ret;
 
-		page_offset = (*pos) % PAGE_SIZE;
-		page = mlx5vf_get_migration_page(migf, *pos - page_offset,
+		offset = *pos - mlx5vf_get_table_start_pos(migf);
+		page_offset = offset % PAGE_SIZE;
+		offset -= page_offset;
+		page = mlx5vf_get_migration_page(migf, offset,
 						 &migf->table);
 		if (!page) {
 			if (done == 0)
@@ -619,11 +666,15 @@ static ssize_t mlx5vf_resume_write(struct file *filp, const char __user *buf,
 		}
 
 		page_len = min_t(size_t, len, PAGE_SIZE - page_offset);
+		if (VFIO_PRE_COPY_SUPP(migf->mvdev))
+			page_len = min_t(size_t, page_len,
+				 EXPECTED_TABLE_END_POSITION(migf) - *pos);
+
 		to_buff = kmap_local_page(page);
 		ret = copy_from_user(to_buff + page_offset, buf, page_len);
 		kunmap_local(to_buff);
 		if (ret) {
-			done = -EFAULT;
+			ret = -EFAULT;
 			goto out_unlock;
 		}
 		*pos += page_len;
@@ -631,10 +682,22 @@ static ssize_t mlx5vf_resume_write(struct file *filp, const char __user *buf,
 		done += page_len;
 		buf += page_len;
 		migf->image_length += page_len;
+
+		if (*pos == EXPECTED_TABLE_END_POSITION(migf)) {
+			ret = mlx5vf_cmd_load_vhca_state(migf->mvdev, migf);
+			if (ret)
+				goto out_unlock;
+			mlx5vf_prep_next_table(migf);
+			if (len) {
+				requested_length -= migf->expected_length;
+				goto start_over;
+			}
+		}
 	}
 out_unlock:
 	mutex_unlock(&migf->lock);
-	return done;
+	mlx5vf_state_mutex_unlock(migf->mvdev);
+	return ret ? ret : done;
 }
 
 static const struct file_operations mlx5vf_resume_fops = {
@@ -663,6 +726,7 @@ mlx5vf_pci_resume_device_data(struct mlx5vf_pci_core_device *mvdev)
 	}
 	stream_open(migf->filp->f_inode, migf->filp);
 	mutex_init(&migf->lock);
+	migf->mvdev = mvdev;
 	return migf;
 }
 
@@ -754,10 +818,14 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 	}
 
 	if (cur == VFIO_DEVICE_STATE_RESUMING && new == VFIO_DEVICE_STATE_STOP) {
-		ret = mlx5vf_cmd_load_vhca_state(mvdev,
-						 mvdev->resuming_migf);
-		if (ret)
-			return ERR_PTR(ret);
+		if (!VFIO_PRE_COPY_SUPP(mvdev)) {
+			mutex_lock(&mvdev->resuming_migf->lock);
+			ret = mlx5vf_cmd_load_vhca_state(mvdev,
+							 mvdev->resuming_migf);
+			mutex_unlock(&mvdev->resuming_migf->lock);
+			if (ret)
+				return ERR_PTR(ret);
+		}
 		mlx5vf_disable_fds(mvdev);
 		return NULL;
 	}

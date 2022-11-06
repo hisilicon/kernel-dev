@@ -420,16 +420,14 @@ int mlx5vf_cmd_load_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	if (mvdev->mdev_detach)
 		return -ENOTCONN;
 
-	mutex_lock(&migf->lock);
-	if (!migf->image_length) {
-		err = -EINVAL;
-		goto end;
-	}
+	lockdep_assert_held(&migf->lock);
+	if (!migf->image_length)
+		return -EINVAL;
 
 	mdev = mvdev->mdev;
 	err = mlx5_core_alloc_pd(mdev, &pdn);
 	if (err)
-		goto end;
+		return err;
 
 	err = dma_map_sgtable(mdev->device, &migf->table.sgt, DMA_TO_DEVICE, 0);
 	if (err)
@@ -454,8 +452,6 @@ err_mkey:
 	dma_unmap_sgtable(mdev->device, &migf->table.sgt, DMA_TO_DEVICE, 0);
 err_reg:
 	mlx5_core_dealloc_pd(mdev, pdn);
-end:
-	mutex_unlock(&migf->lock);
 	return err;
 }
 

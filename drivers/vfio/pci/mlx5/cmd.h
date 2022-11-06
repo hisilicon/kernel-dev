@@ -39,6 +39,8 @@ struct mlx5_vf_migration_file {
 	size_t table_start_pos;
 	size_t image_length;
 	size_t allocated_length;
+	size_t expected_length;
+	struct mlx5_vf_migration_header header;
 	size_t sw_headers_bytes_sent;
 	/*
 	 * The device can be moved to stop_copy before the previous state was
