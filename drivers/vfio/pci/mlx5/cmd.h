@@ -22,17 +22,24 @@ struct mlx5vf_async_data {
 	void *out;
 };
 
+struct mlx5_vf_migration_header {
+	u32 image_size;
+	u32 reserved;
+};
+
 struct mlx5_vf_migration_file {
 	struct file *filp;
 	struct mutex lock;
 	u8 disabled:1;
 	u8 is_err:1;
 	u8 save_cb_active:1;
+	u8 header_read:1;
 
 	struct sg_append_table table;
 	size_t table_start_pos;
 	size_t image_length;
 	size_t allocated_length;
+	size_t sw_headers_bytes_sent;
 	/*
 	 * The device can be moved to stop_copy before the previous state was
 	 * fully read. Another set of variables is needed to maintain it.

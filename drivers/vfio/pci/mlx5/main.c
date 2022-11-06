@@ -121,6 +121,7 @@ static void mlx5vf_prep_next_table(struct mlx5_vf_migration_file *migf)
 	migf->image_length = 0;
 	migf->allocated_length = 0;
 	migf->last_offset_sg = NULL;
+	migf->header_read = false;
 }
 
 static void mlx5vf_disable_fd(struct mlx5_vf_migration_file *migf)
@@ -155,7 +156,8 @@ static int mlx5vf_release_file(struct inode *inode, struct file *filp)
 }
 
 #define MIGF_TOTAL_DATA(migf) \
-	(migf->table_start_pos + migf->image_length + migf->final_length)
+	(migf->table_start_pos + migf->image_length + migf->final_length + \
+	 migf->sw_headers_bytes_sent)
 
 #define VFIO_MIG_STATE_PRE_COPY(mvdev) \
 	(mvdev->mig_state == VFIO_DEVICE_STATE_PRE_COPY || \
@@ -175,7 +177,7 @@ mlx5vf_final_table_start_pos(struct mlx5_vf_migration_file *migf)
 
 static size_t mlx5vf_get_table_start_pos(struct mlx5_vf_migration_file *migf)
 {
-	return migf->table_start_pos;
+	return migf->table_start_pos + migf->sw_headers_bytes_sent;
 }
 
 static size_t mlx5vf_get_table_end_pos(struct mlx5_vf_migration_file *migf,
@@ -183,7 +185,40 @@ static size_t mlx5vf_get_table_end_pos(struct mlx5_vf_migration_file *migf,
 {
 	if (table == &migf->final_table)
 		return MIGF_TOTAL_DATA(migf);
-	return migf->table_start_pos + migf->image_length;
+	return migf->table_start_pos + migf->image_length +
+		migf->sw_headers_bytes_sent;
+}
+
+static void mlx5vf_send_sw_header(struct mlx5_vf_migration_file *migf,
+				  loff_t *pos, char __user **buf, size_t *len,
+				  ssize_t *done)
+{
+	struct mlx5_vf_migration_header header = {};
+	size_t header_size = sizeof(header);
+	void *header_buf = &header;
+	size_t size_to_transfer;
+
+	if (*pos >= mlx5vf_final_table_start_pos(migf))
+		header.image_size = migf->final_length;
+	else
+		header.image_size = migf->image_length;
+
+	size_to_transfer = header_size -
+			   (migf->sw_headers_bytes_sent % header_size);
+	size_to_transfer = min_t(size_t, size_to_transfer, *len);
+	header_buf += header_size - size_to_transfer;
+	if (copy_to_user(*buf, header_buf, size_to_transfer)) {
+		*done = -EFAULT;
+		return;
+	}
+
+	migf->sw_headers_bytes_sent += size_to_transfer;
+	migf->header_read = !(migf->sw_headers_bytes_sent % header_size);
+
+	*pos += size_to_transfer;
+	*len -= size_to_transfer;
+	*done += size_to_transfer;
+	*buf += size_to_transfer;
 }
 
 static struct sg_append_table *
@@ -231,6 +266,12 @@ static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 	    VFIO_MIG_STATE_PRE_COPY(migf->mvdev)) {
 		done = -ENOMSG;
 		goto out_unlock;
+	}
+
+	if (VFIO_PRE_COPY_SUPP(migf->mvdev) && !migf->header_read) {
+		mlx5vf_send_sw_header(migf, pos, &buf, &len, &done);
+		if (done < 0)
+			goto out_unlock;
 	}
 
 	len = min_t(size_t, MIGF_TOTAL_DATA(migf) - *pos, len);
@@ -288,6 +329,9 @@ static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 			 */
 			if (tmp == table)
 				break;
+			mlx5vf_send_sw_header(migf, pos, &buf, &len, &done);
+			if (done < 0)
+				goto out_unlock;
 		}
 	}
 
