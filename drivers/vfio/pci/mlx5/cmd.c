@@ -14,6 +14,7 @@ _mlx5vf_free_page_tracker_resources(struct mlx5vf_pci_core_device *mvdev);
 
 int mlx5vf_cmd_suspend_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod)
 {
+	struct mlx5_vf_migration_file *migf = mvdev->saving_migf;
 	u32 out[MLX5_ST_SZ_DW(suspend_vhca_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(suspend_vhca_in)] = {};
 
@@ -21,6 +22,14 @@ int mlx5vf_cmd_suspend_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod)
 	if (mvdev->mdev_detach)
 		return -ENOTCONN;
 
+	/*
+	 * In case PRE_COPY is used, saving_migf is exposed while the device is
+	 * running. Make sure to run only once there is no active save command.
+	 * Running both in parallel, might end-up with a failure in the save
+	 * command once it will try to turn on 'tracking' on a suspended device.
+	 */
+	if (migf)
+		wait_event(migf->save_wait, !migf->save_cb_active);
 	MLX5_SET(suspend_vhca_in, in, opcode, MLX5_CMD_OP_SUSPEND_VHCA);
 	MLX5_SET(suspend_vhca_in, in, vhca_id, mvdev->vhca_id);
 	MLX5_SET(suspend_vhca_in, in, op_mod, op_mod);
@@ -45,7 +54,7 @@ int mlx5vf_cmd_resume_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod)
 }
 
 int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
-					  size_t *state_size)
+					  size_t *state_size, u8 query_flags)
 {
 	u32 out[MLX5_ST_SZ_DW(query_vhca_migration_state_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(query_vhca_migration_state_in)] = {};
@@ -59,6 +68,8 @@ int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
 		 MLX5_CMD_OP_QUERY_VHCA_MIGRATION_STATE);
 	MLX5_SET(query_vhca_migration_state_in, in, vhca_id, mvdev->vhca_id);
 	MLX5_SET(query_vhca_migration_state_in, in, op_mod, 0);
+	MLX5_SET(query_vhca_migration_state_in, in, incremental,
+		 query_flags & MLX5VF_QUERY_INC);
 
 	ret = mlx5_cmd_exec_inout(mvdev->mdev, query_vhca_migration_state, in,
 				  out);
@@ -210,11 +221,11 @@ err_exec:
 }
 
 static int _create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
-			struct mlx5_vf_migration_file *migf,
+			struct sg_table *sgt,
 			struct mlx5_vhca_recv_buf *recv_buf,
 			u32 *mkey, size_t length)
 {
-	size_t npages = migf ? DIV_ROUND_UP(length, PAGE_SIZE) :
+	size_t npages = sgt ? DIV_ROUND_UP(length, PAGE_SIZE) :
 				recv_buf->npages;
 	int err = 0, inlen;
 	__be64 *mtt;
@@ -232,10 +243,10 @@ static int _create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 		 DIV_ROUND_UP(npages, 2));
 	mtt = (__be64 *)MLX5_ADDR_OF(create_mkey_in, in, klm_pas_mtt);
 
-	if (migf) {
+	if (sgt) {
 		struct sg_dma_page_iter dma_iter;
 
-		for_each_sgtable_dma_page(&migf->table.sgt, &dma_iter, 0)
+		for_each_sgtable_dma_page(sgt, &dma_iter, 0)
 			*mtt++ = cpu_to_be64(sg_page_iter_dma_address(&dma_iter));
 	} else {
 		int i;
@@ -255,7 +266,7 @@ static int _create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 	MLX5_SET(mkc, mkc, qpn, 0xffffff);
 	MLX5_SET(mkc, mkc, log_page_size, PAGE_SHIFT);
 	MLX5_SET(mkc, mkc, translations_octword_size, DIV_ROUND_UP(npages, 2));
-	MLX5_SET64(mkc, mkc, len, migf ? length : (npages * PAGE_SIZE));
+	MLX5_SET64(mkc, mkc, len, sgt ? length : (npages * PAGE_SIZE));
 	err = mlx5_core_create_mkey(mdev, mkey, in, inlen);
 	kvfree(in);
 	return err;
@@ -277,7 +288,7 @@ void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work)
 	mutex_unlock(&migf->lock);
 
 	mlx5_core_destroy_mkey(mdev, async_data->mkey);
-	dma_unmap_sgtable(mdev->device, &migf->table.sgt, DMA_FROM_DEVICE, 0);
+	dma_unmap_sgtable(mdev->device, async_data->sgt, DMA_FROM_DEVICE, 0);
 	mlx5_core_dealloc_pd(mdev, async_data->pdn);
 	kvfree(async_data->out);
 	migf->save_cb_active = false;
@@ -293,9 +304,14 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 			struct mlx5_vf_migration_file, async_data);
 
 	if (!status) {
-		WRITE_ONCE(migf->image_length,
-			   MLX5_GET(save_vhca_state_out, async_data->out,
-				    actual_image_size));
+		size_t len = MLX5_GET(save_vhca_state_out, async_data->out,
+				      actual_image_size);
+
+		if (async_data->sgt == &migf->final_table.sgt)
+			WRITE_ONCE(migf->final_length, len);
+		else
+			WRITE_ONCE(migf->image_length, len);
+
 		wake_up_interruptible(&migf->poll_wait);
 	}
 
@@ -308,7 +324,8 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 }
 
 int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
-			       struct mlx5_vf_migration_file *migf)
+			       struct mlx5_vf_migration_file *migf, bool inc,
+			       bool track)
 {
 	u32 out_size = MLX5_ST_SZ_BYTES(save_vhca_state_out);
 	u32 in[MLX5_ST_SZ_DW(save_vhca_state_in)] = {};
@@ -327,12 +344,15 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	if (err)
 		return err;
 
-	err = dma_map_sgtable(mdev->device, &migf->table.sgt, DMA_FROM_DEVICE,
-			      0);
+	async_data = &migf->async_data;
+	async_data->sgt = (!track && inc) ? &migf->final_table.sgt :
+		&migf->table.sgt;
+	err = dma_map_sgtable(mdev->device, async_data->sgt,
+			      DMA_FROM_DEVICE, 0);
 	if (err)
 		goto err_dma_map;
 
-	err = _create_mkey(mdev, pdn, migf, NULL,
+	err = _create_mkey(mdev, pdn, async_data->sgt, NULL,
 			   &mkey, migf->allocated_length);
 	if (err)
 		goto err_create_mkey;
@@ -343,8 +363,9 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	MLX5_SET(save_vhca_state_in, in, vhca_id, mvdev->vhca_id);
 	MLX5_SET(save_vhca_state_in, in, mkey, mkey);
 	MLX5_SET(save_vhca_state_in, in, size, migf->allocated_length);
+	MLX5_SET(save_vhca_state_in, in, incremental, inc);
+	MLX5_SET(save_vhca_state_in, in, set_track, track);
 
-	async_data = &migf->async_data;
 	async_data->out = kvzalloc(out_size, GFP_KERNEL);
 	if (!async_data->out) {
 		err = -ENOMEM;
@@ -370,7 +391,7 @@ err_exec:
 err_out:
 	mlx5_core_destroy_mkey(mdev, mkey);
 err_create_mkey:
-	dma_unmap_sgtable(mdev->device, &migf->table.sgt, DMA_FROM_DEVICE, 0);
+	dma_unmap_sgtable(mdev->device, async_data->sgt, DMA_FROM_DEVICE, 0);
 err_dma_map:
 	mlx5_core_dealloc_pd(mdev, pdn);
 	migf->save_cb_active = false;
@@ -405,7 +426,8 @@ int mlx5vf_cmd_load_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	if (err)
 		goto err_reg;
 
-	err = _create_mkey(mdev, pdn, migf, NULL, &mkey, migf->image_length);
+	err = _create_mkey(mdev, pdn, &migf->table.sgt, NULL, &mkey,
+			   migf->image_length);
 	if (err)
 		goto err_mkey;
 

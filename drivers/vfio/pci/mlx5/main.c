@@ -64,7 +64,8 @@ mlx5vf_get_migration_page(struct mlx5_vf_migration_file *migf,
 }
 
 static int mlx5vf_add_migration_pages(struct mlx5_vf_migration_file *migf,
-				      unsigned int npages)
+				      unsigned int npages,
+				      struct sg_append_table *table)
 {
 	unsigned int to_alloc = npages;
 	struct page **page_list;
@@ -85,7 +86,7 @@ static int mlx5vf_add_migration_pages(struct mlx5_vf_migration_file *migf,
 		}
 		to_alloc -= filled;
 		ret = sg_alloc_append_table_from_pages(
-			&migf->table, page_list, filled, 0,
+			table, page_list, filled, 0,
 			filled << PAGE_SHIFT, UINT_MAX, SG_MAX_SINGLE_ALLOC,
 			GFP_KERNEL);
 
@@ -118,7 +119,11 @@ static void mlx5vf_disable_fd(struct mlx5_vf_migration_file *migf)
 	migf->disabled = true;
 	migf->image_length = 0;
 	migf->allocated_length = 0;
+	migf->final_length = 0;
 	migf->filp->f_pos = 0;
+	for_each_sgtable_page(&migf->final_table.sgt, &sg_iter, 0)
+		__free_page(sg_page_iter_page(&sg_iter));
+	sg_free_append_table(&migf->final_table);
 	mutex_unlock(&migf->lock);
 }
 
@@ -215,6 +220,16 @@ static __poll_t mlx5vf_save_poll(struct file *filp,
 	return pollflags;
 }
 
+/*
+ * FD is exposed and user can use it after receiving an error.
+ * Mark migf in error, and wake the user.
+ */
+static void mlx5vf_mark_err(struct mlx5_vf_migration_file *migf)
+{
+	migf->is_err = true;
+	wake_up_interruptible(&migf->poll_wait);
+}
+
 static const struct file_operations mlx5vf_save_fops = {
 	.owner = THIS_MODULE,
 	.read = mlx5vf_save_read,
@@ -223,8 +238,35 @@ static const struct file_operations mlx5vf_save_fops = {
 	.llseek = no_llseek,
 };
 
+static int mlx5vf_pci_save_device_inc_data(struct mlx5vf_pci_core_device *mvdev)
+{
+	struct mlx5_vf_migration_file *migf = mvdev->saving_migf;
+	size_t length;
+	int ret;
+
+	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &length,
+						    MLX5VF_QUERY_INC);
+	if (ret)
+		return ret;
+
+	if (migf->is_err)
+		return -ENODEV;
+
+	ret = mlx5vf_add_migration_pages(
+		migf, DIV_ROUND_UP_ULL(length, PAGE_SIZE), &migf->final_table);
+	if (ret) {
+		mlx5vf_mark_err(migf);
+		return ret;
+	}
+
+	ret = mlx5vf_cmd_save_vhca_state(mvdev, migf, true, false);
+	if (ret)
+		mlx5vf_mark_err(migf);
+	return ret;
+}
+
 static struct mlx5_vf_migration_file *
-mlx5vf_pci_save_device_data(struct mlx5vf_pci_core_device *mvdev)
+mlx5vf_pci_save_device_data(struct mlx5vf_pci_core_device *mvdev, bool track)
 {
 	struct mlx5_vf_migration_file *migf;
 	size_t length;
@@ -249,17 +291,17 @@ mlx5vf_pci_save_device_data(struct mlx5vf_pci_core_device *mvdev)
 	init_waitqueue_head(&migf->save_wait);
 	mlx5_cmd_init_async_ctx(mvdev->mdev, &migf->async_ctx);
 	INIT_WORK(&migf->async_data.work, mlx5vf_mig_file_cleanup_cb);
-	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &length);
+	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &length, 0);
 	if (ret)
 		goto out_free;
 
 	ret = mlx5vf_add_migration_pages(
-		migf, DIV_ROUND_UP_ULL(length, PAGE_SIZE));
+		migf, DIV_ROUND_UP_ULL(length, PAGE_SIZE), &migf->table);
 	if (ret)
 		goto out_free;
 
 	migf->mvdev = mvdev;
-	ret = mlx5vf_cmd_save_vhca_state(mvdev, migf);
+	ret = mlx5vf_cmd_save_vhca_state(mvdev, migf, false, track);
 	if (ret)
 		goto out_free;
 	return migf;
@@ -296,7 +338,7 @@ static ssize_t mlx5vf_resume_write(struct file *filp, const char __user *buf,
 		done = mlx5vf_add_migration_pages(
 			migf,
 			DIV_ROUND_UP(requested_length - migf->allocated_length,
-				     PAGE_SIZE));
+				     PAGE_SIZE), &migf->table);
 		if (done)
 			goto out_unlock;
 	}
@@ -403,7 +445,8 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 		return NULL;
 	}
 
-	if (cur == VFIO_DEVICE_STATE_RUNNING && new == VFIO_DEVICE_STATE_RUNNING_P2P) {
+	if ((cur == VFIO_DEVICE_STATE_RUNNING && new == VFIO_DEVICE_STATE_RUNNING_P2P) ||
+	    (cur == VFIO_DEVICE_STATE_PRE_COPY && new == VFIO_DEVICE_STATE_PRE_COPY_P2P)) {
 		ret = mlx5vf_cmd_suspend_vhca(mvdev,
 			MLX5_SUSPEND_VHCA_IN_OP_MOD_SUSPEND_INITIATOR);
 		if (ret)
@@ -411,7 +454,8 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 		return NULL;
 	}
 
-	if (cur == VFIO_DEVICE_STATE_RUNNING_P2P && new == VFIO_DEVICE_STATE_RUNNING) {
+	if ((cur == VFIO_DEVICE_STATE_RUNNING_P2P && new == VFIO_DEVICE_STATE_RUNNING) ||
+	    (cur == VFIO_DEVICE_STATE_PRE_COPY_P2P && new == VFIO_DEVICE_STATE_PRE_COPY)) {
 		ret = mlx5vf_cmd_resume_vhca(mvdev,
 			MLX5_RESUME_VHCA_IN_OP_MOD_RESUME_INITIATOR);
 		if (ret)
@@ -422,7 +466,7 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 	if (cur == VFIO_DEVICE_STATE_STOP && new == VFIO_DEVICE_STATE_STOP_COPY) {
 		struct mlx5_vf_migration_file *migf;
 
-		migf = mlx5vf_pci_save_device_data(mvdev);
+		migf = mlx5vf_pci_save_device_data(mvdev, false);
 		if (IS_ERR(migf))
 			return ERR_CAST(migf);
 		get_file(migf->filp);
@@ -430,7 +474,10 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 		return migf->filp;
 	}
 
-	if ((cur == VFIO_DEVICE_STATE_STOP_COPY && new == VFIO_DEVICE_STATE_STOP)) {
+	if ((cur == VFIO_DEVICE_STATE_STOP_COPY && new == VFIO_DEVICE_STATE_STOP) ||
+	    (cur == VFIO_DEVICE_STATE_PRE_COPY && new == VFIO_DEVICE_STATE_RUNNING) ||
+	    (cur == VFIO_DEVICE_STATE_PRE_COPY_P2P &&
+	     new == VFIO_DEVICE_STATE_RUNNING_P2P)) {
 		mlx5vf_disable_fds(mvdev);
 		return NULL;
 	}
@@ -453,6 +500,28 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 			return ERR_PTR(ret);
 		mlx5vf_disable_fds(mvdev);
 		return NULL;
+	}
+
+	if ((cur == VFIO_DEVICE_STATE_RUNNING && new == VFIO_DEVICE_STATE_PRE_COPY) ||
+	    (cur == VFIO_DEVICE_STATE_RUNNING_P2P &&
+	     new == VFIO_DEVICE_STATE_PRE_COPY_P2P)) {
+		struct mlx5_vf_migration_file *migf;
+
+		migf = mlx5vf_pci_save_device_data(mvdev, true);
+		if (IS_ERR(migf))
+			return ERR_CAST(migf);
+		get_file(migf->filp);
+		mvdev->saving_migf = migf;
+		return migf->filp;
+	}
+
+	if (cur == VFIO_DEVICE_STATE_PRE_COPY_P2P && new == VFIO_DEVICE_STATE_STOP_COPY) {
+		ret = mlx5vf_cmd_suspend_vhca(mvdev,
+			MLX5_SUSPEND_VHCA_IN_OP_MOD_SUSPEND_RESPONDER);
+		if (ret)
+			return ERR_PTR(ret);
+		ret = mlx5vf_pci_save_device_inc_data(mvdev);
+		return ret ? ERR_PTR(ret) : NULL;
 	}
 
 	/*
@@ -523,7 +592,7 @@ static int mlx5vf_pci_get_data_size(struct vfio_device *vdev,
 
 	mutex_lock(&mvdev->state_mutex);
 	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev,
-						    &state_size);
+						    &state_size, 0);
 	if (!ret)
 		*stop_copy_length = state_size;
 	mlx5vf_state_mutex_unlock(mvdev);
