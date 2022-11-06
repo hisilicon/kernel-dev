@@ -32,6 +32,7 @@ struct mlx5_vf_migration_file {
 	struct mutex lock;
 	u8 disabled:1;
 	u8 is_err:1;
+	u8 precopy_err:1;
 	u8 save_cb_active:1;
 	u8 header_read:1;
 
@@ -134,6 +135,7 @@ struct mlx5vf_pci_core_device {
 
 enum {
 	MLX5VF_QUERY_INC = (1UL << 0),
+	MLX5VF_QUERY_FINAL = (1UL << 1),
 };
 
 int mlx5vf_cmd_suspend_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod);

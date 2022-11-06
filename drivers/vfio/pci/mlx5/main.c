@@ -243,7 +243,8 @@ static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 
 	if (!(filp->f_flags & O_NONBLOCK)) {
 		if (wait_event_interruptible(migf->poll_wait,
-			     (MIGF_HAS_DATA(migf) || migf->is_err)))
+			     (MIGF_HAS_DATA(migf) || migf->is_err ||
+			      migf->precopy_err)))
 			return -ERESTARTSYS;
 	}
 
@@ -351,7 +352,7 @@ static __poll_t mlx5vf_save_poll(struct file *filp,
 	mutex_lock(&migf->lock);
 	if (migf->disabled || migf->is_err)
 		pollflags = EPOLLIN | EPOLLRDNORM | EPOLLRDHUP;
-	else if (MIGF_HAS_DATA(migf))
+	else if (MIGF_HAS_DATA(migf) || migf->precopy_err)
 		pollflags = EPOLLIN | EPOLLRDNORM;
 	mutex_unlock(&migf->lock);
 
@@ -490,7 +491,7 @@ static int mlx5vf_pci_save_device_inc_data(struct mlx5vf_pci_core_device *mvdev)
 	int ret;
 
 	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &length,
-						    MLX5VF_QUERY_INC);
+					MLX5VF_QUERY_INC | MLX5VF_QUERY_FINAL);
 	if (ret)
 		return ret;
 

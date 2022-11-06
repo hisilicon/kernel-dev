@@ -70,9 +70,18 @@ int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
 	 * Running both in parallel, might end-up with a failure in the
 	 * incremental query command on un-tracked vhca.
 	 */
-	if (query_flags & MLX5VF_QUERY_INC)
+	if (query_flags & MLX5VF_QUERY_INC) {
 		wait_event(mvdev->saving_migf->save_wait,
 			   !mvdev->saving_migf->save_cb_active);
+		if (mvdev->saving_migf->precopy_err) {
+			/* In case we had a PRE_COPY error, only query full image for final image */
+			if (!(query_flags & MLX5VF_QUERY_FINAL)) {
+				*state_size = 0;
+				return 0;
+			}
+			query_flags &= ~MLX5VF_QUERY_INC;
+		}
+	}
 	MLX5_SET(query_vhca_migration_state_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_VHCA_MIGRATION_STATE);
 	MLX5_SET(query_vhca_migration_state_in, in, vhca_id, mvdev->vhca_id);
@@ -291,7 +300,10 @@ void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work)
 
 	mutex_lock(&migf->lock);
 	if (async_data->status) {
-		migf->is_err = true;
+		if (async_data->status == MLX5_CMD_STAT_BAD_RES_STATE_ERR)
+			migf->precopy_err = true;
+		else
+			migf->is_err = true;
 		wake_up_interruptible(&migf->poll_wait);
 	}
 	mutex_unlock(&migf->lock);
@@ -328,6 +340,8 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 	 * The error and the cleanup flows can't run from an
 	 * interrupt context
 	 */
+	if (status == -EREMOTEIO)
+		status = MLX5_GET(save_vhca_state_out, async_data->out, status);
 	async_data->status = status;
 	queue_work(migf->mvdev->cb_wq, &async_data->work);
 }
@@ -356,6 +370,18 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	async_data = &migf->async_data;
 	async_data->sgt = (!track && inc) ? &migf->final_table.sgt :
 		&migf->table.sgt;
+	if (migf->precopy_err) {
+		/*
+		 * In case we had a PRE_COPY error, SAVE is triggered only for
+		 * the final image, read device full image.
+		 */
+		inc = false;
+		/*
+		 * Turn off precopy_err to let reader proceed only once this
+		 * SAVE call is completed, otherwise final state might be lost.
+		 */
+		migf->precopy_err = false;
+	}
 	err = dma_map_sgtable(mdev->device, async_data->sgt,
 			      DMA_FROM_DEVICE, 0);
 	if (err)
