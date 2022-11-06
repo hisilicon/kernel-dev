@@ -30,6 +30,7 @@ struct mlx5_vf_migration_file {
 	u8 save_cb_active:1;
 
 	struct sg_append_table table;
+	size_t table_start_pos;
 	size_t image_length;
 	size_t allocated_length;
 	/*

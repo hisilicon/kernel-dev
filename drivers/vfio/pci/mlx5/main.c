@@ -107,6 +107,22 @@ err:
 	return ret;
 }
 
+static void mlx5vf_prep_next_table(struct mlx5_vf_migration_file *migf)
+{
+	struct sg_page_iter sg_iter;
+
+	lockdep_assert_held(&migf->lock);
+	migf->table_start_pos += migf->image_length;
+	/* clear sgtable, all data has been transferred */
+	for_each_sgtable_page(&migf->table.sgt, &sg_iter, 0)
+		__free_page(sg_page_iter_page(&sg_iter));
+	sg_free_append_table(&migf->table);
+	memset(&migf->table, 0, sizeof(migf->table));
+	migf->image_length = 0;
+	migf->allocated_length = 0;
+	migf->last_offset_sg = NULL;
+}
+
 static void mlx5vf_disable_fd(struct mlx5_vf_migration_file *migf)
 {
 	struct sg_page_iter sg_iter;
@@ -120,6 +136,7 @@ static void mlx5vf_disable_fd(struct mlx5_vf_migration_file *migf)
 	migf->image_length = 0;
 	migf->allocated_length = 0;
 	migf->final_length = 0;
+	migf->table_start_pos = 0;
 	migf->filp->f_pos = 0;
 	for_each_sgtable_page(&migf->final_table.sgt, &sg_iter, 0)
 		__free_page(sg_page_iter_page(&sg_iter));
@@ -136,6 +153,13 @@ static int mlx5vf_release_file(struct inode *inode, struct file *filp)
 	kfree(migf);
 	return 0;
 }
+
+#define MIGF_TOTAL_DATA(migf) \
+	(migf->table_start_pos + migf->image_length + migf->final_length)
+
+#define VFIO_MIG_STATE_PRE_COPY(mvdev) \
+	(mvdev->mig_state == VFIO_DEVICE_STATE_PRE_COPY || \
+	 mvdev->mig_state == VFIO_DEVICE_STATE_PRE_COPY_P2P)
 
 static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 			       loff_t *pos)
@@ -230,10 +254,117 @@ static void mlx5vf_mark_err(struct mlx5_vf_migration_file *migf)
 	wake_up_interruptible(&migf->poll_wait);
 }
 
+static ssize_t mlx5vf_precopy_ioctl(struct file *filp, unsigned int cmd,
+				    unsigned long arg)
+{
+	struct mlx5_vf_migration_file *migf = filp->private_data;
+	struct mlx5vf_pci_core_device *mvdev = migf->mvdev;
+	bool first_state, state_finish_transfer;
+	struct vfio_precopy_info info;
+	loff_t *pos = &filp->f_pos;
+	unsigned long minsz;
+	size_t inc_length;
+	int ret;
+
+	if (cmd != VFIO_MIG_GET_PRECOPY_INFO)
+		return -ENOTTY;
+
+	minsz = offsetofend(struct vfio_precopy_info, dirty_bytes);
+
+	if (copy_from_user(&info, (void __user *)arg, minsz))
+		return -EFAULT;
+
+	if (info.argsz < minsz)
+		return -EINVAL;
+
+	mutex_lock(&mvdev->state_mutex);
+	if (!VFIO_MIG_STATE_PRE_COPY(migf->mvdev)) {
+		ret = -EINVAL;
+		goto err_state_unlock;
+	}
+
+	/*
+	 * We can't issue a SAVE command when the device is suspended, so as
+	 * part of VFIO_DEVICE_STATE_PRE_COPY_P2P no reason to query for extra
+	 * bytes that can't be read.
+	 */
+	if (mvdev->mig_state != VFIO_DEVICE_STATE_PRE_COPY_P2P) {
+		/*
+		 * Once the query returns it's guaranteed that there is no
+		 * active SAVE command.
+		 * As so, the other code below is safe with the proper locks.
+		 */
+		ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &inc_length,
+							    MLX5VF_QUERY_INC);
+		if (ret)
+			goto err_state_unlock;
+	}
+
+	mutex_lock(&migf->lock);
+	if (*pos > MIGF_TOTAL_DATA(migf)) {
+		ret = -EINVAL;
+		goto err_migf_unlock;
+	}
+
+	if (migf->disabled || migf->is_err) {
+		ret = -ENODEV;
+		goto err_migf_unlock;
+	}
+
+	first_state = migf->table_start_pos == 0;
+	if (first_state) {
+		info.initial_bytes = MIGF_TOTAL_DATA(migf) - *pos;
+		info.dirty_bytes = 0;
+	} else {
+		info.initial_bytes = 0;
+		info.dirty_bytes = MIGF_TOTAL_DATA(migf) - *pos;
+	}
+	state_finish_transfer = *pos == MIGF_TOTAL_DATA(migf);
+	if (!(state_finish_transfer && inc_length &&
+	      mvdev->mig_state == VFIO_DEVICE_STATE_PRE_COPY)) {
+		mutex_unlock(&migf->lock);
+		goto done;
+	}
+
+	/*
+	 * We finished transferring the current state and the device has a
+	 * dirty state, save a new state to be ready for.
+	 */
+	mlx5vf_prep_next_table(migf);
+	ret = mlx5vf_add_migration_pages(migf,
+					 DIV_ROUND_UP_ULL(inc_length, PAGE_SIZE),
+					 &migf->table);
+	mutex_unlock(&migf->lock);
+	if (ret) {
+		mlx5vf_mark_err(migf);
+		goto err_state_unlock;
+	}
+
+	ret = mlx5vf_cmd_save_vhca_state(mvdev, migf, true, true);
+	if (ret) {
+		mlx5vf_mark_err(migf);
+		goto err_state_unlock;
+	}
+
+	info.dirty_bytes += inc_length;
+
+done:
+	mlx5vf_state_mutex_unlock(mvdev);
+	return copy_to_user((void __user *)arg, &info, minsz);
+
+err_migf_unlock:
+	mutex_unlock(&migf->lock);
+err_state_unlock:
+	mlx5vf_state_mutex_unlock(mvdev);
+	return ret;
+}
+
 static const struct file_operations mlx5vf_save_fops = {
 	.owner = THIS_MODULE,
 	.read = mlx5vf_save_read,
 	.poll = mlx5vf_save_poll,
+	.unlocked_ioctl = mlx5vf_precopy_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.release = mlx5vf_release_file,
 	.llseek = no_llseek,
 };
