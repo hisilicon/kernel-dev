@@ -26,6 +26,7 @@ struct mlx5_vf_migration_file {
 	struct mutex lock;
 	u8 disabled:1;
 	u8 is_err:1;
+	u8 save_cb_active:1;
 
 	struct sg_append_table table;
 	size_t total_length;
@@ -37,6 +38,7 @@ struct mlx5_vf_migration_file {
 	unsigned long last_offset;
 	struct mlx5vf_pci_core_device *mvdev;
 	wait_queue_head_t poll_wait;
+	wait_queue_head_t save_wait;
 	struct mlx5_async_ctx async_ctx;
 	struct mlx5vf_async_data async_data;
 };
