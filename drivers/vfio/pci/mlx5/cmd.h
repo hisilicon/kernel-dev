@@ -29,7 +29,7 @@ struct mlx5_vf_migration_file {
 	u8 save_cb_active:1;
 
 	struct sg_append_table table;
-	size_t total_length;
+	size_t image_length;
 	size_t allocated_length;
 
 	/* Optimize mlx5vf_get_migration_page() for sequential access */
