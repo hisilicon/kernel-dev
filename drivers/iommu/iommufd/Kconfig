@@ -10,3 +10,14 @@ config IOMMUFD
 	  it relates to managing IO page tables that point at user space memory.
 
 	  If you don't know what to do here, say N.
+
+if IOMMUFD
+config IOMMUFD_TEST
+	bool "IOMMU Userspace API Test support"
+	depends on RUNTIME_TESTING_MENU
+	depends on FAULT_INJECTION
+	default n
+	help
+	  This is dangerous, do not enable unless running
+	  tools/testing/selftests/iommu
+endif
