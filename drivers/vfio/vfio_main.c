@@ -34,6 +34,7 @@
 #include <linux/interval_tree.h>
 #include <linux/iova_bitmap.h>
 #include <linux/iommufd.h>
+#include <uapi/linux/iommufd.h>
 #include "vfio.h"
 
 #define DRIVER_VERSION	"0.3"
@@ -451,11 +452,10 @@ int vfio_device_open(struct vfio_core_device *core_dev,
 	return 0;
 }
 
-void vfio_device_close(struct vfio_core_device *core_dev)
+static void __vfio_device_close(struct vfio_core_device *core_dev)
 {
 	struct vfio_device *device = core_dev->device;
 
-	mutex_lock(&device->dev_set->lock);
 	smp_store_release(&core_dev->ops, NULL);
 	vfio_assert_device_open(device);
 	if (device->open_count == 1) {
@@ -463,6 +463,13 @@ void vfio_device_close(struct vfio_core_device *core_dev)
 		device->single_open = false;
 	}
 	device->open_count--;
+}
+
+void vfio_device_close(struct vfio_core_device *core_dev)
+{
+	struct vfio_device *device = core_dev->device;
+	mutex_lock(&device->dev_set->lock);
+	__vfio_device_close(core_dev);
 	mutex_unlock(&device->dev_set->lock);
 }
 
@@ -538,6 +545,8 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 
 	if (!core_dev->single_open)
 		vfio_device_group_close(core_dev);
+	else
+		vfio_device_close(core_dev);
 	kfree(core_dev);
 	vfio_device_put_registration(device);
 
@@ -1032,6 +1041,113 @@ static int vfio_ioctl_device_feature(struct vfio_device *device,
 	}
 }
 
+static long vfio_device_ioctl_bind_iommufd(struct vfio_core_device *core_dev,
+					   unsigned long arg)
+{
+	struct vfio_device *device = core_dev->device;
+	struct vfio_device_bind_iommufd bind;
+	struct iommufd_ctx *iommufd;
+	unsigned long minsz;
+	struct fd f;
+	int ret;
+
+	minsz = offsetofend(struct vfio_device_bind_iommufd, iommufd);
+
+	if (copy_from_user(&bind, (void __user *)arg, minsz))
+		return -EFAULT;
+
+	if (bind.argsz < minsz || bind.flags || bind.iommufd < 0)
+		return -EINVAL;
+
+	if (!device->ops->bind_iommufd || !device->ops->unbind_iommufd ||
+	    !device->ops->attach_ioas)
+		return -ENODEV;
+
+	f = fdget(bind.iommufd);
+	if (!f.file)
+		return -EBADF;
+
+	iommufd = iommufd_ctx_from_file(f.file);
+	if (IS_ERR(iommufd)) {
+		ret = PTR_ERR(iommufd);
+		goto out_put_fd;
+	}
+
+	mutex_lock(&device->dev_set->lock);
+	/*
+	 * core_dev->kvm is supposed to be set in vfio_device_file_set_kvm(),
+	 * so no set here.
+	 */
+	core_dev->iommufd = iommufd;
+	ret = vfio_device_open(core_dev, &bind.out_devid, NULL);
+	if (ret)
+		goto out_unlock;
+
+	ret = copy_to_user((void __user *)arg + minsz,
+			   &bind.out_devid,
+			   sizeof(bind.out_devid)) ? -EFAULT : 0;
+	if (ret)
+		goto out_close_device;
+	mutex_unlock(&device->dev_set->lock);
+	fdput(f);
+	return 0;
+
+out_close_device:
+	__vfio_device_close(core_dev);
+out_unlock:
+	core_dev->iommufd = NULL;
+	mutex_unlock(&device->dev_set->lock);
+out_put_fd:
+	fdput(f);
+	return ret;
+}
+
+static int vfio_ioctl_device_attach(struct vfio_device *device,
+				    struct vfio_device_feature __user *arg)
+{
+	struct vfio_device_attach_iommufd_pt attach;
+	u32 pt_id;
+	u32 *pt_pointer = &pt_id;
+	int ret;
+
+	if (copy_from_user(&attach, (void __user *)arg, sizeof(attach)))
+		return -EFAULT;
+
+	if (attach.flags)
+		return -EINVAL;
+
+	if (!device->ops->bind_iommufd || !device->ops->unbind_iommufd ||
+	    !device->ops->attach_ioas)
+		return -ENODEV;
+
+	if (attach.pt_id == IOMMUFD_INVALID_ID)
+		pt_pointer = NULL;
+	else
+		*pt_pointer = attach.pt_id;
+
+	mutex_lock(&device->dev_set->lock);
+	ret = vfio_iommufd_attach(device, pt_pointer);
+	if (ret)
+		goto out_unlock;
+
+	if (pt_pointer && *pt_pointer != attach.pt_id) {
+		ret = copy_to_user((void __user *)arg + offsetofend(
+				   struct vfio_device_attach_iommufd_pt, flags),
+				   pt_pointer,
+				   sizeof(*pt_pointer)) ? -EFAULT : 0;
+		if (ret)
+			goto out_detach;
+	}
+	mutex_unlock(&device->dev_set->lock);
+	return 0;
+
+out_detach:
+	vfio_iommufd_attach(device, NULL);
+out_unlock:
+	mutex_unlock(&device->dev_set->lock);
+	return ret;
+}
+
 static long vfio_device_fops_unl_ioctl(struct file *filep,
 				       unsigned int cmd, unsigned long arg)
 {
@@ -1039,6 +1155,13 @@ static long vfio_device_fops_unl_ioctl(struct file *filep,
 	struct vfio_device *device = core_dev->device;
 	const struct vfio_device_ops *ops = smp_load_acquire(&core_dev->ops);
 	int ret;
+
+	if (cmd == VFIO_DEVICE_BIND_IOMMUFD) {
+		if (ops)
+			return -EINVAL;
+		else
+			return vfio_device_ioctl_bind_iommufd(core_dev, arg);
+	}
 
 	ret = vfio_device_pm_runtime_get(device);
 	if (ret)
@@ -1050,6 +1173,10 @@ static long vfio_device_fops_unl_ioctl(struct file *filep,
 	switch (cmd) {
 	case VFIO_DEVICE_FEATURE:
 		ret = vfio_ioctl_device_feature(device, (void __user *)arg);
+		break;
+
+	case VFIO_DEVICE_ATTACH_IOMMUFD_PT:
+		ret = vfio_ioctl_device_attach(device, (void __user *)arg);
 		break;
 
 	default:

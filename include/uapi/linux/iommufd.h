@@ -9,6 +9,8 @@
 
 #define IOMMUFD_TYPE (';')
 
+#define IOMMUFD_INVALID_ID 0  /* valid ID starts from 1 */
+
 /**
  * DOC: General ioctl format
  *
