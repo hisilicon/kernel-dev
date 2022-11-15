@@ -110,11 +110,10 @@ int vfio_iommufd_physical_attach_ioas(struct vfio_device *vdev, u32 *pt_id)
 		return 0;
 	}
 
-	if (vdev->iommufd_attached)
-		return -EBUSY;
-
 	if (vfio_allow_unsafe_interrupts)
 		flags |= IOMMUFD_ATTACH_FLAGS_ALLOW_UNSAFE_INTERRUPT;
+	if (vdev->iommufd_attached)
+		flags |= IOMMUFD_ATTACH_FLAGS_REPLACE_PT;
 	rc = iommufd_device_attach(vdev->iommufd_device, pt_id, flags);
 	if (rc)
 		return rc;
@@ -176,15 +175,17 @@ int vfio_iommufd_emulated_attach_ioas(struct vfio_device *vdev, u32 *pt_id)
 
 	lockdep_assert_held(&vdev->dev_set->lock);
 
-	if (!pt_id) {
-		if (vdev->iommufd_access)
-			__vfio_iommufd_access_destroy(vdev);
-		return 0;
+	if (vdev->iommufd_access) {
+		__vfio_iommufd_access_destroy(vdev);
+		if (!pt_id)
+			return 0;
 	}
 
+	/*
+	 * REVISIT: For replacement on emulated device. Should it be
+	 * atomic as well?
+	 */
 	if (vdev->iommufd_access)
-		return -EBUSY;
-
 	user = iommufd_access_create(vdev->iommufd_ictx, *pt_id, &vfio_user_ops,
 				     vdev);
 	if (IS_ERR(user))

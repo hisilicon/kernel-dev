@@ -318,6 +318,10 @@ static int iommufd_device_do_attach(struct iommufd_device *idev,
 	}
 
 	/*
+	 * FIXME: Need to handle the IOMMUFD_ATTACH_FLAGS_REPLACE_PT flag
+	 *	  Wait for iommu API.
+	 */
+	/*
 	 * FIXME: Hack around missing a device-centric iommu api, only attach to
 	 * the group once for the first device that is in the group.
 	 */

@@ -23,6 +23,7 @@ void iommufd_device_unbind(struct iommufd_device *idev);
 
 enum {
 	IOMMUFD_ATTACH_FLAGS_ALLOW_UNSAFE_INTERRUPT = 1 << 0,
+	IOMMUFD_ATTACH_FLAGS_REPLACE_PT = 1 << 1,
 };
 int iommufd_device_attach(struct iommufd_device *idev, u32 *pt_id,
 			  unsigned int flags);
