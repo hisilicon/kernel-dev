@@ -310,6 +310,19 @@ void intel_gvt_destroy_idle_vgpu(struct intel_vgpu *vgpu)
 	vfree(vgpu);
 }
 
+static void gvt_cache_init(struct intel_vgpu *vgpu)
+{
+	vgpu->gfn_cache = RB_ROOT;
+	vgpu->dma_addr_cache = RB_ROOT;
+	vgpu->nr_cache_entries = 0;
+	mutex_init(&vgpu->cache_lock);
+}
+
+static void kvmgt_protect_table_init(struct intel_vgpu *info)
+{
+	hash_init(info->ptable);
+}
+
 int intel_gvt_create_vgpu(struct intel_vgpu *vgpu,
 		const struct intel_vgpu_config *conf)
 {
@@ -382,6 +395,8 @@ int intel_gvt_create_vgpu(struct intel_vgpu *vgpu,
 
 	intel_gvt_update_reg_whitelist(vgpu);
 	mutex_unlock(&gvt->lock);
+	kvmgt_protect_table_init(vgpu);
+	gvt_cache_init(vgpu);
 	return 0;
 
 out_clean_sched_policy:
