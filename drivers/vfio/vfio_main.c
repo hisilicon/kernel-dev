@@ -503,17 +503,28 @@ static struct vfio_group *vfio_group_find_or_alloc(struct device *dev)
 	return group;
 }
 
-static int __vfio_register_dev(struct vfio_device *device,
-		struct vfio_group *group)
+static int vfio_device_set_group(struct vfio_device *device,
+				 enum vfio_group_type type)
 {
-	int ret;
+	struct vfio_group *group;
 
-	/*
-	 * In all cases group is the output of one of the group allocation
-	 * functions and we have group->drivers incremented for us.
-	 */
+	if (type == VFIO_IOMMU)
+		group = vfio_group_find_or_alloc(device->dev);
+	else
+		group = vfio_noiommu_group_alloc(device->dev, type);
+
 	if (IS_ERR(group))
 		return PTR_ERR(group);
+
+	/* Our reference on group is moved to the device */
+	device->group = group;
+	return 0;
+}
+
+static int __vfio_register_dev(struct vfio_device *device,
+			       enum vfio_group_type type)
+{
+	int ret;
 
 	if (WARN_ON(device->ops->bind_iommufd &&
 		    (!device->ops->unbind_iommufd ||
@@ -527,12 +538,13 @@ static int __vfio_register_dev(struct vfio_device *device,
 	if (!device->dev_set)
 		vfio_assign_device_set(device, device);
 
-	/* Our reference on group is moved to the device */
-	device->group = group;
-
 	ret = dev_set_name(&device->device, "vfio%d", device->index);
 	if (ret)
-		goto err_out;
+		return ret;
+
+	ret = vfio_device_set_group(device, type);
+	if (ret)
+		return ret;
 
 	ret = device_add(&device->device);
 	if (ret)
@@ -541,9 +553,9 @@ static int __vfio_register_dev(struct vfio_device *device,
 	/* Refcounting can't start until the driver calls register */
 	refcount_set(&device->refcount, 1);
 
-	mutex_lock(&group->device_lock);
-	list_add(&device->group_next, &group->device_list);
-	mutex_unlock(&group->device_lock);
+	mutex_lock(&device->group->device_lock);
+	list_add(&device->group_next, &device->group->device_list);
+	mutex_unlock(&device->group->device_lock);
 
 	return 0;
 err_out:
@@ -553,8 +565,7 @@ err_out:
 
 int vfio_register_group_dev(struct vfio_device *device)
 {
-	return __vfio_register_dev(device,
-		vfio_group_find_or_alloc(device->dev));
+	return __vfio_register_dev(device, VFIO_IOMMU);
 }
 EXPORT_SYMBOL_GPL(vfio_register_group_dev);
 
@@ -564,8 +575,7 @@ EXPORT_SYMBOL_GPL(vfio_register_group_dev);
  */
 int vfio_register_emulated_iommu_dev(struct vfio_device *device)
 {
-	return __vfio_register_dev(device,
-		vfio_noiommu_group_alloc(device->dev, VFIO_EMULATED_IOMMU));
+	return __vfio_register_dev(device, VFIO_EMULATED_IOMMU);
 }
 EXPORT_SYMBOL_GPL(vfio_register_emulated_iommu_dev);
 
@@ -638,6 +648,7 @@ void vfio_unregister_group_dev(struct vfio_device *device)
 	/* Balances device_add in register path */
 	device_del(&device->device);
 
+	/* Balances vfio_device_set_group in register path */
 	vfio_device_remove_group(device);
 }
 EXPORT_SYMBOL_GPL(vfio_unregister_group_dev);
