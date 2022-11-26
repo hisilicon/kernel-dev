@@ -45,6 +45,10 @@ static struct vfio {
 	struct ida			device_ida;
 } vfio;
 
+struct vfio_core_device {
+	struct vfio_device *device;
+};
+
 bool vfio_allow_unsafe_interrupts;
 EXPORT_SYMBOL_GPL(vfio_allow_unsafe_interrupts);
 
@@ -347,6 +351,20 @@ static bool vfio_assert_device_open(struct vfio_device *device)
 	return !WARN_ON_ONCE(!READ_ONCE(device->open_count));
 }
 
+struct vfio_core_device *
+vfio_allocate_core_device(struct vfio_device *device)
+{
+	struct vfio_core_device *core_dev;
+
+	core_dev = kzalloc(sizeof(*core_dev), GFP_KERNEL_ACCOUNT);
+	if (!core_dev)
+		return ERR_PTR(-ENOMEM);
+
+	core_dev->device = device;
+
+	return core_dev;
+}
+
 static int vfio_device_first_open(struct vfio_device *device,
 				  struct iommufd_ctx *iommufd, struct kvm *kvm)
 {
@@ -464,10 +482,11 @@ static inline void vfio_device_pm_runtime_put(struct vfio_device *device)
  */
 static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 {
-	struct vfio_device *device = filep->private_data;
+	struct vfio_core_device *core_dev = filep->private_data;
+	struct vfio_device *device = core_dev->device;
 
 	vfio_device_group_close(device);
-
+	kfree(core_dev);
 	vfio_device_put_registration(device);
 
 	return 0;
@@ -964,7 +983,8 @@ static int vfio_ioctl_device_feature(struct vfio_device *device,
 static long vfio_device_fops_unl_ioctl(struct file *filep,
 				       unsigned int cmd, unsigned long arg)
 {
-	struct vfio_device *device = filep->private_data;
+	struct vfio_core_device *core_dev = filep->private_data;
+	struct vfio_device *device = core_dev->device;
 	int ret;
 
 	ret = vfio_device_pm_runtime_get(device);
@@ -991,7 +1011,8 @@ static long vfio_device_fops_unl_ioctl(struct file *filep,
 static ssize_t vfio_device_fops_read(struct file *filep, char __user *buf,
 				     size_t count, loff_t *ppos)
 {
-	struct vfio_device *device = filep->private_data;
+	struct vfio_core_device *core_dev = filep->private_data;
+	struct vfio_device *device = core_dev->device;
 
 	if (unlikely(!device->ops->read))
 		return -EINVAL;
@@ -1003,7 +1024,8 @@ static ssize_t vfio_device_fops_write(struct file *filep,
 				      const char __user *buf,
 				      size_t count, loff_t *ppos)
 {
-	struct vfio_device *device = filep->private_data;
+	struct vfio_core_device *core_dev = filep->private_data;
+	struct vfio_device *device = core_dev->device;
 
 	if (unlikely(!device->ops->write))
 		return -EINVAL;
@@ -1013,7 +1035,8 @@ static ssize_t vfio_device_fops_write(struct file *filep,
 
 static int vfio_device_fops_mmap(struct file *filep, struct vm_area_struct *vma)
 {
-	struct vfio_device *device = filep->private_data;
+	struct vfio_core_device *core_dev = filep->private_data;
+	struct vfio_device *device = core_dev->device;
 
 	if (unlikely(!device->ops->mmap))
 		return -EINVAL;

@@ -15,6 +15,7 @@ struct iommufd_ctx;
 struct iommu_group;
 struct vfio_device;
 struct vfio_container;
+struct vfio_core_device;
 
 void vfio_device_put_registration(struct vfio_device *device);
 bool vfio_device_try_get_registration(struct vfio_device *device);
@@ -22,6 +23,8 @@ int vfio_device_open(struct vfio_device *device,
 		     struct iommufd_ctx *iommufd, struct kvm *kvm);
 void vfio_device_close(struct vfio_device *device,
 		       struct iommufd_ctx *iommufd);
+struct vfio_core_device *
+vfio_allocate_core_device(struct vfio_device *device);
 
 extern const struct file_operations vfio_device_fops;
 
