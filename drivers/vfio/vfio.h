@@ -18,6 +18,7 @@ struct vfio_container;
 
 struct vfio_device_file {
 	struct vfio_device *device;
+	struct kvm *kvm;
 };
 
 void vfio_device_put_registration(struct vfio_device *device);
