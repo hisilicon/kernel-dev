@@ -361,7 +361,8 @@ vfio_allocate_core_device(struct vfio_device *device)
 	return core_dev;
 }
 
-static int vfio_device_first_open(struct vfio_core_device *core_dev)
+static int vfio_device_first_open(struct vfio_core_device *core_dev,
+				  u32 *dev_id, u32 *pt_id)
 {
 	struct vfio_device *device = core_dev->device;
 	struct iommufd_ctx *iommufd = core_dev->iommufd;
@@ -374,7 +375,7 @@ static int vfio_device_first_open(struct vfio_core_device *core_dev)
 		return -ENODEV;
 
 	if (iommufd)
-		ret = vfio_iommufd_bind(device, iommufd);
+		ret = vfio_iommufd_bind(device, iommufd, dev_id, pt_id);
 	else
 		ret = vfio_device_group_use_iommu(device);
 	if (ret)
@@ -416,7 +417,8 @@ static void vfio_device_last_close(struct vfio_core_device *core_dev)
 	module_put(device->dev->driver->owner);
 }
 
-int vfio_device_open(struct vfio_core_device *core_dev)
+int vfio_device_open(struct vfio_core_device *core_dev,
+		     u32 *dev_id, u32 *pt_id)
 {
 	struct vfio_device *device = core_dev->device;
 
@@ -426,7 +428,7 @@ int vfio_device_open(struct vfio_core_device *core_dev)
 	if (device->open_count == 1) {
 		int ret;
 
-		ret = vfio_device_first_open(core_dev);
+		ret = vfio_device_first_open(core_dev, dev_id, pt_id);
 		if (ret) {
 			device->open_count--;
 			return ret;

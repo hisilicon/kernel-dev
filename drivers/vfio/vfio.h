@@ -25,7 +25,8 @@ struct vfio_core_device {
 
 void vfio_device_put_registration(struct vfio_device *device);
 bool vfio_device_try_get_registration(struct vfio_device *device);
-int vfio_device_open(struct vfio_core_device *core_dev);
+int vfio_device_open(struct vfio_core_device *core_dev,
+		     u32 *dev_id, u32 *pt_id);
 void vfio_device_close(struct vfio_core_device *device);
 
 struct vfio_core_device *
@@ -230,17 +231,25 @@ static inline void vfio_container_cleanup(void)
 #endif
 
 #if IS_ENABLED(CONFIG_IOMMUFD)
-int vfio_iommufd_bind(struct vfio_device *device, struct iommufd_ctx *ictx);
+int vfio_iommufd_bind(struct vfio_device *device, struct iommufd_ctx *ictx,
+		      u32 *dev_id, u32 *pt_id);
 void vfio_iommufd_unbind(struct vfio_device *device);
+int vfio_iommufd_attach(struct vfio_device *vdev, u32 *pt_id);
 #else
 static inline int vfio_iommufd_bind(struct vfio_device *device,
-				    struct iommufd_ctx *ictx)
+				    struct iommufd_ctx *ictx,
+				    u32 *dev_id, u32 *pt_id)
 {
 	return -EOPNOTSUPP;
 }
 
 static inline void vfio_iommufd_unbind(struct vfio_device *device)
 {
+}
+
+static int vfio_iommufd_attach(struct vfio_device *vdev, u32 *pt_id)
+{
+	return -EOPNOTSUPP;
 }
 #endif
 
