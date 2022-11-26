@@ -433,6 +433,7 @@ int vfio_device_open(struct vfio_core_device *core_dev)
 		}
 	}
 
+	smp_store_release(&core_dev->ops, device->ops);
 	return 0;
 }
 
@@ -441,6 +442,7 @@ void vfio_device_close(struct vfio_core_device *core_dev)
 	struct vfio_device *device = core_dev->device;
 
 	mutex_lock(&device->dev_set->lock);
+	smp_store_release(&core_dev->ops, NULL);
 	vfio_assert_device_open(device);
 	if (device->open_count == 1)
 		vfio_device_last_close(core_dev);
@@ -989,11 +991,15 @@ static long vfio_device_fops_unl_ioctl(struct file *filep,
 {
 	struct vfio_core_device *core_dev = filep->private_data;
 	struct vfio_device *device = core_dev->device;
+	const struct vfio_device_ops *ops = smp_load_acquire(&core_dev->ops);
 	int ret;
 
 	ret = vfio_device_pm_runtime_get(device);
 	if (ret)
 		return ret;
+
+	if (!ops || !ops->ioctl)
+		return -EINVAL;
 
 	switch (cmd) {
 	case VFIO_DEVICE_FEATURE:
@@ -1001,10 +1007,7 @@ static long vfio_device_fops_unl_ioctl(struct file *filep,
 		break;
 
 	default:
-		if (unlikely(!device->ops->ioctl))
-			ret = -EINVAL;
-		else
-			ret = device->ops->ioctl(device, cmd, arg);
+		ret = ops->ioctl(device, cmd, arg);
 		break;
 	}
 
@@ -1017,11 +1020,12 @@ static ssize_t vfio_device_fops_read(struct file *filep, char __user *buf,
 {
 	struct vfio_core_device *core_dev = filep->private_data;
 	struct vfio_device *device = core_dev->device;
+	const struct vfio_device_ops *ops = smp_load_acquire(&core_dev->ops);
 
-	if (unlikely(!device->ops->read))
+	if (!ops || !ops->read)
 		return -EINVAL;
 
-	return device->ops->read(device, buf, count, ppos);
+	return ops->read(device, buf, count, ppos);
 }
 
 static ssize_t vfio_device_fops_write(struct file *filep,
@@ -1030,22 +1034,24 @@ static ssize_t vfio_device_fops_write(struct file *filep,
 {
 	struct vfio_core_device *core_dev = filep->private_data;
 	struct vfio_device *device = core_dev->device;
+	const struct vfio_device_ops *ops = smp_load_acquire(&core_dev->ops);
 
-	if (unlikely(!device->ops->write))
+	if (!ops || !ops->write)
 		return -EINVAL;
 
-	return device->ops->write(device, buf, count, ppos);
+	return ops->write(device, buf, count, ppos);
 }
 
 static int vfio_device_fops_mmap(struct file *filep, struct vm_area_struct *vma)
 {
 	struct vfio_core_device *core_dev = filep->private_data;
 	struct vfio_device *device = core_dev->device;
+	const struct vfio_device_ops *ops = smp_load_acquire(&core_dev->ops);
 
-	if (unlikely(!device->ops->mmap))
+	if (!ops || !ops->mmap)
 		return -EINVAL;
 
-	return device->ops->mmap(device, vma);
+	return ops->mmap(device, vma);
 }
 
 const struct file_operations vfio_device_fops = {

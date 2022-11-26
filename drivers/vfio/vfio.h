@@ -20,6 +20,7 @@ struct vfio_core_device {
 	struct vfio_device *device;
 	struct kvm *kvm;
 	struct iommufd_ctx *iommufd;
+	const struct vfio_device_ops *ops;
 };
 
 void vfio_device_put_registration(struct vfio_device *device);
