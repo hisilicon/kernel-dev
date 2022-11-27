@@ -216,7 +216,7 @@ static struct file *vfio_device_open_file(struct vfio_device *device)
 	struct file *filep;
 	int ret;
 
-	core_dev = vfio_allocate_core_device(device);
+	core_dev = vfio_allocate_core_device(device, false);
 	if (IS_ERR(core_dev)) {
 		ret = PTR_ERR(core_dev);
 		goto err_out;

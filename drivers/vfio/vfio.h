@@ -17,7 +17,11 @@ struct vfio_device;
 struct vfio_container;
 
 struct vfio_core_device {
+	/* static fields, init per allocation */
 	struct vfio_device *device;
+	bool single_open;
+
+	/* fields set after allocation */
 	struct kvm *kvm;
 	struct iommufd_ctx *iommufd;
 	const struct vfio_device_ops *ops;
@@ -30,7 +34,7 @@ int vfio_device_open(struct vfio_core_device *core_dev,
 void vfio_device_close(struct vfio_core_device *device);
 
 struct vfio_core_device *
-vfio_allocate_core_device(struct vfio_device *device);
+vfio_allocate_core_device(struct vfio_device *device, bool single_open);
 
 extern const struct file_operations vfio_device_fops;
 

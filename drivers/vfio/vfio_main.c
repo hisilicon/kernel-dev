@@ -348,7 +348,7 @@ static bool vfio_assert_device_open(struct vfio_device *device)
 }
 
 struct vfio_core_device *
-vfio_allocate_core_device(struct vfio_device *device)
+vfio_allocate_core_device(struct vfio_device *device, bool single_open)
 {
 	struct vfio_core_device *core_dev;
 
@@ -357,6 +357,7 @@ vfio_allocate_core_device(struct vfio_device *device)
 		return ERR_PTR(-ENOMEM);
 
 	core_dev->device = device;
+	core_dev->single_open = single_open;
 
 	return core_dev;
 }
@@ -424,6 +425,10 @@ int vfio_device_open(struct vfio_core_device *core_dev,
 
 	lockdep_assert_held(&device->dev_set->lock);
 
+	if (device->open_count != 0 &&
+	    (core_dev->single_open || device->single_open))
+		return -EINVAL;
+
 	device->open_count++;
 	if (device->open_count == 1) {
 		int ret;
@@ -433,6 +438,7 @@ int vfio_device_open(struct vfio_core_device *core_dev,
 			device->open_count--;
 			return ret;
 		}
+		device->single_open = core_dev->single_open;
 	}
 
 	smp_store_release(&core_dev->ops, device->ops);
@@ -446,8 +452,10 @@ void vfio_device_close(struct vfio_core_device *core_dev)
 	mutex_lock(&device->dev_set->lock);
 	smp_store_release(&core_dev->ops, NULL);
 	vfio_assert_device_open(device);
-	if (device->open_count == 1)
+	if (device->open_count == 1) {
 		vfio_device_last_close(core_dev);
+		device->single_open = false;
+	}
 	device->open_count--;
 	mutex_unlock(&device->dev_set->lock);
 }
@@ -493,7 +501,8 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 	struct vfio_core_device *core_dev = filep->private_data;
 	struct vfio_device *device = core_dev->device;
 
-	vfio_device_group_close(core_dev);
+	if (!core_dev->single_open)
+		vfio_device_group_close(core_dev);
 	kfree(core_dev);
 	vfio_device_put_registration(device);
 
