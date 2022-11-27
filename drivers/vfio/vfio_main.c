@@ -345,7 +345,7 @@ static bool vfio_assert_device_open(struct vfio_device *device)
 }
 
 struct vfio_device_file *
-vfio_allocate_device_file(struct vfio_device *device)
+vfio_allocate_device_file(struct vfio_device *device, bool single_open)
 {
 	struct vfio_device_file *df;
 
@@ -354,6 +354,7 @@ vfio_allocate_device_file(struct vfio_device *device)
 		return ERR_PTR(-ENOMEM);
 
 	df->device = device;
+	df->single_open = single_open;
 
 	return df;
 }
@@ -421,6 +422,16 @@ int vfio_device_open(struct vfio_device_file *df,
 
 	lockdep_assert_held(&device->dev_set->lock);
 
+	/*
+	 * Device cdev path cannot support multiple device open since
+	 * it doesn't have a secure way for it. So a second device
+	 * open attempt should be failed if the caller is from a cdev
+	 * path or the device has already been opened by a cdev path.
+	 */
+	if (device->open_count != 0 &&
+	    (df->single_open || device->single_open))
+		return -EINVAL;
+
 	device->open_count++;
 	if (device->open_count == 1) {
 		int ret;
@@ -430,6 +441,7 @@ int vfio_device_open(struct vfio_device_file *df,
 			device->open_count--;
 			return ret;
 		}
+		device->single_open = df->single_open;
 	}
 
 	/*
@@ -446,8 +458,10 @@ void vfio_device_close(struct vfio_device_file *df)
 
 	mutex_lock(&device->dev_set->lock);
 	vfio_assert_device_open(device);
-	if (device->open_count == 1)
+	if (device->open_count == 1) {
 		vfio_device_last_close(df);
+		device->single_open = false;
+	}
 	device->open_count--;
 	mutex_unlock(&device->dev_set->lock);
 }
@@ -493,7 +507,12 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 	struct vfio_device_file *df = filep->private_data;
 	struct vfio_device *device = df->device;
 
-	vfio_device_group_close(df);
+	/*
+	 * group path supports multiple device open, while cdev doesn't.
+	 * So use vfio_device_group_close() for !singel_open case.
+	 */
+	if (!df->single_open)
+		vfio_device_group_close(df);
 
 	vfio_device_put_registration(device);
 
