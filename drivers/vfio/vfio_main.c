@@ -45,11 +45,6 @@ static struct vfio {
 	struct ida			device_ida;
 } vfio;
 
-struct vfio_core_device {
-	struct vfio_device *device;
-	struct kvm *kvm;
-};
-
 bool vfio_allow_unsafe_interrupts;
 EXPORT_SYMBOL_GPL(vfio_allow_unsafe_interrupts);
 
@@ -366,9 +361,11 @@ vfio_allocate_core_device(struct vfio_device *device)
 	return core_dev;
 }
 
-static int vfio_device_first_open(struct vfio_device *device,
-				  struct iommufd_ctx *iommufd, struct kvm *kvm)
+static int vfio_device_first_open(struct vfio_core_device *core_dev)
 {
+	struct vfio_device *device = core_dev->device;
+	struct iommufd_ctx *iommufd = core_dev->iommufd;
+	struct kvm *kvm = core_dev->kvm;
 	int ret;
 
 	lockdep_assert_held(&device->dev_set->lock);
@@ -402,9 +399,11 @@ err_module_put:
 	return ret;
 }
 
-static void vfio_device_last_close(struct vfio_device *device,
-				   struct iommufd_ctx *iommufd)
+static void vfio_device_last_close(struct vfio_core_device *core_dev)
 {
+	struct vfio_device *device = core_dev->device;
+	struct iommufd_ctx *iommufd = core_dev->iommufd;
+
 	lockdep_assert_held(&device->dev_set->lock);
 
 	if (device->ops->close_device)
@@ -417,30 +416,34 @@ static void vfio_device_last_close(struct vfio_device *device,
 	module_put(device->dev->driver->owner);
 }
 
-int vfio_device_open(struct vfio_device *device,
-		     struct iommufd_ctx *iommufd, struct kvm *kvm)
+int vfio_device_open(struct vfio_core_device *core_dev)
 {
-	int ret = 0;
+	struct vfio_device *device = core_dev->device;
 
-	mutex_lock(&device->dev_set->lock);
+	lockdep_assert_held(&device->dev_set->lock);
+
 	device->open_count++;
 	if (device->open_count == 1) {
-		ret = vfio_device_first_open(device, iommufd, kvm);
-		if (ret)
-			device->open_count--;
-	}
-	mutex_unlock(&device->dev_set->lock);
+		int ret;
 
-	return ret;
+		ret = vfio_device_first_open(core_dev);
+		if (ret) {
+			device->open_count--;
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
-void vfio_device_close(struct vfio_device *device,
-		       struct iommufd_ctx *iommufd)
+void vfio_device_close(struct vfio_core_device *core_dev)
 {
+	struct vfio_device *device = core_dev->device;
+
 	mutex_lock(&device->dev_set->lock);
 	vfio_assert_device_open(device);
 	if (device->open_count == 1)
-		vfio_device_last_close(device, iommufd);
+		vfio_device_last_close(core_dev);
 	device->open_count--;
 	mutex_unlock(&device->dev_set->lock);
 }
@@ -486,7 +489,7 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 	struct vfio_core_device *core_dev = filep->private_data;
 	struct vfio_device *device = core_dev->device;
 
-	vfio_device_group_close(device);
+	vfio_device_group_close(core_dev);
 	kfree(core_dev);
 	vfio_device_put_registration(device);
 

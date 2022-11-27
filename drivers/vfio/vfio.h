@@ -15,14 +15,18 @@ struct iommufd_ctx;
 struct iommu_group;
 struct vfio_device;
 struct vfio_container;
-struct vfio_core_device;
+
+struct vfio_core_device {
+	struct vfio_device *device;
+	struct kvm *kvm;
+	struct iommufd_ctx *iommufd;
+};
 
 void vfio_device_put_registration(struct vfio_device *device);
 bool vfio_device_try_get_registration(struct vfio_device *device);
-int vfio_device_open(struct vfio_device *device,
-		     struct iommufd_ctx *iommufd, struct kvm *kvm);
-void vfio_device_close(struct vfio_device *device,
-		       struct iommufd_ctx *iommufd);
+int vfio_device_open(struct vfio_core_device *core_dev);
+void vfio_device_close(struct vfio_core_device *device);
+
 struct vfio_core_device *
 vfio_allocate_core_device(struct vfio_device *device);
 
@@ -86,7 +90,7 @@ void vfio_device_group_register(struct vfio_device *device);
 void vfio_device_group_unregister(struct vfio_device *device);
 int vfio_device_group_use_iommu(struct vfio_device *device);
 void vfio_device_group_unuse_iommu(struct vfio_device *device);
-void vfio_device_group_close(struct vfio_device *device);
+void vfio_device_group_close(struct vfio_core_device *core_dev);
 struct vfio_group *vfio_group_from_file(struct file *file);
 bool vfio_group_enforced_coherent(struct vfio_group *group);
 void vfio_group_set_kvm(struct vfio_group *group, struct kvm *kvm);
