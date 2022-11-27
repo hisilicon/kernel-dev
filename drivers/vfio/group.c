@@ -157,12 +157,22 @@ out_unlock:
 static int vfio_device_group_open(struct vfio_device_file *df)
 {
 	struct vfio_device *device = df->device;
+	u32 ioas_id;
+	u32 *pt_id = NULL;
 	int ret;
 
 	mutex_lock(&device->group->group_lock);
 	if (!vfio_group_has_iommu(device->group)) {
 		ret = -EINVAL;
 		goto err_unlock_group;
+	}
+
+	if (device->group->iommufd) {
+		ret = iommufd_vfio_compat_ioas_id(device->group->iommufd,
+						  &ioas_id);
+		if (ret)
+			goto err_unlock_group;
+		pt_id = &ioas_id;
 	}
 
 	mutex_lock(&device->dev_set->lock);
@@ -174,7 +184,7 @@ static int vfio_device_group_open(struct vfio_device_file *df)
 	df->kvm = device->group->kvm;
 	df->iommufd = device->group->iommufd;
 
-	ret = vfio_device_open(df);
+	ret = vfio_device_open(df, NULL, pt_id);
 	if (ret)
 		goto err_unlock_device;
 	mutex_unlock(&device->dev_set->lock);

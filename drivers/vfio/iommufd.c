@@ -10,9 +10,17 @@
 MODULE_IMPORT_NS(IOMMUFD);
 MODULE_IMPORT_NS(IOMMUFD_VFIO);
 
-int vfio_iommufd_bind(struct vfio_device *vdev, struct iommufd_ctx *ictx)
+/* @pt_id == NULL implies detach */
+int vfio_iommufd_attach(struct vfio_device *vdev, u32 *pt_id)
 {
-	u32 ioas_id;
+	lockdep_assert_held(&vdev->dev_set->lock);
+
+	return vdev->ops->attach_ioas(vdev, pt_id);
+}
+
+int vfio_iommufd_bind(struct vfio_device *vdev, struct iommufd_ctx *ictx,
+		      u32 *dev_id, u32 *pt_id)
+{
 	u32 device_id;
 	int ret;
 
@@ -29,17 +37,14 @@ int vfio_iommufd_bind(struct vfio_device *vdev, struct iommufd_ctx *ictx)
 	if (ret)
 		return ret;
 
-	ret = iommufd_vfio_compat_ioas_id(ictx, &ioas_id);
-	if (ret)
-		goto err_unbind;
-	ret = vdev->ops->attach_ioas(vdev, &ioas_id);
-	if (ret)
-		goto err_unbind;
+	if (pt_id) {
+		ret = vfio_iommufd_attach(vdev, pt_id);
+		if (ret)
+			goto err_unbind;
+	}
 
-	/*
-	 * The legacy path has no way to return the device id or the selected
-	 * pt_id
-	 */
+	if (dev_id)
+		*dev_id = device_id;
 	return 0;
 
 err_unbind:
@@ -74,14 +79,18 @@ int vfio_iommufd_physical_bind(struct vfio_device *vdev,
 }
 EXPORT_SYMBOL_GPL(vfio_iommufd_physical_bind);
 
+static void __vfio_iommufd_detach(struct vfio_device *vdev)
+{
+	iommufd_device_detach(vdev->iommufd_device);
+	vdev->iommufd_attached = false;
+}
+
 void vfio_iommufd_physical_unbind(struct vfio_device *vdev)
 {
 	lockdep_assert_held(&vdev->dev_set->lock);
 
-	if (vdev->iommufd_attached) {
-		iommufd_device_detach(vdev->iommufd_device);
-		vdev->iommufd_attached = false;
-	}
+	if (vdev->iommufd_attached)
+		__vfio_iommufd_detach(vdev);
 	iommufd_device_unbind(vdev->iommufd_device);
 	vdev->iommufd_device = NULL;
 }
@@ -90,6 +99,20 @@ EXPORT_SYMBOL_GPL(vfio_iommufd_physical_unbind);
 int vfio_iommufd_physical_attach_ioas(struct vfio_device *vdev, u32 *pt_id)
 {
 	int rc;
+
+	lockdep_assert_held(&vdev->dev_set->lock);
+
+	if (!vdev->iommufd_device)
+		return -EINVAL;
+
+	if (!pt_id) {
+		if (vdev->iommufd_attached)
+			__vfio_iommufd_detach(vdev);
+		return 0;
+	}
+
+	if (vdev->iommufd_attached)
+		return -EBUSY;
 
 	rc = iommufd_device_attach(vdev->iommufd_device, pt_id);
 	if (rc)
@@ -129,14 +152,18 @@ int vfio_iommufd_emulated_bind(struct vfio_device *vdev,
 }
 EXPORT_SYMBOL_GPL(vfio_iommufd_emulated_bind);
 
+static void __vfio_iommufd_access_destroy(struct vfio_device *vdev)
+{
+	iommufd_access_destroy(vdev->iommufd_access);
+	vdev->iommufd_access = NULL;
+}
+
 void vfio_iommufd_emulated_unbind(struct vfio_device *vdev)
 {
 	lockdep_assert_held(&vdev->dev_set->lock);
 
-	if (vdev->iommufd_access) {
-		iommufd_access_destroy(vdev->iommufd_access);
-		vdev->iommufd_access = NULL;
-	}
+	if (vdev->iommufd_access)
+		__vfio_iommufd_access_destroy(vdev);
 	iommufd_ctx_put(vdev->iommufd_ictx);
 	vdev->iommufd_ictx = NULL;
 }
@@ -147,6 +174,18 @@ int vfio_iommufd_emulated_attach_ioas(struct vfio_device *vdev, u32 *pt_id)
 	struct iommufd_access *user;
 
 	lockdep_assert_held(&vdev->dev_set->lock);
+
+	if (!vdev->iommufd_ictx)
+		return -EINVAL;
+
+	if (!pt_id) {
+		if (vdev->iommufd_access)
+			__vfio_iommufd_access_destroy(vdev);
+		return 0;
+	}
+
+	if (vdev->iommufd_access)
+		return -EBUSY;
 
 	user = iommufd_access_create(vdev->iommufd_ictx, *pt_id, &vfio_user_ops,
 				     vdev);
