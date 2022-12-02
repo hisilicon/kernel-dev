@@ -12,9 +12,26 @@ menuconfig VFIO
 	  If you don't know what to do here, say N.
 
 if VFIO
+config VFIO_ENABLE_GROUP
+	bool
+	default !IOMMUFD
+
+config VFIO_GROUP
+	bool "Support for the VFIO group /dev/vfio/$group_id"
+	select VFIO_ENABLE_GROUP
+	default y
+	help
+	   VFIO group is legacy interface for userspace. For userspaces
+	   adapted to iommufd and vfio device cdev, this can be N. For
+	   now, before iommufd is ready and userspace applications fully
+	   converted to iommufd and vfio device cdev, this should be Y.
+
+	   If you don't know what to do here, say Y.
+
 config VFIO_CONTAINER
 	bool "Support for the VFIO container /dev/vfio/vfio"
 	select VFIO_IOMMU_TYPE1 if MMU && (X86 || S390 || ARM || ARM64)
+	depends on VFIO_ENABLE_GROUP
 	default y
 	help
 	  The VFIO container is the classic interface to VFIO for establishing
