@@ -276,3 +276,29 @@ static void teardown_iommufd(int fd, struct __test_metadata *_metadata)
 	})
 
 #endif
+
+static int _test_cmd_device_get_info(int fd, __u32 device_id,
+				     __u32 data_len, void *data)
+{
+	struct iommu_device_info cmd = {
+		.size = sizeof(cmd),
+		.dev_id = device_id,
+		.data_len = data_len,
+		.data_ptr = (uint64_t)data,
+	};
+	int ret;
+
+	ret = ioctl(fd, IOMMU_DEVICE_GET_INFO, &cmd);
+	if (ret)
+		return ret;
+	return 0;
+}
+
+#define test_cmd_device_get_info(device_id, data_len, data)		\
+	ASSERT_EQ(0, _test_cmd_device_get_info(self->fd, device_id,	\
+					       data_len, data))
+
+#define test_err_device_get_info(_errno, device_id, data_len, data)	\
+	EXPECT_ERRNO(_errno,						\
+		     _test_cmd_device_get_info(self->fd, device_id,	\
+					       data_len, data))

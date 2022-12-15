@@ -124,6 +124,7 @@ TEST_F(iommufd, cmd_length)
 	TEST_LENGTH(iommu_ioas_unmap, IOMMU_IOAS_UNMAP);
 	TEST_LENGTH(iommu_option, IOMMU_OPTION);
 	TEST_LENGTH(iommu_vfio_ioas, IOMMU_VFIO_IOAS);
+	TEST_LENGTH(iommu_device_info, IOMMU_DEVICE_GET_INFO);
 #undef TEST_LENGTH
 }
 
@@ -185,6 +186,7 @@ TEST_F(iommufd, global_options)
 FIXTURE(iommufd_ioas)
 {
 	int fd;
+	uint32_t dev_id;
 	uint32_t ioas_id;
 	uint32_t domain_id;
 	uint64_t base_iova;
@@ -212,7 +214,8 @@ FIXTURE_SETUP(iommufd_ioas)
 	}
 
 	for (i = 0; i != variant->mock_domains; i++) {
-		test_cmd_mock_domain(self->ioas_id, NULL, &self->domain_id);
+		test_cmd_mock_domain(self->ioas_id, &self->dev_id,
+				     &self->domain_id);
 		self->base_iova = MOCK_APERTURE_START;
 	}
 }
@@ -278,6 +281,19 @@ TEST_F(iommufd_ioas, ioas_area_auto_destroy)
 	for (i = 0; i != 10; i++) {
 		test_ioctl_ioas_map_fixed(buffer, PAGE_SIZE,
 					  self->base_iova + i * PAGE_SIZE);
+	}
+}
+
+TEST_F(iommufd_ioas, device_get_info)
+{
+	struct iommu_device_info_selftest info;
+
+	if (self->dev_id) {
+		test_cmd_device_get_info(self->dev_id, sizeof(info), &info);
+		assert(info.test_reg == IOMMU_DEVICE_INFO_SELFTEST_REGVAL);
+	} else {
+		test_err_device_get_info(ENOENT, self->dev_id,
+					 sizeof(info), &info);
 	}
 }
 

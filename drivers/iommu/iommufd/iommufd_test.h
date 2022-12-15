@@ -90,4 +90,19 @@ struct iommu_test_cmd {
 };
 #define IOMMU_TEST_CMD _IO(IOMMUFD_TYPE, IOMMUFD_CMD_BASE + 32)
 
+/* Mock structs for IOMMU_DEVICE_GET_INFO ioctl */
+#define IOMMU_DEVICE_DATA_SELFTEST		0xfeedbeef
+#define IOMMU_DEVICE_INFO_SELFTEST_REGVAL	0xdeadbeef
+
+/**
+ * struct iommu_device_info_selftest
+ *
+ * @flags: Must be set to 0
+ * @test_reg: Pass IOMMU_DEVICE_INFO_SELFTEST_REGVAL to user selftest program
+ */
+struct iommu_device_info_selftest {
+	__u32 flags;
+	__u32 test_reg;
+};
+
 #endif
