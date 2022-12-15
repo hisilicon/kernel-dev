@@ -226,6 +226,27 @@ static int _test_ioctl_hwpt_alloc(int fd, __u32 pt_id, __u32 dev_id,
 		ASSERT_EQ(0, *(out_hwpt_id));                                 \
 	})
 
+static int _test_ioctl_hwpt_invalidate(int fd, __u32 hwpt_id)
+{
+	struct iommu_hwpt_invalidate_selftest data = {
+		.flags = IOMMU_TEST_INVALIDATE_ALL,
+	};
+	struct iommu_hwpt_invalidate cmd = {
+		.size = sizeof(cmd),
+		.hwpt_id = hwpt_id,
+		.data_type = IOMMU_PGTBL_TYPE_SELFTTEST,
+		.data_len = sizeof(data),
+		.data_uptr = (uint64_t)&data,
+	};
+
+	return ioctl(fd, IOMMU_HWPT_INVALIDATE, &cmd);
+}
+
+#define test_ioctl_hwpt_invalidate(hwpt_id)	\
+	ASSERT_EQ(0, _test_ioctl_hwpt_invalidate(self->fd, hwpt_id))
+#define test_err_ioctl_hwpt_invalidate(_errno, hwpt_id)	\
+	EXPECT_ERRNO(_errno, _test_ioctl_hwpt_invalidate(self->fd, hwpt_id))
+
 static int _test_ioctl_ioas_map(int fd, unsigned int ioas_id, void *buffer,
 				size_t length, __u64 *iova, unsigned int flags)
 {

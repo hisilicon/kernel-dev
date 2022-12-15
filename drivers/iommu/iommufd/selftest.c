@@ -283,6 +283,20 @@ static phys_addr_t mock_domain_iova_to_phys(struct iommu_domain *domain,
 	return (xa_to_value(ent) & MOCK_PFN_MASK) * MOCK_IO_PAGE_SIZE;
 }
 
+static void mock_domain_iotlb_sync_user(struct iommu_domain *domain,
+					void *user_data)
+{
+	struct iommu_hwpt_invalidate_selftest *inv_info = user_data;
+	struct mock_iommu_domain *mock =
+		container_of(domain, struct mock_iommu_domain, domain);
+
+	if (domain->type != IOMMU_DOMAIN_NESTED || !mock->parent)
+		return;
+
+	if (inv_info->flags & IOMMU_TEST_INVALIDATE_ALL)
+		mock->iotlb = 0;
+}
+
 static const struct iommu_ops mock_ops = {
 	.owner = THIS_MODULE,
 	.pgsize_bitmap = MOCK_IO_PAGE_SIZE,
@@ -301,6 +315,7 @@ static const struct iommu_ops mock_ops = {
 
 static struct iommu_domain_ops domain_nested_ops = {
 	.free = mock_domain_free,
+	.iotlb_sync_user = mock_domain_iotlb_sync_user,
 };
 
 static inline struct iommufd_hw_pagetable *

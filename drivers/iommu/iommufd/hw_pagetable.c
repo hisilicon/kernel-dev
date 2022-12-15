@@ -288,7 +288,12 @@ int iommufd_hwpt_invalidate(struct iommufd_ucmd *ucmd)
 		goto out_put_hwpt;
 	}
 
-	klen = iommufd_hwpt_invalidate_info_size[cmd->data_type];
+	if (cmd->data_type != IOMMU_PGTBL_TYPE_SELFTTEST)
+		klen = iommufd_hwpt_invalidate_info_size[cmd->data_type];
+#ifdef CONFIG_IOMMUFD_TEST
+	else
+		klen = sizeof(struct iommu_hwpt_invalidate_selftest);
+#endif
 	if (!klen) {
 		rc = -EINVAL;
 		goto out_put_hwpt;

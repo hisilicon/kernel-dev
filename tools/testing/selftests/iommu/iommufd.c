@@ -126,6 +126,7 @@ TEST_F(iommufd, cmd_length)
 	TEST_LENGTH(iommu_vfio_ioas, IOMMU_VFIO_IOAS);
 	TEST_LENGTH(iommu_device_info, IOMMU_DEVICE_GET_INFO);
 	TEST_LENGTH(iommu_hwpt_alloc, IOMMU_HWPT_ALLOC);
+	TEST_LENGTH(iommu_hwpt_invalidate, IOMMU_HWPT_INVALIDATE);
 #undef TEST_LENGTH
 }
 
@@ -311,6 +312,13 @@ TEST_F(iommufd_ioas, ioas_nested_hwpt)
 		/* Negative test: parent hwpt now cannot be freed */
 		EXPECT_ERRNO(EBUSY,
 			     _test_ioctl_destroy(self->fd, parent_hwpt_id));
+
+		/* hwpt_invalidat only supports a user-managed hwpt (nested) */
+		test_err_ioctl_hwpt_invalidate(EINVAL, parent_hwpt_id);
+		test_ioctl_hwpt_invalidate(nested_hwpt_id[0]);
+		test_ioctl_hwpt_check_iotlb(nested_hwpt_id[0], 0);
+		test_ioctl_hwpt_invalidate(nested_hwpt_id[1]);
+		test_ioctl_hwpt_check_iotlb(nested_hwpt_id[1], 0);
 
 		/* Attach device to nested_hwpt_id[0] that then will be busy */
 		test_cmd_mock_domain_replace(self->ioas_id, self->dev_id,
