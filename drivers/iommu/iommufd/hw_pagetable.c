@@ -335,7 +335,8 @@ int iommufd_hwpt_invalidate(struct iommufd_ucmd *ucmd)
 	 * data_len should not exceed the size of iommufd_invalidate_buffer.
 	 */
 	if (cmd->data_type == IOMMU_HWPT_TYPE_DEFAULT || !cmd->data_len ||
-	    cmd->data_type >= ARRAY_SIZE(iommufd_hwpt_invalidate_info_size))
+	    (cmd->data_type != IOMMU_HWPT_TYPE_SELFTTEST &&
+	     cmd->data_type >= ARRAY_SIZE(iommufd_hwpt_invalidate_info_size)))
 		return -EOPNOTSUPP;
 
 	hwpt = iommufd_get_hwpt(ucmd, cmd->hwpt_id);
@@ -348,7 +349,12 @@ int iommufd_hwpt_invalidate(struct iommufd_ucmd *ucmd)
 		goto out_put_hwpt;
 	}
 
-	klen = iommufd_hwpt_invalidate_info_size[cmd->data_type];
+	if (cmd->data_type != IOMMU_HWPT_TYPE_SELFTTEST)
+		klen = iommufd_hwpt_invalidate_info_size[cmd->data_type];
+#ifdef CONFIG_IOMMUFD_TEST
+	else
+		klen = sizeof(struct iommu_hwpt_invalidate_selftest);
+#endif
 	if (!klen) {
 		rc = -EINVAL;
 		goto out_put_hwpt;
