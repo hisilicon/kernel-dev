@@ -8,6 +8,7 @@
 
 #include "io_pagetable.h"
 #include "iommufd_private.h"
+#include "iommufd_test.h"
 
 static bool allow_unsafe_interrupts;
 module_param(allow_unsafe_interrupts, bool, S_IRUGO | S_IWUSR);
