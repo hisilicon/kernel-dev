@@ -219,6 +219,45 @@ static int _test_cmd_hwpt_alloc(int fd, __u32 device_id, __u32 pt_id,
 			test_cmd_hwpt_check_iotlb(hwpt_id, i, expected);       \
 	})
 
+static int _test_cmd_hwpt_invalidate(int fd, __u32 hwpt_id, void *reqs,
+				     uint32_t req_type, uint32_t lreq,
+				     uint32_t *nreqs, uint32_t *driver_error)
+{
+	struct iommu_hwpt_invalidate cmd = {
+		.size = sizeof(cmd),
+		.hwpt_id = hwpt_id,
+		.req_type = req_type,
+		.reqs_uptr = (uint64_t)reqs,
+		.req_len = lreq,
+		.req_num = *nreqs,
+	};
+	int rc = ioctl(fd, IOMMU_HWPT_INVALIDATE, &cmd);
+	*nreqs = cmd.req_num;
+	if (driver_error)
+		*driver_error = cmd.out_driver_error_code;
+	return rc;
+}
+
+#define test_cmd_hwpt_invalidate(hwpt_id, reqs, lreq, nreqs)                  \
+	({                                                                    \
+		uint32_t error, num = *nreqs;                                 \
+		ASSERT_EQ(0,                                                  \
+			  _test_cmd_hwpt_invalidate(self->fd, hwpt_id, reqs,  \
+						    IOMMU_HWPT_DATA_SELFTEST, \
+						    lreq, nreqs, &error));    \
+		assert(num == *nreqs);                                        \
+		assert(error == 0);                                           \
+	})
+#define test_err_hwpt_invalidate(_errno, hwpt_id, reqs, req_type, lreq,    \
+				 nreqs, driver_error)                      \
+	({                                                                 \
+		EXPECT_ERRNO(_errno,                                       \
+			     _test_cmd_hwpt_invalidate(self->fd, hwpt_id,  \
+						       reqs, req_type,     \
+						       lreq, nreqs,        \
+						       driver_error));     \
+	})
+
 static int _test_cmd_access_replace_ioas(int fd, __u32 access_id,
 					 unsigned int ioas_id)
 {
