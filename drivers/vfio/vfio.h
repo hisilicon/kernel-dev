@@ -20,6 +20,7 @@ struct vfio_device_file {
 	struct vfio_device *device;
 	struct kvm *kvm;
 	struct iommufd_ctx *iommufd;
+	bool access_granted;
 };
 
 void vfio_device_put_registration(struct vfio_device *device);
