@@ -415,6 +415,10 @@ TEST_F(iommufd_ioas, nested_hwpt_alloc)
 					 &nested_hwpt_id[1],
 					 IOMMU_HWPT_TYPE_SELFTEST,
 					 sizeof(data), &data);
+		test_cmd_hwpt_check_iotlb_all(nested_hwpt_id[0],
+					      IOMMU_TEST_IOTLB_DEFAULT);
+		test_cmd_hwpt_check_iotlb_all(nested_hwpt_id[1],
+					      IOMMU_TEST_IOTLB_DEFAULT);
 
 		/* Negative test: a nested hwpt on top of a nested hwpt */
 		test_err_cmd_hwpt_alloc_user(EINVAL, self->device_id,
