@@ -171,6 +171,20 @@ static int _test_ioctl_ioas_alloc(int fd, __u32 *id)
 		ASSERT_NE(0, *(id));                                \
 	})
 
+#define test_ioctl_hwpt_check_iotlb(hwpt_id, expected)                         \
+	({                                                                     \
+		struct iommu_test_cmd test_cmd = {                             \
+			.size = sizeof(test_cmd),                              \
+			.op = IOMMU_TEST_OP_MD_CHECK_IOTLB,                    \
+			.id = hwpt_id,                                         \
+			.check_iotlb = { .iotlb = expected },                  \
+		};                                                             \
+		ASSERT_EQ(0,                                                   \
+			  ioctl(self->fd,                                      \
+				_IOMMU_TEST_CMD(IOMMU_TEST_OP_MD_CHECK_IOTLB), \
+				&test_cmd));                                   \
+	})
+
 static int _test_ioctl_hwpt_alloc(int fd, __u32 pt_id, __u32 dev_id,
 				  __u32 *out_hwpt_id, bool nested)
 {
@@ -195,11 +209,14 @@ static int _test_ioctl_hwpt_alloc(int fd, __u32 pt_id, __u32 dev_id,
 	return 0;
 }
 
-#define test_ioctl_hwpt_alloc(pt_id, dev_id, out_hwpt_id, nested)            \
-	({                                                                   \
-		ASSERT_EQ(0, _test_ioctl_hwpt_alloc(self->fd, pt_id, dev_id, \
-						    out_hwpt_id, nested));   \
-		ASSERT_NE(0, *(out_hwpt_id));                                \
+#define test_ioctl_hwpt_alloc(pt_id, dev_id, out_hwpt_id, nested)              \
+	({                                                                     \
+		ASSERT_EQ(0, _test_ioctl_hwpt_alloc(self->fd, pt_id, dev_id,   \
+						    out_hwpt_id, nested));     \
+		ASSERT_NE(0, *(out_hwpt_id));                                  \
+		if (nested)                                                    \
+			test_ioctl_hwpt_check_iotlb(*(out_hwpt_id),            \
+						    IOMMU_TEST_IOTLB_DEFAULT); \
 	})
 #define test_err_ioctl_hwpt_alloc(_errno, pt_id, dev_id, out_hwpt_id, nested) \
 	({                                                                    \
