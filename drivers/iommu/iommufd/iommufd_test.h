@@ -10,6 +10,7 @@
 enum {
 	IOMMU_TEST_OP_ADD_RESERVED = 1,
 	IOMMU_TEST_OP_MOCK_DOMAIN,
+	IOMMU_TEST_OP_MOCK_DOMAIN_REPLACE,
 	IOMMU_TEST_OP_MD_CHECK_MAP,
 	IOMMU_TEST_OP_MD_CHECK_REFS,
 	IOMMU_TEST_OP_CREATE_ACCESS,
@@ -52,6 +53,10 @@ struct iommu_test_cmd {
 			__u32 out_device_id;
 			__u32 out_hwpt_id;
 		} mock_domain;
+		struct {
+			__u32 device_id;
+			__u32 hwpt_id;
+		} mock_domain_replace;
 		struct {
 			__aligned_u64 iova;
 			__aligned_u64 length;

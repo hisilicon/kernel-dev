@@ -301,7 +301,8 @@ void iommufd_access_destroy_object(struct iommufd_object *obj);
 struct iommufd_hw_pagetable *
 iommufd_device_selftest_attach(struct iommufd_ctx *ictx,
 			       struct iommufd_ioas *ioas,
-			       struct device *mock_dev);
+			       struct device *mock_dev,
+			       struct iommufd_hw_pagetable *hwpt);
 void iommufd_device_selftest_detach(struct iommufd_ctx *ictx,
 				    struct iommufd_hw_pagetable *hwpt);
 struct device *iommufd_selftest_obj_to_dev(struct iommufd_object *obj);
