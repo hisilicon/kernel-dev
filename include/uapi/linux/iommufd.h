@@ -491,6 +491,7 @@ struct iommu_hwpt_intel_vtd {
 	__u32 __reserved;
 };
 
+
 /**
  * struct iommu_hwpt_arm_smmuv3 - ARM SMMUv3 specific page table data
  *
@@ -553,10 +554,32 @@ struct iommu_hwpt_alloc {
 	__u32 data_type;
 	__u32 data_len;
 	__aligned_u64 data_uptr;
+	__s32 eventfd;
 	__u32 out_hwpt_id;
+	__s32 out_fault_fd;
 	__u32 __reserved;
 };
 #define IOMMU_HWPT_ALLOC _IO(IOMMUFD_TYPE, IOMMUFD_CMD_HWPT_ALLOC)
+
+/*
+ * DMA Fault Region Layout
+ * @tail: index relative to the start of the ring buffer at which the
+ *        consumer finds the next item in the buffer
+ * @entry_size: fault ring buffer entry size in bytes
+ * @nb_entries: max capacity of the fault ring buffer
+ * @offset: ring buffer offset relative to the start of the region
+ * @head: index relative to the start of the ring buffer at which the
+ *        producer (kernel) inserts items into the buffers
+ */
+struct iommufd_stage1_dma_fault {
+	/* Write-Only */
+	__u32   tail;
+	/* Read-Only */
+	__u32   entry_size;
+	__u32	nb_entries;
+	__u32	offset;
+	__u32   head;
+};
 
 /**
  * enum iommu_vtd_qi_granularity - Intel VT-d specific granularity of
