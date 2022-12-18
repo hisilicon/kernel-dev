@@ -250,6 +250,16 @@ struct iommufd_device {
 
 int iommufd_device_get_info(struct iommufd_ucmd *ucmd);
 
+struct iommufd_hw_s1_fault_data {
+	struct file *fault_file;
+	int fault_fd;
+	struct mutex fault_queue_lock;
+	u8 *fault_pages;
+	size_t fault_region_size;
+	struct mutex notify_gate;
+	struct eventfd_ctx *trigger;
+};
+
 /*
  * A HW pagetable is called an iommu_domain inside the kernel. This user object
  * allows directly creating and inspecting the domains. Domains that have kernel
@@ -274,6 +284,7 @@ struct iommufd_hw_pagetable {
 	struct mutex *devices_lock;
 	refcount_t *devices_users;
 	void *user_data;
+	struct iommufd_hw_s1_fault_data s1_fault_data;
 };
 
 int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd);
