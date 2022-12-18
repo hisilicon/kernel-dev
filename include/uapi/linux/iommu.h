@@ -130,11 +130,13 @@ struct iommu_fault {
  *	this device if possible. This is "Response Failure" in PCI PRI.
  * @IOMMU_PAGE_RESP_INVALID: Could not handle this fault, don't retry the
  *	access. This is "Invalid Request" in PCI PRI.
+ * @IOMMU_PAGE_RESP_ASYNC: Will response later by calling iommu_page_response().
  */
 enum iommu_page_response_code {
 	IOMMU_PAGE_RESP_SUCCESS = 0,
 	IOMMU_PAGE_RESP_INVALID,
 	IOMMU_PAGE_RESP_FAILURE,
+	IOMMU_PAGE_RESP_ASYNC,
 };
 
 /**
