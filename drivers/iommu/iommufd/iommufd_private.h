@@ -264,6 +264,8 @@ struct iommufd_hw_pagetable {
 	struct iommufd_hw_s1_fault_data s1_fault_data;
 };
 
+int iommufd_hwpt_page_response(struct iommufd_ucmd *ucmd);
+
 struct iommufd_hw_pagetable *
 iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 			   struct iommufd_device *idev,
