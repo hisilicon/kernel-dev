@@ -255,6 +255,7 @@ union ucmd_buffer {
 	struct iommu_device_info info;
 	struct iommu_hwpt_alloc hwpt_alloc;
 	struct iommu_hwpt_invalidate hwpt_invalidate;
+	struct iommu_hwpt_page_response page_response;
 #ifdef CONFIG_IOMMUFD_TEST
 	struct iommu_test_cmd test;
 #endif
@@ -300,6 +301,8 @@ static const struct iommufd_ioctl_op iommufd_ioctl_ops[] = {
 		 __reserved),
 	IOCTL_OP(IOMMU_HWPT_INVALIDATE, iommufd_hwpt_invalidate,
 		 struct iommu_hwpt_invalidate, data_uptr),
+	IOCTL_OP(IOMMU_PAGE_RESPONSE, iommufd_hwpt_page_response,
+		 struct iommu_hwpt_page_response, resp),
 #ifdef CONFIG_IOMMUFD_TEST
 	IOCTL_OP(IOMMU_TEST_CMD, iommufd_test, struct iommu_test_cmd, last),
 #endif
