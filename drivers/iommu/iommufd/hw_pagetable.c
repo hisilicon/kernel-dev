@@ -494,12 +494,14 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 	if (cmd->eventfd >= 0) {
 		rc = iommufd_hw_pagetable_dma_fault_init(hwpt, cmd->eventfd);
 		if (rc)
-			goto out_free_data;
+			goto out_destroy_hwpt;
 
 		cmd->out_fault_fd = hwpt->s1_fault_data.fault_fd;
 
 		rc = iommu_register_device_fault_handler(dev,
 				iommufd_hw_pagetable_dev_fault_handler, hwpt);
+		if (rc)
+			goto out_destroy_hwpt;
 	}
 
 	cmd->out_hwpt_id = hwpt->obj.id;
