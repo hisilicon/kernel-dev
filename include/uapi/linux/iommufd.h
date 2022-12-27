@@ -460,4 +460,58 @@ struct iommu_hwpt_intel_vtd {
 	__u32 addr_width;
 	__u32 __reserved;
 };
+
+/**
+ * enum iommu_vtd_qi_granularity - Intel VT-d specific granularity of
+ *				   queued invalidation
+ * @IOMMU_VTD_QI_GRAN_DOMAIN: domain-selective invalidation
+ * @IOMMU_VTD_QI_GRAN_ADDR: page-selective invalidation
+ */
+enum iommu_vtd_qi_granularity {
+	IOMMU_VTD_QI_GRAN_DOMAIN,
+	IOMMU_VTD_QI_GRAN_ADDR,
+};
+
+/**
+ * enum iommu_hwpt_intel_vtd_invalidate_flags - Flags for Intel VT-d
+ *						stage-1 page table cache
+ *						invalidation
+ * @IOMMU_VTD_QI_FLAGS_LEAF: The LEAF flag indicates whether only the
+ *			     leaf PTE caching needs to be invalidated
+ *			     and other paging structure caches can be
+ *			     preserved.
+ */
+enum iommu_hwpt_intel_vtd_invalidate_flags {
+	IOMMU_VTD_QI_FLAGS_LEAF = 1 << 0,
+};
+
+/**
+ * struct iommu_hwpt_invalidate_intel_vtd - Intel VT-d cache invalidation info
+ * @granularity: One of enum iommu_vtd_qi_granularity.
+ * @flags: Combination of enum iommu_hwpt_intel_vtd_invalidate_flags
+ * @__reserved: Must be 0
+ * @addr: The start address of the addresses to be invalidated.
+ * @granule_size: Page/block size of the mapping in bytes. It is used to
+ *		  compute the invalidation range togehter with @nb_granules.
+ * @nb_granules: Number of contiguous granules to be invalidated.
+ *
+ * The Intel VT-d specific invalidation data for user-managed stage-1 cache
+ * invalidation under nested translation. Userspace uses this structure to
+ * tell host about the impacted caches after modifying the stage-1 page table.
+ *
+ * @addr, @granule_size and @nb_granules are meaningful when
+ * @granularity==IOMMU_VTD_QI_GRAN_ADDR. Intel VT-d currently only supports
+ * 4kB page size, so @granule_size should be 4KB. @addr should be aligned
+ * with @granule_size * @nb_granules, otherwise invalidation won't take
+ * effect.
+ */
+struct iommu_hwpt_invalidate_intel_vtd {
+	__u8 granularity;
+	__u8 padding[7];
+	__u32 flags;
+	__u32 __reserved;
+	__u64 addr;
+	__u64 granule_size;
+	__u64 nb_granules;
+};
 #endif
