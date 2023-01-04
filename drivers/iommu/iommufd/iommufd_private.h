@@ -248,7 +248,7 @@ struct iommufd_hw_pagetable {
 	bool msi_cookie : 1;
 	/* Head at iommufd_ioas::hwpt_list */
 	struct list_head hwpt_item;
-	struct mutex devices_lock;
+	struct mutex *devices_lock;
 	struct list_head devices;
 };
 
