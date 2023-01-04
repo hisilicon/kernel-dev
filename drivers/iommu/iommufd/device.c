@@ -320,7 +320,7 @@ static int iommufd_device_do_attach(struct iommufd_device *idev,
 				hwpt->domain->ops->enforce_cache_coherency(
 					hwpt->domain);
 		if (!hwpt->enforce_cache_coherency) {
-			WARN_ON(list_empty(&hwpt->devices));
+			WARN_ON(refcount_read(hwpt->devices_users) == 1);
 			rc = -EINVAL;
 			goto out_unlock;
 		}
@@ -344,7 +344,7 @@ static int iommufd_device_do_attach(struct iommufd_device *idev,
 		if (rc)
 			goto out_iova;
 
-		if (list_empty(&hwpt->devices)) {
+		if (refcount_read(hwpt->devices_users) == 1) {
 			rc = iopt_table_add_domain(&hwpt->ioas->iopt,
 						   hwpt->domain);
 			if (rc)
@@ -355,6 +355,7 @@ static int iommufd_device_do_attach(struct iommufd_device *idev,
 
 	idev->hwpt = hwpt;
 	refcount_inc(&hwpt->obj.users);
+	refcount_inc(hwpt->devices_users);
 	list_add(&idev->devices_item, &hwpt->devices);
 	mutex_unlock(hwpt->devices_lock);
 	return 0;
@@ -489,9 +490,10 @@ void iommufd_device_detach(struct iommufd_device *idev)
 
 	mutex_lock(&hwpt->ioas->mutex);
 	mutex_lock(hwpt->devices_lock);
+	refcount_dec(hwpt->devices_users);
 	list_del(&idev->devices_item);
 	if (!iommufd_hw_pagetable_has_group(hwpt, idev->group)) {
-		if (list_empty(&hwpt->devices)) {
+		if (refcount_read(hwpt->devices_users) == 1) {
 			iopt_table_remove_domain(&hwpt->ioas->iopt,
 						 hwpt->domain);
 			list_del(&hwpt->hwpt_item);

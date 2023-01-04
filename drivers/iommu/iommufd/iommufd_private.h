@@ -249,6 +249,7 @@ struct iommufd_hw_pagetable {
 	/* Head at iommufd_ioas::hwpt_list */
 	struct list_head hwpt_item;
 	struct mutex *devices_lock;
+	refcount_t *devices_users;
 	struct list_head devices;
 };
 
