@@ -786,6 +786,13 @@ void iommufd_selftest_destroy(struct iommufd_object *obj)
 	}
 }
 
+struct device *iommufd_selftest_obj_to_dev(struct iommufd_object *obj)
+{
+	struct selftest_obj *sobj = container_of(obj, struct selftest_obj, obj);
+
+	return &sobj->idev.mock_dev;
+}
+
 int iommufd_test(struct iommufd_ucmd *ucmd)
 {
 	struct iommu_test_cmd *cmd = ucmd->cmd;

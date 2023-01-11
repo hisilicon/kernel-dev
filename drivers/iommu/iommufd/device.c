@@ -143,6 +143,20 @@ static int iommufd_zero_fill_user(u64 ptr, int bytes)
 	return 0;
 }
 
+static struct device *
+iommufd_obj_dev(struct iommufd_object *obj)
+{
+	struct device *dev = NULL;
+
+	if (obj->type == IOMMUFD_OBJ_DEVICE)
+		dev = container_of(obj, struct iommufd_device, obj)->dev;
+#ifdef CONFIG_IOMMUFD_TEST
+	else if (obj->type == IOMMUFD_OBJ_SELFTEST)
+		dev = iommufd_selftest_obj_to_dev(obj);
+#endif
+	return dev;
+}
+
 int iommufd_device_get_info(struct iommufd_ucmd *ucmd)
 {
 	struct iommu_device_info *cmd = ucmd->cmd;
@@ -157,11 +171,15 @@ int iommufd_device_get_info(struct iommufd_ucmd *ucmd)
 		return -EOPNOTSUPP;
 
 	dev_obj = iommufd_get_object(ucmd->ictx, cmd->dev_id,
-				     IOMMUFD_OBJ_DEVICE);
+				     IOMMUFD_OBJ_ANY);
 	if (IS_ERR(dev_obj))
 		return PTR_ERR(dev_obj);
 
-	dev = container_of(dev_obj, struct iommufd_device, obj)->dev;
+	dev = iommufd_obj_dev(dev_obj);
+	if (!dev) {
+		rc = -EINVAL;
+		goto out_put;
+	}
 
 	ops = dev_iommu_ops(dev);
 	if (!ops || !ops->hw_info) {

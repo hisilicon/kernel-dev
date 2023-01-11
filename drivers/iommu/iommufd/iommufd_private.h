@@ -282,6 +282,7 @@ iommufd_device_selftest_attach(struct iommufd_ctx *ictx,
 			       struct device *mock_dev);
 void iommufd_device_selftest_detach(struct iommufd_ctx *ictx,
 				    struct iommufd_hw_pagetable *hwpt);
+struct device *iommufd_selftest_obj_to_dev(struct iommufd_object *obj);
 int iommufd_test(struct iommufd_ucmd *ucmd);
 void iommufd_selftest_destroy(struct iommufd_object *obj);
 extern size_t iommufd_test_memory_limit;
