@@ -346,4 +346,8 @@ struct iommu_vfio_ioas {
 	__u16 __reserved;
 };
 #define IOMMU_VFIO_IOAS _IO(IOMMUFD_TYPE, IOMMUFD_CMD_VFIO_IOAS)
+
+enum iommu_device_data_type {
+	IOMMU_DEVICE_DATA_NONE = 0,
+};
 #endif
