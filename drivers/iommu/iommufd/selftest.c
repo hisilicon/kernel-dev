@@ -273,6 +273,8 @@ get_md_pagetable(struct iommufd_ucmd *ucmd, u32 mockpt_id,
 static int iommufd_test_mock_domain(struct iommufd_ucmd *ucmd,
 				    struct iommu_test_cmd *cmd)
 {
+	static struct iommu_device iommu_dev = { .ops = &mock_ops };
+	static struct dev_iommu iommu = { .iommu_dev = &iommu_dev };
 	static struct bus_type mock_bus = { .iommu_ops = &mock_ops };
 	struct iommufd_hw_pagetable *hwpt;
 	struct selftest_obj *sobj;
@@ -291,6 +293,7 @@ static int iommufd_test_mock_domain(struct iommufd_ucmd *ucmd,
 	sobj->idev.ictx = ucmd->ictx;
 	sobj->type = TYPE_IDEV;
 	sobj->idev.mock_dev.bus = &mock_bus;
+	sobj->idev.mock_dev.iommu = &iommu;
 
 	hwpt = iommufd_device_selftest_attach(ucmd->ictx, ioas,
 					      &sobj->idev.mock_dev);
