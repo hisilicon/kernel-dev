@@ -263,6 +263,80 @@ u32 iommufd_device_to_id(struct iommufd_device *idev)
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_device_to_id, IOMMUFD);
 
+static int iommufd_zero_fill_user(u64 ptr, int bytes)
+{
+	int index = 0;
+
+	for (; index < bytes; index++) {
+		if (put_user(0, (uint8_t __user *)(ptr + index)))
+			return -EFAULT;
+	}
+	return 0;
+}
+
+int iommufd_device_get_hw_info(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_hw_info *cmd = ucmd->cmd;
+	struct iommufd_device *idev;
+	const struct iommu_ops *ops;
+	void *data;
+	unsigned int length, data_len;
+	int rc;
+
+	if (cmd->flags || cmd->__reserved || !cmd->data_len)
+		return -EOPNOTSUPP;
+
+	idev = iommufd_get_device(ucmd, cmd->dev_id);
+	if (IS_ERR(idev))
+		return PTR_ERR(idev);
+
+	ops = dev_iommu_ops(idev->dev);
+	if (!ops || !ops->hw_info) {
+		rc = -EOPNOTSUPP;
+		goto out_put;
+	}
+
+	/* driver has hw_info callback should have a unique driver_type */
+	if (WARN_ON(ops->driver_type == IOMMU_HW_INFO_TYPE_DEFAULT)) {
+		rc = -EOPNOTSUPP;
+		goto out_put;
+	}
+
+	data = ops->hw_info(idev->dev, &data_len);
+	if (IS_ERR(data)) {
+		rc = PTR_ERR(data);
+		goto out_put;
+	}
+
+	length = min(cmd->data_len, data_len);
+	if (copy_to_user(u64_to_user_ptr(cmd->data_ptr), data, length)) {
+		rc = -EFAULT;
+		goto out_free_data;
+	}
+
+	/*
+	 * Zero the trailing bytes if the user buffer is bigger than the
+	 * data size kernel actually has.
+	 */
+	if (length < cmd->data_len) {
+		rc = iommufd_zero_fill_user(cmd->data_ptr + length,
+					    cmd->data_len - length);
+		if (rc)
+			goto out_free_data;
+	}
+
+	cmd->out_data_type = ops->driver_type;
+	cmd->data_len = length;
+
+	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
+
+out_free_data:
+	kfree(data);
+out_put:
+	iommufd_put_object(&idev->obj);
+	return rc;
+}
+
 static int iommufd_group_setup_msi(struct iommufd_group *igroup,
 				   struct iommufd_hw_pagetable *hwpt)
 {
