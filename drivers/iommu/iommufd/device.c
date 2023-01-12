@@ -144,8 +144,7 @@ static int iommufd_zero_fill_user(u64 ptr, int bytes)
 	return 0;
 }
 
-static struct device *
-iommufd_obj_dev(struct iommufd_object *obj)
+struct device *iommufd_obj_dev(struct iommufd_object *obj)
 {
 	struct device *dev = NULL;
 
@@ -157,6 +156,15 @@ iommufd_obj_dev(struct iommufd_object *obj)
 #endif
 	return dev;
 }
+
+/*
+ * bitmap of supported page table types for hardware type
+ * iommus, indexed by enum iommu_device_data_type, but not
+ * IOMMU_DEVICE_DATA_NONE.
+ */
+const u64 iommufd_supported_pgtbl_types[] =  {
+	[IOMMU_DEVICE_DATA_INTEL_VTD] = BIT_ULL(IOMMU_PGTBL_TYPE_NONE),
+};
 
 int iommufd_device_get_info(struct iommufd_ucmd *ucmd)
 {

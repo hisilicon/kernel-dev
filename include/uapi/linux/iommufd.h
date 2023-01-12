@@ -48,6 +48,7 @@ enum {
 	IOMMUFD_CMD_OPTION,
 	IOMMUFD_CMD_VFIO_IOAS,
 	IOMMUFD_CMD_DEVICE_GET_INFO,
+	IOMMUFD_CMD_HWPT_ALLOC,
 };
 
 /**
@@ -353,6 +354,10 @@ enum iommu_device_data_type {
 	IOMMU_DEVICE_DATA_INTEL_VTD,
 };
 
+enum iommu_pgtbl_types {
+	IOMMU_PGTBL_TYPE_NONE,
+};
+
 /**
  * struct iommu_device_info_vtd - Intel VT-d device info
  *
@@ -460,6 +465,45 @@ struct iommu_hwpt_intel_vtd {
 	__u32 addr_width;
 	__u32 __reserved;
 };
+
+/**
+ * struct iommu_hwpt_alloc - ioctl(IOMMU_HWPT_ALLOC)
+ * @size: sizeof(struct iommu_hwpt_alloc)
+ * @flags: Must be 0
+ * @dev_id: The device to allocate this HWPT for
+ * @pt_id: The parent of this HWPT (IOAS or HWPT)
+ * @data_type: One of enum iommu_pgtbl_types
+ * @data_len: Length of the type specific data
+ * @data_uptr: User pointer to the type specific data
+ * @out_hwpt_id: Output HWPT ID for the allocated object
+ * @__reserved: Must be 0
+ *
+ * Allocate hw_pagetable for managing page tables in userspace. Such page
+ * tables can be user-managed or kernel-managed. @pt_id is needed for either
+ * case. While the @data_type, @data_len and @data_uptr are optional. For
+ * the user-managed page tables, userspace should provide the data_type, the
+ * data_len and the type speficific data. While for the kernel-managed page
+ * tables, use the IOMMU_DEVICE_DATA_NONE data_type, @data_len and @data_uptr
+ * will be ignored.
+ *
+ * +==============================+=====================================+
+ * | @data_type                   |      Data structure in @data_uptr   |
+ * +------------------------------+-------------------------------------+
+ * | IOMMU_PGTBL_TYPE_NONE        |                 N/A                 |
+ * +------------------------------+-------------------------------------+
+ */
+struct iommu_hwpt_alloc {
+	__u32 size;
+	__u32 flags;
+	__u32 dev_id;
+	__u32 pt_id;
+	__u32 data_type;
+	__u32 data_len;
+	__aligned_u64 data_uptr;
+	__u32 out_hwpt_id;
+	__u32 __reserved;
+};
+#define IOMMU_HWPT_ALLOC _IO(IOMMUFD_TYPE, IOMMUFD_CMD_HWPT_ALLOC)
 
 /**
  * enum iommu_vtd_qi_granularity - Intel VT-d specific granularity of

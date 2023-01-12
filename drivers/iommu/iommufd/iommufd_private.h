@@ -257,7 +257,22 @@ iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 			   struct device *dev);
 void iommufd_hw_pagetable_destroy(struct iommufd_object *obj);
 
+static inline struct iommufd_hw_pagetable *
+iommufd_get_hwpt(struct iommufd_ucmd *ucmd, u32 id)
+{
+	return container_of(iommufd_get_object(ucmd->ictx, id,
+					       IOMMUFD_OBJ_HW_PAGETABLE),
+			    struct iommufd_hw_pagetable, obj);
+}
+
+int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd);
+
+struct device *iommufd_obj_dev(struct iommufd_object *obj);
+
 void iommufd_device_destroy(struct iommufd_object *obj);
+
+extern const u64 iommufd_supported_pgtbl_types[];
+
 int iommufd_device_get_info(struct iommufd_ucmd *ucmd);
 
 struct iommufd_access {
