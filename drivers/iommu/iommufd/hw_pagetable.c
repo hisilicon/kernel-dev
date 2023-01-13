@@ -238,6 +238,11 @@ iommufd_hwpt_nested_alloc(struct iommufd_ctx *ictx,
 		rc = -EINVAL;
 		goto out_abort;
 	}
+	/* Driver is buggy by missing cache_invalidate_user in domain_ops */
+	if (WARN_ON_ONCE(!hwpt->domain->ops->cache_invalidate_user)) {
+		rc = -EINVAL;
+		goto out_abort;
+	}
 	return hwpt_nested;
 
 out_abort:
@@ -369,5 +374,35 @@ int iommufd_hwpt_get_dirty_bitmap(struct iommufd_ucmd *ucmd)
 		&ioas->iopt, hwpt_paging->common.domain, cmd->flags, cmd);
 
 	iommufd_put_object(&hwpt_paging->common.obj);
+	return rc;
+};
+
+int iommufd_hwpt_invalidate(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_hwpt_invalidate *cmd = ucmd->cmd;
+	struct iommu_user_data_array data_array = {
+		.type = cmd->req_type,
+		.uptr = u64_to_user_ptr(cmd->reqs_uptr),
+		.entry_len = cmd->req_len,
+		.entry_num = cmd->req_num,
+	};
+	struct iommufd_hw_pagetable *hwpt;
+	int rc = 0;
+
+	if (cmd->req_type == IOMMU_HWPT_DATA_NONE)
+		return -EINVAL;
+	if (!cmd->reqs_uptr || !cmd->req_len || !cmd->req_num)
+		return -EINVAL;
+
+	hwpt = iommufd_hw_pagetable_get_nested(ucmd, cmd->hwpt_id);
+	if (IS_ERR(hwpt))
+		return PTR_ERR(hwpt);
+
+	rc = hwpt->domain->ops->cache_invalidate_user(hwpt->domain, &data_array,
+						      &cmd->out_driver_error_code);
+	cmd->req_num = data_array.entry_num;
+	if (iommufd_ucmd_respond(ucmd, sizeof(*cmd)))
+		return -EFAULT;
+	iommufd_put_object(&hwpt->obj);
 	return rc;
 }
