@@ -272,6 +272,7 @@ iommufd_get_hwpt(struct iommufd_ucmd *ucmd, u32 id)
 }
 
 int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd);
+int iommufd_hwpt_invalidate(struct iommufd_ucmd *ucmd);
 
 struct device *iommufd_obj_dev(struct iommufd_object *obj);
 

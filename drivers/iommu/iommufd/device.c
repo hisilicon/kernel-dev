@@ -163,7 +163,8 @@ struct device *iommufd_obj_dev(struct iommufd_object *obj)
  * IOMMU_DEVICE_DATA_NONE.
  */
 const u64 iommufd_supported_pgtbl_types[] =  {
-	[IOMMU_DEVICE_DATA_INTEL_VTD] = BIT_ULL(IOMMU_PGTBL_TYPE_NONE),
+	[IOMMU_DEVICE_DATA_INTEL_VTD] = BIT_ULL(IOMMU_PGTBL_TYPE_NONE) |
+					BIT_ULL(IOMMU_PGTBL_TYPE_VTD_S1),
 };
 
 int iommufd_device_get_info(struct iommufd_ucmd *ucmd)

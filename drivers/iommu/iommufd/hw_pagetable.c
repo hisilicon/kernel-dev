@@ -113,11 +113,12 @@ iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
  */
 static const size_t iommufd_hwpt_info_size[] = {
 	[IOMMU_PGTBL_TYPE_NONE] = 0,
+	[IOMMU_PGTBL_TYPE_VTD_S1] = sizeof(struct iommu_hwpt_intel_vtd),
 };
 
 int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 {
-	struct iommufd_hw_pagetable *hwpt;
+	struct iommufd_hw_pagetable *hwpt, *parent = NULL;
 	struct iommu_hwpt_alloc *cmd = ucmd->cmd;
 	struct iommufd_ctx *ictx = ucmd->ictx;
 	struct iommufd_object *pt_obj = NULL;
@@ -165,6 +166,19 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 	}
 
 	switch (pt_obj->type) {
+	case IOMMUFD_OBJ_HW_PAGETABLE:
+		parent = container_of(pt_obj, struct iommufd_hw_pagetable, obj);
+		/*
+		 * Cannot allocate user-managed hwpt linking to auto_created
+		 * hwpt. If the parent hwpt is already a user-managed hwpt,
+		 * don't allocate another user-managed hwpt linking to it.
+		 */
+		if (parent->auto_domain || parent->parent) {
+			rc = -EINVAL;
+			goto out_put_pt;
+		}
+		ioas = parent->ioas;
+		break;
 	case IOMMUFD_OBJ_IOAS:
 		ioas = container_of(pt_obj, struct iommufd_ioas, obj);
 		break;
@@ -194,7 +208,7 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 	}
 
 	mutex_lock(&ioas->mutex);
-	hwpt = __iommufd_hw_pagetable_alloc(ictx, ioas, dev, NULL, data);
+	hwpt = __iommufd_hw_pagetable_alloc(ictx, ioas, dev, parent, data);
 	mutex_unlock(&ioas->mutex);
 	if (IS_ERR(hwpt)) {
 		rc = PTR_ERR(hwpt);
@@ -220,5 +234,58 @@ out_put_pt:
 	iommufd_put_object(pt_obj);
 out_put_dev:
 	iommufd_put_object(dev_obj);
+	return rc;
+}
+
+static u32 iommufd_hwpt_invalidate_info_size[] = {
+	[IOMMU_PGTBL_TYPE_VTD_S1] = sizeof(struct iommu_hwpt_invalidate_intel_vtd),
+};
+
+int iommufd_hwpt_invalidate(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_hwpt_invalidate *cmd = ucmd->cmd;
+	struct iommufd_hw_pagetable *hwpt;
+	u64 user_ptr;
+	u32 user_data_len, klen;
+	int rc = 0;
+
+	/*
+	 * No invalidation needed for type==IOMMU_PGTBL_TYPE_NONE.
+	 * data_len should not exceed the size of iommufd_invalidate_buffer.
+	 */
+	if (cmd->data_type == IOMMU_PGTBL_TYPE_NONE || !cmd->data_len)
+		return -EOPNOTSUPP;
+
+	hwpt = iommufd_get_hwpt(ucmd, cmd->hwpt_id);
+	if (IS_ERR(hwpt))
+		return PTR_ERR(hwpt);
+
+	/* Do not allow any kernel-managed hw_pagetable */
+	if (!hwpt->parent) {
+		rc = -EINVAL;
+		goto out_put_hwpt;
+	}
+
+	klen = iommufd_hwpt_invalidate_info_size[cmd->data_type];
+	if (!klen) {
+		rc = -EINVAL;
+		goto out_put_hwpt;
+	}
+
+	/*
+	 * copy the needed fields before reusing the ucmd buffer, this
+	 * avoids memory allocation in this path.
+	 */
+	user_ptr = cmd->data_uptr;
+	user_data_len = cmd->data_len;
+
+	rc = copy_struct_from_user(cmd, klen,
+				   u64_to_user_ptr(user_ptr), user_data_len);
+	if (rc)
+		goto out_put_hwpt;
+
+	hwpt->domain->ops->iotlb_sync_user(hwpt->domain, cmd);
+out_put_hwpt:
+	iommufd_put_object(&hwpt->obj);
 	return rc;
 }
