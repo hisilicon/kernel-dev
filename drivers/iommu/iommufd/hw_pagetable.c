@@ -280,3 +280,59 @@ out_put_idev:
 	iommufd_put_object(&idev->obj);
 	return rc;
 }
+
+/*
+ * size of page table type specific invalidate_info, indexed by
+ * enum iommu_hwpt_type.
+ */
+static const size_t iommufd_hwpt_invalidate_info_size[] = {};
+
+int iommufd_hwpt_invalidate(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_hwpt_invalidate *cmd = ucmd->cmd;
+	struct iommufd_hw_pagetable *hwpt;
+	u64 user_ptr;
+	u32 user_data_len, klen;
+	int rc = 0;
+
+	/*
+	 * For a user-managed HWPT, type should not be IOMMU_HWPT_TYPE_DEFAULT.
+	 * data_len should not exceed the size of iommufd_invalidate_buffer.
+	 */
+	if (cmd->data_type == IOMMU_HWPT_TYPE_DEFAULT || !cmd->data_len ||
+	    cmd->data_type >= ARRAY_SIZE(iommufd_hwpt_invalidate_info_size))
+		return -EOPNOTSUPP;
+
+	hwpt = iommufd_get_hwpt(ucmd, cmd->hwpt_id);
+	if (IS_ERR(hwpt))
+		return PTR_ERR(hwpt);
+
+	/* Do not allow any kernel-managed hw_pagetable */
+	if (!hwpt->parent) {
+		rc = -EINVAL;
+		goto out_put_hwpt;
+	}
+
+	klen = iommufd_hwpt_invalidate_info_size[cmd->data_type];
+	if (!klen) {
+		rc = -EINVAL;
+		goto out_put_hwpt;
+	}
+
+	/*
+	 * Copy the needed fields before reusing the ucmd buffer, this
+	 * avoids memory allocation in this path.
+	 */
+	user_ptr = cmd->data_uptr;
+	user_data_len = cmd->data_len;
+
+	rc = copy_struct_from_user(cmd, klen,
+				   u64_to_user_ptr(user_ptr), user_data_len);
+	if (rc)
+		goto out_put_hwpt;
+
+	hwpt->domain->ops->cache_invalidate_user(hwpt->domain, cmd);
+out_put_hwpt:
+	iommufd_put_object(&hwpt->obj);
+	return rc;
+}
