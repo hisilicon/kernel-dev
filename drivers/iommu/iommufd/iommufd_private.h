@@ -241,6 +241,7 @@ int iommufd_vfio_ioas(struct iommufd_ucmd *ucmd);
  */
 struct iommufd_hw_pagetable {
 	struct iommufd_object obj;
+	struct iommufd_hw_pagetable *parent;
 	struct iommufd_ioas *ioas;
 	struct iommu_domain *domain;
 	bool auto_domain : 1;
@@ -248,6 +249,10 @@ struct iommufd_hw_pagetable {
 	bool msi_cookie : 1;
 	/* Head at iommufd_ioas::hwpt_list */
 	struct list_head hwpt_item;
+	/*
+	 * If hwpt->parent is valid, always reuse parent's devices_lock and
+	 * devices_users. Otherwise, the current hwpt should allocate them.
+	 */
 	struct mutex *devices_lock;
 	refcount_t *devices_users;
 	struct list_head devices;

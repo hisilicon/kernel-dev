@@ -305,6 +305,10 @@ static int iommufd_device_attach_ioas(struct iommufd_device *idev,
 	struct io_pagetable *iopt;
 	int rc;
 
+	/* Always use the parent hwpt for IOAS */
+	if (hwpt->parent)
+		hwpt = hwpt->parent;
+
 	iopt = &hwpt->ioas->iopt;
 
 	rc = iopt_table_enforce_group_resv_regions(iopt, idev->dev,
@@ -333,6 +337,9 @@ out_iova:
 static void iommufd_device_detach_ioas(struct iommufd_device *idev,
 				       struct iommufd_hw_pagetable *hwpt)
 {
+	if (hwpt->parent)
+		hwpt = hwpt->parent;
+
 	if (!iommufd_hw_pagetable_has_group(hwpt, idev->group)) {
 		if (refcount_read(hwpt->devices_users) == 1) {
 			iopt_table_remove_domain(&hwpt->ioas->iopt,
