@@ -365,3 +365,36 @@ out_put_idev:
 	iommufd_put_object(&idev->obj);
 	return rc;
 }
+
+int iommufd_hwpt_invalidate(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_hwpt_invalidate *cmd = ucmd->cmd;
+	struct iommu_user_data_array data_array = {
+		.uptr = u64_to_user_ptr(cmd->reqs_uptr),
+		.entry_len = cmd->req_len,
+		.entry_num = cmd->req_num,
+	};
+	struct iommufd_hw_pagetable *hwpt;
+	int rc = 0;
+
+	if (!cmd->req_len || !cmd->req_num)
+		return -EOPNOTSUPP;
+
+	hwpt = iommufd_get_hwpt(ucmd, cmd->hwpt_id);
+	if (IS_ERR(hwpt))
+		return PTR_ERR(hwpt);
+
+	if (!hwpt->user_managed) {
+		rc = -EINVAL;
+		goto out_put_hwpt;
+	}
+
+	rc = hwpt->domain->ops->cache_invalidate_user(hwpt->domain, &data_array,
+						      &cmd->out_driver_error_code);
+	cmd->req_num = data_array.entry_num;
+	if (iommufd_ucmd_respond(ucmd, sizeof(*cmd)))
+		return -EFAULT;
+out_put_hwpt:
+	iommufd_put_object(&hwpt->obj);
+	return rc;
+}
