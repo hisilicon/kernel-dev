@@ -228,6 +228,13 @@ int iommufd_device_get_info(struct iommufd_ucmd *ucmd)
 	cmd->out_device_type = ops->driver_type;
 	cmd->data_len = data_len;
 
+	if (ops->driver_type != IOMMU_DEVICE_DATA_SELFTEST)
+		cmd->out_pgtbl_type_bitmap = iommufd_supported_pgtbl_types[ops->driver_type];
+#ifdef CONFIG_IOMMUFD_TEST
+	else
+		cmd->out_pgtbl_type_bitmap = 0;
+#endif
+
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
 
 out_free_data:
