@@ -30,6 +30,7 @@ struct iommufd_hw_pagetable *
 iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 			   struct device *dev)
 {
+	const struct iommu_ops *ops;
 	struct iommufd_hw_pagetable *hwpt;
 	int rc;
 
@@ -37,7 +38,13 @@ iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 	if (IS_ERR(hwpt))
 		return hwpt;
 
-	hwpt->domain = iommu_domain_alloc(dev->bus);
+	ops = dev_iommu_ops(dev);
+	if (!ops || !ops->domain_alloc_user) {
+		rc = -EOPNOTSUPP;
+		goto out_abort;
+	}
+
+	hwpt->domain = ops->domain_alloc_user(dev, NULL, NULL);
 	if (!hwpt->domain) {
 		rc = -ENOMEM;
 		goto out_abort;
