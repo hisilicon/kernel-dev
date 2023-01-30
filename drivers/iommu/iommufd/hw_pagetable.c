@@ -59,6 +59,14 @@ __iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx,
 		goto out_abort;
 	}
 
+	if (!hwpt->domain->ops)
+		hwpt->domain->ops = ops->default_domain_ops;
+
+	if (parent)
+		hwpt->domain->type = IOMMU_DOMAIN_NESTED;
+	else
+		hwpt->domain->type = IOMMU_DOMAIN_UNMANAGED;
+
 	INIT_LIST_HEAD(&hwpt->devices);
 	INIT_LIST_HEAD(&hwpt->hwpt_item);
 	hwpt->parent = parent;
