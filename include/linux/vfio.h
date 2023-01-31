@@ -13,6 +13,7 @@
 #include <linux/mm.h>
 #include <linux/workqueue.h>
 #include <linux/poll.h>
+#include <linux/cdev.h>
 #include <uapi/linux/vfio.h>
 #include <linux/iova_bitmap.h>
 
@@ -51,6 +52,10 @@ struct vfio_device {
 	/* Members below here are private, not for driver use */
 	unsigned int index;
 	struct device device;	/* device.kref covers object life circle */
+#if IS_ENABLED(CONFIG_VFIO_DEVICE_CDEV)
+	struct cdev cdev;
+	bool cdev_opened;
+#endif
 	refcount_t refcount;	/* user count on registered device*/
 	unsigned int open_count;
 	struct completion comp;
@@ -63,7 +68,6 @@ struct vfio_device {
 	bool iommufd_attached;
 #endif
 	bool noiommu;
-	bool cdev_opened;
 };
 
 /**
@@ -164,11 +168,18 @@ vfio_iommufd_physical_devid(struct vfio_device *vdev)
 	((void (*)(struct vfio_device *vdev)) NULL)
 #endif
 
+#if IS_ENABLED(CONFIG_VFIO_DEVICE_CDEV)
 static inline bool vfio_device_cdev_opened(struct vfio_device *device)
 {
 	lockdep_assert_held(&device->dev_set->lock);
 	return device->cdev_opened;
 }
+#else
+static inline bool vfio_device_cdev_opened(struct vfio_device *device)
+{
+	return false;
+}
+#endif
 
 /**
  * struct vfio_migration_ops - VFIO bus device driver migration callbacks
