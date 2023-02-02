@@ -1076,6 +1076,9 @@ int mpam_resctrl_online_cpu(unsigned int cpu)
 		if (!res->class)
 			continue;	// dummy_resource;
 
+		if (!cpumask_test_cpu(cpu, &res->class->affinity))
+			continue;	// This CPU isn't part of the class' affinity;
+
 		dom = mpam_get_domain_from_cpu(cpu, res);
 		if (dom) {
 			cpumask_set_cpu(cpu, &dom->resctrl_dom.cpu_mask);
@@ -1107,6 +1110,9 @@ int mpam_resctrl_offline_cpu(unsigned int cpu)
 
 		if (!res->class)
 			continue;	// dummy resource
+
+		if (!cpumask_test_cpu(cpu, &res->class->affinity))
+			continue;	// This CPU isn't part of the class' affinity;
 
 		d = resctrl_get_domain_from_cpu(cpu, &res->resctrl_res);
 		dom = container_of(d, struct mpam_resctrl_dom, resctrl_dom);
