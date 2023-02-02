@@ -613,11 +613,6 @@ static void mpam_resctrl_pick_caches(void)
 			continue;
 		}
 
-		if (!cpumask_equal(&class->affinity, cpu_possible_mask)) {
-			pr_debug("pick_caches: Class has missing CPUs\n");
-			continue;
-		}
-
 		/* Assume cache levels are the same size for all CPUs... */
 		cache_size = get_cpu_cacheinfo_size(smp_processor_id(), class->level);
 		if (!cache_size) {
@@ -656,9 +651,6 @@ static void mpam_resctrl_pick_mba(void)
 			continue;
 
 		if (!class_has_usable_mba(cprops))
-			continue;
-
-		if (!cpumask_equal(&class->affinity, cpu_possible_mask))
 			continue;
 
 		/*
