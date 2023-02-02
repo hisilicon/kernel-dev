@@ -544,17 +544,10 @@ void iommufd_device_detach(struct iommufd_device *idev)
 	mutex_unlock(hwpt->devices_lock);
 	mutex_unlock(&hwpt->ioas->mutex);
 
-	if (hwpt->auto_domain) {
+	if (hwpt->auto_domain)
 		iommufd_object_destroy_user(idev->ictx, &hwpt->obj);
-	} else {
-		/*
-		 * FixMe: This is a hack to unregister fault handler and
-		 * destroy the hwpt obj upon Guest exit.
-		 */
-		if (refcount_read(&hwpt->obj.users) == 2)
-			iommu_unregister_device_fault_handler(idev->dev);
-		iommufd_object_destroy_user(idev->ictx, &hwpt->obj);
-	}
+	else
+		refcount_dec(&hwpt->obj.users);
 
 	idev->hwpt = NULL;
 
