@@ -25,6 +25,9 @@ iommufd_hw_pagetable_dma_fault_destroy(struct iommufd_hw_pagetable *hwpt)
 	struct iommufd_stage1_dma_fault *header =
 		(struct iommufd_stage1_dma_fault *)s1->fault_pages;
 
+	if (!header)
+		return;
+
 	WARN_ON(header->tail != header->head);
 	iommufd_hw_pagetable_eventfd_destroy(&s1->trigger);
 	kfree(s1->fault_pages);
