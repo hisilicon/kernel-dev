@@ -1379,6 +1379,17 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_master *master, u32 sid,
 		dst[3] = cpu_to_le64(s2_cfg->vttbr & STRTAB_STE_3_S2TTB_MASK);
 
 		val |= FIELD_PREP(STRTAB_STE_0_CFG, STRTAB_STE_0_CFG_S2_TRANS);
+	}  else {
+		/*
+		 * Unset dst[2] and dst[3] to clear stage-2 configurations. This was observed
+		 * on a HiSilicon implementation where, if the SMMUv3 is configured with both
+		 * stage-1 and stage-2 mode once, it is not possible to configure it back for
+		 * stage-1 mode for the same device (stream id). The SMMUv3 implementation on
+		 * these boards expects to set the S2TTB field in STE to zero when using S1,
+		 * otherwise it reports C_BAD_STE error.
+		 */
+		dst[2] = 0;
+		dst[3] = 0;
 	}
 
 	if (master->ats_enabled)
