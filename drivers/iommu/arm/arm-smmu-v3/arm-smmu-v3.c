@@ -3352,10 +3352,132 @@ arm_smmu_get_msi_mapping_domain(struct iommu_domain *domain)
 	return &nested_domain->s2_parent->domain;
 }
 
+static int arm_smmu_fix_user_cmd(struct arm_smmu_nested_domain *nested_domain,
+				 u64 *cmd)
+{
+	cmd[0] = le64_to_cpu(cmd[0]);
+	cmd[1] = le64_to_cpu(cmd[1]);
+
+	switch (*cmd & CMDQ_0_OP) {
+	case CMDQ_OP_TLBI_NSNH_ALL:
+		*cmd &= ~CMDQ_0_OP;
+		*cmd |= CMDQ_OP_TLBI_NH_ALL;
+		fallthrough;
+	case CMDQ_OP_TLBI_NH_VA:
+	case CMDQ_OP_TLBI_NH_VAA:
+	case CMDQ_OP_TLBI_NH_ALL:
+	case CMDQ_OP_TLBI_NH_ASID:
+		*cmd &= ~CMDQ_TLBI_0_VMID;
+		*cmd |= FIELD_PREP(CMDQ_TLBI_0_VMID,
+				   nested_domain->s2_parent->vmid);
+		break;
+	default:
+		return -EIO;
+	}
+	pr_debug("Fixed user CMD: %016llx : %016llx\n", cmd[1], cmd[0]);
+
+	return 0;
+}
+
+/*
+ * A helper function to detect if the current cmd hits Arm erratum before being
+ * added to a batch that might already contain a leaf TLBI command.
+ *
+ * If there is a hit, it will update the corresponding boolean flag, by assuming
+ * that the caller must issue the batch without this cmd. So, the two flags then
+ * will reflect the status of the new batch that contains the current cmd only.
+ */
+static bool arm_smmu_cmdq_hit_errata(struct arm_smmu_device *smmu, u64 *cmd,
+				     bool *batch_has_leaf)
+{
+	bool cmd_has_leaf;
+
+	if (!(smmu->options & ARM_SMMU_OPT_CMDQ_FORCE_SYNC))
+		return false;
+
+	switch (*cmd & CMDQ_0_OP) {
+	case CMDQ_OP_TLBI_NH_VA:
+	case CMDQ_OP_TLBI_NH_VAA:
+		cmd_has_leaf = FIELD_GET(CMDQ_TLBI_1_LEAF, cmd[1]);
+		/* Erratum 2812531 -- a non-leaf tlbi following a leaf tlbi */
+		if (!cmd_has_leaf && *batch_has_leaf) {
+			*batch_has_leaf = false;
+			return true;
+		}
+		if (cmd_has_leaf)
+			*batch_has_leaf = true;
+		break;
+	}
+
+	return false;
+}
+
+static int arm_smmu_cache_invalidate_user(struct iommu_domain *domain,
+					  struct iommu_user_data_array *array)
+{
+	struct arm_smmu_nested_domain *nested_domain =
+		container_of(domain, struct arm_smmu_nested_domain, domain);
+	struct arm_smmu_device *smmu = nested_domain->s2_parent->smmu;
+	int data_idx, n = 0, ret;
+	bool has_leaf = false;
+	u64 *cmds;
+
+	if (!smmu)
+		return -EINVAL;
+	if (!array->entry_num)
+		return -EINVAL;
+
+	cmds = kcalloc(array->entry_num, sizeof(*cmds) * 2, GFP_KERNEL);
+	if (!cmds)
+		return -ENOMEM;
+
+	for (data_idx = 0; data_idx < array->entry_num; data_idx++) {
+		struct iommu_hwpt_arm_smmuv3_invalidate *inv =
+			(struct iommu_hwpt_arm_smmuv3_invalidate *)&cmds[n * 2];
+
+		ret = iommu_copy_struct_from_user_array(inv, array,
+							IOMMU_HWPT_DATA_ARM_SMMUV3,
+							data_idx, cmd);
+		if (ret)
+			goto out;
+
+		ret = arm_smmu_fix_user_cmd(nested_domain, inv->cmd);
+		if (ret)
+			goto out;
+
+		if (arm_smmu_cmdq_hit_errata(smmu, inv->cmd, &has_leaf)) {
+			/* WAR is to issue the batch prior, with a CMD_SYNC */
+			ret = arm_smmu_cmdq_issue_cmdlist(smmu, cmds, n, true);
+			if (ret)
+				goto out;
+			/* Then move the cmd to the head for a new batch */
+			cmds[1] = cmds[n * 2 + 1];
+			cmds[0] = cmds[n * 2];
+			n = 1;
+			continue;
+		}
+
+		if (++n == CMDQ_BATCH_ENTRIES - 1) {
+			ret = arm_smmu_cmdq_issue_cmdlist(smmu, cmds, n, true);
+			if (ret)
+				goto out;
+			n = 0;
+		}
+	}
+
+	if (n)
+		ret = arm_smmu_cmdq_issue_cmdlist(smmu, cmds, n, true);
+out:
+	array->entry_num = data_idx;
+	kfree(cmds);
+	return ret;
+}
+
 static const struct iommu_domain_ops arm_smmu_nested_ops = {
 	.attach_dev = arm_smmu_attach_dev_nested,
 	.free = arm_smmu_domain_nested_free,
 	.get_msi_mapping_domain	= arm_smmu_get_msi_mapping_domain,
+	.cache_invalidate_user	= arm_smmu_cache_invalidate_user,
 };
 
 static struct iommu_domain *
