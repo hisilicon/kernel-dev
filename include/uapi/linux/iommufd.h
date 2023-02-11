@@ -698,6 +698,26 @@ struct iommu_hwpt_vtd_s1_invalidate {
 };
 
 /**
+ * struct iommu_hwpt_arm_smmuv3_invalidate - ARM SMMUv3 cahce invalidation
+ *                                           (IOMMU_HWPT_DATA_ARM_SMMUV3)
+ * @cmd: 128-bit cache invalidation command that runs in SMMU CMDQ.
+ *       Must be little-endian.
+ *
+ * Supported command list:
+ *     CMDQ_OP_TLBI_NSNH_ALL
+ *     CMDQ_OP_TLBI_NH_VA
+ *     CMDQ_OP_TLBI_NH_VAA
+ *     CMDQ_OP_TLBI_NH_ALL
+ *     CMDQ_OP_TLBI_NH_ASID
+ *     CMDQ_OP_ATC_INV
+ *     CMDQ_OP_CFGI_CD
+ *     CMDQ_OP_CFGI_CD_ALL
+ */
+struct iommu_hwpt_arm_smmuv3_invalidate {
+	__aligned_u64 cmd[2];
+};
+
+/**
  * struct iommu_hwpt_invalidate - ioctl(IOMMU_HWPT_INVALIDATE)
  * @size: sizeof(struct iommu_hwpt_invalidate)
  * @hwpt_id: HWPT ID of a nested HWPT for cache invalidation
