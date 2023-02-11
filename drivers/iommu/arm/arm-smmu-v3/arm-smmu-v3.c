@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <linux/pci-ats.h>
 #include <linux/platform_device.h>
+#include <uapi/linux/iommufd.h>
 
 #include "arm-smmu-v3.h"
 #include "../../dma-iommu.h"
@@ -2202,7 +2203,8 @@ static int arm_smmu_domain_finalise_s2(struct arm_smmu_domain *smmu_domain,
 }
 
 static int arm_smmu_domain_finalise(struct iommu_domain *domain,
-				    struct arm_smmu_master *master)
+				    struct arm_smmu_master *master,
+				    const struct iommu_hwpt_arm_smmuv3 *user_cfg)
 {
 	int ret;
 	unsigned long ias, oas;
@@ -2214,16 +2216,24 @@ static int arm_smmu_domain_finalise(struct iommu_domain *domain,
 				 struct io_pgtable_cfg *);
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	bool user_cfg_s2 = user_cfg && (user_cfg->flags & IOMMU_SMMUV3_FLAG_S2);
+	bool feat_has_s1 = smmu->features & ARM_SMMU_FEAT_TRANS_S1;
+	bool feat_has_s2 = smmu->features & ARM_SMMU_FEAT_TRANS_S2;
 
 	if (domain->type == IOMMU_DOMAIN_IDENTITY) {
 		smmu_domain->stage = ARM_SMMU_DOMAIN_BYPASS;
 		return 0;
 	}
 
-	/* Restrict the stage to what we can actually support */
-	if (!(smmu->features & ARM_SMMU_FEAT_TRANS_S1))
+	if (user_cfg_s2 && !feat_has_s2)
+		return -EINVAL;
+	if (user_cfg_s2)
 		smmu_domain->stage = ARM_SMMU_DOMAIN_S2;
-	if (!(smmu->features & ARM_SMMU_FEAT_TRANS_S2))
+
+	/* Restrict the stage to what we can actually support */
+	if (!feat_has_s1)
+		smmu_domain->stage = ARM_SMMU_DOMAIN_S2;
+	if (!feat_has_s2)
 		smmu_domain->stage = ARM_SMMU_DOMAIN_S1;
 
 	switch (smmu_domain->stage) {
@@ -2463,7 +2473,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 
 	if (!smmu_domain->smmu) {
 		smmu_domain->smmu = smmu;
-		ret = arm_smmu_domain_finalise(domain, master);
+		ret = arm_smmu_domain_finalise(domain, master, NULL);
 		if (ret) {
 			smmu_domain->smmu = NULL;
 			goto out_unlock;
