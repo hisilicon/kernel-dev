@@ -399,11 +399,13 @@ struct iommu_hwpt_vtd_s1 {
  *       Allowed fields: (Refer to "5.2 Stream Table Entry" in SMMUv3 HW Spec)
  *       - word-0: V, S1Fmt, S1ContextPtr, S1CDMax
  *       - word-1: S1DSS, S1CIR, S1COR, S1CSH, S1STALLD
+ * @sid: The user space Stream ID to index the user Stream Table Entry @ste
  *
  * -EIO will be returned if @ste is not legal or contains any non-allowed field.
  */
 struct iommu_hwpt_arm_smmuv3 {
 	__aligned_le64 ste[2];
+	__u32 sid;
 };
 
 /**
