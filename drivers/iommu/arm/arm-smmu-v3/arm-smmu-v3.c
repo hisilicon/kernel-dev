@@ -2994,10 +2994,123 @@ static void arm_smmu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
 	arm_smmu_sva_remove_dev_pasid(domain, dev, pasid);
 }
 
+static int arm_smmu_fix_user_cmd(struct arm_smmu_domain *smmu_domain, u64 *cmd)
+{
+	struct arm_smmu_stream *stream;
+
+	switch (*cmd & CMDQ_0_OP) {
+	case CMDQ_OP_TLBI_NSNH_ALL:
+		*cmd &= ~CMDQ_0_OP;
+		*cmd |= CMDQ_OP_TLBI_NH_ALL;
+		fallthrough;
+	case CMDQ_OP_TLBI_NH_VA:
+	case CMDQ_OP_TLBI_NH_VAA:
+	case CMDQ_OP_TLBI_NH_ALL:
+	case CMDQ_OP_TLBI_NH_ASID:
+		*cmd &= ~CMDQ_TLBI_0_VMID;
+		*cmd |= FIELD_PREP(CMDQ_TLBI_0_VMID,
+				   smmu_domain->s2->s2_cfg.vmid);
+		break;
+	case CMDQ_OP_ATC_INV:
+	case CMDQ_OP_CFGI_CD:
+	case CMDQ_OP_CFGI_CD_ALL:
+		xa_lock(&smmu_domain->smmu->streams_user);
+		stream = xa_load(&smmu_domain->smmu->streams_user,
+				 FIELD_GET(CMDQ_CFGI_0_SID, *cmd));
+		xa_unlock(&smmu_domain->smmu->streams_user);
+		if (!stream)
+			return -ENODEV;
+		*cmd &= ~CMDQ_CFGI_0_SID;
+		*cmd |= FIELD_PREP(CMDQ_CFGI_0_SID, stream->id);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	pr_debug("Fixed user CMD: %016llx : %016llx\n", cmd[1], cmd[0]);
+
+	return 0;
+}
+
+static int arm_smmu_cache_invalidate_user(struct iommu_domain *domain,
+					   void *user_data)
+{
+	const u32 cons_err = FIELD_PREP(CMDQ_CONS_ERR, CMDQ_ERR_CERROR_ILL_IDX);
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+	struct iommu_hwpt_invalidate_arm_smmuv3 *inv = user_data;
+	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	struct arm_smmu_queue q = {
+		.llq = {
+			.prod = inv->cmdq_prod,
+			.max_n_shift = inv->cmdq_log2size,
+		},
+		.base = u64_to_user_ptr(inv->cmdq_uptr),
+		.ent_dwords = inv->cmdq_entry_size / sizeof(u64),
+	};
+	unsigned int nents = 1 << q.llq.max_n_shift;
+	void __user *cons_uptr;
+	int ncmds, i = 0;
+	u32 prod, cons;
+	u64 *cmds;
+	int ret;
+
+	if (!smmu || !smmu_domain->s2 || domain->type != IOMMU_DOMAIN_NESTED)
+		return -EINVAL;
+	if (q.ent_dwords != CMDQ_ENT_DWORDS)
+		return -EINVAL;
+	WARN_ON(q.llq.max_n_shift > smmu->cmdq.q.llq.max_n_shift);
+
+	cons_uptr = u64_to_user_ptr(inv->cmdq_cons_uptr);
+	if (copy_from_user(&q.llq.cons, cons_uptr, sizeof(u32)))
+		return -EFAULT;
+	if (queue_empty(&q.llq))
+		return -EINVAL;
+
+	prod = Q_IDX(&q.llq, q.llq.prod);
+	cons = Q_IDX(&q.llq, q.llq.cons);
+	if (Q_WRP(&q.llq, q.llq.prod) == Q_WRP(&q.llq, q.llq.cons))
+		ncmds = prod - cons;
+	else
+		ncmds = nents - cons + prod;
+	cmds = kcalloc(ncmds, inv->cmdq_entry_size, GFP_KERNEL);
+	if (!cmds)
+		return -ENOMEM;
+
+	do {
+		u64 *cmd = &cmds[i * CMDQ_ENT_DWORDS];
+
+		ret = copy_from_user(cmd, Q_ENT(&q, q.llq.cons),
+				     inv->cmdq_entry_size);
+		if (ret) {
+			ret = -EFAULT;
+			goto out_free_cmds;
+		}
+
+		ret = arm_smmu_fix_user_cmd(smmu_domain, cmd);
+		if (ret && ret != -EOPNOTSUPP) {
+			q.llq.cons |= cons_err;
+			goto out_copy_cons;
+		}
+		if (!ret)
+			i++;
+		queue_inc_cons(&q.llq);
+	} while (!queue_empty(&q.llq));
+
+	ret = arm_smmu_cmdq_issue_cmdlist(smmu, cmds, i, true);
+out_copy_cons:
+	if (copy_to_user(cons_uptr, &q.llq.cons, sizeof(u32)))
+		ret = -EFAULT;
+out_free_cmds:
+	kfree(cmds);
+	return ret;
+}
+
 static const struct iommu_domain_ops arm_smmu_nested_domain_ops = {
 	.attach_dev		= arm_smmu_attach_dev,
 	.free			= arm_smmu_domain_free,
 	.get_msi_mapping_domain	= arm_smmu_get_msi_mapping_domain,
+	.cache_invalidate_user	= arm_smmu_cache_invalidate_user,
+	.cache_invalidate_user_data_len =
+		sizeof(struct iommu_hwpt_invalidate_arm_smmuv3),
 };
 
 /**
