@@ -3018,10 +3018,163 @@ static void arm_smmu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
 	arm_smmu_sva_remove_dev_pasid(domain, dev, pasid);
 }
 
+static int arm_smmu_fix_user_cmd(struct arm_smmu_domain *smmu_domain, u64 *cmd,
+				 u32 *cerror_idx)
+{
+	struct arm_smmu_stream *stream;
+
+	switch (*cmd & CMDQ_0_OP) {
+	case CMDQ_OP_TLBI_NSNH_ALL:
+		*cmd &= ~CMDQ_0_OP;
+		*cmd |= CMDQ_OP_TLBI_NH_ALL;
+		fallthrough;
+	case CMDQ_OP_TLBI_NH_VA:
+	case CMDQ_OP_TLBI_NH_VAA:
+	case CMDQ_OP_TLBI_NH_ALL:
+	case CMDQ_OP_TLBI_NH_ASID:
+		*cmd &= ~CMDQ_TLBI_0_VMID;
+		*cmd |= FIELD_PREP(CMDQ_TLBI_0_VMID,
+				   smmu_domain->s2->s2_cfg.vmid);
+		break;
+	case CMDQ_OP_ATC_INV:
+	case CMDQ_OP_CFGI_CD:
+	case CMDQ_OP_CFGI_CD_ALL:
+		xa_lock(&smmu_domain->smmu->streams_user);
+		stream = xa_load(&smmu_domain->smmu->streams_user,
+				 FIELD_GET(CMDQ_CFGI_0_SID, *cmd));
+		xa_unlock(&smmu_domain->smmu->streams_user);
+		if (!stream) {
+			*cerror_idx = CMDQ_ERR_CERROR_ATC_INV_IDX;
+			return -ENODEV;
+		}
+		*cmd &= ~CMDQ_CFGI_0_SID;
+		*cmd |= FIELD_PREP(CMDQ_CFGI_0_SID, stream->id);
+		break;
+	default:
+		*cerror_idx = CMDQ_ERR_CERROR_ILL_IDX;
+		return -EINVAL;
+	}
+	pr_debug("Fixed user CMD: %016llx : %016llx\n", cmd[1], cmd[0]);
+
+	return 0;
+}
+
+/*
+ * A helper function to detect if the current cmd hits Arm erratum before being
+ * added to a batch that might already contain a leaf TLBI or a CFGI command.
+ *
+ * If there is a hit, it will update the corresponding boolean flag, by assuming
+ * that the caller must issue the batch without this cmd. So, the two flags then
+ * will reflect the status of the new batch that contains the current cmd only.
+ */
+static bool arm_smmu_cmdq_hit_errata(struct arm_smmu_device *smmu, u64 *cmd,
+				     bool *batch_has_leaf, bool *batch_has_cfgi)
+{
+	bool cmd_has_leaf;
+
+	if (!(smmu->options & ARM_SMMU_OPT_CMDQ_FORCE_SYNC))
+		return false;
+
+	switch (*cmd & CMDQ_0_OP) {
+	case CMDQ_OP_CFGI_CD:
+	case CMDQ_OP_CFGI_CD_ALL:
+		*batch_has_cfgi = true;
+		break;
+	case CMDQ_OP_TLBI_NH_VA:
+	case CMDQ_OP_TLBI_NH_VAA:
+		cmd_has_leaf = FIELD_GET(CMDQ_TLBI_1_LEAF, cmd[1]);
+		/* Erratum 2812531 -- a non-leaf tlbi following a leaf tlbi */
+		if (!cmd_has_leaf && *batch_has_leaf) {
+			*batch_has_leaf = false;
+			return true;
+		}
+		if (cmd_has_leaf)
+			*batch_has_leaf = true;
+		fallthrough;
+	case CMDQ_OP_TLBI_NH_ALL:
+	case CMDQ_OP_TLBI_NH_ASID:
+		/* Erratum 2812531 -- a tlbi following a cfgi */
+		if (*batch_has_cfgi) {
+			*batch_has_cfgi = false;
+			return true;
+		}
+		break;
+	}
+
+	return false;
+}
+
+static int arm_smmu_cache_invalidate_user(struct iommu_domain *domain,
+					  struct iommu_user_data_array *array,
+					  u32 *cerror_idx)
+{
+	const size_t min_len =
+		offsetofend(struct iommu_hwpt_arm_smmuv3_invalidate, cmd);
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	bool has_leaf = false, has_cfgi = false;
+	int data_idx, n = 0, ret;
+	u64 *cmds;
+
+	if (!smmu || !smmu_domain->s2 || domain->type != IOMMU_DOMAIN_NESTED)
+		return -EINVAL;
+	if (!array->entry_num)
+		return -EINVAL;
+
+	cmds = kcalloc(array->entry_num, sizeof(*cmds) * 2, GFP_KERNEL);
+	if (!cmds) {
+		*cerror_idx = CMDQ_ERR_CERROR_ABT_IDX;
+		return -ENOMEM;
+	}
+
+	for (data_idx = 0; data_idx < array->entry_num; data_idx++) {
+		struct iommu_hwpt_arm_smmuv3_invalidate *inv =
+			(struct iommu_hwpt_arm_smmuv3_invalidate *)&cmds[n * 2];
+
+		ret = iommu_copy_user_data_from_array(inv, array, data_idx,
+						      sizeof(*inv), min_len);
+		if (ret) {
+			*cerror_idx = CMDQ_ERR_CERROR_ABT_IDX;
+			goto out;
+		}
+
+		ret = arm_smmu_fix_user_cmd(smmu_domain, inv->cmd, cerror_idx);
+		if (ret)
+			goto out; /* cerror_idx is set */
+
+		if (arm_smmu_cmdq_hit_errata(smmu, inv->cmd, &has_leaf, &has_cfgi)) {
+			/* WAR is to issue the batch prior, with a CMD_SYNC */
+			ret = arm_smmu_cmdq_issue_cmdlist(smmu, cmds, n, true);
+			if (ret) /* FIXME missing cerror_idx */
+				goto out;
+			/* Then move the cmd to the head for a new batch */
+			cmds[1] = cmds[n * 2 + 1];
+			cmds[0] = cmds[n * 2];
+			n = 1;
+			continue;
+		}
+
+		if (++n == CMDQ_BATCH_ENTRIES - 1) {
+			ret = arm_smmu_cmdq_issue_cmdlist(smmu, cmds, n, true);
+			if (ret) /* FIXME missing cerror_idx */
+				goto out;
+			n = 0;
+		}
+	}
+
+	if (n)
+		ret = arm_smmu_cmdq_issue_cmdlist(smmu, cmds, n, true);
+out:
+	array->entry_num = data_idx;
+	kfree(cmds);
+	return ret;
+}
+
 static const struct iommu_domain_ops arm_smmu_nested_domain_ops = {
 	.attach_dev		= arm_smmu_attach_dev,
 	.free			= arm_smmu_domain_free,
 	.get_msi_mapping_domain	= arm_smmu_get_msi_mapping_domain,
+	.cache_invalidate_user	= arm_smmu_cache_invalidate_user,
 };
 
 /**
