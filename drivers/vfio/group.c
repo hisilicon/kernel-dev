@@ -567,7 +567,8 @@ out_put_group:
 	return ERR_PTR(ret);
 }
 
-static bool vfio_group_has_device(struct vfio_group *group, struct device *dev)
+static struct vfio_device *
+vfio_group_find_device(struct vfio_group *group, struct device *dev)
 {
 	struct vfio_device *device;
 
@@ -575,11 +576,19 @@ static bool vfio_group_has_device(struct vfio_group *group, struct device *dev)
 	list_for_each_entry(device, &group->device_list, group_next) {
 		if (device->dev == dev) {
 			mutex_unlock(&group->device_lock);
-			return true;
+			return device;
 		}
 	}
 	mutex_unlock(&group->device_lock);
-	return false;
+	return NULL;
+}
+
+static bool vfio_group_has_device(struct vfio_group *group, struct device *dev)
+{
+	struct vfio_device *device;
+
+	device = vfio_group_find_device(group, dev);
+	return device ? true : false;
 }
 
 static struct vfio_group *vfio_group_find_or_alloc(struct device *dev)
@@ -754,6 +763,30 @@ struct vfio_group *vfio_group_from_file(struct file *file)
 	if (file->f_op != &vfio_group_fops)
 		return NULL;
 	return group;
+}
+
+struct kvm *
+vfio_kvm_from_dev(struct device *dev)
+{
+	struct iommu_group *iommu_group;
+	struct vfio_group *group;
+	struct vfio_device *device = NULL;
+
+	iommu_group = iommu_group_get(dev);
+
+	if (!iommu_group)
+		return NULL;
+
+	mutex_lock(&vfio.group_lock);
+
+	group = vfio_group_find_from_iommu(iommu_group);
+	if (group)
+		device = vfio_group_find_device(group, dev);
+
+	mutex_unlock(&vfio.group_lock);
+	iommu_group_put(iommu_group);
+
+	return device ? device->kvm : NULL;
 }
 
 /**
