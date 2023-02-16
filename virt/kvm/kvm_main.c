@@ -56,6 +56,7 @@
 #include <asm/processor.h>
 #include <asm/ioctl.h>
 #include <linux/uaccess.h>
+#include <linux/vfio.h>
 
 #include "coalesced_mmio.h"
 #include "async_pf.h"
@@ -3603,6 +3604,28 @@ bool kvm_vcpu_wake_up(struct kvm_vcpu *vcpu)
 	return false;
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_wake_up);
+
+unsigned long kvm_pinned_vmid_get(struct device *dev)
+{
+	struct kvm *kvm;
+
+	kvm = vfio_kvm_from_dev(dev);
+	if (!kvm)
+		return 0;
+
+	return kvm_arch_pinned_vmid_get(kvm);
+}
+EXPORT_SYMBOL_GPL(kvm_pinned_vmid_get);
+
+void kvm_pinned_vmid_put(struct device *dev)
+{
+	struct kvm *kvm;
+
+	kvm = vfio_kvm_from_dev(dev);
+	if (kvm)
+		kvm_arch_pinned_vmid_put(kvm);
+}
+EXPORT_SYMBOL_GPL(kvm_pinned_vmid_put);
 
 #ifndef CONFIG_S390
 /*
