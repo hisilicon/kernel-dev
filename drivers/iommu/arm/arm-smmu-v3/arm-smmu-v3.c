@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/io-pgtable.h>
 #include <linux/iopoll.h>
+#include <linux/kvm_host.h>
 #include <linux/module.h>
 #include <linux/msi.h>
 #include <linux/of.h>
@@ -2200,6 +2201,24 @@ static void arm_smmu_bitmap_free(unsigned long *map, int idx)
 	clear_bit(idx, map);
 }
 
+static int arm_smmu_pinned_vmid_get(struct arm_smmu_master *master)
+{
+	unsigned long vmid;
+
+	vmid = kvm_pinned_vmid_get(master->dev);
+	return vmid != 0 ? vmid : -EINVAL;
+}
+
+static void arm_smmu_pinned_vmid_put(struct arm_smmu_domain *smmu_domain)
+{
+	struct arm_smmu_master *master;
+
+	master = list_first_entry_or_null(&smmu_domain->devices,
+					  struct arm_smmu_master, domain_head);
+	if (master)
+		kvm_pinned_vmid_put(master->dev);
+}
+
 static void arm_smmu_domain_free(struct iommu_domain *domain)
 {
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
@@ -2219,8 +2238,12 @@ static void arm_smmu_domain_free(struct iommu_domain *domain)
 		mutex_unlock(&arm_smmu_asid_lock);
 	} else {
 		struct arm_smmu_s2_cfg *cfg = &smmu_domain->s2_cfg;
-		if (cfg->vmid)
-			arm_smmu_bitmap_free(smmu->vmid_map, cfg->vmid);
+		if (cfg->vmid) {
+			if (smmu->features & ARM_SMMU_FEAT_BTM)
+				arm_smmu_pinned_vmid_put(smmu_domain);
+			else
+				arm_smmu_bitmap_free(smmu->vmid_map, cfg->vmid);
+		}
 	}
 
 	kfree(smmu_domain);
@@ -2294,7 +2317,11 @@ static int arm_smmu_domain_finalise_s2(struct arm_smmu_domain *smmu_domain,
 	struct arm_smmu_s2_cfg *cfg = &smmu_domain->s2_cfg;
 	typeof(&pgtbl_cfg->arm_lpae_s2_cfg.vtcr) vtcr;
 
-	vmid = arm_smmu_bitmap_alloc(smmu->vmid_map, smmu->vmid_bits);
+	if (smmu->features & ARM_SMMU_FEAT_BTM)
+		vmid = arm_smmu_pinned_vmid_get(master);
+	else
+		vmid = arm_smmu_bitmap_alloc(smmu->vmid_map, smmu->vmid_bits);
+
 	if (vmid < 0)
 		return vmid;
 
