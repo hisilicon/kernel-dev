@@ -305,12 +305,16 @@ static int iommufd_group_setup_msi(struct iommufd_group *igroup,
 	 * domain after request_irq(). If it is not done interrupts will not
 	 * work on this domain.
 	 *
+	 * Note: always setup an msi_cookie on a kernel-manage hw_pagetable.
+	 *
 	 * FIXME: This is conceptually broken for iommufd since we want to allow
 	 * userspace to change the domains, eg switch from an identity IOAS to a
 	 * DMA IOAS. There is currently no way to create a MSI window that
 	 * matches what the IRQ layer actually expects in a newly created
 	 * domain.
 	 */
+	if (hwpt->user_managed)
+		hwpt = hwpt->parent;
 	if (sw_msi_start != PHYS_ADDR_MAX && !hwpt->msi_cookie) {
 		rc = iommu_get_msi_cookie(hwpt->domain, sw_msi_start);
 		if (rc)

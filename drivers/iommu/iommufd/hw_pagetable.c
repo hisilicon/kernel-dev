@@ -147,6 +147,10 @@ out_abort:
 
 int iommufd_hw_pagetable_enforce_cc(struct iommufd_hw_pagetable *hwpt)
 {
+	/* Always enforce cache coherency on a kernel-managed hw_pagetable */
+	if (hwpt->user_managed)
+		hwpt = hwpt->parent;
+
 	if (hwpt->enforce_cache_coherency)
 		return 0;
 
