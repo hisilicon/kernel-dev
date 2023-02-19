@@ -610,6 +610,34 @@ int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
+unsigned long kvm_arch_pinned_vmid_get(struct kvm *kvm)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vmid *kvm_vmid;
+
+	vcpu = kvm_get_vcpu(kvm, 0);
+	if (!vcpu)
+		return 0;
+
+	kvm_vmid = &vcpu->arch.hw_mmu->vmid;
+
+	return kvm_arm_pinned_vmid_get(kvm_vmid);
+}
+
+void kvm_arch_pinned_vmid_put(struct kvm *kvm)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vmid *kvm_vmid;
+
+	vcpu = kvm_get_vcpu(kvm, 0);
+	if (!vcpu)
+		return;
+
+	kvm_vmid = &vcpu->arch.hw_mmu->vmid;
+
+	kvm_arm_pinned_vmid_put(kvm_vmid);
+}
+
 bool kvm_arch_intc_initialized(struct kvm *kvm)
 {
 	return vgic_initialized(kvm);
