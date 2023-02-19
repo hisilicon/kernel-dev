@@ -351,7 +351,8 @@ static int iommufd_group_setup_msi(struct iommufd_group *igroup,
 	 * call iommu_get_msi_cookie() on its behalf. This is necessary to setup
 	 * the MSI window so iommu_dma_prepare_msi() can install pages into our
 	 * domain after request_irq(). If it is not done interrupts will not
-	 * work on this domain.
+	 * work on this domain. The msi_cookie should be always set into the
+	 * kernel-managed (parent) domain.
 	 *
 	 * FIXME: This is conceptually broken for iommufd since we want to allow
 	 * userspace to change the domains, eg switch from an identity IOAS to a
@@ -359,6 +360,8 @@ static int iommufd_group_setup_msi(struct iommufd_group *igroup,
 	 * matches what the IRQ layer actually expects in a newly created
 	 * domain.
 	 */
+	if (hwpt->parent)
+		hwpt = hwpt->parent;
 	if (sw_msi_start != PHYS_ADDR_MAX && !hwpt->msi_cookie) {
 		rc = iommu_get_msi_cookie(hwpt->domain, sw_msi_start);
 		if (rc)
