@@ -85,9 +85,15 @@ void iommufd_test_syz_conv_iova_id(struct iommufd_ucmd *ucmd,
 	iommufd_put_object(&ioas->obj);
 }
 
+enum mock_domain_stage {
+	MOCK_DOMAIN_STAGE1, /* kernel-managed or user-managed */
+	MOCK_DOMAIN_STAGE2, /* must be kernel-managed */
+};
+
 struct mock_iommu_domain {
 	struct iommu_domain domain;
 	struct xarray pfns;
+	enum mock_domain_stage stage;
 };
 
 enum selftest_obj_type {
@@ -146,8 +152,18 @@ static void *mock_domain_hw_info(struct device *dev, u32 *length, u32 *type)
 	return info;
 }
 
-static struct iommu_domain *mock_domain_alloc(unsigned int iommu_domain_type)
+static const struct iommu_ops mock_ops;
+
+union mock_domain_user_data {
+	struct iommu_hwpt_kernel default_data;
+};
+
+static struct iommu_domain *
+__mock_domain_alloc_kernel(unsigned int iommu_domain_type,
+			   const union mock_domain_user_data *data)
 {
+	const struct iommu_hwpt_kernel *user_cfg =
+		(const struct iommu_hwpt_kernel *)data;
 	struct mock_iommu_domain *mock;
 
 	if (iommu_domain_type == IOMMU_DOMAIN_BLOCKED)
@@ -158,12 +174,72 @@ static struct iommu_domain *mock_domain_alloc(unsigned int iommu_domain_type)
 
 	mock = kzalloc(sizeof(*mock), GFP_KERNEL);
 	if (!mock)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
+	mock->domain.type = iommu_domain_type;
 	mock->domain.geometry.aperture_start = MOCK_APERTURE_START;
 	mock->domain.geometry.aperture_end = MOCK_APERTURE_LAST;
+	mock->domain.ops = mock_ops.default_domain_ops;
 	mock->domain.pgsize_bitmap = MOCK_IO_PAGE_SIZE;
 	xa_init(&mock->pfns);
+	if (user_cfg) {
+		if (user_cfg->flags & IOMMU_HWPT_KERNEL_IOPTE_S1)
+			mock->stage = MOCK_DOMAIN_STAGE1;
+		else
+			mock->stage = MOCK_DOMAIN_STAGE2;
+	}
 	return &mock->domain;
+}
+
+static struct iommu_domain *mock_domain_alloc(unsigned int iommu_domain_type)
+{
+	struct iommu_domain *domain;
+
+	if (iommu_domain_type != IOMMU_DOMAIN_BLOCKED &&
+	    iommu_domain_type != IOMMU_DOMAIN_UNMANAGED)
+		return NULL;
+	domain = __mock_domain_alloc_kernel(iommu_domain_type, NULL);
+	if (IS_ERR(domain))
+		domain = NULL;
+	return domain;
+}
+
+static struct iommu_domain *mock_domain_alloc_user(struct device *dev,
+						   enum iommu_hwpt_type hwpt_type,
+						   const struct iommu_user_data *user_data)
+{
+	struct iommu_domain *(*alloc_fn)(unsigned int iommu_domain_type,
+					 const union mock_domain_user_data *data);
+	unsigned int iommu_domain_type = IOMMU_DOMAIN_UNMANAGED;
+	union mock_domain_user_data data, *user_cfg = NULL;
+	size_t min_len, data_len;
+
+	switch (hwpt_type) {
+	case IOMMU_HWPT_TYPE_DEFAULT:
+		if (user_data)
+			return ERR_PTR(-EINVAL);
+		min_len = data_len = 0;
+		alloc_fn = __mock_domain_alloc_kernel;
+		break;
+	case IOMMU_HWPT_TYPE_KERNEL:
+		if (!user_data)
+			return ERR_PTR(-EINVAL);
+		min_len = offsetofend(struct iommu_hwpt_kernel, flags);
+		data_len = sizeof(struct iommu_hwpt_kernel);
+		alloc_fn = __mock_domain_alloc_kernel;
+		break;
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (user_data) {
+		int rc = iommu_copy_user_data(&data, user_data,
+					      data_len, min_len);
+		if (rc)
+			return ERR_PTR(rc);
+		user_cfg = &data;
+	}
+
+	return alloc_fn(iommu_domain_type, user_cfg);
 }
 
 static void mock_domain_free(struct iommu_domain *domain)
@@ -307,6 +383,7 @@ static const struct iommu_ops mock_ops = {
 	.pgsize_bitmap = MOCK_IO_PAGE_SIZE,
 	.hw_info = mock_domain_hw_info,
 	.domain_alloc = mock_domain_alloc,
+	.domain_alloc_user = mock_domain_alloc_user,
 	.capable = mock_domain_capable,
 	.set_platform_dma_ops = mock_domain_set_plaform_dma_ops,
 	.device_group = generic_device_group,
