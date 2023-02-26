@@ -116,6 +116,42 @@ static int _test_cmd_hwpt_alloc(int fd, __u32 device_id, __u32 pt_id,
 
 #define test_cmd_hwpt_alloc(device_id, pt_id, hwpt_id) \
 	ASSERT_EQ(0, _test_cmd_hwpt_alloc(self->fd, device_id, pt_id, hwpt_id))
+#define test_err_cmd_hwpt_alloc(_errno, device_id, pt_id, hwpt_id)     \
+	EXPECT_ERRNO(_errno, _test_cmd_hwpt_alloc(self->fd, device_id, \
+						  pt_id, hwpt_id))
+
+static int _test_cmd_hwpt_alloc_nested(int fd, __u32 device_id, __u32 parent_id,
+				       __u32 *hwpt_id)
+{
+	struct iommu_hwpt_selftest data = {
+		.flags = IOMMU_TEST_FLAG_NESTED,
+		.test_config = IOMMU_TEST_IOTLB_DEFAULT,
+	};
+	struct iommu_hwpt_alloc cmd = {
+		.size = sizeof(cmd),
+		.dev_id = device_id,
+		.pt_id = parent_id,
+		.data_type = IOMMU_HWPT_TYPE_SELFTTEST,
+		.data_len = sizeof(data),
+		.data_uptr = (uint64_t)&data,
+	};
+	int ret;
+
+	ret = ioctl(fd, IOMMU_HWPT_ALLOC, &cmd);
+	if (ret)
+		return ret;
+	if (hwpt_id)
+		*hwpt_id = cmd.out_hwpt_id;
+	return 0;
+}
+
+#define test_cmd_hwpt_alloc_nested(device_id, parent_id, hwpt_id)     \
+	ASSERT_EQ(0, _test_cmd_hwpt_alloc_nested(self->fd, device_id, \
+						 parent_id, hwpt_id))
+#define test_err_cmd_hwpt_alloc_nested(_errno, device_id, parent_id, hwpt_id) \
+	EXPECT_ERRNO(_errno,                                                  \
+		     _test_cmd_hwpt_alloc_nested(self->fd, device_id,         \
+						 parent_id, hwpt_id))
 
 static int _test_cmd_access_replace_ioas(int fd, __u32 access_id,
 					 unsigned int ioas_id)
