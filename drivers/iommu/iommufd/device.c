@@ -328,7 +328,13 @@ int iommufd_device_get_hw_info(struct iommufd_ucmd *ucmd)
 
 	cmd->out_data_type = ops->driver_type;
 	cmd->data_len = length;
-	cmd->out_hwpt_type_bitmap = iommufd_hwpt_type_bitmaps[ops->driver_type];
+
+	if (ops->driver_type != IOMMU_HW_INFO_TYPE_SELFTEST)
+		cmd->out_hwpt_type_bitmap = iommufd_hwpt_type_bitmaps[ops->driver_type];
+#ifdef CONFIG_IOMMUFD_TEST
+	else
+		cmd->out_hwpt_type_bitmap = U64_MAX; // Pretend to support all types
+#endif
 
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
 

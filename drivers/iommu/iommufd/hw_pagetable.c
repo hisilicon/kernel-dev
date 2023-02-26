@@ -7,6 +7,7 @@
 
 #include "../iommu-priv.h"
 #include "iommufd_private.h"
+#include "iommufd_test.h"
 
 void iommufd_hw_pagetable_destroy(struct iommufd_object *obj)
 {
@@ -177,6 +178,18 @@ const u64 iommufd_hwpt_type_bitmaps[] =  {
 	[IOMMU_HW_INFO_TYPE_DEFAULT] = BIT_ULL(IOMMU_HWPT_TYPE_DEFAULT),
 };
 
+/* Return true if type is supported, otherwise false */
+static inline bool
+iommufd_hwpt_type_check(enum iommu_hw_info_type driver_type,
+			enum iommu_hwpt_type type)
+{
+	if (WARN_ON(driver_type >= ARRAY_SIZE(iommufd_hwpt_type_bitmaps)))
+		return false;
+
+	return ((1 << type) &
+			iommufd_hwpt_type_bitmaps[driver_type]);
+}
+
 int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 {
 	struct iommu_hwpt_alloc *cmd = ucmd->cmd;
@@ -187,6 +200,7 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 	const struct iommu_ops *ops;
 	void *data = NULL;
 	u32 driver_type, klen;
+	bool support;
 	int rc;
 
 	if (cmd->flags || cmd->__reserved)
@@ -205,9 +219,13 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 	driver_type = ops->driver_type;
 
 	/* data_type should be a supported type by the driver */
-	if (WARN_ON(driver_type >= ARRAY_SIZE(iommufd_hwpt_type_bitmaps)) ||
-	    !((1 << cmd->data_type) &
-			iommufd_hwpt_type_bitmaps[driver_type])) {
+	if (driver_type != IOMMU_HW_INFO_TYPE_SELFTEST)
+		support = iommufd_hwpt_type_check(driver_type, cmd->data_type);
+#ifdef CONFIG_IOMMUFD_TEST
+	else
+		support = true; /* selftest pretend to support all types */
+#endif
+	if (!support) {
 		rc = -EINVAL;
 		goto out_put_idev;
 	}
@@ -246,7 +264,12 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 		goto out_put_pt;
 	}
 
-	klen = iommufd_hwpt_alloc_data_size[cmd->data_type];
+	if (cmd->data_type != IOMMU_HWPT_TYPE_SELFTTEST)
+		klen = iommufd_hwpt_alloc_data_size[cmd->data_type];
+#ifdef CONFIG_IOMMUFD_TEST
+	else
+		klen = sizeof(struct iommu_hwpt_selftest);
+#endif
 	if (klen) {
 		if (!cmd->data_len) {
 			rc = -EINVAL;
