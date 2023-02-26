@@ -367,6 +367,105 @@ TEST_F(iommufd_ioas, hwpt_alloc)
 	}
 }
 
+TEST_F(iommufd_ioas, nested_hwpt_alloc)
+{
+	const uint32_t min_data_len =
+		offsetofend(struct iommu_hwpt_selftest, iotlb);
+	struct iommu_hwpt_selftest data = {
+		.flags = IOMMU_TEST_FLAG_NESTED,
+		.iotlb =  IOMMU_TEST_IOTLB_DEFAULT,
+	};
+	uint32_t nested_hwpt_id[2] = {};
+	uint32_t parent_hwpt_id = 0;
+	uint32_t test_hwpt_id = 0;
+
+	if (self->device_id) {
+		/* Negative tests */
+		test_err_cmd_hwpt_alloc(ENOENT, self->ioas_id, self->device_id,
+					&test_hwpt_id);
+		test_err_cmd_hwpt_alloc(EINVAL, self->device_id,
+					self->device_id, &test_hwpt_id);
+
+		test_cmd_hwpt_alloc(self->device_id, self->ioas_id,
+				    &parent_hwpt_id);
+
+		/* Negative nested tests */
+		test_err_cmd_hwpt_alloc_user(EINVAL, self->device_id,
+					     parent_hwpt_id,
+					     &nested_hwpt_id[0],
+					     IOMMU_HWPT_TYPE_DEFAULT,
+					     sizeof(data), &data);
+		test_err_cmd_hwpt_alloc_user(EINVAL, self->device_id,
+					     parent_hwpt_id,
+					     &nested_hwpt_id[0],
+					     IOMMU_HWPT_TYPE_SELFTEST,
+					     min_data_len - 1, &data);
+		test_err_cmd_hwpt_alloc_user(EINVAL, self->device_id,
+					     parent_hwpt_id,
+					     &nested_hwpt_id[0],
+					     IOMMU_HWPT_TYPE_SELFTEST,
+					     sizeof(data), NULL);
+
+		/* Allocate two nested hwpts sharing one common parent hwpt */
+		test_cmd_hwpt_alloc_user(self->device_id, parent_hwpt_id,
+					 &nested_hwpt_id[0],
+					 IOMMU_HWPT_TYPE_SELFTEST,
+					 sizeof(data), &data);
+		test_cmd_hwpt_alloc_user(self->device_id, parent_hwpt_id,
+					 &nested_hwpt_id[1],
+					 IOMMU_HWPT_TYPE_SELFTEST,
+					 sizeof(data), &data);
+
+		/* Negative test: a nested hwpt on top of a nested hwpt */
+		test_err_cmd_hwpt_alloc_user(EINVAL, self->device_id,
+					     nested_hwpt_id[0],
+					     &test_hwpt_id,
+					     IOMMU_HWPT_TYPE_SELFTEST,
+					     sizeof(data), &data);
+		/* Negative test: parent hwpt now cannot be freed */
+		EXPECT_ERRNO(EBUSY,
+			     _test_ioctl_destroy(self->fd, parent_hwpt_id));
+
+		/* Attach device to nested_hwpt_id[0] that then will be busy */
+		test_cmd_mock_domain_replace(self->stdev_id,
+					     nested_hwpt_id[0]);
+		EXPECT_ERRNO(EBUSY,
+			     _test_ioctl_destroy(self->fd, nested_hwpt_id[0]));
+
+		/* Switch from nested_hwpt_id[0] to nested_hwpt_id[1] */
+		test_cmd_mock_domain_replace(self->stdev_id,
+					     nested_hwpt_id[1]);
+		EXPECT_ERRNO(EBUSY,
+			     _test_ioctl_destroy(self->fd, nested_hwpt_id[1]));
+		test_ioctl_destroy(nested_hwpt_id[0]);
+
+		/* Detach from nested_hwpt_id[1] and destroy it */
+		test_cmd_mock_domain_replace(self->stdev_id, parent_hwpt_id);
+		test_ioctl_destroy(nested_hwpt_id[1]);
+
+		/* Detach from the parent hw_pagetable and destroy it */
+		test_cmd_mock_domain_replace(self->stdev_id, self->ioas_id);
+		test_ioctl_destroy(parent_hwpt_id);
+	} else {
+		test_err_cmd_hwpt_alloc(ENOENT, self->device_id, self->ioas_id,
+					&parent_hwpt_id);
+		test_err_cmd_hwpt_alloc_user(ENOENT, self->device_id,
+					     parent_hwpt_id,
+					     &nested_hwpt_id[0],
+					     IOMMU_HWPT_TYPE_SELFTEST,
+					     sizeof(data), &data);
+		test_err_cmd_hwpt_alloc_user(ENOENT, self->device_id,
+					     parent_hwpt_id,
+					     &nested_hwpt_id[1],
+					     IOMMU_HWPT_TYPE_SELFTEST,
+					     sizeof(data), &data);
+		test_err_mock_domain_replace(ENOENT, self->stdev_id,
+					     nested_hwpt_id[0]);
+		test_err_mock_domain_replace(ENOENT, self->stdev_id,
+					     nested_hwpt_id[1]);
+	}
+}
+
 TEST_F(iommufd_ioas, hwpt_attach)
 {
 	/* Create a device attached directly to a hwpt */
