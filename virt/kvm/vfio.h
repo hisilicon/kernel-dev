@@ -5,6 +5,7 @@
 #ifdef CONFIG_KVM_VFIO
 int kvm_vfio_ops_init(void);
 void kvm_vfio_ops_exit(void);
+struct kvm *kvm_vfio_get_kvm(struct device *dev);
 #else
 static inline int kvm_vfio_ops_init(void)
 {
@@ -12,6 +13,11 @@ static inline int kvm_vfio_ops_init(void)
 }
 static inline void kvm_vfio_ops_exit(void)
 {
+}
+
+static inline struct kvm *kvm_vfio_get_kvm(struct device *dev)
+{
+	return NULL;
 }
 #endif
 

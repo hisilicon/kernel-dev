@@ -391,6 +391,22 @@ static int kvm_vfio_create(struct kvm_device *dev, u32 type)
 	return 0;
 }
 
+struct kvm *kvm_vfio_get_kvm(struct device *dev)
+{
+	struct kvm *(*fn)(struct device *dev);
+	struct kvm *kvm;
+
+	fn = symbol_get(vfio_kvm_from_dev);
+	if (!fn)
+		return NULL;
+
+	kvm = fn(dev);
+
+	symbol_put(vfio_kvm_from_dev);
+
+	return kvm;
+}
+
 int kvm_vfio_ops_init(void)
 {
 	return kvm_register_device_ops(&kvm_vfio_ops, KVM_DEV_TYPE_VFIO);

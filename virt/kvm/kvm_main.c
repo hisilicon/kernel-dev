@@ -3609,7 +3609,7 @@ unsigned long kvm_pinned_vmid_get(struct device *dev)
 {
 	struct kvm *kvm;
 
-	kvm = vfio_kvm_from_dev(dev);
+	kvm = kvm_vfio_get_kvm(dev);
 	if (!kvm)
 		return 0;
 
@@ -3621,7 +3621,7 @@ void kvm_pinned_vmid_put(struct device *dev)
 {
 	struct kvm *kvm;
 
-	kvm = vfio_kvm_from_dev(dev);
+	kvm = kvm_vfio_get_kvm(dev);
 	if (kvm)
 		kvm_arch_pinned_vmid_put(kvm);
 }
