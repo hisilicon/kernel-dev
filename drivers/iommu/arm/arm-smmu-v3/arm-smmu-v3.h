@@ -806,4 +806,19 @@ static inline void arm_smmu_sva_remove_dev_pasid(struct iommu_domain *domain,
 {
 }
 #endif /* CONFIG_ARM_SMMU_V3_SVA */
+
+#ifdef CONFIG_KVM
+unsigned long kvm_pinned_vmid_get(struct device *dev);
+void kvm_pinned_vmid_put(struct device *dev);
+#else
+static inline unsigned long kvm_pinned_vmid_get(struct device *dev)
+{
+	return 0;
+}
+
+static inline void kvm_pinned_vmid_put(struct device *dev)
+{
+}
+#endif
+
 #endif /* _ARM_SMMU_V3_H */
