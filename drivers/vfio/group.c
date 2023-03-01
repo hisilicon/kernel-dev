@@ -788,6 +788,7 @@ vfio_kvm_from_dev(struct device *dev)
 
 	return device ? device->kvm : NULL;
 }
+EXPORT_SYMBOL_GPL(vfio_kvm_from_dev);
 
 /**
  * vfio_file_iommu_group - Return the struct iommu_group for the vfio group file
