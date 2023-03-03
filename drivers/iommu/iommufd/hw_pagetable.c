@@ -161,12 +161,24 @@ out_abort:
 	return ERR_PTR(rc);
 }
 
+/*
+ * size of page table type specific data, indexed by
+ * enum iommu_hwpt_type.
+ */
+static const size_t iommufd_hwpt_alloc_data_size[] = {
+	[IOMMU_HWPT_TYPE_DEFAULT] = 0,
+};
+
 int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 {
 	struct iommu_hwpt_alloc *cmd = ucmd->cmd;
-	struct iommufd_hw_pagetable *hwpt;
+	struct iommufd_hw_pagetable *hwpt, *parent = NULL;
+	struct iommufd_object *pt_obj;
 	struct iommufd_device *idev;
 	struct iommufd_ioas *ioas;
+	const struct iommu_ops *ops;
+	void *data = NULL;
+	u32 klen;
 	int rc;
 
 	if (cmd->flags || cmd->__reserved)
@@ -176,19 +188,79 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 	if (IS_ERR(idev))
 		return PTR_ERR(idev);
 
-	ioas = iommufd_get_ioas(ucmd->ictx, cmd->pt_id);
-	if (IS_ERR(ioas)) {
-		rc = PTR_ERR(ioas);
+	ops = dev_iommu_ops(idev->dev);
+	if (!ops) {
+		rc = -EOPNOTSUPP;
 		goto out_put_idev;
+	}
+
+	/* Only support IOMMU_HWPT_TYPE_DEFAULT for now */
+	if (cmd->data_type != IOMMU_HWPT_TYPE_DEFAULT) {
+		rc = -EINVAL;
+		goto out_put_idev;
+	}
+
+	pt_obj = iommufd_get_object(ucmd->ictx, cmd->pt_id, IOMMUFD_OBJ_ANY);
+	if (IS_ERR(pt_obj)) {
+		rc = -EINVAL;
+		goto out_put_idev;
+	}
+
+	switch (pt_obj->type) {
+	case IOMMUFD_OBJ_IOAS:
+		ioas = container_of(pt_obj, struct iommufd_ioas, obj);
+		break;
+	case IOMMUFD_OBJ_HW_PAGETABLE:
+		/* pt_id points HWPT only when data_type is !IOMMU_HWPT_TYPE_DEFAULT */
+		if (cmd->data_type == IOMMU_HWPT_TYPE_DEFAULT) {
+			rc = -EINVAL;
+			goto out_put_pt;
+		}
+
+		parent = container_of(pt_obj, struct iommufd_hw_pagetable, obj);
+		/*
+		 * Cannot allocate user-managed hwpt linking to auto_created
+		 * hwpt. If the parent hwpt is already a user-managed hwpt,
+		 * don't allocate another user-managed hwpt linking to it.
+		 */
+		if (parent->auto_domain || parent->parent) {
+			rc = -EINVAL;
+			goto out_put_pt;
+		}
+		ioas = parent->ioas;
+		break;
+	default:
+		rc = -EINVAL;
+		goto out_put_pt;
+	}
+
+	klen = iommufd_hwpt_alloc_data_size[cmd->data_type];
+	if (klen) {
+		if (!cmd->data_len) {
+			rc = -EINVAL;
+			goto out_put_pt;
+		}
+
+		data = kzalloc(klen, GFP_KERNEL);
+		if (!data) {
+			rc = -ENOMEM;
+			goto out_put_pt;
+		}
+
+		rc = copy_struct_from_user(data, klen,
+					   u64_to_user_ptr(cmd->data_uptr),
+					   cmd->data_len);
+		if (rc)
+			goto out_free_data;
 	}
 
 	mutex_lock(&ioas->mutex);
 	hwpt = iommufd_hw_pagetable_alloc(ucmd->ictx, ioas, idev,
-					  NULL, NULL, false);
+					  parent, data, false);
 	mutex_unlock(&ioas->mutex);
 	if (IS_ERR(hwpt)) {
 		rc = PTR_ERR(hwpt);
-		goto out_put_ioas;
+		goto out_free_data;
 	}
 
 	cmd->out_hwpt_id = hwpt->obj.id;
@@ -196,12 +268,14 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 	if (rc)
 		goto out_hwpt;
 	iommufd_object_finalize(ucmd->ictx, &hwpt->obj);
-	goto out_put_ioas;
+	goto out_free_data;
 
 out_hwpt:
 	iommufd_object_abort_and_destroy(ucmd->ictx, &hwpt->obj);
-out_put_ioas:
-	iommufd_put_object(&ioas->obj);
+out_free_data:
+	kfree(data);
+out_put_pt:
+	iommufd_put_object(pt_obj);
 out_put_idev:
 	iommufd_put_object(&idev->obj);
 	return rc;

@@ -348,6 +348,14 @@ struct iommu_vfio_ioas {
 #define IOMMU_VFIO_IOAS _IO(IOMMUFD_TYPE, IOMMUFD_CMD_VFIO_IOAS)
 
 /**
+ * enum iommu_hwpt_type - IOMMU HWPT Type
+ * @IOMMU_HWPT_TYPE_DEFAULT: default
+ */
+enum iommu_hwpt_type {
+	IOMMU_HWPT_TYPE_DEFAULT,
+};
+
+/**
  * struct iommu_hwpt_alloc - ioctl(IOMMU_HWPT_ALLOC)
  * @size: sizeof(struct iommu_hwpt_alloc)
  * @flags: Must be 0
@@ -355,12 +363,31 @@ struct iommu_vfio_ioas {
  * @pt_id: The IOAS to connect this HWPT to
  * @out_hwpt_id: The ID of the new HWPT
  * @__reserved: Must be 0
+ * @data_type: One of enum iommu_hwpt_type
+ * @data_len: Length of the type specific data
+ * @data_uptr: User pointer to the type specific data
  *
  * Explicitly allocate a hardware page table object. This is the same object
  * type that is returned by iommufd_device_attach() and represents the
  * underlying iommu driver's iommu_domain kernel object.
  *
- * A HWPT will be created with the IOVA mappings from the given IOAS.
+ * A kernel-managed HWPT will be created with the mappings from the given IOAS.
+ * The @data_type for its allocation can be set to IOMMU_HWPT_TYPE_DEFAULT, or
+ * another type (being listed below) to specialize a kernel-managed HWPT.
+ *
+ * A user-managed HWPT will be created from a given parent HWPT via @pt_id, in
+ * which the parent HWPT must be allocated previously via the same ioctl from a
+ * given IOAS. The @data_type must not be set to IOMMU_HWPT_TYPE_DEFAULT but a
+ * pre-defined type corresponding to the underlying IOMMU hardware.
+ *
+ * If the @data_type is set to IOMMU_HWPT_TYPE_DEFAULT, both the @data_len and
+ * the @data_uptr will be ignored. Otherwise, both of them must be given.
+ *
+ * +==============================+=====================================+===========+
+ * | @data_type                   |    Data structure in @data_uptr     |   @pt_id  |
+ * +------------------------------+-------------------------------------+-----------+
+ * | IOMMU_HWPT_TYPE_DEFAULT      |               N/A                   |    IOAS   |
+ * +------------------------------+-------------------------------------+-----------+
  */
 struct iommu_hwpt_alloc {
 	__u32 size;
@@ -369,6 +396,9 @@ struct iommu_hwpt_alloc {
 	__u32 pt_id;
 	__u32 out_hwpt_id;
 	__u32 __reserved;
+	__u32 data_type;
+	__u32 data_len;
+	__aligned_u64 data_uptr;
 };
 #define IOMMU_HWPT_ALLOC _IO(IOMMUFD_TYPE, IOMMUFD_CMD_HWPT_ALLOC)
 
