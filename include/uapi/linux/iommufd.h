@@ -363,12 +363,21 @@ enum iommu_hwpt_type {
  * @pt_id: The IOAS to connect this HWPT to
  * @out_hwpt_id: The ID of the new HWPT
  * @__reserved: Must be 0
+ * @hwpt_type: One of enum iommu_hwpt_type
+ * @data_len: Length of the type specific data
+ * @data_uptr: User pointer to the type specific data
  *
  * Explicitly allocate a hardware page table object. This is the same object
  * type that is returned by iommufd_device_attach() and represents the
  * underlying iommu driver's iommu_domain kernel object.
  *
- * A HWPT will be created with the IOVA mappings from the given IOAS.
+ * A HWPT will be created with the IOVA mappings from the given IOAS. The
+ * @hwpt_type for this allocation can be set to either IOMMU_HWPT_TYPE_DEFAULT
+ * or a pre-defined type corresponding to an I/O page table type supported by
+ * the underlying IOMMU hardware.
+ *
+ * If the @hwpt_type is set to IOMMU_HWPT_TYPE_DEFAULT, @data_len and @data_uptr
+ * should be zero. Otherwise, both @data_len and @data_uptr must be given.
  */
 struct iommu_hwpt_alloc {
 	__u32 size;
@@ -377,6 +386,9 @@ struct iommu_hwpt_alloc {
 	__u32 pt_id;
 	__u32 out_hwpt_id;
 	__u32 __reserved;
+	__u32 hwpt_type;
+	__u32 data_len;
+	__aligned_u64 data_uptr;
 };
 #define IOMMU_HWPT_ALLOC _IO(IOMMUFD_TYPE, IOMMUFD_CMD_HWPT_ALLOC)
 

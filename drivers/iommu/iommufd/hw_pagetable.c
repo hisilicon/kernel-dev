@@ -158,6 +158,7 @@ out_abort:
 int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 {
 	struct iommu_hwpt_alloc *cmd = ucmd->cmd;
+	struct iommu_user_data *data = NULL;
 	struct iommufd_hw_pagetable *hwpt;
 	struct iommufd_device *idev;
 	struct iommufd_ioas *ioas;
@@ -165,6 +166,9 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 
 	if (cmd->flags || cmd->__reserved)
 		return -EOPNOTSUPP;
+	if ((!cmd->data_len && cmd->hwpt_type != IOMMU_HWPT_TYPE_DEFAULT) ||
+	    (!!cmd->data_uptr != !!cmd->data_len))
+		return -EINVAL;
 
 	idev = iommufd_get_device(ucmd, cmd->dev_id);
 	if (IS_ERR(idev))
@@ -176,10 +180,19 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 		goto out_put_idev;
 	}
 
+	if (cmd->data_len) {
+		data = kzalloc(sizeof(*data), GFP_KERNEL);
+		if (!data) {
+			rc = -ENOMEM;
+			goto out_put_ioas;
+		}
+		data->uptr = u64_to_user_ptr(cmd->data_uptr);
+		data->len = cmd->data_len;
+	}
+
 	mutex_lock(&ioas->mutex);
 	hwpt = iommufd_hw_pagetable_alloc(ucmd->ictx, ioas, idev,
-					  IOMMU_HWPT_TYPE_DEFAULT,
-					  NULL, false);
+					  cmd->hwpt_type, data, false);
 	if (IS_ERR(hwpt)) {
 		rc = PTR_ERR(hwpt);
 		goto out_unlock;
@@ -196,6 +209,8 @@ out_hwpt:
 	iommufd_object_abort_and_destroy(ucmd->ictx, &hwpt->obj);
 out_unlock:
 	mutex_unlock(&ioas->mutex);
+	kfree(data);
+out_put_ioas:
 	iommufd_put_object(&ioas->obj);
 out_put_idev:
 	iommufd_put_object(&idev->obj);
