@@ -199,10 +199,20 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 
 	ops = dev_iommu_ops(idev->dev);
 
-	/* Only support IOMMU_HWPT_TYPE_DEFAULT for now */
+	/*
+	 * All drivers support IOMMU_HWPT_TYPE_DEFAULT, so pass it through.
+	 * For any other cmd->hwpt_type, check the ops->hwpt_type_bitmap and
+	 * the ops->domain_alloc_user_data_len array.
+	 */
 	if (cmd->hwpt_type != IOMMU_HWPT_TYPE_DEFAULT) {
-		rc = -EINVAL;
-		goto out_put_idev;
+		if (!(BIT_ULL(cmd->hwpt_type) & ops->hwpt_type_bitmap)) {
+			rc = -EINVAL;
+			goto out_put_idev;
+		}
+		if (!ops->domain_alloc_user_data_len) {
+			rc = -EOPNOTSUPP;
+			goto out_put_idev;
+		}
 	}
 
 	pt_obj = iommufd_get_object(ucmd->ictx, cmd->pt_id, IOMMUFD_OBJ_ANY);

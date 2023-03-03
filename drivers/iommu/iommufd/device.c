@@ -328,6 +328,8 @@ int iommufd_device_get_hw_info(struct iommufd_ucmd *ucmd)
 done:
 	cmd->data_len = length;
 	cmd->out_data_type = ops->hw_info_type;
+	cmd->out_hwpt_type_bitmap = ops->hwpt_type_bitmap |
+				    BIT_ULL(IOMMU_HWPT_TYPE_DEFAULT);
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
 
 out_err:
