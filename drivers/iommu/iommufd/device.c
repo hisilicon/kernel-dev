@@ -328,6 +328,7 @@ int iommufd_device_get_hw_info(struct iommufd_ucmd *ucmd)
 
 	cmd->out_data_type = ops->driver_type;
 	cmd->data_len = length;
+	cmd->out_hwpt_type_bitmap = iommufd_hwpt_type_bitmaps[ops->driver_type];
 
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
 

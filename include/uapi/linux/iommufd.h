@@ -421,6 +421,8 @@ enum iommu_hw_info_type {
  * @out_data_type: Output the iommu hardware info type, it is one of
  *                 enum iommu_hw_info_type.
  * @__reserved: Must be 0
+ * @out_hwpt_type_bitmap: Output the supported page table type. Each
+ *                        bit is defined in enum iommu_hwpt_type.
  *
  * Query the hardware iommu information for given device which has been
  * bound to iommufd. @data_len is the size of the buffer which captures
@@ -435,6 +437,11 @@ enum iommu_hw_info_type {
  * The @out_data_type will be filled if the ioctl succeeds. It would
  * be used to decode the data filled in the buffer pointed by @data_ptr.
  *
+ * @out_hwpt_type_bitmap reports the supported hwpt types. This differs
+ * per the @out_data_type. Userspace should check it before allocating a
+ * user-managed hw_pagetable with user data, unless it allocates a default
+ * hw_pagetable that does not need user data.
+ *
  * This is only available for the physical devices bound to iommufd as
  * only physical devices can have hardware IOMMU.
  */
@@ -446,6 +453,7 @@ struct iommu_hw_info {
 	__aligned_u64 data_ptr;
 	__u32 out_data_type;
 	__u32 __reserved;
+	__aligned_u64 out_hwpt_type_bitmap;
 };
 #define IOMMU_DEVICE_GET_HW_INFO _IO(IOMMUFD_TYPE, IOMMUFD_CMD_DEVICE_GET_HW_INFO)
 
