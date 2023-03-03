@@ -24,6 +24,8 @@ void iommufd_hw_pagetable_destroy(struct iommufd_object *obj)
 	if (hwpt->domain)
 		iommu_domain_free(hwpt->domain);
 
+	if (hwpt->parent)
+		refcount_dec(&hwpt->parent->obj.users);
 	refcount_dec(&hwpt->ioas->obj.users);
 }
 
@@ -61,6 +63,8 @@ int iommufd_hw_pagetable_enforce_cc(struct iommufd_hw_pagetable *hwpt)
  * @ictx: iommufd context
  * @ioas: IOAS to associate the domain with
  * @idev: Device to get an iommu_domain for
+ * @parent: Optional parent HWPT to associate with the domain with
+ * @user_data: Optional user_data pointer
  * @immediate_attach: True if idev should be attached to the hwpt
  *
  * Allocate a new iommu_domain and return it as a hw_pagetable. The HWPT
@@ -73,13 +77,19 @@ int iommufd_hw_pagetable_enforce_cc(struct iommufd_hw_pagetable *hwpt)
  */
 struct iommufd_hw_pagetable *
 iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
-			   struct iommufd_device *idev, bool immediate_attach)
+			   struct iommufd_device *idev,
+			   struct iommufd_hw_pagetable *parent,
+			   void *user_data, bool immediate_attach)
 {
 	const struct iommu_ops *ops = dev_iommu_ops(idev->dev);
+	struct iommu_domain *parent_domain = NULL;
 	struct iommufd_hw_pagetable *hwpt;
 	int rc;
 
 	lockdep_assert_held(&ioas->mutex);
+
+	if ((user_data || parent) && !ops->domain_alloc_user)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	hwpt = iommufd_object_alloc(ictx, hwpt, IOMMUFD_OBJ_HW_PAGETABLE);
 	if (IS_ERR(hwpt))
@@ -89,13 +99,26 @@ iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 	/* Pairs with iommufd_hw_pagetable_destroy() */
 	refcount_inc(&ioas->obj.users);
 	hwpt->ioas = ioas;
+	if (parent) {
+		hwpt->parent = parent;
+		parent_domain = parent->domain;
+		refcount_inc(&parent->obj.users);
+	}
 
 	if (ops->domain_alloc_user)
-		hwpt->domain = ops->domain_alloc_user(idev->dev, NULL, NULL);
+		hwpt->domain = ops->domain_alloc_user(idev->dev,
+						      parent_domain, user_data);
 	else
 		hwpt->domain = iommu_domain_alloc(idev->dev->bus);
 	if (!hwpt->domain) {
 		rc = -ENOMEM;
+		goto out_abort;
+	}
+
+	/* It must be either NESTED or UNMANAGED, depending on parent_domain */
+	if (WARN_ON((parent_domain && hwpt->domain->type != IOMMU_DOMAIN_NESTED) ||
+		    (!parent_domain && hwpt->domain->type != IOMMU_DOMAIN_UNMANAGED))) {
+		rc = -EINVAL;
 		goto out_abort;
 	}
 
@@ -160,7 +183,8 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 	}
 
 	mutex_lock(&ioas->mutex);
-	hwpt = iommufd_hw_pagetable_alloc(ucmd->ictx, ioas, idev, false);
+	hwpt = iommufd_hw_pagetable_alloc(ucmd->ictx, ioas, idev,
+					  NULL, NULL, false);
 	if (IS_ERR(hwpt)) {
 		rc = PTR_ERR(hwpt);
 		goto out_unlock;
