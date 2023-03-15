@@ -769,10 +769,34 @@ out:
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_access_detach, IOMMUFD);
 
-int iommufd_access_attach(struct iommufd_access *access, u32 ioas_id)
+static int iommufd_access_change_pt(struct iommufd_access *access, u32 ioas_id)
 {
 	struct iommufd_ioas *new_ioas;
-	int rc = 0;
+	int rc;
+
+	lockdep_assert_held(&access->ioas_lock);
+
+	new_ioas = iommufd_get_ioas(access->ictx, ioas_id);
+	if (IS_ERR(new_ioas))
+		return PTR_ERR(new_ioas);
+
+	rc = iopt_add_access(&new_ioas->iopt, access);
+	if (rc) {
+		iommufd_put_object(&new_ioas->obj);
+		return rc;
+	}
+	iommufd_ref_to_users(&new_ioas->obj);
+
+	if (access->ioas)
+		__iommufd_access_detach(access);
+	access->ioas = new_ioas;
+	access->ioas_unpin = new_ioas;
+	return 0;
+}
+
+int iommufd_access_attach(struct iommufd_access *access, u32 ioas_id)
+{
+	int rc;
 
 	mutex_lock(&access->ioas_lock);
 	if (access->ioas) {
@@ -780,26 +804,31 @@ int iommufd_access_attach(struct iommufd_access *access, u32 ioas_id)
 		return -EINVAL;
 	}
 
-	new_ioas = iommufd_get_ioas(access->ictx, ioas_id);
-	if (IS_ERR(new_ioas)) {
-		mutex_unlock(&access->ioas_lock);
-		return PTR_ERR(new_ioas);
-	}
-
-	rc = iopt_add_access(&new_ioas->iopt, access);
-	if (rc) {
-		mutex_unlock(&access->ioas_lock);
-		iommufd_put_object(&new_ioas->obj);
-		return rc;
-	}
-	iommufd_ref_to_users(&new_ioas->obj);
-
-	access->ioas = new_ioas;
-	access->ioas_unpin = new_ioas;
+	rc = iommufd_access_change_pt(access, ioas_id);
 	mutex_unlock(&access->ioas_lock);
-	return 0;
+	return rc;
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_access_attach, IOMMUFD);
+
+int iommufd_access_replace(struct iommufd_access *access, u32 ioas_id)
+{
+	int rc;
+
+	mutex_lock(&access->ioas_lock);
+	if (!access->ioas) {
+		mutex_unlock(&access->ioas_lock);
+		return -ENOENT;
+	}
+	if (access->ioas->obj.id == ioas_id) {
+		mutex_unlock(&access->ioas_lock);
+		return 0;
+	}
+
+	rc = iommufd_access_change_pt(access, ioas_id);
+	mutex_unlock(&access->ioas_lock);
+	return rc;
+}
+EXPORT_SYMBOL_NS_GPL(iommufd_access_replace, IOMMUFD);
 
 /**
  * iommufd_access_notify_unmap - Notify users of an iopt to stop using it
