@@ -127,9 +127,24 @@ static kvm_pte_t *kvm_pte_follow(kvm_pte_t pte, struct kvm_pgtable_mm_ops *mm_op
 	return mm_ops->phys_to_virt(kvm_pte_to_phys(pte));
 }
 
+static void kvm_update_pte(kvm_pte_t *ptep, kvm_pte_t new)
+{
+	kvm_pte_t old_pte, pte = *ptep;
+
+	do {
+		old_pte = pte;
+		pte = new;
+
+		if (old_pte == pte)
+			break;
+
+		pte = cmpxchg_relaxed(ptep, old_pte, pte);
+	} while (pte != old_pte);
+}
+
 static void kvm_clear_pte(kvm_pte_t *ptep)
 {
-	WRITE_ONCE(*ptep, 0);
+	kvm_update_pte(ptep, 0);
 }
 
 static kvm_pte_t kvm_init_table_pte(kvm_pte_t *childp, struct kvm_pgtable_mm_ops *mm_ops)
@@ -710,11 +725,11 @@ static bool stage2_pte_writable(kvm_pte_t pte)
 static bool stage2_try_set_pte(const struct kvm_pgtable_visit_ctx *ctx, kvm_pte_t new)
 {
 	if (!kvm_pgtable_walk_shared(ctx)) {
-		WRITE_ONCE(*ctx->ptep, new);
+		kvm_update_pte(ctx->ptep, new);
 		return true;
 	}
 
-	return cmpxchg(ctx->ptep, ctx->old, new) == ctx->old;
+	return cmpxchg_relaxed(ctx->ptep, ctx->old, new) == ctx->old;
 }
 
 /**
