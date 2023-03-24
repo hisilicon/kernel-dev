@@ -69,6 +69,30 @@ void vfio_iommufd_unbind(struct vfio_device *vdev)
 		vdev->ops->unbind_iommufd(vdev);
 }
 
+struct iommufd_ctx *vfio_iommufd_physical_ictx(struct vfio_device *vdev)
+{
+	if (vdev->iommufd_device)
+		return iommufd_device_to_ictx(vdev->iommufd_device);
+	if (vdev->iommufd_access)
+		return iommufd_access_to_ictx(vdev->iommufd_access);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(vfio_iommufd_physical_ictx);
+
+/*
+ * Return devid for devices that have been bound with iommufd,
+ * returns 0 if not bound yet.
+ */
+u32 vfio_iommufd_physical_devid(struct vfio_device *vdev)
+{
+	if (WARN_ON(!vdev->iommufd_device && !vdev->iommufd_access))
+		return 0;
+	if (vdev->iommufd_device)
+		return iommufd_device_to_id(vdev->iommufd_device);
+	else
+		return iommufd_access_to_id(vdev->iommufd_access);
+}
+EXPORT_SYMBOL_GPL(vfio_iommufd_physical_devid);
 /*
  * The physical standard ops mean that the iommufd_device is bound to the
  * physical device vdev->dev that was provided to vfio_init_group_dev(). Drivers
