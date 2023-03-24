@@ -1181,6 +1181,102 @@ static int vfio_pci_ioctl_reset(struct vfio_pci_core_device *vdev,
 	return ret;
 }
 
+static struct pci_dev *
+vfio_pci_dev_set_resettable(struct vfio_device_set *dev_set);
+
+static int vfio_pci_ioctl_get_pci_hot_reset_group_info(
+	struct vfio_pci_core_device *vdev,
+	struct vfio_pci_hot_reset_group_info __user *arg)
+{
+	unsigned long minsz =
+		offsetofend(struct vfio_pci_hot_reset_group_info, count);
+	struct vfio_pci_hot_reset_group_info hdr;
+	struct iommufd_ctx *iommufd, *cur_iommufd;
+	u32 count = 0, index = 0, *devices = NULL;
+	struct vfio_pci_core_device *cur;
+	bool slot = false;
+	int ret = 0;
+
+	if (copy_from_user(&hdr, arg, minsz))
+		return -EFAULT;
+
+	if (hdr.argsz < minsz)
+		return -EINVAL;
+
+	hdr.flags = 0;
+
+	/* Can we do a slot or bus reset or neither? */
+	if (!pci_probe_reset_slot(vdev->pdev->slot))
+		slot = true;
+	else if (pci_probe_reset_bus(vdev->pdev->bus))
+		return -ENODEV;
+
+	mutex_lock(&vdev->vdev.dev_set->lock);
+	if (!vfio_pci_dev_set_resettable(vdev->vdev.dev_set)) {
+		ret = -EPERM;
+		goto out_unlock;
+	}
+
+	iommufd = vfio_iommufd_physical_ictx(&vdev->vdev);
+	if (!iommufd) {
+		ret = -EPERM;
+		goto out_unlock;
+	}
+
+	/* How many devices are affected? */
+	ret = vfio_pci_for_each_slot_or_bus(vdev->pdev, vfio_pci_count_devs,
+					    &count, slot);
+	if (ret)
+		goto out_unlock;
+
+	WARN_ON(!count); /* Should always be at least one */
+
+	/*
+	 * If there's enough space, fill it now, otherwise return -ENOSPC and
+	 * the number of devices affected.
+	 */
+	if (hdr.argsz < sizeof(hdr) + (count * sizeof(*devices))) {
+		ret = -ENOSPC;
+		hdr.count = count;
+		goto reset_info_exit;
+	}
+
+	devices = kcalloc(count, sizeof(*devices), GFP_KERNEL);
+	if (!devices) {
+		ret = -ENOMEM;
+		goto reset_info_exit;
+	}
+
+	list_for_each_entry(cur, &vdev->vdev.dev_set->device_list, vdev.dev_set_list) {
+		cur_iommufd = vfio_iommufd_physical_ictx(&cur->vdev);
+		if (cur->vdev.open_count) {
+			if (cur_iommufd != iommufd) {
+				ret = -EPERM;
+				break;
+			}
+			ret = vfio_iommufd_physical_devid(&cur->vdev, &devices[index]);
+			if (ret)
+				break;
+			index++;
+		}
+	}
+
+reset_info_exit:
+	if (copy_to_user(arg, &hdr, minsz))
+		ret = -EFAULT;
+
+	if (!ret) {
+		if (copy_to_user(&arg->devices, devices,
+				 hdr.count * sizeof(*devices)))
+			ret = -EFAULT;
+	}
+
+	kfree(devices);
+out_unlock:
+	mutex_unlock(&vdev->vdev.dev_set->lock);
+	return ret;
+}
+
 static int vfio_pci_ioctl_get_pci_hot_reset_info(
 	struct vfio_pci_core_device *vdev,
 	struct vfio_pci_hot_reset_info __user *arg)
@@ -1404,6 +1500,8 @@ long vfio_pci_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
 		return vfio_pci_ioctl_get_irq_info(vdev, uarg);
 	case VFIO_DEVICE_GET_PCI_HOT_RESET_INFO:
 		return vfio_pci_ioctl_get_pci_hot_reset_info(vdev, uarg);
+	case VFIO_DEVICE_GET_PCI_HOT_RESET_GROUP_INFO:
+		return vfio_pci_ioctl_get_pci_hot_reset_group_info(vdev, uarg);
 	case VFIO_DEVICE_GET_REGION_INFO:
 		return vfio_pci_ioctl_get_region_info(vdev, uarg);
 	case VFIO_DEVICE_IOEVENTFD:

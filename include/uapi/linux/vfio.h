@@ -670,6 +670,53 @@ struct vfio_pci_hot_reset_info {
 #define VFIO_DEVICE_GET_PCI_HOT_RESET_INFO	_IO(VFIO_TYPE, VFIO_BASE + 12)
 
 /**
+ * VFIO_DEVICE_GET_PCI_HOT_RESET_GROUP_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 12,
+ *						    struct vfio_pci_hot_reset_group_info)
+ *
+ * This is used in the vfio device cdev mode.  It returns the list of
+ * affected devices (represented by iommufd dev_id) when hot reset is
+ * issued on the current device with which this ioctl is invoked.  It
+ * only includes the devices that are opened by the current user in the
+ * time of this command is invoked.  This list may change when user opens
+ * new device or close opened device, hence user should re-invoke it
+ * after open/close devices.  This command has no guarantee on the result
+ * of VFIO_DEVICE_PCI_HOT_RESET since the not-opened affected device can
+ * be by other users in the window between the two ioctls.  If the affected
+ * devices are opened by multiple users, the VFIO_DEVICE_PCI_HOT_RESET
+ * shall fail, detail can check the description of VFIO_DEVICE_PCI_HOT_RESET.
+ *
+ * For the users that open vfio group/container, this ioctl is useless as
+ * they have no idea about the iommufd dev_id returned by this ioctl.  For
+ * the users of the traditional mode vfio group/container, this ioctl will
+ * fail as this mode does not use iommufd hence no dev_id to report back.
+ * For the users of the iommufd compat mode vfio group/container, this ioctl
+ * would succeed as this mode uses iommufd as container fd.  But such users
+ * still have no idea about the iommufd dev_id as the dev_id is only stored
+ * in kernel in this mode.  For the users of the vfio group/container, the
+ * VFIO_DEVICE_GET_PCI_HOT_RESET_INFO should be used to know the hot reset
+ * affected devices.
+ *
+ * Return: 0 on success, -errno on failure:
+ *	-enospc = insufficient buffer;
+ *	-enodev = unsupported for device;
+ *	-eperm = no permission for device, this error comes:
+ *		 - when there are affected devices that are opened but
+ *		   not bound to the same iommufd with the current device
+ *		   with which this ioctl is invoked,
+ *		 - there are affected devices that are not bound to vfio
+ *		   driver yet.
+ *		 - no valid iommufd is bound (e.g. noiommu mode)
+ */
+struct vfio_pci_hot_reset_group_info {
+	__u32	argsz;
+	__u32	flags;
+	__u32	count;
+	__u32	devices[];
+};
+
+#define VFIO_DEVICE_GET_PCI_HOT_RESET_GROUP_INFO	_IO(VFIO_TYPE, VFIO_BASE + 18)
+
+/**
  * VFIO_DEVICE_PCI_HOT_RESET - _IOW(VFIO_TYPE, VFIO_BASE + 13,
  *				    struct vfio_pci_hot_reset)
  *
