@@ -710,6 +710,28 @@ struct vfio_pci_hot_reset_info {
  * VFIO_DEVICE_PCI_HOT_RESET - _IOW(VFIO_TYPE, VFIO_BASE + 13,
  *				    struct vfio_pci_hot_reset)
  *
+ * Userspace requests hot reset for the devices it operates.  Due to the
+ * underlying topology, multiple devices can be affected in the reset
+ * while some might be opened by another user.  To avoid interference
+ * the calling user must ensure all affected devices are owned by itself.
+ * The ownership proof needs to refer the output of
+ * VFIO_DEVICE_GET_PCI_HOT_RESET_INFO.  Ownership can be proved as:
+ *
+ *   1) An array of group fds - This is used for the devices opened via
+ *				the group/container interface.
+ *   2) A zero-length array - This is used for the devices opened via
+ *			      the cdev interface.  User should check the
+ *			      flag VFIO_PCI_HOT_RESET_FLAG_IOMMUFD_DEV_ID
+ *			      and flag VFIO_PCI_HOT_RESET_FLAG_RESETTABLE
+ *			      before using this method.
+ *
+ * In case a non void group fd array is passed, the devices affected by
+ * the reset must belong to those opened VFIO groups.  In case a zero
+ * length array is passed, the other devices affected by the reset, if
+ * any, must be either bound to the same iommufd as this VFIO device or
+ * in the same iommu_group with a device that does.  Either of the two
+ * methods is applied to check the feasibility of the hot reset.
+ *
  * Return: 0 on success, -errno on failure.
  */
 struct vfio_pci_hot_reset {
