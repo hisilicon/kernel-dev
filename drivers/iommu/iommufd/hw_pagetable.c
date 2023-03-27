@@ -132,7 +132,7 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 	if (IS_ERR(idev))
 		return PTR_ERR(idev);
 
-	ioas = iommufd_get_ioas(ucmd, cmd->pt_id);
+	ioas = iommufd_get_ioas(ucmd->ictx, cmd->pt_id);
 	if (IS_ERR(ioas)) {
 		rc = PTR_ERR(ioas);
 		goto out_put_idev;
