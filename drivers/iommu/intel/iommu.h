@@ -616,6 +616,10 @@ struct dmar_domain {
 			int		agaw;
 			/* maximum mapped address */
 			u64		max_addr;
+			/* domain has mappings with read-only permission */
+			bool		read_only_mapped;
+			/* user nested domain count */
+			int		nested_users;
 		};
 
 		/* Nested user domain */
