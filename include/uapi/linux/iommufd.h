@@ -593,6 +593,16 @@ struct iommu_hw_info {
 #define IOMMU_DEVICE_GET_HW_INFO _IO(IOMMUFD_TYPE, IOMMUFD_CMD_DEVICE_GET_HW_INFO)
 
 /**
+ * struct iommu_device_data_arm_smmuv3 - ARM SMMUv3 specific device data
+ * @sid: The Stream ID that is assigned in the user space
+ *
+ * This should be passed via the VFIO_DEVICE_BIND_IOMMUFD ioctl.
+ */
+struct iommu_device_data_arm_smmuv3 {
+	__u32 sid;
+};
+
+/**
  * enum iommu_hwpt_intel_vtd_invalidate_flags - Flags for Intel VT-d
  *                                              stage-1 page table cache
  *                                              invalidation
