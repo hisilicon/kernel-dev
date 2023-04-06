@@ -2760,6 +2760,53 @@ static void arm_smmu_release_device(struct device *dev)
 	kfree(master);
 }
 
+static int arm_smmu_set_dev_user_data(struct device *dev,
+				      const struct iommu_user_data *user_data)
+{
+	const size_t min_len = offsetofend(struct iommu_dev_data_arm_smmuv3, sid);
+	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
+	struct arm_smmu_stream *stream = &master->streams[0];
+	struct arm_smmu_device *smmu = master->smmu;
+	struct iommu_dev_data_arm_smmuv3 user;
+	u32 sid_user;
+	int ret = 0;
+
+	ret = iommu_copy_user_data(&user, user_data, sizeof(user), min_len);
+	if (ret)
+		return ret;
+
+	sid_user = user.sid;
+	if (!sid_user)
+		return -EINVAL;
+
+	ret = xa_alloc(&smmu->streams_user, &sid_user, stream,
+		       XA_LIMIT(sid_user, sid_user), GFP_KERNEL_ACCOUNT);
+	if (ret)
+		return ret;
+	stream->id_user = sid_user;
+	return 0;
+}
+
+static void arm_smmu_unset_dev_user_data(struct device *dev)
+{
+	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
+	struct arm_smmu_stream *stream = &master->streams[0];
+	struct arm_smmu_device *smmu = master->smmu;
+	u32 sid_user = stream->id_user;
+
+	if (!sid_user)
+		return;
+
+	xa_lock(&smmu->streams_user);
+	stream = __xa_erase(&smmu->streams_user, sid_user);
+	if (stream != master->streams) {
+		WARN_ON(__xa_alloc(&smmu->streams_user, &sid_user, stream,
+				   XA_LIMIT(sid_user, sid_user),
+				   GFP_KERNEL_ACCOUNT));
+	}
+	xa_unlock(&smmu->streams_user);
+}
+
 static struct iommu_group *arm_smmu_device_group(struct device *dev)
 {
 	struct iommu_group *group;
@@ -2887,6 +2934,8 @@ static struct iommu_ops arm_smmu_ops = {
 	.domain_alloc		= arm_smmu_domain_alloc,
 	.probe_device		= arm_smmu_probe_device,
 	.release_device		= arm_smmu_release_device,
+	.set_dev_user_data	= arm_smmu_set_dev_user_data,
+	.unset_dev_user_data	= arm_smmu_unset_dev_user_data,
 	.device_group		= arm_smmu_device_group,
 	.of_xlate		= arm_smmu_of_xlate,
 	.get_resv_regions	= arm_smmu_get_resv_regions,
@@ -3120,6 +3169,7 @@ static int arm_smmu_init_structures(struct arm_smmu_device *smmu)
 
 	mutex_init(&smmu->streams_mutex);
 	smmu->streams = RB_ROOT;
+	xa_init_flags(&smmu->streams_user, XA_FLAGS_ALLOC1 | XA_FLAGS_ACCOUNT);
 
 	ret = arm_smmu_init_queues(smmu);
 	if (ret)
