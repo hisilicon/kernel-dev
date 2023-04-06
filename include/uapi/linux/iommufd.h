@@ -48,6 +48,8 @@ enum {
 	IOMMUFD_CMD_HWPT_ALLOC,
 	IOMMUFD_CMD_DEVICE_GET_HW_INFO,
 	IOMMUFD_CMD_HWPT_INVALIDATE,
+	IOMMUFD_CMD_DEVICE_SET_DATA,
+	IOMMUFD_CMD_DEVICE_UNSET_DATA,
 };
 
 /**
@@ -478,4 +480,34 @@ struct iommu_hwpt_invalidate {
 	__aligned_u64 data_uptr;
 };
 #define IOMMU_HWPT_INVALIDATE _IO(IOMMUFD_TYPE, IOMMUFD_CMD_HWPT_INVALIDATE)
+
+/**
+ * struct iommu_device_set_data - ioctl(IOMMU_DEVICE_SET_DATA)
+ * @size: sizeof(struct iommu_device_set_data)
+ * @dev_id: The device to set an iommu specific device data
+ * @data_uptr: User pointer of the device user data
+ * @data_len: Length of the device user data
+ *
+ * The device data must be unset using ioctl(IOMMU_DEVICE_UNSET_DATA), before
+ * another ioctl(IOMMU_DEVICE_SET_DATA) call or before the device itself gets
+ * unbind'd from the iommufd context.
+ */
+struct iommu_device_set_data {
+	__u32 size;
+	__u32 dev_id;
+	__aligned_u64 data_uptr;
+	__u32 data_len;
+};
+#define IOMMU_DEVICE_SET_DATA _IO(IOMMUFD_TYPE, IOMMUFD_CMD_DEVICE_SET_DATA)
+
+/**
+ * struct iommu_device_unset_data - ioctl(IOMMU_DEVICE_UNSET_DATA)
+ * @size: sizeof(struct iommu_device_unset_data)
+ * @dev_id: The device to unset its device user data
+ */
+struct iommu_device_unset_data {
+	__u32 size;
+	__u32 dev_id;
+};
+#define IOMMU_DEVICE_UNSET_DATA _IO(IOMMUFD_TYPE, IOMMUFD_CMD_DEVICE_UNSET_DATA)
 #endif

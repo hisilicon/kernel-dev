@@ -309,6 +309,7 @@ struct iommufd_device {
 	/* always the physical device */
 	struct device *dev;
 	bool enforce_cache_coherency;
+	bool has_user_data;
 };
 
 static inline struct iommufd_device *
@@ -321,6 +322,8 @@ iommufd_get_device(struct iommufd_ucmd *ucmd, u32 id)
 
 void iommufd_device_destroy(struct iommufd_object *obj);
 int iommufd_device_get_hw_info(struct iommufd_ucmd *ucmd);
+int iommufd_device_set_data(struct iommufd_ucmd *ucmd);
+int iommufd_device_unset_data(struct iommufd_ucmd *ucmd);
 
 struct iommufd_access {
 	struct iommufd_object obj;

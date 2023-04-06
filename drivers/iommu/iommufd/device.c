@@ -136,6 +136,8 @@ void iommufd_device_destroy(struct iommufd_object *obj)
 	struct iommufd_device *idev =
 		container_of(obj, struct iommufd_device, obj);
 
+	if (idev->has_user_data)
+		dev_iommu_ops(idev->dev)->unset_dev_user_data(idev->dev);
 	iommu_device_release_dma_owner(idev->dev);
 	iommufd_put_group(idev->igroup);
 	if (!iommufd_selftest_is_mock_dev(idev->dev))
@@ -725,6 +727,85 @@ void iommufd_device_detach(struct iommufd_device *idev)
 	refcount_dec(&idev->obj.users);
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_device_detach, IOMMUFD);
+
+int iommufd_device_set_data(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_device_set_data *cmd = ucmd->cmd;
+	struct iommufd_device *idev;
+	const struct iommu_ops *ops;
+	void *data = NULL;
+	int rc;
+
+	if (!cmd->data_uptr || !cmd->data_len)
+		return -EINVAL;
+
+	idev = iommufd_get_device(ucmd, cmd->dev_id);
+	if (IS_ERR(idev))
+		return PTR_ERR(idev);
+
+	mutex_lock(&idev->igroup->lock);
+	if (idev->has_user_data) {
+		rc = -EEXIST;
+		goto out_unlock;
+	}
+
+	ops = dev_iommu_ops(idev->dev);
+	if (!ops->dev_user_data_len ||
+	    !ops->set_dev_user_data ||
+	    !ops->unset_dev_user_data) {
+		rc = -EOPNOTSUPP;
+		goto out_unlock;
+	}
+
+	data = kzalloc(ops->dev_user_data_len, GFP_KERNEL);
+	if (!data) {
+		rc = -ENOMEM;
+		goto out_unlock;
+	}
+
+	if (copy_struct_from_user(data, ops->dev_user_data_len,
+				  u64_to_user_ptr(cmd->data_uptr),
+				  cmd->data_len)) {
+		rc = -EFAULT;
+		goto out_free_data;
+	}
+
+	rc = ops->set_dev_user_data(idev->dev, data);
+	if (rc)
+		goto out_free_data;
+
+	idev->has_user_data = true;
+out_free_data:
+	kfree(data);
+out_unlock:
+	mutex_unlock(&idev->igroup->lock);
+	iommufd_put_object(&idev->obj);
+	return rc;
+}
+
+int iommufd_device_unset_data(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_device_unset_data *cmd = ucmd->cmd;
+	struct iommufd_device *idev;
+	int rc = 0;
+
+	idev = iommufd_get_device(ucmd, cmd->dev_id);
+	if (IS_ERR(idev))
+		return PTR_ERR(idev);
+
+	mutex_lock(&idev->igroup->lock);
+	if (!idev->has_user_data) {
+		rc = -ENOENT;
+		goto out_unlock;
+	}
+
+	dev_iommu_ops(idev->dev)->unset_dev_user_data(idev->dev);
+	idev->has_user_data = false;
+out_unlock:
+	mutex_unlock(&idev->igroup->lock);
+	iommufd_put_object(&idev->obj);
+	return rc;
+}
 
 void iommufd_access_destroy_object(struct iommufd_object *obj)
 {
