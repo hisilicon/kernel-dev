@@ -29,7 +29,8 @@ int vfio_iommufd_bind(struct vfio_device *vdev, struct iommufd_ctx *ictx)
 		 */
 		if (!iommufd_vfio_compat_ioas_get_id(ictx, &ioas_id))
 			return -EPERM;
-		return 0;
+
+		return vfio_iommufd_emulated_bind(vdev, ictx, &device_id);
 	}
 
 	ret = vdev->ops->bind_iommufd(vdev, ictx, &device_id);
@@ -59,8 +60,10 @@ void vfio_iommufd_unbind(struct vfio_device *vdev)
 {
 	lockdep_assert_held(&vdev->dev_set->lock);
 
-	if (vdev->noiommu)
+	if (vdev->noiommu) {
+		vfio_iommufd_emulated_unbind(vdev);
 		return;
+	}
 
 	if (vdev->ops->unbind_iommufd)
 		vdev->ops->unbind_iommufd(vdev);
@@ -110,10 +113,14 @@ int vfio_iommufd_physical_attach_ioas(struct vfio_device *vdev, u32 *pt_id)
 EXPORT_SYMBOL_GPL(vfio_iommufd_physical_attach_ioas);
 
 /*
- * The emulated standard ops mean that vfio_device is going to use the
- * "mdev path" and will call vfio_pin_pages()/vfio_dma_rw(). Drivers using this
- * ops set should call vfio_register_emulated_iommu_dev(). Drivers that do
- * not call vfio_pin_pages()/vfio_dma_rw() have no need to provide dma_unmap.
+ * The emulated standard ops can be used by below usages:
+ * 1) The vfio_device that is going to use the "mdev path" and will call
+ *    vfio_pin_pages()/vfio_dma_rw().  Such drivers using should call
+ *    vfio_register_emulated_iommu_dev().  Drivers that do not call
+ *    vfio_pin_pages()/vfio_dma_rw() have no need to provide dma_unmap.
+ * 2) The noiommu device which doesn't have backend iommu but creating
+ *    an iommufd_access allows generating a dev_id for it. noiommu device
+ *    is not allowed to do map/unmap so this becomes a nop.
  */
 
 static void vfio_emulated_unmap(void *data, unsigned long iova,
@@ -121,7 +128,8 @@ static void vfio_emulated_unmap(void *data, unsigned long iova,
 {
 	struct vfio_device *vdev = data;
 
-	if (vdev->ops->dma_unmap)
+	/* noiommu devices cannot do map/unmap */
+	if (vdev->noiommu && vdev->ops->dma_unmap)
 		vdev->ops->dma_unmap(vdev, iova, length);
 }
 
