@@ -650,11 +650,46 @@ enum {
  * VFIO_DEVICE_GET_PCI_HOT_RESET_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 12,
  *					      struct vfio_pci_hot_reset_info)
  *
+ * This command is used to query the affected devices in the hot reset for
+ * a given device.
+ *
+ * This command always reports the segment, bus, and devfn information for
+ * each affected device, and selectively reports the group_id or dev_id per
+ * the way how the calling device is opened.
+ *
+ *	- If the calling device is opened via the traditional group/container
+ *	  API, group_id is reported.  User should check if it has owned all
+ *	  the affected devices and provides a set of group fds to prove the
+ *	  ownership in VFIO_DEVICE_PCI_HOT_RESET ioctl.
+ *
+ *	- If the calling device is opened as a cdev, dev_id is reported.
+ *	  Flag VFIO_PCI_HOT_RESET_FLAG_IOMMUFD_DEV_ID would be set.  Flag
+ *	  VFIO_PCI_HOT_RESET_FLAG_RESETTABLE would be set per the ownership
+ *	  of the other affected devices.  If it is set, the user could invoke
+ *	  VFIO_DEVICE_PCI_HOT_RESET with a zero-length fd array.  Kernel
+ *	  set this flag when all the affected devices are owned by the user.
+ *	  This flag is available only VFIO_PCI_HOT_RESET_FLAG_IOMMUFD_DEV_ID
+ *	  is set, otherwise ignored.  For a given affected device, it is owned
+ *	  if it suits one of the below cases:
+ *		1) bound to the same iommufd_ctx with the calling device
+ *		2) has not been bound to iommufd_ctx, but it is within the
+ *		   iommu_group of an owned device.
+ *	  For 1), the dev_id > 0, for 2) dev_id == 0. Otherwise, dev_id == -1.
+ *
+ * If the affected devices of a calling device span into multiple iommufds
+ * or opened by different APIs (group/container or cdev), hot-reset on
+ * this device would be rejected.
+ *
  * Return: 0 on success, -errno on failure:
  *	-enospc = insufficient buffer, -enodev = unsupported for device.
  */
 struct vfio_pci_dependent_device {
-	__u32	group_id;
+	union {
+		__u32   group_id;
+		__u32	dev_id;
+#define VFIO_PCI_DEVID_NONBLOCKING	0
+#define VFIO_PCI_DEVID_BLOCKING	-1
+	};
 	__u16	segment;
 	__u8	bus;
 	__u8	devfn; /* Use PCI_SLOT/PCI_FUNC */
@@ -663,6 +698,8 @@ struct vfio_pci_dependent_device {
 struct vfio_pci_hot_reset_info {
 	__u32	argsz;
 	__u32	flags;
+#define VFIO_PCI_HOT_RESET_FLAG_IOMMUFD_DEV_ID	(1 << 0)
+#define VFIO_PCI_HOT_RESET_FLAG_RESETTABLE	(1 << 1)
 	__u32	count;
 	struct vfio_pci_dependent_device	devices[];
 };
