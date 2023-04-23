@@ -126,6 +126,8 @@ TEST_F(iommufd, cmd_length)
 	TEST_LENGTH(iommu_ioas_copy, IOMMU_IOAS_COPY, src_iova);
 	TEST_LENGTH(iommu_ioas_unmap, IOMMU_IOAS_UNMAP, length);
 	TEST_LENGTH(iommu_option, IOMMU_OPTION, val64);
+	TEST_LENGTH(iommu_set_dev_data, IOMMU_SET_DEV_DATA, data_len);
+	TEST_LENGTH(iommu_unset_dev_data, IOMMU_UNSET_DEV_DATA, dev_id);
 	TEST_LENGTH(iommu_vfio_ioas, IOMMU_VFIO_IOAS, __reserved);
 #undef TEST_LENGTH
 }
@@ -1699,6 +1701,26 @@ TEST_F(iommufd_mock_domain, alloc_hwpt)
 		test_cmd_mock_domain(hwpt_id, &stddev_id, NULL, NULL);
 		test_ioctl_destroy(stddev_id);
 		test_ioctl_destroy(hwpt_id);
+	}
+}
+
+TEST_F(iommufd_mock_domain, set_dev_data)
+{
+	struct iommu_test_device_data dev_data = {
+		.val = IOMMU_DEVICE_DATA_SELFTEST,
+	};
+	int i;
+
+	for (i = 0; i != variant->mock_domains; i++) {
+		test_err_set_dev_data(ENOENT, 0, &dev_data);
+		test_err_set_dev_data(EINVAL, self->idev_ids[i], NULL);
+		test_cmd_set_dev_data(self->idev_ids[i], &dev_data);
+		test_err_set_dev_data(EEXIST, self->idev_ids[i], &dev_data);
+		test_cmd_dev_check_data(self->idev_ids[i], dev_data.val);
+		test_err_unset_dev_data(ENOENT, 0);
+		test_cmd_unset_dev_data(self->idev_ids[i]);
+		test_err_unset_dev_data(ENOENT, self->idev_ids[i]);
+		test_cmd_dev_check_data(self->idev_ids[i], 0);
 	}
 }
 
