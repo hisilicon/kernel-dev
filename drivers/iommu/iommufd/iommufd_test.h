@@ -20,6 +20,7 @@ enum {
 	IOMMU_TEST_OP_MOCK_DOMAIN_REPLACE,
 	IOMMU_TEST_OP_ACCESS_REPLACE_IOAS,
 	IOMMU_TEST_OP_MD_CHECK_IOTLB,
+	IOMMU_TEST_OP_DEV_CHECK_DATA,
 };
 
 enum {
@@ -105,6 +106,9 @@ struct iommu_test_cmd {
 			__u32 id;
 			__u32 iotlb;
 		} check_iotlb;
+		struct {
+			__u32 val;
+		} check_dev_data;
 	};
 	__u32 last;
 };
@@ -117,6 +121,17 @@ struct iommu_test_cmd {
 struct iommu_test_hw_info {
 	__u32 flags;
 	__u32 test_reg;
+};
+
+#define IOMMU_DEVICE_DATA_SELFTEST	0xdadbeef
+
+/**
+ * struct iommu_test_device_data
+ *
+ * @val: Should be set to IOMMU_DEVICE_DATA_SELFTEST or unset to 0x0
+ */
+struct iommu_test_device_data {
+	__u32 val;
 };
 
 /* Should not be equal to any defined value in enum iommu_hwpt_type */
