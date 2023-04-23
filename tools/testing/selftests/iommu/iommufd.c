@@ -1517,6 +1517,26 @@ TEST_F(iommufd_mock_domain, alloc_hwpt)
 	}
 }
 
+TEST_F(iommufd_mock_domain, set_dev_data)
+{
+	struct iommu_test_device_data dev_data = {
+		.val = IOMMU_DEVICE_DATA_SELFTEST,
+	};
+	int i;
+
+	for (i = 0; i != variant->mock_domains; i++) {
+		test_err_device_set_data(ENOENT, 0, &dev_data);
+		test_err_device_set_data(EINVAL, self->idev_ids[i], NULL);
+		test_cmd_device_set_data(self->idev_ids[i], &dev_data);
+		test_err_device_set_data(EEXIST, self->idev_ids[i], &dev_data);
+		test_cmd_dev_check_data(self->idev_ids[i], dev_data.val);
+		test_err_device_unset_data(ENOENT, 0);
+		test_cmd_device_unset_data(self->idev_ids[i]);
+		test_err_device_unset_data(ENOENT, self->idev_ids[i]);
+		test_cmd_dev_check_data(self->idev_ids[i], 0);
+	}
+}
+
 /* VFIO compatibility IOCTLs */
 
 TEST_F(iommufd, simple_ioctls)
