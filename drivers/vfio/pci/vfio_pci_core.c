@@ -798,6 +798,9 @@ vfio_devset_iommufd_has_group(struct vfio_device_set *dev_set,
 
 	lockdep_assert_held(&dev_set->lock);
 
+	if (!iommu_group)
+		return false;
+
 	list_for_each_entry(cur, &dev_set->device_list, dev_set_list) {
 		grp = iommu_group_get(cur->dev);
 		if (!grp)
@@ -840,8 +843,19 @@ static int vfio_pci_fill_devs(struct pci_dev *pdev, void *data)
 		return -EAGAIN; /* Something changed, try again */
 
 	iommu_group = iommu_group_get(&pdev->dev);
-	if (!iommu_group)
-		return -EPERM; /* Cannot reset non-isolated devices */
+	/*
+	 * With CONFIG_VFIO_GROUP enabled, device should always have
+	 * iommu_group.
+	 */
+	if (IS_ENABLED(CONFIG_VFIO_GROUP) && !iommu_group)
+		return -EPERM;
+
+	/*
+	 * With CONFIG_VFIO_GROUP disabled, only cdev interface is
+	 * available.
+	 */
+	if (WARN_ON(unlikely(!IS_ENABLED(CONFIG_VFIO_GROUP) && !fill->devid)))
+		return -EINVAL;
 
 	if (fill->devid) {
 		struct vfio_device *vdev;
@@ -875,7 +889,8 @@ static int vfio_pci_fill_devs(struct pci_dev *pdev, void *data)
 	fill->devices[fill->cur].bus = pdev->bus->number;
 	fill->devices[fill->cur].devfn = pdev->devfn;
 	fill->cur++;
-	iommu_group_put(iommu_group);
+	if (iommu_group)
+		iommu_group_put(iommu_group);
 	return 0;
 }
 
