@@ -1016,7 +1016,7 @@ void kvm_stage2_clear_dbm(struct kvm *kvm, struct kvm_memory_slot *slot,
 	phys_addr_t addr = base_gfn << PAGE_SHIFT;
 	phys_addr_t end = (base_gfn + npages) << PAGE_SHIFT;
 
-	stage2_apply_range_resched(&kvm->arch.mmu, addr, end, kvm_pgtable_stage2_clear_dbm);
+	stage2_apply_range(&kvm->arch.mmu, addr, end, kvm_pgtable_stage2_clear_dbm, false);
 }
 
 void kvm_stage2_set_dbm(struct kvm *kvm, struct kvm_memory_slot *slot,
@@ -1026,7 +1026,7 @@ void kvm_stage2_set_dbm(struct kvm *kvm, struct kvm_memory_slot *slot,
 	phys_addr_t addr = base_gfn << PAGE_SHIFT;
 	phys_addr_t end = (base_gfn + npages) << PAGE_SHIFT;
 
-	stage2_apply_range_resched(&kvm->arch.mmu, addr, end, kvm_pgtable_stage2_set_dbm);
+	stage2_apply_range(&kvm->arch.mmu, addr, end, kvm_pgtable_stage2_set_dbm, false);
 }
 
 void kvm_stage2_sync_dirty(struct kvm *kvm, struct kvm_memory_slot *slot,
@@ -1036,7 +1036,7 @@ void kvm_stage2_sync_dirty(struct kvm *kvm, struct kvm_memory_slot *slot,
 	phys_addr_t addr = base_gfn << PAGE_SHIFT;
 	phys_addr_t end = (base_gfn + npages) << PAGE_SHIFT;
 
-	stage2_apply_range_resched(&kvm->arch.mmu, addr, end, kvm_pgtable_stage2_sync_dirty);
+	stage2_apply_range(&kvm->arch.mmu, addr, end, kvm_pgtable_stage2_sync_dirty, false);
 }
 
 static void kvm_send_hwpoison_signal(unsigned long address, short lsb)
