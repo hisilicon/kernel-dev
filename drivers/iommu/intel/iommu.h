@@ -846,11 +846,18 @@ void qi_flush_pasid_cache(struct intel_iommu *iommu, u16 did, u64 granu,
 
 int qi_submit_sync(struct intel_iommu *iommu, struct qi_desc *desc,
 		   unsigned int count, unsigned long options);
+int domain_attach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu);
+void domain_detach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu);
+void device_block_translation(struct device *dev);
+int prepare_domain_attach_device(struct iommu_domain *domain,
+				 struct device *dev);
+bool intel_iommu_enforce_cache_coherency(struct iommu_domain *domain);
 void iommu_flush_iotlb_psi(struct intel_iommu *iommu,
 			   struct dmar_domain *domain,
 			   unsigned long pfn, unsigned int pages,
 			   int ih, int map);
 void intel_flush_iotlb_all(struct iommu_domain *domain);
+void domain_update_iommu_cap(struct dmar_domain *domain);
 
 /*
  * Options used in qi_submit_sync:
