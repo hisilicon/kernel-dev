@@ -834,7 +834,7 @@ int intel_pasid_setup_nested(struct intel_iommu *iommu, struct device *dev,
 	pasid_set_flptr(pte, (uintptr_t)s1_gpgd);
 
 	if (s1_cfg->flags & IOMMU_VTD_PGTBL_SRE) {
-		pasid_set_sre(pte);
+		//pasid_set_sre(pte);
 		if (s1_cfg->flags & IOMMU_VTD_PGTBL_WPE)
 			pasid_set_wpe(pte);
 	}
