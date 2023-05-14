@@ -613,3 +613,21 @@ out_put_hwpt:
 	iommufd_put_object(&hwpt->obj);
 	return rc;
 }
+
+int iommufd_hwpt_page_response(struct iommufd_ucmd *ucmd)
+{
+	struct iommufd_device *idev;
+	struct iommu_hwpt_page_response *cmd = ucmd->cmd;
+	int rc;
+
+	if (cmd->flags)
+		return -EOPNOTSUPP;
+
+	idev = iommufd_get_device(ucmd, cmd->dev_id);
+	if (IS_ERR(idev))
+		return PTR_ERR(idev);
+
+	rc = iommu_page_response(idev->dev, &cmd->resp);
+	iommufd_put_object(&idev->obj);
+	return rc;
+}

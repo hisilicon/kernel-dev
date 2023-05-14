@@ -271,6 +271,7 @@ union ucmd_buffer {
 	struct iommu_hwpt_alloc hwpt;
 	struct iommu_hw_info info;
 	struct iommu_hwpt_invalidate cache;
+	struct iommu_hwpt_page_response page_response;
 	struct iommu_ioas_alloc alloc;
 	struct iommu_ioas_allow_iovas allow_iovas;
 	struct iommu_ioas_copy ioas_copy;
@@ -335,6 +336,8 @@ static const struct iommufd_ioctl_op iommufd_ioctl_ops[] = {
 		 struct iommu_device_set_data, data_len),
 	IOCTL_OP(IOMMU_DEVICE_UNSET_DATA, iommufd_device_unset_data,
 		 struct iommu_device_unset_data, dev_id),
+	IOCTL_OP(IOMMU_PAGE_RESPONSE, iommufd_hwpt_page_response,
+		 struct iommu_hwpt_page_response, resp),
 #ifdef CONFIG_IOMMUFD_TEST
 	IOCTL_OP(IOMMU_TEST_CMD, iommufd_test, struct iommu_test_cmd, last),
 #endif
