@@ -2269,6 +2269,7 @@ arm_smmu_domain_finalise_nested(struct iommu_domain *domain,
 	smmu_domain->s1_cfg.s1fmt = s1fmt;
 	smmu_domain->s1_cfg.s1cdmax = s1cdmax;
 	smmu_domain->s1_cfg.cdcfg.cdtab_dma = s1ctxptr;
+	smmu_domain->stall_enabled = master->stall_enabled;
 	return 0;
 }
 
@@ -2555,7 +2556,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		ret = -EINVAL;
 		goto out_unlock;
 	} else if (smmu_domain->stage == ARM_SMMU_DOMAIN_S1 &&
-		   master->ssid_bits != smmu_domain->s1_cfg.s1cdmax) {
+		   master->ssid_bits < smmu_domain->s1_cfg.s1cdmax) {
 		ret = -EINVAL;
 		goto out_unlock;
 	} else if (smmu_domain->stage == ARM_SMMU_DOMAIN_S1 &&
