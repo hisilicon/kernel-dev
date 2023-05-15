@@ -843,6 +843,18 @@ struct iommufd_dirty_data {
 };
 
 /**
+ * enum iommufd_get_dirty_iova_flags - Flags for getting dirty bits
+ * @IOMMU_GET_DIRTY_IOVA_NO_CLEAR: Just read the PTEs without clearing any dirty
+ *                                 bits metadata. This flag can be passed in the
+ *                                 expectation where the next operation is
+ *                                 an unmap of the same IOVA range.
+ *
+ */
+enum iommufd_hwpt_get_dirty_iova_flags {
+	IOMMU_GET_DIRTY_IOVA_NO_CLEAR = 1,
+};
+
+/**
  * struct iommu_hwpt_get_dirty_iova - ioctl(IOMMU_HWPT_GET_DIRTY_IOVA)
  * @size: sizeof(struct iommu_hwpt_get_dirty_iova)
  * @hwpt_id: HW pagetable ID that represents the IOMMU domain.
