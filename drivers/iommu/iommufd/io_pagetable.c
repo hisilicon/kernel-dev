@@ -479,6 +479,42 @@ int iopt_read_and_clear_dirty_data(struct io_pagetable *iopt,
 	down_read(&iopt->iova_rwsem);
 	ret = iommu_read_and_clear_dirty(domain, flags, bitmap);
 	up_read(&iopt->iova_rwsem);
+
+	return ret;
+}
+
+int iopt_set_dirty_tracking(struct io_pagetable *iopt,
+			    struct iommu_domain *domain, bool enable)
+{
+	const struct iommu_domain_ops *ops = domain->ops;
+	struct iommu_dirty_bitmap dirty;
+	struct iommu_iotlb_gather gather;
+	struct iopt_area *area;
+	int ret = 0;
+
+	if (!ops->set_dirty_tracking)
+		return -EOPNOTSUPP;
+
+	iommu_dirty_bitmap_init(&dirty, NULL, &gather);
+
+	down_write(&iopt->iova_rwsem);
+	for (area = iopt_area_iter_first(iopt, 0, ULONG_MAX);
+	     area && enable;
+	     area = iopt_area_iter_next(area, 0, ULONG_MAX)) {
+		ret = ops->read_and_clear_dirty(domain,
+						iopt_area_iova(area),
+						iopt_area_length(area), 0,
+						&dirty);
+		if (ret)
+			goto out_unlock;
+	}
+
+	iommu_iotlb_sync(domain, &gather);
+
+	ret = ops->set_dirty_tracking(domain, enable);
+
+out_unlock:
+	up_write(&iopt->iova_rwsem);
 	return ret;
 }
 
