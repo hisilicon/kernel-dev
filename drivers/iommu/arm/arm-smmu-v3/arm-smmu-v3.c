@@ -2244,6 +2244,8 @@ static bool arm_smmu_capable(struct device *dev, enum iommu_cap cap)
 	case IOMMU_CAP_NOEXEC:
 	case IOMMU_CAP_DEFERRED_FLUSH:
 		return true;
+	case IOMMU_CAP_DIRTY_TRACKING:
+		return arm_smmu_dbm_capable(master->smmu);
 	default:
 		return false;
 	}
@@ -2701,6 +2703,9 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	master = dev_iommu_priv_get(dev);
 	smmu = master->smmu;
 
+	if (domain->dirty_ops && !arm_smmu_dbm_capable(smmu))
+		return -EINVAL;
+
 	mutex_lock(&smmu_domain->init_mutex);
 
 	if (!smmu_domain->smmu) {
@@ -3077,7 +3082,9 @@ arm_smmu_domain_alloc_user(struct device *dev, u32 flags,
 			   const struct iommu_user_data *user_data)
 {
 	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
-	const u32 paging_flags = IOMMU_HWPT_ALLOC_NEST_PARENT;
+	const u32 paging_flags = IOMMU_HWPT_ALLOC_NEST_PARENT |
+				 IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
+	bool enforce_dirty = flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
 	struct arm_smmu_domain *smmu_domain;
 	int ret;
 
@@ -3089,6 +3096,10 @@ arm_smmu_domain_alloc_user(struct device *dev, u32 flags,
 		return ERR_PTR(-EOPNOTSUPP);
 	if (user_data)
 		return ERR_PTR(-EINVAL);
+
+	if (enforce_dirty &&
+	    !device_iommu_capable(dev, IOMMU_CAP_DIRTY_TRACKING))
+		return ERR_PTR(-EOPNOTSUPP);
 
 	smmu_domain = arm_smmu_domain_alloc();
 	if (!smmu_domain)
@@ -3104,6 +3115,9 @@ arm_smmu_domain_alloc_user(struct device *dev, u32 flags,
 
 	smmu_domain->domain.type = IOMMU_DOMAIN_UNMANAGED;
 	smmu_domain->domain.ops = arm_smmu_ops.default_domain_ops;
+	if (enforce_dirty)
+		smmu_domain->domain.dirty_ops = &arm_smmu_dirty_ops;
+
 	ret = arm_smmu_domain_finalise(smmu_domain, master->smmu);
 	if (ret)
 		goto err_free;
@@ -4152,11 +4166,13 @@ static void arm_smmu_get_httu(struct arm_smmu_device *smmu, u32 reg)
 
 	if (smmu->dev->of_node)
 		smmu->features |= features;
-	else if (features != fw_features)
+	else if (features != fw_features) {
 		/* ACPI IORT sets the HTTU bits */
 		dev_warn(smmu->dev,
-			 "IDR0.HTTU overridden by FW configuration (0x%x)\n",
+			 "IDR0.HTTU not overridden by FW configuration (0x%x)\n",
 			 fw_features);
+		smmu->features |= features;
+	}
 }
 
 static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
