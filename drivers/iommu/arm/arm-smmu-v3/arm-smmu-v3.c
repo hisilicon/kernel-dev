@@ -2038,6 +2038,8 @@ static bool arm_smmu_capable(struct device *dev, enum iommu_cap cap)
 		return master->smmu->features & ARM_SMMU_FEAT_COHERENCY;
 	case IOMMU_CAP_NOEXEC:
 		return true;
+	case IOMMU_CAP_DIRTY:
+		return arm_smmu_dbm_capable(master->smmu);
 	default:
 		return false;
 	}
@@ -2540,6 +2542,11 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 
 	master = dev_iommu_priv_get(dev);
 	smmu = master->smmu;
+
+	if (domain->flags & IOMMU_DOMAIN_F_ENFORCE_DIRTY &&
+	    !arm_smmu_dbm_capable(smmu))
+		return -EINVAL;
+
 
 	/*
 	 * Checking that SVA is disabled ensures that this device isn't bound to
@@ -3279,6 +3286,7 @@ static const size_t arm_smmu_domain_user_data_len[] = {
 };
 
 static struct iommu_ops arm_smmu_ops = {
+	.supported_flags	= IOMMU_DOMAIN_F_ENFORCE_DIRTY,
 	.capable		= arm_smmu_capable,
 	.hw_info		= arm_smmu_hw_info,
 	.domain_alloc		= arm_smmu_domain_alloc,
