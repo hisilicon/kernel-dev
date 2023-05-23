@@ -102,17 +102,22 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 }
 
 /* Low-level queue manipulation functions */
-static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
+static int queue_ncmds(struct arm_smmu_ll_queue *q)
 {
-	u32 space, prod, cons;
+	u32 prod, cons;
 
 	prod = Q_IDX(q, q->prod);
 	cons = Q_IDX(q, q->cons);
 
 	if (Q_WRP(q, q->prod) == Q_WRP(q, q->cons))
-		space = (1 << q->max_n_shift) - (prod - cons);
+		return prod - cons;
 	else
-		space = cons - prod;
+		return (1 << q->max_n_shift) - cons + prod;
+}
+
+static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
+{
+	u32 space = (1 << q->max_n_shift) - queue_ncmds(q);
 
 	return space >= n;
 }
