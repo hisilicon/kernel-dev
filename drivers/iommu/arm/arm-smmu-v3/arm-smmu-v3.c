@@ -2024,7 +2024,8 @@ static const struct iommu_flush_ops arm_smmu_flush_ops = {
 
 static bool arm_smmu_dbm_capable(struct arm_smmu_device *smmu)
 {
-	return smmu->features & (ARM_SMMU_FEAT_HD | ARM_SMMU_FEAT_COHERENCY);
+	u32 features = ARM_SMMU_FEAT_HD | ARM_SMMU_FEAT_COHERENCY;
+	return features == (smmu->features & (ARM_SMMU_FEAT_HD | ARM_SMMU_FEAT_COHERENCY));
 }
 
 /* IOMMU API */
@@ -2346,8 +2347,12 @@ static int arm_smmu_domain_finalise(struct iommu_domain *domain,
 		.iommu_dev	= smmu->dev,
 	};
 
-	if (smmu->features & arm_smmu_dbm_capable(smmu))
+	if (arm_smmu_dbm_capable(smmu)) {
+		printk("%s: set IO_PGTABLE_QUIRK_ARM_HD\n",__func__);
 		pgtbl_cfg.quirks |= IO_PGTABLE_QUIRK_ARM_HD;
+	} else {
+		printk("%s:  No arm_smmu_dbm_capable \n",__func__);
+	}
 
 	pgtbl_ops = alloc_io_pgtable_ops(fmt, &pgtbl_cfg, smmu_domain);
 	if (!pgtbl_ops)
@@ -3881,11 +3886,13 @@ static void arm_smmu_get_httu(struct arm_smmu_device *smmu, u32 reg)
 
 	if (smmu->dev->of_node)
 		smmu->features |= features;
-	else if (features != fw_features)
+	else if (features != fw_features) {
 		/* ACPI IORT sets the HTTU bits */
-		dev_warn(smmu->dev,
-			 "IDR0.HTTU overridden by FW configuration (0x%x)\n",
+		dev_info(smmu->dev,
+			 " Shameer: IDR0.HTTU not overridden by FW configuration (0x%x)\n",
 			 fw_features);
+		smmu->features |= features;
+	}
 }
 
 static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
