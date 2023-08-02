@@ -8,6 +8,17 @@
 #include "../iommu-priv.h"
 #include "iommufd_private.h"
 
+static void iommufd_user_managed_hwpt_destroy(struct iommufd_object *obj)
+{
+	struct iommufd_hw_pagetable *hwpt =
+		container_of(obj, struct iommufd_hw_pagetable, obj);
+
+	if (hwpt->domain)
+		iommu_domain_free(hwpt->domain);
+
+	refcount_dec(&hwpt->parent->obj.users);
+}
+
 static void iommufd_kernel_managed_hwpt_destroy(struct iommufd_object *obj)
 {
 	struct iommufd_hw_pagetable *hwpt =
@@ -32,6 +43,17 @@ void iommufd_hw_pagetable_destroy(struct iommufd_object *obj)
 	container_of(obj, struct iommufd_hw_pagetable, obj)->destroy(obj);
 }
 
+static void iommufd_user_managed_hwpt_abort(struct iommufd_object *obj)
+{
+	struct iommufd_hw_pagetable *hwpt =
+		container_of(obj, struct iommufd_hw_pagetable, obj);
+
+	/* The parent->mutex must be held until finalize is called. */
+	lockdep_assert_held(&hwpt->parent->mutex);
+
+	iommufd_hw_pagetable_destroy(obj);
+}
+
 static void iommufd_kernel_managed_hwpt_abort(struct iommufd_object *obj)
 {
 	struct iommufd_hw_pagetable *hwpt =
@@ -50,6 +72,77 @@ static void iommufd_kernel_managed_hwpt_abort(struct iommufd_object *obj)
 void iommufd_hw_pagetable_abort(struct iommufd_object *obj)
 {
 	container_of(obj, struct iommufd_hw_pagetable, obj)->abort(obj);
+}
+
+/**
+ * iommufd_user_managed_hwpt_alloc() - Get a user-managed hw_pagetable
+ * @ictx: iommufd context
+ * @pt_obj: Parent object to an HWPT to associate the domain with
+ * @idev: Device to get an iommu_domain for
+ * @hwpt_type: Requested type of hw_pagetable
+ * @user_data: user_data pointer
+ *
+ * Allocate a new iommu_domain (must be IOMMU_DOMAIN_NESTED) and return it as
+ * a user-managed hw_pagetable.
+ */
+static struct iommufd_hw_pagetable *
+iommufd_user_managed_hwpt_alloc(struct iommufd_ctx *ictx,
+				struct iommufd_object *pt_obj,
+				struct iommufd_device *idev,
+				enum iommu_hwpt_type hwpt_type,
+				struct iommu_user_data *user_data,
+				bool dummy)
+{
+	struct iommufd_hw_pagetable *parent =
+		container_of(pt_obj, struct iommufd_hw_pagetable, obj);
+	const struct iommu_ops *ops = dev_iommu_ops(idev->dev);
+	struct iommufd_hw_pagetable *hwpt;
+	int rc;
+
+	if (!user_data)
+		return ERR_PTR(-EINVAL);
+	if (parent->auto_domain)
+		return ERR_PTR(-EINVAL);
+	if (hwpt_type == IOMMU_HWPT_TYPE_DEFAULT)
+		return ERR_PTR(-EINVAL);
+
+	if (!ops->domain_alloc_user)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	lockdep_assert_held(&parent->mutex);
+
+	hwpt = iommufd_object_alloc(ictx, hwpt, IOMMUFD_OBJ_HW_PAGETABLE);
+	if (IS_ERR(hwpt))
+		return hwpt;
+
+	refcount_inc(&parent->obj.users);
+	hwpt->parent = parent;
+	hwpt->user_managed = true;
+	hwpt->abort = iommufd_user_managed_hwpt_abort;
+	hwpt->destroy = iommufd_user_managed_hwpt_destroy;
+
+	hwpt->domain = ops->domain_alloc_user(idev->dev, hwpt_type,
+					      parent->domain, user_data);
+	if (IS_ERR(hwpt->domain)) {
+		rc = PTR_ERR(hwpt->domain);
+		hwpt->domain = NULL;
+		goto out_abort;
+	}
+
+	if (WARN_ON_ONCE(hwpt->domain->type != IOMMU_DOMAIN_NESTED)) {
+		rc = -EINVAL;
+		goto out_abort;
+	}
+	/* Driver is buggy by missing cache_invalidate_user in domain_ops */
+	if (WARN_ON_ONCE(!hwpt->domain->ops->cache_invalidate_user)) {
+		rc = -EINVAL;
+		goto out_abort;
+	}
+	return hwpt;
+
+out_abort:
+	iommufd_object_abort_and_destroy(ictx, &hwpt->obj);
+	return ERR_PTR(rc);
 }
 
 int iommufd_hw_pagetable_enforce_cc(struct iommufd_hw_pagetable *hwpt)
@@ -108,6 +201,7 @@ iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx,
 	if (IS_ERR(hwpt))
 		return hwpt;
 
+	mutex_init(&hwpt->mutex);
 	INIT_LIST_HEAD(&hwpt->hwpt_item);
 	/* Pairs with iommufd_hw_pagetable_destroy() */
 	refcount_inc(&ioas->obj.users);
@@ -186,9 +280,9 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 			struct iommufd_ctx *ictx, struct iommufd_object *pt_obj,
 			struct iommufd_device *idev, enum iommu_hwpt_type type,
 			struct iommu_user_data *user_data, bool flag);
+	struct iommufd_hw_pagetable *hwpt, *parent;
 	struct iommu_hwpt_alloc *cmd = ucmd->cmd;
 	struct iommu_user_data *data = NULL;
-	struct iommufd_hw_pagetable *hwpt;
 	struct iommufd_object *pt_obj;
 	struct iommufd_device *idev;
 	struct iommufd_ioas *ioas;
@@ -216,6 +310,16 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 		ioas = container_of(pt_obj, struct iommufd_ioas, obj);
 		mutex = &ioas->mutex;
 		alloc_fn = iommufd_hw_pagetable_alloc;
+		break;
+	case IOMMUFD_OBJ_HW_PAGETABLE:
+		parent = container_of(pt_obj, struct iommufd_hw_pagetable, obj);
+		/* No user-managed HWPT on top of an user-managed one */
+		if (parent->user_managed) {
+			rc = -EINVAL;
+			goto out_put_pt;
+		}
+		mutex = &parent->mutex;
+		alloc_fn = iommufd_user_managed_hwpt_alloc;
 		break;
 	default:
 		rc = -EINVAL;
