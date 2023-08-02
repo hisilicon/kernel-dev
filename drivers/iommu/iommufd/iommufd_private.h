@@ -234,6 +234,9 @@ struct iommufd_hw_pagetable {
 	struct iommufd_object obj;
 	struct iommu_domain *domain;
 
+	void (*abort)(struct iommufd_object *obj);
+	void (*destroy)(struct iommufd_object *obj);
+
 	union {
 		struct { /* kernel-managed */
 			struct iommufd_ioas *ioas;

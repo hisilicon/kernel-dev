@@ -8,7 +8,7 @@
 #include "../iommu-priv.h"
 #include "iommufd_private.h"
 
-void iommufd_hw_pagetable_destroy(struct iommufd_object *obj)
+static void iommufd_kernel_managed_hwpt_destroy(struct iommufd_object *obj)
 {
 	struct iommufd_hw_pagetable *hwpt =
 		container_of(obj, struct iommufd_hw_pagetable, obj);
@@ -27,7 +27,12 @@ void iommufd_hw_pagetable_destroy(struct iommufd_object *obj)
 	refcount_dec(&hwpt->ioas->obj.users);
 }
 
-void iommufd_hw_pagetable_abort(struct iommufd_object *obj)
+void iommufd_hw_pagetable_destroy(struct iommufd_object *obj)
+{
+	container_of(obj, struct iommufd_hw_pagetable, obj)->destroy(obj);
+}
+
+static void iommufd_kernel_managed_hwpt_abort(struct iommufd_object *obj)
 {
 	struct iommufd_hw_pagetable *hwpt =
 		container_of(obj, struct iommufd_hw_pagetable, obj);
@@ -40,6 +45,11 @@ void iommufd_hw_pagetable_abort(struct iommufd_object *obj)
 		iopt_table_remove_domain(&hwpt->ioas->iopt, hwpt->domain);
 	}
 	iommufd_hw_pagetable_destroy(obj);
+}
+
+void iommufd_hw_pagetable_abort(struct iommufd_object *obj)
+{
+	container_of(obj, struct iommufd_hw_pagetable, obj)->abort(obj);
 }
 
 int iommufd_hw_pagetable_enforce_cc(struct iommufd_hw_pagetable *hwpt)
@@ -57,7 +67,7 @@ int iommufd_hw_pagetable_enforce_cc(struct iommufd_hw_pagetable *hwpt)
 }
 
 /**
- * iommufd_hw_pagetable_alloc() - Get an iommu_domain for a device
+ * iommufd_hw_pagetable_alloc() - Get a kernel-managed iommu_domain for a device
  * @ictx: iommufd context
  * @ioas: IOAS to associate the domain with
  * @idev: Device to get an iommu_domain for
@@ -65,9 +75,9 @@ int iommufd_hw_pagetable_enforce_cc(struct iommufd_hw_pagetable *hwpt)
  * @user_data: Optional user_data pointer
  * @immediate_attach: True if idev should be attached to the hwpt
  *
- * Allocate a new iommu_domain and return it as a hw_pagetable. The HWPT
- * will be linked to the given ioas and upon return the underlying iommu_domain
- * is fully popoulated.
+ * Allocate a new iommu_domain (must be IOMMU_DOMAIN_UNMANAGED) and return it as
+ * a kernel-managed hw_pagetable. The HWPT will be linked to the given ioas and
+ * upon return the underlying iommu_domain is fully popoulated.
  *
  * The caller must hold the ioas->mutex until after
  * iommufd_object_abort_and_destroy() or iommufd_object_finalize() is called on
@@ -99,6 +109,8 @@ iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 	/* Pairs with iommufd_hw_pagetable_destroy() */
 	refcount_inc(&ioas->obj.users);
 	hwpt->ioas = ioas;
+	hwpt->abort = iommufd_kernel_managed_hwpt_abort;
+	hwpt->destroy = iommufd_kernel_managed_hwpt_destroy;
 
 	if (ops->domain_alloc_user) {
 		hwpt->domain = ops->domain_alloc_user(idev->dev, hwpt_type,
@@ -114,6 +126,16 @@ iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 			rc = -ENOMEM;
 			goto out_abort;
 		}
+	}
+
+	if (WARN_ON_ONCE(hwpt->domain->type != IOMMU_DOMAIN_UNMANAGED)) {
+		rc = -EINVAL;
+		goto out_abort;
+	}
+	/* Driver is buggy by mixing user-managed op in kernel-managed ops */
+	if (WARN_ON_ONCE(hwpt->domain->ops->cache_invalidate_user)) {
+		rc = -EINVAL;
+		goto out_abort;
 	}
 
 	/*
