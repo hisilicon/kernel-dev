@@ -250,7 +250,8 @@ struct iommufd_hw_pagetable {
 };
 
 struct iommufd_hw_pagetable *
-iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
+iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx,
+			   struct iommufd_object *pt_obj,
 			   struct iommufd_device *idev,
 			   enum iommu_hwpt_type hwpt_type,
 			   struct iommu_user_data *user_data,

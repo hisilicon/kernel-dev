@@ -539,7 +539,7 @@ iommufd_device_auto_get_domain(struct iommufd_device *idev,
 		goto out_unlock;
 	}
 
-	hwpt = iommufd_hw_pagetable_alloc(idev->ictx, ioas, idev,
+	hwpt = iommufd_hw_pagetable_alloc(idev->ictx, &ioas->obj, idev,
 					  IOMMU_HWPT_TYPE_DEFAULT,
 					  NULL, immediate_attach);
 	if (IS_ERR(hwpt)) {
