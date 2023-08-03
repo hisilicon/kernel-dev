@@ -67,6 +67,11 @@ struct kvm_pgtable_walk_data {
 	const u64			end;
 };
 
+static bool kvm_pgtable_walk_hw_dbm(const struct kvm_pgtable_visit_ctx *ctx)
+{
+	return unlikely(ctx->flags & KVM_PGTABLE_WALK_HW_DBM);
+}
+
 static bool kvm_pgtable_walk_skip_bbm_tlbi(const struct kvm_pgtable_visit_ctx *ctx)
 {
 	return unlikely(ctx->flags & KVM_PGTABLE_WALK_SKIP_BBM_TLBI);
@@ -1116,6 +1121,11 @@ static int stage2_attr_walker(const struct kvm_pgtable_visit_ctx *ctx,
 
 	if (!kvm_pte_valid(ctx->old))
 		return -EAGAIN;
+
+	/* Only apply HW DBM for last level */
+	if (kvm_pgtable_walk_hw_dbm(ctx) &&
+	    ctx->level != (KVM_PGTABLE_MAX_LEVELS - 1))
+		return 0;
 
 	data->level = ctx->level;
 	data->pte = pte;
