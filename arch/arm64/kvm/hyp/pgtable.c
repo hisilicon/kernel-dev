@@ -651,10 +651,10 @@ u64 kvm_get_vtcr(u64 mmfr0, u64 mmfr1, u32 phys_shift)
 
 #ifdef CONFIG_ARM64_HW_AFDBM
 	/*
-	 * Enable the Hardware Access Flag management, unconditionally
-	 * on all CPUs. In systems that have asymmetric support for the feature
-	 * this allows KVM to leverage hardware support on the subset of cores
-	 * that implement the feature.
+	 * Enable the Hardware Access Flag management and Dirty State management,
+	 * unconditionally on all CPUs. In systems that have asymmetric support for
+	 * the feature this allows KVM to leverage hardware support on the subset of
+	 * cores that implement the feature.
 	 *
 	 * The architecture requires VTCR_EL2.HA to be RES0 (thus ignored by
 	 * hardware) on implementations that do not advertise support for the
@@ -663,7 +663,7 @@ u64 kvm_get_vtcr(u64 mmfr0, u64 mmfr1, u32 phys_shift)
 	 * HAFDBS. Here be dragons.
 	 */
 	if (!cpus_have_final_cap(ARM64_WORKAROUND_AMPERE_AC03_CPU_38))
-		vtcr |= VTCR_EL2_HA;
+		vtcr |= VTCR_EL2_HA | VTCR_EL2_HD;
 #endif /* CONFIG_ARM64_HW_AFDBM */
 
 	/* Set the vmid bits */
