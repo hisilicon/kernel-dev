@@ -69,6 +69,11 @@ struct kvm_pgtable_walk_data {
 	const u64			end;
 };
 
+static bool kvm_pgtable_walk_wc_hint(const struct kvm_pgtable_visit_ctx *ctx)
+{
+	return ctx->flags & KVM_PGTABLE_WALK_WC_HINT;
+}
+
 static bool kvm_pgtable_walk_hw_dbm(const struct kvm_pgtable_visit_ctx *ctx)
 {
 	return unlikely(ctx->flags & KVM_PGTABLE_WALK_HW_DBM);
@@ -751,13 +756,24 @@ static bool stage2_pte_writeable(kvm_pte_t pte)
 	return pte & KVM_PTE_LEAF_ATTR_LO_S2_S2AP_W;
 }
 
+static bool stage2_pte_is_write_clean(kvm_pte_t pte)
+{
+	return kvm_pte_valid(pte) && (pte & KVM_PGTABLE_PROT_WC);
+}
+
+static bool stage2_pte_make_write_clean(const struct kvm_pgtable_visit_ctx *ctx,
+					kvm_pte_t new)
+{
+	return (stage2_pte_writeable(ctx->old) && !stage2_pte_writeable(new));
+}
+
 static void kvm_update_hw_dbm(const struct kvm_pgtable_visit_ctx *ctx,
 			      kvm_pte_t new)
 {
 	kvm_pte_t old_pte, pte = ctx->old;
 
-	/* Only set DBM if page is writeable */
-	if ((new & KVM_PTE_LEAF_ATTR_HI_S2_DBM) && !stage2_pte_writeable(pte))
+	/* Only set DBM if page is writeable-clean */
+	if ((new & KVM_PTE_LEAF_ATTR_HI_S2_DBM) && !stage2_pte_is_write_clean(pte))
 		return;
 
 	/* Clear DBM walk is not shared, update */
@@ -785,6 +801,9 @@ static bool stage2_try_set_pte(const struct kvm_pgtable_visit_ctx *ctx, kvm_pte_
 	}
 
 	if (!kvm_pgtable_walk_shared(ctx)) {
+		if (kvm_pgtable_walk_wc_hint(ctx) &&
+		    stage2_pte_make_write_clean(ctx, new))
+			new |= KVM_PGTABLE_PROT_WC;
 		WRITE_ONCE(*ctx->ptep, new);
 		return true;
 	}
@@ -1254,7 +1273,7 @@ int kvm_pgtable_stage2_wrprotect(struct kvm_pgtable *pgt, u64 addr, u64 size)
 {
 	return stage2_update_leaf_attrs(pgt, addr, size, 0,
 					KVM_PTE_LEAF_ATTR_LO_S2_S2AP_W,
-					NULL, NULL, 0);
+					NULL, NULL, KVM_PGTABLE_WALK_WC_HINT);
 }
 
 kvm_pte_t kvm_pgtable_stage2_mkyoung(struct kvm_pgtable *pgt, u64 addr)

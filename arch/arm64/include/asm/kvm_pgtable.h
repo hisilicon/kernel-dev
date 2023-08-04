@@ -190,6 +190,8 @@ enum kvm_pgtable_prot {
 #define KVM_PGTABLE_PROT_RW	(KVM_PGTABLE_PROT_R | KVM_PGTABLE_PROT_W)
 #define KVM_PGTABLE_PROT_RWX	(KVM_PGTABLE_PROT_RW | KVM_PGTABLE_PROT_X)
 
+#define KVM_PGTABLE_PROT_WC	KVM_PGTABLE_PROT_SW0  /*write-clean*/
+
 #define PKVM_HOST_MEM_PROT	KVM_PGTABLE_PROT_RWX
 #define PKVM_HOST_MMIO_PROT	KVM_PGTABLE_PROT_RW
 
@@ -221,6 +223,8 @@ typedef bool (*kvm_pgtable_force_pte_cb_t)(u64 addr, u64 end,
  *					operations required.
  * @KVM_PGTABLE_WALK_HW_DBM:		Indicates that the attribute update is
  *					HW DBM related.
+ * @KVM_PGTABLE_WALK_WC_HINT:		Update the page as writeable-clean(software attribute)
+ *					if we are write protecting a writeable page.
  */
 enum kvm_pgtable_walk_flags {
 	KVM_PGTABLE_WALK_LEAF			= BIT(0),
@@ -231,6 +235,7 @@ enum kvm_pgtable_walk_flags {
 	KVM_PGTABLE_WALK_SKIP_BBM_TLBI		= BIT(5),
 	KVM_PGTABLE_WALK_SKIP_CMO		= BIT(6),
 	KVM_PGTABLE_WALK_HW_DBM			= BIT(7),
+	KVM_PGTABLE_WALK_WC_HINT		= BIT(8),
 };
 
 struct kvm_pgtable_visit_ctx {
