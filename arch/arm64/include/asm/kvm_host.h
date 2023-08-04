@@ -175,6 +175,8 @@ struct kvm_s2_mmu {
 	struct kvm_mmu_memory_cache split_page_cache;
 	uint64_t split_page_chunk_size;
 
+	bool hwdbm_enabled;  /* KVM_CAP_ARM_HW_DBM enabled */
+
 	struct kvm_arch *arch;
 };
 

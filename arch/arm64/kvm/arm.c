@@ -115,6 +115,16 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		}
 		mutex_unlock(&kvm->slots_lock);
 		break;
+	case KVM_CAP_ARM_HW_DBM:
+		mutex_lock(&kvm->slots_lock);
+		if (!system_supports_hw_dbm()) {
+			r = -EINVAL;
+		} else {
+			r = 0;
+			kvm->arch.mmu.hwdbm_enabled = true;
+		}
+		mutex_unlock(&kvm->slots_lock);
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -315,6 +325,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_ARM_SUPPORTED_BLOCK_SIZES:
 		r = kvm_supported_block_sizes();
+		break;
+	case KVM_CAP_ARM_HW_DBM:
+		r = system_supports_hw_dbm();
 		break;
 	default:
 		r = 0;
