@@ -4088,6 +4088,47 @@ static struct iommu_domain *intel_iommu_domain_alloc(unsigned type)
 	return NULL;
 }
 
+static struct iommu_domain *
+intel_iommu_domain_alloc_user(struct device *dev,
+			      enum iommu_hwpt_type hwpt_type,
+			      const struct iommu_user_data *user_data)
+{
+	const size_t min_len =
+		offsetofend(struct iommu_hwpt_kernel, flags);
+
+	if (hwpt_type != IOMMU_HWPT_TYPE_DEFAULT &&
+	    hwpt_type != IOMMU_HWPT_TYPE_KERNEL)
+		return ERR_PTR(-EINVAL);
+
+	if (user_data) {
+		struct iommu_hwpt_kernel data;
+		struct intel_iommu *iommu;
+		int rc;
+
+		iommu = device_to_iommu(dev, NULL, NULL);
+		if (!iommu)
+			return ERR_PTR(-ENODEV);
+
+		rc = iommu_copy_user_data(&data, user_data,
+					  sizeof(data), min_len);
+		if (rc)
+			return ERR_PTR(rc);
+		if (data.flags & ~IOMMU_HWPT_KERNEL_IOPTE_S1)
+			return ERR_PTR(-EOPNOTSUPP);
+		/*
+		 * Intel IOMMU driver only supports using stage-2 IOPTE
+		 * format for unmanaged domains on nested translation
+		 * capable platforms. Otherwise, the IOPTE selection is
+		 * ignored.
+		 */
+		if (ecap_nest(iommu->ecap) &&
+		    data.flags & IOMMU_HWPT_KERNEL_IOPTE_S1)
+			return ERR_PTR(-EOPNOTSUPP);
+	}
+
+	return iommu_domain_alloc(dev->bus);
+}
+
 static void intel_iommu_domain_free(struct iommu_domain *domain)
 {
 	if (domain != &si_domain->domain && domain != &blocking_domain)
@@ -4754,6 +4795,7 @@ const struct iommu_ops intel_iommu_ops = {
 	.capable		= intel_iommu_capable,
 	.hw_info		= intel_iommu_hw_info,
 	.domain_alloc		= intel_iommu_domain_alloc,
+	.domain_alloc_user	= intel_iommu_domain_alloc_user,
 	.probe_device		= intel_iommu_probe_device,
 	.probe_finalize		= intel_iommu_probe_finalize,
 	.release_device		= intel_iommu_release_device,
