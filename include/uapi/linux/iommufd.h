@@ -348,11 +348,38 @@ struct iommu_vfio_ioas {
 #define IOMMU_VFIO_IOAS _IO(IOMMUFD_TYPE, IOMMUFD_CMD_VFIO_IOAS)
 
 /**
+ * enum iommu_hwpt_kernel_flags - Flags for kernel-managed hwpt allocation
+ * @IOMMU_HWPT_KERNEL_IOPTE_S1: This flag determines the IOPTE format for the
+ *                              domain to be allocated. If set, use stage-1
+ *                              format IOPTEs otherwise uses stage-2 format
+ *                              IOPTEs. This flag is meaningful when the
+ *                              underlying driver supports nested translation.
+ *                              This can be deduced by the output of ioctl
+ *                              IOMMU_GET_HW_INFO. For the iommu drivers that
+ *                              do not support nested translation, this flag
+ *                              would be ignored.
+ */
+enum iommu_hwpt_kernel_flags {
+	IOMMU_HWPT_KERNEL_IOPTE_S1 = 1 << 0,
+};
+
+/**
+ * struct iommu_hwpt_kernel - Info for kernel-managed hwpt
+ *                            (IOMMU_HWPT_TYPE_KERNEL)
+ * @flags: Combination of enum iommu_hwpt_kernel_flags
+ */
+struct iommu_hwpt_kernel {
+	__aligned_u64 flags;
+};
+
+/**
  * enum iommu_hwpt_type - IOMMU HWPT Type
  * @IOMMU_HWPT_TYPE_DEFAULT: default
+ * @IOMMU_HWPT_TYPE_KERNEL: Kernel-managed I/O page table with user-parameter
  */
 enum iommu_hwpt_type {
 	IOMMU_HWPT_TYPE_DEFAULT,
+	IOMMU_HWPT_TYPE_KERNEL,
 };
 
 /**
