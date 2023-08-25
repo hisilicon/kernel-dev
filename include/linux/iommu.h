@@ -357,6 +357,7 @@ struct iommu_ops {
 	struct iommu_domain *(*domain_alloc)(unsigned iommu_domain_type);
 	struct iommu_domain *(*domain_alloc_user)(struct device *dev,
 						  enum iommu_hwpt_type hwpt_type,
+						  struct iommu_domain *parent,
 						  const struct iommu_user_data *user_data);
 
 	struct iommu_device *(*probe_device)(struct device *dev);

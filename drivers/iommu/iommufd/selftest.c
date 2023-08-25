@@ -205,6 +205,7 @@ static struct iommu_domain *mock_domain_alloc(unsigned int iommu_domain_type)
 
 static struct iommu_domain *mock_domain_alloc_user(struct device *dev,
 						   enum iommu_hwpt_type hwpt_type,
+						   struct iommu_domain *parent,
 						   const struct iommu_user_data *user_data)
 {
 	struct iommu_domain *(*alloc_fn)(unsigned int iommu_domain_type,
@@ -215,13 +216,13 @@ static struct iommu_domain *mock_domain_alloc_user(struct device *dev,
 
 	switch (hwpt_type) {
 	case IOMMU_HWPT_TYPE_DEFAULT:
-		if (user_data)
+		if (user_data || parent)
 			return ERR_PTR(-EINVAL);
 		min_len = data_len = 0;
 		alloc_fn = __mock_domain_alloc_kernel;
 		break;
 	case IOMMU_HWPT_TYPE_KERNEL:
-		if (!user_data)
+		if (!user_data || parent)
 			return ERR_PTR(-EINVAL);
 		min_len = offsetofend(struct iommu_hwpt_kernel, flags);
 		data_len = sizeof(struct iommu_hwpt_kernel);

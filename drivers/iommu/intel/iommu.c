@@ -4091,6 +4091,7 @@ static struct iommu_domain *intel_iommu_domain_alloc(unsigned type)
 static struct iommu_domain *
 intel_iommu_domain_alloc_user(struct device *dev,
 			      enum iommu_hwpt_type hwpt_type,
+			      struct iommu_domain *parent,
 			      const struct iommu_user_data *user_data)
 {
 	const size_t min_len =
