@@ -77,6 +77,9 @@ int iopt_table_add_domain(struct io_pagetable *iopt,
 			  struct iommu_domain *domain);
 void iopt_table_remove_domain(struct io_pagetable *iopt,
 			      struct iommu_domain *domain);
+int __iopt_table_enforce_dev_resv_regions(struct io_pagetable *iopt,
+					struct device *dev,
+					phys_addr_t *sw_msi_start);
 int iopt_table_enforce_dev_resv_regions(struct io_pagetable *iopt,
 					struct device *dev,
 					phys_addr_t *sw_msi_start);
@@ -84,6 +87,7 @@ int iopt_set_allow_iova(struct io_pagetable *iopt,
 			struct rb_root_cached *allowed_iova);
 int iopt_reserve_iova(struct io_pagetable *iopt, unsigned long start,
 		      unsigned long last, void *owner);
+void __iopt_remove_reserved_iova(struct io_pagetable *iopt, void *owner);
 void iopt_remove_reserved_iova(struct io_pagetable *iopt, void *owner);
 int iopt_cut_iova(struct io_pagetable *iopt, unsigned long *iovas,
 		  size_t num_iovas);
