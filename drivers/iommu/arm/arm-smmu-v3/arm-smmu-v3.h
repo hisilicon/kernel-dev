@@ -755,6 +755,7 @@ struct arm_smmu_domain {
 
 	struct mmu_notifier		mmu_notifier;
 	bool				btm_invalidation;
+	struct kvm			*kvm;
 };
 
 struct arm_smmu_nested_domain {
