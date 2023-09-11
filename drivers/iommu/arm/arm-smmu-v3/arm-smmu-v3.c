@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <linux/pci-ats.h>
 #include <linux/platform_device.h>
+#include <linux/kvm_host.h>
 #include <uapi/linux/iommufd.h>
 
 #include "arm-smmu-v3.h"
@@ -2118,7 +2119,9 @@ static void arm_smmu_domain_free(struct iommu_domain *domain)
 		mutex_unlock(&arm_smmu_asid_lock);
 	} else {
 		struct arm_smmu_s2_cfg *cfg = &smmu_domain->s2_cfg;
-		if (cfg->vmid)
+		if (cfg->vmid  && smmu_domain->kvm)
+			kvm_pinned_vmid_put(smmu_domain->kvm);
+		else if (cfg->vmid)
 			arm_smmu_bitmap_free(smmu->vmid_map, cfg->vmid);
 	}
 
@@ -2205,7 +2208,11 @@ static int arm_smmu_domain_finalise_s2(struct arm_smmu_domain *smmu_domain,
 	struct arm_smmu_s2_cfg *cfg = &smmu_domain->s2_cfg;
 	typeof(&pgtbl_cfg->arm_lpae_s2_cfg.vtcr) vtcr;
 
-	vmid = arm_smmu_bitmap_alloc(smmu->vmid_map, smmu->vmid_bits);
+	if (smmu_domain->kvm)
+		vmid = kvm_pinned_vmid_get(smmu_domain->kvm);
+	else
+		vmid = arm_smmu_bitmap_alloc(smmu->vmid_map, smmu->vmid_bits);
+
 	if (vmid < 0)
 		return vmid;
 
@@ -2291,6 +2298,7 @@ arm_smmu_domain_finalise_nested(struct iommu_domain *domain,
 
 static int arm_smmu_domain_finalise(struct iommu_domain *domain,
 				    struct arm_smmu_master *master,
+				    struct kvm *kvm,
 				    const struct iommu_hwpt_arm_smmuv3 *user_cfg)
 {
 	int ret;
@@ -2317,8 +2325,10 @@ static int arm_smmu_domain_finalise(struct iommu_domain *domain,
 
 	if (user_cfg_s2 && !(smmu->features & ARM_SMMU_FEAT_TRANS_S2))
 		return -EINVAL;
-	if (user_cfg_s2)
+	if (user_cfg_s2) {
 		smmu_domain->stage = ARM_SMMU_DOMAIN_S2;
+		smmu_domain->kvm = kvm;
+	}
 
 	/* Restrict the stage to what we can actually support */
 	if (!(smmu->features & ARM_SMMU_FEAT_TRANS_S1))
@@ -2563,7 +2573,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 
 	if (!smmu_domain->smmu) {
 		smmu_domain->smmu = smmu;
-		ret = arm_smmu_domain_finalise(domain, master, NULL);
+		ret = arm_smmu_domain_finalise(domain, master, NULL, NULL);
 		if (ret) {
 			smmu_domain->smmu = NULL;
 			goto out_unlock;
@@ -3201,6 +3211,7 @@ static struct iommu_domain *
 __arm_smmu_domain_alloc(unsigned type,
 			struct arm_smmu_domain *s2,
 			struct arm_smmu_master *master,
+			struct kvm *kvm,
 			const struct iommu_hwpt_arm_smmuv3 *user_cfg)
 {
 	struct arm_smmu_domain *smmu_domain;
@@ -3242,7 +3253,7 @@ __arm_smmu_domain_alloc(unsigned type,
 
 	if (master) {
 		smmu_domain->smmu = master->smmu;
-		ret = arm_smmu_domain_finalise(domain, master, user_cfg);
+		ret = arm_smmu_domain_finalise(domain, master, kvm, user_cfg);
 		if (ret) {
 			kfree(smmu_domain);
 			return NULL;
@@ -3254,7 +3265,7 @@ __arm_smmu_domain_alloc(unsigned type,
 
 static struct iommu_domain *arm_smmu_domain_alloc(unsigned type)
 {
-	return __arm_smmu_domain_alloc(type, NULL, NULL, NULL);
+	return __arm_smmu_domain_alloc(type, NULL, NULL, NULL, NULL);
 }
 
 static struct iommu_domain *
@@ -3297,7 +3308,7 @@ arm_smmu_domain_alloc_user(struct device *dev, enum iommu_hwpt_type hwpt_type,
 		s2 = to_smmu_domain(parent);
 	}
 
-	return __arm_smmu_domain_alloc(type, s2, master, user_cfg);
+	return __arm_smmu_domain_alloc(type, s2, master, kvm, user_cfg);
 }
 
 static struct iommu_ops arm_smmu_ops = {

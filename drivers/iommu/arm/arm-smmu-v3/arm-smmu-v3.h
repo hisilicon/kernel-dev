@@ -743,6 +743,7 @@ struct arm_smmu_domain {
 	spinlock_t			devices_lock;
 
 	struct list_head		mmu_notifiers;
+	struct kvm			*kvm;
 };
 
 static inline struct arm_smmu_domain *to_smmu_domain(struct iommu_domain *dom)
