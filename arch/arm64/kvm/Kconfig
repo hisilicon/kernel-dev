@@ -43,6 +43,7 @@ menuconfig KVM
 	select GUEST_PERF_EVENTS if PERF_EVENTS
 	select INTERVAL_TREE
 	select XARRAY_MULTI
+	select HAVE_KVM_PINNED_VMID
 	help
 	  Support hosting virtualized guest machines.
 
