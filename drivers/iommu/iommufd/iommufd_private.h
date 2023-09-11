@@ -24,6 +24,9 @@ struct iommufd_ctx {
 	/* Compatibility with VFIO no iommu */
 	u8 no_iommu_mode;
 	struct iommufd_ioas *vfio_ioas;
+
+	struct kvm *kvm;
+	void (*put_kvm)(struct kvm *kvm);
 };
 
 /*

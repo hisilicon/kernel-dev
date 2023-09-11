@@ -18,6 +18,9 @@
 #include <uapi/linux/iommufd.h>
 #include <linux/iommufd.h>
 
+#ifdef CONFIG_HAVE_KVM
+#include <linux/kvm_host.h>
+#endif
 #include "io_pagetable.h"
 #include "iommufd_private.h"
 #include "iommufd_test.h"
@@ -242,6 +245,63 @@ static int iommufd_fops_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+#ifdef CONFIG_HAVE_KVM
+static void iommufd_ctx_get_kvm_safe(struct iommufd_ctx *ictx, struct kvm *kvm)
+{
+	void (*pfn)(struct kvm *kvm);
+	bool (*fn)(struct kvm *kvm);
+	bool ret;
+
+	if (ictx->kvm || !kvm)
+		return;
+
+	pfn = symbol_get(kvm_put_kvm);
+	if (WARN_ON(!pfn))
+		return;
+
+	fn = symbol_get(kvm_get_kvm_safe);
+	if (WARN_ON(!fn)) {
+		symbol_put(kvm_put_kvm);
+		return;
+	}
+
+	ret = fn(kvm);
+	symbol_put(kvm_get_kvm_safe);
+	if (!ret) {
+		symbol_put(kvm_put_kvm);
+		return;
+	}
+
+	ictx->put_kvm = pfn;
+	ictx->kvm = kvm;
+}
+
+static void iommufd_ctx_put_kvm(struct iommufd_ctx *ictx)
+{
+	if (!ictx->kvm)
+		return;
+
+	if (WARN_ON(!ictx->put_kvm))
+		goto clear;
+
+	ictx->put_kvm(ictx->kvm);
+	ictx->put_kvm = NULL;
+	symbol_put(kvm_put_kvm);
+
+clear:
+	ictx->kvm = NULL;
+}
+#else
+static inline void iommufd_ctx_get_kvm_safe(struct iommufd_ctx ictx,
+					    struct kvm *kvm)
+{
+}
+
+static inline void iommufd_ctx_put_kvm(struct iommufd_ctx *ictx)
+{
+}
+#endif
+
 static int iommufd_fops_release(struct inode *inode, struct file *filp)
 {
 	struct iommufd_ctx *ictx = filp->private_data;
@@ -273,6 +333,7 @@ static int iommufd_fops_release(struct inode *inode, struct file *filp)
 			break;
 	}
 	WARN_ON(!xa_empty(&ictx->groups));
+	iommufd_ctx_put_kvm(ictx);
 	kfree(ictx);
 	return 0;
 }
@@ -480,6 +541,12 @@ void iommufd_ctx_put(struct iommufd_ctx *ictx)
 	fput(ictx->file);
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_ctx_put, IOMMUFD);
+
+void iommufd_ctx_set_kvm(struct iommufd_ctx *ictx, struct kvm *kvm)
+{
+	iommufd_ctx_get_kvm_safe(ictx, kvm);
+}
+EXPORT_SYMBOL_NS_GPL(iommufd_ctx_set_kvm, IOMMUFD);
 
 static const struct iommufd_object_ops iommufd_object_ops[] = {
 	[IOMMUFD_OBJ_ACCESS] = {
