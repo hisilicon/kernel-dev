@@ -42,6 +42,7 @@ struct notifier_block;
 struct iommu_sva;
 struct iommu_fault_event;
 struct iommu_dma_cookie;
+struct kvm;
 
 /* iommu fault flags */
 #define IOMMU_FAULT_READ	0x0
@@ -363,6 +364,7 @@ struct iommu_ops {
 	struct iommu_domain *(*domain_alloc_user)(struct device *dev,
 						  enum iommu_hwpt_type hwpt_type,
 						  struct iommu_domain *parent,
+						  struct kvm *kvm,
 						  const struct iommu_user_data *user_data);
 
 	struct iommu_device *(*probe_device)(struct device *dev);

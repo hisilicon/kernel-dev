@@ -122,7 +122,8 @@ iommufd_user_managed_hwpt_alloc(struct iommufd_ctx *ictx,
 	hwpt->destroy = iommufd_user_managed_hwpt_destroy;
 
 	hwpt->domain = ops->domain_alloc_user(idev->dev, hwpt_type,
-					      parent->domain, user_data);
+					      parent->domain, ictx->kvm,
+					      user_data);
 	if (IS_ERR(hwpt->domain)) {
 		rc = PTR_ERR(hwpt->domain);
 		hwpt->domain = NULL;
@@ -215,7 +216,8 @@ iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx,
 
 	if (ops->domain_alloc_user) {
 		hwpt->domain = ops->domain_alloc_user(idev->dev, hwpt_type,
-						      NULL, user_data);
+						      NULL, ictx->kvm,
+						      user_data);
 		if (IS_ERR(hwpt->domain)) {
 			rc = PTR_ERR(hwpt->domain);
 			hwpt->domain = NULL;
