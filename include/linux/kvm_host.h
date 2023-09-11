@@ -2264,6 +2264,22 @@ static inline void kvm_handle_signal_exit(struct kvm_vcpu *vcpu)
 }
 #endif /* CONFIG_KVM_XFER_TO_GUEST_WORK */
 
+int kvm_arch_pinned_vmid_get(struct kvm *kvm);
+void kvm_arch_pinned_vmid_put(struct kvm *kvm);
+
+#ifdef CONFIG_HAVE_KVM_PINNED_VMID
+int kvm_pinned_vmid_get(struct kvm *kvm);
+void kvm_pinned_vmid_put(struct kvm *kvm);
+#else
+static inline int kvm_pinned_vmid_get(struct kvm *kvm)
+{
+	return -EINVAL;
+}
+
+static inline void kvm_pinned_vmid_put(struct kvm *kvm)
+{
+}
+#endif
 /*
  * If more than one page is being (un)accounted, @virt must be the address of
  * the first page of a block of pages what were allocated together (i.e
