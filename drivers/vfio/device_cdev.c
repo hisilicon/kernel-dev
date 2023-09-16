@@ -46,13 +46,6 @@ err_put_registration:
 	return ret;
 }
 
-static void vfio_df_get_kvm_safe(struct vfio_device_file *df)
-{
-	spin_lock(&df->kvm_ref_lock);
-	vfio_device_get_kvm_safe(df->device, df->kvm);
-	spin_unlock(&df->kvm_ref_lock);
-}
-
 long vfio_df_ioctl_bind_iommufd(struct vfio_device_file *df,
 				struct vfio_device_bind_iommufd __user *arg)
 {
@@ -99,7 +92,7 @@ long vfio_df_ioctl_bind_iommufd(struct vfio_device_file *df,
 	 * a reference.  This reference is held until device closed.
 	 * Save the pointer in the device for use by drivers.
 	 */
-	vfio_df_get_kvm_safe(df);
+	vfio_device_get_kvm_safe(df->device, &df->kvm_ref);
 
 	ret = vfio_df_open(df);
 	if (ret)

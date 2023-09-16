@@ -157,13 +157,6 @@ out_unlock:
 	return ret;
 }
 
-static void vfio_device_group_get_kvm_safe(struct vfio_device *device)
-{
-	spin_lock(&device->group->kvm_ref_lock);
-	vfio_device_get_kvm_safe(device, device->group->kvm);
-	spin_unlock(&device->group->kvm_ref_lock);
-}
-
 static int vfio_df_group_open(struct vfio_device_file *df)
 {
 	struct vfio_device *device = df->device;
@@ -184,7 +177,7 @@ static int vfio_df_group_open(struct vfio_device_file *df)
 	 * the pointer in the device for use by drivers.
 	 */
 	if (device->open_count == 0)
-		vfio_device_group_get_kvm_safe(device);
+		vfio_device_get_kvm_safe(device, &device->group->kvm_ref);
 
 	df->iommufd = device->group->iommufd;
 	if (df->iommufd && vfio_device_is_noiommu(device) && device->open_count == 0) {
@@ -560,7 +553,7 @@ static struct vfio_group *vfio_group_alloc(struct iommu_group *iommu_group,
 
 	refcount_set(&group->drivers, 1);
 	mutex_init(&group->group_lock);
-	spin_lock_init(&group->kvm_ref_lock);
+	spin_lock_init(&group->kvm_ref.lock);
 	INIT_LIST_HEAD(&group->device_list);
 	mutex_init(&group->device_lock);
 	group->iommu_group = iommu_group;
@@ -882,13 +875,6 @@ bool vfio_group_enforced_coherent(struct vfio_group *group)
 	}
 	mutex_unlock(&group->device_lock);
 	return ret;
-}
-
-void vfio_group_set_kvm(struct vfio_group *group, struct kvm *kvm)
-{
-	spin_lock(&group->kvm_ref_lock);
-	group->kvm = kvm;
-	spin_unlock(&group->kvm_ref_lock);
 }
 
 /**

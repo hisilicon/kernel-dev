@@ -12,9 +12,15 @@
 #include <linux/module.h>
 #include <linux/vfio.h>
 
+struct kvm;
 struct iommufd_ctx;
 struct iommu_group;
 struct vfio_container;
+
+struct vfio_kvm_reference {
+	struct kvm			*kvm;
+	spinlock_t			lock;
+};
 
 struct vfio_device_file {
 	struct vfio_device *device;
@@ -22,8 +28,7 @@ struct vfio_device_file {
 
 	u8 access_granted;
 	u32 devid; /* only valid when iommufd is valid */
-	spinlock_t kvm_ref_lock; /* protect kvm field */
-	struct kvm *kvm;
+	struct vfio_kvm_reference kvm_ref;
 	struct iommufd_ctx *iommufd; /* protected by struct vfio_device_set::lock */
 };
 
@@ -88,11 +93,10 @@ struct vfio_group {
 #endif
 	enum vfio_group_type		type;
 	struct mutex			group_lock;
-	struct kvm			*kvm;
+	struct vfio_kvm_reference	kvm_ref;
 	struct file			*opened_file;
 	struct blocking_notifier_head	notifier;
 	struct iommufd_ctx		*iommufd;
-	spinlock_t			kvm_ref_lock;
 	unsigned int			cdev_device_open_cnt;
 };
 
@@ -108,7 +112,6 @@ void vfio_device_group_unuse_iommu(struct vfio_device *device);
 void vfio_df_group_close(struct vfio_device_file *df);
 struct vfio_group *vfio_group_from_file(struct file *file);
 bool vfio_group_enforced_coherent(struct vfio_group *group);
-void vfio_group_set_kvm(struct vfio_group *group, struct kvm *kvm);
 bool vfio_device_has_container(struct vfio_device *device);
 int __init vfio_group_init(void);
 void vfio_group_cleanup(void);
@@ -169,10 +172,6 @@ static inline struct vfio_group *vfio_group_from_file(struct file *file)
 static inline bool vfio_group_enforced_coherent(struct vfio_group *group)
 {
 	return true;
-}
-
-static inline void vfio_group_set_kvm(struct vfio_group *group, struct kvm *kvm)
-{
 }
 
 static inline bool vfio_device_has_container(struct vfio_device *device)
@@ -435,11 +434,12 @@ static inline void vfio_virqfd_exit(void)
 #endif
 
 #if IS_ENABLED(CONFIG_KVM)
-void vfio_device_get_kvm_safe(struct vfio_device *device, struct kvm *kvm);
+void vfio_device_get_kvm_safe(struct vfio_device *device,
+			      struct vfio_kvm_reference *ref);
 void vfio_device_put_kvm(struct vfio_device *device);
 #else
 static inline void vfio_device_get_kvm_safe(struct vfio_device *device,
-					    struct kvm *kvm)
+					    struct vfio_kvm_reference *ref)
 {
 }
 
