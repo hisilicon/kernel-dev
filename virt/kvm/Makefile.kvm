@@ -6,7 +6,9 @@
 KVM ?= ../../../virt/kvm
 
 kvm-y := $(KVM)/kvm_main.o $(KVM)/eventfd.o $(KVM)/binary_stats.o
-kvm-$(CONFIG_KVM_VFIO) += $(KVM)/vfio.o
+ifdef CONFIG_VFIO
+kvm-y += $(KVM)/vfio.o
+endif
 kvm-$(CONFIG_KVM_MMIO) += $(KVM)/coalesced_mmio.o
 kvm-$(CONFIG_KVM_ASYNC_PF) += $(KVM)/async_pf.o
 kvm-$(CONFIG_HAVE_KVM_IRQ_ROUTING) += $(KVM)/irqchip.o

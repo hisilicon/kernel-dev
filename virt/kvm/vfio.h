@@ -2,7 +2,7 @@
 #ifndef __KVM_VFIO_H
 #define __KVM_VFIO_H
 
-#ifdef CONFIG_KVM_VFIO
+#if IS_ENABLED(CONFIG_KVM) && IS_ENABLED(CONFIG_VFIO)
 int kvm_vfio_ops_init(void);
 void kvm_vfio_ops_exit(void);
 #else
