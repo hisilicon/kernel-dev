@@ -417,9 +417,6 @@ static int __arm_smmu_sva_bind(struct device *dev, struct mm_struct *mm,
 	if (!smmu_domain || smmu_domain->stage != ARM_SMMU_DOMAIN_S1)
 		return -ENODEV;
 
-	if (!master || !master->sva_enabled)
-		return -ENODEV;
-
 	bond = kzalloc(sizeof(*bond), GFP_KERNEL);
 	if (!bond)
 		return -ENOMEM;
@@ -622,7 +619,7 @@ static int arm_smmu_sva_set_dev_pasid(struct iommu_domain *domain,
 	struct mm_struct *mm = domain->mm;
 	struct arm_smmu_cd target;
 
-	if (mm->pasid != id)
+	if (mm->pasid != id || !master->cd_table.used_sid)
 		return -EINVAL;
 
 	if (!arm_smmu_get_cd_ptr(master, id))
