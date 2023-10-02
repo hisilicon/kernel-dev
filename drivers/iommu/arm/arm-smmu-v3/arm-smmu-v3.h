@@ -740,6 +740,20 @@ static inline struct arm_smmu_domain *to_smmu_domain(struct iommu_domain *dom)
 	return container_of(dom, struct arm_smmu_domain, domain);
 }
 
+/*
+ * Check that the domain type has an arm_smmu_domain struct. The global static
+ * IDENTITY and BLOCKED domains do not.
+ */
+static inline struct arm_smmu_domain *
+to_smmu_domain_safe(struct iommu_domain *domain)
+{
+	if (!domain)
+		return NULL;
+	if (domain->type & __IOMMU_DOMAIN_PAGING)
+		return to_smmu_domain(domain);
+	return NULL;
+}
+
 extern struct xarray arm_smmu_asid_xa;
 extern struct mutex arm_smmu_asid_lock;
 extern struct arm_smmu_ctx_desc quiet_cd;
