@@ -646,14 +646,14 @@ static const struct iommu_domain_ops arm_smmu_sva_domain_ops = {
 	.free			= arm_smmu_sva_domain_free
 };
 
-struct iommu_domain *arm_smmu_sva_domain_alloc(void)
+struct iommu_domain *arm_smmu_sva_domain_alloc(unsigned type)
 {
-	struct iommu_domain *domain;
+	struct arm_smmu_domain *smmu_domain;
 
-	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
-	if (!domain)
+	smmu_domain = arm_smmu_domain_alloc();
+	if (!smmu_domain)
 		return NULL;
-	domain->ops = &arm_smmu_sva_domain_ops;
+	smmu_domain->domain.ops = &arm_smmu_sva_domain_ops;
 
-	return domain;
+	return &smmu_domain->domain;
 }
