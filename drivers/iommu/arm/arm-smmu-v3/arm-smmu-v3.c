@@ -1962,13 +1962,14 @@ arm_smmu_atc_inv_to_cmd(int ssid, unsigned long iova, size_t size,
 	cmd->atc.size	= log2_span;
 }
 
-static int arm_smmu_atc_inv_master(struct arm_smmu_master *master)
+static int arm_smmu_atc_inv_master(struct arm_smmu_master *master,
+				   ioasid_t ssid)
 {
 	int i;
 	struct arm_smmu_cmdq_ent cmd;
 	struct arm_smmu_cmdq_batch cmds;
 
-	arm_smmu_atc_inv_to_cmd(IOMMU_NO_PASID, 0, 0, &cmd);
+	arm_smmu_atc_inv_to_cmd(ssid, 0, 0, &cmd);
 
 	cmds.num = 0;
 	for (i = 0; i < master->num_streams; i++) {
@@ -2452,7 +2453,7 @@ static void arm_smmu_enable_ats(struct arm_smmu_master *master)
 	/*
 	 * ATC invalidation of PASID 0 causes the entire ATC to be flushed.
 	 */
-	arm_smmu_atc_inv_master(master);
+	arm_smmu_atc_inv_master(master, IOMMU_NO_PASID);
 	if (pci_enable_ats(pdev, stu))
 		dev_err(master->dev, "Failed to enable ATS (STU %zu)\n", stu);
 }
@@ -2523,7 +2524,8 @@ arm_smmu_find_master_domain(struct arm_smmu_domain *smmu_domain,
 }
 
 static void arm_smmu_remove_master_domain(struct arm_smmu_master *master,
-					  struct arm_smmu_domain *smmu_domain)
+					  struct arm_smmu_domain *smmu_domain,
+					  ioasid_t ssid)
 {
 	struct arm_smmu_master_domain *master_domain;
 	unsigned long flags;
@@ -2533,8 +2535,7 @@ static void arm_smmu_remove_master_domain(struct arm_smmu_master *master,
 		return;
 
 	spin_lock_irqsave(&smmu_domain->devices_lock, flags);
-	master_domain = arm_smmu_find_master_domain(smmu_domain, master,
-						    IOMMU_NO_PASID);
+	master_domain = arm_smmu_find_master_domain(smmu_domain, master, ssid);
 	if (master_domain) {
 		list_del(&master_domain->devices_elm);
 		kfree(master_domain);
@@ -2554,7 +2555,7 @@ struct attach_state {
  */
 static int arm_smmu_attach_prepare(struct arm_smmu_master *master,
 				   struct arm_smmu_domain *smmu_domain,
-				   struct attach_state *state)
+				   ioasid_t ssid, struct attach_state *state)
 {
 	struct arm_smmu_master_domain *master_domain;
 	unsigned long flags;
@@ -2570,6 +2571,7 @@ static int arm_smmu_attach_prepare(struct arm_smmu_master *master,
 	if (!master_domain)
 		return -ENOMEM;
 	master_domain->master = master;
+	master_domain->ssid = ssid;
 
 	state->want_ats = arm_smmu_ats_supported(master);
 
@@ -2600,7 +2602,7 @@ static int arm_smmu_attach_prepare(struct arm_smmu_master *master,
  * smmu_domain->devices list.
  */
 static void arm_smmu_attach_commit(struct arm_smmu_master *master,
-				   struct attach_state *state)
+				   ioasid_t ssid, struct attach_state *state)
 {
 	lockdep_assert_held(&arm_smmu_asid_lock);
 
@@ -2615,12 +2617,13 @@ static void arm_smmu_attach_commit(struct arm_smmu_master *master,
 		 * SMMU is translating for the new domain and both the old&new
 		 * domain will issue invalidations.
 		 */
-		arm_smmu_atc_inv_master(master);
+		arm_smmu_atc_inv_master(master, ssid);
 	}
 
 	arm_smmu_remove_master_domain(
 		master,
-		to_smmu_domain_safe(iommu_get_domain_for_dev(master->dev)));
+		to_smmu_domain_safe(iommu_get_domain_for_dev(master->dev)),
+		ssid);
 }
 
 static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
@@ -2666,7 +2669,8 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	 */
 	mutex_lock(&arm_smmu_asid_lock);
 
-	ret = arm_smmu_attach_prepare(master, smmu_domain, &state);
+	ret = arm_smmu_attach_prepare(master, smmu_domain, IOMMU_NO_PASID,
+				      &state);
 	if (ret) {
 		mutex_unlock(&arm_smmu_asid_lock);
 		return ret;
@@ -2692,7 +2696,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		break;
 	}
 
-	arm_smmu_attach_commit(master, &state);
+	arm_smmu_attach_commit(master, IOMMU_NO_PASID, &state);
 	mutex_unlock(&arm_smmu_asid_lock);
 	return 0;
 }
@@ -2757,8 +2761,9 @@ static int arm_smmu_attach_dev_ste(struct device *dev,
 
 	if (old_domain) {
 		if (master->ats_enabled)
-			arm_smmu_atc_inv_master(master);
-		arm_smmu_remove_master_domain(master, old_domain);
+			arm_smmu_atc_inv_master(master, IOMMU_NO_PASID);
+		arm_smmu_remove_master_domain(master, old_domain,
+					      IOMMU_NO_PASID);
 	}
 
 	master->ats_enabled = false;
