@@ -691,6 +691,8 @@ struct iommu_device {
  * @dev: the device that owns this param
  * @queue: IOPF queue
  * @queue_list: index into queue->devices
+ * @pasid_cookie: per-pasid fault cookie used by fault message consumers.
+ *                This array is self-protected by xa_lock().
  * @partial: faults that are part of a Page Request Group for which the last
  *           request hasn't been submitted yet.
  * @faults: holds the pending faults which need response
@@ -703,6 +705,7 @@ struct iommu_fault_param {
 	struct device *dev;
 	struct iopf_queue *queue;
 	struct list_head queue_list;
+	struct xarray pasid_cookie;
 
 	struct list_head partial;
 	struct list_head faults;

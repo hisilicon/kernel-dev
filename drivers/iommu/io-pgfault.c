@@ -412,6 +412,7 @@ int iopf_queue_add_device(struct iopf_queue *queue, struct device *dev)
 	mutex_init(&fault_param->lock);
 	INIT_LIST_HEAD(&fault_param->faults);
 	INIT_LIST_HEAD(&fault_param->partial);
+	xa_init(&fault_param->pasid_cookie);
 	fault_param->dev = dev;
 	refcount_set(&fault_param->users, 1);
 	init_rcu_head(&fault_param->rcu);
@@ -530,3 +531,52 @@ void iopf_queue_free(struct iopf_queue *queue)
 	kfree(queue);
 }
 EXPORT_SYMBOL_GPL(iopf_queue_free);
+
+/**
+ * iopf_pasid_cookie_set - Set a fault cookie for per-{device, pasid}
+ * @dev: the device to set the cookie
+ * @pasid: the pasid on this device
+ * @cookie: the opaque data
+ *
+ * Return the old cookie on success, or ERR_PTR on failure.
+ */
+void *iopf_pasid_cookie_set(struct device *dev, ioasid_t pasid, void *cookie)
+{
+	struct iommu_fault_param *iopf_param = iopf_get_dev_fault_param(dev);
+	void *curr;
+
+	if (!iopf_param)
+		return ERR_PTR(-ENODEV);
+
+	curr = xa_store(&iopf_param->pasid_cookie, pasid, cookie, GFP_KERNEL);
+	iopf_put_dev_fault_param(iopf_param);
+
+	return xa_is_err(curr) ? ERR_PTR(xa_err(curr)) : curr;
+}
+EXPORT_SYMBOL_NS_GPL(iopf_pasid_cookie_set, IOMMUFD_INTERNAL);
+
+/**
+ * iopf_pasid_cookie_get - Get the fault cookie for {device, pasid}
+ * @dev: the device where the cookie was set
+ * @pasid: the pasid on this device
+ *
+ * Return the cookie on success, or ERR_PTR on failure. Note that NULL is
+ * also a successful return.
+ */
+void *iopf_pasid_cookie_get(struct device *dev, ioasid_t pasid)
+{
+	struct iommu_fault_param *iopf_param = iopf_get_dev_fault_param(dev);
+	void *curr;
+
+	if (!iopf_param)
+		return ERR_PTR(-ENODEV);
+
+	xa_lock(&iopf_param->pasid_cookie);
+	curr = xa_load(&iopf_param->pasid_cookie, pasid);
+	xa_unlock(&iopf_param->pasid_cookie);
+
+	iopf_put_dev_fault_param(iopf_param);
+
+	return curr;
+}
+EXPORT_SYMBOL_NS_GPL(iopf_pasid_cookie_get, IOMMUFD_INTERNAL);

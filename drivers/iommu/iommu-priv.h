@@ -27,4 +27,19 @@ void iommu_device_unregister_bus(struct iommu_device *iommu,
 				 struct bus_type *bus,
 				 struct notifier_block *nb);
 
+#ifdef CONFIG_IOMMU_IOPF
+void *iopf_pasid_cookie_set(struct device *dev, ioasid_t pasid, void *cookie);
+void *iopf_pasid_cookie_get(struct device *dev, ioasid_t pasid);
+#else
+static inline void *iopf_pasid_cookie_set(struct device *dev, ioasid_t pasid, void *cookie)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline void *iopf_pasid_cookie_get(struct device *dev, ioasid_t pasid)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif /* CONFIG_IOMMU_IOPF */
+
 #endif /* __LINUX_IOMMU_PRIV_H */
