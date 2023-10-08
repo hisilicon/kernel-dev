@@ -239,6 +239,15 @@ int iommufd_vfio_ioas(struct iommufd_ucmd *ucmd);
 int iommufd_check_iova_range(struct io_pagetable *iopt,
 			     struct iommu_hwpt_get_dirty_bitmap *bitmap);
 
+struct hw_pgtable_fault {
+	struct iommufd_ctx *ictx;
+	struct iommufd_hw_pagetable *hwpt;
+	/* Protect below iopf lists. */
+	struct mutex mutex;
+	struct list_head deliver;
+	struct list_head response;
+};
+
 /*
  * A HW pagetable is called an iommu_domain inside the kernel. This user object
  * allows directly creating and inspecting the domains. Domains that have kernel
@@ -248,6 +257,7 @@ int iommufd_check_iova_range(struct io_pagetable *iopt,
 struct iommufd_hw_pagetable {
 	struct iommufd_object obj;
 	struct iommu_domain *domain;
+	struct hw_pgtable_fault *fault;
 };
 
 struct iommufd_hwpt_paging {

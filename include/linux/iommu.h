@@ -131,6 +131,12 @@ struct iopf_group {
 	struct work_struct work;
 	struct device *dev;
 	struct iommu_domain *domain;
+
+	/*
+	 * Used by iopf handlers, like iommufd, to hook the iopf group
+	 * on its own lists.
+	 */
+	struct list_head node;
 };
 
 /**

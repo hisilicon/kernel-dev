@@ -8,6 +8,29 @@
 #include "../iommu-priv.h"
 #include "iommufd_private.h"
 
+static struct hw_pgtable_fault *hw_pagetable_fault_alloc(void)
+{
+	struct hw_pgtable_fault *fault;
+
+	fault = kzalloc(sizeof(*fault), GFP_KERNEL);
+	if (!fault)
+		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&fault->deliver);
+	INIT_LIST_HEAD(&fault->response);
+	mutex_init(&fault->mutex);
+
+	return fault;
+}
+
+static void hw_pagetable_fault_free(struct hw_pgtable_fault *fault)
+{
+	WARN_ON(!list_empty(&fault->deliver));
+	WARN_ON(!list_empty(&fault->response));
+
+	kfree(fault);
+}
+
 void iommufd_hwpt_paging_destroy(struct iommufd_object *obj)
 {
 	struct iommufd_hwpt_paging *hwpt_paging =
@@ -24,6 +47,11 @@ void iommufd_hwpt_paging_destroy(struct iommufd_object *obj)
 
 	if (hwpt_paging->common.domain)
 		iommu_domain_free(hwpt_paging->common.domain);
+
+	if (hwpt_paging->common.fault) {
+		hw_pagetable_fault_free(hwpt_paging->common.fault);
+		hwpt_paging->common.fault = NULL;
+	}
 
 	refcount_dec(&hwpt_paging->ioas->obj.users);
 }
@@ -51,6 +79,11 @@ void iommufd_hwpt_nested_destroy(struct iommufd_object *obj)
 
 	if (hwpt_nested->common.domain)
 		iommu_domain_free(hwpt_nested->common.domain);
+
+	if (hwpt_nested->common.fault) {
+		hw_pagetable_fault_free(hwpt_nested->common.fault);
+		hwpt_nested->common.fault = NULL;
+	}
 
 	refcount_dec(&hwpt_nested->parent->common.obj.users);
 }
@@ -190,6 +223,17 @@ out_abort:
 	return ERR_PTR(rc);
 }
 
+static int iommufd_hw_pagetable_iopf_handler(struct iopf_group *group)
+{
+	struct iommufd_hw_pagetable *hwpt = group->domain->fault_data;
+
+	mutex_lock(&hwpt->fault->mutex);
+	list_add_tail(&group->node, &hwpt->fault->deliver);
+	mutex_unlock(&hwpt->fault->mutex);
+
+	return 0;
+}
+
 /**
  * iommufd_hwpt_nested_alloc() - Get a NESTED iommu_domain for a device
  * @ictx: iommufd context
@@ -310,6 +354,20 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 	} else {
 		rc = -EINVAL;
 		goto out_put_pt;
+	}
+
+	if (cmd->flags & IOMMU_HWPT_ALLOC_IOPF_CAPABLE) {
+		hwpt->fault = hw_pagetable_fault_alloc();
+		if (IS_ERR(hwpt->fault)) {
+			rc = PTR_ERR(hwpt->fault);
+			hwpt->fault = NULL;
+			goto out_hwpt;
+		}
+
+		hwpt->fault->ictx = ucmd->ictx;
+		hwpt->fault->hwpt = hwpt;
+		hwpt->domain->iopf_handler = iommufd_hw_pagetable_iopf_handler;
+		hwpt->domain->fault_data = hwpt;
 	}
 
 	cmd->out_hwpt_id = hwpt->obj.id;

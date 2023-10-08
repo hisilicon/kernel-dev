@@ -368,6 +368,16 @@ int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
 			goto err_unlock;
 	}
 
+	if (hwpt->fault) {
+		void *curr;
+
+		curr = iopf_pasid_cookie_set(idev->dev, IOMMU_NO_PASID, idev);
+		if (IS_ERR(curr)) {
+			rc = PTR_ERR(curr);
+			goto err_unresv;
+		}
+	}
+
 	/*
 	 * Only attach to the group once for the first device that is in the
 	 * group. All the other devices will follow this attachment. The user
@@ -378,13 +388,16 @@ int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
 	if (list_empty(&idev->igroup->device_list)) {
 		rc = iommu_attach_group(hwpt->domain, idev->igroup->group);
 		if (rc)
-			goto err_unresv;
+			goto err_unset;
 		idev->igroup->hwpt = hwpt;
 	}
 	refcount_inc(&hwpt->obj.users);
 	list_add_tail(&idev->group_item, &idev->igroup->device_list);
 	mutex_unlock(&idev->igroup->lock);
 	return 0;
+err_unset:
+	if (hwpt->fault)
+		iopf_pasid_cookie_set(idev->dev, IOMMU_NO_PASID, NULL);
 err_unresv:
 	if (hwpt_is_paging(hwpt))
 		iopt_remove_reserved_iova(&to_hwpt_paging(hwpt)->ioas->iopt,
@@ -394,6 +407,30 @@ err_unlock:
 	return rc;
 }
 
+/*
+ * Discard all pending page faults. Called when a hw pagetable is detached
+ * from a device. The iommu core guarantees that all page faults have been
+ * responded, hence there's no need to respond it again.
+ */
+static void iommufd_hw_pagetable_discard_iopf(struct iommufd_hw_pagetable *hwpt)
+{
+	struct iopf_group *group, *next;
+
+	if (!hwpt->fault)
+		return;
+
+	mutex_lock(&hwpt->fault->mutex);
+	list_for_each_entry_safe(group, next, &hwpt->fault->deliver, node) {
+		list_del(&group->node);
+		iopf_free_group(group);
+	}
+	list_for_each_entry_safe(group, next, &hwpt->fault->response, node) {
+		list_del(&group->node);
+		iopf_free_group(group);
+	}
+	mutex_unlock(&hwpt->fault->mutex);
+}
+
 struct iommufd_hw_pagetable *
 iommufd_hw_pagetable_detach(struct iommufd_device *idev)
 {
@@ -401,6 +438,8 @@ iommufd_hw_pagetable_detach(struct iommufd_device *idev)
 
 	mutex_lock(&idev->igroup->lock);
 	list_del(&idev->group_item);
+	if (hwpt->fault)
+		iopf_pasid_cookie_set(idev->dev, IOMMU_NO_PASID, NULL);
 	if (list_empty(&idev->igroup->device_list)) {
 		iommu_detach_group(hwpt->domain, idev->igroup->group);
 		idev->igroup->hwpt = NULL;
@@ -409,6 +448,8 @@ iommufd_hw_pagetable_detach(struct iommufd_device *idev)
 		iopt_remove_reserved_iova(&to_hwpt_paging(hwpt)->ioas->iopt,
 					  idev->dev);
 	mutex_unlock(&idev->igroup->lock);
+
+	iommufd_hw_pagetable_discard_iopf(hwpt);
 
 	/* Caller must destroy hwpt */
 	return hwpt;
@@ -497,9 +538,24 @@ iommufd_device_do_replace(struct iommufd_device *idev,
 			goto err_unlock;
 	}
 
+	if (old_hwpt->fault) {
+		iommufd_hw_pagetable_discard_iopf(old_hwpt);
+		iopf_pasid_cookie_set(idev->dev, IOMMU_NO_PASID, NULL);
+	}
+
+	if (hwpt->fault) {
+		void *curr;
+
+		curr = iopf_pasid_cookie_set(idev->dev, IOMMU_NO_PASID, idev);
+		if (IS_ERR(curr)) {
+			rc = PTR_ERR(curr);
+			goto err_unresv;
+		}
+	}
+
 	rc = iommu_group_replace_domain(igroup->group, hwpt->domain);
 	if (rc)
-		goto err_unresv;
+		goto err_unset;
 
 	if (hwpt_is_paging(old_hwpt) &&
 	    (!hwpt_is_paging(hwpt) ||
@@ -520,8 +576,15 @@ iommufd_device_do_replace(struct iommufd_device *idev,
 					      &old_hwpt->obj.users));
 	mutex_unlock(&idev->igroup->lock);
 
+	iommufd_hw_pagetable_discard_iopf(old_hwpt);
+
 	/* Caller must destroy old_hwpt */
 	return old_hwpt;
+err_unset:
+	if (hwpt->fault)
+		iopf_pasid_cookie_set(idev->dev, IOMMU_NO_PASID, NULL);
+	if (old_hwpt->fault)
+		iopf_pasid_cookie_set(idev->dev, IOMMU_NO_PASID, idev);
 err_unresv:
 	if (hwpt_is_paging(hwpt))
 		iommufd_group_remove_reserved_iova(igroup,
