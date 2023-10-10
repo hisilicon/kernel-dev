@@ -246,6 +246,8 @@ struct hw_pgtable_fault {
 	struct mutex mutex;
 	struct list_head deliver;
 	struct list_head response;
+	struct file *fault_file;
+	int fault_fd;
 };
 
 /*

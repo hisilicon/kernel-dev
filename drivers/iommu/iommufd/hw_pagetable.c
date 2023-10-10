@@ -3,14 +3,205 @@
  * Copyright (c) 2021-2022, NVIDIA CORPORATION & AFFILIATES
  */
 #include <linux/iommu.h>
+#include <linux/file.h>
+#include <linux/anon_inodes.h>
 #include <uapi/linux/iommufd.h>
 
 #include "../iommu-priv.h"
 #include "iommufd_private.h"
 
+static int iommufd_compose_fault_message(struct iommu_fault *fault,
+					 struct iommu_hwpt_pgfault *hwpt_fault,
+					 struct device *dev)
+{
+	struct iommufd_device *idev = iopf_pasid_cookie_get(dev, IOMMU_NO_PASID);
+
+	if (!idev)
+		return -ENODEV;
+
+	if (IS_ERR(idev))
+		return PTR_ERR(idev);
+
+	hwpt_fault->size = sizeof(*hwpt_fault);
+	hwpt_fault->flags = fault->prm.flags;
+	hwpt_fault->dev_id = idev->obj.id;
+	hwpt_fault->pasid = fault->prm.pasid;
+	hwpt_fault->grpid = fault->prm.grpid;
+	hwpt_fault->perm = fault->prm.perm;
+	hwpt_fault->addr = fault->prm.addr;
+	hwpt_fault->private_data[0] = fault->prm.private_data[0];
+	hwpt_fault->private_data[1] = fault->prm.private_data[1];
+
+	return 0;
+}
+
+static ssize_t hwpt_fault_fops_read(struct file *filep, char __user *buf,
+				    size_t count, loff_t *ppos)
+{
+	size_t fault_size = sizeof(struct iommu_hwpt_pgfault);
+	struct hw_pgtable_fault *fault = filep->private_data;
+	struct iommu_hwpt_pgfault data;
+	struct iopf_group *group;
+	struct iopf_fault *iopf;
+	size_t done = 0;
+	int rc;
+
+	if (*ppos || count % fault_size)
+		return -ESPIPE;
+
+	mutex_lock(&fault->mutex);
+	while (!list_empty(&fault->deliver) && count > done) {
+		group = list_first_entry(&fault->deliver,
+					 struct iopf_group, node);
+
+		if (list_count_nodes(&group->faults) * fault_size > count - done)
+			break;
+
+		list_for_each_entry(iopf, &group->faults, list) {
+			rc = iommufd_compose_fault_message(&iopf->fault,
+							   &data, group->dev);
+			if (rc)
+				goto err_unlock;
+			rc = copy_to_user(buf + done, &data, fault_size);
+			if (rc)
+				goto err_unlock;
+			done += fault_size;
+		}
+
+		list_move_tail(&group->node, &fault->response);
+	}
+	mutex_unlock(&fault->mutex);
+
+	return done;
+err_unlock:
+	mutex_unlock(&fault->mutex);
+	return rc;
+}
+
+static ssize_t hwpt_fault_fops_write(struct file *filep,
+				     const char __user *buf,
+				     size_t count, loff_t *ppos)
+{
+	size_t response_size = sizeof(struct iommu_hwpt_page_response);
+	struct hw_pgtable_fault *fault = filep->private_data;
+	struct iommu_hwpt_page_response response;
+	struct iommufd_hw_pagetable *hwpt;
+	struct iopf_group *iter, *group;
+	struct iommufd_device *idev;
+	size_t done = 0;
+	int rc = 0;
+
+	if (*ppos || count % response_size)
+		return -ESPIPE;
+
+	mutex_lock(&fault->mutex);
+	while (!list_empty(&fault->response) && count > done) {
+		rc = copy_from_user(&response, buf + done, response_size);
+		if (rc)
+			break;
+
+		/* Get the device that this response targets at. */
+		idev = container_of(iommufd_get_object(fault->ictx,
+						       response.dev_id,
+						       IOMMUFD_OBJ_DEVICE),
+				    struct iommufd_device, obj);
+		if (IS_ERR(idev)) {
+			rc = PTR_ERR(idev);
+			break;
+		}
+
+		/*
+		 * Get the hw page table that this response was generated for.
+		 * It must match the one stored in the fault data.
+		 */
+		hwpt = container_of(iommufd_get_object(fault->ictx,
+						       response.hwpt_id,
+						       IOMMUFD_OBJ_ANY),
+				    struct iommufd_hw_pagetable, obj);
+		if (IS_ERR(hwpt)) {
+			iommufd_put_object(&idev->obj);
+			rc = PTR_ERR(hwpt);
+			break;
+		}
+
+		if (hwpt != fault->hwpt) {
+			rc = -EINVAL;
+			goto put_obj;
+		}
+
+		group = NULL;
+		list_for_each_entry(iter, &fault->response, node) {
+			if (response.grpid != iter->last_fault.fault.prm.grpid)
+				continue;
+
+			if (idev->dev != iter->dev)
+				continue;
+
+			if ((iter->last_fault.fault.prm.flags &
+			     IOMMU_FAULT_PAGE_REQUEST_PASID_VALID) &&
+			    response.pasid != iter->last_fault.fault.prm.pasid)
+				continue;
+
+			group = iter;
+			break;
+		}
+
+		if (!group) {
+			rc = -ENODEV;
+			goto put_obj;
+		}
+
+		rc = iopf_group_response(group, response.code);
+		if (rc)
+			goto put_obj;
+
+		list_del(&group->node);
+		iopf_free_group(group);
+		done += response_size;
+put_obj:
+		iommufd_put_object(&hwpt->obj);
+		iommufd_put_object(&idev->obj);
+		if (rc)
+			break;
+	}
+	mutex_unlock(&fault->mutex);
+
+	return (rc < 0) ? rc : done;
+}
+
+static const struct file_operations hwpt_fault_fops = {
+	.owner		= THIS_MODULE,
+	.read		= hwpt_fault_fops_read,
+	.write		= hwpt_fault_fops_write,
+};
+
+static int hw_pagetable_get_fault_fd(struct hw_pgtable_fault *fault)
+{
+	struct file *filep;
+	int fdno;
+
+	fdno = get_unused_fd_flags(O_CLOEXEC);
+	if (fdno < 0)
+		return fdno;
+
+	filep = anon_inode_getfile("[iommufd-pgfault]", &hwpt_fault_fops,
+				   fault, O_RDWR);
+	if (IS_ERR(filep)) {
+		put_unused_fd(fdno);
+		return PTR_ERR(filep);
+	}
+
+	fd_install(fdno, filep);
+	fault->fault_file = filep;
+	fault->fault_fd = fdno;
+
+	return 0;
+}
+
 static struct hw_pgtable_fault *hw_pagetable_fault_alloc(void)
 {
 	struct hw_pgtable_fault *fault;
+	int rc;
 
 	fault = kzalloc(sizeof(*fault), GFP_KERNEL);
 	if (!fault)
@@ -20,6 +211,12 @@ static struct hw_pgtable_fault *hw_pagetable_fault_alloc(void)
 	INIT_LIST_HEAD(&fault->response);
 	mutex_init(&fault->mutex);
 
+	rc = hw_pagetable_get_fault_fd(fault);
+	if (rc) {
+		kfree(fault);
+		return ERR_PTR(rc);
+	}
+
 	return fault;
 }
 
@@ -28,6 +225,8 @@ static void hw_pagetable_fault_free(struct hw_pgtable_fault *fault)
 	WARN_ON(!list_empty(&fault->deliver));
 	WARN_ON(!list_empty(&fault->response));
 
+	fput(fault->fault_file);
+	put_unused_fd(fault->fault_fd);
 	kfree(fault);
 }
 
@@ -368,6 +567,7 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 		hwpt->fault->hwpt = hwpt;
 		hwpt->domain->iopf_handler = iommufd_hw_pagetable_iopf_handler;
 		hwpt->domain->fault_data = hwpt;
+		cmd->out_fault_fd = hwpt->fault->fault_fd;
 	}
 
 	cmd->out_hwpt_id = hwpt->obj.id;
