@@ -1584,7 +1584,7 @@ static int arm_smmu_init_l2_strtab(struct arm_smmu_device *smmu, u32 sid)
 		return 0;
 
 	size = 1 << (STRTAB_SPLIT + ilog2(STRTAB_STE_DWORDS) + 3);
-	strtab = &cfg->strtab[(sid >> STRTAB_SPLIT) * STRTAB_L1_DESC_DWORDS];
+	strtab = &cfg->strtab.l1_desc[sid >> STRTAB_SPLIT];
 
 	desc->span = STRTAB_SPLIT + 1;
 	desc->l2ptr = dmam_alloc_coherent(smmu->dev, size, &desc->l2ptr_dma,
@@ -2372,8 +2372,7 @@ arm_smmu_get_step_for_sid(struct arm_smmu_device *smmu, u32 sid)
 		return &cfg->l1_desc[idx].l2ptr[sid & ((1 << STRTAB_SPLIT) - 1)];
 	} else {
 		/* Simple linear lookup */
-		return (struct arm_smmu_ste *)&cfg
-			       ->strtab[sid * STRTAB_STE_DWORDS];
+		return &cfg->strtab.linear[sid * STRTAB_STE_DWORDS];
 	}
 }
 
@@ -3429,17 +3428,15 @@ static int arm_smmu_init_l1_strtab(struct arm_smmu_device *smmu)
 {
 	unsigned int i;
 	struct arm_smmu_strtab_cfg *cfg = &smmu->strtab_cfg;
-	void *strtab = smmu->strtab_cfg.strtab;
 
 	cfg->l1_desc = devm_kcalloc(smmu->dev, cfg->num_l1_ents,
 				    sizeof(*cfg->l1_desc), GFP_KERNEL);
 	if (!cfg->l1_desc)
 		return -ENOMEM;
 
-	for (i = 0; i < cfg->num_l1_ents; ++i) {
-		arm_smmu_write_strtab_l1_desc(strtab, &cfg->l1_desc[i]);
-		strtab += STRTAB_L1_DESC_DWORDS << 3;
-	}
+	for (i = 0; i < cfg->num_l1_ents; ++i)
+		arm_smmu_write_strtab_l1_desc(
+			&smmu->strtab_cfg.strtab.l1_desc[i], &cfg->l1_desc[i]);
 
 	return 0;
 }
@@ -3471,7 +3468,7 @@ static int arm_smmu_init_strtab_2lvl(struct arm_smmu_device *smmu)
 			l1size);
 		return -ENOMEM;
 	}
-	cfg->strtab = strtab;
+	cfg->strtab.l1_desc = strtab;
 
 	/* Configure strtab_base_cfg for 2 levels */
 	reg  = FIELD_PREP(STRTAB_BASE_CFG_FMT, STRTAB_BASE_CFG_FMT_2LVL);
@@ -3498,7 +3495,7 @@ static int arm_smmu_init_strtab_linear(struct arm_smmu_device *smmu)
 			size);
 		return -ENOMEM;
 	}
-	cfg->strtab = strtab;
+	cfg->strtab.linear = strtab;
 	cfg->num_l1_ents = 1 << smmu->sid_bits;
 
 	/* Configure strtab_base_cfg for a linear table covering all SIDs */
