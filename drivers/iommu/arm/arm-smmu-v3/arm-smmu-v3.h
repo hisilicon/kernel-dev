@@ -206,10 +206,8 @@
 #define STRTAB_L1_DESC_SPAN		GENMASK_ULL(4, 0)
 #define STRTAB_L1_DESC_L2PTR_MASK	GENMASK_ULL(51, 6)
 
-#define STRTAB_STE_DWORDS		8
-
 struct arm_smmu_ste {
-	__le64 data[STRTAB_STE_DWORDS];
+	__le64 data[8];
 };
 
 #define STRTAB_STE_0_V			(1UL << 0)
@@ -617,7 +615,10 @@ struct arm_smmu_s2_cfg {
 };
 
 struct arm_smmu_strtab_cfg {
-	__le64				*strtab;
+	union {
+		struct arm_smmu_ste *linear;
+		__le64 *l1_desc;
+	} strtab;
 	dma_addr_t			strtab_dma;
 	struct arm_smmu_strtab_l1_desc	*l1_desc;
 	unsigned int			num_l1_ents;
