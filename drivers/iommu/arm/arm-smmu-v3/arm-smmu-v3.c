@@ -1211,7 +1211,6 @@ void arm_smmu_make_s1_cd(struct arm_smmu_cd *target,
 			 struct arm_smmu_master *master,
 			 struct arm_smmu_domain *smmu_domain)
 {
-	struct arm_smmu_ctx_desc *cd = &smmu_domain->cd;
 	const struct io_pgtable_cfg *pgtbl_cfg =
 		&io_pgtable_ops_to_pgtable(smmu_domain->pgtbl_ops)->cfg;
 	typeof(&pgtbl_cfg->arm_lpae_s1_cfg.tcr) tcr =
@@ -1236,7 +1235,7 @@ void arm_smmu_make_s1_cd(struct arm_smmu_cd *target,
 		CTXDESC_CD_0_R |
 		CTXDESC_CD_0_A |
 		CTXDESC_CD_0_ASET |
-		FIELD_PREP(CTXDESC_CD_0_ASID, cd->asid)
+		FIELD_PREP(CTXDESC_CD_0_ASID, smmu_domain->asid)
 		);
 	target->data[1] = cpu_to_le64(pgtbl_cfg->arm_lpae_s1_cfg.ttbr &
 				      CTXDESC_CD_1_TTB0_MASK);
@@ -1521,7 +1520,6 @@ static void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
 					struct arm_smmu_domain *smmu_domain,
 					bool ats_enabled)
 {
-	struct arm_smmu_s2_cfg *s2_cfg = &smmu_domain->s2_cfg;
 	const struct io_pgtable_cfg *pgtbl_cfg =
 		&io_pgtable_ops_to_pgtable(smmu_domain->pgtbl_ops)->cfg;
 	typeof(&pgtbl_cfg->arm_lpae_s2_cfg.vtcr) vtcr =
@@ -1546,7 +1544,7 @@ static void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
 		   FIELD_PREP(STRTAB_STE_2_VTCR_S2TG, vtcr->tg) |
 		   FIELD_PREP(STRTAB_STE_2_VTCR_S2PS, vtcr->ps);
 	target->data[2] = cpu_to_le64(
-		FIELD_PREP(STRTAB_STE_2_S2VMID, s2_cfg->vmid) |
+		FIELD_PREP(STRTAB_STE_2_S2VMID, smmu_domain->vmid) |
 		FIELD_PREP(STRTAB_STE_2_VTCR, vtcr_val) |
 		STRTAB_STE_2_S2AA64 |
 #ifdef __BIG_ENDIAN
@@ -2031,10 +2029,10 @@ static void arm_smmu_tlb_inv_context(void *cookie)
 	 * careful, 007.
 	 */
 	if (smmu_domain->stage == ARM_SMMU_DOMAIN_S1) {
-		arm_smmu_tlb_inv_asid(smmu, READ_ONCE(smmu_domain->cd.asid));
+		arm_smmu_tlb_inv_asid(smmu, READ_ONCE(smmu_domain->asid));
 	} else {
 		cmd.opcode	= CMDQ_OP_TLBI_S12_VMALL;
-		cmd.tlbi.vmid	= smmu_domain->s2_cfg.vmid;
+		cmd.tlbi.vmid	= smmu_domain->vmid;
 		arm_smmu_cmdq_issue_cmd_with_sync(smmu, &cmd);
 	}
 	arm_smmu_atc_inv_domain(smmu_domain, 0, 0);
@@ -2124,10 +2122,10 @@ static void arm_smmu_tlb_inv_range_domain(unsigned long iova, size_t size,
 	if (smmu_domain->stage == ARM_SMMU_DOMAIN_S1) {
 		cmd.opcode	= smmu_domain->smmu->features & ARM_SMMU_FEAT_E2H ?
 				  CMDQ_OP_TLBI_EL2_VA : CMDQ_OP_TLBI_NH_VA;
-		cmd.tlbi.asid	= smmu_domain->cd.asid;
+		cmd.tlbi.asid	= smmu_domain->asid;
 	} else {
 		cmd.opcode	= CMDQ_OP_TLBI_S2_IPA;
-		cmd.tlbi.vmid	= smmu_domain->s2_cfg.vmid;
+		cmd.tlbi.vmid	= smmu_domain->vmid;
 	}
 	__arm_smmu_tlb_inv_range(&cmd, iova, size, granule, smmu_domain);
 
@@ -2243,22 +2241,22 @@ void arm_smmu_domain_free_id(struct arm_smmu_domain *smmu_domain)
 
 	if ((smmu_domain->stage == ARM_SMMU_DOMAIN_S1 ||
 	     smmu_domain->domain.type == IOMMU_DOMAIN_SVA) &&
-	    smmu_domain->cd.asid) {
-		arm_smmu_tlb_inv_asid(smmu, smmu_domain->cd.asid);
+	    smmu_domain->asid) {
+		arm_smmu_tlb_inv_asid(smmu, smmu_domain->asid);
 
 		/* Prevent SVA from touching the CD while we're freeing it */
 		mutex_lock(&smmu->asid_lock);
-		xa_erase(&smmu->asid_map, smmu_domain->cd.asid);
+		xa_erase(&smmu->asid_map, smmu_domain->asid);
 		mutex_unlock(&smmu->asid_lock);
 	} else if (smmu_domain->stage == ARM_SMMU_DOMAIN_S2 &&
-		   smmu_domain->s2_cfg.vmid) {
+		   smmu_domain->vmid) {
 		struct arm_smmu_cmdq_ent cmd = {
 			.opcode = CMDQ_OP_TLBI_S12_VMALL,
-			.tlbi.vmid = smmu_domain->s2_cfg.vmid
+			.tlbi.vmid = smmu_domain->vmid
 		};
 
 		arm_smmu_cmdq_issue_cmd_with_sync(smmu, &cmd);
-		ida_free(&smmu->vmid_map, smmu_domain->s2_cfg.vmid);
+		ida_free(&smmu->vmid_map, smmu_domain->vmid);
 	}
 }
 
@@ -2274,9 +2272,7 @@ static void arm_smmu_domain_free(struct iommu_domain *domain)
 static int arm_smmu_domain_finalise_s1(struct arm_smmu_device *smmu,
 				       struct arm_smmu_domain *smmu_domain)
 {
-	struct arm_smmu_ctx_desc *cd = &smmu_domain->cd;
-
-	return xa_alloc(&smmu->asid_map, &cd->asid, smmu_domain,
+	return xa_alloc(&smmu->asid_map, &smmu_domain->asid, smmu_domain,
 			XA_LIMIT(1, (1 << smmu->asid_bits) - 1), GFP_KERNEL);
 }
 
@@ -2284,7 +2280,6 @@ static int arm_smmu_domain_finalise_s2(struct arm_smmu_device *smmu,
 				       struct arm_smmu_domain *smmu_domain)
 {
 	int vmid;
-	struct arm_smmu_s2_cfg *cfg = &smmu_domain->s2_cfg;
 
 	/* Reserve VMID 0 for stage-2 bypass STEs */
 	vmid = ida_alloc_range(&smmu->vmid_map, 1, (1 << smmu->vmid_bits) - 1,
@@ -2292,7 +2287,7 @@ static int arm_smmu_domain_finalise_s2(struct arm_smmu_device *smmu,
 	if (vmid < 0)
 		return vmid;
 
-	cfg->vmid	= (u16)vmid;
+	smmu_domain->vmid	= (u16)vmid;
 	return 0;
 }
 
@@ -2769,8 +2764,8 @@ int arm_smmu_set_pasid(struct arm_smmu_master *master,
 	 * caller set ASID under the lock in case it changed.
 	 */
 	cd->data[0] &= ~cpu_to_le64(CTXDESC_CD_0_ASID);
-	cd->data[0] |= cpu_to_le64(
-		FIELD_PREP(CTXDESC_CD_0_ASID, smmu_domain->cd.asid));
+	cd->data[0] |=
+		cpu_to_le64(FIELD_PREP(CTXDESC_CD_0_ASID, smmu_domain->asid));
 
 	arm_smmu_write_cd_entry(master, pasid, cdptr, cd);
 	arm_smmu_update_ste(master, sid_domain, state.want_ats);
