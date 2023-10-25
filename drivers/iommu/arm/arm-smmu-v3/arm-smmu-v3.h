@@ -585,10 +585,6 @@ struct arm_smmu_strtab_l1_desc {
 	dma_addr_t			l2ptr_dma;
 };
 
-struct arm_smmu_ctx_desc {
-	u32				asid;
-};
-
 struct arm_smmu_l1_ctx_desc {
 	struct arm_smmu_cd		*l2ptr;
 	dma_addr_t			l2ptr_dma;
@@ -614,10 +610,6 @@ static inline bool arm_smmu_ssids_in_use(struct arm_smmu_ctx_desc_cfg *cd_table)
 		return cd_table->used_ssids > 1;
 	return cd_table->used_ssids;
 }
-
-struct arm_smmu_s2_cfg {
-	u16				vmid;
-};
 
 struct arm_smmu_strtab_cfg {
 	union {
@@ -735,8 +727,8 @@ struct arm_smmu_domain {
 
 	enum arm_smmu_domain_stage	stage;
 	union {
-		struct arm_smmu_ctx_desc	cd;
-		struct arm_smmu_s2_cfg		s2_cfg;
+		u32 asid;
+		u16 vmid;
 	};
 
 	struct iommu_domain		domain;
