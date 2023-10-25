@@ -2231,6 +2231,30 @@ static struct iommu_domain *arm_smmu_domain_alloc_paging(struct device *dev)
 	return &smmu_domain->domain;
 }
 
+int arm_smmu_domain_alloc_id(struct arm_smmu_device *smmu,
+			     struct arm_smmu_domain *smmu_domain)
+{
+	if ((smmu_domain->stage == ARM_SMMU_DOMAIN_S1 ||
+	     smmu_domain->domain.type == IOMMU_DOMAIN_SVA)) {
+		return xa_alloc(&smmu->asid_map, &smmu_domain->asid,
+				smmu_domain,
+				XA_LIMIT(1, (1 << smmu->asid_bits) - 1),
+				GFP_KERNEL);
+	} else if (smmu_domain->stage == ARM_SMMU_DOMAIN_S2) {
+		int vmid;
+
+		/* Reserve VMID 0 for stage-2 bypass STEs */
+		vmid = ida_alloc_range(&smmu->vmid_map, 1,
+				       (1 << smmu->vmid_bits) - 1, GFP_KERNEL);
+		if (vmid < 0)
+			return vmid;
+		smmu_domain->vmid = vmid;
+		return 0;
+	}
+	WARN_ON(true);
+	return -EINVAL;
+}
+
 /*
  * Return the domain's ASID or VMID back to the allocator. All IDs in the
  * allocator do not have an IOTLB entries referencing them.
@@ -2269,28 +2293,6 @@ static void arm_smmu_domain_free(struct iommu_domain *domain)
 	kfree(smmu_domain);
 }
 
-static int arm_smmu_domain_finalise_s1(struct arm_smmu_device *smmu,
-				       struct arm_smmu_domain *smmu_domain)
-{
-	return xa_alloc(&smmu->asid_map, &smmu_domain->asid, smmu_domain,
-			XA_LIMIT(1, (1 << smmu->asid_bits) - 1), GFP_KERNEL);
-}
-
-static int arm_smmu_domain_finalise_s2(struct arm_smmu_device *smmu,
-				       struct arm_smmu_domain *smmu_domain)
-{
-	int vmid;
-
-	/* Reserve VMID 0 for stage-2 bypass STEs */
-	vmid = ida_alloc_range(&smmu->vmid_map, 1, (1 << smmu->vmid_bits) - 1,
-			       GFP_KERNEL);
-	if (vmid < 0)
-		return vmid;
-
-	smmu_domain->vmid	= (u16)vmid;
-	return 0;
-}
-
 static int arm_smmu_domain_finalise(struct arm_smmu_domain *smmu_domain,
 				    struct arm_smmu_device *smmu)
 {
@@ -2299,8 +2301,6 @@ static int arm_smmu_domain_finalise(struct arm_smmu_domain *smmu_domain,
 	enum io_pgtable_fmt fmt;
 	struct io_pgtable_cfg pgtbl_cfg;
 	struct io_pgtable_ops *pgtbl_ops;
-	int (*finalise_stage_fn)(struct arm_smmu_device *smmu,
-				 struct arm_smmu_domain *smmu_domain);
 
 	/* Restrict the stage to what we can actually support */
 	if (!(smmu->features & ARM_SMMU_FEAT_TRANS_S1))
@@ -2314,13 +2314,11 @@ static int arm_smmu_domain_finalise(struct arm_smmu_domain *smmu_domain,
 		ias = min_t(unsigned long, ias, VA_BITS);
 		oas = smmu->ias;
 		fmt = ARM_64_LPAE_S1;
-		finalise_stage_fn = arm_smmu_domain_finalise_s1;
 		break;
 	case ARM_SMMU_DOMAIN_S2:
 		ias = smmu->ias;
 		oas = smmu->oas;
 		fmt = ARM_64_LPAE_S2;
-		finalise_stage_fn = arm_smmu_domain_finalise_s2;
 		break;
 	default:
 		return -EINVAL;
@@ -2343,7 +2341,7 @@ static int arm_smmu_domain_finalise(struct arm_smmu_domain *smmu_domain,
 	smmu_domain->domain.geometry.aperture_end = (1UL << pgtbl_cfg.ias) - 1;
 	smmu_domain->domain.geometry.force_aperture = true;
 
-	ret = finalise_stage_fn(smmu, smmu_domain);
+	ret = arm_smmu_domain_alloc_id(smmu, smmu_domain);
 	if (ret < 0) {
 		free_io_pgtable_ops(pgtbl_ops);
 		return ret;
