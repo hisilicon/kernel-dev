@@ -2960,10 +2960,15 @@ static void arm_smmu_attach_dev_ste(struct device *dev,
 static int arm_smmu_attach_dev_identity(struct iommu_domain *domain,
 					struct device *dev)
 {
+	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
 	struct arm_smmu_ste ste;
 
 	arm_smmu_make_bypass_ste(&ste);
 	arm_smmu_attach_dev_ste(dev, &ste, STRTAB_STE_1_S1DSS_BYPASS);
+	if (dev_is_pci(master->dev) && master->ssid_bits && !master->ats_enabled) {
+		master->ats_enabled = true;
+		arm_smmu_enable_ats(master);
+	}
 	return 0;
 }
 
