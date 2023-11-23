@@ -3077,7 +3077,7 @@ arm_smmu_domain_alloc_user(struct device *dev, u32 flags,
 	if (!smmu_domain)
 		return ERR_PTR(-ENOMEM);
 
-	if (paging_flags & IOMMU_HWPT_ALLOC_NEST_PARENT) {
+	if (flags & IOMMU_HWPT_ALLOC_NEST_PARENT) {
 		if (!(master->smmu->features & ARM_SMMU_FEAT_TRANS_S2)) {
 			ret = -EOPNOTSUPP;
 			goto err_free;
