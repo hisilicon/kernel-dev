@@ -162,6 +162,7 @@ struct iommu_domain *intel_nested_domain_alloc(struct iommu_domain *parent,
 	domain->s1_cfg = vtd;
 	domain->domain.ops = &intel_nested_domain_ops;
 	domain->domain.type = IOMMU_DOMAIN_NESTED;
+	domain->domain.owner = &intel_iommu_ops;
 	INIT_LIST_HEAD(&domain->devices);
 	INIT_LIST_HEAD(&domain->dev_pasids);
 	spin_lock_init(&domain->lock);
