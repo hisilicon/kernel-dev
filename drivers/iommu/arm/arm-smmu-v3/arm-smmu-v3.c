@@ -3207,6 +3207,7 @@ arm_smmu_domain_alloc_nesting(struct device *dev, u32 flags,
 			      struct iommu_domain *parent,
 			      const struct iommu_user_data *user_data)
 {
+	const u32 valid_flags = IOMMU_HWPT_ALLOC_IOPF_CAPABLE;
 	struct arm_smmu_domain *smmu_parent = to_smmu_domain_safe(parent);
 	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
 	struct arm_smmu_nested_domain *nested_domain;
@@ -3221,7 +3222,9 @@ arm_smmu_domain_alloc_nesting(struct device *dev, u32 flags,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (flags || !(master->smmu->features & ARM_SMMU_FEAT_TRANS_S1))
+	if (flags & ~valid_flags)
+		return ERR_PTR(-EOPNOTSUPP);
+	if (!(master->smmu->features & ARM_SMMU_FEAT_TRANS_S1))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	if (smmu_parent->domain.type != IOMMU_DOMAIN_UNMANAGED ||
@@ -3237,6 +3240,14 @@ arm_smmu_domain_alloc_nesting(struct device *dev, u32 flags,
 	nested_domain = kzalloc(sizeof(*nested_domain), GFP_KERNEL_ACCOUNT);
 	if (!nested_domain)
 		return ERR_PTR(-ENOMEM);
+
+	if (flags & IOMMU_HWPT_ALLOC_IOPF_CAPABLE) {
+		ret = iopf_queue_add_device(master->smmu->evtq.iopf, dev);
+		if (ret) {
+			kfree(nested_domain);
+			return ERR_PTR(ret);
+		}
+	}
 
 	ret = xa_alloc(&smmu_parent->smmu->streams_user, &arg.sid,
 		       &master->streams[0], XA_LIMIT(arg.sid, arg.sid),
