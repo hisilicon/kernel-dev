@@ -226,7 +226,6 @@ static void hw_pagetable_fault_free(struct hw_pgtable_fault *fault)
 	WARN_ON(!list_empty(&fault->response));
 
 	fput(fault->fault_file);
-	put_unused_fd(fault->fault_fd);
 	kfree(fault);
 }
 
