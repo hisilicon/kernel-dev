@@ -3242,6 +3242,9 @@ arm_smmu_domain_alloc_nesting(struct device *dev, u32 flags,
 		return ERR_PTR(-ENOMEM);
 
 	if (flags & IOMMU_HWPT_ALLOC_IOPF_CAPABLE) {
+		/* Hack!. Remove dev from any existing iopf_queue */
+		iopf_queue_remove_device(master->smmu->evtq.iopf, dev);
+
 		ret = iopf_queue_add_device(master->smmu->evtq.iopf, dev);
 		if (ret) {
 			kfree(nested_domain);
