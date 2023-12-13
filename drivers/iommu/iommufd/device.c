@@ -1256,3 +1256,50 @@ out_put:
 	iommufd_put_object(ucmd->ictx, &idev->obj);
 	return rc;
 }
+
+int iommufd_device_invalidate(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_dev_invalidate *cmd = ucmd->cmd;
+	struct iommu_user_data_array data_array = {
+		.type = cmd->data_type,
+		.uptr = u64_to_user_ptr(cmd->data_uptr),
+		.entry_len = cmd->entry_len,
+		.entry_num = cmd->entry_num,
+	};
+	struct iommufd_device *idev;
+	const struct iommu_ops *ops;
+	u32 done_num = 0;
+	int rc;
+
+	if (cmd->__reserved) {
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (cmd->entry_num && (!cmd->data_uptr || !cmd->entry_len)) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	idev = iommufd_get_device(ucmd, cmd->dev_id);
+	if (IS_ERR(idev))
+		return PTR_ERR(idev);
+
+	ops = dev_iommu_ops(idev->dev);
+	if (!ops->dev_invalidate_user) {
+		rc = -EOPNOTSUPP;
+		goto out_put_idev;
+	}
+
+	rc = ops->dev_invalidate_user(idev->dev, &data_array);
+
+	done_num = data_array.entry_num;
+
+out_put_idev:
+	iommufd_put_object(ucmd->ictx, &idev->obj);
+out:
+	cmd->entry_num = done_num;
+	if (iommufd_ucmd_respond(ucmd, sizeof(*cmd)))
+		return -EFAULT;
+	return rc;
+}

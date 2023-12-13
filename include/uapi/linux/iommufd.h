@@ -50,6 +50,7 @@ enum {
 	IOMMUFD_CMD_HWPT_SET_DIRTY_TRACKING,
 	IOMMUFD_CMD_HWPT_GET_DIRTY_BITMAP,
 	IOMMUFD_CMD_HWPT_INVALIDATE,
+	IOMMUFD_CMD_DEV_INVALIDATE,
 	IOMMUFD_CMD_FAULT_ALLOC,
 };
 
@@ -771,6 +772,44 @@ struct iommu_hwpt_invalidate {
 	__u32 __reserved;
 };
 #define IOMMU_HWPT_INVALIDATE _IO(IOMMUFD_TYPE, IOMMUFD_CMD_HWPT_INVALIDATE)
+
+/**
+ * enum iommu_dev_invalidate_data_type - IOMMU Device Cache Invalidate Data Type
+ * @IOMMU_DEV_INVALIDATE_DATA_ARM_SMMUV3: ARM SMMUv3 Context Descriptor cache and
+ *                                        device cache
+ */
+enum iommu_dev_invalidate_data_type {
+	IOMMU_DEV_INVALIDATE_DATA_ARM_SMMUV3,
+};
+
+/**
+ * struct iommu_dev_invalidate - ioctl(IOMMU_DEV_INVALIDATE)
+ * @size: sizeof(struct iommu_dev_invalidate)
+ * @hwpt_id: HWPT ID of a nested HWPT for cache invalidation
+ * @dev_id: device ID for cache invalidate_user
+ * @data_uptr: User pointer to an array of driver-specific device cache
+ *             invalidation data.
+ * @data_type: One of enum iommu_dev_invalidate_data_type, defining the data
+ *             type of all the entries in the invalidation request array.
+ * @entry_len: Length (in bytes) of a request entry in the request array
+ * @entry_num: Input the number of cache invalidation requests in the array.
+ *             Output the number of requests successfully handled by kernel.
+ * @__reserved: Must be 0.a
+ *
+ * Invalidate the iommu cache used by a device in the user space.
+ * Each ioctl can support one or more cache invalidation requests in the array
+ * that has a total size of @req_len * @req_num.
+ */
+struct iommu_dev_invalidate {
+	__u32 size;
+	__u32 dev_id;
+	__aligned_u64 data_uptr;
+	__u32 data_type;
+	__u32 entry_len;
+	__u32 entry_num;
+	__u32 __reserved;
+};
+#define IOMMU_DEV_INVALIDATE _IO(IOMMUFD_TYPE, IOMMUFD_CMD_DEV_INVALIDATE)
 
 /**
  * enum iommu_hwpt_pgfault_flags - flags for struct iommu_hwpt_pgfault
