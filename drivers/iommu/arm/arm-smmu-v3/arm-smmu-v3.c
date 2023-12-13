@@ -3473,6 +3473,75 @@ out:
 	return ret;
 }
 
+static int arm_smmu_fix_user_cmd_dev(struct arm_smmu_master *master, u64 *cmd)
+{
+	cmd[0] = le64_to_cpu(cmd[0]);
+	cmd[1] = le64_to_cpu(cmd[1]);
+
+	switch (*cmd & CMDQ_0_OP) {
+	case CMDQ_OP_ATC_INV:
+	case CMDQ_OP_CFGI_CD:
+	case CMDQ_OP_CFGI_CD_ALL:
+		*cmd &= ~CMDQ_CFGI_0_SID;
+		*cmd |= FIELD_PREP(CMDQ_CFGI_0_SID, master->streams[0].id);
+		break;
+	default:
+		return -EIO;
+	}
+	pr_debug("Fixed user CMD: %016llx : %016llx\n", cmd[1], cmd[0]);
+
+	return 0;
+}
+
+static int arm_smmu_dev_invalidate_user(struct device *dev,
+					struct iommu_user_data_array *array)
+{
+	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
+	struct arm_smmu_device *smmu = master->smmu;
+	int data_idx, n = 0, ret;
+	u64 *cmds;
+
+	if (!smmu)
+		return -EINVAL;
+	if (!(smmu->features & ARM_SMMU_FEAT_NESTING))
+		return -EOPNOTSUPP;
+	if (!array->entry_num)
+		return -EINVAL;
+
+	cmds = kcalloc(array->entry_num, sizeof(*cmds) * 2, GFP_KERNEL);
+	if (!cmds)
+		return -ENOMEM;
+
+	for (data_idx = 0; data_idx < array->entry_num; data_idx++) {
+		struct iommu_dev_arm_smmuv3_invalidate *inv =
+			(struct iommu_dev_arm_smmuv3_invalidate *)&cmds[n * 2];
+
+		ret = iommu_copy_struct_from_user_array(inv, array,
+							IOMMU_DEV_INVALIDATE_DATA_ARM_SMMUV3,
+							data_idx, cmd);
+		if (ret)
+			goto out;
+
+		ret = arm_smmu_fix_user_cmd_dev(master, inv->cmd);
+		if (ret)
+			goto out;
+
+		if (++n == CMDQ_BATCH_ENTRIES - 1) {
+			ret = arm_smmu_cmdq_issue_cmdlist(smmu, cmds, n, true);
+			if (ret)
+				goto out;
+			n = 0;
+		}
+	}
+
+	if (n)
+		ret = arm_smmu_cmdq_issue_cmdlist(smmu, cmds, n, true);
+out:
+	array->entry_num = data_idx;
+	kfree(cmds);
+	return ret;
+}
+
 static const struct iommu_domain_ops arm_smmu_nested_ops = {
 	.attach_dev = arm_smmu_attach_dev_nested,
 	.free = arm_smmu_domain_nested_free,
@@ -4174,6 +4243,7 @@ static struct iommu_ops arm_smmu_ops = {
 	.remove_dev_pasid	= arm_smmu_remove_dev_pasid,
 	.dev_enable_feat	= arm_smmu_dev_enable_feature,
 	.dev_disable_feat	= arm_smmu_dev_disable_feature,
+	.dev_invalidate_user    = arm_smmu_dev_invalidate_user,
 	.page_response		= arm_smmu_page_response,
 	.def_domain_type	= arm_smmu_def_domain_type,
 	.pgsize_bitmap		= -1UL, /* Restricted during device attach */

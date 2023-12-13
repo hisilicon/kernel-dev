@@ -774,6 +774,23 @@ struct iommu_hwpt_invalidate {
 #define IOMMU_HWPT_INVALIDATE _IO(IOMMUFD_TYPE, IOMMUFD_CMD_HWPT_INVALIDATE)
 
 /**
+ * struct iommu_dev_arm_smmuv3_invalidate - ARM SMMUv3 device cahce invalidation
+ *                                        (IOMMU_DEV_INVALIDATE_DATA_ARM_SMMUV3)
+ * @cmd: 128-bit cache invalidation command that runs in SMMU CMDQ.
+ *       Must be little-endian.
+ *
+ * Supported command list:
+ *     CMDQ_OP_ATC_INV
+ *     CMDQ_OP_CFGI_CD
+ *     CMDQ_OP_CFGI_CD_ALL
+ *
+ * -EIO will be returned if the command is not supported.
+ */
+struct iommu_dev_arm_smmuv3_invalidate {
+	__aligned_u64 cmd[2];
+};
+
+/**
  * enum iommu_dev_invalidate_data_type - IOMMU Device Cache Invalidate Data Type
  * @IOMMU_DEV_INVALIDATE_DATA_ARM_SMMUV3: ARM SMMUv3 Context Descriptor cache and
  *                                        device cache
