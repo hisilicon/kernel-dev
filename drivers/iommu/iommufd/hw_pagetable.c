@@ -137,11 +137,6 @@ static ssize_t hwpt_fault_fops_write(struct file *filep,
 			if (idev->dev != iter->dev)
 				continue;
 
-			if ((iter->last_fault.fault.prm.flags &
-			     IOMMU_FAULT_PAGE_REQUEST_PASID_VALID) &&
-			    response.pasid != iter->last_fault.fault.prm.pasid)
-				continue;
-
 			group = iter;
 			break;
 		}
