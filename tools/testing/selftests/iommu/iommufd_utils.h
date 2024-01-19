@@ -281,6 +281,37 @@ static int _test_cmd_hwpt_invalidate(int fd, __u32 hwpt_id, void *reqs,
 					     data_type, lreq, nreqs));   \
 	})
 
+static int _test_cmd_dev_invalidate(int fd, __u32 device_id, void *reqs,
+				    uint32_t data_type, uint32_t lreq,
+				    uint32_t *nreqs)
+{
+	struct iommu_dev_invalidate cmd = {
+		.size = sizeof(cmd),
+		.dev_id = device_id,
+		.data_type = data_type,
+		.data_uptr = (uint64_t)reqs,
+		.entry_len = lreq,
+		.entry_num = *nreqs,
+	};
+	int rc = ioctl(fd, IOMMU_DEV_INVALIDATE, &cmd);
+	*nreqs = cmd.entry_num;
+	return rc;
+}
+
+#define test_cmd_dev_invalidate(device_id, reqs, data_type, lreq, nreqs)      \
+	({                                                                    \
+		ASSERT_EQ(0,                                                  \
+			  _test_cmd_dev_invalidate(self->fd, device_id, reqs, \
+						    data_type, lreq, nreqs)); \
+	})
+#define test_err_dev_invalidate(_errno, device_id, reqs, data_type, lreq, \
+				 nreqs)                                   \
+	({                                                                \
+		EXPECT_ERRNO(_errno, _test_cmd_dev_invalidate(            \
+					     self->fd, device_id, reqs,   \
+					     data_type, lreq, nreqs));    \
+	})
+
 static int _test_cmd_access_replace_ioas(int fd, __u32 access_id,
 					 unsigned int ioas_id)
 {

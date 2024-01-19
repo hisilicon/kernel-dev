@@ -1723,6 +1723,156 @@ TEST_F(iommufd_mock_domain, alloc_hwpt)
 	}
 }
 
+TEST_F(iommufd_mock_domain, dev_cache)
+{
+	struct iommu_dev_invalidate_selftest inv_reqs[2] = {};
+	uint32_t num_inv;
+	int i;
+
+	for (i = 0; i != variant->mock_domains; i++) {
+		test_cmd_dev_check_cache_all(self->idev_ids[i],
+					     IOMMU_TEST_DEV_CACHE_DEFAULT);
+
+		/* Check data_type by passing zero-length array */
+		num_inv = 0;
+		test_cmd_dev_invalidate(self->idev_ids[i], inv_reqs,
+					IOMMU_DEV_INVALIDATE_DATA_SELFTEST,
+					sizeof(*inv_reqs), &num_inv);
+		assert(!num_inv);
+
+		/* Negative test: Invalid data_type */
+		num_inv = 1;
+		test_err_dev_invalidate(EINVAL, self->idev_ids[i], inv_reqs,
+					IOMMU_DEV_INVALIDATE_DATA_SELFTEST_INVALID,
+					sizeof(*inv_reqs), &num_inv);
+		assert(!num_inv);
+
+		/* Negative test: structure size sanity */
+		num_inv = 1;
+		test_err_dev_invalidate(EINVAL, self->idev_ids[i], inv_reqs,
+					IOMMU_DEV_INVALIDATE_DATA_SELFTEST,
+					sizeof(*inv_reqs) + 1, &num_inv);
+		assert(!num_inv);
+
+		num_inv = 1;
+		test_err_dev_invalidate(EINVAL, self->idev_ids[i], inv_reqs,
+					IOMMU_DEV_INVALIDATE_DATA_SELFTEST,
+					1, &num_inv);
+		assert(!num_inv);
+
+		/* Negative test: invalid flag is passed */
+		num_inv = 1;
+		inv_reqs[0].flags = 0xffffffff;
+		test_err_dev_invalidate(EOPNOTSUPP, self->idev_ids[i], inv_reqs,
+					IOMMU_DEV_INVALIDATE_DATA_SELFTEST,
+					sizeof(*inv_reqs), &num_inv);
+		assert(!num_inv);
+
+		/* Negative test: invalid data_uptr when array is not empty */
+		num_inv = 1;
+		inv_reqs[0].flags = 0;
+		test_err_dev_invalidate(EINVAL, self->idev_ids[i], NULL,
+					IOMMU_DEV_INVALIDATE_DATA_SELFTEST,
+					sizeof(*inv_reqs), &num_inv);
+		assert(!num_inv);
+
+		/* Negative test: invalid entry_len when array is not empty */
+		num_inv = 1;
+		inv_reqs[0].flags = 0;
+		test_err_dev_invalidate(EINVAL, self->idev_ids[i], inv_reqs,
+					IOMMU_DEV_INVALIDATE_DATA_SELFTEST,
+					0, &num_inv);
+		assert(!num_inv);
+
+		/* Negative test: invalid cache_id */
+		num_inv = 1;
+		inv_reqs[0].flags = 0;
+		inv_reqs[0].cache_id = MOCK_DEV_CACHE_ID_MAX + 1;
+		test_err_dev_invalidate(EINVAL, self->idev_ids[i], inv_reqs,
+					IOMMU_DEV_INVALIDATE_DATA_SELFTEST,
+					sizeof(*inv_reqs), &num_inv);
+		assert(!num_inv);
+
+		/*
+		 * Invalidate the 1st cache entry but fail the 2nd request
+		 * due to invalid flags configuration in the 2nd request.
+		 */
+		num_inv = 2;
+		inv_reqs[0].flags = 0;
+		inv_reqs[0].cache_id = 0;
+		inv_reqs[1].flags = 0xffffffff;
+		inv_reqs[1].cache_id = 1;
+		test_err_dev_invalidate(EOPNOTSUPP, self->idev_ids[i], inv_reqs,
+					IOMMU_DEV_INVALIDATE_DATA_SELFTEST,
+					sizeof(*inv_reqs), &num_inv);
+		assert(num_inv == 1);
+		test_cmd_dev_check_cache(self->idev_ids[i], 0, 0);
+		test_cmd_dev_check_cache(self->idev_ids[i], 1,
+					 IOMMU_TEST_DEV_CACHE_DEFAULT);
+		test_cmd_dev_check_cache(self->idev_ids[i], 2,
+					 IOMMU_TEST_DEV_CACHE_DEFAULT);
+		test_cmd_dev_check_cache(self->idev_ids[i], 3,
+					 IOMMU_TEST_DEV_CACHE_DEFAULT);
+
+		/*
+		 * Invalidate the 1st cache entry but fail the 2nd request
+		 * due to invalid cache_id configuration in the 2nd request.
+		 */
+		num_inv = 2;
+		inv_reqs[0].flags = 0;
+		inv_reqs[0].cache_id = 0;
+		inv_reqs[1].flags = 0;
+		inv_reqs[1].cache_id = MOCK_DEV_CACHE_ID_MAX + 1;
+		test_err_dev_invalidate(EINVAL, self->idev_ids[i], inv_reqs,
+					IOMMU_DEV_INVALIDATE_DATA_SELFTEST,
+					sizeof(*inv_reqs), &num_inv);
+		assert(num_inv == 1);
+		test_cmd_dev_check_cache(self->idev_ids[i], 0, 0);
+		test_cmd_dev_check_cache(self->idev_ids[i], 1,
+					 IOMMU_TEST_DEV_CACHE_DEFAULT);
+		test_cmd_dev_check_cache(self->idev_ids[i], 2,
+					 IOMMU_TEST_DEV_CACHE_DEFAULT);
+		test_cmd_dev_check_cache(self->idev_ids[i], 3,
+					 IOMMU_TEST_DEV_CACHE_DEFAULT);
+
+		/* Invalidate the 2nd cache entry and verify */
+		num_inv = 1;
+		inv_reqs[0].flags = 0;
+		inv_reqs[0].cache_id = 1;
+		test_cmd_dev_invalidate(self->idev_ids[i], inv_reqs,
+					IOMMU_DEV_INVALIDATE_DATA_SELFTEST,
+					sizeof(*inv_reqs), &num_inv);
+		assert(num_inv == 1);
+		test_cmd_dev_check_cache(self->idev_ids[i], 0, 0);
+		test_cmd_dev_check_cache(self->idev_ids[i], 1, 0);
+		test_cmd_dev_check_cache(self->idev_ids[i], 2,
+					IOMMU_TEST_DEV_CACHE_DEFAULT);
+		test_cmd_dev_check_cache(self->idev_ids[i], 3,
+					IOMMU_TEST_DEV_CACHE_DEFAULT);
+
+		/* Invalidate the 3rd and 4th cache entries and verify */
+		num_inv = 2;
+		inv_reqs[0].flags = 0;
+		inv_reqs[0].cache_id = 2;
+		inv_reqs[1].flags = 0;
+		inv_reqs[1].cache_id = 3;
+		test_cmd_dev_invalidate(self->idev_ids[i], inv_reqs,
+					 IOMMU_DEV_INVALIDATE_DATA_SELFTEST,
+					 sizeof(*inv_reqs), &num_inv);
+		assert(num_inv == 2);
+		test_cmd_dev_check_cache_all(self->idev_ids[i], 0);
+
+		/* Invalidate all cache entries for nested_dev_id[1] and verify */
+		num_inv = 1;
+		inv_reqs[0].flags = IOMMU_TEST_INVALIDATE_FLAG_ALL;
+		test_cmd_dev_invalidate(self->idev_ids[i], inv_reqs,
+					IOMMU_DEV_INVALIDATE_DATA_SELFTEST,
+					sizeof(*inv_reqs), &num_inv);
+		assert(num_inv == 1);
+		test_cmd_dev_check_cache_all(self->idev_ids[i], 0);
+	}
+}
+
 FIXTURE(iommufd_dirty_tracking)
 {
 	int fd;
