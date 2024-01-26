@@ -279,10 +279,8 @@ struct arm_smmu_ste {
 #define CTXDESC_L1_DESC_V		(1UL << 0)
 #define CTXDESC_L1_DESC_L2PTR_MASK	GENMASK_ULL(51, 12)
 
-#define CTXDESC_CD_DWORDS		8
-
 struct arm_smmu_cd {
-	__le64 data[CTXDESC_CD_DWORDS];
+	__le64 data[8];
 };
 
 #define CTXDESC_CD_0_TCR_T0SZ		GENMASK_ULL(5, 0)
@@ -312,7 +310,7 @@ struct arm_smmu_cd {
  * When the SMMU only supports linear context descriptor tables, pick a
  * reasonable size limit (64kB).
  */
-#define CTXDESC_LINEAR_CDMAX		ilog2(SZ_64K / (CTXDESC_CD_DWORDS << 3))
+#define CTXDESC_LINEAR_CDMAX		ilog2(SZ_64K / sizeof(struct arm_smmu_cd))
 
 /* Command queue */
 #define CMDQ_ENT_SZ_SHIFT		4
@@ -593,7 +591,10 @@ struct arm_smmu_l1_ctx_desc {
 };
 
 struct arm_smmu_ctx_desc_cfg {
-	__le64				*cdtab;
+	union {
+		struct arm_smmu_cd *linear;
+		__le64 *l1_desc;
+	} cdtab;
 	dma_addr_t			cdtab_dma;
 	struct arm_smmu_l1_ctx_desc	*l1_desc;
 	unsigned int			num_l1_ents;
@@ -603,6 +604,12 @@ struct arm_smmu_ctx_desc_cfg {
 	/* log2 of the maximum number of CDs supported by this table */
 	u8				s1cdmax;
 };
+
+static inline bool
+arm_smmu_cdtab_allocated(struct arm_smmu_ctx_desc_cfg *cd_table)
+{
+	return cd_table->cdtab.linear;
+}
 
 /* True if the cd table has SSIDS > 0 in use. */
 static inline bool arm_smmu_ssids_in_use(struct arm_smmu_ctx_desc_cfg *cd_table)
