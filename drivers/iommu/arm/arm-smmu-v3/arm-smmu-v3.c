@@ -1177,13 +1177,10 @@ static int arm_smmu_alloc_cd_leaf_table(struct arm_smmu_device *smmu,
 {
 	size_t size = CTXDESC_L2_ENTRIES * sizeof(struct arm_smmu_cd);
 
-	l1_desc->l2ptr = dmam_alloc_coherent(smmu->dev, size,
-					     &l1_desc->l2ptr_dma, GFP_KERNEL);
-	if (!l1_desc->l2ptr) {
-		dev_warn(smmu->dev,
-			 "failed to allocate context descriptor table\n");
+	l1_desc->l2ptr = dma_alloc_coherent(smmu->dev, size,
+					    &l1_desc->l2ptr_dma, GFP_KERNEL);
+	if (!l1_desc->l2ptr)
 		return -ENOMEM;
-	}
 	return 0;
 }
 
@@ -1379,7 +1376,7 @@ static int arm_smmu_alloc_cd_tables(struct arm_smmu_master *master)
 		cd_table->s1fmt = STRTAB_STE_0_S1FMT_LINEAR;
 		cd_table->num_l1_ents = max_contexts;
 
-		cd_table->cdtab.linear = dmam_alloc_coherent(
+		cd_table->cdtab.linear = dma_alloc_coherent(
 			smmu->dev, max_contexts * sizeof(struct arm_smmu_cd),
 			&cd_table->cdtab_dma, GFP_KERNEL);
 		if (!cd_table->cdtab.linear)
@@ -1391,17 +1388,17 @@ static int arm_smmu_alloc_cd_tables(struct arm_smmu_master *master)
 		cd_table->num_l1_ents = DIV_ROUND_UP(max_contexts,
 						  CTXDESC_L2_ENTRIES);
 
-		cd_table->l1_desc = devm_kcalloc(smmu->dev, cd_table->num_l1_ents,
-					      sizeof(*cd_table->l1_desc),
-					      GFP_KERNEL);
+		cd_table->l1_desc = kcalloc(cd_table->num_l1_ents,
+					    sizeof(*cd_table->l1_desc),
+					    GFP_KERNEL);
 		if (!cd_table->l1_desc)
 			return -ENOMEM;
 
 		l1size = cd_table->num_l1_ents * (CTXDESC_L1_DESC_DWORDS << 3);
-		cd_table->cdtab.l1_desc = dmam_alloc_coherent(
+		cd_table->cdtab.l1_desc = dma_alloc_coherent(
 			smmu->dev, l1size, &cd_table->cdtab_dma, GFP_KERNEL);
 		if (!cd_table->cdtab.l1_desc) {
-			devm_kfree(smmu->dev, cd_table->l1_desc);
+			kfree(cd_table->l1_desc);
 			cd_table->l1_desc = NULL;
 			return -ENOMEM;
 		}
@@ -1423,25 +1420,22 @@ static void arm_smmu_free_cd_tables(struct arm_smmu_master *master)
 			if (!cd_table->l1_desc[i].l2ptr)
 				continue;
 
-			dmam_free_coherent(smmu->dev, size,
-					   cd_table->l1_desc[i].l2ptr,
-					   cd_table->l1_desc[i].l2ptr_dma);
+			dma_free_coherent(smmu->dev, size,
+					  cd_table->l1_desc[i].l2ptr,
+					  cd_table->l1_desc[i].l2ptr_dma);
 		}
-		devm_kfree(smmu->dev, cd_table->l1_desc);
+		kfree(cd_table->l1_desc);
 		cd_table->l1_desc = NULL;
 
 		l1size = cd_table->num_l1_ents * (CTXDESC_L1_DESC_DWORDS << 3);
-		dmam_free_coherent(smmu->dev, l1size, cd_table->cdtab.l1_desc,
-				   cd_table->cdtab_dma);
+		dma_free_coherent(smmu->dev, l1size, cd_table->cdtab.l1_desc,
+				  cd_table->cdtab_dma);
 	} else {
-		dmam_free_coherent(smmu->dev,
-				   cd_table->num_l1_ents *
-					   sizeof(struct arm_smmu_cd),
-				   cd_table->cdtab.linear, cd_table->cdtab_dma);
+		dma_free_coherent(smmu->dev,
+				  cd_table->num_l1_ents *
+					  sizeof(struct arm_smmu_cd),
+				  cd_table->cdtab.linear, cd_table->cdtab_dma);
 	}
-
-	cd_table->cdtab_dma = 0;
-	cd_table->cdtab.linear = NULL;
 }
 
 /* Stream table manipulation functions */
