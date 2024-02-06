@@ -17,6 +17,7 @@ struct iommufd_ctx;
 struct iommufd_access;
 struct file;
 struct iommu_group;
+struct kvm;
 
 struct iommufd_device *iommufd_device_bind(struct iommufd_ctx *ictx,
 					   struct device *dev, u32 *id);
@@ -59,6 +60,7 @@ struct iommufd_ctx *iommufd_ctx_from_file(struct file *file);
 struct iommufd_ctx *iommufd_ctx_from_fd(int fd);
 void iommufd_ctx_put(struct iommufd_ctx *ictx);
 bool iommufd_ctx_has_group(struct iommufd_ctx *ictx, struct iommu_group *group);
+void iommufd_ctx_set_kvm(struct iommufd_ctx *ictx, struct kvm *kvm);
 
 int iommufd_access_pin_pages(struct iommufd_access *access, unsigned long iova,
 			     unsigned long length, struct page **out_pages,
@@ -77,6 +79,11 @@ static inline struct iommufd_ctx *iommufd_ctx_from_file(struct file *file)
 }
 
 static inline void iommufd_ctx_put(struct iommufd_ctx *ictx)
+{
+}
+
+static inline void iommufd_ctx_set_kvm(struct iommufd_ctx *ictx,
+				       struct kvm *kvm)
 {
 }
 

@@ -481,6 +481,20 @@ void iommufd_ctx_put(struct iommufd_ctx *ictx)
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_ctx_put, IOMMUFD);
 
+/**
+ * iommufd_ctx_set_kvm - Called to set a KVM pointer to iommufd context
+ * @ictx: Context to operate on
+ * @kvm: KVM pointer with a reference taken using kvm_get_kvm_safe()
+ */
+void iommufd_ctx_set_kvm(struct iommufd_ctx *ictx, struct kvm *kvm)
+{
+	xa_lock(&ictx->objects);
+	if (!ictx->kvm)
+		ictx->kvm = kvm;
+	xa_unlock(&ictx->objects);
+}
+EXPORT_SYMBOL_NS_GPL(iommufd_ctx_set_kvm, IOMMUFD);
+
 static const struct iommufd_object_ops iommufd_object_ops[] = {
 	[IOMMUFD_OBJ_ACCESS] = {
 		.destroy = iommufd_access_destroy_object,
