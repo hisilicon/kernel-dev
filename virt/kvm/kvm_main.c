@@ -3880,6 +3880,29 @@ bool kvm_vcpu_wake_up(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_wake_up);
 
+#ifdef CONFIG_HAVE_KVM_PINNED_VMID
+int kvm_pinned_vmid_get(struct kvm *kvm)
+{
+	int ret;
+
+	if (!kvm_get_kvm_safe(kvm))
+		return -ENOENT;
+	ret  = kvm_arch_pinned_vmid_get(kvm);
+	if (ret < 0)
+		kvm_put_kvm(kvm);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(kvm_pinned_vmid_get);
+
+void kvm_pinned_vmid_put(struct kvm *kvm)
+{
+	kvm_arch_pinned_vmid_put(kvm);
+	kvm_put_kvm(kvm);
+}
+EXPORT_SYMBOL_GPL(kvm_pinned_vmid_put);
+#endif
+
 #ifndef CONFIG_S390
 /*
  * Kick a sleeping VCPU, or a guest VCPU in guest mode, into host kernel mode.
