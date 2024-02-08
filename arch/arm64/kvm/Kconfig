@@ -36,6 +36,7 @@ menuconfig KVM
 	select HAVE_KVM_VCPU_RUN_PID_CHANGE
 	select SCHED_INFO
 	select GUEST_PERF_EVENTS if PERF_EVENTS
+	select HAVE_KVM_PINNED_VMID
 	help
 	  Support hosting virtualized guest machines.
 
