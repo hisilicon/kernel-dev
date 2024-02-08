@@ -252,6 +252,7 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 	struct iommu_hwpt_alloc *cmd = ucmd->cmd;
 	const struct iommu_user_data user_data = {
 		.type = cmd->data_type,
+		.kvm = ucmd->ictx->kvm,
 		.uptr = u64_to_user_ptr(cmd->data_uptr),
 		.len = cmd->data_len,
 	};
@@ -284,7 +285,7 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 		mutex_lock(&ioas->mutex);
 		hwpt_paging = iommufd_hwpt_paging_alloc(
 			ucmd->ictx, ioas, idev, cmd->flags, false,
-			user_data.len ? &user_data : NULL);
+			&user_data);
 		if (IS_ERR(hwpt_paging)) {
 			rc = PTR_ERR(hwpt_paging);
 			goto out_unlock;

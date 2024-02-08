@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/io-pgtable.h>
 #include <linux/iopoll.h>
+#include <linux/kvm_host.h>
 #include <linux/module.h>
 #include <linux/msi.h>
 #include <linux/of.h>
@@ -2404,10 +2405,23 @@ int arm_smmu_domain_alloc_id(struct arm_smmu_device *smmu,
 				GFP_KERNEL);
 	} else if (smmu_domain->stage == ARM_SMMU_DOMAIN_S2) {
 		int vmid;
-
-		/* Reserve VMID 0 for stage-2 bypass STEs */
-		vmid = ida_alloc_range(&smmu->vmid_map, 1,
-				       (1 << smmu->vmid_bits) - 1, GFP_KERNEL);
+		/*
+		 * There can only be one allocator for VMIDs active at once. If BTM is
+		 * turned on then KVM's allocator always supplies the VMID, and the
+		 * VMID is matched by CPU invalidation of the KVM S2. Right now there
+		 * is no API to get an unused VMID from KVM so this also means BTM systems
+		 * cannot support S2 without an associated KVM.
+		 */
+		if ((smmu->features & ARM_SMMU_FEAT_BTM)) {
+			if (!smmu_domain->kvm)
+				vmid = -EOPNOTSUPP;
+			else
+				vmid = kvm_pinned_vmid_get(smmu_domain->kvm);
+		} else {
+			/* Reserve VMID 0 for stage-2 bypass STEs */
+			vmid = ida_alloc_range(&smmu->vmid_map, 1,
+					       (1 << smmu->vmid_bits) - 1, GFP_KERNEL);
+		}
 		if (vmid < 0)
 			return vmid;
 		smmu_domain->vmid = vmid;
@@ -2436,7 +2450,10 @@ void arm_smmu_domain_free_id(struct arm_smmu_domain *smmu_domain)
 		mutex_unlock(&smmu->asid_lock);
 	} else if (smmu_domain->stage == ARM_SMMU_DOMAIN_S2 &&
 		   smmu_domain->vmid) {
-		ida_free(&smmu->vmid_map, smmu_domain->vmid);
+		if ((smmu->features & ARM_SMMU_FEAT_BTM) && smmu_domain->kvm)
+			kvm_pinned_vmid_put(smmu_domain->kvm);
+		else
+			ida_free(&smmu->vmid_map, smmu_domain->vmid);
 	}
 }
 
@@ -3369,8 +3386,6 @@ arm_smmu_domain_alloc_user(struct device *dev, u32 flags,
 
 	if (flags & ~PAGING_FLAGS)
 		return ERR_PTR(-EOPNOTSUPP);
-	if (user_data)
-		return ERR_PTR(-EINVAL);
 
 	smmu_domain = arm_smmu_domain_alloc();
 	if (!smmu_domain)
@@ -3383,6 +3398,8 @@ arm_smmu_domain_alloc_user(struct device *dev, u32 flags,
 		}
 		smmu_domain->stage = ARM_SMMU_DOMAIN_S2;
 		smmu_domain->nesting_parent = true;
+		if (user_data)
+			smmu_domain->kvm = user_data->kvm;
 	}
 
 	smmu_domain->domain.type = IOMMU_DOMAIN_UNMANAGED;

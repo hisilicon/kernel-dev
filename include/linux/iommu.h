@@ -42,6 +42,7 @@ struct notifier_block;
 struct iommu_sva;
 struct iommu_dma_cookie;
 struct iommu_fault_param;
+struct kvm;
 
 #define IOMMU_FAULT_PERM_READ	(1 << 0) /* read */
 #define IOMMU_FAULT_PERM_WRITE	(1 << 1) /* write */
@@ -375,6 +376,7 @@ struct iommu_dirty_ops {
 /**
  * struct iommu_user_data - iommu driver specific user space data info
  * @type: The data type of the user buffer
+ * @kvm: kvm pointer associated with iommufd_ctx if set
  * @uptr: Pointer to the user buffer for copy_from_user()
  * @len: The length of the user buffer in bytes
  *
@@ -383,6 +385,7 @@ struct iommu_dirty_ops {
  */
 struct iommu_user_data {
 	unsigned int type;
+	struct kvm *kvm;
 	void __user *uptr;
 	size_t len;
 };

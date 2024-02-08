@@ -2454,7 +2454,7 @@ amd_iommu_domain_alloc_user(struct device *dev, u32 flags,
 {
 	unsigned int type = IOMMU_DOMAIN_UNMANAGED;
 
-	if ((flags & ~IOMMU_HWPT_ALLOC_DIRTY_TRACKING) || parent || user_data)
+	if ((flags & ~IOMMU_HWPT_ALLOC_DIRTY_TRACKING) || parent)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	return do_iommu_domain_alloc(type, dev, flags);
