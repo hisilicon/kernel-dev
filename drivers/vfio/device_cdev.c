@@ -94,6 +94,9 @@ long vfio_df_ioctl_bind_iommufd(struct vfio_device_file *df,
 	 */
 	vfio_device_get_kvm_safe(df->device, &df->kvm_ref);
 
+	if (df->kvm_ref.kvm)
+		iommufd_ctx_set_kvm(df->iommufd, df->kvm_ref.kvm);
+
 	ret = vfio_df_open(df);
 	if (ret)
 		goto out_put_kvm;
