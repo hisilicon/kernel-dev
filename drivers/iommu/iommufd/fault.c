@@ -267,3 +267,125 @@ int iommufd_fault_iopf_handler(struct iopf_group *group)
 
 	return 0;
 }
+
+static void release_attach_cookie(struct iopf_attach_cookie *cookie)
+{
+	struct iommufd_hw_pagetable *hwpt = cookie->domain->fault_data;
+	struct iommufd_device *idev = cookie->private;
+
+	refcount_dec(&idev->obj.users);
+	refcount_dec(&hwpt->obj.users);
+	kfree(cookie);
+}
+
+static int iommufd_fault_iopf_enable(struct iommufd_device *idev)
+{
+	int ret;
+
+	if (idev->iopf_enabled)
+		return 0;
+
+	ret = iommu_dev_enable_feature(idev->dev, IOMMU_DEV_FEAT_IOPF);
+	if (ret)
+		return ret;
+
+	idev->iopf_enabled = true;
+
+	return 0;
+}
+
+static void iommufd_fault_iopf_disable(struct iommufd_device *idev)
+{
+	if (!idev->iopf_enabled)
+		return;
+
+	iommu_dev_disable_feature(idev->dev, IOMMU_DEV_FEAT_IOPF);
+	idev->iopf_enabled = false;
+}
+
+int iommufd_fault_domain_attach_dev(struct iommufd_hw_pagetable *hwpt,
+				    struct iommufd_device *idev)
+{
+	struct iopf_attach_cookie *cookie;
+	int ret;
+
+	cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
+	if (!cookie)
+		return -ENOMEM;
+
+	refcount_inc(&hwpt->obj.users);
+	refcount_inc(&idev->obj.users);
+	cookie->release = release_attach_cookie;
+	cookie->private = idev;
+
+	if (!idev->iopf_enabled) {
+		ret = iommufd_fault_iopf_enable(idev);
+		if (ret)
+			goto out_put_cookie;
+	}
+
+	ret = iopf_domain_attach(hwpt->domain, idev->dev, IOMMU_NO_PASID, cookie);
+	if (ret)
+		goto out_disable_iopf;
+
+	return 0;
+out_disable_iopf:
+	iommufd_fault_iopf_disable(idev);
+out_put_cookie:
+	release_attach_cookie(cookie);
+
+	return ret;
+}
+
+void iommufd_fault_domain_detach_dev(struct iommufd_hw_pagetable *hwpt,
+				     struct iommufd_device *idev)
+{
+	iopf_domain_detach(hwpt->domain, idev->dev, IOMMU_NO_PASID);
+	iommufd_fault_iopf_disable(idev);
+}
+
+int iommufd_fault_domain_replace_dev(struct iommufd_hw_pagetable *hwpt,
+				     struct iommufd_device *idev)
+{
+	bool iopf_enabled_originally = idev->iopf_enabled;
+	struct iopf_attach_cookie *cookie = NULL;
+	int ret;
+
+	if (hwpt->fault_capable) {
+		cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
+		if (!cookie)
+			return -ENOMEM;
+
+		refcount_inc(&hwpt->obj.users);
+		refcount_inc(&idev->obj.users);
+		cookie->release = release_attach_cookie;
+		cookie->private = idev;
+
+		if (!idev->iopf_enabled) {
+			ret = iommufd_fault_iopf_enable(idev);
+			if (ret) {
+				release_attach_cookie(cookie);
+				return ret;
+			}
+		}
+	}
+
+	ret = iopf_domain_replace(hwpt->domain, idev->dev, IOMMU_NO_PASID, cookie);
+	if (ret) {
+		goto out_put_cookie;
+	}
+
+	if (iopf_enabled_originally && !hwpt->fault_capable)
+		iommufd_fault_iopf_disable(idev);
+
+	return 0;
+out_put_cookie:
+	if (hwpt->fault_capable)
+		release_attach_cookie(cookie);
+	if (iopf_enabled_originally && !idev->iopf_enabled)
+		iommufd_fault_iopf_enable(idev);
+	else if (!iopf_enabled_originally && idev->iopf_enabled)
+		iommufd_fault_iopf_disable(idev);
+
+	return ret;
+}
