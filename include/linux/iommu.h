@@ -141,6 +141,8 @@ struct iopf_group {
 	/* The device's fault data parameter. */
 	struct iommu_fault_param *fault_param;
 	struct iopf_attach_cookie *cookie;
+	/* Used by handler provider to hook the group on its own lists. */
+	struct list_head node;
 };
 
 /**
