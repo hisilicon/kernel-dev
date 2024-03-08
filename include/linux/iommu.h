@@ -138,9 +138,9 @@ struct iopf_group {
 	/* list node for iommu_fault_param::faults */
 	struct list_head pending_node;
 	struct work_struct work;
-	struct iommu_domain *domain;
 	/* The device's fault data parameter. */
 	struct iommu_fault_param *fault_param;
+	struct iopf_attach_cookie *cookie;
 };
 
 /**

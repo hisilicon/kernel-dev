@@ -51,6 +51,39 @@ static struct iommu_mm_data *iommu_alloc_mm_data(struct mm_struct *mm, struct de
 	return iommu_mm;
 }
 
+static void release_attach_cookie(struct iopf_attach_cookie *cookie)
+{
+	struct iommu_domain *domain = cookie->domain;
+
+	mutex_lock(&iommu_sva_lock);
+	if (--domain->users == 0) {
+		list_del(&domain->next);
+		iommu_domain_free(domain);
+	}
+	mutex_unlock(&iommu_sva_lock);
+
+	kfree(cookie);
+}
+
+static int sva_attach_device_pasid(struct iommu_domain *domain,
+				   struct device *dev, ioasid_t pasid)
+{
+	struct iopf_attach_cookie *cookie;
+	int ret;
+
+	cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
+	if (!cookie)
+		return -ENOMEM;
+
+	cookie->release = release_attach_cookie;
+
+	ret = iopf_domain_attach(domain, dev, pasid, cookie);
+	if (ret)
+		kfree(cookie);
+
+	return ret;
+}
+
 /**
  * iommu_sva_bind_device() - Bind a process address space to a device
  * @dev: the device
@@ -99,7 +132,7 @@ struct iommu_sva *iommu_sva_bind_device(struct device *dev, struct mm_struct *mm
 
 	/* Search for an existing domain. */
 	list_for_each_entry(domain, &mm->iommu_mm->sva_domains, next) {
-		ret = iommu_attach_device_pasid(domain, dev, iommu_mm->pasid);
+		ret = sva_attach_device_pasid(domain, dev, iommu_mm->pasid);
 		if (!ret) {
 			domain->users++;
 			goto out;
@@ -113,7 +146,7 @@ struct iommu_sva *iommu_sva_bind_device(struct device *dev, struct mm_struct *mm
 		goto out_free_handle;
 	}
 
-	ret = iommu_attach_device_pasid(domain, dev, iommu_mm->pasid);
+	ret = sva_attach_device_pasid(domain, dev, iommu_mm->pasid);
 	if (ret)
 		goto out_free_domain;
 	domain->users = 1;
@@ -157,13 +190,8 @@ void iommu_sva_unbind_device(struct iommu_sva *handle)
 		return;
 	}
 	list_del(&handle->handle_item);
-
-	iommu_detach_device_pasid(domain, dev, iommu_mm->pasid);
-	if (--domain->users == 0) {
-		list_del(&domain->next);
-		iommu_domain_free(domain);
-	}
 	mutex_unlock(&iommu_sva_lock);
+
 	kfree(handle);
 }
 EXPORT_SYMBOL_GPL(iommu_sva_unbind_device);
@@ -259,7 +287,8 @@ static void iommu_sva_handle_iopf(struct work_struct *work)
 		if (status != IOMMU_PAGE_RESP_SUCCESS)
 			break;
 
-		status = iommu_sva_handle_mm(&iopf->fault, group->domain->mm);
+		status = iommu_sva_handle_mm(&iopf->fault,
+					     group->cookie->domain->mm);
 	}
 
 	iopf_group_response(group, status);
