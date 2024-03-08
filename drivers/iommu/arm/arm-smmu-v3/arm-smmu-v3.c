@@ -1829,6 +1829,29 @@ static void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
 				      STRTAB_STE_3_S2TTB_MASK);
 }
 
+static void arm_smmu_make_nested_domain_ste(
+	struct arm_smmu_ste *target, struct arm_smmu_master *master,
+	struct arm_smmu_nested_domain *nested_domain, bool ats_enabled)
+{
+	/*
+	 * Userspace can request a non-valid STE through the nesting interface.
+	 * We relay that into a non-valid physical STE with the intention that
+	 * C_BAD_STE for this SID can be delivered to userspace.
+	 */
+	if (!(nested_domain->ste[0] & cpu_to_le64(STRTAB_STE_0_V))) {
+		memset(target, 0, sizeof(*target));
+		return;
+	}
+
+	arm_smmu_make_s2_domain_ste(target, master, nested_domain->s2_parent,
+				    ats_enabled);
+
+	target->data[0] |= cpu_to_le64(FIELD_PREP(STRTAB_STE_0_CFG,
+						  STRTAB_STE_0_CFG_NESTED)) |
+			   nested_domain->ste[0];
+	target->data[1] |= nested_domain->ste[1];
+}
+
 /*
  * This can safely directly manipulate the STE memory without a sync sequence
  * because the STE table has not been installed in the SMMU yet.
@@ -2257,7 +2280,16 @@ int arm_smmu_atc_inv_domain(struct arm_smmu_domain *smmu_domain,
 		if (!master->ats_enabled)
 			continue;
 
-		arm_smmu_atc_inv_to_cmd(master_domain->ssid, iova, size, &cmd);
+		if (master_domain->nested_parent) {
+			/*
+			 * If a S2 used as a nesting parent is changed we have
+			 * no option but to completely flush the ATC.
+			 */
+			arm_smmu_atc_inv_to_cmd(IOMMU_NO_PASID, 0, 0, &cmd);
+		} else {
+			arm_smmu_atc_inv_to_cmd(master_domain->ssid, iova, size,
+						&cmd);
+		}
 
 		for (i = 0; i < master->num_streams; i++) {
 			cmd.atc.sid = master->streams[i].id;
@@ -2399,7 +2431,8 @@ static void arm_smmu_tlb_inv_range_s2(struct arm_smmu_domain *smmu_domain,
 		},
 	};
 
-	if (arm_smmu_inv_range_too_big(smmu_domain->smmu, size, granule)) {
+	if (smmu_domain->nesting_parent ||
+	    arm_smmu_inv_range_too_big(smmu_domain->smmu, size, granule)) {
 		cmd.opcode = CMDQ_OP_TLBI_S12_VMALL;
 		arm_smmu_cmdq_issue_cmd_with_sync(smmu_domain->smmu, &cmd);
 	} else {
@@ -2832,6 +2865,9 @@ to_smmu_domain_devices(struct iommu_domain *domain)
 	if ((domain->type & __IOMMU_DOMAIN_PAGING) ||
 	    domain->type == IOMMU_DOMAIN_SVA)
 		return to_smmu_domain(domain);
+	if (domain->type == IOMMU_DOMAIN_NESTED)
+		return container_of(domain, struct arm_smmu_nested_domain,
+				    domain)->s2_parent;
 	return NULL;
 }
 
@@ -2893,6 +2929,8 @@ static int arm_smmu_attach_prepare(struct arm_smmu_master *master,
 			return -ENOMEM;
 		master_domain->master = master;
 		master_domain->ssid = state->ssid;
+		master_domain->nested_parent = domain->type ==
+					       IOMMU_DOMAIN_NESTED;
 
 		/*
 		 * During prepare we want the current smmu_domain and new
@@ -3250,6 +3288,108 @@ static struct iommu_domain arm_smmu_blocked_domain = {
 	.ops = &arm_smmu_blocked_ops,
 };
 
+static int arm_smmu_attach_dev_nested(struct iommu_domain *domain,
+				      struct device *dev)
+{
+	struct arm_smmu_nested_domain *nested_domain =
+		container_of(domain, struct arm_smmu_nested_domain, domain);
+	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
+	struct attach_state state = {.ssid = IOMMU_NO_PASID};
+	struct arm_smmu_ste ste;
+	int ret;
+
+	if (arm_smmu_ssids_in_use(&master->cd_table) ||
+	    nested_domain->s2_parent->smmu != master->smmu)
+		return -EINVAL;
+
+	mutex_lock(&master->smmu->asid_lock);
+	/*
+	 * The VM has to control the actual ATS state at the PCI device because
+	 * we forward the invalidations directly from the VM. If the VM doesn't
+	 * think ATS is on it will not generate ATC flushes and the ATC will
+	 * become incoherent. Since we can't access the actual virtual PCI ATS
+	 * config bit here base this off the EATS value in the STE. If the EATS
+	 * is set then the VM must generate ATC flushes.
+	 */
+	state.disable_ats = !nested_domain->enable_ats;
+	ret = arm_smmu_attach_prepare(master, domain, &state);
+	if (ret) {
+		mutex_unlock(&master->smmu->asid_lock);
+		return ret;
+	}
+	arm_smmu_make_nested_domain_ste(&ste, master, nested_domain,
+					state.want_ats);
+	arm_smmu_install_ste_for_dev(master, &ste);
+	arm_smmu_attach_commit(master, &state);
+	mutex_unlock(&master->smmu->asid_lock);
+	return 0;
+}
+
+static void arm_smmu_domain_nested_free(struct iommu_domain *domain)
+{
+	kfree(container_of(domain, struct arm_smmu_nested_domain, domain));
+}
+
+static const struct iommu_domain_ops arm_smmu_nested_ops = {
+	.attach_dev = arm_smmu_attach_dev_nested,
+	.free = arm_smmu_domain_nested_free,
+};
+
+static struct iommu_domain *
+arm_smmu_domain_alloc_nesting(struct device *dev, u32 flags,
+			      struct iommu_domain *parent,
+			      const struct iommu_user_data *user_data)
+{
+	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
+	struct arm_smmu_nested_domain *nested_domain;
+	struct arm_smmu_domain *smmu_parent;
+	struct iommu_hwpt_arm_smmuv3 arg;
+	unsigned int eats;
+	int ret;
+
+	if (!(master->smmu->features & ARM_SMMU_FEAT_NESTING))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	ret = iommu_copy_struct_from_user(&arg, user_data,
+					  IOMMU_HWPT_DATA_ARM_SMMUV3, ste);
+	if (ret)
+		return ERR_PTR(ret);
+
+	if (flags || !(master->smmu->features & ARM_SMMU_FEAT_TRANS_S1))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	if (!(parent->type & __IOMMU_DOMAIN_PAGING))
+		return ERR_PTR(-EINVAL);
+
+	smmu_parent = to_smmu_domain(parent);
+	if (smmu_parent->stage != ARM_SMMU_DOMAIN_S2 ||
+	    smmu_parent->smmu != master->smmu)
+		return ERR_PTR(-EINVAL);
+
+	/* EIO is reserved for invalid STE data. */
+	if ((arg.ste[0] & ~STRTAB_STE_0_NESTING_ALLOWED) ||
+	    (arg.ste[1] & ~STRTAB_STE_1_NESTING_ALLOWED))
+		return ERR_PTR(-EIO);
+
+	/* Only Full ATS or ATS UR is supported */
+	eats = FIELD_GET(STRTAB_STE_1_EATS, le64_to_cpu(arg.ste[1]));
+	if (eats != STRTAB_STE_1_EATS_ABT && eats != STRTAB_STE_1_EATS_TRANS)
+		return ERR_PTR(-EIO);
+
+	nested_domain = kzalloc(sizeof(*nested_domain), GFP_KERNEL_ACCOUNT);
+	if (!nested_domain)
+		return ERR_PTR(-ENOMEM);
+
+	nested_domain->domain.type = IOMMU_DOMAIN_NESTED;
+	nested_domain->domain.ops = &arm_smmu_nested_ops;
+	nested_domain->s2_parent = smmu_parent;
+	nested_domain->enable_ats = eats == STRTAB_STE_1_EATS_TRANS;
+	nested_domain->ste[0] = arg.ste[0];
+	nested_domain->ste[1] = arg.ste[1] & ~cpu_to_le64(STRTAB_STE_1_EATS);
+
+	return &nested_domain->domain;
+}
+
 static struct iommu_domain *
 arm_smmu_domain_alloc_user(struct device *dev, u32 flags,
 			   struct iommu_domain *parent,
@@ -3260,7 +3400,11 @@ arm_smmu_domain_alloc_user(struct device *dev, u32 flags,
 	struct arm_smmu_domain *smmu_domain;
 	int ret;
 
-	if (parent || (flags & ~PAGING_FLAGS))
+	if (parent)
+		return arm_smmu_domain_alloc_nesting(dev, flags, parent,
+						     user_data);
+
+	if (flags & ~PAGING_FLAGS)
 		return ERR_PTR(-EOPNOTSUPP);
 	if (user_data)
 		return ERR_PTR(-EINVAL);
@@ -3275,6 +3419,7 @@ arm_smmu_domain_alloc_user(struct device *dev, u32 flags,
 			goto err_free;
 		}
 		smmu_domain->stage = ARM_SMMU_DOMAIN_S2;
+		smmu_domain->nesting_parent = true;
 	}
 
 	smmu_domain->domain.type = IOMMU_DOMAIN_UNMANAGED;
