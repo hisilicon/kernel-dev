@@ -843,7 +843,7 @@ void arm_smmu_remove_pasid(struct arm_smmu_master *master,
 int arm_smmu_domain_alloc_id(struct arm_smmu_device *smmu,
 			     struct arm_smmu_domain *smmu_domain);
 void arm_smmu_domain_free_id(struct arm_smmu_domain *smmu_domain);
-void arm_smmu_tlb_inv_asid(struct arm_smmu_device *smmu, u16 asid);
+void arm_smmu_tlb_inv_all_s1(struct arm_smmu_domain *smmu_domain);
 void arm_smmu_tlb_inv_range_asid(unsigned long iova, size_t size, int asid,
 				 size_t granule, bool leaf,
 				 struct arm_smmu_domain *smmu_domain);
