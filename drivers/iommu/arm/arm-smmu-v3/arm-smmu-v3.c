@@ -109,19 +109,6 @@ enum arm_smmu_msi_index {
 	ARM_SMMU_MAX_MSIS,
 };
 
-struct arm_smmu_entry_writer_ops;
-struct arm_smmu_entry_writer {
-	const struct arm_smmu_entry_writer_ops *ops;
-	struct arm_smmu_master *master;
-};
-
-struct arm_smmu_entry_writer_ops {
-	unsigned int num_entry_qwords;
-	__le64 v_bit;
-	void (*get_used)(const __le64 *entry, __le64 *used);
-	void (*sync)(struct arm_smmu_entry_writer *writer);
-};
-
 #define NUM_ENTRY_QWORDS                                                \
 	(max(sizeof(struct arm_smmu_ste), sizeof(struct arm_smmu_cd)) / \
 	 sizeof(u64))
@@ -1193,7 +1180,7 @@ static void arm_smmu_page_response(struct device *dev, struct iopf_fault *unused
  * would be nice if this was complete according to the spec, but minimally it
  * has to capture the bits this driver uses.
  */
-static void arm_smmu_get_ste_used(const __le64 *ent, __le64 *used_bits)
+void arm_smmu_get_ste_used(const __le64 *ent, __le64 *used_bits)
 {
 	unsigned int cfg = FIELD_GET(STRTAB_STE_0_CFG, le64_to_cpu(ent[0]));
 
@@ -1323,8 +1310,8 @@ static bool entry_set(struct arm_smmu_entry_writer *writer, __le64 *entry,
  * V=0 process. This relies on the IGNORED behavior described in the
  * specification.
  */
-static void arm_smmu_write_entry(struct arm_smmu_entry_writer *writer,
-				 __le64 *entry, const __le64 *target)
+void arm_smmu_write_entry(struct arm_smmu_entry_writer *writer, __le64 *entry,
+			  const __le64 *target)
 {
 	unsigned int num_entry_qwords = writer->ops->num_entry_qwords;
 	__le64 unused_update[NUM_ENTRY_QWORDS];
@@ -1713,7 +1700,7 @@ static void arm_smmu_write_ste(struct arm_smmu_master *master, u32 sid,
 	}
 }
 
-static void arm_smmu_make_abort_ste(struct arm_smmu_ste *target)
+void arm_smmu_make_abort_ste(struct arm_smmu_ste *target)
 {
 	memset(target, 0, sizeof(*target));
 	target->data[0] = cpu_to_le64(
@@ -1721,7 +1708,7 @@ static void arm_smmu_make_abort_ste(struct arm_smmu_ste *target)
 		FIELD_PREP(STRTAB_STE_0_CFG, STRTAB_STE_0_CFG_ABORT));
 }
 
-static void arm_smmu_make_bypass_ste(struct arm_smmu_ste *target)
+void arm_smmu_make_bypass_ste(struct arm_smmu_ste *target)
 {
 	memset(target, 0, sizeof(*target));
 	target->data[0] = cpu_to_le64(
@@ -1731,9 +1718,9 @@ static void arm_smmu_make_bypass_ste(struct arm_smmu_ste *target)
 		FIELD_PREP(STRTAB_STE_1_SHCFG, STRTAB_STE_1_SHCFG_INCOMING));
 }
 
-static void arm_smmu_make_cdtable_ste(struct arm_smmu_ste *target,
-				      struct arm_smmu_master *master,
-				      bool ats_enabled, unsigned int s1dss)
+void arm_smmu_make_cdtable_ste(struct arm_smmu_ste *target,
+			       struct arm_smmu_master *master, bool ats_enabled,
+			       unsigned int s1dss)
 {
 	struct arm_smmu_ctx_desc_cfg *cd_table = &master->cd_table;
 	struct arm_smmu_device *smmu = master->smmu;
@@ -1786,10 +1773,10 @@ static void arm_smmu_make_cdtable_ste(struct arm_smmu_ste *target,
 	}
 }
 
-static void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
-					struct arm_smmu_master *master,
-					struct arm_smmu_domain *smmu_domain,
-					bool ats_enabled)
+void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
+				 struct arm_smmu_master *master,
+				 struct arm_smmu_domain *smmu_domain,
+				 bool ats_enabled)
 {
 	const struct io_pgtable_cfg *pgtbl_cfg =
 		&io_pgtable_ops_to_pgtable(smmu_domain->pgtbl_ops)->cfg;
