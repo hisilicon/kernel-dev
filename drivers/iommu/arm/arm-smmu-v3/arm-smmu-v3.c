@@ -155,6 +155,7 @@ static struct arm_smmu_option_prop arm_smmu_options[] = {
 static int arm_smmu_domain_finalise(struct arm_smmu_domain *smmu_domain,
 				    struct arm_smmu_device *smmu);
 static int arm_smmu_alloc_cd_tables(struct arm_smmu_master *master);
+static void arm_smmu_tlb_inv_all_s2(struct arm_smmu_domain *smmu_domain);
 
 static void parse_driver_options(struct arm_smmu_device *smmu)
 {
@@ -2272,8 +2273,6 @@ int arm_smmu_atc_inv_domain(struct arm_smmu_domain *smmu_domain,
 static void arm_smmu_tlb_inv_context(void *cookie)
 {
 	struct arm_smmu_domain *smmu_domain = cookie;
-	struct arm_smmu_device *smmu = smmu_domain->smmu;
-	struct arm_smmu_cmdq_ent cmd;
 
 	/*
 	 * NOTE: when io-pgtable is in non-strict mode, we may get here with
@@ -2282,13 +2281,10 @@ static void arm_smmu_tlb_inv_context(void *cookie)
 	 * insertion to guarantee those are observed before the TLBI. Do be
 	 * careful, 007.
 	 */
-	if (smmu_domain->stage == ARM_SMMU_DOMAIN_S1) {
+	if (smmu_domain->stage == ARM_SMMU_DOMAIN_S1)
 		arm_smmu_tlb_inv_all_s1(smmu_domain);
-	} else {
-		cmd.opcode	= CMDQ_OP_TLBI_S12_VMALL;
-		cmd.tlbi.vmid	= smmu_domain->vmid;
-		arm_smmu_cmdq_issue_cmd_with_sync(smmu, &cmd);
-	}
+	else
+		arm_smmu_tlb_inv_all_s2(smmu_domain);
 	arm_smmu_atc_inv_domain(smmu_domain, 0, 0);
 }
 
@@ -2393,14 +2389,25 @@ static void arm_smmu_tlb_inv_range_s2(struct arm_smmu_domain *smmu_domain,
 				      size_t granule, bool leaf)
 {
 	struct arm_smmu_cmdq_ent cmd = {
+		.opcode	= CMDQ_OP_TLBI_S2_IPA,
 		.tlbi = {
+			.vmid	= smmu_domain->vmid,
 			.leaf	= leaf,
 		},
 	};
 
-	cmd.opcode	= CMDQ_OP_TLBI_S2_IPA;
-	cmd.tlbi.vmid	= smmu_domain->vmid;
-	__arm_smmu_tlb_inv_range(&cmd, iova, size, granule, smmu_domain);
+	if (arm_smmu_inv_range_too_big(smmu_domain->smmu, size, granule)) {
+		cmd.opcode = CMDQ_OP_TLBI_S12_VMALL;
+		arm_smmu_cmdq_issue_cmd_with_sync(smmu_domain->smmu, &cmd);
+	} else {
+		__arm_smmu_tlb_inv_range(&cmd, iova, size, granule,
+					 smmu_domain);
+	}
+}
+
+static void arm_smmu_tlb_inv_all_s2(struct arm_smmu_domain *smmu_domain)
+{
+	arm_smmu_tlb_inv_range_s2(smmu_domain, 0, 0, PAGE_SIZE, false);
 }
 
 void arm_smmu_tlb_inv_range_s1(struct arm_smmu_domain *smmu_domain,
@@ -2559,12 +2566,7 @@ void arm_smmu_domain_free_id(struct arm_smmu_domain *smmu_domain)
 		mutex_unlock(&smmu->asid_lock);
 	} else if (smmu_domain->stage == ARM_SMMU_DOMAIN_S2 &&
 		   smmu_domain->vmid) {
-		struct arm_smmu_cmdq_ent cmd = {
-			.opcode = CMDQ_OP_TLBI_S12_VMALL,
-			.tlbi.vmid = smmu_domain->vmid
-		};
-
-		arm_smmu_cmdq_issue_cmd_with_sync(smmu, &cmd);
+		arm_smmu_tlb_inv_all_s2(smmu_domain);
 		ida_free(&smmu->vmid_map, smmu_domain->vmid);
 	}
 }
