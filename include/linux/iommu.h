@@ -116,6 +116,16 @@ struct iommu_page_response {
 	u32	code;
 };
 
+struct iopf_attach_cookie {
+	struct iommu_domain *domain;
+	struct device *dev;
+	unsigned int pasid;
+	refcount_t users;
+
+	void *private;
+	void (*release)(struct iopf_attach_cookie *cookie);
+};
+
 struct iopf_fault {
 	struct iommu_fault fault;
 	/* node for pending lists */
@@ -716,6 +726,7 @@ struct iommu_fault_param {
 	struct device *dev;
 	struct iopf_queue *queue;
 	struct list_head queue_list;
+	struct xarray pasid_cookie;
 
 	struct list_head partial;
 	struct list_head faults;
@@ -1616,6 +1627,12 @@ void iopf_free_group(struct iopf_group *group);
 void iommu_report_device_fault(struct device *dev, struct iopf_fault *evt);
 void iopf_group_response(struct iopf_group *group,
 			 enum iommu_page_response_code status);
+int iopf_domain_attach(struct iommu_domain *domain, struct device *dev,
+		       ioasid_t pasid, struct iopf_attach_cookie *cookie);
+void iopf_domain_detach(struct iommu_domain *domain, struct device *dev,
+			ioasid_t pasid);
+int iopf_domain_replace(struct iommu_domain *domain, struct device *dev,
+			ioasid_t pasid, struct iopf_attach_cookie *cookie);
 #else
 static inline int
 iopf_queue_add_device(struct iopf_queue *queue, struct device *dev)
@@ -1659,6 +1676,25 @@ iommu_report_device_fault(struct device *dev, struct iopf_fault *evt)
 static inline void iopf_group_response(struct iopf_group *group,
 				       enum iommu_page_response_code status)
 {
+}
+
+static inline int iopf_domain_attach(struct iommu_domain *domain,
+				     struct device *dev, ioasid_t pasid,
+				     struct iopf_attach_cookie *cookie)
+{
+	return -ENODEV;
+}
+
+static inline void iopf_domain_detach(struct iommu_domain *domain,
+				      struct device *dev, ioasid_t pasid)
+{
+}
+
+static inline int iopf_domain_replace(struct iommu_domain *domain,
+				      struct device *dev, ioasid_t pasid,
+				      struct iopf_attach_cookie *cookie)
+{
+	return -ENODEV;
 }
 #endif /* CONFIG_IOMMU_IOPF */
 #endif /* __LINUX_IOMMU_H */

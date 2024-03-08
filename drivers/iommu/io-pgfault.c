@@ -39,6 +39,103 @@ static void iopf_put_dev_fault_param(struct iommu_fault_param *fault_param)
 		kfree_rcu(fault_param, rcu);
 }
 
+/* Get the domain attachment cookie for pasid of a device. */
+static struct iopf_attach_cookie __maybe_unused *
+iopf_pasid_cookie_get(struct device *dev, ioasid_t pasid)
+{
+	struct iommu_fault_param *iopf_param = iopf_get_dev_fault_param(dev);
+	struct iopf_attach_cookie *curr;
+
+	if (!iopf_param)
+		return ERR_PTR(-ENODEV);
+
+	xa_lock(&iopf_param->pasid_cookie);
+	curr = xa_load(&iopf_param->pasid_cookie, pasid);
+	if (curr && !refcount_inc_not_zero(&curr->users))
+		curr = ERR_PTR(-EINVAL);
+	xa_unlock(&iopf_param->pasid_cookie);
+
+	iopf_put_dev_fault_param(iopf_param);
+
+	return curr;
+}
+
+/* Put the domain attachment cookie. */
+static void iopf_pasid_cookie_put(struct iopf_attach_cookie *cookie)
+{
+	if (cookie && refcount_dec_and_test(&cookie->users))
+		cookie->release(cookie);
+}
+
+/*
+ * Set the domain attachment cookie for pasid of a device. Return 0 on
+ * success, or error number on failure.
+ */
+static int iopf_pasid_cookie_set(struct iommu_domain *domain, struct device *dev,
+				 ioasid_t pasid, struct iopf_attach_cookie *cookie)
+{
+	struct iommu_fault_param *iopf_param = iopf_get_dev_fault_param(dev);
+	struct iopf_attach_cookie *curr;
+
+	if (!iopf_param)
+		return -ENODEV;
+
+	refcount_set(&cookie->users, 1);
+	cookie->dev = dev;
+	cookie->pasid = pasid;
+	cookie->domain = domain;
+
+	curr = xa_cmpxchg(&iopf_param->pasid_cookie, pasid, NULL, cookie, GFP_KERNEL);
+	iopf_put_dev_fault_param(iopf_param);
+
+	return curr ? xa_err(curr) : 0;
+}
+
+/* Clear the domain attachment cookie for pasid of a device. */
+static void iopf_pasid_cookie_clear(struct device *dev, ioasid_t pasid)
+{
+	struct iommu_fault_param *iopf_param = iopf_get_dev_fault_param(dev);
+	struct iopf_attach_cookie *curr;
+
+	if (WARN_ON(!iopf_param))
+		return;
+
+	curr = xa_erase(&iopf_param->pasid_cookie, pasid);
+	/* paired with iopf_pasid_cookie_set/replace() */
+	iopf_pasid_cookie_put(curr);
+
+	iopf_put_dev_fault_param(iopf_param);
+}
+
+/* Replace the domain attachment cookie for pasid of a device. */
+static int iopf_pasid_cookie_replace(struct iommu_domain *domain, struct device *dev,
+				     ioasid_t pasid, struct iopf_attach_cookie *cookie)
+{
+	struct iommu_fault_param *iopf_param = iopf_get_dev_fault_param(dev);
+	struct iopf_attach_cookie *curr;
+
+	if (!iopf_param)
+		return -ENODEV;
+
+	if (cookie) {
+		refcount_set(&cookie->users, 1);
+		cookie->dev = dev;
+		cookie->pasid = pasid;
+		cookie->domain = domain;
+	}
+
+	curr = xa_store(&iopf_param->pasid_cookie, pasid, cookie, GFP_KERNEL);
+	if (xa_err(curr))
+		return xa_err(curr);
+
+	/* paired with iopf_pasid_cookie_set/replace() */
+	iopf_pasid_cookie_put(curr);
+
+	iopf_put_dev_fault_param(iopf_param);
+
+	return 0;
+}
+
 static void __iopf_free_group(struct iopf_group *group)
 {
 	struct iopf_fault *iopf, *next;
@@ -354,6 +451,7 @@ int iopf_queue_add_device(struct iopf_queue *queue, struct device *dev)
 	mutex_init(&fault_param->lock);
 	INIT_LIST_HEAD(&fault_param->faults);
 	INIT_LIST_HEAD(&fault_param->partial);
+	xa_init(&fault_param->pasid_cookie);
 	fault_param->dev = dev;
 	refcount_set(&fault_param->users, 1);
 	list_add(&fault_param->queue_list, &queue->devices);
@@ -491,3 +589,63 @@ void iopf_queue_free(struct iopf_queue *queue)
 	kfree(queue);
 }
 EXPORT_SYMBOL_GPL(iopf_queue_free);
+
+int iopf_domain_attach(struct iommu_domain *domain, struct device *dev,
+		       ioasid_t pasid, struct iopf_attach_cookie *cookie)
+{
+	int ret;
+
+	if (!domain->iopf_handler)
+		return -EINVAL;
+
+	if (pasid == IOMMU_NO_PASID)
+		ret = iommu_attach_group(domain, dev->iommu_group);
+	else
+		ret = iommu_attach_device_pasid(domain, dev, pasid);
+	if (ret)
+		return ret;
+
+	ret = iopf_pasid_cookie_set(domain, dev, pasid, cookie);
+	if (ret) {
+		if (pasid == IOMMU_NO_PASID)
+			iommu_detach_group(domain, dev->iommu_group);
+		else
+			iommu_detach_device_pasid(domain, dev, pasid);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iopf_domain_attach);
+
+void iopf_domain_detach(struct iommu_domain *domain, struct device *dev, ioasid_t pasid)
+{
+	iopf_pasid_cookie_clear(dev, pasid);
+
+	if (pasid == IOMMU_NO_PASID)
+		iommu_detach_group(domain, dev->iommu_group);
+	else
+		iommu_detach_device_pasid(domain, dev, pasid);
+}
+EXPORT_SYMBOL_GPL(iopf_domain_detach);
+
+int iopf_domain_replace(struct iommu_domain *domain, struct device *dev,
+			ioasid_t pasid, struct iopf_attach_cookie *cookie)
+{
+	struct iommu_domain *old_domain = iommu_get_domain_for_dev(dev);
+	int ret;
+
+	if (!old_domain || pasid != IOMMU_NO_PASID ||
+	    (!old_domain->iopf_handler && !domain->iopf_handler))
+		return -EINVAL;
+
+	ret = iommu_group_replace_domain(dev->iommu_group, domain);
+	if (ret)
+		return ret;
+
+	ret = iopf_pasid_cookie_replace(domain, dev, pasid, cookie);
+	if (ret)
+		iommu_group_replace_domain(dev->iommu_group, old_domain);
+
+	return ret;
+}
+EXPORT_SYMBOL_NS_GPL(iopf_domain_replace, IOMMUFD_INTERNAL);
