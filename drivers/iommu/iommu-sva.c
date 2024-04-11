@@ -184,14 +184,7 @@ void iommu_sva_unbind_device(struct iommu_sva *handle)
 	struct iommu_mm_data *iommu_mm = domain->mm->iommu_mm;
 	struct device *dev = handle->dev;
 
-	mutex_lock(&iommu_sva_lock);
-	if (!refcount_dec_and_test(&handle->users)) {
-		mutex_unlock(&iommu_sva_lock);
-		return;
-	}
-	list_del(&handle->handle_item);
-	mutex_unlock(&iommu_sva_lock);
-
+	iopf_domain_detach(domain, dev, iommu_mm->pasid);
 	kfree(handle);
 }
 EXPORT_SYMBOL_GPL(iommu_sva_unbind_device);
