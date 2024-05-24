@@ -1599,6 +1599,8 @@ void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
 		FIELD_PREP(STRTAB_STE_1_EATS,
 			   ats_enabled ? STRTAB_STE_1_EATS_TRANS : 0));
 
+	if (smmu->features & ARM_SMMU_FEAT_S2FWB)
+		target->data[1] |= cpu_to_le64(STRTAB_STE_1_S2FWB);
 	if (smmu->features & ARM_SMMU_FEAT_ATTR_TYPES_OVR)
 		target->data[1] |= cpu_to_le64(FIELD_PREP(STRTAB_STE_1_SHCFG,
 							  STRTAB_STE_1_SHCFG_INCOMING));
@@ -2387,6 +2389,7 @@ static int arm_smmu_domain_finalise(struct arm_smmu_domain *smmu_domain,
 	int ret;
 	unsigned long ias, oas;
 	enum io_pgtable_fmt fmt;
+	unsigned int quirks = 0;
 	struct io_pgtable_cfg pgtbl_cfg;
 	struct io_pgtable_ops *pgtbl_ops;
 
@@ -2407,12 +2410,15 @@ static int arm_smmu_domain_finalise(struct arm_smmu_domain *smmu_domain,
 		ias = smmu->ias;
 		oas = smmu->oas;
 		fmt = ARM_64_LPAE_S2;
+		if (smmu->features & ARM_SMMU_FEAT_S2FWB)
+			quirks |= IO_PGTABLE_QUIRK_ARM_S2FWB;
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	pgtbl_cfg = (struct io_pgtable_cfg) {
+		.quirks		= quirks,
 		.pgsize_bitmap	= smmu->pgsize_bitmap,
 		.ias		= ias,
 		.oas		= oas,
@@ -4186,6 +4192,8 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 
 	/* IDR3 */
 	reg = readl_relaxed(smmu->base + ARM_SMMU_IDR3);
+	if (FIELD_GET(IDR3_FWB, reg))
+		smmu->features |= ARM_SMMU_FEAT_S2FWB;
 	if (FIELD_GET(IDR3_RIL, reg))
 		smmu->features |= ARM_SMMU_FEAT_RANGE_INV;
 
