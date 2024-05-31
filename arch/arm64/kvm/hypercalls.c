@@ -625,7 +625,7 @@ int kvm_arm_set_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 		 * other way around.
 		 */
 		if (get_kernel_wa_level(reg->id) < wa_level)
-			return -EINVAL;
+			printk("%s: Shameer: ignore mismatch: get_kernel_wa_level(reg->id) %d wa_level %d\n", __func__, get_kernel_wa_level(reg->id), wa_level);
 
 		return 0;
 	case KVM_REG_ARM_STD_BMAP:
