@@ -1743,6 +1743,9 @@ static u64 read_sanitised_id_aa64dfr0_el1(struct kvm_vcpu *vcpu,
 	/* Hide SPE from guests */
 	val &= ~ID_AA64DFR0_EL1_PMSVer_MASK;
 
+	/* Hide DoubleLock from guests */
+	val |= ID_AA64DFR0_EL1_DoubleLock_MASK;
+
 	return val;
 }
 
@@ -1752,6 +1755,8 @@ static int set_id_aa64dfr0_el1(struct kvm_vcpu *vcpu,
 {
 	u8 debugver = SYS_FIELD_GET(ID_AA64DFR0_EL1, DebugVer, val);
 	u8 pmuver = SYS_FIELD_GET(ID_AA64DFR0_EL1, PMUVer, val);
+	u64 hw_val = read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1);
+	u64 doublelock_mask = ID_AA64DFR0_EL1_DoubleLock_MASK;
 
 	/*
 	 * Prior to commit 3d0dba5764b9 ("KVM: arm64: PMU: Move the
@@ -1776,6 +1781,14 @@ static int set_id_aa64dfr0_el1(struct kvm_vcpu *vcpu,
 	 */
 	if (debugver < ID_AA64DFR0_EL1_DebugVer_IMP)
 		return -EINVAL;
+
+	/*
+	 * KVM used to expose OS double lock feature bit to Guests but returns
+	 * RAZ/WI on Guest access. We are hiding OS double lock now. But for
+	 * migration to work ignore the VMM write.
+	 */
+	if ((hw_val & doublelock_mask) == (val & doublelock_mask))
+		val &= ID_AA64DFR0_EL1_DoubleLock_MASK;
 
 	return set_id_reg(vcpu, rd, val);
 }
