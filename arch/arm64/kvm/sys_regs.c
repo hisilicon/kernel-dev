@@ -1546,6 +1546,12 @@ static u64 __kvm_read_sanitised_id_reg(const struct kvm_vcpu *vcpu,
 			val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE);
 
 		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_SME);
+		/*
+		 * MPAM is disabled by default as KVM also needs a set of PARTID to
+		 * program the MPAMVPMx_EL2 PARTID remapping registers with. Hide,
+		 * MPAM_frac as well from Guest to handle FEAT_MPAMv0p1.
+		 */
+		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MPAM_frac);
 		break;
 	case SYS_ID_AA64ISAR1_EL1:
 		if (!vcpu_has_ptrauth(vcpu))
@@ -1845,6 +1851,29 @@ static int set_id_aa64pfr0_el1(struct kvm_vcpu *vcpu,
 	 */
 	if ((hw_val & mpam_mask) == (user_val & mpam_mask))
 		user_val &= ~ID_AA64PFR0_EL1_MPAM_MASK;
+
+	return set_id_reg(vcpu, rd, user_val);
+}
+
+static int set_id_aa64pfr1_el1(struct kvm_vcpu *vcpu,
+			       const struct sys_reg_desc *rd, u64 user_val)
+{
+	u64 hw_val = read_sanitised_ftr_reg(SYS_ID_AA64PFR1_EL1);
+	u64 mpamfrac_mask = ID_AA64PFR1_EL1_MPAM_frac_MASK;
+
+	/*
+	 * KVM doesn't support MPAM but Commit 14e270fa5c4c ("arm64/cpufeature:
+	 * Add remaining feature bits in ID_AA64PFR1 register") exposed the
+	 * MPAM_frac field of AA64PFR1_EL1 to guests.Though we already hide
+	 * MPAM in ID_AA64PFR0_EL1, need to hide this MPAM_frac field as well
+	 * in order to take of systems with FEAT_MPAMv0p1 support.
+	 *
+	 * Similar to MPAM field in ID_AA64PFR0_EL1, on CPUs that support
+	 * FEAT_MPAMv0p1, permit user-space to write the santisied value to
+	 * ID_AA64PFR1_EL1.MPAM_frac, but ignore this field.
+	 */
+	if ((hw_val & mpamfrac_mask) == (user_val & mpamfrac_mask))
+		user_val &= ~ID_AA64PFR1_EL1_MPAM_frac_MASK;
 
 	return set_id_reg(vcpu, rd, user_val);
 }
@@ -2400,7 +2429,11 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 		   ID_AA64PFR0_EL1_GIC |
 		   ID_AA64PFR0_EL1_AdvSIMD |
 		   ID_AA64PFR0_EL1_FP), },
-	ID_SANITISED(ID_AA64PFR1_EL1),
+	{ SYS_DESC(SYS_ID_AA64PFR1_EL1),
+	  .access = access_id_reg,
+	  .get_user = get_id_reg,
+	  .set_user = set_id_aa64pfr1_el1,
+	  .reset = kvm_read_sanitised_id_reg,},
 	ID_UNALLOCATED(4,2),
 	ID_UNALLOCATED(4,3),
 	ID_WRITABLE(ID_AA64ZFR0_EL1, ~ID_AA64ZFR0_EL1_RES0),
