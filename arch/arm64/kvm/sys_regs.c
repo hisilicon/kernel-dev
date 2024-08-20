@@ -2622,6 +2622,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	ID_WRITABLE(CTR_EL0, CTR_EL0_DIC_MASK |
 			     CTR_EL0_IDC_MASK |
 			     CTR_EL0_DminLine_MASK |
+			     CTR_EL0_L1Ip_MASK |
 			     CTR_EL0_IminLine_MASK),
 	{ SYS_DESC(SYS_SVCR), undef_access },
 
