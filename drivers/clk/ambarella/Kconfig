@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config CLK_AMBARELLA_CV75
+	bool "Ambarella CV75 RCT clock controller"
+	depends on ARCH_AMBARELLA || COMPILE_TEST
+	default ARCH_AMBARELLA
+	help
+	  Say Y to enable the Ambarella CV75 RCT clock controller for
+	  early bring-up clocks (core PLL, AHB, APB, UART0).
