@@ -70,7 +70,8 @@ struct pl061_drvdata {
 	unsigned long quirks;
 	bool clear_irq_on_type;
 	bool pm;
-	int (*reg_mask_xlate)(struct gpio_regmap *gpio, unsigned int base,
+	int (*reg_mask_xlate)(struct gpio_regmap *gpio,
+			      enum gpio_regmap_operation op, unsigned int base,
 			      unsigned int offset, unsigned int *reg,
 			      unsigned int *mask);
 };
@@ -92,9 +93,10 @@ static unsigned int pl061_line_mask(struct pl061 *pl061, irq_hw_number_t hwirq)
 	return BIT(hwirq % pl061->data->ngpio);
 }
 
-static int pl061_arm_reg_mask_xlate(struct gpio_regmap *gpio, unsigned int base,
-				    unsigned int offset, unsigned int *reg,
-				    unsigned int *mask)
+static int pl061_arm_reg_mask_xlate(struct gpio_regmap *gpio,
+				    enum gpio_regmap_operation op,
+				    unsigned int base, unsigned int offset,
+				    unsigned int *reg, unsigned int *mask)
 {
 	if (base == 0)
 		*reg = BIT(offset + PL061_DATA_OFFSET);
